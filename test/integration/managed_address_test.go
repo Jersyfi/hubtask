@@ -63,8 +63,9 @@ func addressRequester(ctx context.Context, t *testing.T) identityservice.Request
 	t.Helper()
 	ids := clockadapter.NewUUIDv7(clockadapter.System{})
 	return identityservice.RequestAddress{
-		Requests: addressStoreOf(), Authorizer: allowAll{}, Notifier: postgres.NewQueue(ids, clockadapter.System{}),
-		Audit: postgres.NewAuditSink(generator{t}), UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
+		Requests: addressStoreOf(), Authorizer: allowAll{}, Held: postgres.NewMembershipRepository(),
+		Notifier: postgres.NewQueue(ids, clockadapter.System{}),
+		Audit:    postgres.NewAuditSink(generator{t}), UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 		Clock: clockadapter.System{}, IDs: ids,
 	}
 }

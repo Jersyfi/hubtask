@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Membership } from '@hubtask/sync-engine';
 
-import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
+import { candidatesOf, effectiveRole, endsTheLastOwner, grantableOf, groupsNamedBy, holdersOf, mayIssueWayIn, mayRevoke, membershipsPath, ownershipOf, scopesAlong, scopesInForce } from './people.ts';
 
 const HUB = '11111111-0000-4000-8000-000000000001';
 const COLLECTION = '11111111-0000-4000-8000-000000000002';
@@ -197,6 +197,19 @@ test('a role is revoked only by somebody who may grant it there (domain-model.md
   assert.equal(mayRevoke('MEMBER', []), false);
   // Not yet answered is not "yes".
   assert.equal(mayRevoke('GUEST', undefined), false);
+});
+
+test('a new way in is offered only for roles the reader may give at the workspace (identity.md §13)', () => {
+  const belowOwner = ['ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'] as const;
+  const all = ['OWNER', ...belowOwner] as const;
+  assert.equal(mayIssueWayIn(['OWNER'], belowOwner), false);
+  assert.equal(mayIssueWayIn(['MEMBER', 'OWNER'], belowOwner), false);
+  assert.equal(mayIssueWayIn(['MEMBER'], belowOwner), true);
+  assert.equal(mayIssueWayIn(['OWNER'], all), true);
+  // An account the screen shows holding nothing is no certain refusal.
+  assert.equal(mayIssueWayIn([], belowOwner), true);
+  // Not yet answered is not "yes".
+  assert.equal(mayIssueWayIn(['MEMBER'], undefined), false);
 });
 
 const ORDER = ['OWNER', 'ADMIN', 'MEMBER', 'CONTRIBUTOR', 'VIEWER', 'GUEST', 'AUDITOR'];

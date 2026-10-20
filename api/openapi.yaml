@@ -2747,7 +2747,10 @@ paths:
         earlier link stops working at once. Without mail, an act an automation rule runs is refused
         with `accounts.invitation_needs_a_person`.
 
-        Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+        Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
+        a way into the account, so it is also held to the role ceiling: an owner renews any
+        invitation, an administrator only one whose roles are all at or below their own - otherwise
+        `403 access.role_above_own` with the `role`. Auditable.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
@@ -2891,7 +2894,10 @@ paths:
 
         Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
         otherwise). An act an automation rule runs is refused with
-        `accounts.managed_needs_a_person`: a run reads no answer.
+        `accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as
+        the account, so it is held to the role ceiling: an owner issues one for anybody, an
+        administrator only for an account whose roles are all at or below their own - otherwise
+        `403 access.role_above_own` with the `role`, before the proof is spent.
 
         There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
         no-store`: an answer kept for a replay would keep the start password with it.
@@ -2921,6 +2927,9 @@ paths:
         identifier.
 
         The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+        For somebody else's account the address is a way into it, so the request is held to the role
+        ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+        at or below their own - otherwise `403 access.role_above_own` with the `role`.
         Only a managed account - a sign-in name and no address - takes one: any other is refused
         with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
         an address would take the person's one way in, and the request is refused with
@@ -4179,6 +4188,10 @@ paths:
 
         Asking for an admin scope is a privileged action: it demands a fresh
         step-up, presented in the `X-Hubtask-Step-Up` header.
+
+        A token for a service account is held to the role ceiling: an owner mints one for any
+        service account, an administrator only for one whose roles are all at or below their own -
+        otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/StepUpToken"

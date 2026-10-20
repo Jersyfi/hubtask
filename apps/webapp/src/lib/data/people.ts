@@ -198,6 +198,21 @@ export function mayRevoke(role: MembershipRole, grantable: readonly MembershipRo
 }
 
 /**
+ * Whether a new way into an account — a start password, an address for somebody else, an invitation
+ * link, a service account's token — may be offered for the roles the screen shows it holding. The
+ * server holds it to the ceiling measured on the workspace (identity.md §13), so the workspace's
+ * `grantable_roles` answer: a role among them that is not is a certain refusal (P-05). A role held
+ * somewhere the screen does not show may still be refused; the refusal's sentence says so then.
+ */
+export function mayIssueWayIn(
+  roles: readonly MembershipRole[],
+  grantableAtWorkspace: readonly MembershipRole[] | undefined,
+): boolean {
+  if (!grantableAtWorkspace) return false;
+  return roles.every((role) => grantableAtWorkspace.includes(role));
+}
+
+/**
  * Whether revoking this row would end the workspace's last owner, which the server refuses
  * (`memberships.last_owner`, domain-model.md §3.2): a person's own `OWNER` on the workspace, the
  * person able to act, and no other `OWNER` row on the workspace at all.

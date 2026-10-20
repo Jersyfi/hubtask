@@ -81,8 +81,8 @@ func invitationRegistry(t *testing.T, uow persistence.UnitOfWork, signIn postgre
 			Links: links,
 		}.Descriptor(),
 		identityservice.RenewInvitation{
-			Accounts: accounts, Authorizer: allowAll{}, Notifier: jobs, Audit: sink, UnitOfWork: uow,
-			Clock: clockadapter.System{}, Links: links,
+			Accounts: accounts, Authorizer: allowAll{}, Held: postgres.NewMembershipRepository(),
+			Notifier: jobs, Audit: sink, UnitOfWork: uow, Clock: clockadapter.System{}, Links: links,
 		}.Descriptor(),
 	)
 	if err != nil {

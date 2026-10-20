@@ -4477,6 +4477,7 @@
   "app.tokens.revoke": "Withdraw",
   "app.tokens.working": "Working",
   "app.tokens.mint_title": "New token",
+  "app.tokens.mint_above_own": "This service account holds a role above yours, so only someone who holds that role can make a token for it.",
   "app.tokens.mint": "Create the token",
   "app.tokens.minting": "Creating",
   "app.tokens.minted_title": "Your new token",

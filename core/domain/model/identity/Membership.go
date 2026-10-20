@@ -52,6 +52,23 @@ func (r Role) AtLeast(other Role) bool {
 	return mine >= 0 && theirs >= 0 && mine <= theirs
 }
 
+// Strongest is the most powerful of the roles, by the ladder above, and false when there is none
+// that is defined. A role nobody defined is passed over rather than answered: it carries no right,
+// and naming it as the strongest would let it hide one that does.
+func Strongest(held []Role) (Role, bool) {
+	var best Role
+	found := false
+	for _, role := range held {
+		if !role.Valid() {
+			continue
+		}
+		if !found || role.AtLeast(best) {
+			best, found = role, true
+		}
+	}
+	return best, found
+}
+
 // ScopeType is the level a membership is granted at. The permission then applies downwards:
 // tenant → hub → collection → item (domain-model.md §3.2).
 type ScopeType string

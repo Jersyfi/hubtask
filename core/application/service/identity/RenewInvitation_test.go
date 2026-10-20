@@ -21,6 +21,7 @@ type renewFixture struct {
 	sink     *auditSink
 	queued   *notifier
 	minter   *linkMinter
+	held     heldRoles
 	handler  RenewInvitation
 }
 
@@ -33,10 +34,10 @@ func newRenewFixture(t *testing.T, status domain.AccountStatus, withoutMail bool
 	invited.Status = status
 	f := &renewFixture{
 		accounts: newAccounts(invited), auth: &authorizer{}, sink: &auditSink{},
-		queued: &notifier{}, minter: &linkMinter{},
+		queued: &notifier{}, minter: &linkMinter{}, held: heldRoles{},
 	}
 	f.handler = RenewInvitation{
-		Accounts: f.accounts, Authorizer: f.auth, Notifier: f.queued, Audit: f.sink,
+		Accounts: f.accounts, Authorizer: f.auth, Held: f.held, Notifier: f.queued, Audit: f.sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 	if withoutMail {

@@ -599,8 +599,8 @@ func run() error {
 	// the descriptors is one that grows a scope no operation checks.
 	accessTokenWriter := identity.AccessTokenWriter{
 		Tokens:   postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
-		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
 		// StepUp is handed in once the sign-in rule is taught (stepUpVerifier, below).
@@ -1579,8 +1579,8 @@ func run() error {
 			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.RenewInvitation{
-			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			Notifier: jobs, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.GetOwnAccount{
@@ -1605,12 +1605,14 @@ func run() error {
 		}.Descriptor(),
 		identity.IssueStartPassword{
 			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
-			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			StepUp:    identity.StepUpVerifier{Writer: sessionWriter},
 			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.RequestAddress{
-			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			Requests: addressRequests, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 			Door: passwordWriter,
 		}.Descriptor(),

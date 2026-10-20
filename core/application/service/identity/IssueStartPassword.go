@@ -58,26 +58,29 @@ type IssueStartPassword struct {
 	StartPasswords repository.StartPasswords
 	Sessions       SessionEnder
 	Authorizer     Authorizer
-	StepUp         stepup.Verifier
-	Passwords      cryptoport.PasswordHasher
-	Entropy        clock.Entropy
-	Audit          audit.Sink
-	UnitOfWork     persistence.UnitOfWork
-	Clock          clock.Clock
+	// Held is what the account holds, for the ceiling: the start password is a way into it.
+	Held       repository.HeldRoles
+	StepUp     stepup.Verifier
+	Passwords  cryptoport.PasswordHasher
+	Entropy    clock.Entropy
+	Audit      audit.Sink
+	UnitOfWork persistence.UnitOfWork
+	Clock      clock.Clock
 }
 
 // Execute renews the start password and answers it once.
 func (h IssueStartPassword) Execute(
 	ctx context.Context, actor appshared.ActorContext, accountID shared.ID, stepUpToken string,
 ) (StartPasswordIssued, error) {
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []domain.Scope{domain.TenantScope()},
 		Action:     StartPasswordIssuedAction,
 		TokenScope: membersWrite,
 		TargetType: accountTarget,
 		TargetID:   accountID,
-	}); err != nil {
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return StartPasswordIssued{}, err
 	}
 	// A rule's run reads no answer: the new start password would reach nobody, and the person
@@ -86,18 +89,27 @@ func (h IssueStartPassword) Execute(
 		return StartPasswordIssued{}, shared.ErrForbidden.WithDetail("accounts.managed_needs_a_person")
 	}
 
+	ceiling := wayInCeiling{Held: h.Held, Authorizer: h.Authorizer}
 	var account domain.Account
+	var held []domain.Role
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		read, err := h.Accounts.Find(ctx, accountID)
+		if err != nil {
+			return err
+		}
 		account = read
+		held, err = ceiling.heldBy(ctx, accountID)
 		return err
 	})
 	if err != nil {
 		return StartPasswordIssued{}, err
 	}
-	// Before the proof is demanded, so that a refused target does not burn it.
+	// Both before the proof is demanded, so that a refused target does not burn it.
 	if !account.OnlyThePasswordReaches() {
 		return StartPasswordIssued{}, notManaged()
+	}
+	if err := ceiling.hold(ctx, actor, request, held); err != nil {
+		return StartPasswordIssued{}, err
 	}
 	if err := stepup.Demand(ctx, h.StepUp, actor.TenantID, actor.AccountID, stepUpToken); err != nil {
 		return StartPasswordIssued{}, err

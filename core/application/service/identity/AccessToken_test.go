@@ -41,7 +41,7 @@ func holder() appshared.ActorContext {
 func tokenWriter(t *testing.T, accounts *accountStore, auth *authorizer, sink *auditSink) AccessTokenWriter {
 	t.Helper()
 	return AccessTokenWriter{
-		Tokens: &tokens{}, Accounts: accounts, Authorizer: auth, Audit: sink,
+		Tokens: &tokens{}, Accounts: accounts, Authorizer: auth, Held: heldRoles{}, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: ids{next: tokenRowID},
 		Entropy: clock.FixedEntropy{Seed: 7}, KnownScopes: buildScopes,
 	}

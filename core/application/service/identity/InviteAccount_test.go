@@ -131,11 +131,18 @@ type authorizer struct {
 	// refuseRole answers access.role_above_own to a request at stake for that role only, as the
 	// ceiling does for an administrator and OWNER.
 	refuseRole domain.Role
-	requests   []access.Request
+	// own is the actor's role on the workspace, as the ceiling measures it: a request at stake for
+	// a role above it is refused with access.role_above_own. Empty leaves the ceiling out.
+	own      domain.Role
+	requests []access.Request
 }
 
 func (a *authorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
 	a.requests = append(a.requests, request)
+	if a.own != "" && request.Grants != "" && !a.own.AtLeast(request.Grants) {
+		return shared.ErrForbidden.WithDetail("access.role_above_own").
+			WithParams(map[string]string{"role": string(request.Grants)})
+	}
 	if request.Grants != "" && a.refuseGrant != nil {
 		return a.refuseGrant
 	}

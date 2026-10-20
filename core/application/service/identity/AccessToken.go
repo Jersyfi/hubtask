@@ -56,6 +56,8 @@ type AccessTokenWriter struct {
 	Tokens     repository.AccessTokens
 	Accounts   repository.Accounts
 	Authorizer Authorizer
+	// Held is what a service account holds, for the ceiling on a token minted for it.
+	Held       repository.HeldRoles
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -149,6 +151,11 @@ func (h CreateAccessToken) Execute(
 	owner, err := w.resolveOwner(ctx, actor, cmd.AccountID, accountRead, TokenCreatedAction)
 	if err != nil {
 		return MintedToken{}, err
+	}
+	if owner != actor.AccountID {
+		if err := w.holdTheMint(ctx, actor, owner); err != nil {
+			return MintedToken{}, err
+		}
 	}
 	if err := w.checkScopes(cmd.Scopes); err != nil {
 		return MintedToken{}, err
@@ -317,20 +324,44 @@ func (w AccessTokenWriter) resolveOwner(
 	return requested, nil
 }
 
-// requireServiceAccountAdministration is the one path to somebody else's credentials, and it
-// leads only to a machine's.
-func (w AccessTokenWriter) requireServiceAccountAdministration(
-	ctx context.Context, actor appshared.ActorContext, owner shared.ID,
-	tokenScope string, action audit.Action,
-) error {
-	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
+// serviceAccountRequest is the permission question about a service account's credentials.
+func serviceAccountRequest(owner shared.ID, tokenScope string, action audit.Action) access.Request {
+	return access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []domain.Scope{domain.TenantScope()},
 		Action:     action,
 		TokenScope: tokenScope,
 		TargetType: tokenTarget,
 		TargetID:   owner,
-	}); err != nil {
+	}
+}
+
+// holdTheMint holds a token minted for a service account to the role ceiling: whoever holds the
+// token acts with every role the account holds (identity.md §13). Only the mint: listing and
+// revoking hand out nothing, and revoking is never harder than minting.
+//
+// Before any step-up the scopes demand, so a refusal does not spend the proof.
+func (w AccessTokenWriter) holdTheMint(ctx context.Context, actor appshared.ActorContext, owner shared.ID) error {
+	ceiling := wayInCeiling{Held: w.Held, Authorizer: w.Authorizer}
+	var held []domain.Role
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		held, err = ceiling.heldBy(ctx, owner)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return ceiling.hold(ctx, actor, serviceAccountRequest(owner, accountRead, TokenCreatedAction), held)
+}
+
+// requireServiceAccountAdministration is the one path to somebody else's credentials, and it
+// leads only to a machine's.
+func (w AccessTokenWriter) requireServiceAccountAdministration(
+	ctx context.Context, actor appshared.ActorContext, owner shared.ID,
+	tokenScope string, action audit.Action,
+) error {
+	if err := w.Authorizer.Authorize(ctx, actor, serviceAccountRequest(owner, tokenScope, action)); err != nil {
 		return err
 	}
 

@@ -49,9 +49,15 @@
   interface Props {
     /** A service account's tokens, where the caller may mint for one. Absent means their own. */
     accountId?: string;
+    /**
+     * Whether the reader may mint for that service account: a token for it is held to the role
+     * ceiling (identity.md §13), so a role it holds above the reader's own is a certain refusal
+     * (P-05). One's own tokens are always minted.
+     */
+    mintable?: boolean;
   }
 
-  const { accountId }: Props = $props();
+  const { accountId, mintable = true }: Props = $props();
 
   /**
    * The scopes the operator register guards (identity.md §19): the control plane's, `admin:tenants`
@@ -298,6 +304,9 @@
 
   {/if}
 
+  {#if !mintable}
+    <p class="quiet">{t('app.tokens.mint_above_own')}</p>
+  {:else}
   <Stack gap="150">
     <h2 class="section">{t('app.tokens.mint_title')}</h2>
     <form onsubmit={mint}>
@@ -370,6 +379,7 @@
       </Stack>
     </form>
   </Stack>
+  {/if}
 </Stack>
 
 <style>

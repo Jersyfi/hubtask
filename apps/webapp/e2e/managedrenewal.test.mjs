@@ -37,7 +37,7 @@ export const LENA = { id: '01a0e2e0-0000-7000-8000-0000000000c1', kind: 'USER', 
 const served = await serve(DIST);
 test.after(() => served.close());
 
-async function open(browser, { methods = undefined } = {}) {
+async function open(browser, { methods = undefined, reader = 'OWNER', lenaRole = 'CONTRIBUTOR' } = {}) {
   const sent = { renewals: [], proofs: [], addresses: [] };
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
@@ -53,11 +53,12 @@ async function open(browser, { methods = undefined } = {}) {
         json: {
           ...PAGE,
           data: [
-            { id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: 'OWNER' },
+            { id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role: reader },
             { id: 'm9', scope_type: 'TENANT', account_id: OTHER.id, role: 'MEMBER' },
-            { id: 'm-lena', scope_type: 'TENANT', account_id: LENA.id, role: 'CONTRIBUTOR' },
+            { id: 'm-lena', scope_type: 'TENANT', account_id: LENA.id, role: lenaRole },
           ],
-          grantable_roles: OWNER_GRANTS,
+          // An administrator gives every role but OWNER (domain-model.md §3.2).
+          grantable_roles: reader === 'OWNER' ? OWNER_GRANTS : OWNER_GRANTS.filter((role) => role !== 'OWNER'),
         },
       });
     }
@@ -158,4 +159,28 @@ test('where the password is not a way in, no address is offered and the reason s
   await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
   await page.getByText('People without an address cannot add one here').waitFor();
   assert.equal(await lena.getByRole('button', { name: 'Add an address' }).count(), 0, 'an address is offered');
+});
+
+// A new way into an account is held to the ceiling (identity.md §13): an administrator is offered
+// neither a start password nor an address for a managed owner, and both for a managed contributor;
+// an owner is offered both for a managed owner.
+test('a managed owner is offered no new way in to an administrator', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const [reader, lenaRole, offered] of [['ADMIN', 'OWNER', false], ['ADMIN', 'CONTRIBUTOR', true], ['OWNER', 'OWNER', true]]) {
+    const { page, close } = await open(browser, { reader, lenaRole });
+    t.after(close);
+    await page.goto(`${served.origin}/administration/people`);
+    const lena = rowOf(page, 'Lena');
+    // The account is read once its status shows: whether it is managed is known from then on.
+    await lena.getByText('Here', { exact: true }).waitFor({ timeout: 15_000 });
+    if (offered) await lena.getByRole('button', { name: 'New start password' }).waitFor({ timeout: 15_000 });
+    const label = `${reader} for a managed ${lenaRole}`;
+    assert.equal(await lena.getByRole('button', { name: 'New start password' }).count(), offered ? 1 : 0, label);
+    assert.equal(await lena.getByRole('button', { name: 'Add an address' }).count(), offered ? 1 : 0, label);
+    // EVIDENCE=<dir> keeps what the person sees, for the owner's look (docs/evidence/).
+    if (process.env.EVIDENCE) {
+      await page.locator('main').screenshot({ path: join(process.env.EVIDENCE, `people-${reader.toLowerCase()}-${lenaRole.toLowerCase()}.png`) });
+    }
+  }
 });

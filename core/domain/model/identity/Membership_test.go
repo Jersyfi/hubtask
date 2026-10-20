@@ -84,3 +84,30 @@ func TestAGrantRefusesARoleNobodyDefined(t *testing.T) {
 		t.Fatalf("error %v, want the role refused", err)
 	}
 }
+
+// The strongest of a set of roles is the ladder's answer, whatever order they arrive in; AUDITOR
+// counts as the lowest, and an undefined value is no role at all.
+func TestTheStrongestRoleIsTheLaddersAnswer(t *testing.T) {
+	cases := []struct {
+		name  string
+		held  []Role
+		want  Role
+		found bool
+	}{
+		{"none", nil, "", false},
+		{"one", []Role{RoleMember}, RoleMember, true},
+		{"owner among others", []Role{RoleViewer, RoleOwner, RoleAdmin}, RoleOwner, true},
+		{"admin over the auditor", []Role{RoleAuditor, RoleAdmin}, RoleAdmin, true},
+		{"the auditor alone", []Role{RoleAuditor}, RoleAuditor, true},
+		{"an undefined value is passed over", []Role{"SUPERUSER", RoleGuest}, RoleGuest, true},
+		{"only an undefined value", []Role{"SUPERUSER"}, "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, found := Strongest(tc.held)
+			if got != tc.want || found != tc.found {
+				t.Errorf("Strongest(%v) = %q, %v; want %q, %v", tc.held, got, found, tc.want, tc.found)
+			}
+		})
+	}
+}

@@ -46,7 +46,8 @@ func renewal(ctx context.Context, t *testing.T) identityservice.IssueStartPasswo
 	t.Helper()
 	return identityservice.IssueStartPassword{
 		Accounts: postgres.NewAccountRepository(), StartPasswords: postgres.NewAccountRepository(),
-		Sessions: postgres.NewSessionRepository(), Authorizer: allowAll{}, StepUp: provenStepUp{},
+		Sessions: postgres.NewSessionRepository(), Authorizer: allowAll{},
+		Held: postgres.NewMembershipRepository(), StepUp: provenStepUp{},
 		Passwords: plainHasher{}, Entropy: clockadapter.CryptoRandom{},
 		Audit: postgres.NewAuditSink(generator{t}), UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 		Clock: clockadapter.System{},
