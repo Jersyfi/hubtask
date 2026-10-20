@@ -1138,7 +1138,7 @@
 
   .details { min-width: 0; }
 
-  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); box-shadow: var(--shadow-raised); }
 
   .details-summary {
     padding: var(--sp-150) var(--sp-200);

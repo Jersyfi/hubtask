@@ -1157,6 +1157,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .members {
