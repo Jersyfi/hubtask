@@ -13,6 +13,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domainservice "github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
@@ -189,6 +190,42 @@ func TestAnAccountThatIsNotThereIsNotFound(t *testing.T) {
 	}
 }
 
+// Only an active or restricted account is restricted or lifted (data-protection.md §4): an
+// invitation would be let in, a disabled account let back, an anonymised one brought back. Through
+// the registry, because that is the door every channel takes.
+func TestAnAccountThatIsNotActiveIsNeitherRestrictedNorLifted(t *testing.T) {
+	for _, from := range []identity.AccountStatus{
+		identity.AccountInvited, identity.AccountDisabled, identity.AccountAnonymized,
+	} {
+		for _, restricted := range []bool{true, false} {
+			subjects, sink, vectors := newSubjectStore(), &auditSink{}, &forgetter{}
+			subjects.statuses[subjectID] = string(from)
+			restriction := newRestriction(subjects, &authorizerDouble{}, sink)
+			restriction.Embeddings = vectors
+			registry, err := usecase.NewRegistry(nil, restriction.Descriptor())
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			_, err = registry.Invoke(t.Context(), RestrictProcessingName, actor(), usecase.Input{
+				"account_id": subjectID.String(), "restricted": restricted, "reason": "Art. 18",
+			})
+			refusal := shared.AsError(err)
+			if !errors.Is(err, shared.ErrConflict) || refusal.DetailCode != domain.CodeRestrictionStatusRefused ||
+				refusal.Params["status"] != string(from) || refusal.Params["account_id"] != subjectID.String() {
+				t.Fatalf("%s, restricted=%v: answered %v, want %s naming the status", from, restricted, err,
+					domain.CodeRestrictionStatusRefused)
+			}
+			if subjects.statuses[subjectID] != string(from) {
+				t.Errorf("%s, restricted=%v: the account was moved to %q", from, restricted, subjects.statuses[subjectID])
+			}
+			if len(sink.entries) != 0 || len(vectors.creators) != 0 || len(vectors.assignees) != 0 {
+				t.Errorf("%s, restricted=%v: a refusal was recorded or forgot vectors", from, restricted)
+			}
+		}
+	}
+}
+
 // keptInOrder answers that no hold keeps the account, and notes that it was asked.
 type keptInOrder struct {
 	*keptStore
@@ -215,6 +252,20 @@ func TestLiftingAsksTheHoldAfterLockingTheAccount(t *testing.T) {
 	}
 	if got := strings.Join(subjects.calls, ","); got != "lock,kept,write" {
 		t.Errorf("lifting went %s, want lock,kept,write", got)
+	}
+}
+
+// Restricting a restricted account again is a retry, not a conflict.
+func TestRestrictingARestrictedAccountAgainIsARetry(t *testing.T) {
+	subjects, sink := newSubjectStore(), &auditSink{}
+	subjects.statuses[subjectID] = string(identity.AccountRestricted)
+
+	if err := newRestriction(subjects, &authorizerDouble{}, sink).Execute(context.Background(), actor(),
+		RestrictCommand{AccountID: subjectID, Restricted: true}); err != nil {
+		t.Fatalf("restricting again: %v", err)
+	}
+	if subjects.statuses[subjectID] != string(identity.AccountRestricted) || len(sink.entries) != 1 {
+		t.Errorf("the account is %q with %d entries", subjects.statuses[subjectID], len(sink.entries))
 	}
 }
 

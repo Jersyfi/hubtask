@@ -9404,7 +9404,7 @@
         ],
         "operationId": "restrictProcessing",
         "summary": "Restrict the processing of an account's data (Art. 18)",
-        "description": "A technical state rather than a lock: the account stays readable and its content stays\nwhere it is, and what stops is *processing* - automation rules and AI leave the record\nalone. Lifting it is the same call with\n`restricted: false` - refused while a legal hold keeps the account from an erasure, until\nthe hold is lifted and the rest of the erasure has run.\n",
+        "description": "A technical state rather than a lock: the account stays readable and its content stays\nwhere it is, and what stops is *processing* - automation rules and AI leave the record\nalone. Lifting it is the same call with\n`restricted: false` - refused while a legal hold keeps the account from an erasure, until\nthe hold is lifted and the rest of the erasure has run.\nBoth directions are refused for an account that is not active or restricted - an\ninvitation, a disabled or an anonymised account; a legal hold on the account keeps such a\nperson's data instead.\n",
         "requestBody": {
           "required": true,
           "content": {

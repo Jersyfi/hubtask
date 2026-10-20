@@ -45,6 +45,9 @@ const (
 	// CodeRestrictionKeptByErasure is lifting the restriction of an account a legal hold keeps
 	// from an erasure: the restriction stands until the rest of the erasure has run.
 	CodeRestrictionKeptByErasure = "privacy.restriction_kept_by_erasure"
+	// CodeRestrictionStatusRefused is restricting, or lifting the restriction of, an account that
+	// is not active or restricted (`identity.AccountStatus.RestrictionApplies`), naming its status.
+	CodeRestrictionStatusRefused = "privacy.restriction_status_refused"
 	// CodeNotAnErasure is asking what an erasure would keep of a case that is not one.
 	CodeNotAnErasure = "privacy.not_an_erasure"
 

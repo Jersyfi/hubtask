@@ -113,13 +113,19 @@ func (h RestrictProcessing) Execute(
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		// Locked first, and everything below decided on it: an erasure that keeps the account, or
 		// anonymises it, waits until this transaction ends instead of being written over.
-		_, found, err := h.Statuses.LockStatus(ctx, cmd.AccountID)
+		account, found, err := h.Statuses.LockStatus(ctx, cmd.AccountID)
 		if err != nil {
 			return err
 		}
 		if !found {
 			return shared.ErrNotFound.WithDetail("accounts.not_found").
 				WithParams(map[string]string{"account_id": cmd.AccountID.String()})
+		}
+		if !account.Status.RestrictionApplies() {
+			return shared.ErrConflict.WithDetail(domain.CodeRestrictionStatusRefused).
+				WithParams(map[string]string{
+					"account_id": cmd.AccountID.String(), "status": string(account.Status),
+				})
 		}
 		if !cmd.Restricted && h.Kept != nil {
 			// A legal hold keeps this account from an erasure, restricted (data-protection.md

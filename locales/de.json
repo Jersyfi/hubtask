@@ -426,6 +426,7 @@
   "automation.run_window_malformed": "{field} ist kein Zeitpunkt nach RFC 3339.",
   "automation.run_window_reversed": "Das Fenster endet, bevor es beginnt.",
   "privacy.restriction_kept_by_erasure": "Eine Sperre bewahrt dieses Konto vor einer Löschung. Die Einschränkung bleibt, bis die Sperre aufgehoben ist und der Rest der Löschung gelaufen ist.",
+  "privacy.restriction_status_refused": "{status, select, INVITED {Dieses Konto ist noch eine Einladung, daher lässt sich seine Verarbeitung weder einschränken noch wieder aufnehmen. Die Daten der Person bewahrt eine Sperre auf dem Konto.} DISABLED {Dieses Konto ist deaktiviert, daher lässt sich seine Verarbeitung weder einschränken noch wieder aufnehmen. Die Daten der Person bewahrt eine Sperre auf dem Konto.} ANONYMIZED {Dieses Konto wurde anonymisiert: Es ist niemand mehr da, dessen Verarbeitung eingeschränkt oder wieder aufgenommen werden könnte.} other {Nur bei einem aktiven Konto lässt sich die Verarbeitung einschränken, und nur bei einem eingeschränkten wieder aufnehmen.}}",
   "privacy.not_an_erasure": "Diese Anfrage ist keine Löschung – eine Sperre kann also nichts davon bewahren.",
   "privacy.already_extended": "Die Frist dieser Anfrage wurde schon verlängert. Sie lässt sich nur einmal verlängern.",
   "privacy.extension_after_deadline": "Die Frist dieser Anfrage ist abgelaufen. Verlängern lässt sie sich nur, bevor sie endet.",
