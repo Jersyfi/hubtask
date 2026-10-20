@@ -90,6 +90,14 @@ practice. Rules:
 * **`RESTRICTION` is a kind of request; `RESTRICTED` a state of an account**, which stands after the
   case closes. A restricted account still works; automatic processing stops, and
   `identity.AccountStatus.ProcessingAllowed` is the one predicate every such place asks.
+  **Only an `ACTIVE` or `RESTRICTED` account is restricted or lifted**; an invited, disabled or
+  anonymised one is refused (`privacy.restriction_status_refused`, 409, naming the status). The
+  status is one column, and `RESTRICTED` may act and counts as a person: restricting an invitation
+  or a disabled account would let it in, and lifting would make it active. An invited or disabled
+  person's data is kept by an `ACCOUNT` legal hold instead ([data-retention.md](./data-retention.md)
+  §4 item 1). An invitation restricted before this rule returns to `INVITED` when lifted, not
+  `ACTIVE`. Restricting and lifting read the status they start from with the row locked, and ask
+  whether a hold keeps the account only then.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs
@@ -146,7 +154,9 @@ are built.
     hold reaches them. Several holds over one row: the oldest names it. One function decides it, and
     the erasure and its preview both call it.
   * **The account.** Only a hold on the person or on the workspace keeps the account itself - as it
-    is, `RESTRICTED`, signing in, without a pseudonym. Under any other hold it is anonymised and
+    is, `RESTRICTED`, signing in, without a pseudonym. An invited or disabled account stays in its
+    status - it neither signs in nor counts because of the hold - and its processing is restricted
+    through the kept record, as an anonymised one's is. Under any other hold it is anonymised and
     pseudonymised exactly as without one, and the kept rows stay attributed to the former user; a
     full deletion that kept a row anonymises the account instead of removing it, and the rest
     removes it. Such a kept account's restriction cannot be lifted while the case keeps it.
@@ -162,8 +172,8 @@ are built.
     that changed the holds. A kept entry moved out of its hold's reach goes with the next run of the
     rest, not at the move.
   * **Out of automation and AI.** What a hold keeps is restricted, and so is its person: the account
-    kept `RESTRICTED`, or - under a narrower hold - the anonymised account whose case still has a
-    part not erased, with all of that former user's contributions until the last kept part is
+    kept `RESTRICTED`, the invited or disabled account kept in its status, or - under a narrower
+    hold - the anonymised account whose case still has a part not erased, with all of that former user's contributions until the last kept part is
     erased. No rule runs as or about such a person and none puts them on an entry
     ([automation.md](./automation.md) §2.0); the AI exclusion keeps out what they wrote and what is
     assigned to them, whatever the workspace's AI position and however many work there

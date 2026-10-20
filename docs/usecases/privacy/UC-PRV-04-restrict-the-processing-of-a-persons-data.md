@@ -45,6 +45,8 @@ the restriction.
 * A restriction is not a lock: sign-in, reading and editing continue (Art. 18 restricts the
   controller, not the person).
 * No hiding of the person's data from others in the workspace.
+* Only an active account is restricted. An invited, disabled or anonymised account is refused; an
+  invited or disabled person's data is kept by a legal hold on the account instead.
 * A *restriction* case closes when the restriction is in place; the restriction itself goes on
   standing.
 
