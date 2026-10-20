@@ -430,9 +430,9 @@
   /* A run drawn on: a lit card carries its word; a skipped or never-reached one fades. */
   .card.lit { box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle), var(--shadow-raised); }
 
-  .card.lit.yes { border-color: var(--success-500); }
+  .card.lit.yes { border-color: var(--status-success-border); background: var(--status-success-surface); }
 
-  .card.lit.no { border-color: var(--warning-500); }
+  .card.lit.no { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
 
   .card.faded { opacity: 0.38; }
 
