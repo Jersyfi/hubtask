@@ -435,6 +435,45 @@ func TestADecompositionIsReadAsATree(t *testing.T) {
 	}
 }
 
+// A piece keeps its notes only where its type carries notes: an activity carries none, directly
+// under the task or under a work package, so a proposal keeping them would be refused at that piece
+// when accepted. The work package beside it keeps its own.
+func TestABreakdownKeepsNotesOnlyWhereTheTypeCarriesThem(t *testing.T) {
+	produce, world := producer(`{"children":[
+		{"type":"ACTIVITY","title":"Call the plumber","notes":"before nine"},
+		{"type":"WORK_PACKAGE","title":"Tiles","notes":"the white ones",
+		 "children":[{"type":"ACTIVITY","title":"Buy grout","notes":"grey"}]}
+	]}`)
+	produce.Sources = CatalogueSources{Catalogue: world, Profiles: shippedProfiles{}}
+
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetWorkItem, TargetID: targetID, Kind: domain.KindDecomposition,
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	if len(world.store.proposals) != 1 {
+		t.Fatalf("%d suggestions recorded", len(world.store.proposals))
+	}
+	for _, recorded := range world.store.proposals {
+		children := recorded.Payload["children"].([]any)
+		direct := children[0].(map[string]any)
+		pack := children[1].(map[string]any)
+		under := pack["children"].([]any)[0].(map[string]any)
+		if _, kept := direct["notes"]; kept || direct["title"] != "Call the plumber" {
+			t.Errorf("the task's own activity is %v, want its title without notes", direct)
+		}
+		if _, kept := under["notes"]; kept {
+			t.Errorf("the work package's activity kept its notes: %v", under)
+		}
+		if pack["notes"] != "the white ones" {
+			t.Errorf("the work package lost its notes: %v", pack)
+		}
+		if recorded.DroppedNodes != 0 {
+			t.Errorf("dropping a field counted %d dropped nodes", recorded.DroppedNodes)
+		}
+	}
+}
+
 // A tree this build would refuse to create is refused before it is recorded, because a proposal
 // nobody can accept is an inbox of noise.
 func TestATreeThatCouldNotBeCreatedIsNotRecorded(t *testing.T) {

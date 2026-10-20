@@ -127,13 +127,7 @@ func (s CatalogueSources) templateMaterial(
 	if err != nil {
 		return Material{}, err
 	}
-	// The roots are read off the system defaults, as everywhere the hierarchy is built: a
-	// narrowing that took a task's children away must not thereby promote the work package.
-	system, err := s.Profiles.ListSystem(ctx)
-	if err != nil {
-		return Material{}, err
-	}
-	hierarchy, err := service.NewHierarchy(rows, system)
+	hierarchy, err := s.hierarchy(ctx)
 	if err != nil {
 		return Material{}, err
 	}
@@ -166,6 +160,21 @@ func (s CatalogueSources) templateMaterial(
 		Content: written.String(), Digest: domain.Digest(container.String("name"), ""),
 		Hierarchy: &hierarchy,
 	}, nil
+}
+
+// hierarchy is the shape entries may take here: the profiles in force, with the roots read off the
+// system defaults, as everywhere the hierarchy is built - a narrowing that took a task's children
+// away must not thereby promote the work package.
+func (s CatalogueSources) hierarchy(ctx context.Context) (service.Hierarchy, error) {
+	rows, err := s.Profiles.List(ctx)
+	if err != nil {
+		return service.Hierarchy{}, err
+	}
+	system, err := s.Profiles.ListSystem(ctx)
+	if err != nil {
+		return service.Hierarchy{}, err
+	}
+	return service.NewHierarchy(rows, system)
 }
 
 // maxProposedTemplateNodes bounds a draft. The prompt asks for twenty at most; this is what

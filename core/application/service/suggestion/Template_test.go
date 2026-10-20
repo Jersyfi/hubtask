@@ -49,14 +49,15 @@ func (s *requestStore) Delete(_ context.Context, id shared.ID) error {
 }
 
 // The profiles the installation ships: a task takes work packages and activities, a work package
-// takes activities, an activity takes nothing.
+// takes activities, an activity takes nothing - and carries no notes, where the two above do.
 type shippedProfiles struct{}
 
 func (shippedProfiles) List(context.Context) ([]work.CapabilityProfile, error) {
+	noted := []work.Capability{work.CapabilityCompletion, work.CapabilityNotes}
 	return []work.CapabilityProfile{
-		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity}, MaxDepth: 3},
-		{Type: work.ItemWorkPackage, AllowedChildTypes: []work.ItemType{work.ItemActivity}, MaxDepth: 2},
-		{Type: work.ItemActivity, MaxDepth: 1},
+		{Type: work.ItemTask, Capabilities: noted, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity}, MaxDepth: 3},
+		{Type: work.ItemWorkPackage, Capabilities: noted, AllowedChildTypes: []work.ItemType{work.ItemActivity}, MaxDepth: 2},
+		{Type: work.ItemActivity, Capabilities: []work.Capability{work.CapabilityCompletion}, MaxDepth: 1},
 	}, nil
 }
 

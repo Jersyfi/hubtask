@@ -47,9 +47,10 @@ type Material struct {
 	// Empty for a workspace that declared none, which is every workspace until somebody
 	// declares one.
 	Declared []Declared
-	// Hierarchy is the shape a template may take in this installation: read for the one prompt that
-	// asks for a tree to be defined rather than created, so that what the material tells a model
-	// and what the narrowing checks the answer against are the same profiles.
+	// Hierarchy is the shape entries may take in this installation, read for the two prompts that
+	// answer with a tree: a template's, so that what the material tells a model and what the
+	// narrowing checks the answer against are the same profiles; and a breakdown's, so that a piece
+	// keeps only the fields its type carries.
 	Hierarchy *service.Hierarchy
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
 	// asking may see.
@@ -717,7 +718,7 @@ func payloadFrom(
 		kept = keptChoices(kept, promptID, material.Choices)
 		return keptDate(keptTitles(keptDeclared(kept, material.Declared, form))), true
 	case domain.KindDecomposition:
-		return keptTree(answered)
+		return keptTree(answered, material.Hierarchy)
 	default:
 		return nil, false
 	}
@@ -1023,8 +1024,15 @@ const maxProposedNodes = 32
 // Two levels and no more, which is what the item model allows underneath a task and what the
 // prompt asks for. A deeper answer is refused rather than flattened: flattening would put
 // activities where a person did not propose them.
-func keptTree(answered map[string]any) (map[string]any, bool) {
-	children, count, ok := keptChildren(answered["children"], 0)
+//
+// A piece's notes are kept only where its type carries notes. The prompt offers notes on every
+// piece, and an activity - under a work package or directly under a task (domain-model.md §2) -
+// carries none, so a proposal keeping them would be one whose acceptance is refused with
+// `capability_not_supported` at that piece. Dropped here rather than when the breakdown is
+// planted, for `payloadFrom`'s reason: the person reads exactly what accepting creates. Without a
+// hierarchy (a build that never wired the profiles) the notes stay, and the acceptance answers.
+func keptTree(answered map[string]any, hierarchy *service.Hierarchy) (map[string]any, bool) {
+	children, count, ok := keptChildren(answered["children"], 0, hierarchy)
 	if !ok || count > maxProposedNodes {
 		return nil, false
 	}
@@ -1040,7 +1048,7 @@ func keptTree(answered map[string]any) (map[string]any, bool) {
 // task is a shape the domain refuses, and proposing one would be proposing a refusal.
 var nodeTypes = map[string]bool{"WORK_PACKAGE": true, "ACTIVITY": true}
 
-func keptChildren(value any, depth int) ([]any, int, bool) {
+func keptChildren(value any, depth int, hierarchy *service.Hierarchy) ([]any, int, bool) {
 	if value == nil {
 		return nil, 0, true
 	}
@@ -1067,10 +1075,11 @@ func keptChildren(value any, depth int) ([]any, int, bool) {
 		}
 
 		clean := map[string]any{"type": kind, "title": title}
-		if notes, held := node["notes"].(string); held && strings.TrimSpace(notes) != "" {
+		if notes, held := node["notes"].(string); held && strings.TrimSpace(notes) != "" &&
+			carriesNotes(hierarchy, kind) {
 			clean["notes"] = notes
 		}
-		grandchildren, under, ok := keptChildren(node["children"], depth+1)
+		grandchildren, under, ok := keptChildren(node["children"], depth+1, hierarchy)
 		if !ok {
 			return nil, 0, false
 		}
@@ -1081,6 +1090,21 @@ func keptChildren(value any, depth int) ([]any, int, bool) {
 		total += 1 + under
 	}
 	return kept, total, true
+}
+
+// carriesNotes reports whether a proposed piece of this type may keep its notes: yes where the
+// profile in force gives the type NOTES, and yes where there is no hierarchy to ask. A type the
+// installation does not offer keeps them too - its acceptance is refused for the type, which is
+// the answer that names the real problem.
+func carriesNotes(hierarchy *service.Hierarchy, kind string) bool {
+	if hierarchy == nil {
+		return true
+	}
+	profile, err := hierarchy.Profile(work.ItemType(kind))
+	if err != nil {
+		return true
+	}
+	return profile.Allows(work.CapabilityNotes)
 }
 
 // Narrowed intersects the prompt's allow list with what the applier declares.
