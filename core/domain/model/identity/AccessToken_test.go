@@ -122,6 +122,24 @@ func TestAccountVerify(t *testing.T) {
 	}
 }
 
+// A restriction is written over the status, so it applies only to an account whose person works
+// here: never one it would let in, make active, or bring back.
+func TestWhetherARestrictionApplies(t *testing.T) {
+	cases := map[AccountStatus]bool{
+		AccountActive:     true,
+		AccountRestricted: true,
+		AccountInvited:    false,
+		AccountDisabled:   false,
+		AccountAnonymized: false,
+		"":                false,
+	}
+	for status, want := range cases {
+		if got := status.RestrictionApplies(); got != want {
+			t.Errorf("%s: RestrictionApplies = %v, want %v", status, got, want)
+		}
+	}
+}
+
 // The three identifiers a mint needs, fixed so that a failure names a value rather than a
 // generated one.
 var (
