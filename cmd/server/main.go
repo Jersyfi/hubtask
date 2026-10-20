@@ -599,8 +599,8 @@ func run() error {
 	// the descriptors is one that grows a scope no operation checks.
 	accessTokenWriter := identity.AccessTokenWriter{
 		Tokens:   postgres.NewAccessTokenRepository(security.NewTokenHasher(cfg.SecretKey)),
-		Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
-		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy:     clockadapter.CryptoRandom{},
 		KnownScopes: catalogue.Scopes(),
 		// StepUp is handed in once the sign-in rule is taught (stepUpVerifier, below).
