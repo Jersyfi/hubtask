@@ -23,6 +23,7 @@ import {
   itemAccess,
   itemPermitted,
   permissionVerdict,
+  placementVerdict,
   hubCreation,
   includedByPlan,
   reachesAdministration,
@@ -142,10 +143,47 @@ test('a permitted child type at a permitted depth is permitted', () => {
 });
 
 test('a child type the parent does not take is refused', () => {
-  // I-W1: an activity under a task skips a level, and the profile is what says so.
+  // I-W1: under a manifest whose task takes only work packages, an activity under a task is
+  // refused, and the profile is what says so.
   const verdict = childVerdict(manifest, 'TASK', 'ACTIVITY', 0);
   assert.equal(verdict.status, 'refused');
   assert.equal(verdict.status === 'refused' ? verdict.code : null, 'items.parent_type_invalid');
+});
+
+/** The matrix as it ships since a task may hold activities beside its work packages. */
+const mixed = {
+  ...manifest,
+  item_types: (manifest.item_types ?? []).map((entry) =>
+    entry.type === 'TASK' ? { ...entry, allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'] } : entry,
+  ),
+} as Capabilities;
+
+test('a task that takes both kinds offers both, and an activity stays out of the top level', () => {
+  assert.deepEqual(allowedChildTypes(mixed, 'TASK'), ['WORK_PACKAGE', 'ACTIVITY']);
+  assert.equal(childVerdict(mixed, 'TASK', 'ACTIVITY', 0).status, 'permitted');
+  assert.deepEqual(rootTypes(mixed), ['TASK']);
+});
+
+test('moving to the top level is for a root type only, in the server\'s own code', () => {
+  assert.equal(placementVerdict(mixed, 'TASK', null).status, 'permitted');
+  const verdict = placementVerdict(mixed, 'ACTIVITY', null);
+  assert.equal(verdict.status === 'refused' ? verdict.code : null, 'items.parent_item_required');
+  assert.deepEqual(verdict.status === 'refused' ? verdict.params : null, { item_type: 'ACTIVITY' });
+});
+
+test('moving under an entry asks its profile at its stored depth', () => {
+  // An activity out of its work package lands under the task, which is at depth 1.
+  assert.equal(placementVerdict(mixed, 'ACTIVITY', { type: 'TASK', depth: 1 }).status, 'permitted');
+  // The same move under a manifest whose task takes only work packages is refused.
+  const ladder = placementVerdict(manifest, 'ACTIVITY', { type: 'TASK', depth: 1 });
+  assert.equal(ladder.status === 'refused' ? ladder.code : null, 'items.parent_type_invalid');
+  // Nothing goes under an activity.
+  assert.equal(placementVerdict(mixed, 'ACTIVITY', { type: 'ACTIVITY', depth: 2 }).status, 'refused');
+});
+
+test('a destination nobody here knows is undetermined, and so is an unread manifest', () => {
+  assert.equal(placementVerdict(mixed, 'ACTIVITY', undefined).status, 'undetermined');
+  assert.equal(placementVerdict(undefined, 'ACTIVITY', null).status, 'undetermined');
 });
 
 test('a fourth level under a max_depth of three is refused', () => {

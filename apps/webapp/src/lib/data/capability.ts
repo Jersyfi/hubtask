@@ -180,6 +180,32 @@ export function childVerdict(
 }
 
 /**
+ * Whether an entry of this type may be moved to a destination: under an entry, or to the top of
+ * its collection when `destination` is `null`.
+ *
+ * The two refusals the server's `Place` gives for a move, in its own codes: the top level takes
+ * only the types nothing claims as a child (`items.parent_item_required`), and an entry takes what
+ * its profile permits at its depth (`childVerdict`). `undefined` destination means the type above
+ * is not known here, which is `undetermined` - neither offered as safe nor refused on a guess.
+ *
+ * The destination's `depth` is the entry's own, as the server stores it - 1 at the top of a
+ * collection - and `childVerdict` takes the depth below it, so it is passed on less one.
+ */
+export function placementVerdict(
+  manifest: Capabilities | undefined,
+  type: ItemType,
+  destination: { readonly type: ItemType; readonly depth: number } | null | undefined,
+): Verdict {
+  if (!manifest || destination === undefined) return UNDETERMINED;
+  if (destination === null) {
+    return rootTypes(manifest).includes(type)
+      ? PERMITTED
+      : refused('items.parent_item_required', { item_type: type });
+  }
+  return childVerdict(manifest, destination.type, type, destination.depth - 1);
+}
+
+/**
  * Whether a role carries a permission unqualified.
  *
  * "Unqualified" is the contract's word and it matters: two cells of the matrix are qualifiers no

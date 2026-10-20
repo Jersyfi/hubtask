@@ -21,6 +21,7 @@ import {
   hubCreation,
   includedByPlan,
   permissionVerdict,
+  placementVerdict,
   reachesAdministration,
   rootTypes as rootTypesOf,
   typesWith as typesWithOf,
@@ -40,6 +41,12 @@ export const declaresType = (type: string): boolean | undefined =>
 /** Whether a child of this type may be created there, type and depth both. */
 export const acceptsChild = (parentType: string, childType: string, parentDepth = 0): Verdict =>
   childVerdict(manifest.value, parentType, childType, parentDepth);
+
+/** Whether an entry of this type may move to a destination: an entry above, or `null` for the top level. */
+export const placementOf = (
+  type: string,
+  destination: { readonly type: string; readonly depth: number } | null | undefined,
+): Verdict => placementVerdict(manifest.value, type, destination);
 
 /** What may be created directly in a collection: the types nothing else claims as a child. */
 export const rootTypes = (): readonly string[] => rootTypesOf(manifest.value);

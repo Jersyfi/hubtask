@@ -51,7 +51,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
-  import { acceptsChild, childTypes, rootTypes, supports } from '../data/capability.svelte.ts';
+  import { acceptsChild, childTypes, placementOf, rootTypes, supports } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
@@ -78,10 +78,10 @@
      * down. With a root, the top level is the root's children, "add" creates under the root with
      * the types the manifest lets it take, direct children open and deeper levels start closed,
      * and the expansion is kept per entry on this device (design-system.md §11.10). The id is what design-system.md
-     * §11.8 calls `rootId`; the type and the parent travel with it because the add form and "move out"
-     * need them and the list should not read the entry a second time.
+     * §11.8 calls `rootId`; the type, the parent and the depth travel with it because the add form
+     * and "move out" need them and the list should not read the entry a second time.
      */
-    root?: Pick<WorkItem, 'id' | 'type' | 'parent_id'>;
+    root?: Pick<WorkItem, 'id' | 'type' | 'parent_id' | 'depth'>;
     /** Whether the collection is archived — the entries in it are then read-only too (I-C3). */
     isReadOnly?: boolean;
     /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
@@ -401,6 +401,8 @@
   let addingUnder = $state<string | null>(null);
   let draftTitle = $state('');
   let draftType = $state('');
+  /** Whether the control that opened the form already named the kind, so the form asks no more. */
+  let isTypeNamed = $state(false);
   let isSaving = $state(false);
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
@@ -435,17 +437,32 @@
     startAdding('root');
   }
 
-  function startAdding(under: string) {
+  function startAdding(under: string, type?: string) {
     addingUnder = under;
     draftTitle = '';
     draftLanguage = actor.locale ?? messages.locale;
     writeFailure = undefined;
-    // The first type the manifest offers, so the common case needs no choice at all.
+    isTypeNamed = type !== undefined;
+    // The type the control named, or the first the manifest offers, so the common case needs no
+    // choice at all.
     draftType =
+      type ??
       (under === 'root'
         ? topTypes()
-        : childTypes(rows.find((row) => row.item.id === under)?.item.type ?? ''))[0] ?? '';
+        : childTypes(rows.find((row) => row.item.id === under)?.item.type ?? ''))[0] ??
+      '';
   }
+
+  /**
+   * The controls at the end of the top level: one "Add an entry" in a collection, and in a subtree
+   * one per type the entry may hold - "Add a work package" and "Add an activity" under a task - so
+   * that the reader names the level by the control rather than by a chooser in the form.
+   */
+  const addControls = $derived(
+    root && topTypes().length > 1
+      ? topTypes().map((type) => ({ type, label: t('app.entries.add_typed', { type }) }))
+      : [{ type: undefined, label: addLabel }],
+  );
 
   async function create() {
     if (draftTitle.trim() === '' || draftType === '' || addingUnder === null) return;
@@ -691,13 +708,43 @@
    */
   function moveOut(row: Row) {
     if (!row.parentId) return;
-    const parent = rows.find((each) => each.item.id === row.parentId);
-    // In a subtree the top level's parent is the root, which is not a row: its parent is the root's.
-    const grandParentId = parent ? parent.parentId : root && row.parentId === root.id ? root.parent_id ?? null : null;
+    const grandParentId = grandParentOf(row);
     void move(
       row,
       grandParentId === null ? { parentId: null, collectionId } : { parentId: grandParentId },
     );
+  }
+
+  /** The entry a row moves out to: its parent's parent, or `null` for the collection's top level. */
+  function grandParentOf(row: Row): string | null {
+    const parent = rows.find((each) => each.item.id === row.parentId);
+    // In a subtree the top level's parent is the root, which is not a row: its parent is the root's.
+    return parent ? parent.parentId : root && row.parentId === root.id ? root.parent_id ?? null : null;
+  }
+
+  /**
+   * Why a row cannot move out one level, or nothing.
+   *
+   * The server answers a move with the placement rules (`Place`): an activity may sit in a task or
+   * a work package and never at the top of a collection, so "out" from a task is a refusal the
+   * screen can know beforehand (P-05). The destination's stored depth goes to the verdict; where
+   * the entry above is not loaded here, the move is offered and the server answers.
+   */
+  function outReason(row: Row): string | undefined {
+    const frozen = frozenReason(row);
+    if (frozen) return frozen;
+    if (!row.parentId) return t('app.move.already_top');
+    const grandParentId = grandParentOf(row);
+    const above =
+      grandParentId === null
+        ? null
+        : (rows.find((each) => each.item.id === grandParentId)?.item ??
+          (root?.id === grandParentId ? root : items.find(grandParentId)));
+    const verdict = placementOf(
+      row.item.type,
+      above === null ? null : above?.depth === undefined ? undefined : { type: above.type, depth: above.depth },
+    );
+    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
   }
 
   const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
@@ -741,7 +788,7 @@
         // The archive comes first: a row that cannot be written to cannot be moved out of
         // anything, and telling it "this is already at the top level" would answer a different
         // question from the one the reader is about to ask.
-        disabledReason: frozenReason(row) ?? (row.parentId ? undefined : t('app.move.already_top')),
+        disabledReason: outReason(row),
       },
       {
         id: 'elsewhere',
@@ -1018,7 +1065,9 @@
         <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
           {#snippet action()}
             {#if !isReadOnly && mayCreate && topTypes().length > 0}
-              <Button data-opener="add-entry" onclick={() => startAdding('root')}>{addLabel}</Button>
+              {#each addControls as control (control.label)}
+                <Button data-opener="add-entry" onclick={() => startAdding('root', control.type)}>{control.label}</Button>
+              {/each}
             {/if}
           {/snippet}
         </EmptyState>
@@ -1236,11 +1285,13 @@
         {#if addingUnder === 'root'}
           {@render addForm()}
         {:else}
-          <div>
-            <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root')}>
-              {addLabel}
-            </Button>
-          </div>
+          <Inline gap="100">
+            {#each addControls as control (control.label)}
+              <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>
+                {control.label}
+              </Button>
+            {/each}
+          </Inline>
         {/if}
       {/if}
     {/if}
@@ -1270,13 +1321,14 @@
        from the button would otherwise skip the form the reader just asked for (2.4.3). -->
   <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="add-entry"]' })}>
     <!-- The chooser appears only when there is a choice: at most installations a work package takes
-         activities and nothing else, and a select with one option is a decision nobody has. -->
-    {#if offeredTypes.length > 1}
+         activities and nothing else, and a select with one option is a decision nobody has. Nor
+         when the control that opened the form already named the kind. -->
+    {#if offeredTypes.length > 1 && !isTypeNamed}
       <Select
         label={t('app.entries.type_label')}
         size="sm"
         bind:value={draftType}
-        options={offeredTypes.map((type) => ({ value: type, label: type }))}
+        options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
       />
     {/if}
     <Input label={t('app.entries.new_title')} bind:value={draftTitle} />
