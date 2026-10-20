@@ -182,7 +182,11 @@
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
-  onclose={() => close()}
+  onclose={(event) => {
+    // Queued as a task after the element closes: it can arrive after the drawer was opened again
+    // within that task, and only an element still closed means it was closed.
+    if (!event.currentTarget.open) close();
+  }}
   onclick={(event) => {
     if (event.target === node) close();
   }}

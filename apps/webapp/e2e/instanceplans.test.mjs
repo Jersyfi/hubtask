@@ -499,9 +499,6 @@ test('chromium: the plans list, the editor and the move dialog work from the key
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.ok(await change.evaluate((element) => element === document.activeElement), 'the focus did not return to Change plan');
 
-  // The closed dialog's own close event arrives a task later and would shut a dialog reopened
-  // before it: let it arrive, as a person's next key press would.
-  await page.waitForTimeout(100);
   await page.keyboard.press('Enter');
   await dialog.waitFor({ timeout: 5_000 });
   const plan = dialog.getByRole('combobox', { name: 'Plan' });
@@ -516,6 +513,37 @@ test('chromium: the plans list, the editor and the move dialog work from the key
   await page.keyboard.press('Enter');
   await page.getByRole('dialog', { name: 'Put Familie Berger on Private?' }).waitFor({ state: 'hidden', timeout: 5_000 });
   assert.deepEqual(sent.map((body) => body.dry_run === true), [true, false]);
+});
+
+test('chromium: the move dialog closed and opened again at once stays open', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openInstance(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  const change = page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' });
+  await change.waitFor({ timeout: 10_000 });
+  // Held before it opens: behind a modal the opener is inert, and no role query reaches it.
+  const opener = await change.elementHandle();
+  await change.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
+  await dialog.waitFor({ timeout: 5_000 });
+  // Escape and the opener within one task, so the native close event of the first closing is
+  // certainly still queued when the dialog opens again: it must not close the dialog it finds open.
+  // Svelte applies a change in a microtask, which still runs within the task.
+  const closed = await opener.evaluate(async (element) => {
+    const open = document.querySelector('dialog[open]');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    for (let i = 0; i < 50 && open?.open; i += 1) await Promise.resolve();
+    const wasClosed = open !== null && !open.open;
+    element.click();
+    return wasClosed;
+  });
+  assert.ok(closed, 'Escape did not close the dialog within the task');
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 200)));
+  assert.ok(await dialog.isVisible(), 'the reopened move dialog closed itself');
 });
 
 test('chromium: the editor says each refusal where it belongs', async (t) => {
