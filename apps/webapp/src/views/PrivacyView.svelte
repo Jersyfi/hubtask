@@ -96,6 +96,7 @@
   let previewed = $state<'checking' | 'unknown' | readonly ErasureKept[]>('checking');
 
   function beginConfirming(request: Request): void {
+    failure = undefined;
     confirming = request;
     previewed = 'checking';
     void privacy.preview(request.id, request.erasure_mode ?? 'ANONYMIZE').then((answer) => {
@@ -759,6 +760,14 @@
     </Button>
   {/snippet}
   <Stack gap="100">
+    <!-- A refused start is said here: the page's own banner sits behind the dialog. -->
+    {#if failure}
+      <Banner tone="danger" title={failure.message}>
+        {#if failure.reference}
+          <span>{t('app.error_reference', { request_id: failure.reference })}</span>
+        {/if}
+      </Banner>
+    {/if}
     <p>
       {t(`app.privacy.confirm_erase_${(confirming?.erasure_mode ?? 'ANONYMIZE').toLowerCase()}`, {
         name: confirming ? subjectOf(confirming) : '',

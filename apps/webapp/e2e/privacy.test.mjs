@@ -290,7 +290,8 @@ test('chromium: the erasure of the only owner is refused at the start, saying wh
     const { page, failures, close } = await open(browser, 'OWNER', { refuseStart: 'memberships.last_owner' });
     await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
     await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
-    await page.getByText('The workspace needs at least one owner. Give somebody else Owner first.').first().waitFor();
+    // Said in the dialog, which stays open over the page's own banner.
+    await page.getByRole('dialog').getByText('The workspace needs at least one owner. Give somebody else Owner first.').waitFor();
     // A rest that waits for another owner says so, not a count of rules.
     assert.match(await row(page, WAITS_FOR_OWNER).innerText(), /The rest waits: the person is this workspace's only owner\. Give somebody else Owner first\./);
     assert.deepEqual(failures, []);
