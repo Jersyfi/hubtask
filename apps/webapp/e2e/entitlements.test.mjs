@@ -186,7 +186,7 @@ const POLICY = {
   password: Object.fromEntries(['min_length', 'min_lowercase', 'min_uppercase', 'min_digits', 'min_symbols', 'min_classes', 'max_repeat', 'max_age_days', 'history_count', 'min_age_hours']
     .map((name) => [name, setting(name === 'min_length' ? 12 : 0)])
     .concat([['common_passwords', setting(true)], ['context_words', setting(true)], ['breach_check', setting(false)]])),
-  mfa_required_for: setting('NOBODY'),
+  mfa_required_for: setting('NONE'),
   methods: setting(['PASSWORD', 'OIDC']),
   session: { max_days: setting(30), idle_minutes: setting(0) },
   legal: { imprint_url: setting(''), privacy_url: setting(''), terms_url: setting(''), accessibility_url: setting(''), terms_version: setting('') },

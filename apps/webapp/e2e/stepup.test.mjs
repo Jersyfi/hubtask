@@ -33,7 +33,7 @@ function policy() {
       common_passwords: rule(true, true), context_words: rule(true, true), breach_check: rule(false, false),
       max_age_days: rule(0, 0), history_count: rule(0, 0), min_age_hours: rule(0, 0),
     },
-    mfa_required_for: rule('NOBODY', 'NOBODY'),
+    mfa_required_for: rule('NONE', 'NONE'),
     methods: rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC']),
     session: { max_days: rule(30, 30), idle_minutes: rule(0, 0) },
     legal: { imprint_url: rule('', ''), privacy_url: rule('', ''), terms_url: rule('', ''), accessibility_url: rule('', '') },
