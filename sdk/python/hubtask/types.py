@@ -2356,7 +2356,7 @@ class DataSubjectRequestExtension(TypedDict, total=False):
 class ProcessingState(TypedDict, total=False):
     """What the call set, rather than the person it was set on. A restriction touches nothing else"""
     account_id: Required[str]
-    status: Required[Literal["ACTIVE", "RESTRICTED"]]
+    status: Required[Literal["ACTIVE", "RESTRICTED", "INVITED"]]
 
 class ProcessingRestriction(TypedDict, total=False):
     restricted: Required[bool]

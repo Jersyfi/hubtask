@@ -759,7 +759,7 @@ func TestTheRestrictionOfAnAccountAHoldKeepsCannotBeLifted(t *testing.T) {
 	restriction := newRestriction(subjects, &authorizerDouble{}, &auditSink{})
 	restriction.Kept = &keptStore{keeps: true}
 
-	err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+	_, err := restriction.Execute(context.Background(), actor(), RestrictCommand{
 		AccountID: subjectID, Restricted: false, Reason: "Settled",
 	})
 	if shared.AsError(err).DetailCode != domain.CodeRestrictionKeptByErasure {
@@ -770,7 +770,7 @@ func TestTheRestrictionOfAnAccountAHoldKeepsCannotBeLifted(t *testing.T) {
 	}
 
 	// Placing one is never refused for it.
-	if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+	if _, err := restriction.Execute(context.Background(), actor(), RestrictCommand{
 		AccountID: subjectID, Restricted: true, Reason: "Art. 18",
 	}); err != nil {
 		t.Fatalf("restricting: %v", err)

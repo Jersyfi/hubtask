@@ -62,7 +62,7 @@ func TestARestrictedPersonsEntriesLeaveSearchByMeaning(t *testing.T) {
 			UnitOfWork: unitOfWork, Clock: portclock.Fixed(time.Now().UTC()),
 			Embeddings: postgres.NewEmbeddingRepository(),
 		}
-		if err := restriction.Execute(ctx, w.as(w.ada), privacyservice.RestrictCommand{
+		if _, err := restriction.Execute(ctx, w.as(w.ada), privacyservice.RestrictCommand{
 			AccountID: w.kim, Restricted: restricted, Reason: "Art. 18",
 		}); err != nil {
 			t.Fatalf("restricted=%v: %v", restricted, err)

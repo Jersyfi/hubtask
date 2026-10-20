@@ -14,6 +14,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
 // Data subject rights over REST. What this layer owes is the fields reaching the catalogue
@@ -219,6 +220,26 @@ func TestARestrictionIsAppliedAndAnswersTheAccountState(t *testing.T) {
 	}
 	if registry.name != restrictProcessingUseCase {
 		t.Errorf("the request ran %q", registry.name)
+	}
+}
+
+// Lifting the restriction of an invitation nobody accepted gives the invitation back, and the
+// contract answers it.
+func TestALiftedInvitationAnswersInvited(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{
+		"id": "0192f000-0000-7000-8000-00000000000d", "status": "INVITED",
+	}}
+
+	recorder := privacyRequest(t, registry, http.MethodPost,
+		"/accounts/0192f000-0000-7000-8000-00000000000d:restrict", `{"restricted":false}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("lifting answered %d: %s", recorder.Code, recorder.Body)
+	}
+	if !strings.Contains(recorder.Body.String(), `"status":"INVITED"`) {
+		t.Errorf("the account came back as %s", recorder.Body)
+	}
+	if !openapi.ProcessingStateStatus("INVITED").Valid() {
+		t.Error("the contract does not allow the status the operation answers")
 	}
 }
 

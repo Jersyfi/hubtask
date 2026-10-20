@@ -7467,7 +7467,8 @@ paths:
         the hold is lifted and the rest of the erasure has run.
         Both directions are refused for an account that is not active or restricted - an
         invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
-        person's data instead.
+        person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+        the invitation (`INVITED`).
       requestBody:
         required: true
         content:
@@ -17494,7 +17495,12 @@ components:
         the caller asked about.
       properties:
         account_id: { type: string, format: uuid }
-        status: { type: string, enum: [ACTIVE, RESTRICTED] }
+        status:
+          type: string
+          enum: [ACTIVE, RESTRICTED, INVITED]
+          description: |
+            `INVITED` when lifting the restriction of an invitation nobody accepted gave the
+            invitation back.
 
     ProcessingRestriction:
       type: object

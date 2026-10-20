@@ -96,7 +96,8 @@ practice. Rules:
   or a disabled account would let it in, and lifting would make it active. An invited or disabled
   person's data is kept by an `ACCOUNT` legal hold instead ([data-retention.md](./data-retention.md)
   §4 item 1). An invitation restricted before this rule returns to `INVITED` when lifted, not
-  `ACTIVE`. Restricting and lifting read the status they start from with the row locked, and ask
+  `ACTIVE`, told by the unredeemed invitation it still holds; one restricted before its invitation
+  mail went out holds none, and lifting makes it `ACTIVE`. Restricting and lifting read the status they start from with the row locked, and ask
   whether a hold keeps the account only then.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from

@@ -73,7 +73,7 @@ func newRestriction(subjects *subjectStore, authorizer *authorizerDouble, sink *
 func TestARestrictionIsWrittenAndRecorded(t *testing.T) {
 	subjects, authorizer, sink := newSubjectStore(), &authorizerDouble{}, &auditSink{}
 
-	if err := newRestriction(subjects, authorizer, sink).
+	if _, err := newRestriction(subjects, authorizer, sink).
 		Execute(context.Background(), actor(), RestrictCommand{
 			AccountID: subjectID, Restricted: true, Reason: "Art. 18 request of 26 August",
 		}); err != nil {
@@ -106,7 +106,7 @@ func TestARestrictionIsWrittenAndRecorded(t *testing.T) {
 func TestLiftingARestrictionIsItsOwnAction(t *testing.T) {
 	subjects, authorizer, sink := newSubjectStore(), &authorizerDouble{}, &auditSink{}
 
-	if err := newRestriction(subjects, authorizer, sink).
+	if _, err := newRestriction(subjects, authorizer, sink).
 		Execute(context.Background(), actor(), RestrictCommand{
 			AccountID: subjectID, Restricted: false, Reason: "Withdrawn by the person",
 		}); err != nil {
@@ -140,7 +140,7 @@ func TestARestrictionForgetsThePersonsVectors(t *testing.T) {
 		vectors := &forgetter{}
 		restriction := newRestriction(newSubjectStore(), &authorizerDouble{}, &auditSink{})
 		restriction.Embeddings = vectors
-		if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+		if _, err := restriction.Execute(context.Background(), actor(), RestrictCommand{
 			AccountID: subjectID, Restricted: restricted,
 		}); err != nil {
 			t.Fatalf("restricted=%v: %v", restricted, err)
@@ -177,7 +177,7 @@ func TestAnAccountThatIsNotThereIsNotFound(t *testing.T) {
 	subjects, authorizer, sink := newSubjectStore(), &authorizerDouble{}, &auditSink{}
 	subjects.missing = true
 
-	err := newRestriction(subjects, authorizer, sink).
+	_, err := newRestriction(subjects, authorizer, sink).
 		Execute(context.Background(), actor(), RestrictCommand{AccountID: subjectID, Restricted: true})
 	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "accounts.not_found" {
 		t.Fatalf("an account that is not there answered %v", err)
@@ -226,6 +226,34 @@ func TestAnAccountThatIsNotActiveIsNeitherRestrictedNorLifted(t *testing.T) {
 	}
 }
 
+// An account still holding an invitation nobody accepted gives the invitation back when lifted, not
+// an account nobody accepted - whether it is restricted or active - and says so to the caller.
+func TestLiftingARestrictedInvitationGivesBackTheInvitation(t *testing.T) {
+	for _, from := range []identity.AccountStatus{identity.AccountRestricted, identity.AccountActive} {
+		subjects, sink := newSubjectStore(), &auditSink{}
+		subjects.statuses[subjectID] = string(from)
+		subjects.invited[subjectID] = true
+		registry, err := usecase.NewRegistry(nil, newRestriction(subjects, &authorizerDouble{}, sink).Descriptor())
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		out, err := registry.Invoke(t.Context(), RestrictProcessingName, actor(), usecase.Input{
+			"account_id": subjectID.String(), "restricted": false,
+		})
+		if err != nil {
+			t.Fatalf("%s: lifting: %v", from, err)
+		}
+		if subjects.statuses[subjectID] != string(identity.AccountInvited) || out["status"] != string(identity.AccountInvited) {
+			t.Errorf("%s: the account is %q and the answer %v, want INVITED", from, subjects.statuses[subjectID], out["status"])
+		}
+		status, _ := sink.entries[0].Changes["status"].(map[string]any)
+		if status["to"] != string(identity.AccountInvited) {
+			t.Errorf("%s: the trail says %v", from, sink.entries[0].Changes)
+		}
+	}
+}
+
 // keptInOrder answers that no hold keeps the account, and notes that it was asked.
 type keptInOrder struct {
 	*keptStore
@@ -245,7 +273,7 @@ func TestLiftingAsksTheHoldAfterLockingTheAccount(t *testing.T) {
 	restriction := newRestriction(subjects, &authorizerDouble{}, &auditSink{})
 	restriction.Kept = keptInOrder{keptStore: &keptStore{}, calls: &subjects.calls}
 
-	if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+	if _, err := restriction.Execute(context.Background(), actor(), RestrictCommand{
 		AccountID: subjectID, Restricted: false,
 	}); err != nil {
 		t.Fatalf("lifting: %v", err)
@@ -260,7 +288,7 @@ func TestRestrictingARestrictedAccountAgainIsARetry(t *testing.T) {
 	subjects, sink := newSubjectStore(), &auditSink{}
 	subjects.statuses[subjectID] = string(identity.AccountRestricted)
 
-	if err := newRestriction(subjects, &authorizerDouble{}, sink).Execute(context.Background(), actor(),
+	if _, err := newRestriction(subjects, &authorizerDouble{}, sink).Execute(context.Background(), actor(),
 		RestrictCommand{AccountID: subjectID, Restricted: true}); err != nil {
 		t.Fatalf("restricting again: %v", err)
 	}
