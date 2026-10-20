@@ -14,7 +14,7 @@ what it breaks; the others wait for the owner (§ "Waiting on the owner") or lea
 Every task names its use cases; a task is done when the named checks hold, with the evidence in the
 pull request.
 
-**Delivers:** UC-BAK-04 (4, 5, 6), UC-BAK-07 (1), UC-BAK-08 (3, 6), UC-ID-04 (9), UC-ID-05 (6), UC-ID-10 (8), UC-INT-01 (9), UC-PRV-01 (2), UC-PRV-06 (3, 4), UC-PRV-08 (2), UC-AUD-07 (3, 4), UC-INS-09 (8), UC-ID-14 (7), UC-ID-20 (9), UC-PRV-04 (8), UC-ID-07 (7)
+**Delivers:** UC-BAK-04 (4, 5, 6), UC-BAK-07 (1), UC-BAK-08 (3, 6), UC-ID-04 (9), UC-ID-05 (6), UC-ID-10 (8), UC-INT-01 (9), UC-PRV-01 (2), UC-PRV-06 (3, 4), UC-PRV-08 (2), UC-AUD-07 (3, 4), UC-INS-09 (8), UC-ID-14 (7), UC-ID-20 (9), UC-PRV-04 (8), UC-ID-07 (7), UC-ID-20 (5), UC-ID-12 (1), UC-PRV-03 (14), UC-INS-14 (8)
 
 ## Decisions
 
@@ -50,6 +50,13 @@ Each measured against the deployments `D1`–`D7`:
 9. **Four findings enter with checks of their own** (the owner, 2026-10-15, #1498, option A):
    UC-INS-09 check 8 (#1303), UC-ID-14 check 7 and UC-ID-20 check 9 (#1267), UC-PRV-04 check 8
    (#1160), UC-ID-07 check 7 (#1337). CP-11 to CP-14 carry them.
+10. **The three open points are answered as proposed** (the owner, 2026-10-20): a new way in is
+    held to the ceiling, UC-ID-20 check 5 reworded (#1462, identity.md §13); a provider sign-in does
+    not count for the second-factor rule, identity.md §8 corrected and the choice reads "Everyone
+    signing in with a password", UC-ID-12 check 1 (#1428); the erasure of the only owner waits for
+    another owner, UC-PRV-03 check 14 (#1478, domain-model.md §3.2). CP-15 to CP-17 carry them.
+11. **#1603 enters CP** (the owner, 2026-10-20): metering that cannot be switched off breaks
+    UC-INS-14 check 8. CP-18 carries it.
 
 ---
 
@@ -290,6 +297,60 @@ address; identity.md says what a provider's redirect needs for that.
 
 ---
 
+## CP-15 — A new way in is held to the ceiling
+
+*Depends on: nothing.* · issue #1431 · identity.md §13 · Decision 10
+
+**Use cases:** UC-ID-20 (5)
+
+The start password, an address request for somebody else's managed account, an invitation renewed
+in link mode and a service account's token are refused with `access.role_above_own`, recorded,
+before the step-up, for an account holding a role above the actor's own.
+
+**Acceptance:** a test per door of an administrator refused for an owner's account and let through
+for a member's; an owner let through for both.
+
+---
+
+## CP-16 — The second-factor rule says it covers passwords
+
+*Depends on: nothing.* · issue #1399 · identity.md §8 · Decision 10
+
+**Use cases:** UC-ID-12 (1)
+
+The choice reads "Everyone signing in with a password"; a provider's arrival under every rule gets
+its session without enrolment, an armed factor still asked.
+
+**Acceptance:** tests of a provider arrival under `NONE`, `ADMINS` and `EVERYONE`; the screen in a
+walk.
+
+---
+
+## CP-17 — The erasure of the only owner waits for another owner
+
+*Depends on: nothing.* · issue #1463 · domain-model.md §3.2 · Decision 10
+
+**Use cases:** UC-PRV-03 (14)
+
+Starting the erasure of the workspace's only owner is refused with `memberships.last_owner`, and the
+erasure job asks again under the owner lock before it ends the account.
+
+**Acceptance:** the tests of draft #1476, rebased onto `main`.
+
+---
+
+## CP-18 — Metering switched off stays off
+
+*Depends on: nothing.* · issue #1603 · Decision 11
+
+**Use cases:** UC-INS-14 (8)
+
+A save with metering off clears the stored switch.
+
+**Acceptance:** an integration test that switches metering on and then off.
+
+---
+
 ## CP-07 — Integration's database in production's shape
 
 *Depends on: nothing; last, because only the repository's half can be built from a worker's
@@ -306,14 +367,7 @@ workspace bootstrapped again; RT-8's rolling-update probe rebuilt for CloudNativ
 
 ## Waiting on the owner
 
-Findings of the GitHub milestone CP that no task above carries yet. Each enters with a task, and its
-checks enter `Delivers`, once its decision is answered:
-
-| Finding | Decision | What the answer settles |
-|---|---|---|
-| #1431 — an administrator issues a start password to an Owner | #1462 | whether a ceiling applies to issuing a way in; UC-ID-20 check 5 reworded |
-| #1399 — a provider sign-in skips enrolment | #1428 | whether a provider sign-in counts for the second-factor rule; if not, identity.md §8 is corrected and #1399 closed |
-| #1463 — an erasure of the last owner | #1478 | whether the erasure waits for another owner; UC-PRV-03 gains a check (draft #1476) |
+Nothing: the three findings that waited entered as CP-15 to CP-17 (Decision 10).
 
 
 ## Not in CP
@@ -329,7 +383,7 @@ checks enter `Delivers`, once its decision is answered:
    lifecycle and name their doors there.
 4. **The premise** — every finding verified against the code on 2026-10-15 (see the head of this
    file).
-5. **Decisions** — above; the owner's open points are #1462, #1428 and #1478; #1498 was answered on 2026-10-15 (Decision 9), and #1494 for
+5. **Decisions** — above; #1462, #1428 and #1478 were answered on 2026-10-20 (Decision 10); #1498 was answered on 2026-10-15 (Decision 9), and #1494 for
    CP-05 only if it needs a definer function.
 6. **The rules** — backup-restore.md §4 and §8.5, data-protection.md §4 and deployment.md §3.1
    already say what is built; automation.md §3.1 and audit.md change in their tasks.
