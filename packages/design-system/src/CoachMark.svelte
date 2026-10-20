@@ -115,7 +115,7 @@
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     color: var(--text-primary);
     /* Rule 1: raised, a standalone surface over the page. */
     box-shadow: var(--shadow-overlay);
