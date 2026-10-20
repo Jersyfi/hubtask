@@ -13388,6 +13388,9 @@ type ClientInterface interface {
 	// identifier.
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// For somebody else's account the address is a way into it, so the request is held to the role
+	// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+	// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
 	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 	// an address would take the person's one way in, and the request is refused with
@@ -13411,6 +13414,9 @@ type ClientInterface interface {
 	// identifier.
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// For somebody else's account the address is a way into it, so the request is held to the role
+	// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+	// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
 	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 	// an address would take the person's one way in, and the request is refused with
@@ -13442,7 +13448,10 @@ type ClientInterface interface {
 	//
 	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
 	// otherwise). An act an automation rule runs is refused with
-	// `accounts.managed_needs_a_person`: a run reads no answer.
+	// `accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as
+	// the account, so it is held to the role ceiling: an owner issues one for anybody, an
+	// administrator only for an account whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`, before the proof is spent.
 	//
 	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
 	// no-store`: an answer kept for a replay would keep the start password with it.
@@ -13462,7 +13471,10 @@ type ClientInterface interface {
 	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
 	// with `accounts.invitation_needs_a_person`.
 	//
-	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
+	// a way into the account, so it is also held to the role ceiling: an owner renews any
+	// invitation, an administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable.
 	//
 	// Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
 	RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -15146,6 +15158,7 @@ type ClientInterface interface {
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -15158,6 +15171,7 @@ type ClientInterface interface {
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -18426,6 +18440,9 @@ func (c *Client) UpdateAccountPreferencesWithApplicationMergePatchPlusJSONBody(c
 // identifier.
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// For somebody else's account the address is a way into it, so the request is held to the role
+// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
 // with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 // an address would take the person's one way in, and the request is refused with
@@ -18459,6 +18476,9 @@ func (c *Client) RequestAddressWithBody(ctx context.Context, accountId AccountId
 // identifier.
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// For somebody else's account the address is a way into it, so the request is held to the role
+// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
 // with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 // an address would take the person's one way in, and the request is refused with
@@ -18500,7 +18520,10 @@ func (c *Client) RequestAddress(ctx context.Context, accountId AccountId, body R
 //
 // Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
 // otherwise). An act an automation rule runs is refused with
-// `accounts.managed_needs_a_person`: a run reads no answer.
+// `accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as
+// the account, so it is held to the role ceiling: an owner issues one for anybody, an
+// administrator only for an account whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`, before the proof is spent.
 //
 // There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
 // no-store`: an answer kept for a replay would keep the start password with it.
@@ -18530,7 +18553,10 @@ func (c *Client) IssueStartPassword(ctx context.Context, accountId AccountId, pa
 // earlier link stops working at once. Without mail, an act an automation rule runs is refused
 // with `accounts.invitation_needs_a_person`.
 //
-// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
+// a way into the account, so it is also held to the role ceiling: an owner renews any
+// invitation, an administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable.
 //
 // Corresponds with POST /accounts/{accountId}:renew-invitation (the `RenewInvitation` operationId).
 func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, params *RenewInvitationParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -21874,6 +21900,7 @@ func (c *Client) ListAccessTokens(ctx context.Context, params *ListAccessTokensP
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 // Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 //
 // Takes any type of body and a specified content type.
 //
@@ -21896,6 +21923,7 @@ func (c *Client) CreateAccessTokenWithBody(ctx context.Context, params *CreateAc
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 // Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -44528,6 +44556,9 @@ type ClientWithResponsesInterface interface {
 	// identifier.
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// For somebody else's account the address is a way into it, so the request is held to the role
+	// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+	// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
 	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 	// an address would take the person's one way in, and the request is refused with
@@ -44551,6 +44582,9 @@ type ClientWithResponsesInterface interface {
 	// identifier.
 	//
 	// The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+	// For somebody else's account the address is a way into it, so the request is held to the role
+	// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+	// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 	// Only a managed account - a sign-in name and no address - takes one: any other is refused
 	// with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 	// an address would take the person's one way in, and the request is refused with
@@ -44582,7 +44616,10 @@ type ClientWithResponsesInterface interface {
 	//
 	// Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
 	// otherwise). An act an automation rule runs is refused with
-	// `accounts.managed_needs_a_person`: a run reads no answer.
+	// `accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as
+	// the account, so it is held to the role ceiling: an owner issues one for anybody, an
+	// administrator only for an account whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`, before the proof is spent.
 	//
 	// There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
 	// no-store`: an answer kept for a replay would keep the start password with it.
@@ -44604,7 +44641,10 @@ type ClientWithResponsesInterface interface {
 	// earlier link stops working at once. Without mail, an act an automation rule runs is refused
 	// with `accounts.invitation_needs_a_person`.
 	//
-	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+	// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
+	// a way into the account, so it is also held to the role ceiling: an owner renews any
+	// invitation, an administrator only one whose roles are all at or below their own - otherwise
+	// `403 access.role_above_own` with the `role`. Auditable.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -46388,6 +46428,7 @@ type ClientWithResponsesInterface interface {
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -46400,6 +46441,7 @@ type ClientWithResponsesInterface interface {
 	// The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 	// The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 	// Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+	// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -66901,6 +66943,9 @@ func (c *ClientWithResponses) UpdateAccountPreferencesWithApplicationMergePatchP
 // identifier.
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// For somebody else's account the address is a way into it, so the request is held to the role
+// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
 // with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 // an address would take the person's one way in, and the request is refused with
@@ -66930,6 +66975,9 @@ func (c *ClientWithResponses) RequestAddressWithBodyWithResponse(ctx context.Con
 // identifier.
 //
 // The person themselves may ask, and so may whoever holds `MANAGE_MEMBERS` at the workspace.
+// For somebody else's account the address is a way into it, so the request is held to the role
+// ceiling: an owner asks for anybody, an administrator only for an account whose roles are all
+// at or below their own - otherwise `403 access.role_above_own` with the `role`.
 // Only a managed account - a sign-in name and no address - takes one: any other is refused
 // with `409 accounts.not_managed`. Where the workspace's sign-in methods leave the password out,
 // an address would take the person's one way in, and the request is refused with
@@ -66967,7 +67015,10 @@ func (c *ClientWithResponses) RequestAddressWithResponse(ctx context.Context, ac
 //
 // Asks `MANAGE_MEMBERS` at the workspace and a fresh proof (`auth.step_up_required`
 // otherwise). An act an automation rule runs is refused with
-// `accounts.managed_needs_a_person`: a run reads no answer.
+// `accounts.managed_needs_a_person`: a run reads no answer. Whoever issues it can sign in as
+// the account, so it is held to the role ceiling: an owner issues one for anybody, an
+// administrator only for an account whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`, before the proof is spent.
 //
 // There is deliberately no `Idempotency-Key`, and the answer carries `Cache-Control:
 // no-store`: an answer kept for a replay would keep the start password with it.
@@ -66995,7 +67046,10 @@ func (c *ClientWithResponses) IssueStartPasswordWithResponse(ctx context.Context
 // earlier link stops working at once. Without mail, an act an automation rule runs is refused
 // with `accounts.invitation_needs_a_person`.
 //
-// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Auditable.
+// Asks `MANAGE_MEMBERS` at the workspace, as the invitation does. Without mail the new link is
+// a way into the account, so it is also held to the role ceiling: an owner renews any
+// invitation, an administrator only one whose roles are all at or below their own - otherwise
+// `403 access.role_above_own` with the `role`. Auditable.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -69775,6 +69829,7 @@ func (c *ClientWithResponses) ListAccessTokensWithResponse(ctx context.Context, 
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 // Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -69793,6 +69848,7 @@ func (c *ClientWithResponses) CreateAccessTokenWithBodyWithResponse(ctx context.
 // The expiry is mandatory and at most a year out. There is no default: a caller has to say how long the credential should live, because the alternative is a credential nobody ever revokes.
 // The scopes are requested explicitly and are never defaulted to everything. Each has to be one the installation declares - the manifest at `/meta/capabilities` lists them - and a token can never do more than its holder may, whatever it asks for: the scope is a second bound on top of the role, not a grant.
 // Asking for an admin scope is a privileged action: it demands a fresh step-up, presented in the `X-Hubtask-Step-Up` header.
+// A token for a service account is held to the role ceiling: an owner mints one for any service account, an administrator only for one whose roles are all at or below their own - otherwise `403 access.role_above_own` with the `role`, before any step-up is spent.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
