@@ -623,9 +623,15 @@ func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []s
 	if err := client.Get(ctx, adminSettingsPath, nil, &settings); err != nil {
 		return err
 	}
+	read := 0
+	if settings.Version != nil {
+		read = *settings.Version
+	}
 	settings.Metering = &on
 	var written openapi.InstanceSettings
-	if err := client.Put(ctx, adminSettingsPath, settings, &written); err != nil {
+	if err := client.PutVersioned(
+		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,
+	); err != nil {
 		return err
 	}
 	return cli.Emit(written, settingsTable(written))
