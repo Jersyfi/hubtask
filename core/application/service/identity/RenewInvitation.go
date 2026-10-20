@@ -42,6 +42,9 @@ type RenewInvitationCommand struct {
 type RenewInvitation struct {
 	Accounts   repository.Accounts
 	Authorizer Authorizer
+	// Held is what the invited account holds - the roles its invitation gives - for the ceiling on
+	// a link.
+	Held       repository.HeldRoles
 	Notifier   Notifier
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -57,18 +60,24 @@ func (h RenewInvitation) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd RenewInvitationCommand,
 ) (Invitation, error) {
 	// Before the transaction, for InviteAccount's reason: a refusal's own trail entry must outlive it.
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []domain.Scope{domain.TenantScope()},
 		Action:     InvitationRenewedAction,
 		TokenScope: membersWrite,
 		TargetType: accountTarget,
 		TargetID:   cmd.AccountID,
-	}); err != nil {
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
 		return Invitation{}, err
 	}
 	if err := needsAPerson(actor, h.Links); err != nil {
 		return Invitation{}, err
+	}
+	if h.Links.handsOver() {
+		if err := h.holdTheLink(ctx, actor, request); err != nil {
+			return Invitation{}, err
+		}
 	}
 
 	var renewed Invitation
@@ -101,6 +110,32 @@ func (h RenewInvitation) Execute(
 		return Invitation{}, err
 	}
 	return renewed, nil
+}
+
+// holdTheLink holds a renewal by link to the role ceiling: the link is answered to the actor, who
+// could accept it and arrive as the invited account with the roles its invitation gives. A mail
+// goes to the invited address instead, and is no way in for the actor.
+//
+// The account is read once here, in a transaction that has ended before the ceiling may record a
+// refusal; one not waiting on an invitation is answered so first, and the renewal reads it again.
+func (h RenewInvitation) holdTheLink(ctx context.Context, actor appshared.ActorContext, request access.Request) error {
+	ceiling := wayInCeiling{Held: h.Held, Authorizer: h.Authorizer}
+	var held []domain.Role
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		invited, err := h.Accounts.Find(ctx, request.TargetID)
+		if err != nil {
+			return err
+		}
+		if invited.Status != domain.AccountInvited {
+			return notInvited()
+		}
+		held, err = ceiling.heldBy(ctx, invited.ID)
+		return err
+	})
+	if err != nil {
+		return err
+	}
+	return ceiling.hold(ctx, actor, request, held)
 }
 
 // notInvited answers a renewal of an account that is not waiting on an invitation: a person who

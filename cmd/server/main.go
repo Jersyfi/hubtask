@@ -1579,8 +1579,8 @@ func run() error {
 			Text: forms, Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.RenewInvitation{
-			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Accounts: accounts, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			Notifier: jobs, Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Links: invitationLinks(cfg, signInStore, unitOfWork), People: quotaGuard,
 		}.Descriptor(),
 		identity.GetOwnAccount{
