@@ -5,9 +5,12 @@ package privacy
 
 import (
 	"context"
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -19,19 +22,25 @@ import (
 // Art. 18 as a technical state (data-protection.md §4): readable, not processed - and not a
 // lockout, which is the distinction the whole use case turns on.
 
-// subjectStore keeps the statuses an erasure and a restriction write.
+// subjectStore keeps the statuses an erasure and a restriction write. An account it holds no
+// status for reads as active.
 type subjectStore struct {
 	statuses map[shared.ID]string
 	missing  bool
+	// invited are the accounts whose invitation nobody accepted.
+	invited map[shared.ID]bool
+	// calls is the order in which a restriction locked, asked the hold and wrote.
+	calls []string
 }
 
 func newSubjectStore() *subjectStore {
-	return &subjectStore{statuses: map[shared.ID]string{}}
+	return &subjectStore{statuses: map[shared.ID]string{}, invited: map[shared.ID]bool{}}
 }
 
 func (s *subjectStore) SetStatus(
 	_ context.Context, id shared.ID, status string, _ time.Time,
 ) (bool, error) {
+	s.calls = append(s.calls, "write")
 	if s.missing {
 		return false, nil
 	}
@@ -39,11 +48,23 @@ func (s *subjectStore) SetStatus(
 	return true, nil
 }
 
+func (s *subjectStore) LockStatus(_ context.Context, id shared.ID) (repository.LockedAccount, bool, error) {
+	s.calls = append(s.calls, "lock")
+	if s.missing {
+		return repository.LockedAccount{}, false, nil
+	}
+	account := repository.LockedAccount{Status: identity.AccountActive, InvitationOpen: s.invited[id]}
+	if status, held := s.statuses[id]; held {
+		account.Status = identity.AccountStatus(status)
+	}
+	return account, true, nil
+}
+
 func (s *subjectStore) Tenants(context.Context, string) ([]shared.ID, error) { return nil, nil }
 
 func newRestriction(subjects *subjectStore, authorizer *authorizerDouble, sink *auditSink) RestrictProcessing {
 	return RestrictProcessing{
-		Subjects: subjects, Authorizer: authorizer, Audit: sink,
+		Subjects: subjects, Statuses: subjects, Authorizer: authorizer, Audit: sink,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 }
@@ -157,11 +178,43 @@ func TestAnAccountThatIsNotThereIsNotFound(t *testing.T) {
 
 	err := newRestriction(subjects, authorizer, sink).
 		Execute(context.Background(), actor(), RestrictCommand{AccountID: subjectID, Restricted: true})
-	if err == nil {
-		t.Fatal("an account that is not there was restricted")
+	if !errors.Is(err, shared.ErrNotFound) || shared.AsError(err).DetailCode != "accounts.not_found" {
+		t.Fatalf("an account that is not there answered %v", err)
+	}
+	if got := strings.Join(subjects.calls, ","); got != "lock" {
+		t.Errorf("restricting an account that is not there went %s, want lock alone", got)
 	}
 	if len(sink.entries) != 0 {
 		t.Error("a restriction nobody could write was recorded")
+	}
+}
+
+// keptInOrder answers that no hold keeps the account, and notes that it was asked.
+type keptInOrder struct {
+	*keptStore
+	calls *[]string
+}
+
+func (k keptInOrder) KeepsAccount(context.Context, shared.ID) (bool, error) {
+	*k.calls = append(*k.calls, "kept")
+	return false, nil
+}
+
+// The hold is asked once the row is locked: an erasure that keeps the account and commits in
+// between then waits on the lock, instead of seeing its restriction lifted afterwards.
+func TestLiftingAsksTheHoldAfterLockingTheAccount(t *testing.T) {
+	subjects := newSubjectStore()
+	subjects.statuses[subjectID] = string(identity.AccountRestricted)
+	restriction := newRestriction(subjects, &authorizerDouble{}, &auditSink{})
+	restriction.Kept = keptInOrder{keptStore: &keptStore{}, calls: &subjects.calls}
+
+	if err := restriction.Execute(context.Background(), actor(), RestrictCommand{
+		AccountID: subjectID, Restricted: false,
+	}); err != nil {
+		t.Fatalf("lifting: %v", err)
+	}
+	if got := strings.Join(subjects.calls, ","); got != "lock,kept,write" {
+		t.Errorf("lifting went %s, want lock,kept,write", got)
 	}
 }
 

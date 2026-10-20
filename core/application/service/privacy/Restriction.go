@@ -40,6 +40,7 @@ const (
 // lockout would punish somebody for exercising a right.
 type RestrictProcessing struct {
 	Subjects repository.Subjects
+	Statuses repository.AccountStatuses
 	// Kept answers whether an erasure keeps the account because of a legal hold, which its
 	// restriction then stands for.
 	Kept       repository.Kept
@@ -110,6 +111,16 @@ func (h RestrictProcessing) Execute(
 	}
 
 	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Locked first, and everything below decided on it: an erasure that keeps the account, or
+		// anonymises it, waits until this transaction ends instead of being written over.
+		_, found, err := h.Statuses.LockStatus(ctx, cmd.AccountID)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return shared.ErrNotFound.WithDetail("accounts.not_found").
+				WithParams(map[string]string{"account_id": cmd.AccountID.String()})
+		}
 		if !cmd.Restricted && h.Kept != nil {
 			// A legal hold keeps this account from an erasure, restricted (data-protection.md
 			// §4.1). Lifting it would make held data processable again.

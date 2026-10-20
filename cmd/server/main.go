@@ -2186,8 +2186,8 @@ func run() error {
 			Eraser: privacyservice.Eraser{Erasure: privacyStore, Holds: postgres.NewLifecycleRepository()},
 		}.Descriptor(),
 		privacyservice.RestrictProcessing{
-			Subjects: privacyStore, Kept: privacyStore, Authorizer: authorizer, Audit: auditSink,
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			Subjects: privacyStore, Statuses: privacyStore, Kept: privacyStore, Authorizer: authorizer,
+			Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Embeddings: postgres.NewEmbeddingRepository(),
 		}.Descriptor(),
 		privacyservice.WithdrawConsent{

@@ -57,7 +57,7 @@ func TestARestrictedPersonsEntriesLeaveSearchByMeaning(t *testing.T) {
 	restrict := func(restricted bool) {
 		t.Helper()
 		restriction := privacyservice.RestrictProcessing{
-			Subjects: privacyRepo(), Kept: privacyRepo(), Authorizer: permissive{},
+			Subjects: privacyRepo(), Statuses: privacyRepo(), Kept: privacyRepo(), Authorizer: permissive{},
 			Audit:      postgres.NewAuditSink(clockadapter.NewUUIDv7(clockadapter.System{})),
 			UnitOfWork: unitOfWork, Clock: portclock.Fixed(time.Now().UTC()),
 			Embeddings: postgres.NewEmbeddingRepository(),
