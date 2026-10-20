@@ -72,6 +72,8 @@ const (
 	// aiArea holds which AI sources a workspace may use and the least its own model must declare
 	// (ADR-0072 §2), one row per key of integration.AiSwitches.
 	aiArea = "ai"
+	// meteringArea holds whether use is offered for billing; its row is there only while it is on.
+	meteringArea = "metering"
 )
 
 // The keys, as one list rather than as literals in a read and a write that could disagree.
@@ -96,7 +98,7 @@ const (
 	keyManagedAccounts    = signInArea + ".managed_accounts"
 	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
-	keyMetering           = "metering.enabled"
+	keyMetering           = meteringArea + ".enabled"
 
 	// keyLevelVersion is the level's version (migration 0184): outside the five areas, so a
 	// write's clearing never reaches it, and a key an older build skips.
@@ -398,7 +400,7 @@ func (r InstanceSettingRepository) Write(
 	}
 
 	if err := queries.DeleteInstanceSettingsExcept(ctx, sqlc.DeleteInstanceSettingsExceptParams{
-		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea},
+		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea, meteringArea},
 		Kept:  kept,
 	}); err != nil {
 		return false, shared.ErrUnavailable.

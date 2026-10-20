@@ -108,7 +108,8 @@ func TestAnInstanceValueIsStoredAsItsKind(t *testing.T) {
 	}
 }
 
-// UC-INS-14 check 8: the metering switch is stored, read back, and off unless written on.
+// UC-INS-14 check 8: the metering switch is stored, read back, off unless written on, and off
+// again once written off.
 func TestTheMeteringSwitchIsStoredOffByDefault(t *testing.T) {
 	ctx := context.Background()
 	uow := postgres.NewUnitOfWork(appPool(ctx, t))
@@ -144,5 +145,9 @@ func TestTheMeteringSwitchIsStoredOffByDefault(t *testing.T) {
 	write(on)
 	if !read().Metering {
 		t.Error("metering switched on reads off")
+	}
+	write(off)
+	if read().Metering {
+		t.Error("metering switched off still reads on")
 	}
 }
