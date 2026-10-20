@@ -136,6 +136,17 @@ type Memberships interface {
 	HoldsAny(ctx context.Context, accountID shared.ID) (bool, error)
 }
 
+// HeldRoles answers every role one account holds, for the doors that issue a new way into it
+// (identity.md §13): whoever holds the account's credential holds all of them at once.
+//
+// Apart from Memberships, which the authoriser asks on every request: this is asked only where a
+// credential for somebody else is issued, and the authoriser's fakes need not learn it.
+type HeldRoles interface {
+	// HeldAnywhere returns each role the account holds anywhere in the workspace, directly or
+	// through a group, once; empty for an account that holds none, or one of another workspace.
+	HeldAnywhere(ctx context.Context, accountID shared.ID) ([]identity.Role, error)
+}
+
 // HubLocks guards the two writes that must not interleave on a private hub: a group granted a role
 // on it or below it, and the hub being made private (ADR-0073 §1, identity.md §22). Both take the
 // hub's row first, so one of them sees the other's result.

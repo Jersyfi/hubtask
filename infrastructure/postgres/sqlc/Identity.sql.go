@@ -1308,6 +1308,39 @@ func (q *Queries) RevokeMembership(ctx context.Context, id pgtype.UUID) (int64, 
 	return result.RowsAffected(), nil
 }
 
+const rolesHeldAnywhere = `-- name: RolesHeldAnywhere :many
+SELECT DISTINCT m.role
+FROM membership m
+WHERE m.account_id = $1::uuid
+   OR m.group_id IN (
+     SELECT group_id FROM account_group_member WHERE account_id = $1::uuid
+   )
+`
+
+// Every role the account holds anywhere in the tenant, directly or through a group, each once:
+// what a new way into the account would hand its issuer (identity.md §13). The rows that stand are
+// the rows there are - a revoked membership is deleted, and a deleted group takes its memberships
+// and its members with it - so nothing further is filtered, as HoldsAnyMembership filters nothing.
+func (q *Queries) RolesHeldAnywhere(ctx context.Context, accountID pgtype.UUID) ([]MembershipRole, error) {
+	rows, err := q.db.Query(ctx, rolesHeldAnywhere, accountID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []MembershipRole{}
+	for rows.Next() {
+		var role MembershipRole
+		if err := rows.Scan(&role); err != nil {
+			return nil, err
+		}
+		items = append(items, role)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const sharedItemsInCollection = `-- name: SharedItemsInCollection :many
 SELECT m.scope_id
 FROM membership m

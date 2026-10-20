@@ -255,6 +255,31 @@ func (r MembershipRepository) HubsOf(
 	return hubs, nil
 }
 
+var _ repository.HeldRoles = MembershipRepository{}
+
+// HeldAnywhere answers each role the account holds anywhere in the transaction's tenant, once.
+func (r MembershipRepository) HeldAnywhere(ctx context.Context, accountID shared.ID) ([]identity.Role, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	account, err := uuidOf(accountID)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.RolesHeldAnywhere(ctx, account)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the roles an account holds: %w", err))
+	}
+	roles := make([]identity.Role, 0, len(rows))
+	for _, role := range rows {
+		roles = append(roles, identity.Role(role))
+	}
+	return roles, nil
+}
+
 // HoldsAny answers whether the account holds a role anywhere in the transaction's tenant.
 func (r MembershipRepository) HoldsAny(ctx context.Context, accountID shared.ID) (bool, error) {
 	queries, err := queriesFrom(ctx)

@@ -126,6 +126,18 @@ SELECT EXISTS (
      )
 ) AS held;
 
+-- name: RolesHeldAnywhere :many
+-- Every role the account holds anywhere in the tenant, directly or through a group, each once:
+-- what a new way into the account would hand its issuer (identity.md §13). The rows that stand are
+-- the rows there are - a revoked membership is deleted, and a deleted group takes its memberships
+-- and its members with it - so nothing further is filtered, as HoldsAnyMembership filters nothing.
+SELECT DISTINCT m.role
+FROM membership m
+WHERE m.account_id = sqlc.arg('account_id')::uuid
+   OR m.group_id IN (
+     SELECT group_id FROM account_group_member WHERE account_id = sqlc.arg('account_id')::uuid
+   );
+
 -- name: LockHubOf :one
 -- The hub a container or an entry sits under, locked for the transaction: granting a group a role
 -- under a private hub and making a hub private both take this row first, so the second waits for
