@@ -12,6 +12,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	lifecycle "github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -351,7 +352,7 @@ func (h *erasureHarness) eraser() Eraser { return h.eraserFor(newRequestStore())
 func (h *erasureHarness) eraserFor(requests *requestStore) Eraser {
 	return Eraser{
 		Requests: requests, Erasure: h.storage, Pseudonyms: h.pseudonyms,
-		Holds: h.holds, Kept: h.kept, Subjects: h.subjects,
+		Holds: h.holds, Kept: h.kept, Subjects: h.subjects, Statuses: h.subjects,
 		Removals: h.removals, Objects: h.objects, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 		TombstoneWindow: 90 * 24 * time.Hour,
@@ -749,6 +750,30 @@ func TestAHoldOnThePersonKeepsTheAccountAndRestrictsIt(t *testing.T) {
 	}
 	if !h.kept.recorded[0][0].Account {
 		t.Error("the record does not say the account was kept")
+	}
+}
+
+// A hold on an invited or disabled person keeps the account as it is: RESTRICTED would let it act
+// and count it as a person. Its processing is restricted through the kept record instead - as an
+// anonymised one's is, which RESTRICTED would bring back.
+func TestAHoldKeepsAnInvitedOrDisabledAccountInItsStatus(t *testing.T) {
+	for _, from := range []identity.AccountStatus{
+		identity.AccountInvited, identity.AccountDisabled, identity.AccountAnonymized,
+	} {
+		h := newErasureHarness()
+		h.holds.holds = lifecycle.Holds{{ID: erasureHoldID, Scope: lifecycle.HoldAccount, ScopeID: subjectID}}
+		h.subjects.statuses[subjectID] = string(from)
+
+		erased, err := h.eraser().Erase(context.Background(), actor(), erasureCase(domain.ModeFullDelete))
+		if err != nil {
+			t.Fatalf("%s: erasing: %v", from, err)
+		}
+		if !erased.AccountKept || h.subjects.statuses[subjectID] != string(from) {
+			t.Errorf("%s: kept %v, the account is %q", from, erased.AccountKept, h.subjects.statuses[subjectID])
+		}
+		if !h.kept.recorded[0][0].Account {
+			t.Errorf("%s: the record does not say the account was kept", from)
+		}
 	}
 }
 

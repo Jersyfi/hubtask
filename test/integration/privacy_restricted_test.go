@@ -65,6 +65,37 @@ func TestWhoseProcessingIsRestricted(t *testing.T) {
 		t.Error("a former user stays restricted after the last kept part was erased")
 	}
 
+	// Invited or disabled, under a hold on the person: kept in its status - RESTRICTED would let it
+	// act and count it - and restricted through the kept record, for both reads.
+	for _, from := range []string{"INVITED", "DISABLED"} {
+		held := seedSubject(ctx, t, "held-"+freshID(t).String()+"@example.test")
+		if _, err := adminPool(ctx, t).Exec(ctx,
+			`UPDATE account SET status = $2, redemption_token_hash = $3 WHERE id = $1`,
+			held.account.String(), from, "invite-"+held.account.String()); err != nil {
+			t.Fatalf("%s: seeding: %v", from, err)
+		}
+		holdOn(ctx, t, held.tenant, "ACCOUNT", held.account)
+		if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{
+			RequestID: erasureRequest(ctx, t, held, domain.ModeAnonymize).ID, TenantID: held.tenant,
+		}); err != nil {
+			t.Fatalf("%s: carrying out the case: %v", from, err)
+		}
+		var status string
+		if err := adminPool(ctx, t).QueryRow(ctx, `SELECT status FROM account WHERE id = $1`,
+			held.account.String()).Scan(&status); err != nil {
+			t.Fatalf("%s: reading the account: %v", from, err)
+		}
+		if status != from {
+			t.Errorf("a held %s account is %s", from, status)
+		}
+		if !restrictedIn(ctx, t, held.tenant).Has(held.account) {
+			t.Errorf("a held %s account is not restricted", from)
+		}
+		if !assignmentRestricted(ctx, t, held) {
+			t.Errorf("the assignment policy may still draw a held %s account", from)
+		}
+	}
+
 	// A held account that somehow became active again stays restricted: the kept record decides,
 	// not the status.
 	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE account SET status = 'ACTIVE' WHERE id = $1`,

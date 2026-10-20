@@ -65,6 +65,8 @@ type Eraser struct {
 	Kept repository.Kept
 	// Subjects restricts an account a hold keeps (Art. 18).
 	Subjects repository.Subjects
+	// Statuses reads, with the row locked, whether the kept account may carry the restriction.
+	Statuses repository.AccountStatuses
 	// Removals writes the journal entry and the tombstone every removal owes, through the one
 	// engine every removal in this system goes through (ADR-0020 §6). A comment removed without
 	// them would come back from a restore, or be recreated by a device that was offline.
@@ -354,13 +356,20 @@ func (e Eraser) finishAccount(
 	ctx context.Context, subject shared.ID, fate domain.AccountFate, now time.Time, erased *Erased,
 ) error {
 	if fate == domain.AccountKept {
-		// Restricted rather than erased (Art. 18): stored, out of automatic processing, still
-		// signing in. No pseudonym yet - the trail names the person while the account does.
-		restricted, err := e.Subjects.SetStatus(ctx, subject, string(identity.AccountRestricted), now)
-		if err != nil {
+		// Restricted rather than erased (Art. 18): stored and out of automatic processing; an active
+		// person still signs in. No pseudonym yet - the trail names the person while the account does.
+		account, found, err := e.Statuses.LockStatus(ctx, subject)
+		if err != nil || !found {
 			return err
 		}
-		erased.AccountKept = restricted
+		// An invited or disabled account keeps its status, which RESTRICTED would turn into one
+		// that may act; the kept record restricts its processing instead (data-protection.md §4.1).
+		if account.Status.RestrictionApplies() {
+			if _, err := e.Subjects.SetStatus(ctx, subject, string(identity.AccountRestricted), now); err != nil {
+				return err
+			}
+		}
+		erased.AccountKept = true
 		return nil
 	}
 

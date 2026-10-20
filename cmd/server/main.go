@@ -1551,7 +1551,8 @@ func run() error {
 	privacyEraser := privacyservice.Eraser{
 		Requests: privacyStore, Erasure: privacyStore, Pseudonyms: privacyStore,
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyStore, Subjects: privacyStore,
-		Removals: postgres.NewLifecycleRepository(), Objects: mediaStore, Audit: auditSink,
+		Statuses: privacyStore, Removals: postgres.NewLifecycleRepository(), Objects: mediaStore,
+		Audit:      auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,

@@ -128,7 +128,7 @@ func eraserFor(t *testing.T) privacyservice.Eraser {
 	return privacyservice.Eraser{
 		Requests: privacyRepo(), Erasure: privacyRepo(), Pseudonyms: privacyRepo(),
 		Holds: postgres.NewLifecycleRepository(), Kept: privacyRepo(), Subjects: privacyRepo(),
-		Removals: postgres.NewLifecycleRepository(), Objects: nil,
+		Statuses: privacyRepo(), Removals: postgres.NewLifecycleRepository(), Objects: nil,
 		Audit:      postgres.NewAuditSink(generator{t}),
 		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
 		Clock:      portclock.Fixed(created), TombstoneWindow: 90 * 24 * time.Hour,
