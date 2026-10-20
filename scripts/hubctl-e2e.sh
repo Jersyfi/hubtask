@@ -296,20 +296,24 @@ expect_missing "container ls" "$top_level" "Errands"
 expect_contains "container ls --parent" "$(hubctl container ls --parent "$HUB_ID")" "Errands"
 
 echo "--- three levels of work: a task, a work package, an activity ---"
-# The levels are what the capability profiles allow: a task takes work packages, a work package
-# takes activities, an activity takes nothing (db/migrations/0002_capability_profiles.sql).
+# The levels are what the capability profiles allow: a task takes work packages and activities, a
+# work package takes activities, an activity takes nothing (db/migrations/0002 and 0185).
 TASK_ID="$(hubctl item create --collection "$COLLECTION_ID" --type TASK --title 'Buy milk' | first_id)"
 [ -n "$TASK_ID" ] || { echo "FAILED: creating the task produced no identifier"; exit 1; }
 PACKAGE_ID="$(hubctl item create --parent "$TASK_ID" --type WORK_PACKAGE --title 'Go to the shop' | first_id)"
 [ -n "$PACKAGE_ID" ] || { echo "FAILED: creating the work package produced no identifier"; exit 1; }
 STEP_ID="$(hubctl item create --parent "$PACKAGE_ID" --type ACTIVITY --title 'Find the aisle' | first_id)"
 [ -n "$STEP_ID" ] || { echo "FAILED: creating the activity produced no identifier"; exit 1; }
+DIRECT_ID="$(hubctl item create --parent "$TASK_ID" --type ACTIVITY --title 'Check the receipt' | first_id)"
+[ -n "$DIRECT_ID" ] || { echo "FAILED: creating an activity directly under the task produced no identifier"; exit 1; }
 
 items="$(hubctl item ls --collection "$COLLECTION_ID")"
 expect_contains "item ls" "$items" "Buy milk"
 expect_missing "item ls" "$items" "Go to the shop"
 expect_contains "item ls --parent" \
 	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Go to the shop"
+expect_contains "item ls --parent, the task's own activity" \
+	"$(hubctl item ls --collection "$COLLECTION_ID" --parent "$TASK_ID")" "Check the receipt"
 
 echo "--- completing ---"
 # The contract declares cascade_children and this installation does not serve it yet. That
@@ -436,7 +440,7 @@ for _ in $(seq 1 20); do
 	while read -r _ _ entity op entity_id _; do
 		[ "$entity" = "item" ] && [ "$op" = "UPSERT" ] || continue
 		case "$entity_id" in
-			"$TASK_ID" | "$PACKAGE_ID" | "$STEP_ID" | "$DATED_ID" | ID | "") continue ;;
+			"$TASK_ID" | "$PACKAGE_ID" | "$STEP_ID" | "$DIRECT_ID" | "$DATED_ID" | ID | "") continue ;;
 		esac
 		occurrence_seen="$entity_id"
 		break
