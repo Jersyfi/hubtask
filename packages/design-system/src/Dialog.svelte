@@ -105,13 +105,17 @@
 
 <!-- `oncancel` is refused rather than allowed: the platform would close this dialog, and the rule
      is that `Escape` closes the topmost layer, which may be a popover opened from inside it. The
-     keydown handler above has already asked the register by the time this fires. -->
+     keydown handler above has already asked the register by the time this fires.
+     `close` is queued as a task after the element closes, so it can arrive after the dialog was
+     opened again within that task; only an element still closed means it was closed. -->
 <dialog
   class="dialog"
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
-  onclose={() => close()}
+  onclose={(event) => {
+    if (!event.currentTarget.open) close();
+  }}
   onclick={(event) => {
     if (dismissLabel !== undefined && event.target === node) close();
   }}

@@ -260,6 +260,35 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   assert.deepEqual(failures, []);
 });
 
+test('chromium: 600 px — the drawer closed and opened again at once stays open', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser, 600);
+  t.after(close);
+
+  const toggle = page.getByRole('button', { name: 'Open the navigation' });
+  // Held before it opens: behind a modal the opener is inert, and no role query reaches it.
+  const opener = await toggle.elementHandle();
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  const drawer = page.locator('dialog[open]');
+  await drawer.waitFor({ timeout: 5_000 });
+  // Escape and the opener within one task, so the native close event of the first closing is
+  // certainly still queued when the drawer opens again: it must not close the drawer it finds open.
+  // Svelte applies a change in a microtask, which still runs within the task.
+  const closed = await opener.evaluate(async (element) => {
+    const open = document.querySelector('dialog[open]');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    for (let i = 0; i < 50 && open?.open; i += 1) await Promise.resolve();
+    const wasClosed = open !== null && !open.open;
+    element.click();
+    return wasClosed;
+  });
+  assert.ok(closed, 'Escape did not close the drawer within the task');
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 200)));
+  assert.ok(await drawer.isVisible(), 'the reopened drawer closed itself');
+});
+
 for (const width of [905, 1280]) {
   test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar in the bar`, async (t) => {
     const browser = await chromium.launch();
