@@ -1047,7 +1047,7 @@
     .bench { grid-template-columns: minmax(0, 1fr); }
     .canvas { padding-block-end: calc(var(--sp-1600) + var(--layout-bottombar-height)); }
     /* Above the shell's bottom bar, not behind it. */
-    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); box-shadow: var(--shadow-overlay); overflow: hidden; }
+    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-raised); box-shadow: var(--shadow-overlay); overflow: hidden; }
     .sheetbar button { flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-025); padding: var(--sp-050) var(--sp-025); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-050); }
     .sheetbar button[aria-selected='true'] { color: var(--accent-primary); }
     .sheetbar button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }
