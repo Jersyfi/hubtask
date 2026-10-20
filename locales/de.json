@@ -3537,6 +3537,7 @@
   "app.privacy.hold_scope_account": "diese Person",
   "app.privacy.kept_partly": "Teilweise erledigt: {holds, plural, one {Eine Sperre bewahrt} other {# Sperren bewahren}} einen Teil davon, für Rechtsansprüche (Art. 17 Abs. 3 lit. e DSGVO). Der Rest wird gelöscht, wenn die Sperre aufgehoben ist.",
   "app.privacy.kept_waits": "Teilweise erledigt. Der Rest wartet: Die Person betreibt noch {rules, plural, one {# Automatisierungsregel} other {# Automatisierungsregeln}}. Richte sie auf ein anderes Konto aus oder entferne sie.",
+  "app.privacy.kept_waits_owner": "Teilweise erledigt. Der Rest wartet: Die Person ist der einzige Eigentümer dieses Workspace. Gib zuerst jemand anderem die Eigentümer-Rolle.",
   "app.privacy.kept_rest_erased": "Der Rest wurde am {at} gelöscht, als keine Sperre ihn mehr bewahrte.",
   "app.privacy.completed_announced": "Anfrage als abgeschlossen markiert.",
   "app.privacy.rejected_announced": "Anfrage abgelehnt.",

@@ -4718,6 +4718,7 @@
   "app.privacy.hold_scope_account": "this person",
   "app.privacy.kept_partly": "Partly completed: {holds, plural, one {a legal hold keeps} other {# legal holds keep}} part of it, for legal claims (Art. 17(3)(e) GDPR). The rest is erased when the hold is lifted.",
   "app.privacy.kept_waits": "Partly completed. The rest waits: the person still runs {rules, plural, one {# automation rule} other {# automation rules}}. Point them at another account or remove them.",
+  "app.privacy.kept_waits_owner": "Partly completed. The rest waits: the person is this workspace's only owner. Give somebody else Owner first.",
   "app.privacy.kept_rest_erased": "The rest was erased on {at}, once no legal hold kept it.",
   "app.privacy.completed_announced": "Request marked as completed.",
   "app.privacy.rejected_announced": "Request rejected.",

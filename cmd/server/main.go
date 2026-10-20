@@ -1083,6 +1083,7 @@ func run() error {
 		Requests: privacyStore, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		Subjects: privacyStore, Kept: privacyStore, Jobs: jobs, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Owners: grants,
 	}
 
 	// The provider's shared dependencies.
@@ -1554,6 +1555,7 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		Embeddings:      postgres.NewEmbeddingRepository(),
 		TombstoneWindow: cfg.Retention.TombstoneWindow, LastMember: lastMember,
+		Owners: grants,
 	}
 	// What a plan leaves out is refused on the registry, inside the observer (multi-tenancy.md §4.2).
 	entitlementGate := adminservice.EntitlementGate{Plans: postgres.NewPlanRepository(), UnitOfWork: unitOfWork}

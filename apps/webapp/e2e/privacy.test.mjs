@@ -21,7 +21,7 @@ import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
-const [OPEN, EXTENDED, INSTALLATION, ERASURE, KEPT] = PRIVACY_REQUESTS;
+const [OPEN, EXTENDED, INSTALLATION, ERASURE, KEPT, WAITS_FOR_OWNER] = PRIVACY_REQUESTS;
 const WORKSPACE = {
   id: '01a0e2e0-0000-7000-8000-0000000000b0', slug: 'house', display_name: 'House', status: 'ACTIVE',
   default_locale: 'en', default_time_zone: 'Europe/Berlin', require_admin_totp: false,
@@ -43,7 +43,7 @@ const ROLES = [
 async function open(browser, role = 'OWNER', options = {}) {
   const written = [];
   // What the server answers a recording with, where a walk needs the case it made in the register.
-  const { recordAnswer, ...contextOptions } = options;
+  const { recordAnswer, refuseStart, ...contextOptions } = options;
   const recorded = [];
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...contextOptions });
   if (options.now) await context.clock.setFixedTime(options.now);
@@ -62,6 +62,12 @@ async function open(browser, role = 'OWNER', options = {}) {
     }
     if (/^\/privacy\/requests\/[^/:]+$/.test(path) && request.method() === 'PATCH') {
       written.push({ path, body: request.postDataJSON() });
+      if (refuseStart) {
+        return route.fulfill({
+          status: 409, contentType: 'application/problem+json',
+          body: JSON.stringify({ status: 409, code: 'conflict', detail_code: refuseStart, request_id: 'req_p' }),
+        });
+      }
       const before = PRIVACY_REQUESTS.find((each) => path.endsWith(each.id));
       return route.fulfill({ json: { ...before, ...request.postDataJSON() } });
     }
@@ -269,6 +275,25 @@ test('chromium: starting an erasure asks first, naming the person and what the m
     assert.equal(writes().length, 1);
     assert.ok(writes()[0].path.endsWith(ERASURE.id));
     assert.deepEqual(writes()[0].body, { status: 'IN_PROGRESS' });
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: the erasure of the only owner is refused at the start, saying what to do first', async () => {
+  // UC-PRV-03 check 14: the server refuses with memberships.last_owner; the screen says the
+  // sentence, and the case stays where it was.
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser, 'OWNER', { refuseStart: 'memberships.last_owner' });
+    await row(page, ERASURE).getByRole('button', { name: 'Start answering it' }).click();
+    await page.getByRole('dialog').locator('footer').getByRole('button', { name: 'Erase' }).click();
+    // Said in the dialog, which stays open over the page's own banner.
+    await page.getByRole('dialog').getByText('The workspace needs at least one owner. Give somebody else Owner first.').waitFor();
+    // A rest that waits for another owner says so, not a count of rules.
+    assert.match(await row(page, WAITS_FOR_OWNER).innerText(), /The rest waits: the person is this workspace's only owner\. Give somebody else Owner first\./);
     assert.deepEqual(failures, []);
     await close();
   } finally {
