@@ -75,6 +75,7 @@ type renewalFixture struct {
 	authorizer *authorizer
 	audit      *auditSink
 	stepUp     *stepUpFake
+	held       heldRoles
 }
 
 func newRenewalFixture(t *testing.T) *renewalFixture {
@@ -97,11 +98,11 @@ func newRenewalFixture(t *testing.T) *renewalFixture {
 			accounts: accounts, hashes: map[shared.ID]string{}, marked: map[shared.ID]time.Time{},
 		},
 		sessions: &sessionEnder{}, authorizer: &authorizer{}, audit: &auditSink{},
-		stepUp: &stepUpFake{satisfied: true},
+		stepUp: &stepUpFake{satisfied: true}, held: heldRoles{},
 	}
 	registry, err := usecase.NewRegistry(nil, IssueStartPassword{
 		Accounts: accounts, StartPasswords: f.store, Sessions: f.sessions,
-		Authorizer: f.authorizer, StepUp: f.stepUp, Passwords: &passwordsFake{},
+		Authorizer: f.authorizer, Held: f.held, StepUp: f.stepUp, Passwords: &passwordsFake{},
 		Entropy: &countingEntropy{}, Audit: f.audit, UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}.Descriptor())
 	if err != nil {
@@ -256,5 +257,57 @@ func TestTheRenewalAsksTheWorkspace(t *testing.T) {
 	if len(asked.Path) != 1 || asked.Path[0] != domain.TenantScope() || asked.Action != StartPasswordIssuedAction ||
 		asked.TargetID != lenaID {
 		t.Errorf("the question was %+v", asked)
+	}
+}
+
+// UC-ID-20 check 5 as decided (identity.md §13): an owner issues a new start password for anybody,
+// an administrator only for an account holding no role above their own. A refusal is the
+// authoriser's, asked again with the strongest role at stake on the workspace, and comes before the
+// fresh proof is looked at - so the proof is not spent and nothing is written.
+func TestANewStartPasswordIsHeldToTheCeiling(t *testing.T) {
+	for _, c := range ceilingCases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newRenewalFixture(t)
+			f.authorizer.own = c.own
+			f.held[lenaID] = c.held
+
+			_, err := f.renew(t, admin(), renewalOf(lenaID))
+			if c.issued {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				if f.store.hashes[lenaID] == "" || len(f.stepUp.presented) != 1 {
+					t.Error("issued without the start password stored or the proof judged")
+				}
+				return
+			}
+			if got := detailOf(err); got != "access.role_above_own" {
+				t.Fatalf("answered %q (%v), want access.role_above_own", got, err)
+			}
+			if len(f.stepUp.presented) != 0 {
+				t.Error("the fresh proof was looked at before the ceiling refused")
+			}
+			if len(f.store.hashes)+len(f.sessions.ended)+len(f.store.spent)+len(f.audit.entries) != 0 {
+				t.Error("something was written")
+			}
+			asked := f.authorizer.requests[len(f.authorizer.requests)-1]
+			if asked.Grants != domain.RoleOwner || asked.Action != StartPasswordIssuedAction ||
+				asked.TargetID != lenaID || len(asked.Path) != 1 || asked.Path[0] != domain.TenantScope() {
+				t.Errorf("the ceiling's question was %+v", asked)
+			}
+		})
+	}
+}
+
+// An account with an address is answered "not managed" before any ceiling: the more useful answer,
+// and no role of it is weighed for a door that does not exist for it.
+func TestNotManagedIsAnsweredBeforeTheCeiling(t *testing.T) {
+	f := newRenewalFixture(t)
+	f.authorizer.own = domain.RoleAdmin
+	f.held[bertID] = []domain.Role{domain.RoleOwner}
+
+	_, err := f.renew(t, admin(), renewalOf(bertID))
+	if got := detailOf(err); got != "accounts.not_managed" {
+		t.Fatalf("answered %q (%v), want accounts.not_managed", got, err)
 	}
 }

@@ -1605,7 +1605,8 @@ func run() error {
 		}.Descriptor(),
 		identity.IssueStartPassword{
 			Accounts: accounts, StartPasswords: postgres.NewAccountRepository(), Sessions: sessions,
-			Authorizer: authorizer, StepUp: identity.StepUpVerifier{Writer: sessionWriter},
+			Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			StepUp:    identity.StepUpVerifier{Writer: sessionWriter},
 			Passwords: passwords, Entropy: clockadapter.CryptoRandom{}, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
