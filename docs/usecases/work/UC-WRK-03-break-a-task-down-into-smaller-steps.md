@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: partial
-tasks: [B-03, B-05, B-08, F2-09, F10-12]
+tasks: [B-03, B-05, B-08, F2-09, F10-12, UX-08]
 checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs]
 ---
 
