@@ -117,7 +117,9 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   // The installation requires a factor of administrators: "Nobody" is not a choice here.
   const options = await page.getByLabel('Required of', { exact: true }).locator('option').allTextContents();
   assert.ok(!options.includes('Nobody'), `a looser choice is offered: ${options.join(', ')}`);
-  assert.ok(options.includes('Everyone'), options.join(', '));
+  // UC-ID-12 check 1: the strictest choice says it covers sign-ins with a password - a provider is
+  // trusted as a whole.
+  assert.ok(options.includes('Everyone signing in with a password'), options.join(', '));
 
   // A number below the installation's is not offered either.
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).getAttribute('min'), '12');
@@ -651,6 +653,9 @@ test('chromium: the sign-in rules read in German', async (t) => {
   for (const english of ['Minimum length', 'Ways to sign in', 'Set here.', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
     assert.ok(!text.includes(english), `"${english}" fell back to English`);
   }
+  // UC-ID-12 check 1: the rule covers sign-ins with a password, in German too.
+  const options = await page.getByLabel('Verlangt von', { exact: true }).locator('option').allTextContents();
+  assert.ok(options.includes('Allen, die sich mit einem Passwort anmelden'), options.join(', '));
 });
 
 // UC-INS-11 check 4: under the installation's lock on the ways to sign in, an offered provider

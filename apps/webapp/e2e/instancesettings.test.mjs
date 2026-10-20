@@ -271,6 +271,9 @@ test('chromium: a language is named and stored files are a size', async (t) => {
   const options = await form.getByRole('combobox', { name: 'Language' }).locator('option').allTextContents();
   assert.ok(options.some((each) => /English/.test(each)) && options.some((each) => /Deutsch/.test(each)), options.join(' | '));
   assert.ok(!options.includes('en') && !options.includes('de'), options.join(' | '));
+  // UC-ID-12 check 1, at the installation: the strictest choice covers sign-ins with a password.
+  const factor = await form.getByRole('combobox', { name: 'A second factor is required of' }).locator('option').allTextContents();
+  assert.ok(factor.includes('Everyone signing in with a password'), factor.join(' | '));
   const field = await form.locator('[data-value="quotas.media_bytes"]').textContent() ?? '';
   assert.match(field, /That is 10\.7\s?GB/, field);
 });
