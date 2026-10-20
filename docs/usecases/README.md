@@ -200,7 +200,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-INS-18](./admin/UC-INS-18-offer-presets-to-every-workspace.md) | Offer presets to every workspace | admin | specified |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work | partial |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work | built |
-| [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work | partial |
+| [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work | built |
 | [UC-WRK-04](./work/UC-WRK-04-tick-work-off-and-take-it-back.md) | Tick work off, and take it back | work | built |
 | [UC-WRK-05](./work/UC-WRK-05-run-a-collection-as-a-board.md) | Run a collection as a board | work | partial |
 | [UC-WRK-06](./work/UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md) | Put work in order and move it where it belongs | work | built |
