@@ -1611,7 +1611,8 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.RequestAddress{
-			Requests: addressRequests, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
+			Requests: addressRequests, Authorizer: authorizer, Held: postgres.NewMembershipRepository(),
+			Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
 			Door: passwordWriter,
 		}.Descriptor(),

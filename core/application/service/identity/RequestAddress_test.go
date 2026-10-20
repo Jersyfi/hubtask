@@ -127,6 +127,7 @@ type addressFixture struct {
 	jobs       *notifier
 	audit      *auditSink
 	clock      *movingClock
+	held       heldRoles
 }
 
 // movingClock is a clock a test can move.
@@ -138,7 +139,10 @@ var _ clock.Clock = (*movingClock)(nil)
 
 func newAddressFixture(t *testing.T) *addressFixture {
 	t.Helper()
-	f := &addressFixture{authorizer: &authorizer{}, jobs: &notifier{}, audit: &auditSink{}, clock: &movingClock{at: now}}
+	f := &addressFixture{
+		authorizer: &authorizer{}, jobs: &notifier{}, audit: &auditSink{}, clock: &movingClock{at: now},
+		held: heldRoles{},
+	}
 	renewal := newRenewalFixture(t)
 	f.accounts = renewal.accounts
 	f.store = &addressStore{accounts: f.accounts, taken: map[string]bool{}}
@@ -150,7 +154,7 @@ func newAddressFixture(t *testing.T) *addressFixture {
 func (f *addressFixture) rebuild(t *testing.T, door PasswordDoor) {
 	t.Helper()
 	registry, err := usecase.NewRegistry(nil, RequestAddress{
-		Requests: f.store, Authorizer: f.authorizer, Notifier: f.jobs, Audit: f.audit,
+		Requests: f.store, Authorizer: f.authorizer, Held: f.held, Notifier: f.jobs, Audit: f.audit,
 		UnitOfWork: &unitOfWork{}, Clock: f.clock, IDs: ids{next: "01936f2a-7c1e-7000-8000-0000000000a7"},
 		Door: door,
 	}.Descriptor())
@@ -337,5 +341,53 @@ func TestAnAddressSomebodyHoldsIsAcceptedAlike(t *testing.T) {
 	f.store.taken["bert@example.org"] = true
 	if _, err := f.request(t, lena(), lenaID, "bert@example.org"); err != nil {
 		t.Errorf("an address somebody holds answered %v", err)
+	}
+}
+
+// An address for somebody else's account is a way into it - confirmed, it recovers the account by
+// mail - so it is held to the ceiling (identity.md §13): an owner asks for anybody, an
+// administrator only for an account holding no role above their own. A refusal writes nothing.
+func TestAnAddressForSomebodyElseIsHeldToTheCeiling(t *testing.T) {
+	for _, c := range ceilingCases {
+		t.Run(c.name, func(t *testing.T) {
+			f := newAddressFixture(t)
+			f.authorizer.own = c.own
+			f.held[lenaID] = c.held
+
+			_, err := f.request(t, admin(), lenaID, "lena@example.org")
+			if c.issued {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				if len(f.store.requests) != 1 {
+					t.Error("asked without a request written")
+				}
+				return
+			}
+			if got := detailOf(err); got != "access.role_above_own" {
+				t.Fatalf("answered %q (%v), want access.role_above_own", got, err)
+			}
+			if len(f.store.requests)+len(f.jobs.requests)+len(f.audit.entries) != 0 {
+				t.Error("something was written")
+			}
+			asked := f.authorizer.requests[len(f.authorizer.requests)-1]
+			if asked.Grants != domain.RoleOwner || asked.Action != AddressRequestedAction || asked.TargetID != lenaID {
+				t.Errorf("the ceiling's question was %+v", asked)
+			}
+		})
+	}
+}
+
+// The person's own address is no way in for anybody else: no ceiling, whatever they hold.
+func TestAnOwnersOwnAddressIsNotHeldToTheCeiling(t *testing.T) {
+	f := newAddressFixture(t)
+	f.authorizer.own = domain.RoleMember
+	f.held[lenaID] = []domain.Role{domain.RoleOwner}
+
+	if _, err := f.request(t, lena(), lenaID, "lena@example.org"); err != nil {
+		t.Fatalf("asking for her own: %v", err)
+	}
+	if len(f.authorizer.requests) != 0 {
+		t.Errorf("her own address asked %+v", f.authorizer.requests)
 	}
 }

@@ -43,6 +43,8 @@ const (
 type RequestAddress struct {
 	Requests   repository.AddressRequests
 	Authorizer Authorizer
+	// Held is what the account holds, for the ceiling on somebody else's account.
+	Held       repository.HeldRoles
 	Notifier   Notifier
 	Audit      audit.Sink
 	UnitOfWork persistence.UnitOfWork
@@ -136,19 +138,37 @@ func (h RequestAddress) Execute(
 }
 
 // authorize lets a person ask for their own account, and asks the workspace's people permission of
-// anybody asking for somebody else's.
+// anybody asking for somebody else's - and the role ceiling, since an address the asker holds would
+// recover the account into their hands by mail.
+//
+// The ceiling comes before the account is locked and found managed or not: the roles are read in a
+// transaction of their own, which must have ended before a refusal is recorded.
 func (h RequestAddress) authorize(ctx context.Context, actor appshared.ActorContext, accountID shared.ID) error {
 	if !actor.AccountID.IsZero() && accountID == actor.AccountID {
 		return actor.RequireScope(accountsWrite)
 	}
-	return h.Authorizer.Authorize(ctx, actor, access.Request{
+	request := access.Request{
 		Permission: service.PermissionManageMembers,
 		Path:       []domain.Scope{domain.TenantScope()},
 		Action:     AddressRequestedAction,
 		TokenScope: membersWrite,
 		TargetType: accountTarget,
 		TargetID:   accountID,
+	}
+	if err := h.Authorizer.Authorize(ctx, actor, request); err != nil {
+		return err
+	}
+	ceiling := wayInCeiling{Held: h.Held, Authorizer: h.Authorizer}
+	var held []domain.Role
+	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		held, err = ceiling.heldBy(ctx, accountID)
+		return err
 	})
+	if err != nil {
+		return err
+	}
+	return ceiling.hold(ctx, actor, request, held)
 }
 
 func (h RequestAddress) recordAudit(
