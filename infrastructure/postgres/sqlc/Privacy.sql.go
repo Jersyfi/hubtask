@@ -345,6 +345,26 @@ func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const endInvitationOfAccount = `-- name: EndInvitationOfAccount :execrows
+UPDATE account SET redemption_token_hash = NULL, redemption_expires_at = $1
+WHERE id = $2 AND status = 'INVITED'
+`
+
+type EndInvitationOfAccountParams struct {
+	At        pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// An invitation is a way in like a token: an erasure ends one nobody accepted, so that an account a
+// hold keeps as an invitation cannot be redeemed or accepted into one that may act (§4.1).
+func (q *Queries) EndInvitationOfAccount(ctx context.Context, arg EndInvitationOfAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, endInvitationOfAccount, arg.At, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const eraseErasureKept = `-- name: EraseErasureKept :execrows
 UPDATE erasure_kept SET erased_at = $1, blocked_code = NULL, blocked_params = NULL
 WHERE tenant_id = current_tenant_id() AND request_id = $2 AND erased_at IS NULL

@@ -233,10 +233,10 @@ type Erasure interface {
 	// rather than attempted and failed on a foreign key (PG-2).
 	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
 
-	// RevokeCredentials removes every token, calendar feed and sync device of the person. Called
-	// in both modes: an anonymised account keeps its row and must not keep a credential that
-	// still works.
-	RevokeCredentials(ctx context.Context, accountID shared.ID) (int, error)
+	// RevokeCredentials removes every token, calendar feed and sync device of the person, and ends
+	// an invitation nobody accepted at the given moment. Called in both modes: an anonymised account
+	// keeps its row and must not keep a credential that still works.
+	RevokeCredentials(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
 
 	// DiscardNotifications removes what was sent to them and what was about to be.
 	DiscardNotifications(ctx context.Context, accountID shared.ID) (int, error)

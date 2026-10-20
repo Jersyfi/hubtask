@@ -605,9 +605,10 @@ func (r PrivacyRepository) Delete(ctx context.Context, accountID shared.ID) (boo
 	return rows > 0, nil
 }
 
-// RevokeCredentials removes every token, feed, device and passkey of the person.
+// RevokeCredentials removes every token, feed, device and passkey of the person, and ends their
+// open invitation.
 func (r PrivacyRepository) RevokeCredentials(
-	ctx context.Context, accountID shared.ID,
+	ctx context.Context, accountID shared.ID, at time.Time,
 ) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -627,7 +628,13 @@ func (r PrivacyRepository) RevokeCredentials(
 		}
 		removed += rows
 	}
-	return int(removed), nil
+	rows, err := queries.EndInvitationOfAccount(ctx, sqlc.EndInvitationOfAccountParams{
+		AccountID: id, At: timestampOf(at),
+	})
+	if err != nil {
+		return 0, erasureFailed("ending the invitation of an account", err)
+	}
+	return int(removed + rows), nil
 }
 
 // DiscardNotifications removes what was sent to them and what was about to be.

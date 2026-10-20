@@ -93,7 +93,7 @@ func (e *erasureStore) Delete(context.Context, shared.ID) (bool, error) {
 	return true, nil
 }
 
-func (e *erasureStore) RevokeCredentials(context.Context, shared.ID) (int, error) {
+func (e *erasureStore) RevokeCredentials(context.Context, shared.ID, time.Time) (int, error) {
 	if err := e.step("credentials"); err != nil {
 		return 0, err
 	}

@@ -81,12 +81,20 @@ func TestWhoseProcessingIsRestricted(t *testing.T) {
 			t.Fatalf("%s: carrying out the case: %v", from, err)
 		}
 		var status string
-		if err := adminPool(ctx, t).QueryRow(ctx, `SELECT status FROM account WHERE id = $1`,
-			held.account.String()).Scan(&status); err != nil {
+		var redeemable bool
+		if err := adminPool(ctx, t).QueryRow(ctx,
+			`SELECT status, redemption_token_hash IS NOT NULL FROM account WHERE id = $1`,
+			held.account.String()).Scan(&status, &redeemable); err != nil {
 			t.Fatalf("%s: reading the account: %v", from, err)
 		}
 		if status != from {
 			t.Errorf("a held %s account is %s", from, status)
+		}
+		if from == "INVITED" {
+			if redeemable {
+				t.Error("a held invitation can still be redeemed")
+			}
+			heldInvitationStaysClosed(ctx, t, held)
 		}
 		if !restrictedIn(ctx, t, held.tenant).Has(held.account) {
 			t.Errorf("a held %s account is not restricted", from)
@@ -138,6 +146,18 @@ func TestTheRestrictedOfAnotherWorkspaceAreInvisible(t *testing.T) {
 	}
 	if set := restrictedIn(ctx, t, ours.tenant); !set.Empty() {
 		t.Error("another workspace's restricted account was answered")
+	}
+}
+
+// heldInvitationStaysClosed: an invitation an erasure keeps has ended, its expiry set to the
+// erasure's own moment - which is what an acceptance through a provider compares.
+func heldInvitationStaysClosed(ctx context.Context, t *testing.T, held person) {
+	t.Helper()
+	var ended bool
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT redemption_expires_at <= $2 FROM account WHERE id = $1`,
+		held.account.String(), created).Scan(&ended); err != nil || !ended {
+		t.Errorf("the held invitation's expiry was not ended (%v)", err)
 	}
 }
 

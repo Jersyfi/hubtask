@@ -196,8 +196,8 @@ func (e Eraser) erase(
 
 		// Credentials and notifications go whatever is kept: they are no evidence, and no hold in
 		// this system reaches them (data-protection.md §4.1). A kept account keeps its password,
-		// so the person still signs in.
-		credentials, err := e.Erasure.RevokeCredentials(ctx, subject)
+		// so the person still signs in; an invitation nobody accepted ends.
+		credentials, err := e.Erasure.RevokeCredentials(ctx, subject, now)
 		if err != nil {
 			return err
 		}

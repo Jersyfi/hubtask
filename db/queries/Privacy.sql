@@ -281,6 +281,12 @@ DELETE FROM calendar_feed WHERE account_id = sqlc.arg('account_id');
 -- name: DeleteDevicesOfAccount :execrows
 DELETE FROM sync_device WHERE account_id = sqlc.arg('account_id');
 
+-- name: EndInvitationOfAccount :execrows
+-- An invitation is a way in like a token: an erasure ends one nobody accepted, so that an account a
+-- hold keeps as an invitation cannot be redeemed or accepted into one that may act (§4.1).
+UPDATE account SET redemption_token_hash = NULL, redemption_expires_at = sqlc.arg('at')
+WHERE id = sqlc.arg('account_id') AND status = 'INVITED';
+
 -- name: DeletePasskeysOfAccount :execrows
 -- A passkey is a way in like a token: an anonymised account keeps its row and none of its
 -- credentials (identity.md §23.5).
