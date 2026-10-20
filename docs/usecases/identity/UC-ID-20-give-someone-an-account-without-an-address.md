@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin, PE-child, PE-member]
 deployments: [D2, D3, D4, D5, D6]
 serves: [P-02, P-05, P-09, P-10, P-11]
 state: built
-tasks: [PH-06, PH-07, CP-12, PL-02]
+tasks: [PH-06, PH-07, CP-12, PL-02, CP-15]
 checked_by: [core/domain/model/identity/ManagedAccount_test.go, core/application/service/identity/CreateManagedAccount_test.go, core/application/service/identity/SignInName_test.go, core/application/service/identity/OwedChange_test.go, core/application/service/identity/ManagedAccountsSwitch_test.go, core/application/service/identity/SignInNamesRule_test.go, core/application/service/admin/ManagedAccountsLevel_test.go, cmd/hubctl/LoginPasswordChange_test.go, test/integration/managed_account_test.go, test/integration/managed_sign_in_test.go, test/integration/managed_presence_test.go, test/integration/managed_card_test.go, apps/webapp/e2e/managed.test.mjs, apps/webapp/e2e/signinnames.test.mjs, apps/webapp/e2e/managedmailbox.test.mjs, core/application/service/identity/IssueStartPassword_test.go, core/application/service/identity/RequestAddress_test.go, core/application/service/identity/ConfirmAddress_test.go, core/application/service/notification/SendAddressConfirmation_test.go, test/integration/managed_renewal_test.go, test/integration/managed_address_test.go, apps/webapp/e2e/managedrenewal.test.mjs, apps/webapp/e2e/managedaddress.test.mjs, docs/evidence/PH-06-2026-10-11.md, docs/evidence/PH-07-2026-10-12.md, apps/webapp/e2e/remindermailbox.test.mjs, docs/evidence/PH-08-D2-2026-10-13.md, docs/evidence/PH-08-D5-2026-10-13.md, cmd/hubctl/People_test.go, scripts/hubctl-e2e.sh, core/domain/model/identity/SignInPolicy_test.go, core/application/service/identity/PlanLevel_test.go]
 ---
 
@@ -38,8 +38,8 @@ her account is an ordinary one.
    rules.
 4. Where the workspace has managed accounts, the first field of the sign-in card reads "Email
    address or sign-in name"; elsewhere it is unchanged. Every failure gets the same one sentence.
-5. For a managed account only, an owner or administrator can issue a new start password after a
-   fresh proof; it is recorded in the trail, every session of the account ends, and a second factor
+5. For a managed account only, an owner, or an administrator for an account that holds no role
+   above their own, can issue a new start password after a fresh proof; it is recorded in the trail, every session of the account ends, and a second factor
    the account has is still demanded. For an account with an address the action does not exist.
 6. Screens that need a mailbox — mail reminders, reset by mail — say "not possible without a
    mailbox" for this account instead of failing.
