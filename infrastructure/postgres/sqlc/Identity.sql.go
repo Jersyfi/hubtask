@@ -17,8 +17,14 @@ UPDATE account SET
   redemption_token_hash = NULL,
   redemption_expires_at = NULL,
   updated_at            = $1
-WHERE id = $2 AND status = 'INVITED' AND deleted_at IS NULL
+WHERE account.id = $2 AND status = 'INVITED' AND deleted_at IS NULL
   AND (redemption_expires_at IS NULL OR redemption_expires_at > $1)
+  -- Not an invitation an erasure keeps under a hold (data-protection.md §4.1): it ended with the
+  -- erasure, and a new token or an acceptance would make it an account that may act.
+  AND NOT EXISTS (
+    SELECT 1 FROM erasure_kept k
+    JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+    WHERE k.tenant_id = account.tenant_id AND k.erased_at IS NULL AND r.subject_account_id = account.id)
 `
 
 type AcceptInvitationParams struct {

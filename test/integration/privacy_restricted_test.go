@@ -8,11 +8,15 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // restrictedIn reads whose processing is restricted, under one workspace, as the application role.
@@ -149,8 +153,8 @@ func TestTheRestrictedOfAnotherWorkspaceAreInvisible(t *testing.T) {
 	}
 }
 
-// heldInvitationStaysClosed: an invitation an erasure keeps has ended, its expiry set to the
-// erasure's own moment - which is what an acceptance through a provider compares.
+// heldInvitationStaysClosed: an invitation an erasure keeps cannot be given a new token (a renewal,
+// a queued invitation mail) nor be accepted, whose expiry the erasure set to its own moment.
 func heldInvitationStaysClosed(ctx context.Context, t *testing.T, held person) {
 	t.Helper()
 	var ended bool
@@ -158,6 +162,33 @@ func heldInvitationStaysClosed(ctx context.Context, t *testing.T, held person) {
 		`SELECT redemption_expires_at <= $2 FROM account WHERE id = $1`,
 		held.account.String(), created).Scan(&ended); err != nil || !ended {
 		t.Errorf("the held invitation's expiry was not ended (%v)", err)
+	}
+	installation := secret.New(installationSecret)
+	signIn := postgres.NewSignInRepository(
+		security.NewRedemptionTokenHasher(installation), security.NewAuthAttemptHasher(installation))
+	token, err := identity.NewRedemptionToken(held.tenant, sessionSecretOf(0x5E))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := created.Add(-time.Hour)
+	if err := write(ctx, t, held.tenant, func(ctx context.Context) error {
+		minted, err := signIn.SetRedemptionToken(ctx, held.account, token, created.Add(24*time.Hour), before)
+		if err != nil {
+			return err
+		}
+		if minted {
+			t.Error("a held invitation was given a new token")
+		}
+		accepted, err := postgres.NewAccountRepository().AcceptInvitation(ctx, held.account, before)
+		if err != nil {
+			return err
+		}
+		if accepted {
+			t.Error("a held invitation was accepted")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("trying the held invitation: %v", err)
 	}
 }
 

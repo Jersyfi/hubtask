@@ -1266,10 +1266,16 @@ UPDATE account SET
   redemption_expires_at = NULL,
   updated_at            = $2,
   version               = version + 1
-WHERE id = $3
+WHERE account.id = $3
   AND status = 'INVITED'
   AND redemption_token_hash IS NOT NULL
   AND deleted_at IS NULL
+  -- Not an invitation an erasure keeps under a hold (data-protection.md §4.1): it ended with the
+  -- erasure, and a new token or an acceptance would make it an account that may act.
+  AND NOT EXISTS (
+    SELECT 1 FROM erasure_kept k
+    JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+    WHERE k.tenant_id = account.tenant_id AND k.erased_at IS NULL AND r.subject_account_id = account.id)
 `
 
 type RedeemInvitationParams struct {
@@ -1664,7 +1670,13 @@ UPDATE account SET
   redemption_token_hash = $1,
   redemption_expires_at = $2,
   updated_at            = $3
-WHERE id = $4 AND status = 'INVITED' AND deleted_at IS NULL
+WHERE account.id = $4 AND status = 'INVITED' AND deleted_at IS NULL
+  -- Not an invitation an erasure keeps under a hold (data-protection.md §4.1): it ended with the
+  -- erasure, and a new token or an acceptance would make it an account that may act.
+  AND NOT EXISTS (
+    SELECT 1 FROM erasure_kept k
+    JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+    WHERE k.tenant_id = account.tenant_id AND k.erased_at IS NULL AND r.subject_account_id = account.id)
 `
 
 type SetRedemptionTokenParams struct {
