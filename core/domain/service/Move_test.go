@@ -40,7 +40,7 @@ func moveHierarchy(t *testing.T) service.Hierarchy {
 	profiles := []work.CapabilityProfile{
 		{
 			Type: work.ItemTask, Capabilities: []work.Capability{work.CapabilityCompletion},
-			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage}, MaxDepth: 3,
+			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity}, MaxDepth: 3,
 		},
 		{
 			Type: work.ItemWorkPackage, Capabilities: []work.Capability{work.CapabilityCompletion},
@@ -148,6 +148,37 @@ func TestMovingToTheTopLevelIsOnlyForARootType(t *testing.T) {
 	}
 }
 
+// An activity moves out of its work package to the task above, and from the task into a work
+// package again - both directions of the one level a task now holds beside its work packages; out
+// of the task it may not go, because an activity is not a root.
+func TestAnActivityMovesBetweenItsTaskAndAWorkPackage(t *testing.T) {
+	task, pack, activity := moveTree()
+	hierarchy := moveHierarchy(t)
+
+	out, err := hierarchy.Move(activity, &task)
+	if err != nil {
+		t.Fatalf("moving the activity out of its work package: %v", err)
+	}
+	if out.ParentID != task.ID || out.Depth != 2 || out.PathOf(moveActivity) != task.ChildPath(moveActivity) {
+		t.Errorf("the placement under the task is %+v", out)
+	}
+
+	direct := activity
+	direct.ParentID, direct.Path, direct.Depth = task.ID, task.ChildPath(moveActivity), 2
+	back, err := hierarchy.Move(direct, &pack)
+	if err != nil {
+		t.Fatalf("moving the task's own activity into a work package: %v", err)
+	}
+	if back.ParentID != pack.ID || back.Depth != 3 {
+		t.Errorf("the placement under the work package is %+v", back)
+	}
+
+	_, err = hierarchy.Move(direct, nil)
+	if got := shared.AsError(err).DetailCode; got != "items.parent_item_required" {
+		t.Errorf("an activity moved to the top level answered %v", err)
+	}
+}
+
 // The profiles are re-read on a move, not assumed from the create: a tenant may have narrowed them since,
 // and a move is the moment that becomes visible.
 func TestAMoveIsRefusedWhereTheProfileNoLongerAllowsIt(t *testing.T) {
@@ -160,7 +191,7 @@ func TestAMoveIsRefusedWhereTheProfileNoLongerAllowsIt(t *testing.T) {
 		{Type: work.ItemActivity, MaxDepth: 1},
 	}
 	system := []work.CapabilityProfile{
-		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage}, MaxDepth: 3},
+		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity}, MaxDepth: 3},
 		{Type: work.ItemWorkPackage, AllowedChildTypes: []work.ItemType{work.ItemActivity}, MaxDepth: 2},
 		{Type: work.ItemActivity, MaxDepth: 1},
 	}

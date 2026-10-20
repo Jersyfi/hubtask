@@ -266,6 +266,12 @@ func TestEveryForbiddenPlacementIsRefusedAgainstTheDatabase(t *testing.T) {
 	if err != nil {
 		t.Fatalf("seeding the task: %v", err)
 	}
+	pkg, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "WORK_PACKAGE", "parent_id": task.String("id"), "title": freshName(t),
+	})
+	if err != nil {
+		t.Fatalf("seeding the work package: %v", err)
+	}
 
 	cases := []struct {
 		name       string
@@ -273,9 +279,9 @@ func TestEveryForbiddenPlacementIsRefusedAgainstTheDatabase(t *testing.T) {
 		wantDetail string
 	}{
 		{
-			name: "an activity directly in a task",
+			name: "a work package in a work package",
 			input: usecase.Input{
-				"type": "ACTIVITY", "parent_id": task.String("id"), "title": "Milk",
+				"type": "WORK_PACKAGE", "parent_id": pkg.String("id"), "title": "Dairy",
 			},
 			wantDetail: "items.parent_type_invalid",
 		},
@@ -287,14 +293,14 @@ func TestEveryForbiddenPlacementIsRefusedAgainstTheDatabase(t *testing.T) {
 			wantDetail: "items.parent_item_required",
 		},
 		{
-			name: "a note on a task's activity, whose profile has none",
+			// The activity may sit in the task (domain-model.md §2), so the note is what is
+			// refused: the type carries none wherever it sits.
+			name: "a note on a task's own activity, whose profile has none",
 			input: usecase.Input{
 				"type": "ACTIVITY", "parent_id": task.String("id"), "title": "Milk",
 				"notes": "Semi-skimmed",
 			},
-			// The parent is refused first, so the note never gets its say - which is the right
-			// order: there is no activity to ask about until it has somewhere to sit.
-			wantDetail: "items.parent_type_invalid",
+			wantDetail: "items.capability_not_supported",
 		},
 	}
 

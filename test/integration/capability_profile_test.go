@@ -7,6 +7,7 @@ package integration
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -71,8 +72,10 @@ func TestTheSystemProfilesAreReadableWithoutATenant(t *testing.T) {
 	if !task.Allows(work.CapabilityCover) || task.MaxDepth != 3 {
 		t.Errorf("the system TASK profile is not the one the migration seeds: %+v", task)
 	}
-	if !task.AllowsChild(work.ItemWorkPackage) {
-		t.Error("a work package may not sit under a task")
+	// Exactly the two, in the order 0002 and 0185 wrote them: compared with a literal rather than
+	// with another read of the same row, which would agree with whatever the row says.
+	if got := fmt.Sprint(task.AllowedChildTypes); got != "[WORK_PACKAGE ACTIVITY]" {
+		t.Errorf("the system TASK profile holds %s, want a work package and an activity", got)
 	}
 	activity := profiles[work.ItemActivity]
 	if activity.Allows(work.CapabilityNotes) || len(activity.AllowedChildTypes) != 0 {

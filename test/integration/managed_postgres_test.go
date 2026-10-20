@@ -156,6 +156,16 @@ func TestTheMigrationsApplyWithoutASuperuser(t *testing.T) {
 	if defaults != 3 {
 		t.Errorf("the system defaults are %d rows, want 3", defaults)
 	}
+
+	// And a migration that changes one of them later (0185) is applied by the same owner.
+	var children string
+	if err := owner.QueryRow(ctx, `SELECT allowed_child_types::text FROM item_capability_profile
+		WHERE tenant_id IS NULL AND type = 'TASK'`).Scan(&children); err != nil {
+		t.Fatalf("reading the task's children: %v", err)
+	}
+	if children != "{WORK_PACKAGE,ACTIVITY}" {
+		t.Errorf("the system TASK row holds %s after migrating as the owner", children)
+	}
 }
 
 // And the claim ADR-0052 turns on: freeing the owner frees nobody else. This is the test that has
