@@ -2218,7 +2218,7 @@ class ItemQueryResult(TypedDict, total=False):
 
 class BulkOperation(TypedDict, total=False):
     """One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own."""
-    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
+    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "RESTORE_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
     item_id: str
     payload: dict[str, Any]
 

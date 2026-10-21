@@ -24509,6 +24509,7 @@
               "REOPEN_ITEM",
               "MOVE_ITEM",
               "TRASH_ITEM",
+              "RESTORE_ITEM",
               "ADD_LABEL",
               "REMOVE_LABEL",
               "ASSIGN"

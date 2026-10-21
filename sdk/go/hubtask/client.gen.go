@@ -1194,6 +1194,7 @@ const (
 	MOVEITEM     BulkOperationOp = "MOVE_ITEM"
 	REMOVELABEL  BulkOperationOp = "REMOVE_LABEL"
 	REOPENITEM   BulkOperationOp = "REOPEN_ITEM"
+	RESTOREITEM  BulkOperationOp = "RESTORE_ITEM"
 	TRASHITEM    BulkOperationOp = "TRASH_ITEM"
 	UPDATEITEM   BulkOperationOp = "UPDATE_ITEM"
 )
@@ -1214,6 +1215,8 @@ func (e BulkOperationOp) Valid() bool {
 	case REMOVELABEL:
 		return true
 	case REOPENITEM:
+		return true
+	case RESTOREITEM:
 		return true
 	case TRASHITEM:
 		return true

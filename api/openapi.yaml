@@ -17374,7 +17374,7 @@ components:
             CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is
             PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a
             caller may do one entry at a time, never more.
-          enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
+          enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, RESTORE_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
         item_id:
           type: string
           format: uuid
