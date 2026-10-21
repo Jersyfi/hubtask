@@ -138,3 +138,27 @@ func (g EntryGate) gatedProfileFor(
 	}
 	return g.gatedProfile(ctx, profiles, collection, item)
 }
+
+// placing is what the collection offers an entry about to be placed under parent - nil for the top
+// of the collection: the levels above it are the parent's and the parent's own.
+func (g EntryGate) placing(
+	ctx context.Context, collection domain.Container, parent *domain.WorkItem,
+) (entryOffer, error) {
+	if !g.Wired() {
+		return entryOffer{}, nil
+	}
+	offered, err := g.offeredIn(ctx, collection)
+	if err != nil {
+		return entryOffer{}, err
+	}
+	offer := entryOffer{offered: offered, wired: true}
+	if parent == nil {
+		return offer, nil
+	}
+	above, err := g.chains(ctx, offered, []domain.WorkItem{*parent})
+	if err != nil {
+		return entryOffer{}, err
+	}
+	offer.ancestors = append([]domain.ItemType{parent.Type}, above[parent.ID]...)
+	return offer, nil
+}
