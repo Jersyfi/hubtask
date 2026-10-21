@@ -245,14 +245,15 @@ func (h MoveTenantPlan) record(
 // exceptionsOf names the limits an operator set for this one workspace, in the contract's order.
 func exceptionsOf(overrides quotarepo.Overrides) []string {
 	set := map[string]*int64{
-		quotaservice.APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
-		quotaservice.Items:                 overrides.Items,
-		quotaservice.MediaBytes:            overrides.MediaBytes,
-		quotaservice.AutomationRunsPerHour: overrides.AutomationRunsPerHour,
-		quotaservice.WebhookTargets:        overrides.WebhookTargets,
-		quotaservice.ExportJobs:            overrides.ExportJobs,
-		quotaservice.Accounts:              overrides.Accounts,
-		quotaservice.AiTokensPerDay:        overrides.AiTokensPerDay,
+		quotaservice.APIRequestsPerMinute:     overrides.APIRequestsPerMinute,
+		quotaservice.Items:                    overrides.Items,
+		quotaservice.MediaBytes:               overrides.MediaBytes,
+		quotaservice.AutomationRunsPerHour:    overrides.AutomationRunsPerHour,
+		quotaservice.WebhookTargets:           overrides.WebhookTargets,
+		quotaservice.ExportJobs:               overrides.ExportJobs,
+		quotaservice.Accounts:                 overrides.Accounts,
+		quotaservice.AiTokensPerDay:           overrides.AiTokensPerDay,
+		quotaservice.AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay,
 	}
 	kept := []string{}
 	for _, name := range quotaservice.OperatorNames() {

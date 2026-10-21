@@ -17138,7 +17138,7 @@
       },
       "UsageMetricName": {
         "type": "string",
-        "description": "A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.\n"
+        "description": "A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.\n"
       },
       "UsageMetric": {
         "type": "object",
@@ -19161,9 +19161,10 @@
               "export_jobs",
               "ai_tokens_per_day",
               "ai_own_tokens_per_day",
+              "ai_arrival_proposals_per_day",
               "accounts"
             ],
-            "description": "The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.\n"
+            "description": "The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.\n"
           },
           "limit": {
             "type": "integer",
@@ -19282,6 +19283,15 @@
             "format": "int64",
             "minimum": 0,
             "description": "What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
+          },
+          "ai_arrival_proposals_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "description": "How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.\n"
           }
         }
       },

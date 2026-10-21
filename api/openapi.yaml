@@ -12854,7 +12854,8 @@ components:
       type: string
       description: >
         A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`,
-        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted
+        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`,
+        `automation_runs_per_hour` - the last counted
         per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client
         tolerates a name it does not know, as a later release may add one.
 
@@ -14202,11 +14203,13 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, accounts]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, ai_arrival_proposals_per_day, accounts]
           description: >
-            The two AI rows are counted per source and per day in the workspace's time zone:
-            `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
-            workspace's own model's, set by the workspace itself and unlimited unless it does.
+            The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is
+            the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by
+            the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day`
+            how many jumble arrivals may be asked about on arrival - a number of entries, 200 by
+            default.
         limit:
           type: integer
           format: int64
@@ -14276,6 +14279,16 @@ components:
             `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
             degrade.
+        ai_arrival_proposals_per_day:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            How many jumble arrivals a day of the workspace's own time zone may be asked about on
+            arrival, where the workspace prepares proposals on arrival - a number of entries, 200
+            by default in both modes. Whoever holds the workspace's intake address decides what
+            arrives, so this bounds what they can make the workspace spend beside the token
+            budget. Past it an arrival waits for somebody to ask; nothing else changes.
 
     TenantDeletionScheduled:
       type: object

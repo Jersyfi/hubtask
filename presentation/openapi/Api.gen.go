@@ -3263,21 +3263,24 @@ func (e QuotaSource) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
-	Accounts              QuotaStandingQuota = "accounts"
-	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
-	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
-	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
-	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
-	ExportJobs            QuotaStandingQuota = "export_jobs"
-	Items                 QuotaStandingQuota = "items"
-	MediaBytes            QuotaStandingQuota = "media_bytes"
-	WebhookTargets        QuotaStandingQuota = "webhook_targets"
+	Accounts                 QuotaStandingQuota = "accounts"
+	AiArrivalProposalsPerDay QuotaStandingQuota = "ai_arrival_proposals_per_day"
+	AiOwnTokensPerDay        QuotaStandingQuota = "ai_own_tokens_per_day"
+	AiTokensPerDay           QuotaStandingQuota = "ai_tokens_per_day"
+	ApiRequestsPerMinute     QuotaStandingQuota = "api_requests_per_minute"
+	AutomationRunsPerHour    QuotaStandingQuota = "automation_runs_per_hour"
+	ExportJobs               QuotaStandingQuota = "export_jobs"
+	Items                    QuotaStandingQuota = "items"
+	MediaBytes               QuotaStandingQuota = "media_bytes"
+	WebhookTargets           QuotaStandingQuota = "webhook_targets"
 )
 
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
 	case Accounts:
+		return true
+	case AiArrivalProposalsPerDay:
 		return true
 	case AiOwnTokensPerDay:
 		return true
@@ -9679,7 +9682,7 @@ type QuotaStanding struct {
 	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
 	Locked *bool `json:"locked,omitempty"`
 
-	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+	// Quota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -9692,7 +9695,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+// QuotaStandingQuota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -11250,6 +11253,9 @@ type TenantQuotas struct {
 	// Accounts The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.
 	Accounts *int64 `json:"accounts,omitempty"`
 
+	// AiArrivalProposalsPerDay How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.
+	AiArrivalProposalsPerDay *int64 `json:"ai_arrival_proposals_per_day,omitempty"`
+
 	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
@@ -11410,7 +11416,7 @@ type UsageMetric struct {
 	// Day Which day a value counts by - UTC, or the workspace's own zone.
 	Day UsageMetricDay `json:"day"`
 
-	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 	Name UsageMetricName `json:"name"`
 }
 
@@ -11420,7 +11426,7 @@ type UsageMetricAggregate string
 // UsageMetricDay Which day a value counts by - UTC, or the workspace's own zone.
 type UsageMetricDay string
 
-// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 type UsageMetricName = string
 
 // UsagePage defines model for UsagePage.
