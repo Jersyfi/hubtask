@@ -857,7 +857,8 @@ keeps the row `aria-current` and the focus in the list.
 ### 11.9 Selection, drag and the pointer
 
 **Selection is a mode, off by default.** No list draws a selection control until somebody selects:
-the page menu's *Select*, a long press on a coarse pointer, or `Ctrl`/`Cmd`-click on a row. While on,
+the page menu's *Select*, the entry menu's *Select* (a long press on a coarse pointer opens it), or
+`Ctrl`/`Cmd`-click on a row. While on,
 rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
 Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
@@ -875,7 +876,9 @@ view branches on the input.
   *Equivalent* clause applies and the equivalent is named (§10, 2.5.8).
 * A drag starts on movement for a fine pointer and after a 300 ms hold for a coarse one, so a board
   still scrolls under a finger.
-* A long press enters selection on a coarse pointer; a mouse has `Ctrl`/`Cmd`-click.
+* A still long press on a coarse pointer opens the entry menu on release, *Select* first; a hold that
+  then moves drags as above. A mouse has the right click and `Ctrl`/`Cmd`-click (decision #1685,
+  [ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)).
 * Nothing that appears only on hover may be the only way to a function. A row's actions are its
   menu, a real control on every input.
 

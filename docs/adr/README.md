@@ -120,3 +120,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0085](./ADR-0085-passkeys-verified-in-house.md) | Passkeys, verified in-house | accepted | Identity, security |
 | [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | accepted | Tenancy, administration |
 | [0087](./ADR-0087-levels-and-a-livelier-product.md) | Levels, and a livelier product | accepted | Work, design |
+| [0088](./ADR-0088-a-long-press-opens-the-entry-menu.md) | A long press opens the entry menu | accepted | Design |
