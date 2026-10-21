@@ -40,7 +40,6 @@
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
-  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
@@ -212,9 +211,6 @@
    * and when the screen changes.
    */
   let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
-
-  /** The entry being copied, if one is. The dialog is open exactly while this is set. */
-  let duplicating = $state<WorkItem | undefined>(undefined);
 
   // `Escape` leaves the selection mode, from anywhere on the screen: a mode with no way out but a
   // small button is one somebody is stuck in (ADR-0063 decision 8). It is on the window rather
@@ -1012,7 +1008,11 @@
               {query}
               {isReadOnly}
               changeRefusal={changeRefusalOf}
-              onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+              onopen={(itemId) => (viewport.isLarge ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
+              currentId={openItemId}
+              {onnavigate}
+              mayCreate={mayCreateHere}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
             />
           {:else if layout === 'KANBAN'}
             <Board
@@ -1020,7 +1020,10 @@
               isReadOnly={isReadOnly}
               {query}
               {lastResults}
-              onduplicate={(item) => (duplicating = item)}
+              onopen={viewport.isLarge ? openBeside : undefined}
+              currentId={openItemId}
+              {onnavigate}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
@@ -1077,16 +1080,6 @@
   />
   <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
 {/if}
-
-<DuplicateDialog
-  item={duplicating}
-  hubId={container?.type === 'COLLECTION' ? (container.parent_id ?? undefined) : container?.id}
-  onclose={() => (duplicating = undefined)}
-  onopened={(itemId) => {
-    duplicating = undefined;
-    onnavigate(`/items/${itemId}`);
-  }}
-/>
 
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />

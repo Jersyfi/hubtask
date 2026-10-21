@@ -35,6 +35,10 @@
     canCopy,
   } from '@hubtask/design-system/components';
 
+  import EntryActions from '../lib/entries/EntryActions.svelte';
+  import EntryMenu from '../lib/entries/EntryMenu.svelte';
+  import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
+  import { entryMenu } from '../lib/entries/entryMenu.ts';
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
 
@@ -42,7 +46,8 @@
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
-  import { changeRefusalCode, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -392,6 +397,52 @@
     return code ? t(code) : undefined;
   }
 
+  /** The reader's role where a hit sits, once the memberships there have been read. */
+  const roleAt = (hit: WorkItem) => people.roleOf(hitPath(hit), actor.account?.id, roleOrder());
+
+  /**
+   * A hit's menu: the one every surface draws (UC-WRK-28 check 1). Search holds no level, so the
+   * moves wait for the one read when the menu opens (D6); the role is read with the hits.
+   */
+  function menuOf(hit: WorkItem) {
+    const role = roleAt(hit);
+    const isMine = hit.assignee_id != null && hit.assignee_id === actor.account?.id;
+    const change = mayDo(role ?? undefined, 'change', isMine);
+    return entryMenu(
+      {
+        surface: 'search',
+        item: { title: hit.title, isCompleted: hit.completion?.is_completed ?? false, hasDue: Boolean(hit.due_at) },
+        archival: archivalOfItem(hit, false),
+        isCollectionReadOnly: containers.find(hit.collection_id)?.effective_archived ?? false,
+        mayChange: change,
+        mayCreate: mayDo(role ?? undefined, 'create', isMine) === true,
+        mayShare: holds(role ?? undefined, 'MANAGE_MEMBERS').status === 'permitted',
+        carries: (capability) => supports(hit.type, capability).status === 'permitted',
+        level: actions?.levelOf(hit),
+      },
+      t,
+    );
+  }
+
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
+  let results = $state<HTMLElement | null>(null);
+
+  function openMenu(id: string) {
+    const hit = search.hits.find((each) => each.id === id);
+    if (hit) actions?.readLevel(hit);
+    menus[id]?.open(0);
+  }
+
+  $effect(() => {
+    const node = results;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: (target) => (target as Element | null)?.closest?.('[data-hit]')?.getAttribute('data-hit') ?? undefined,
+      open: openMenu,
+    });
+  });
+
   async function toggleComplete(id: string, title: string, isCompleted: boolean) {
     writeFailure = undefined;
     try {
@@ -534,12 +585,14 @@
   {:else if search.hits.length === 0}
     <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
   {:else}
+    <div class="results" bind:this={results}>
     <Stack gap="050">
       {#if hasMeaning}
         <p class="hint">{t(mode === 'LEXICAL' ? 'app.search.ranked_by_words' : 'app.search.ranked_by_meaning')}</p>
       {/if}
       {#each search.hits as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
+        <div data-hit={hit.id}>
         <TaskRow
           type={hit.type}
           title={hit.title}
@@ -550,9 +603,22 @@
           onToggleComplete={() => {
             if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
           }}
-        />
+        >
+          {#snippet trailing()}
+            <EntryMenu
+              bind:this={menus[hit.id]}
+              title={hit.title}
+              items={menuOf(hit)}
+              onselect={(chosen) => void actions?.run(hit, chosen)}
+              onopening={() => actions?.readLevel(hit)}
+            />
+          {/snippet}
+        </TaskRow>
+        </div>
       {/each}
     </Stack>
+    </div>
+    <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
     {#if search.isPartial}
       <p class="hint">{t('app.search.partial')}</p>
     {/if}
