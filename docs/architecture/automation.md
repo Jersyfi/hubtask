@@ -165,9 +165,11 @@ the response is bounded by the client's size cap and discarded.
 provenance, its acceptance audited as its own act, the change made through the owning use case as
 `run_as`. A workspace with no provider or no consent is refused before anything is queued.
 
-**Templating.** Parameters may use the CEL environment (`"Reminder: " + item.title`) and message
-codes. An `HTTP_REQUEST`'s `body_template` is compiled at the write and rendered from the run's
-event at each attempt, so a retry sends what the first attempt would have.
+**Templating.** A parameter is the value written, never an expression: a title is that title, a
+due date that instant. The one template is an `HTTP_REQUEST`'s `body_template`, a CEL expression
+producing text, compiled at the write and rendered from the run's event at each attempt, so a retry
+sends what the first attempt would have; `throttle.dedupe_key_expr` is the other text the rule's
+language produces (§2.0).
 
 ### 1.4 Recurring tasks
 
