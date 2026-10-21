@@ -77,6 +77,7 @@
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
+  import { layoutsOffered } from '../lib/entries/layouts.ts';
   import { anchorFor } from '../lib/data/rank.ts';
   import type {
     BulkOperation,
@@ -148,10 +149,10 @@
   let layout = $state('LIST_COLLAPSED');
   let query = $state<ItemsQuery>({});
 
-  /** The layouts this client can actually draw. */
-  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
-
   const container = $derived(containers.find(id));
+
+  /** The layouts that may be chosen here: the switch's and the palette's one answer. */
+  const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
 
   /**
    * The path this container sits on, and the role this reader holds along it.
@@ -799,7 +800,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} drawable={DRAWABLE} onlayout={(id) => (layout = id)} />
+          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={(id) => (layout = id)} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}

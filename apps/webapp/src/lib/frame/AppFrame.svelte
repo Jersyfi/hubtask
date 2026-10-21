@@ -48,7 +48,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
+  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -159,14 +159,13 @@
     isInAdministration
       ? {
           label: t('app.admin.nav'),
-          groups: administration({
-            hasPrivateHubs: privateHubs.isReadable &&
-              (privateHubs.hasAny || workspace.workspace?.several_people === true),
-            withInstallation: installationPlace({
-              isInstanceReachable: manifest.isInstanceReachable,
-              isAdministrationReachable,
-              isSingleWorkspace: manifest.isSingleTenant,
-            }) === 'administration',
+          groups: administrationFor({
+            isPrivateHubsReadable: privateHubs.isReadable,
+            hasAnyPrivateHub: privateHubs.hasAny,
+            hasSeveralPeople: workspace.workspace?.several_people === true,
+            isInstanceReachable: manifest.isInstanceReachable,
+            isAdministrationReachable,
+            isSingleWorkspace: manifest.isSingleTenant,
           }),
         }
       : route.area === 'instance'

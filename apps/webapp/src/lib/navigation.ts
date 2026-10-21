@@ -257,6 +257,33 @@ export function administration(options: {
 }
 
 /**
+ * The administration's navigation from what the frame knows about this reader - the one place the
+ * inputs of `administration` are derived, so the column and the palette list the same rows.
+ *
+ * *Private hubs* is drawn where the list is readable and either a private hub exists or the
+ * workspace holds more than one person, because there it is where *Private hubs allowed* is set
+ * (ADR-0073 §6).
+ */
+export function administrationFor(options: {
+  readonly isPrivateHubsReadable: boolean;
+  readonly hasAnyPrivateHub: boolean;
+  readonly hasSeveralPeople: boolean;
+  readonly isInstanceReachable: boolean;
+  readonly isAdministrationReachable: boolean;
+  readonly isSingleWorkspace: boolean;
+}): readonly SectionGroup[] {
+  return administration({
+    hasPrivateHubs: options.isPrivateHubsReadable && (options.hasAnyPrivateHub || options.hasSeveralPeople),
+    withInstallation:
+      installationPlace({
+        isInstanceReachable: options.isInstanceReachable,
+        isAdministrationReachable: options.isAdministrationReachable,
+        isSingleWorkspace: options.isSingleWorkspace,
+      }) === 'administration',
+  });
+}
+
+/**
  * Where the installation is offered to this reader: as the administration's last group on a
  * single-workspace installation whose operator can reach the administration, in the account menu
  * otherwise, and nowhere for somebody who is not an operator. Never in both, and never nowhere for
