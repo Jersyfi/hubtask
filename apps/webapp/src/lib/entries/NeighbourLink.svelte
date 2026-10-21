@@ -35,4 +35,6 @@
 
 <style>
   .unopenable { color: var(--text-subtle); }
+  a { color: var(--text-brand); overflow-wrap: anywhere; }
+  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
 </style>

@@ -86,4 +86,6 @@
   .lead { color: var(--ai-text); }
   ul { display: contents; }
   li { list-style: none; overflow-wrap: anywhere; }
+  a { color: var(--text-brand); }
+  a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); border-radius: var(--r-sm); }
 </style>

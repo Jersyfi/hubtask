@@ -90,6 +90,7 @@ async function openEntry(browser, { width = 1280, ai = true, role = 'OWNER', sta
     sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
   });
   const page = await context.newPage();
+  await page.emulateMedia({ colorScheme: scheme });
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
@@ -250,6 +251,56 @@ test('chromium: with AI off nothing of it is drawn (UC-AI-01 check 1)', { timeou
     assert.deepEqual(failures, []);
   } finally {
     await close();
+    await browser.close();
+  }
+});
+
+test('chromium: while an entry is being created, what already looks like it is named by title (check 7)', { timeout: 90_000 }, async () => {
+  const browser = await chromium.launch();
+  try {
+  for (const ai of [true, false]) {
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    const asked = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/meta/capabilities') {
+        return route.fulfill({ json: { ...MANIFEST, features: { ...MANIFEST.features, ai_suggestions: ai, semantic_search: ai } } });
+      }
+      if (path === '/items:duplicates') {
+        asked.push({ body: request.postDataJSON(), key: request.headers()['idempotency-key'] });
+        return route.fulfill({ json: { items: [{ item_id: NEIGHBOUR.id, title: NEIGHBOUR.title, collection_id: NEIGHBOUR.collection_id, similarity: 0.9 }] } });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+    try {
+      await page.goto(`${served.origin}/items/${ENTRY.id}`);
+      await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
+      await page.getByLabel('Title', { exact: true }).last().fill('Book an electrician');
+      await page.waitForTimeout(900);
+      if (ai) {
+        await page.getByText('Possibly already here:').waitFor({ timeout: 5_000 });
+        assert.equal(await page.getByRole('link', { name: NEIGHBOUR.title }).count() >= 1, true);
+        assert.deepEqual(asked.at(-1)?.body, { title: 'Book an electrician' });
+        assert.equal(asked.at(-1)?.key, undefined, 'a read carries no idempotency key');
+        await evidence(page, 'places-6-lookalikes-1280.png');
+      } else {
+        assert.equal(asked.length, 0, 'nothing is asked without AI');
+        assert.equal(await page.getByText('Possibly already here:').count(), 0);
+      }
+      assert.deepEqual(failures, []);
+    } finally {
+      await context.close();
+    }
+  }
+  } finally {
     await browser.close();
   }
 });
