@@ -1163,3 +1163,39 @@ type EmergencyAccesses interface {
 	// Find answers one access with the name of its hub, for the mail that tells of it.
 	Find(ctx context.Context, id shared.ID) (work.EmergencyAccess, string, error)
 }
+
+// LayerHold is how a structure layer is read: plainly, or held until the transaction ends so that a
+// writer resolving from it and a writer changing it take turns.
+type LayerHold int
+
+const (
+	// LayerRead reads the layer and holds nothing.
+	LayerRead LayerHold = iota
+	// LayerShared holds it against a change while something below is resolved and written.
+	LayerShared
+	// LayerExclusive holds it for its own change.
+	LayerExclusive
+)
+
+// Structures stores the structure layers of containers and of the workspace (domain-model.md §2).
+// A container's own layer is read with the container itself (Containers.Find); this is the rest.
+type Structures interface {
+	// SetContainerStructure writes the container's own layer - on a collection its own completion
+	// with it - or reports a version conflict.
+	SetContainerStructure(ctx context.Context, container work.Container, expectedVersion int) error
+
+	// HoldContainer holds a hub's row while a collection's structure is resolved from it.
+	HoldContainer(ctx context.Context, id shared.ID) error
+
+	// Heirs answers the live containers that inherit a layer: the collections of a hub, or every hub
+	// and collection when hubID is empty. At most ceiling rows; a caller asks for one more than it
+	// will write to learn that the fan-out is too large.
+	Heirs(ctx context.Context, hubID shared.ID, ceiling int) ([]work.Container, error)
+
+	// Workspace answers the workspace's layer and the tenant row's version.
+	Workspace(ctx context.Context, hold LayerHold) (work.WorkspaceStructure, int, error)
+
+	// SetWorkspace writes the workspace's layer under the tenant row's version, or reports a version
+	// conflict.
+	SetWorkspace(ctx context.Context, workspace work.WorkspaceStructure, expectedVersion int, at time.Time) error
+}

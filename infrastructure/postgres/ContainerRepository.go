@@ -177,18 +177,25 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		return err
 	}
 
+	structure, completion, err := containerLayerDocument(container)
+	if err != nil {
+		return err
+	}
+
 	err = queries.InsertContainer(ctx, sqlc.InsertContainerParams{
-		ID:          id,
-		Type:        sqlc.ContainerType(container.Type),
-		ParentID:    parent,
-		Name:        container.Name,
-		Description: optionalText(container.Description),
-		Icon:        optionalText(container.Icon),
-		ColorToken:  optionalText(container.ColorToken),
-		OrderKey:    container.OrderKey,
-		CreatedBy:   createdBy,
-		CreatedAt:   timestampOf(container.CreatedAt),
-		Private:     container.Private,
+		Structure:        structure,
+		CompletionPolicy: completion,
+		ID:               id,
+		Type:             sqlc.ContainerType(container.Type),
+		ParentID:         parent,
+		Name:             container.Name,
+		Description:      optionalText(container.Description),
+		Icon:             optionalText(container.Icon),
+		ColorToken:       optionalText(container.ColorToken),
+		OrderKey:         container.OrderKey,
+		CreatedBy:        createdBy,
+		CreatedAt:        timestampOf(container.CreatedAt),
+		Private:          container.Private,
 	})
 	if err == nil {
 		return nil
@@ -478,8 +485,15 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 	if err != nil {
 		return work.Container{}, err
 	}
+	// The stored completion as it is, empty where the collection never decided one - the layer has
+	// to tell "follows its hub" from "decided MANUAL", which the policy above no longer can.
+	structure, err := containerLayerFrom(work.ContainerType(row.Type), row.Structure, row.CompletionPolicy)
+	if err != nil {
+		return work.Container{}, err
+	}
 
 	return work.Container{
+		Structure:        structure,
 		ID:               id,
 		TenantID:         tenantID,
 		Type:             work.ContainerType(row.Type),

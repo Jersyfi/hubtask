@@ -29,6 +29,7 @@
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
   aap.strategy AS auto_assign_strategy,
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
@@ -64,13 +65,22 @@ LIMIT 1;
 -- two cannot disagree.
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  created_by, created_at, updated_at, version, private
+  created_by, created_at, updated_at, version, private, policies
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('type'), sqlc.narg('parent_id'),
   normalize(sqlc.arg('name')::text, NFC),
   sqlc.narg('description'), sqlc.narg('icon'), sqlc.narg('color_token'), sqlc.arg('order_key'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
-  sqlc.arg('private')::boolean
+  sqlc.arg('private')::boolean,
+  -- A new container's own structure layer, and a collection's own completion beside it, where its
+  -- creator chose a preset: written with the row, so the container starts at version 1 like any
+  -- other. Bound as parameters (rule 9).
+  CASE WHEN sqlc.arg('completion_policy')::text = '' THEN
+    jsonb_build_object('structure', sqlc.arg('structure')::jsonb)
+  ELSE
+    jsonb_build_object('structure', sqlc.arg('structure')::jsonb,
+                       'completion_policy', sqlc.arg('completion_policy')::text)
+  END
 );
 
 -- name: ListContainers :many
@@ -103,6 +113,7 @@ INSERT INTO container (
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
   aap.strategy AS auto_assign_strategy,
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
@@ -152,10 +163,9 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- name: SetContainerPolicies :execrows
 -- One key of the policies document, set in place.
 --
--- `jsonb_set` rather than replacing the column, because the column holds four documented keys and this
--- use case owns one of them. Overwriting the whole document would silently discard a default bucket or
--- a capability override the moment either of those arrives - a data loss nobody would see until the
--- feature that wrote them stopped working.
+-- `jsonb_set` rather than replacing the column, because the column holds other keys and this use
+-- case owns one of them. Overwriting the whole document would silently discard the container's
+-- structure layer (Settings.sql) - a data loss nobody would see until the collection lost its shape.
 --
 -- The value is a parameter of the jsonb constructor rather than concatenated text: `to_jsonb` on a
 -- bound parameter is what keeps this a parameterised statement, which rule 9 requires of every query

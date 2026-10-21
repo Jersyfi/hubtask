@@ -130,6 +130,7 @@ SELECT count(*) FROM (
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
   aap.strategy AS auto_assign_strategy,
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
