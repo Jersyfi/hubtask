@@ -26,7 +26,7 @@
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
-  import BarSearch from './BarSearch.svelte';
+  import Palette from '../palette/Palette.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
@@ -239,7 +239,12 @@
     const chosen = DESTINATIONS.find((each) => each.id === id);
     if (!chosen) return;
     if (chosen.target.kind === 'route') go(chosen.target.path);
-    else if (chosen.target.action === 'tour') void tour.restart();
+    else accountVerb(chosen.target.action);
+  }
+
+  /** The account's two verbs, wherever they are chosen - the menu or the palette. */
+  function accountVerb(action: 'tour' | 'sign-out') {
+    if (action === 'tour') void tour.restart();
     else void session.signOut();
   }
 
@@ -338,7 +343,7 @@
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
            the reader reaches search through the bottom bar instead. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <BarSearch onnavigate={go} />
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} />
       {/if}
     {/snippet}
     {#snippet menu()}
