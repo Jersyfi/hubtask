@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make tools
       # Re-run on the nightly hardware as well: RT-2 and RT-3 are timing-sensitive, and a
@@ -94,7 +94,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make gate-fuzz FUZZ_TARGET=${{ matrix.target }} FUZZ_PKG=${{ matrix.package }}
       # The input that crashed is what makes the finding reproducible: go writes it under the
@@ -115,7 +115,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make tools
       - run: make verify
@@ -154,7 +154,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make tools
       # The integration suite starts its own container, so the image variable is all it takes.
@@ -169,7 +169,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       # Podman as the engine, driven by Compose v2 against Podman's Docker-compatible socket -
       # which is what `podman compose` does for you and what a Podman host runs today.
@@ -226,7 +226,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - name: GNU make, which the Windows image does not carry
         if: runner.os == 'Windows'
@@ -245,7 +245,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make tools
       # `helm template` renders; only an API server *validates*. Admission is where a field that
@@ -263,7 +263,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
           cache: true
       - run: make tools-helm
       # RT-9 against a real operator and a real object store. Nightly rather than per pull request
@@ -286,7 +286,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.27.2"
+          go-version: "1.27.3"
       - run: make tools && .tools/govulncheck ./...
       - name: The image name in lower case
         # A Docker reference must be lower case; github.repository keeps the owner's spelling.
