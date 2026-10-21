@@ -105,6 +105,8 @@ jobs:
               - 'sdk/python/**'
               - 'third-party/**'
               - 'locales/**'
+              # infrastructure/i18n holds every locale to a face in this list.
+              - 'packages/design-system/fonts/faces.json'
               - 'k8s/**'
               - 'go.mod'
               - 'go.sum'
