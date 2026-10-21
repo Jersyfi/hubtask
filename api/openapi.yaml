@@ -15174,9 +15174,10 @@ components:
           description: OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
         sum:
           type: [number, "null"]
+          format: double
           description: >
-            FIELD_SUM - the sum of the number field over those entries; null where the field is
-            not a live number field the entries carry.
+            FIELD_SUM - the sum of the number field over those entries; absent or null where the
+            field is not a live number field the entries carry.
         summed:
           type: integer
           minimum: 0

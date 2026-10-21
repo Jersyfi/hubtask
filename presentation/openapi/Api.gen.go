@@ -6566,8 +6566,8 @@ type CollectionFigure struct {
 	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
 	Open *int `json:"open,omitempty"`
 
-	// Sum FIELD_SUM - the sum of the number field over those entries; null where the field is not a live number field the entries carry.
-	Sum *float32 `json:"sum,omitempty"`
+	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
+	Sum *float64 `json:"sum,omitempty"`
 
 	// Summed FIELD_SUM - how many of those entries carry a value.
 	Summed *int               `json:"summed,omitempty"`
