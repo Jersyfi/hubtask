@@ -945,6 +945,7 @@
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               structure={container.structure ?? undefined}
+              {onnavigate}
             />
           {/if}
         </div>

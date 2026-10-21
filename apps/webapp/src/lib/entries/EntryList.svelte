@@ -25,6 +25,7 @@
     Icon,
     IconButton,
     Inline,
+    Input,
     LabelChip,
     LabelPicker,
     Menu,
@@ -41,6 +42,8 @@
   import type { BulkResult, DroppedReference, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
 
   import { capture, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
+  import { narrow, partition, type Sections } from './simplelist.ts';
+  import { classify, edgeInset, HOLD_MS as GESTURE_HOLD_MS, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
 
   import type { Archival } from '../data/containers.ts';
 
@@ -135,6 +138,8 @@
      * amount. Absent from a server that does not answer one, and then nothing is recognised.
      */
     structure?: EffectiveStructure;
+    /** Goes to an address: what *Open* in a simple list's row menu does where no pane opens it. */
+    onnavigate?: (path: string) => void;
   }
 
   const {
@@ -150,7 +155,26 @@
     changeRefusal,
     mayCreate,
     structure,
+    onnavigate,
   }: Props = $props();
+
+  /**
+   * The simple arrangement (UC-WRK-25, record D6): a collection's own list whose levels in force
+   * are one. Its rows sit in sections - open under their categories, *Done*, *Recently* - rather
+   * than in one tree, a tap on a row ticks it, a swipe ticks or reopens it, and a still hold opens
+   * its menu (ADR-0088). Every other list is drawn as it always was.
+   */
+  const isSimple = $derived(!root && (structure?.settings?.levels?.length ?? 0) === 1);
+  const simpleLevel = $derived(structure?.settings?.levels?.[0]);
+  /** What the collection calls its done entries, where somebody named them (UC-WRK-25 check 3). */
+  const doneName = $derived(simpleLevel?.done_name ?? undefined);
+  /** The labels the collection groups by, in their order (UC-WRK-25 check 5). */
+  const categories = $derived(
+    simpleLevel ? (structure?.settings?.fields?.[simpleLevel.type]?.categories ?? []) : [],
+  );
+
+  /** The clock the sections are drawn at, moved on when the oldest entry under *Done* leaves it. */
+  let now = $state(Date.now());
 
 
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
@@ -293,6 +317,8 @@
      * above it, and an active row has neither (I-C3, I-W4).
      */
     readonly archival: Archival;
+    /** In the simple arrangement, the section the row is drawn in; ranking stays within it. */
+    readonly section?: 'open' | 'done' | 'recently';
   }
 
   /**
@@ -350,7 +376,66 @@
     return rows;
   }
 
-  const rows = $derived(flatten(root ? items.childrenOf(root.id) : items.inCollection(collectionId), 0, root?.id ?? null, isReadOnly));
+  /** The simple arrangement's sections, from the level the list reads (`simplelist.ts`). */
+  const sections = $derived<Sections<WorkItem> | undefined>(
+    isSimple
+      ? partition(items.inCollection(collectionId), now, categories, new Set(available.map((label) => label.id)))
+      : undefined,
+  );
+
+  // A timer to the moment the oldest entry under *Done* reaches its 24 hours, so the sections
+  // re-sort then rather than at the next read.
+  $effect(() => {
+    const boundary = sections?.nextBoundary;
+    if (boundary === undefined) return;
+    const timer = setTimeout(() => (now = Date.now()), Math.max(0, boundary - Date.now()) + 1);
+    return () => clearTimeout(timer);
+  });
+
+  /** The title the capture line asks for, which narrows *Recently* (UC-WRK-25 check 4). */
+  const askedTitle = $derived.by(() =>
+    addingUnder === 'root' ? parseLine(draftTitle.split(/\r?\n/u)[0] ?? '', captureRules).title : '',
+  );
+  const recentlyShown = $derived(sections ? narrow(sections.recently, askedTitle) : []);
+
+  /** The rows of one section: ranked among their own group, so a drag and a rank stay in it. */
+  function sectionRows(entries: readonly WorkItem[], section: 'open' | 'done' | 'recently'): Row[] {
+    return entries.map((item, index) => ({
+      item,
+      depth: 0,
+      takesChildren: false,
+      siblings: entries,
+      index,
+      parentId: null,
+      archival: archivalOfItem(item, isReadOnly),
+      section,
+    }));
+  }
+
+  const rows = $derived(
+    sections
+      ? [
+          ...sections.open.flatMap((group) => sectionRows(group.entries, 'open')),
+          ...sectionRows(sections.done, 'done'),
+          ...sectionRows(recentlyShown, 'recently'),
+        ]
+      : flatten(root ? items.childrenOf(root.id) : items.inCollection(collectionId), 0, root?.id ?? null, isReadOnly),
+  );
+  const rowById = $derived(new Map(rows.map((row) => [row.item.id, row])));
+
+  /** A category's heading: its label's name, or the words for the entries that carry none. */
+  function categoryName(category: string | null): string {
+    if (category === null) return t('app.entries.no_category');
+    return available.find((label) => label.id === category)?.name ?? t('app.entries.no_category');
+  }
+
+  /** The row whose menu is open because a still hold opened it (ADR-0088). */
+  let menuOpenFor = $state<string | undefined>(undefined);
+  /** The row whose amount is being changed from its menu. */
+  let amending = $state<Row | undefined>(undefined);
+  let draftAmount = $state('');
+  /** The row whose category is being chosen from its menu. */
+  let categorising = $state<Row | undefined>(undefined);
 
   // In the collection's list only an open row's level is read; a subtree arrived whole, so a
   // closed row there already knows what it hides and nothing more is read.
@@ -836,10 +921,43 @@
    * about which control. The separator is where the level stops being the level.
    */
   function menuItems(row: Row) {
+    const simple = isSimple ? simpleItems(row) : [];
     // A row the role may not change offers only what does not write it: a copy, where the reader
     // may create one. Nothing else is drawn, not even off.
-    if (isRoleRefused(row)) return everyItem(row).filter((each) => each.id === 'duplicate' && mayCreate);
-    return everyItem(row).filter((each) => each.id !== 'duplicate' || mayCreate);
+    if (isRoleRefused(row)) {
+      return [
+        ...simple.filter((each) => each.id === 'select' || each.id === 'open'),
+        ...everyItem(row).filter((each) => each.id === 'duplicate' && mayCreate),
+      ];
+    }
+    const placed = everyItem(row)
+      .filter((each) => each.id !== 'duplicate' || mayCreate)
+      // A done entry is not ranked among the open ones, and a simple list has no levels to move
+      // inside or out of.
+      .filter((each) => !isSimple || (row.section === 'open' || !RANK_IDS.has(each.id)))
+      .filter((each) => !isSimple || (each.id !== 'inside' && each.id !== 'out'));
+    return [...simple, ...placed];
+  }
+
+  const RANK_IDS = new Set(['up', 'down', 'top', 'bottom']);
+
+  /**
+   * What a simple list's row menu adds: *Select* first, because a still hold opens this menu
+   * rather than selecting (ADR-0088); *Open*, because the title is not a link there; the amount
+   * and the category, where the collection offers them.
+   */
+  function simpleItems(row: Row) {
+    const offers = [
+      { id: 'select', label: t('app.entries.select_entry') },
+      { id: 'open', label: t('app.entries.open_entry') },
+    ];
+    if (offersAmount(row.item.type) && !isFrozen(row)) {
+      offers.push({ id: 'amount', label: t('app.entries.change_amount') });
+    }
+    if (categories.length > 0 && supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row)) {
+      offers.push({ id: 'category', label: t('app.entries.choose_category') });
+    }
+    return offers;
   }
 
   function everyItem(row: Row) {
@@ -944,7 +1062,8 @@
    */
   $effect(() => {
     const node = level;
-    if (!node) return;
+    // The simple arrangement reads a finger its own way, in the effect below.
+    if (!node || isSimple) return;
     let held: ReturnType<typeof setTimeout> | undefined;
     const idAt = (target: EventTarget | null) =>
       (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
@@ -981,6 +1100,132 @@
       node.removeEventListener('pointermove', release);
       node.removeEventListener('click', onClick, true);
     };
+  });
+
+  /**
+   * A simple list's row under a finger and a pointer (UC-WRK-25 check 6, ADR-0088): a tap anywhere
+   * on the row but its controls ticks it, so the target is the whole row and never only the small
+   * box; a swipe towards the inline end ticks an open entry and reopens a done one; a still hold
+   * opens the row's menu when the finger lifts, *Select* first, and ticks nothing. The grip still
+   * drags, and `Ctrl`/`Cmd`-click still selects. A tap on the checkbox itself is the checkbox's,
+   * and the row lets it be, so nothing is ticked twice.
+   */
+  $effect(() => {
+    const node = level;
+    if (!node || !isSimple) return;
+    let press: { id: string; start: Point; acted: boolean } | undefined;
+    let swallowsClick = false;
+    const idAt = (target: EventTarget | null) =>
+      (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
+    const isRtl = () => getComputedStyle(node).direction === 'rtl';
+    const onDown = (event: PointerEvent) => {
+      swallowsClick = false;
+      press = undefined;
+      if (event.pointerType === 'mouse' || selection.isOn) return;
+      const id = idAt(event.target);
+      if (!id || (event.target as Element).closest('[data-grip]')) return;
+      // The screen edge's band is the platform's back gesture.
+      if (startsAtEdge(event.clientX, window.innerWidth, edgeInset(node))) return;
+      press = { id, start: { x: event.clientX, y: event.clientY, at: event.timeStamp }, acted: false };
+    };
+    const onMove = (event: PointerEvent) => {
+      if (!press || press.acted) return;
+      const gesture = classify(
+        press.start, { x: event.clientX, y: event.clientY, at: event.timeStamp }, swipeThreshold(node), isRtl(),
+      );
+      if (gesture === 'swipe-end') {
+        press.acted = true;
+        swallowsClick = true;
+        const row = rowById.get(press.id);
+        if (row && !isFrozen(row)) void toggleComplete(row.item);
+      } else if (gesture !== 'pending' && gesture !== 'hold') {
+        press = undefined;
+      }
+    };
+    const onUp = (event: PointerEvent) => {
+      if (press && !press.acted && event.timeStamp - press.start.at >= GESTURE_HOLD_MS) {
+        menuOpenFor = press.id;
+        swallowsClick = true;
+      }
+      press = undefined;
+    };
+    const onCancel = () => (press = undefined);
+    // The capture phase, so that a press a gesture already answered reaches no control.
+    const onClick = (event: MouseEvent) => {
+      const id = idAt(event.target);
+      if (!id) return;
+      if (swallowsClick) {
+        swallowsClick = false;
+        event.preventDefault();
+        event.stopPropagation();
+        return;
+      }
+      if (event.metaKey || event.ctrlKey) {
+        if (selection.isOn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        selection.pick(visibleIds, id);
+        return;
+      }
+      if (selection.isOn) return;
+      if ((event.target as Element).closest('button, a, input, textarea, select, label, summary, [role="menu"], [role="menuitem"]')) return;
+      const row = rowById.get(id);
+      if (row && !isFrozen(row)) void toggleComplete(row.item);
+    };
+    node.addEventListener('pointerdown', onDown);
+    node.addEventListener('pointermove', onMove);
+    node.addEventListener('pointerup', onUp);
+    node.addEventListener('pointercancel', onCancel);
+    node.addEventListener('click', onClick, true);
+    return () => {
+      node.removeEventListener('pointerdown', onDown);
+      node.removeEventListener('pointermove', onMove);
+      node.removeEventListener('pointerup', onUp);
+      node.removeEventListener('pointercancel', onCancel);
+      node.removeEventListener('click', onClick, true);
+    };
+  });
+
+  /** Writes the amount from the row menu's dialog: empty clears it. */
+  async function saveAmount() {
+    const row = amending;
+    if (!row) return;
+    writeFailure = undefined;
+    try {
+      await items.update(row.item.id, { amount: draftAmount.trim() }, row.item.version);
+      announcer.say(t('app.entries.amount_saved_announced', { title: row.item.title }));
+      amending = undefined;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  /**
+   * Puts an entry under one category: the chosen label on, every other category label off, other
+   * labels left alone - an entry sits under one aisle, and its other labels are labels.
+   */
+  async function chooseCategory(row: Row, category: string | null) {
+    writeFailure = undefined;
+    try {
+      const carried = row.item.label_ids ?? [];
+      for (const each of categories) {
+        const wanted = each === category;
+        if (wanted !== carried.includes(each)) {
+          await labels.setOnItem(row.item.id, each, wanted, crypto.randomUUID());
+        }
+      }
+      announcer.say(t('app.labels.toggled_announced'));
+      categorising = undefined;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  // A simple list opens with its capture line ready at the top (ux-inventory E5).
+  $effect(() => {
+    if (isSimple && !isReadOnly && mayCreate && addingUnder === null && topTypes().length > 0) {
+      untrack(() => startAdding('root'));
+    }
   });
 
   const drag = createDrag({
@@ -1054,7 +1299,15 @@
 
   /** One press, whichever operation it turns out to be. */
   function chose(row: Row, id: string) {
-    if (id === 'inside') {
+    if (id === 'select') selection.pick(visibleIds, row.item.id);
+    else if (id === 'open') {
+      if (onopen) onopen(row.item.id);
+      else onnavigate?.(`/items/${row.item.id}`);
+    } else if (id === 'amount') {
+      amending = row;
+      draftAmount = row.item.amount ?? '';
+    } else if (id === 'category') categorising = row;
+    else if (id === 'inside') {
       const above = previousSibling(row);
       if (above) void move(row, { parentId: above.id });
     } else if (id === 'out') moveOut(row);
@@ -1151,212 +1404,53 @@
            press finds its way back from the focused control to the row by; the handler is added in
            an effect rather than bound here, because a `<div>` with an `onkeydown` is a static
            element with an interaction and Svelte is right to warn about one. -->
-      <div class="level" bind:this={level}>
+      {#if isSimple && addingUnder === 'root'}
+        <!-- A simple list's capture line is at its top, where the next thing to add is typed. -->
+        {@render addForm()}
+      {/if}
+      <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined}>
         {#if moment && moment.tier === 3}
           <!-- The rare one takes the level: a slot no taller than the token, at its foot. -->
           <CelebrationSlot current={moment} />
         {/if}
-        {#each rows as row (row.item.id)}
-          <!-- Two ways into the mode from a row, and they are the two a pointer has. A modifier
-               press is the fine pointer's — and it is caught in the capture phase, because the
-               row is a link and the router listens for the click after it. A press held is the
-               coarse pointer's, which is what a finger has instead of a modifier; the threshold
-               is the drag helper's hold, so the two gestures cannot disagree about what a hold is.
-               Both go through `selection.pick`, which turns the mode on. -->
-          <div
-            class="row"
-            data-row={row.item.id}
-            data-celebrating={moment && moment.tier !== 3 && slotRowId === row.item.id ? '' : undefined}
-            data-archived={row.archival !== 'active' ? '' : undefined}
-            data-dragging={drag.id === row.item.id ? '' : undefined}
-            data-drop={drag.id !== null &&
-            drag.id !== row.item.id &&
-            drag.levelKey === (row.parentId ?? 'root') &&
-            drag.position === row.index
-              ? ''
-              : undefined}
-            style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
-          >
-            <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
-                 the way a pointer does — and drawn only while somebody is selecting (ADR-0063
-                 decision 8). Shift is read from the event rather than from a mode of its own: one
-                 code path for the pointer and the keyboard is what keeps the two from drifting
-                 apart, and `selection.pick` is where it lives. -->
-            {#if selection.isOn}
-            <span class="pick">
-              <Checkbox
-                label={t('app.bulk.select', { title: row.item.title })}
-                isLabelHidden={true}
-                checked={selection.has(row.item.id)}
-                onclick={(event: MouseEvent) =>
-                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey })}
-                onkeydown={(event: KeyboardEvent) => {
-                  if (event.key !== ' ' && event.key !== 'Enter') return;
-                  event.preventDefault();
-                  selection.pick(visibleIds, row.item.id, { range: event.shiftKey });
-                }}
-              />
-            </span>
+        {#if sections}
+          <!-- The simple arrangement (UC-WRK-25): what is still to get, under its categories in
+               their order; what was ticked in the last 24 hours, under the collection's name for
+               it; and what was ticked before, most used first. -->
+          {#each sections.open as group (group.category ?? '')}
+            {#if group.category !== null || sections.open.length > 1}
+              <h2 class="section-head">{categoryName(group.category)}</h2>
             {/if}
-            <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
-                 menu at the end of the row, and it is a real one — so a second focusable element
-                 that does nothing for the keyboard would be noise in the tab order rather than
-                 access. -->
-            {#if !isRoleRefused(row)}
-              <span class="grip" data-grip aria-hidden="true">
-                <Icon name="grip-vertical" size="sm" />
-              </span>
-            {/if}
-            {#if moment && moment.tier !== 3 && slotRowId === row.item.id}
-              <!-- Tier 1 on the completed row, tier 2 across the parent's - or the completed row
-                   where the parent is not on this screen. -->
-              <CelebrationSlot current={moment} />
-            {/if}
-            <TaskRow
-              type={row.item.type}
-              title={row.item.title}
-              depth={row.depth}
-              href={`/items/${row.item.id}`}
-              onOpen={onopen ? () => onopen(row.item.id) : undefined}
-              isCurrent={currentId === row.item.id}
-              pendingLabel={queue.isPending(row.item.id) ? t('app.sync.pending_entry') : undefined}
-              isCompleted={row.item.completion?.is_completed ?? false}
-              expansion={!row.takesChildren
-                ? 'leaf'
-                : expanded.includes(row.item.id)
-                  ? 'expanded'
-                  : 'collapsed'}
-              completeLabel={t(
-                row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete',
-                { title: row.item.title },
-              )}
-              completeDisabledReason={frozenReason(row)}
-              expandLabel={t(
-                expanded.includes(row.item.id) ? 'app.entries.collapse' : 'app.entries.expand',
-                { title: row.item.title },
-              )}
-              onToggleComplete={() => toggleComplete(row.item)}
-              onToggleExpand={() =>
-                (expanded = expanded.includes(row.item.id)
-                  ? expanded.filter((id) => id !== row.item.id)
-                  : [...expanded, row.item.id])}
-            >
-              {#snippet trailing()}
-                <!-- What a row that takes children holds, done of total, once its level has been
-                     read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
-                {#if row.takesChildren}
-                  {@const progress = progressOf(row.item.id)}
-                  {#if progress && progress.total > 0}
-                    <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
-                  {/if}
-                {/if}
-                <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
-                     already carries: the names come from the accounts cache rather than from an
-                     expansion this server does not serve. -->
-                <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
-                <!-- When it is wanted, with the word as well as the tone (rule 3). -->
-                <DueMark item={row.item} />
-
-                <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
-                     the state reads in greyscale and to a screen reader — which matters more here
-                     than anywhere, because "archived" is why every control beside it is off. -->
-                {#if row.archival !== 'active'}
-                  <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
-                {/if}
-
-                <!-- The labels this entry carries, and a way to change them — but only for a type
-                     whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
-                     §2 says a field whose capability is off is refused rather than ignored, so it is
-                     not offered here at all. -->
-                {#if supports(row.item.type, 'LABELS').status === 'permitted'}
-                  {#each (row.item.label_ids ?? []) as labelId (labelId)}
-                    {@const entry = available.find((each) => each.id === labelId)}
-                    {#if entry}
-                      <LabelChip
-                        name={entry.name}
-                        colorToken={entry.colorToken}
-                        description={entry.description}
-                        removeLabel={isFrozen(row)
-                          ? undefined
-                          : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
-                        onRemove={() => toggleLabel(row.item, labelId)}
-                      />
-                    {/if}
-                  {/each}
-
-                  {#if !isFrozen(row)}
-                    <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
-                      {#snippet trigger(props)}
-                        <Button size="sm" tone="subtle" icon="tag" {...props}>
-                          {t('app.labels.choose')}
-                        </Button>
-                      {/snippet}
-                      <LabelPicker
-                        label={t('app.labels.on_entry', { title: row.item.title })}
-                        labels={available}
-                        selected={row.item.label_ids ?? []}
-                        filterLabel={t('app.labels.filter')}
-                        locale={messages.locale}
-                        emptyLabel={t('app.labels.none_yet')}
-                        noMatchLabel={t('app.labels.no_match')}
-                        onToggle={(labelId) => toggleLabel(row.item, labelId)}
-                      />
-                    </Popover>
-                  {/if}
-                {/if}
-
-                {#if row.archival === 'active' && mayCreate && row.takesChildren}
-                  <!-- The label names what it adds. The control at the end of the list adds to the
-                       collection and this one adds inside this entry; sharing "Add an entry"
-                       between them made a list of seven rows carry eight controls of that name,
-                       seven of which do something else. Icon-only, so the row's controls stop
-                       competing with its title for width. -->
-                  <IconButton
-                    icon="plus"
-                    label={childTypes(row.item.type).length === 1
-                      ? t('app.entries.add_typed_inside', { type: childTypes(row.item.type)[0] ?? '', title: row.item.title })
-                      : t('app.entries.add_child', { title: row.item.title })}
-                    size="sm"
-                    onclick={() => startAdding(row.item.id)}
-                  />
-                {/if}
-
-                <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
-                     first: every position a drag can reach is an item here, each with the reason it
-                     cannot be used rather than a control that goes grey for no stated cause. -->
-                {#if menuItems(row).length > 0}
-                  <Menu
-                    label={t('app.rank.actions', { title: row.item.title })}
-                    items={menuItems(row)}
-                    onselect={(id) => chose(row, id)}
-                  >
-                    {#snippet trigger(props)}
-                      <IconButton
-                        icon="ellipsis"
-                        label={t('app.rank.actions', { title: row.item.title })}
-                        size="sm"
-                        {...props}
-                      />
-                    {/snippet}
-                  </Menu>
-                {/if}
-              {/snippet}
-            </TaskRow>
-
-          </div>
-
-          {#if bulkNote(row.item.id)}
-            <p class="bulk-note">{bulkNote(row.item.id)}</p>
+            {#each group.entries as entry (entry.id)}
+              {@const row = rowById.get(entry.id)}
+              {#if row}{@render entryRow(row)}{/if}
+            {/each}
+          {/each}
+          {#if sections.done.length > 0}
+            <h2 class="section-head" data-section="done">{doneName ?? t('app.entries.done_section')}</h2>
+            {#each sections.done as entry (entry.id)}
+              {@const row = rowById.get(entry.id)}
+              {#if row}{@render entryRow(row)}{/if}
+            {/each}
           {/if}
-
-          {#if addingUnder === row.item.id}
-            {@render addForm()}
+          {#if recentlyShown.length > 0}
+            <h2 class="section-head" data-section="recently">{t('app.entries.recently')}</h2>
+            {#each recentlyShown as entry (entry.id)}
+              {@const row = rowById.get(entry.id)}
+              {#if row}{@render entryRow(row)}{/if}
+            {/each}
           {/if}
-        {/each}
+        {:else}
+          {#each rows as row (row.item.id)}
+            {@render entryRow(row)}
+          {/each}
+        {/if}
       </div>
 
       {#if !isReadOnly && mayCreate && topTypes().length > 0}
-        {#if addingUnder === 'root'}
+        {#if isSimple && addingUnder === 'root'}
+          <!-- Drawn at the top. -->
+        {:else if addingUnder === 'root'}
           {@render addForm()}
         {:else}
           <Inline gap="100">
@@ -1389,6 +1483,208 @@
     onmove={(destination) => moveElsewhere(destination)}
   />
 {/if}
+
+{#snippet entryRow(row: Row)}
+    <!-- Two ways into the mode from a row, and they are the two a pointer has. A modifier
+         press is the fine pointer's — and it is caught in the capture phase, because the
+         row is a link and the router listens for the click after it. A press held is the
+         coarse pointer's, which is what a finger has instead of a modifier; the threshold
+         is the drag helper's hold, so the two gestures cannot disagree about what a hold is.
+         Both go through `selection.pick`, which turns the mode on. -->
+    <div
+      class="row"
+      data-row={row.item.id}
+      data-celebrating={moment && moment.tier !== 3 && slotRowId === row.item.id ? '' : undefined}
+      data-archived={row.archival !== 'active' ? '' : undefined}
+      data-dragging={drag.id === row.item.id ? '' : undefined}
+      data-drop={drag.id !== null &&
+      drag.id !== row.item.id &&
+      drag.levelKey === (row.parentId ?? 'root') &&
+      drag.position === row.index
+        ? ''
+        : undefined}
+      style:--drag-offset={drag.id === row.item.id ? drag.offset : undefined}
+    >
+      <!-- The pick, first in the row and first in the tab order, so a keyboard reaches it
+           the way a pointer does — and drawn only while somebody is selecting (ADR-0063
+           decision 8). Shift is read from the event rather than from a mode of its own: one
+           code path for the pointer and the keyboard is what keeps the two from drifting
+           apart, and `selection.pick` is where it lives. -->
+      {#if selection.isOn}
+      <span class="pick">
+        <Checkbox
+          label={t('app.bulk.select', { title: row.item.title })}
+          isLabelHidden={true}
+          checked={selection.has(row.item.id)}
+          onclick={(event: MouseEvent) =>
+            selection.pick(visibleIds, row.item.id, { range: event.shiftKey })}
+          onkeydown={(event: KeyboardEvent) => {
+            if (event.key !== ' ' && event.key !== 'Enter') return;
+            event.preventDefault();
+            selection.pick(visibleIds, row.item.id, { range: event.shiftKey });
+          }}
+        />
+      </span>
+      {/if}
+      <!-- A picture, not a control. The single-pointer alternative SC 2.5.7 asks for is the
+           menu at the end of the row, and it is a real one — so a second focusable element
+           that does nothing for the keyboard would be noise in the tab order rather than
+           access. -->
+      {#if !isRoleRefused(row) && (!isSimple || row.section === 'open')}
+        <span class="grip" data-grip aria-hidden="true">
+          <Icon name="grip-vertical" size="sm" />
+        </span>
+      {/if}
+      {#if moment && moment.tier !== 3 && slotRowId === row.item.id}
+        <!-- Tier 1 on the completed row, tier 2 across the parent's - or the completed row
+             where the parent is not on this screen. -->
+        <CelebrationSlot current={moment} />
+      {/if}
+      <TaskRow
+        type={row.item.type}
+        title={row.item.amount ? t('app.entries.amount_title', { amount: row.item.amount, title: row.item.title }) : row.item.title}
+        depth={row.depth}
+        href={isSimple ? undefined : `/items/${row.item.id}`}
+        onOpen={onopen && !isSimple ? () => onopen(row.item.id) : undefined}
+        isCurrent={currentId === row.item.id}
+        pendingLabel={queue.isPending(row.item.id) ? t('app.sync.pending_entry') : undefined}
+        isCompleted={row.item.completion?.is_completed ?? false}
+        expansion={!row.takesChildren
+          ? 'leaf'
+          : expanded.includes(row.item.id)
+            ? 'expanded'
+            : 'collapsed'}
+        completeLabel={t(
+          row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete',
+          { title: row.item.title },
+        )}
+        completeDisabledReason={frozenReason(row)}
+        expandLabel={t(
+          expanded.includes(row.item.id) ? 'app.entries.collapse' : 'app.entries.expand',
+          { title: row.item.title },
+        )}
+        onToggleComplete={() => toggleComplete(row.item)}
+        onToggleExpand={() =>
+          (expanded = expanded.includes(row.item.id)
+            ? expanded.filter((id) => id !== row.item.id)
+            : [...expanded, row.item.id])}
+      >
+        {#snippet trailing()}
+          <!-- What a row that takes children holds, done of total, once its level has been
+               read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
+          {#if row.takesChildren}
+            {@const progress = progressOf(row.item.id)}
+            {#if progress && progress.total > 0}
+              <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+            {/if}
+          {/if}
+          <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
+               already carries: the names come from the accounts cache rather than from an
+               expansion this server does not serve. -->
+          <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+          <!-- When it is wanted, with the word as well as the tone (rule 3). -->
+          <DueMark item={row.item} />
+
+          <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
+               the state reads in greyscale and to a screen reader — which matters more here
+               than anywhere, because "archived" is why every control beside it is off. -->
+          {#if row.archival !== 'active'}
+            <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+          {/if}
+
+          <!-- The labels this entry carries, and a way to change them — but only for a type
+               whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
+               §2 says a field whose capability is off is refused rather than ignored, so it is
+               not offered here at all. -->
+          {#if supports(row.item.type, 'LABELS').status === 'permitted'}
+            {#each (row.item.label_ids ?? []) as labelId (labelId)}
+              {@const entry = available.find((each) => each.id === labelId)}
+              <!-- In a simple list a category is the heading the entry sits under, not a chip. -->
+              {#if entry && !(isSimple && categories.includes(labelId))}
+                <LabelChip
+                  name={entry.name}
+                  colorToken={entry.colorToken}
+                  description={entry.description}
+                  removeLabel={isFrozen(row)
+                    ? undefined
+                    : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
+                  onRemove={() => toggleLabel(row.item, labelId)}
+                />
+              {/if}
+            {/each}
+
+            <!-- A simple list keeps its rows to a tick and a title; a category is chosen from the
+                 row's menu, other labels on the entry's page. -->
+            {#if !isFrozen(row) && !isSimple}
+              <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
+                {#snippet trigger(props)}
+                  <Button size="sm" tone="subtle" icon="tag" {...props}>
+                    {t('app.labels.choose')}
+                  </Button>
+                {/snippet}
+                <LabelPicker
+                  label={t('app.labels.on_entry', { title: row.item.title })}
+                  labels={available}
+                  selected={row.item.label_ids ?? []}
+                  filterLabel={t('app.labels.filter')}
+                  locale={messages.locale}
+                  emptyLabel={t('app.labels.none_yet')}
+                  noMatchLabel={t('app.labels.no_match')}
+                  onToggle={(labelId) => toggleLabel(row.item, labelId)}
+                />
+              </Popover>
+            {/if}
+          {/if}
+
+          {#if row.archival === 'active' && mayCreate && row.takesChildren}
+            <!-- The label names what it adds. The control at the end of the list adds to the
+                 collection and this one adds inside this entry; sharing "Add an entry"
+                 between them made a list of seven rows carry eight controls of that name,
+                 seven of which do something else. Icon-only, so the row's controls stop
+                 competing with its title for width. -->
+            <IconButton
+              icon="plus"
+              label={childTypes(row.item.type).length === 1
+                ? t('app.entries.add_typed_inside', { type: childTypes(row.item.type)[0] ?? '', title: row.item.title })
+                : t('app.entries.add_child', { title: row.item.title })}
+              size="sm"
+              onclick={() => startAdding(row.item.id)}
+            />
+          {/if}
+
+          <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
+               first: every position a drag can reach is an item here, each with the reason it
+               cannot be used rather than a control that goes grey for no stated cause. -->
+          {#if menuItems(row).length > 0}
+            <Menu
+              label={t('app.rank.actions', { title: row.item.title })}
+              items={menuItems(row)}
+              onselect={(id) => chose(row, id)}
+              bind:isOpen={() => menuOpenFor === row.item.id, (open) => (menuOpenFor = open ? row.item.id : undefined)}
+            >
+              {#snippet trigger(props)}
+                <IconButton
+                  icon="ellipsis"
+                  label={t('app.rank.actions', { title: row.item.title })}
+                  size="sm"
+                  {...props}
+                />
+              {/snippet}
+            </Menu>
+          {/if}
+        {/snippet}
+      </TaskRow>
+
+    </div>
+
+    {#if bulkNote(row.item.id)}
+      <p class="bulk-note">{bulkNote(row.item.id)}</p>
+    {/if}
+
+    {#if addingUnder === row.item.id}
+      {@render addForm()}
+    {/if}
+{/snippet}
 
 {#snippet addForm()}
   <!-- Opened by a button that stays where it is; the focus still moves in, because the next Tab
@@ -1459,12 +1755,54 @@
       >
         {t('app.entries.create')}
       </Button>
-      <Button size="sm" tone="secondary" onclick={() => (addingUnder = null)}>
-        {t('app.entries.cancel')}
-      </Button>
+      {#if !(isSimple && addingUnder === 'root')}
+        <!-- A simple list's capture line is always there; there is nothing to cancel. -->
+        <Button size="sm" tone="secondary" onclick={() => (addingUnder = null)}>
+          {t('app.entries.cancel')}
+        </Button>
+      {/if}
     </Inline>
   </Stack>
 {/snippet}
+
+{#if amending}
+  <Dialog
+    isOpen={true}
+    title={t('app.entries.change_amount')}
+    dismissLabel={t('app.entries.cancel')}
+    onClose={() => (amending = undefined)}
+  >
+    <Stack gap="150">
+      <Input label={t('app.entries.amount_label')} bind:value={draftAmount} maxlength={40} />
+      <Inline gap="100">
+        <Button size="sm" onclick={saveAmount}>{t('app.entries.save')}</Button>
+        <Button size="sm" tone="secondary" onclick={() => (amending = undefined)}>{t('app.entries.cancel')}</Button>
+      </Inline>
+    </Stack>
+  </Dialog>
+{/if}
+
+{#if categorising}
+  {@const row = categorising}
+  <Dialog
+    isOpen={true}
+    title={t('app.entries.choose_category')}
+    dismissLabel={t('app.entries.cancel')}
+    onClose={() => (categorising = undefined)}
+  >
+    <Stack gap="100">
+      {#each categories.filter((each) => available.some((label) => label.id === each)) as category (category)}
+        <Button
+          tone={(row.item.label_ids ?? []).includes(category) ? 'primary' : 'secondary'}
+          onclick={() => chooseCategory(row, category)}
+        >
+          {categoryName(category)}
+        </Button>
+      {/each}
+      <Button tone="subtle" onclick={() => chooseCategory(row, null)}>{t('app.entries.no_category')}</Button>
+    </Stack>
+  </Dialog>
+{/if}
 
 {#if dating}
   <!-- The same panel the entry screen draws, in a dialog: a due date is one thing, so it has one
@@ -1490,6 +1828,16 @@
   .level { container-type: inline-size; }
 
   .row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  /* A simple list's row ticks under a tap and a sideways swipe; scrolling stays the browser's. */
+  .level[data-simple] .row { touch-action: pan-y; cursor: pointer; }
+
+  .section-head {
+    margin: var(--sp-150) 0 0;
+    font-size: var(--fs-075);
+    font-weight: 600;
+    color: var(--text-subtle);
+  }
 
   .progress {
     font-size: var(--fs-075);
