@@ -10,8 +10,6 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
-	"github.com/Jersyfi/hubtask/core/domain/model/shared"
-	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 )
@@ -107,7 +105,7 @@ func (answeringProvider) Embed(context.Context, []string) (aiprovider.EmbeddingR
 type someMaterial struct{}
 
 func (someMaterial) Material(
-	context.Context, appshared.ActorContext, domain.TargetType, shared.ID, string,
+	context.Context, appshared.ActorContext, suggestion.Question,
 ) (suggestion.Material, error) {
 	return suggestion.Material{Content: "Title: deck thursday"}, nil
 }

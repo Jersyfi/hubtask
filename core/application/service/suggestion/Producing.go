@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
@@ -122,7 +123,25 @@ func (c Choices) offers(id string) bool {
 // offered the board's columns, and a summary of the same entry is not - reading them anyway would
 // spend a query and put a workspace's board in front of a provider for no reason.
 type Sources interface {
-	Material(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID, promptID string) (Material, error)
+	Material(ctx context.Context, actor appshared.ActorContext, question Question) (Material, error)
+}
+
+// Question is what a material is read for: the target, the prompt, and what the asking carried
+// beside them - the scope a rule would apply at, and the words a question was asked with.
+//
+// One value rather than a growing list of parameters, because the asking and the producer read the
+// same material and have to be handed the same question.
+type Question struct {
+	TargetType domain.TargetType
+	TargetID   shared.ID
+	PromptID   string
+	// Scope is where a rule drafted from this question would apply. The zero value for every
+	// question that is not about a rule.
+	Scope automation.Scope
+	// Words are what the question was asked with, where it has any: read from the held request,
+	// never from the job's payload. Empty for every question that reads its material from the
+	// target.
+	Words string
 }
 
 // Produce asks a provider and records what it answered.
@@ -484,13 +503,12 @@ func (h Produce) ask(
 	var material Material
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
-			read, err := h.Sources.Material(ctx, actor, targetType, targetID, promptID)
-			if err != nil {
-				return err
-			}
 			// The words the question was asked with, where it has any: read in the same transaction
-			// as the rest of the material and appended as content, after it, so that a model reads
-			// the shape it is held to before the request it is answering.
+			// as the rest of the material, handed to it, and appended as content after it, so that
+			// a model reads the shape it is held to before the request it is answering.
+			question := Question{
+				TargetType: targetType, TargetID: targetID, PromptID: promptID, Scope: request.Scope,
+			}
 			if !request.RequestID.IsZero() {
 				if h.Requests == nil {
 					return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
@@ -499,7 +517,19 @@ func (h Produce) ask(
 				if err != nil {
 					return err
 				}
-				read.Content += "\n\nWhat the template should be for, in the person's words:\n" + read.Kept.Scrub(asked.Text)
+				question.Words = asked.Text
+			}
+			read, err := h.Sources.Material(ctx, actor, question)
+			if err != nil {
+				return err
+			}
+			if question.Words != "" {
+				phrase, held := heldWords[promptID]
+				if !held {
+					return shared.ErrInternal.WithDetail("suggestions.held_words_unknown").
+						WithParams(map[string]string{"prompt": promptID})
+				}
+				read.Content += "\n\n" + phrase + "\n" + read.Kept.Scrub(question.Words)
 			}
 			material = read
 			return nil
@@ -606,6 +636,16 @@ type Request struct {
 	// RequestID names the words the question was asked with, where it has any. Zero for every
 	// question that reads its material from the target.
 	RequestID shared.ID
+	// Scope is where a rule drafted from this question would apply, read back from the job's
+	// references. The zero value for every other question.
+	Scope automation.Scope
+}
+
+// heldWords introduces, per prompt, the words a question was asked with, where the prompt takes
+// any. A prompt that is asked with held words and has no line here is a defect in this build, and
+// the job fails by name rather than handing a model unlabelled text.
+var heldWords = map[string]string{
+	templatePrompt: "What the template should be for, in the person's words:",
 }
 
 // The two ordinary reads that answer where the person who asked lives.

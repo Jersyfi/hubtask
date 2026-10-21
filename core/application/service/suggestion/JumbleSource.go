@@ -44,8 +44,7 @@ var _ Sources = CatalogueSources{}
 // Material answers the text to describe, the fingerprint of the state it came from, and the closed
 // sets the question about to be asked may choose from.
 func (s CatalogueSources) Material(
-	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID, promptID string,
+	ctx context.Context, actor appshared.ActorContext, question Question,
 ) (Material, error) {
 	var kept integration.KeptOut
 	if s.Kept != nil {
@@ -55,7 +54,7 @@ func (s CatalogueSources) Material(
 		}
 		kept = read
 	}
-	material, err := s.material(ctx, actor, targetType, targetID, promptID, kept)
+	material, err := s.material(ctx, actor, question.TargetType, question.TargetID, question.PromptID, kept)
 	if err != nil {
 		return Material{}, err
 	}

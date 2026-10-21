@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -54,43 +55,61 @@ type Ask struct {
 	Queue Jobs
 }
 
+// asking is one question to queue: what it is about, what it asks, and what it carries.
+type asking struct {
+	TargetType domain.TargetType
+	TargetID   shared.ID
+	Action     audit.Action
+	Kind       domain.Kind
+	PromptID   string
+	Apply      bool
+	// Text is what a question is asked *with*, where it has no material of its own to read: a
+	// template is drafted from a description that exists in no row the workspace holds. It is held
+	// under row level security for the job that will read it, and the job's payload names the row -
+	// the queue carries references and nothing else. Empty for every question that reads its
+	// material from the target.
+	Text string
+	// Scope is where a rule drafted from the question would apply; it travels as two references.
+	// The zero value for every other question.
+	Scope automation.Scope
+	// Access is what asking needs where it is not writing entries at the workspace - drafting a
+	// rule asks what writing one asks. Nil takes the default.
+	Access *access.Request
+	// JobKind is the queue kind the question runs as. Empty is the ordinary AI question.
+	JobKind queue.Kind
+}
+
 // queue checks and queues one question.
 //
 // The target type travels because the shape has more than one: a collection's status is a
 // question about a container, and everything else about asking it - the permission, the
 // availability, the read that proves it exists, the job, the audit entry - is the same.
-//
-// `text` is what a question is asked *with*, where it has no material of its own to read: a
-// template is drafted from a description that exists in no row the workspace holds. It is held
-// under row level security for the job that will read it, and the job's payload names the row - the
-// queue carries references and nothing else. Empty for every question that reads its material from
-// the target.
-func (a Ask) queue(
-	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID,
-	action audit.Action, kind domain.Kind, promptID string, apply bool, text string,
-) (shared.ID, error) {
-	if _, asked := AsksAbout(promptID, targetType, kind); !asked {
+func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) (shared.ID, error) {
+	if _, asked := AsksAbout(q.PromptID, q.TargetType, q.Kind); !asked {
 		// Before the permission, the consent and the audit entry, because those are what a
 		// refusal in the worker would already have spent. A pair nothing declares is a defect in
 		// this build rather than anything about the caller.
 		return shared.ID(""), shared.ErrInternal.WithDetail("ai.prompt_target_unknown").
 			WithParams(map[string]string{
-				"prompt": promptID, "target_type": string(targetType),
+				"prompt": q.PromptID, "target_type": string(q.TargetType),
 			})
 	}
 
 	c := a.Cases
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+	permission := access.Request{
 		// Asking spends the workspace's budget and sends its content somewhere, so it asks for
 		// what writing asks for rather than for what reading does.
 		Permission: service.PermissionWriteItems,
 		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     action,
 		TokenScope: suggestionsWrite,
 		TargetType: suggestionTarget,
-		TargetID:   targetID,
-	}); err != nil {
+		TargetID:   q.TargetID,
+	}
+	if q.Access != nil {
+		permission = *q.Access
+	}
+	permission.Action = q.Action
+	if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
 		return shared.ID(""), err
 	}
 
@@ -108,50 +127,65 @@ func (a Ask) queue(
 		return shared.ID(""), aiUnavailable
 	}
 
+	question := Question{
+		TargetType: q.TargetType, TargetID: q.TargetID, PromptID: q.PromptID,
+		Scope: q.Scope, Words: q.Text,
+	}
 	// The entry is read through its own use case, which is the permission check and the existence
 	// check at once - and it is read *before* the job, so that asking about something that is not
 	// there fails now rather than in a worker. In a read of its own rather than inside the write
 	// below: the target's reader records its refusal where it is asked from, and inside a
 	// read-write transaction that this refusal then rolls back, the DENIED entry went with it.
 	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if _, err := c.Targets.Digest(ctx, actor, targetType, targetID); err != nil {
+		if _, err := c.Targets.Digest(ctx, actor, q.TargetType, q.TargetID); err != nil {
 			return err
 		}
-		return c.workable(ctx, actor, targetType, targetID, promptID, text)
+		return c.workable(ctx, actor, question)
 	}); err != nil {
 		return shared.ID(""), err
 	}
 
+	jobKind := q.JobKind
+	if jobKind == "" {
+		jobKind = queue.KindAiSuggest
+	}
 	var jobID shared.ID
 	err = c.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		payload := map[string]any{
-			"target_type": string(targetType),
-			"target_id":   targetID.String(),
-			"kind":        string(kind),
-			"prompt":      promptID,
+			"target_type": string(q.TargetType),
+			"target_id":   q.TargetID.String(),
+			"kind":        string(q.Kind),
+			"prompt":      q.PromptID,
 			"asked_by":    actor.AccountID.String(),
 		}
-		if apply {
+		if q.Apply {
 			// `automation.md` §1.3's "or applied directly, configured explicitly". The flag is on
 			// the job rather than a second job kind, because what differs is one step at the end;
 			// and it is written only when it is true, so a job without it is a proposal - an AI
 			// result is a suggestion unless somebody said otherwise (ai-first.md §2).
 			payload["apply"] = true
 		}
-		if text != "" {
+		if q.Scope.Type != "" {
+			// References, as everything a job carries: the scope's kind and its container.
+			payload["scope_type"] = string(q.Scope.Type)
+			if !q.Scope.ID.IsZero() {
+				payload["scope_id"] = q.Scope.ID.String()
+			}
+		}
+		if q.Text != "" {
 			if c.Requests == nil || c.IDs == nil {
 				return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
 			}
 			requestID := c.IDs.NewID()
 			if err := c.Requests.Put(ctx, repository.Request{
-				ID: requestID, AskedBy: actor.AccountID, Text: text, CreatedAt: c.Clock.Now(),
+				ID: requestID, AskedBy: actor.AccountID, Text: q.Text, CreatedAt: c.Clock.Now(),
 			}); err != nil {
 				return err
 			}
 			payload["request_id"] = requestID.String()
 		}
 		queued, err := a.Queue.Enqueue(ctx, queue.Request{
-			Kind: queue.KindAiSuggest, TenantID: actor.TenantID, Payload: payload,
+			Kind: jobKind, TenantID: actor.TenantID, Payload: payload,
 		})
 		if err != nil {
 			return err
@@ -160,18 +194,18 @@ func (a Ask) queue(
 		return c.Audit.Append(ctx, audit.Entry{
 			TenantID:   actor.TenantID,
 			OccurredAt: c.Clock.Now(),
-			Action:     action,
+			Action:     q.Action,
 			Outcome:    audit.OutcomeSuccess,
 			Severity:   audit.SeverityNotice,
 			ActorKind:  actor.Kind,
 			ActorID:    actor.AccountID,
 			ActorLabel: actor.AccountName,
-			TargetType: suggestionTarget,
-			TargetID:   targetID,
+			TargetType: permission.TargetType,
+			TargetID:   permission.TargetID,
 			Changes: audit.Changes(
-				audit.Change{Field: "prompt", Classification: audit.Open, To: promptID},
+				audit.Change{Field: "prompt", Classification: audit.Open, To: q.PromptID},
 				audit.Change{Field: "applied_directly", Classification: audit.Open,
-					To: boolText(apply)},
+					To: boolText(q.Apply)},
 			),
 		})
 	})
@@ -207,8 +241,10 @@ type SuggestDecomposition struct {
 func (h SuggestDecomposition) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		DecompositionAskedAction, domain.KindDecomposition, "decompose", false, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetWorkItem, TargetID: itemID,
+		Action: DecompositionAskedAction, Kind: domain.KindDecomposition, PromptID: "decompose",
+	})
 }
 
 // aiUnavailable is the port's one refusal, spelled here so that this package does not import the
@@ -269,13 +305,13 @@ func queued(jobID shared.ID) usecase.Output {
 // one answer for both, so that it says nothing about who wrote what. A question asked with words
 // of its own (a template's description) always has something to work with.
 func (c Cases) workable(
-	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID, promptID, text string,
+	ctx context.Context, actor appshared.ActorContext, question Question,
 ) error {
 	if c.Material == nil {
 		return nil
 	}
-	material, err := c.Material.Material(ctx, actor, targetType, targetID, promptID)
+	promptID, text := question.PromptID, question.Words
+	material, err := c.Material.Material(ctx, actor, question)
 	if err != nil {
 		return err
 	}
