@@ -141,7 +141,10 @@ Every action is an adapter over a use case, and **every use case in the catalogu
 the kind is the use case name in `SCREAMING_SNAKE_CASE`, derived by
 `usecase.Descriptor.AutomationAction` (`AddLabel` is `ADD_LABEL`). The served kinds, their fields and
 summaries are answered by `GET /meta/capabilities` (§1.5), never listed here. The engine's flow kinds
-`WAIT`, `BRANCH` and `STOP` are in no catalogue; a client names them itself.
+`WAIT`, `BRANCH` and `STOP` are in no catalogue; a client names them itself. An action meets its
+use case's refusals, the collection's structure among them: writing a value or a level the
+entry's collection hides fails the step with `capability_not_supported`
+([domain-model.md](./domain-model.md) §2), and the run records it.
 
 A planned kind not yet served is refused as §2.2 says; notification actions are not built
 ([UC-AUT-09](../usecases/automation/UC-AUT-09-have-a-rule-tell-people.md)).
