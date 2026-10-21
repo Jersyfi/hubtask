@@ -120,6 +120,7 @@ func eraserFor(ctx context.Context, t *testing.T, objects *bucket) privacyservic
 		Holds:      postgres.NewLifecycleRepository(),
 		Kept:       postgres.NewPrivacyRepository(cursors()),
 		Subjects:   postgres.NewPrivacyRepository(cursors()),
+		Statuses:   postgres.NewPrivacyRepository(cursors()),
 		Removals:   postgres.NewLifecycleRepository(),
 		Objects:    objects,
 		Audit:      postgres.NewAuditSink(identifiers{}),

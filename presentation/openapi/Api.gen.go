@@ -3039,6 +3039,7 @@ func (e PolicySource) Valid() bool {
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
+	ProcessingStateStatusINVITED    ProcessingStateStatus = "INVITED"
 	ProcessingStateStatusRESTRICTED ProcessingStateStatus = "RESTRICTED"
 )
 
@@ -3046,6 +3047,8 @@ const (
 func (e ProcessingStateStatus) Valid() bool {
 	switch e {
 	case ProcessingStateStatusACTIVE:
+		return true
+	case ProcessingStateStatusINVITED:
 		return true
 	case ProcessingStateStatusRESTRICTED:
 		return true
@@ -8972,11 +8975,15 @@ type ProcessingRestriction struct {
 // about an account, and answering their name and address here would be answering more than
 // the caller asked about.
 type ProcessingState struct {
-	AccountId openapi_types.UUID    `json:"account_id"`
-	Status    ProcessingStateStatus `json:"status"`
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Status `INVITED` when lifting the restriction of an invitation nobody accepted gave the
+	// invitation back.
+	Status ProcessingStateStatus `json:"status"`
 }
 
-// ProcessingStateStatus defines model for ProcessingState.Status.
+// ProcessingStateStatus `INVITED` when lifting the restriction of an invitation nobody accepted gave the
+// invitation back.
 type ProcessingStateStatus string
 
 // ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.

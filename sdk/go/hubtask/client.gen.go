@@ -3045,6 +3045,7 @@ func (e PolicySource) Valid() bool {
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
+	ProcessingStateStatusINVITED    ProcessingStateStatus = "INVITED"
 	ProcessingStateStatusRESTRICTED ProcessingStateStatus = "RESTRICTED"
 )
 
@@ -3052,6 +3053,8 @@ const (
 func (e ProcessingStateStatus) Valid() bool {
 	switch e {
 	case ProcessingStateStatusACTIVE:
+		return true
+	case ProcessingStateStatusINVITED:
 		return true
 	case ProcessingStateStatusRESTRICTED:
 		return true
@@ -8978,11 +8981,15 @@ type ProcessingRestriction struct {
 // about an account, and answering their name and address here would be answering more than
 // the caller asked about.
 type ProcessingState struct {
-	AccountId openapi_types.UUID    `json:"account_id"`
-	Status    ProcessingStateStatus `json:"status"`
+	AccountId openapi_types.UUID `json:"account_id"`
+
+	// Status `INVITED` when lifting the restriction of an invitation nobody accepted gave the
+	// invitation back.
+	Status ProcessingStateStatus `json:"status"`
 }
 
-// ProcessingStateStatus defines model for ProcessingState.Status.
+// ProcessingStateStatus `INVITED` when lifting the restriction of an invitation nobody accepted gave the
+// invitation back.
 type ProcessingStateStatus string
 
 // ProviderConnectAuthorization Where to send the browser to connect a provider, and which provider that is.
@@ -13486,6 +13493,10 @@ type ClientInterface interface {
 	// alone. Lifting it is the same call with
 	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 	// the hold is lifted and the rest of the erasure has run.
+	// Both directions are refused for an account that is not active or restricted - an
+	// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+	// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+	// the invitation (`INVITED`).
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -13499,6 +13510,10 @@ type ClientInterface interface {
 	// alone. Lifting it is the same call with
 	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 	// the hold is lifted and the rest of the erasure has run.
+	// Both directions are refused for an account that is not active or restricted - an
+	// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+	// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+	// the invitation (`INVITED`).
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -18578,6 +18593,10 @@ func (c *Client) RenewInvitation(ctx context.Context, accountId AccountId, param
 // alone. Lifting it is the same call with
 // `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 // the hold is lifted and the rest of the erasure has run.
+// Both directions are refused for an account that is not active or restricted - an
+// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+// the invitation (`INVITED`).
 //
 // Takes any type of body and a specified content type.
 //
@@ -18601,6 +18620,10 @@ func (c *Client) RestrictProcessingWithBody(ctx context.Context, accountId Accou
 // alone. Lifting it is the same call with
 // `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 // the hold is lifted and the rest of the erasure has run.
+// Both directions are refused for an account that is not active or restricted - an
+// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+// the invitation (`INVITED`).
 //
 // Takes a body of the `application/json` content type.
 //
@@ -44658,6 +44681,10 @@ type ClientWithResponsesInterface interface {
 	// alone. Lifting it is the same call with
 	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 	// the hold is lifted and the rest of the erasure has run.
+	// Both directions are refused for an account that is not active or restricted - an
+	// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+	// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+	// the invitation (`INVITED`).
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -44671,6 +44698,10 @@ type ClientWithResponsesInterface interface {
 	// alone. Lifting it is the same call with
 	// `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 	// the hold is lifted and the rest of the erasure has run.
+	// Both directions are refused for an account that is not active or restricted - an
+	// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+	// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+	// the invitation (`INVITED`).
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -67069,6 +67100,10 @@ func (c *ClientWithResponses) RenewInvitationWithResponse(ctx context.Context, a
 // alone. Lifting it is the same call with
 // `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 // the hold is lifted and the rest of the erasure has run.
+// Both directions are refused for an account that is not active or restricted - an
+// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+// the invitation (`INVITED`).
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -67088,6 +67123,10 @@ func (c *ClientWithResponses) RestrictProcessingWithBodyWithResponse(ctx context
 // alone. Lifting it is the same call with
 // `restricted: false` - refused while a legal hold keeps the account from an erasure, until
 // the hold is lifted and the rest of the erasure has run.
+// Both directions are refused for an account that is not active or restricted - an
+// invitation, a disabled or an anonymised account; a legal hold on the account keeps such a
+// person's data instead. Lifting the restriction of an invitation nobody accepted gives back
+// the invitation (`INVITED`).
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

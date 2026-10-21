@@ -345,6 +345,26 @@ func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (i
 	return result.RowsAffected(), nil
 }
 
+const endInvitationOfAccount = `-- name: EndInvitationOfAccount :execrows
+UPDATE account SET redemption_token_hash = NULL, redemption_expires_at = $1
+WHERE id = $2 AND status = 'INVITED'
+`
+
+type EndInvitationOfAccountParams struct {
+	At        pgtype.Timestamptz
+	AccountID pgtype.UUID
+}
+
+// An invitation is a way in like a token: an erasure ends one nobody accepted, so that an account a
+// hold keeps as an invitation cannot be redeemed or accepted into one that may act (§4.1).
+func (q *Queries) EndInvitationOfAccount(ctx context.Context, arg EndInvitationOfAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, endInvitationOfAccount, arg.At, arg.AccountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const eraseErasureKept = `-- name: EraseErasureKept :execrows
 UPDATE erasure_kept SET erased_at = $1, blocked_code = NULL, blocked_params = NULL
 WHERE tenant_id = current_tenant_id() AND request_id = $2 AND erased_at IS NULL
@@ -908,6 +928,28 @@ func (q *Queries) ListDataSubjectRequests(ctx context.Context, arg ListDataSubje
 	return items, nil
 }
 
+const lockAccountStatus = `-- name: LockAccountStatus :one
+SELECT status, (redemption_token_hash IS NOT NULL)::boolean AS invitation_open FROM account
+WHERE id = $1 AND tenant_id = current_tenant_id() AND deleted_at IS NULL
+FOR UPDATE
+`
+
+type LockAccountStatusRow struct {
+	Status         AccountStatus
+	InvitationOpen bool
+}
+
+// The status a restriction starts from, with the row locked until the transaction ends: an erasure
+// or an accepted invitation that changed it between the decision and the write would otherwise be
+// written over (data-protection.md §4). Redeeming or accepting an invitation clears its token, so
+// a token still there is an invitation nobody accepted.
+func (q *Queries) LockAccountStatus(ctx context.Context, id pgtype.UUID) (LockAccountStatusRow, error) {
+	row := q.db.QueryRow(ctx, lockAccountStatus, id)
+	var i LockAccountStatusRow
+	err := row.Scan(&i.Status, &i.InvitationOpen)
+	return i, err
+}
+
 const lockDataSubjectRequest = `-- name: LockDataSubjectRequest :one
 
 
@@ -1149,11 +1191,11 @@ FROM account a
 WHERE a.tenant_id = current_tenant_id()
   AND a.deleted_at IS NULL
   AND (a.status = 'RESTRICTED'
-    OR (a.status = 'ANONYMIZED' AND EXISTS (
+    OR EXISTS (
       SELECT 1 FROM erasure_kept k
       JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
       WHERE k.tenant_id = current_tenant_id() AND k.erased_at IS NULL
-        AND r.subject_account_id = a.id)))
+        AND r.subject_account_id = a.id))
 ORDER BY a.id
 `
 
@@ -1165,10 +1207,12 @@ type RestrictedPeopleRow struct {
 }
 
 // Whose processing is restricted (Art. 18, data-protection.md §4): every account whose status is
-// RESTRICTED, and every anonymised account a legal hold still keeps contributions of - the subject
-// of an erasure case with a part not yet erased (§4.1). Not every anonymised account: what an
-// erasure anonymised without a hold is the workspace's content. The names and the address are what
-// a prompt builder replaces in what remains; an anonymised account has none left.
+// RESTRICTED, and every account a legal hold still keeps contributions of - the subject of an
+// erasure case with a part not yet erased (§4.1), whatever its status: an invited or disabled one
+// keeps its status, which RESTRICTED would turn into one that may act, and an anonymised one has no
+// other mark. Not every anonymised account: what an erasure anonymised without a hold is the
+// workspace's content. The names and the address are what a prompt builder replaces in what
+// remains; an anonymised account has none left.
 func (q *Queries) RestrictedPeople(ctx context.Context) ([]RestrictedPeopleRow, error) {
 	rows, err := q.db.Query(ctx, restrictedPeople)
 	if err != nil {

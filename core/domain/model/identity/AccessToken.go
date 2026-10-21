@@ -56,6 +56,17 @@ func (s AccountStatus) ProcessingAllowed() bool {
 	return s != AccountRestricted && s != AccountAnonymized
 }
 
+// RestrictionApplies reports whether an account in this state may be restricted (Art. 18) or have
+// its restriction lifted: only an active or restricted one (data-protection.md §4).
+//
+// The restriction is this one status column, and `RESTRICTED` may act and counts as a person.
+// Restricting an invitation or a disabled account would let it in, and lifting would make it
+// active; an anonymised one has nobody left. Their data is kept by a legal hold instead, and what
+// an erasure keeps of them is restricted through the kept record (§4.1).
+func (s AccountStatus) RestrictionApplies() bool {
+	return s == AccountActive || s == AccountRestricted
+}
+
 // MaxTokenLifetime is how far into the future an expiry may be set (security.md §5). A year is
 // long enough that nobody works around it and short enough that a forgotten credential stops
 // working while the person who made it is still around to be asked about it.

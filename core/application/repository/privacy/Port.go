@@ -9,6 +9,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -182,11 +183,28 @@ type Subjects interface {
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
 }
 
+// AccountStatuses is what a restriction and an erasure's kept account read before they write: the
+// status the account starts from.
+type AccountStatuses interface {
+	// LockStatus answers an account's status and locks its row until the transaction ends, so
+	// that what the caller decides on it still holds when it writes; false when there is no such
+	// account here.
+	LockStatus(ctx context.Context, id shared.ID) (LockedAccount, bool, error)
+}
+
+// LockedAccount is what a restriction and an erasure decide on.
+type LockedAccount struct {
+	Status identity.AccountStatus
+	// InvitationOpen is an invitation nobody has accepted yet. An account that holds one and is not
+	// INVITED was never accepted, and lifting its restriction gives the invitation back.
+	InvitationOpen bool
+}
+
 // Restrictions answers whose processing is restricted (Art. 18, data-protection.md §4): the one
 // read the rule engine and the AI exclusion share, so that the two cannot disagree about a person.
 type Restrictions interface {
-	// RestrictedPeople answers every account in the RESTRICTED state, and every anonymised account a
-	// legal hold still keeps contributions of. An empty list is not an error.
+	// RestrictedPeople answers every account in the RESTRICTED state, and every account a legal hold
+	// still keeps contributions of, whatever its status. An empty list is not an error.
 	RestrictedPeople(ctx context.Context) ([]domain.RestrictedPerson, error)
 }
 
@@ -215,10 +233,10 @@ type Erasure interface {
 	// rather than attempted and failed on a foreign key (PG-2).
 	AutomationsRunningAs(ctx context.Context, accountID shared.ID) (int, error)
 
-	// RevokeCredentials removes every token, calendar feed and sync device of the person. Called
-	// in both modes: an anonymised account keeps its row and must not keep a credential that
-	// still works.
-	RevokeCredentials(ctx context.Context, accountID shared.ID) (int, error)
+	// RevokeCredentials removes every token, calendar feed and sync device of the person, and ends
+	// an invitation nobody accepted at the given moment. Called in both modes: an anonymised account
+	// keeps its row and must not keep a credential that still works.
+	RevokeCredentials(ctx context.Context, accountID shared.ID, at time.Time) (int, error)
 
 	// DiscardNotifications removes what was sent to them and what was about to be.
 	DiscardNotifications(ctx context.Context, accountID shared.ID) (int, error)

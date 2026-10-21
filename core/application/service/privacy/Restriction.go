@@ -40,6 +40,7 @@ const (
 // lockout would punish somebody for exercising a right.
 type RestrictProcessing struct {
 	Subjects repository.Subjects
+	Statuses repository.AccountStatuses
 	// Kept answers whether an erasure keeps the account because of a legal hold, which its
 	// restriction then stands for.
 	Kept       repository.Kept
@@ -78,24 +79,23 @@ type RestrictCommand struct {
 	Reason     string
 }
 
-// Execute writes the state.
+// Execute writes the state, and answers the status it wrote.
 //
 // `MANAGE_MEMBERS`, because it is a state of an account and the administrator who grants and
 // revokes access is the one who answers for it. It is not the owner's line: nothing is destroyed
 // and nothing leaves - the workspace simply stops deciding things about one person by machine.
 func (h RestrictProcessing) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd RestrictCommand,
-) error {
+) (identity.AccountStatus, error) {
 	if cmd.AccountID.IsZero() {
-		return shared.ErrValidation.
+		return "", shared.ErrValidation.
 			WithDetail("accounts.not_found").
 			WithFields(shared.FieldError{Path: "/account_id", Code: "accounts.not_found"})
 	}
 
 	action := RestrictedAction
-	status := identity.AccountRestricted
 	if !cmd.Restricted {
-		action, status = UnrestrictedAction, identity.AccountActive
+		action = UnrestrictedAction
 	}
 
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
@@ -106,10 +106,35 @@ func (h RestrictProcessing) Execute(
 		TargetType: accountTarget,
 		TargetID:   cmd.AccountID,
 	}); err != nil {
-		return err
+		return "", err
 	}
 
-	return h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	var status identity.AccountStatus
+	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// Locked first, and everything below decided on it: an erasure that keeps the account, or
+		// anonymises it, waits until this transaction ends instead of being written over.
+		account, found, err := h.Statuses.LockStatus(ctx, cmd.AccountID)
+		if err != nil {
+			return err
+		}
+		if !found {
+			return shared.ErrNotFound.WithDetail("accounts.not_found").
+				WithParams(map[string]string{"account_id": cmd.AccountID.String()})
+		}
+		if !account.Status.RestrictionApplies() {
+			return shared.ErrConflict.WithDetail(domain.CodeRestrictionStatusRefused).
+				WithParams(map[string]string{
+					"account_id": cmd.AccountID.String(), "status": string(account.Status),
+				})
+		}
+		status = identity.AccountRestricted
+		if !cmd.Restricted {
+			status = identity.AccountActive
+			if account.InvitationOpen {
+				// Never accepted: lifting gives back the invitation, not an account nobody accepted.
+				status = identity.AccountInvited
+			}
+		}
 		if !cmd.Restricted && h.Kept != nil {
 			// A legal hold keeps this account from an erasure, restricted (data-protection.md
 			// §4.1). Lifting it would make held data processable again.
@@ -151,6 +176,10 @@ func (h RestrictProcessing) Execute(
 			LegalBasis: LegalBasisOf(domain.KindRestriction),
 		})
 	})
+	if err != nil {
+		return "", err
+	}
+	return status, nil
 }
 
 // Descriptor registers the restriction in all three channels.
@@ -194,16 +223,11 @@ func (h RestrictProcessing) invoke(
 		return nil, err
 	}
 
-	restricted := in.Bool("restricted")
-	if err := h.Execute(ctx, actor, RestrictCommand{
-		AccountID: accountID, Restricted: restricted, Reason: in.String("reason"),
-	}); err != nil {
+	status, err := h.Execute(ctx, actor, RestrictCommand{
+		AccountID: accountID, Restricted: in.Bool("restricted"), Reason: in.String("reason"),
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	status := string(identity.AccountActive)
-	if restricted {
-		status = string(identity.AccountRestricted)
-	}
-	return usecase.Output{"id": accountID.String(), "status": status}, nil
+	return usecase.Output{"id": accountID.String(), "status": string(status)}, nil
 }

@@ -241,7 +241,13 @@ UPDATE account SET
   redemption_token_hash = sqlc.arg('token_hash'),
   redemption_expires_at = sqlc.arg('expires_at'),
   updated_at            = sqlc.arg('now')
-WHERE id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL;
+WHERE account.id = sqlc.arg('id') AND status = 'INVITED' AND deleted_at IS NULL
+  -- Not an invitation an erasure keeps under a hold (data-protection.md §4.1): it ended with the
+  -- erasure, and a new token or an acceptance would make it an account that may act.
+  AND NOT EXISTS (
+    SELECT 1 FROM erasure_kept k
+    JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+    WHERE k.tenant_id = account.tenant_id AND k.erased_at IS NULL AND r.subject_account_id = account.id);
 
 -- name: FindAccountByRedemptionHash :one
 SELECT a.id, a.kind, a.email, a.display_name, a.status,
@@ -268,10 +274,16 @@ UPDATE account SET
   redemption_expires_at = NULL,
   updated_at            = sqlc.arg('now'),
   version               = version + 1
-WHERE id = sqlc.arg('id')
+WHERE account.id = sqlc.arg('id')
   AND status = 'INVITED'
   AND redemption_token_hash IS NOT NULL
-  AND deleted_at IS NULL;
+  AND deleted_at IS NULL
+  -- Not an invitation an erasure keeps under a hold (data-protection.md §4.1): it ended with the
+  -- erasure, and a new token or an acceptance would make it an account that may act.
+  AND NOT EXISTS (
+    SELECT 1 FROM erasure_kept k
+    JOIN data_subject_request r ON r.tenant_id = k.tenant_id AND r.id = k.request_id
+    WHERE k.tenant_id = account.tenant_id AND k.erased_at IS NULL AND r.subject_account_id = account.id);
 
 -- name: ActivateFirstOwner :execrows
 -- The first start's setup (UC-INS-01): the owner it wrote a moment ago in the same transaction gets

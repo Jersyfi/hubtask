@@ -8,10 +8,15 @@ package integration
 import (
 	"context"
 	"testing"
+	"time"
 
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/shared/secret"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
+	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
 
 // restrictedIn reads whose processing is restricted, under one workspace, as the application role.
@@ -64,6 +69,63 @@ func TestWhoseProcessingIsRestricted(t *testing.T) {
 		t.Error("a former user stays restricted after the last kept part was erased")
 	}
 
+	// Invited or disabled, under a hold on the person: kept in its status - RESTRICTED would let it
+	// act and count it - and restricted through the kept record, for both reads.
+	for _, from := range []string{"INVITED", "DISABLED"} {
+		held := seedSubject(ctx, t, "held-"+freshID(t).String()+"@example.test")
+		if _, err := adminPool(ctx, t).Exec(ctx,
+			`UPDATE account SET status = $2, redemption_token_hash = $3 WHERE id = $1`,
+			held.account.String(), from, "invite-"+held.account.String()); err != nil {
+			t.Fatalf("%s: seeding: %v", from, err)
+		}
+		holdOn(ctx, t, held.tenant, "ACCOUNT", held.account)
+		if _, err := performerFor(t).Perform(ctx, privacyservice.PerformInput{
+			RequestID: erasureRequest(ctx, t, held, domain.ModeAnonymize).ID, TenantID: held.tenant,
+		}); err != nil {
+			t.Fatalf("%s: carrying out the case: %v", from, err)
+		}
+		var status string
+		var redeemable bool
+		if err := adminPool(ctx, t).QueryRow(ctx,
+			`SELECT status, redemption_token_hash IS NOT NULL FROM account WHERE id = $1`,
+			held.account.String()).Scan(&status, &redeemable); err != nil {
+			t.Fatalf("%s: reading the account: %v", from, err)
+		}
+		if status != from {
+			t.Errorf("a held %s account is %s", from, status)
+		}
+		if from == "INVITED" {
+			if redeemable {
+				t.Error("a held invitation can still be redeemed")
+			}
+			heldInvitationStaysClosed(ctx, t, held)
+		}
+		if !restrictedIn(ctx, t, held.tenant).Has(held.account) {
+			t.Errorf("a held %s account is not restricted", from)
+		}
+		if !assignmentRestricted(ctx, t, held) {
+			t.Errorf("the assignment policy may still draw a held %s account", from)
+		}
+	}
+
+	// A held account that somehow became active again stays restricted: the kept record decides,
+	// not the status.
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE account SET status = 'ACTIVE' WHERE id = $1`,
+		kept.account.String()); err != nil {
+		t.Fatalf("activating: %v", err)
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE erasure_kept SET erased_at = NULL WHERE request_id = $1`, request.ID.String()); err != nil {
+		t.Fatalf("keeping again: %v", err)
+	}
+	if !restrictedIn(ctx, t, kept.tenant).Has(kept.account) || !assignmentRestricted(ctx, t, kept) {
+		t.Error("an active account a hold keeps a part of is not restricted")
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE erasure_kept SET erased_at = now() WHERE request_id = $1`, request.ID.String()); err != nil {
+		t.Fatalf("erasing the rest: %v", err)
+	}
+
 	// Anonymised without a hold: not restricted.
 	gone := seedSubject(ctx, t, "gone-"+freshID(t).String()+"@example.test")
 	plain := erasureRequest(ctx, t, gone, domain.ModeAnonymize)
@@ -89,6 +151,59 @@ func TestTheRestrictedOfAnotherWorkspaceAreInvisible(t *testing.T) {
 	if set := restrictedIn(ctx, t, ours.tenant); !set.Empty() {
 		t.Error("another workspace's restricted account was answered")
 	}
+}
+
+// heldInvitationStaysClosed: an invitation an erasure keeps cannot be given a new token (a renewal,
+// a queued invitation mail) nor be accepted, whose expiry the erasure set to its own moment.
+func heldInvitationStaysClosed(ctx context.Context, t *testing.T, held person) {
+	t.Helper()
+	var ended bool
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT redemption_expires_at <= $2 FROM account WHERE id = $1`,
+		held.account.String(), created).Scan(&ended); err != nil || !ended {
+		t.Errorf("the held invitation's expiry was not ended (%v)", err)
+	}
+	installation := secret.New(installationSecret)
+	signIn := postgres.NewSignInRepository(
+		security.NewRedemptionTokenHasher(installation), security.NewAuthAttemptHasher(installation))
+	token, err := identity.NewRedemptionToken(held.tenant, sessionSecretOf(0x5E))
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := created.Add(-time.Hour)
+	if err := write(ctx, t, held.tenant, func(ctx context.Context) error {
+		minted, err := signIn.SetRedemptionToken(ctx, held.account, token, created.Add(24*time.Hour), before)
+		if err != nil {
+			return err
+		}
+		if minted {
+			t.Error("a held invitation was given a new token")
+		}
+		accepted, err := postgres.NewAccountRepository().AcceptInvitation(ctx, held.account, before)
+		if err != nil {
+			return err
+		}
+		if accepted {
+			t.Error("a held invitation was accepted")
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("trying the held invitation: %v", err)
+	}
+}
+
+// assignmentRestricted asks the question the assignment policy and the rules' assignments ask.
+func assignmentRestricted(ctx context.Context, t *testing.T, subject person) bool {
+	t.Helper()
+	var restricted map[shared.ID]bool
+	if err := read(ctx, t, subject.tenant, func(ctx context.Context) error {
+		var err error
+		restricted, err = postgres.NewAccountRepository().Restricted(ctx, []shared.ID{subject.account})
+		return err
+	}); err != nil {
+		t.Fatalf("reading the restriction: %v", err)
+	}
+	return restricted[subject.account]
 }
 
 func emailOf(ctx context.Context, t *testing.T, account shared.ID) string {

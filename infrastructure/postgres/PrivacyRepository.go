@@ -5,12 +5,15 @@ package postgres
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -357,6 +360,34 @@ func (r PrivacyRepository) SetStatus(
 	return rows > 0, nil
 }
 
+// LockStatus answers an account's status with its row locked. Another workspace's account is hidden
+// by row level security and answers as not found.
+func (r PrivacyRepository) LockStatus(
+	ctx context.Context, id shared.ID,
+) (repository.LockedAccount, bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.LockedAccount{}, false, err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return repository.LockedAccount{}, false, err
+	}
+
+	row, err := queries.LockAccountStatus(ctx, key)
+	switch {
+	case errors.Is(err, pgx.ErrNoRows):
+		return repository.LockedAccount{}, false, nil
+	case err != nil:
+		return repository.LockedAccount{}, false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("locking an account's status: %w", err))
+	}
+	return repository.LockedAccount{
+		Status: identity.AccountStatus(row.Status), InvitationOpen: row.InvitationOpen,
+	}, true, nil
+}
+
 // Tenants answers the workspaces in which one address is a member.
 //
 // The one cross-tenant read in this adapter, and it is a function call rather than a query: it
@@ -574,9 +605,10 @@ func (r PrivacyRepository) Delete(ctx context.Context, accountID shared.ID) (boo
 	return rows > 0, nil
 }
 
-// RevokeCredentials removes every token, feed, device and passkey of the person.
+// RevokeCredentials removes every token, feed, device and passkey of the person, and ends their
+// open invitation.
 func (r PrivacyRepository) RevokeCredentials(
-	ctx context.Context, accountID shared.ID,
+	ctx context.Context, accountID shared.ID, at time.Time,
 ) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -596,7 +628,13 @@ func (r PrivacyRepository) RevokeCredentials(
 		}
 		removed += rows
 	}
-	return int(removed), nil
+	rows, err := queries.EndInvitationOfAccount(ctx, sqlc.EndInvitationOfAccountParams{
+		AccountID: id, At: timestampOf(at),
+	})
+	if err != nil {
+		return 0, erasureFailed("ending the invitation of an account", err)
+	}
+	return int(removed + rows), nil
 }
 
 // DiscardNotifications removes what was sent to them and what was about to be.

@@ -936,10 +936,29 @@ func accountState(ctx context.Context, t *testing.T, tenant, id shared.ID) (stat
 
 // A restriction of processing ends only by a deliberate act (Art. 18, data-retention.md §4 item 2):
 // a restore that overwrites accounts leaves a restricted one exactly as it is, and the emptying of
-// a replace keeps it, so the archive's version of it cannot lift the restriction.
+// a replace keeps it, so the archive's version of it cannot lift the restriction. The same for an
+// invitation an erasure keeps under a hold, whose restriction is the kept record.
 func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 	ctx := context.Background()
 	tenant, restricted, active := restrictedTenant(ctx, t)
+	held, request := freshID(t), freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO account (id, tenant_id, display_name, status) VALUES ($1, $2, 'Held', 'INVITED')`,
+		held.String(), tenant.String()); err != nil {
+		t.Fatalf("seeding the held invitation: %v", err)
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO data_subject_request (id, tenant_id, subject_account_id, kind, status, due_at)
+		VALUES ($1, $2, $3, 'ERASURE', 'COMPLETED', now() + interval '30 days')`,
+		request.String(), tenant.String(), held.String()); err != nil {
+		t.Fatalf("seeding the case: %v", err)
+	}
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO erasure_kept (tenant_id, request_id, hold_id, hold_scope, hold_scope_id, account, recorded_at)
+		VALUES ($1, $2, $3, 'ACCOUNT', $4, true, now())`,
+		tenant.String(), request.String(), freshID(t).String(), held.String()); err != nil {
+		t.Fatalf("seeding what the case keeps: %v", err)
+	}
 	archived := func(id shared.ID) map[string]any {
 		return map[string]any{
 			"id": id.String(), "kind": "USER", "display_name": "From the archive", "status": "ACTIVE",
@@ -949,7 +968,7 @@ func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 	}
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		for _, id := range []shared.ID{restricted, active} {
+		for _, id := range []shared.ID{restricted, held, active} {
 			if _, err := importRepo().Write(ctx, "account", archived(id), true); err != nil {
 				return err
 			}
@@ -960,6 +979,9 @@ func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 	}
 	if status, name, _ := accountState(ctx, t, tenant, restricted); status != "RESTRICTED" || name != "Kept" {
 		t.Errorf("an overwrite turned the restricted account into %s %q", status, name)
+	}
+	if status, name, _ := accountState(ctx, t, tenant, held); status != "INVITED" || name != "Held" {
+		t.Errorf("an overwrite turned the held invitation into %s %q", status, name)
 	}
 	if status, name, _ := accountState(ctx, t, tenant, active); status != "ACTIVE" || name != "From the archive" {
 		t.Errorf("an overwrite left the active account as %s %q, want the archive's", status, name)
@@ -973,6 +995,9 @@ func TestARestoreLeavesARestrictedAccountAsItIs(t *testing.T) {
 	}
 	if status, _, found := accountState(ctx, t, tenant, restricted); !found || status != "RESTRICTED" {
 		t.Errorf("the emptying took the restricted account (found %v, %s)", found, status)
+	}
+	if status, _, found := accountState(ctx, t, tenant, held); !found || status != "INVITED" {
+		t.Errorf("the emptying took the held invitation (found %v, %s)", found, status)
 	}
 	if _, _, found := accountState(ctx, t, tenant, active); found {
 		t.Error("the emptying kept an account that is not restricted")
