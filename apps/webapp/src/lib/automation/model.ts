@@ -548,7 +548,7 @@ const QUOTED = "'((?:[^'\\\\]|\\\\.)*)'";
 
 const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence }[] = [
   { pattern: new RegExp(`^item\\.type (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'type', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
-  { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)\\^((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unescapeRegex(unquote(m[2])) }) },
+  { pattern: new RegExp(`^item\\.title\\.matches\\('\\(\\?i\\)\\^((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unescapeRegex(unquote(m[1])) }) },
   { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: m[1] ? 'not_contains' : 'contains', a: unescapeRegex(unquote(m[2])) }) },
   { pattern: new RegExp(`^item\\.notes\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'notes', op: 'contains', a: unescapeRegex(unquote(m[1])) }) },
   { pattern: /^item\.notes (==|!=) ''$/, read: (m) => ({ subject: 'notes', op: m[1] === '==' ? 'empty' : 'not_empty' }) },
@@ -573,7 +573,12 @@ export function readSentence(expr: string): Sentence | undefined {
   const trimmed = expr.trim();
   for (const shape of SHAPES) {
     const match = shape.pattern.exec(trimmed);
-    if (match) return shape.read(match);
+    if (!match) continue;
+    // A pattern is wider than what the composer writes - a leading `!` it does not use, a
+    // metacharacter it would have escaped - so a reading stands only where compiling it gives the
+    // expression back. Anything else would draw a sentence that means something different.
+    const sentence = shape.read(match);
+    return compileSentence(sentence) === trimmed ? sentence : undefined;
   }
   return undefined;
 }

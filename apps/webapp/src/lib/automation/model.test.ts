@@ -283,6 +283,9 @@ test('a sentence compiles to the expression the server stores, and reads back fr
   }
   assert.equal(readSentence('size(item.title) > 3'), undefined, 'an expression the composer did not write');
   assert.equal(readSentence("item.type == 'TASK' || item.completed"), undefined);
+  // The composer writes no negated "starts with"; read as one, the sentence would say the opposite.
+  assert.equal(readSentence("!item.title.matches('(?i)^Permit')"), undefined, 'a negated starts-with stays an expression');
+  assert.equal(readNode("!item.title.matches('(?i)^Permit')"), undefined);
 });
 
 // A condition as a tree (automation.md §1.5): all / any / none over sentences and groups, compiled with
