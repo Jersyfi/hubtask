@@ -87,6 +87,10 @@ const STORIES = [
   { id: 'wave-3-domain-upload-field--in-table-row', kind: 'group' },
   { id: 'wave-3-domain-assignee-control--in-row', kind: 'group' },
   { id: 'wave-3-domain-assignee-control--in-table-row', kind: 'group' },
+  { id: 'wave-3-domain-capability-gate--in-row', kind: 'gate' },
+  { id: 'wave-3-domain-capability-gate--in-table-row', kind: 'gate' },
+  { id: 'wave-3-domain-capability-gate--deciding-permitted', kind: 'permitted' },
+  { id: 'wave-3-domain-capability-gate--deciding-refused', kind: 'refused' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -116,6 +120,8 @@ async function boxes(page, selector = '.host *') {
       // A visually hidden name is clipped to nothing and positioned against the page, not the
       // pane: when focus scrolls a wide pane it stays where it was, which is no layout change.
       if (getComputedStyle(element).clipPath === 'inset(50%)') continue;
+      // A turning mark is a pending state's picture: its box turns with it, which is no layout.
+      if (getComputedStyle(element).animationName !== 'none' && element.closest('svg')) continue;
       const box = element.getBoundingClientRect();
       out.push([element.tagName, box.x - origin.x, box.y - origin.y, box.width, box.height]);
     }
@@ -135,19 +141,19 @@ function assertSame(before, after, what) {
 }
 
 /** The boxes of one case's row, relative to the row: what "the reason takes no space" compares. */
-async function rowShape(page, which) {
-  return page.evaluate((which) => {
+async function rowShape(page, which, selector = '*') {
+  return page.evaluate(([which, selector]) => {
     const row = document.querySelector(`.host [data-case="${which}"]`);
     const origin = row.getBoundingClientRect();
     const out = [[origin.width, origin.height]];
-    for (const element of row.querySelectorAll('*')) {
+    for (const element of row.querySelectorAll(selector)) {
       // The bubble is out of the flow by design; an option of a native list has no box of its own.
       if (element.closest('[role="tooltip"], option, optgroup')) continue;
       const box = element.getBoundingClientRect();
       out.push([element.tagName, box.x - origin.x, box.y - origin.y, box.width, box.height]);
     }
     return out;
-  }, which);
+  }, [which, selector]);
 }
 
 async function counters(page) {
@@ -192,7 +198,7 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
-async function checkReason(page, what, engine, { isRoving = false, isGroup = false } = {}) {
+async function checkReason(page, what, engine, { isRoving = false, isGroup = false, shape = '*' } = {}) {
   const [tab, back] = engine === 'webkit' ? ['Alt+Tab', 'Alt+Shift+Tab'] : ['Tab', 'Shift+Tab'];
   const { control, bubble, described } = await subject(page);
   // A composite's bubble comes from its mark: the pointer goes there, where the bubble is drawn.
@@ -271,7 +277,7 @@ async function checkReason(page, what, engine, { isRoving = false, isGroup = fal
   assert.equal(await isShowing(bubble), false, `${what}: a tap elsewhere leaves the reason`);
 
   // The reason takes no space: the row with it and the row without it have the same shape.
-  const [withReason, without] = [await rowShape(page, 'with'), await rowShape(page, 'without')];
+  const [withReason, without] = [await rowShape(page, 'with', shape), await rowShape(page, 'without', shape)];
   assertSame(without.slice(1), withReason.slice(1), `${what}, the row with the reason against the row without`);
   assert.ok(Math.abs(withReason[0][1] - without[0][1]) < 0.5, `${what}: the row with the reason is ${withReason[0][1]} high, without ${without[0][1]}`);
 }
@@ -361,7 +367,35 @@ async function checkGroup(page, what, engine) {
   assert.equal(ids.size, 1, `${what}: its parts point at ${ids.size} reasons`);
 }
 
-const CHECKS = { group: checkGroup, reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
+/**
+ * A control in a line behind a refused gate: the lock over it is what is tried, and the row keeps
+ * its shape - compared by the controls and cells both rows have, the gate's own wrapper aside.
+ */
+async function checkGate(page, what, engine) {
+  await checkReason(page, what, engine, { shape: 'button:not(.lock), td, tr' });
+}
+
+/**
+ * A gate that has not been answered yet, then answered: the content keeps its boxes when the
+ * answer is "permitted", and its size when the answer is "refused" (the reason arrives above it).
+ */
+async function checkAnswer(page, what, _engine, { isSizeOnly }) {
+  const measure = async () =>
+    (await boxes(page, '.host [data-case="with"] :is(select, label, .shell)')).map(([tag, x, y, w, h]) =>
+      isSizeOnly ? [tag, 0, 0, w, h] : [tag, x, y, w, h],
+    );
+  const before = await measure();
+  await page.locator('.host [data-driver]').click();
+  // The answer renders the content anew; the +40 % axis rewrites new text a moment later.
+  await page.waitForTimeout(400);
+  assertSame(before, await measure(), `${what}, answered`);
+}
+
+const CHECKS = {
+  gate: checkGate,
+  permitted: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: false }),
+  refused: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: true }),
+  group: checkGroup, reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
 
 for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
   test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
@@ -380,6 +414,9 @@ for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGIN
       });
       for (const story of STORIES.filter((each) => !process.env.STORIES || each.id.includes(process.env.STORIES))) {
         for (const each of axes) {
+          // The +40 % axis rewrites the text once, as the story renders; content an answer renders
+          // anew arrives in English and would be measured against its rewritten self.
+          if (each.text === 'long' && (story.kind === 'permitted' || story.kind === 'refused')) continue;
           const what = `${story.id} ${label(each)} in ${name}`;
           await page.goto(`${server.origin}/${query(story.id, each)}`);
           await page.waitForSelector('.host .contexts');
