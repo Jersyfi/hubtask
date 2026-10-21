@@ -338,6 +338,12 @@ func sameTokens(a, b []CaptureToken) bool {
 	return true
 }
 
+// withoutOptIn is a type's capabilities as a layer that does not name them carries them: all of
+// them but the opt-in ones (Capability.OptIn).
+func withoutOptIn(capabilities []Capability) []Capability {
+	return slices.DeleteFunc(slices.Clone(capabilities), Capability.OptIn)
+}
+
 func cloneFields(fields map[ItemType]LevelFields) map[ItemType]LevelFields {
 	if fields == nil {
 		return nil
@@ -475,7 +481,7 @@ func (b StructureBound) Default() StructureValues {
 	fields := make(map[ItemType]LevelFields, len(b.order))
 	for _, itemType := range b.order {
 		levels = append(levels, Level{Type: itemType})
-		fields[itemType] = LevelFields{Capabilities: slices.Clone(b.profiles[itemType].Capabilities)}
+		fields[itemType] = LevelFields{Capabilities: withoutOptIn(b.profiles[itemType].Capabilities)}
 	}
 	return StructureValues{
 		Levels: levels,
@@ -504,7 +510,7 @@ func (b StructureBound) Clip(values StructureValues) StructureValues {
 			profile := b.profiles[itemType]
 			level, set := values.Fields[itemType]
 			if !set {
-				clipped[itemType] = LevelFields{Capabilities: slices.Clone(profile.Capabilities)}
+				clipped[itemType] = LevelFields{Capabilities: withoutOptIn(profile.Capabilities)}
 				continue
 			}
 			kept := make([]Capability, 0, len(level.Capabilities))

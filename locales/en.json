@@ -396,6 +396,7 @@
   "items.title_empty": "An entry needs a title.",
   "items.title_too_long": "The title may be at most {maximum} characters long.",
   "items.title_malformed": "The title has to fit on one line. Longer text belongs in the notes.",
+  "items.amount_invalid": "The amount has to fit on one line and may be at most {maximum} characters long.",
   "items.content_language_invalid": "{value} is not a language tag. Use a code like de, de-AT or zh-Hans.",
   "items.calendar_uid_invalid": "A calendar UID is up to {maximum} characters of a URL path segment: letters, digits, and - . _ ~ ! $ & ' ( ) * + , ; = : @",
   "items.due_unreadable": "{value} is neither a day (2026-09-10) nor a moment (2026-09-10T09:00:00Z).",

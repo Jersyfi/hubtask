@@ -97,6 +97,13 @@ type WorkItem struct {
 	// that a depth limit can be checked without parsing a string per row.
 	Depth int
 	Title string
+	// Amount is how much of it - "2", "1 kg", "a bag" - and empty for none. Capability AMOUNT,
+	// which no collection carries unless its fields name it (Capability.OptIn). Free text the
+	// person typed, beside the title rather than in it (UC-WRK-25 check 2): nothing sums it or
+	// parses a unit out of it, and it is that person's content (rule 10).
+	//
+	// A scalar, so it merges as last writer wins per field (offline-sync.md §4.2).
+	Amount string
 	// Notes is Markdown, unrendered on the server. Capability NOTES, so an activity has none.
 	Notes      string
 	Completion Completion
@@ -253,6 +260,9 @@ type NewWorkItemInput struct {
 
 	Title string
 	Notes string
+	// Amount is how much of it, empty for none. Checked against the profile like the notes; whether
+	// the collection offers it is the use case's question, which knows the collection's structure.
+	Amount string
 	// BucketID is the column the item starts in. Checked against the profile like every other
 	// optional field, so that a client cannot put a work package on a board.
 	BucketID shared.ID
@@ -330,6 +340,16 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		}
 	}
 
+	amount, err := itemAmount(in.Amount, in.Text)
+	if err != nil {
+		return WorkItem{}, err
+	}
+	if amount != "" {
+		if err := in.Profile.Require(CapabilityAmount, "/amount"); err != nil {
+			return WorkItem{}, err
+		}
+	}
+
 	language, err := contentLanguage(in.ContentLanguage)
 	if err != nil {
 		return WorkItem{}, err
@@ -363,6 +383,7 @@ func NewWorkItem(in NewWorkItemInput) (WorkItem, error) {
 		Path:         in.Path,
 		Depth:        in.Depth,
 		Title:        title,
+		Amount:       amount,
 		Notes:        notes,
 		StartAt:      startAt,
 		// An item starts open. There is no way to create a completed one, and that is deliberate:
@@ -498,6 +519,27 @@ func itemTitle(raw string, form text.Normalizer) (string, error) {
 	return title, nil
 }
 
+// MaxItemAmountLength bounds an amount, in code points: "1 kg", "2 bags", "half a loaf" - a few
+// words before the title, never a second title.
+const MaxItemAmountLength = 40
+
+// itemAmount trims an amount and brings it to normal form C. Empty after trimming is no amount: a
+// person who clears the field means "none", and an amount of spaces is not one. Like a title it is
+// a line: a control character is refused rather than stored where a list draws it.
+func itemAmount(raw string, form text.Normalizer) (string, error) {
+	amount, err := shared.NFC(strings.TrimSpace(raw), form)
+	if err != nil {
+		return "", err
+	}
+	if utf8.RuneCountInString(amount) > MaxItemAmountLength || hasControlCharacter(amount) {
+		return "", shared.ErrValidation.
+			WithDetail("items.amount_invalid").
+			WithParams(map[string]string{"maximum": "40"}).
+			WithFields(shared.FieldError{Path: "/amount", Code: "items.amount_invalid"})
+	}
+	return amount, nil
+}
+
 // contentLanguage checks the shape of the tag and answers it trimmed.
 //
 // Structural only, against shared.LanguageTag. Which languages this installation can *index* is
@@ -529,6 +571,7 @@ func (i WorkItem) IsTrashed() bool { return i.DeletedAt != nil }
 // rather than as a literal at each of the three places that has to agree.
 const (
 	FieldTitle      = "title"
+	FieldAmount     = "amount"
 	FieldNotes      = "notes"
 	FieldBucketID   = "bucket_id"
 	FieldAssigneeID = "assignee_id"
@@ -570,6 +613,8 @@ const (
 type ItemAttributes struct {
 	Title *string
 	Notes *string
+	// Amount sets how much of it, and a pointer to the empty string clears it.
+	Amount *string
 	// BucketID is the column the item moves to, and a pointer to the zero identifier takes it off
 	// the board altogether - which is the same "empty is not set" the text fields keep.
 	BucketID *shared.ID
@@ -583,8 +628,8 @@ type ItemAttributes struct {
 
 // IsEmpty reports whether the update asks for nothing at all.
 func (a ItemAttributes) IsEmpty() bool {
-	return a.Title == nil && a.Notes == nil && a.BucketID == nil && a.ContentLanguage == nil &&
-		a.StartAt == nil
+	return a.Title == nil && a.Notes == nil && a.Amount == nil && a.BucketID == nil &&
+		a.ContentLanguage == nil && a.StartAt == nil
 }
 
 // FieldChange is one field that moved, with the value on each side.
@@ -629,6 +674,20 @@ func (i WorkItem) Updated(
 			return WorkItem{}, nil, err
 		}
 	}
+	// The amount's rule before the lifecycle, like the other capabilities: only a value needs it,
+	// and clearing an amount the entry never had asks for the state it is already in.
+	var amount string
+	if attributes.Amount != nil {
+		var err error
+		if amount, err = itemAmount(*attributes.Amount, form); err != nil {
+			return WorkItem{}, nil, err
+		}
+		if amount != "" {
+			if err := profile.Require(CapabilityAmount, "/amount"); err != nil {
+				return WorkItem{}, nil, err
+			}
+		}
+	}
 	if err := i.EnsureEditable(); err != nil {
 		return WorkItem{}, nil, err
 	}
@@ -644,6 +703,11 @@ func (i WorkItem) Updated(
 			changes = append(changes, FieldChange{Field: FieldTitle, From: i.Title, To: title})
 			i.Title = title
 		}
+	}
+
+	if attributes.Amount != nil && amount != i.Amount {
+		changes = append(changes, FieldChange{Field: FieldAmount, From: i.Amount, To: amount})
+		i.Amount = amount
 	}
 
 	if attributes.Notes != nil {

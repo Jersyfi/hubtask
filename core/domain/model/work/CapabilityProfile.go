@@ -41,7 +41,15 @@ const (
 	CapabilityHistory      Capability = "HISTORY"
 	CapabilityRecurrence   Capability = "RECURRENCE"
 	CapabilityCustomFields Capability = "CUSTOM_FIELDS"
+	// CapabilityAmount is an entry's amount - "2", "1 kg" - beside its title: what a shopping or
+	// packing list carries (UC-WRK-25). Opt-in (OptIn).
+	CapabilityAmount Capability = "AMOUNT"
 )
+
+// OptIn reports a capability the system offers but no collection carries unless one of its
+// layers names it: Hubtask's default, and a type a layer leaves out of its fields, keep the
+// behaviour from before the capability existed (domain-model.md §2).
+func (c Capability) OptIn() bool { return c == CapabilityAmount }
 
 // CapabilityProfile is what one item type may do, and what may sit underneath it.
 //
