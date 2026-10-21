@@ -16,7 +16,11 @@ import {
   compileSentence,
   countSteps,
   depthOf,
+  fromDraft,
   fromRule,
+  notDraftedOf,
+  offeredBlocks,
+  emptyDraft,
   insertAt,
   isAutomatic,
   moveStep,
@@ -347,3 +351,53 @@ test('the shared sentence vectors compile here as on the server, and read back',
     assert.equal(readNode(vector.expr), undefined, vector.name);
   }
 });
+
+// A drafted rule opens on the canvas as an unsaved new rule: its place, trigger, condition and steps,
+// and never a name or an account to run as - those stay the person's (UC-AUT-10 check 3).
+test('a drafted rule opens on the canvas, its condition as sentences, its name and runner untouched', () => {
+  const base = { ...emptyDraft('de.hubtask.work.item.created.v1'), name: '', runAs: 'svc-1' };
+  const draft = fromDraft(
+    {
+      scope: { type: 'COLLECTION', id: 'c-1' },
+      trigger: { kind: 'JUMBLE_ENTRY' },
+      conditions: [{ expr: "item.type == 'TASK' && !has(item.assignee_id)" }],
+      actions: [{ kind: 'ASSIGN_WORK_ITEM', params: { account_id: 'lisa' } }, { kind: 'STOP' }],
+      run_as: 'somebody-else',
+      not_drafted: [{ part: 'set it due in two days' }],
+    },
+    base,
+  );
+  assert.deepEqual(draft.scope, { type: 'COLLECTION', id: 'c-1' });
+  assert.deepEqual(draft.trigger, { kind: 'JUMBLE_ENTRY' });
+  assert.equal(draft.runAs, 'svc-1', 'a draft names no account to run as');
+  assert.equal(draft.name, '');
+  assert.deepEqual(draft.actions.map((step) => step.kind), ['ASSIGN_WORK_ITEM', 'STOP']);
+  assert.deepEqual(readNode(draft.conditions[0] ?? ''), {
+    mode: 'all',
+    items: [{ subject: 'type', op: 'is', a: 'TASK' }, { subject: 'assignee', op: 'lacks' }],
+  });
+  const missing = fromDraft({ not_drafted: [] }, base);
+  assert.deepEqual(missing.trigger, base.trigger, 'a draft without a trigger keeps the one the editor had');
+  assert.deepEqual(missing.actions, []);
+});
+
+test('what a draft could not draft is read as quotes and draft codes, and nothing else', () => {
+  assert.deepEqual(
+    notDraftedOf({
+      not_drafted: [
+        { part: 'set it due in two days' },
+        { code: 'automation.draft.kind_not_offered', params: { kind: 'HTTP_REQUEST' } },
+        { code: 'app.something_else' },
+        'a bare string',
+        { part: '   ' },
+      ],
+    }),
+    [{ part: 'set it due in two days' }, { code: 'automation.draft.kind_not_offered', params: { kind: 'HTTP_REQUEST' } }],
+  );
+  assert.deepEqual(notDraftedOf({}), []);
+});
+
+test('the step that drafts rules is not a block', () => {
+  assert.deepEqual(offeredBlocks(['ADD_LABEL', 'DESCRIBE_RULE', 'AI_CLASSIFY']), ['ADD_LABEL', 'AI_CLASSIFY']);
+});
+

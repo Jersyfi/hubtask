@@ -97,6 +97,7 @@ export type {
   Comment,
   CommentPage,
   Suggestion,
+  AcceptedSuggestion,
   SuggestionAcceptance,
   SuggestionKind,
   SuggestionPage,

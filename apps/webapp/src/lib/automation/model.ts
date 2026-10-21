@@ -116,6 +116,57 @@ export function fromRule(rule: Rule): Draft {
   };
 }
 
+/**
+ * A rule drafted from a sentence (UC-AUT-10), opened on the canvas as an unsaved new rule. The
+ * draft carries part of a rule's input - where it applies, what starts it, its condition and its
+ * steps - and never a name or the account it runs as: those stay what the editor holds, the person's
+ * own. A part the draft does not carry keeps what the editor had.
+ */
+export function fromDraft(payload: Readonly<Record<string, unknown>>, base: Draft): Draft {
+  const scope = payload.scope as Rule['scope'] | undefined;
+  const trigger = payload.trigger as RuleTrigger | undefined;
+  const opened = fromRule({
+    id: '',
+    enabled: false,
+    failure_count: 0,
+    version: 0,
+    name: base.name,
+    scope: scope ?? base.scope,
+    run_as: base.runAs,
+    trigger: trigger ?? { kind: base.trigger.kind },
+    conditions: Array.isArray(payload.conditions) ? (payload.conditions as Rule['conditions']) : [],
+    actions: Array.isArray(payload.actions) ? (payload.actions as RuleAction[]) : [],
+    on_error: base.onError,
+  });
+  return { ...opened, trigger: trigger ? opened.trigger : base.trigger, throttle: base.throttle };
+}
+
+/** One part a draft could not draft: words quoted from the sentence, or a message code. */
+export type NotDrafted = { readonly part: string } | { readonly code: string; readonly params?: Readonly<Record<string, string>> };
+
+/** What a draft says it could not draft, read defensively: anything else in the list is dropped. */
+export function notDraftedOf(payload: Readonly<Record<string, unknown>>): NotDrafted[] {
+  const entries = Array.isArray(payload.not_drafted) ? (payload.not_drafted as unknown[]) : [];
+  return entries.flatMap((entry): NotDrafted[] => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { part, code, params } = entry as { part?: unknown; code?: unknown; params?: unknown };
+    if (typeof part === 'string' && part.trim() !== '') return [{ part }];
+    if (typeof code === 'string' && code.startsWith('automation.draft.')) {
+      const said = params && typeof params === 'object' ? Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])) : undefined;
+      return [said ? { code, params: said } : { code }];
+    }
+    return [];
+  });
+}
+
+/**
+ * The action kinds a block may be: every kind the manifest serves but the one that asks AI to draft
+ * a rule - a step that drafts rules is a question for the editor, not something a rule does.
+ */
+export function offeredBlocks(kinds: readonly string[]): string[] {
+  return kinds.filter((kind) => kind !== 'DESCRIBE_RULE');
+}
+
 function actionsFrom(steps: readonly Step[]): RuleAction[] {
   return steps.map((step) => {
     const params: Record<string, unknown> = Object.fromEntries(
