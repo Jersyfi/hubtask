@@ -10,10 +10,12 @@ import (
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	suggestiondomain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
@@ -183,6 +185,35 @@ func TestTheSharedSetLeavesOutPrivateArchivedAndTrashed(t *testing.T) {
 	for _, row := range page.Collections {
 		if row.Collection.ID == other.open {
 			t.Error("another workspace's collection is in the shared set")
+		}
+	}
+}
+
+// Check 11 through the real readers: a person's ask offers the model the shared set - the owner,
+// who is in the private hub, is offered no collection of it, and nothing archived.
+func TestAJumbleAskOffersTheSharedSetWhoeverAsks(t *testing.T) {
+	ctx := context.Background()
+	w := seedDestinationWorld(ctx, t)
+	entry := seedJumbleEntry(ctx, t, w.tenant, nil)
+	sources := suggestion.CatalogueSources{Catalogue: jumbleReaders(ctx, t), Collections: containerRepo()}
+
+	for _, asker := range []shared.ID{w.owner, w.member} {
+		var material suggestion.Material
+		if err := read(ctx, t, w.tenant, func(ctx context.Context) error {
+			var err error
+			material, err = sources.Material(ctx, w.as(asker), suggestion.Question{TargetType: suggestiondomain.TargetJumbleEntry, TargetID: entry.ID, PromptID: "suggest-fields"})
+			return err
+		}); err != nil {
+			t.Fatalf("reading the material: %v", err)
+		}
+		var offered []string
+		for _, set := range material.Choices {
+			for _, option := range set.Options {
+				offered = append(offered, option.ID)
+			}
+		}
+		if len(offered) != 1 || offered[0] != w.open.String() {
+			t.Errorf("%s was offered %v, want only the shared %s", asker, offered, w.open)
 		}
 	}
 }

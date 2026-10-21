@@ -10,6 +10,7 @@ import (
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
@@ -40,6 +41,9 @@ type CatalogueSources struct {
 	Permits Permitter
 	// Text brings a sentence and the names it is matched against to one normal form.
 	Text porttext.Normalizer
+	// Collections is where a jumble proposal's destination is chosen from: the shared set,
+	// read in the material's transaction. Nil offers no destination.
+	Collections workrepo.Collections
 }
 
 // KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
@@ -85,9 +89,9 @@ func (s CatalogueSources) material(
 ) (Material, error) {
 	switch targetType {
 	case domain.TargetJumbleEntry:
-		// An entry in the inbox is in no collection yet, so there is no board to choose from: the
-		// person converting names the destination, and its columns are theirs to pick.
-		return s.entry(ctx, actor, targetID, kept)
+		// An entry in the inbox is in no collection yet, so there is no board to choose from; the
+		// question's prompt says whether a destination is chosen, from the shared set.
+		return s.entry(ctx, actor, targetID, promptID, kept)
 	case domain.TargetWorkItem:
 		if promptID == threadPrompt {
 			return s.thread(ctx, actor, targetID, kept)
@@ -112,7 +116,8 @@ func (s CatalogueSources) material(
 // entries meant that asking about an entry somebody had already converted answered nothing at all,
 // rather than answering what the entry says.
 func (s CatalogueSources) entry(
-	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, kept integration.KeptOut,
+	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, promptID string,
+	kept integration.KeptOut,
 ) (Material, error) {
 	entry, err := s.Catalogue.Invoke(ctx, "GetJumbleEntry", actor, usecase.Input{"entry_id": entryID.String()})
 	if err != nil {
@@ -121,7 +126,54 @@ func (s CatalogueSources) entry(
 		}
 		return Material{}, err
 	}
-	return entryMaterial(entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), kept), nil
+	material := entryMaterial(entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), kept)
+	return withDestinations(ctx, s.Collections, material, promptID, kept)
+}
+
+// maxDestinations bounds the collections a proposal chooses its destination from: the first
+// hundred of the tree's order, so that every arrival's material stays a few thousand tokens. The
+// person accepting picks any other.
+const maxDestinations = 100
+
+// withDestinations adds the shared set to a jumble entry's material, for a question that chooses a
+// destination: the collections everybody who may convert may write in - neither trashed nor
+// archived, by their own stamp or their hub's, and outside private hubs (ai-first.md §2). The
+// same set whoever asks, so that no proposal another reader sees names a private hub's collection.
+// Nothing is added to material with nothing to describe: a list of collections is not material.
+func withDestinations(
+	ctx context.Context, collections workrepo.Collections, material Material, promptID string,
+	kept integration.KeptOut,
+) (Material, error) {
+	if collections == nil || strings.TrimSpace(material.Content) == "" || !choosesFrom(promptID, collectionKey) {
+		return material, nil
+	}
+	page, err := collections.InOrder(ctx, workrepo.CollectionQuery{Page: workrepo.Page{Size: maxDestinations}})
+	if err != nil {
+		return Material{}, err
+	}
+	options := make([]Option, 0, len(page.Collections))
+	for _, row := range page.Collections {
+		options = append(options, Option{
+			ID:   row.Collection.ID.String(),
+			Name: kept.Scrub(row.HubName + " / " + row.Collection.Name),
+		})
+	}
+	if len(options) > 0 {
+		material.Choices = append(material.Choices, Choices{
+			Key: collectionKey, Label: "Collections it could become work in", Options: options,
+		})
+	}
+	return material, nil
+}
+
+// choosesFrom reports whether a prompt's answer chooses the key from a closed set.
+func choosesFrom(promptID, key string) bool {
+	for _, chosen := range choiceSets[promptID] {
+		if chosen == key {
+			return true
+		}
+	}
+	return false
 }
 
 // entryMaterial is what one arrival tells a model, whoever asked about it.
@@ -399,6 +451,9 @@ const (
 	bucketKey = "bucket_id"
 	labelsKey = "label_ids"
 	fieldsKey = "custom_fields"
+	// collectionKey is a jumble proposal's destination, which the conversion takes as its own
+	// input; the person accepting may name another.
+	collectionKey = "collection_id"
 )
 
 // closedKinds are the custom field kinds a value can be *chosen* for.

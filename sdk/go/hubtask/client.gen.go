@@ -17502,7 +17502,7 @@ type ClientInterface interface {
 
 	// SuggestFromJumbleEntry Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -26412,7 +26412,7 @@ func (c *Client) DismissJumbleEntry(ctx context.Context, entryId openapi_types.U
 
 // SuggestFromJumbleEntry Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //
@@ -49549,7 +49549,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -74601,7 +74601,7 @@ func (c *ClientWithResponses) DismissJumbleEntryWithResponse(ctx context.Context
 
 // SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //

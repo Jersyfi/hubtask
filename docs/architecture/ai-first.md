@@ -141,7 +141,7 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
 
 | Feature | Rule | Result form |
 |---|---|---|
-| Jumble processing | Email/note → suggested title, notes, due date and implied subtasks; the material carries the current date. Accepting converts the entry, writes notes (`UpdateWorkItem`), the date as all-day in the accepter's zone (`SetDueDate`) and one child per subtask (`CreateWorkItem`); a refusal partway leaves what stands. **No labels** (no collection vocabulary yet) and **no collection** (`Producing.go` filters `collection_id`; the converter chooses) | Suggestion, confirmed by the user |
+| Jumble processing | Email/note → suggested title, notes, due date, implied subtasks and the collection it fits best; the material carries the current date and the shared set of collections (the guardrail below). Accepting converts the entry into the proposed collection unless the person picks another, writes notes (`UpdateWorkItem`), the date as all-day in the accepter's zone (`SetDueDate`) and one child per subtask (`CreateWorkItem`); a refusal partway leaves what stands. **No labels** (no collection vocabulary yet) | Suggestion, confirmed by the user |
 | Field suggestions | An existing entry → a better title, notes, a due date, with its own prompt | Suggestion |
 | Decomposition | Task → work packages/activities as a tree; accepting is one `CreateWorkItem` per node in order, and a refusal leaves the nodes before it standing | Suggestion |
 | Classification | Labels and bucket, chosen from the options shown (the collection's labels, the entry's board columns with its own marked); anything else is dropped. Accepting is `AddLabel` per label and `MoveWorkItem`. Custom field values only for closed kinds (`SELECT`, `MULTI_SELECT`, `BOOL`), checked by `ValidateValue` and written one key per call; open kinds and `USER` never. No built-in priority: the classifier fills declared fields, and a workspace with none makes no extra call | Suggestion |
@@ -170,12 +170,16 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
   product's shortest timeout). Any failure to get that embedding is a **lexical search, not an
   error**.
 * **A model may pick from a set it was shown, never name a destination.** `collection_id` is
-  filtered from every answer, except where the collections the asking person may write in were
-  passed as the set — a jumble proposal's destination (decision #1629) — and then it is validated
-  against that set like any other closed set. A closed set (board columns, labels) is read through the ordinary
-  listing as the asking person, passed as options — content, never instruction — and validated on
-  return; anything else is dropped and the rest stands. Where the set has its own validation (a
-  custom field's declaration), the check is that code, not a copy.
+  filtered from every answer, except a jumble proposal's destination (decision #1629): there the
+  set passed is the **shared set** — the collections everybody who may convert an arrival may
+  write in: not trashed, not archived by their own stamp or their hub's, outside private hubs, the
+  first hundred in the tree's order — whoever asks, so that no proposal another reader sees names
+  a private hub's collection, and the answer is validated against it like any other closed set. A
+  listing answers a proposed destination only while it is still in that set. Every other closed
+  set (board columns, labels) is read through the ordinary listing as the asking person, passed as
+  options — content, never instruction — and validated on return; anything else is dropped and the
+  rest stands. Where the set has its own validation (a custom field's declaration), the check is
+  that code, not a copy.
 * **A model writes no expression.** A condition a model drafts is answered as the rule editor's
   sentences and compiled by the server's twin of the composer (`core/domain/model/automation`), so
   no byte of an answer becomes expression text except as a literal the compiler escaped - rule 9's

@@ -630,10 +630,11 @@ paths:
       operationId: suggestFromJumbleEntry
       summary: Ask AI what this entry should become
       description: >
-        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry. It **proposes** and changes nothing: what comes back is a
-        suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody
-        converts the entry.
+        Asks the workspace's AI provider to propose a title, notes, a due date, the steps the
+        material implies and the collection it fits best for one entry - the collection chosen from
+        those everybody who may convert may write in. It **proposes** and changes nothing: what
+        comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only
+        when somebody accepts it or converts the entry.
 
         Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never
         sits in a request — the suggestion appears when the provider has answered. Asking twice

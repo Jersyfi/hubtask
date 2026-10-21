@@ -1082,6 +1082,8 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		// The words a template is drafted from, held for the job.
 		Requests: suggestionStore, IDs: ids,
+		// A proposed destination is answered while it is still in the shared set.
+		Containers: containers,
 	}
 
 	// The cases the privacy use cases share.
@@ -1254,7 +1256,7 @@ func run() error {
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
 		Sources: suggestionservice.CatalogueSources{
-			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut,
+			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut, Collections: containers,
 			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
 		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
