@@ -82,6 +82,9 @@ type Targets interface {
 	// shared.ErrNotFound when it is gone. Reading it is what proves the actor may see the target
 	// at all, which is why there is no separate visibility question.
 	Digest(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID) ([]byte, error)
+	// Subject reads the same, and answers whose an entry is beside the fingerprint: what a
+	// permission question along the entry's own path needs (entryRequest).
+	Subject(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID) (Subject, error)
 }
 
 // Cases is what the three use cases share.
@@ -127,6 +130,24 @@ func (h ListSuggestions) Execute(
 		// check is that they are the account (`ownDraft`, read below as the target's digest), not a
 		// permission at the workspace a hub's administrator may not hold.
 		if err := ownDraft(actor, query.TargetID); err != nil {
+			return repository.Page{}, err
+		}
+	} else if query.TargetType == domain.TargetWorkItem {
+		// About an entry: read along the entry's own path, so that a role held on its hub, its
+		// collection or the entry itself counts - a reader of one hub reads its proposals, a
+		// summary of a discussion included (UC-AI-04 check 8). The read is the visibility question
+		// and refuses as reading the entry does.
+		var subject Subject
+		if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			subject, err = c.Targets.Subject(ctx, actor, query.TargetType, query.TargetID)
+			return err
+		}); err != nil {
+			return repository.Page{}, err
+		}
+		request := readsEntry(subject, query.TargetID, SuggestionsReadAction, query.TargetID)
+		request.TokenScope = suggestionsRead
+		if err := c.Authorizer.Authorize(ctx, actor, request); err != nil {
 			return repository.Page{}, err
 		}
 	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
@@ -223,20 +244,22 @@ func ownDraft(actor appshared.ActorContext, accountID shared.ID) error {
 	return actor.RequireScope(automationScope)
 }
 
-// draftOf answers the target of a suggestion that is a draft for its asker, and nothing for any
-// other: which question decides who may answer it depends on that, so it is read first.
-func (c Cases) draftOf(ctx context.Context, actor appshared.ActorContext, id shared.ID) (shared.ID, bool) {
+// targetOf answers what a suggestion is about, and whether it was found: which question decides
+// who may answer it depends on that, so it is read first. A suggestion that is not found answers
+// as before - the ordinary permission, and then the not-found of the read.
+func (c Cases) targetOf(ctx context.Context, actor appshared.ActorContext, id shared.ID) (domain.TargetType, shared.ID, bool) {
+	var targetType domain.TargetType
 	var target shared.ID
-	var draft bool
+	found := false
 	_ = c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		proposal, err := c.Suggestions.Find(ctx, id)
 		if err != nil {
 			return err
 		}
-		target, draft = proposal.TargetID, proposal.TargetType == domain.TargetAccount
+		targetType, target, found = proposal.TargetType, proposal.TargetID, true
 		return nil
 	})
-	return target, draft
+	return targetType, target, found
 }
 
 func (c Cases) decideAs(
@@ -247,10 +270,32 @@ func (c Cases) decideAs(
 	if status == domain.StatusDismissed {
 		action = SuggestionDismissedAction
 	}
-	if target, draft := c.draftOf(ctx, actor, id); draft {
+	targetType, target, found := c.targetOf(ctx, actor, id)
+	// The fingerprint of an entry read for the permission question, so that it is not read twice
+	// before the answer's transaction.
+	var readDigest []byte
+	if found && targetType == domain.TargetAccount {
 		if err := ownDraft(actor, target); err != nil {
 			return domain.Suggestion{}, err
 		}
+	} else if found && targetType == domain.TargetWorkItem {
+		// About an entry: what changing it asks, along its own path - with "assigned only" measured
+		// against its stored assignee (domain-model.md §3.2). The read refuses an entry the caller
+		// cannot see as reading it does.
+		var subject Subject
+		if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			subject, err = c.Targets.Subject(ctx, actor, targetType, target)
+			return err
+		}); err != nil {
+			return domain.Suggestion{}, err
+		}
+		request := writesEntry(subject, target, action, id)
+		request.TokenScope = suggestionsWrite
+		if err := c.Authorizer.Authorize(ctx, actor, request); err != nil {
+			return domain.Suggestion{}, err
+		}
+		readDigest = subject.Digest
 	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		// Answering a proposal about an entry needs what changing the entry needs. Dismissing
 		// asks the same, deliberately: a workspace where anybody who can read can clear somebody
@@ -274,9 +319,11 @@ func (c Cases) decideAs(
 		if err != nil {
 			return err
 		}
-		digest, err := c.Targets.Digest(ctx, actor, proposal.TargetType, proposal.TargetID)
-		if err != nil {
-			return err
+		digest := readDigest
+		if digest == nil {
+			if digest, err = c.Targets.Digest(ctx, actor, proposal.TargetType, proposal.TargetID); err != nil {
+				return err
+			}
 		}
 		if !proposal.Fresh(digest) {
 			return domain.ErrStale

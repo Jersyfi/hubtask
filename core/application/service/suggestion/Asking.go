@@ -79,6 +79,9 @@ type asking struct {
 	// the ordinary AI question.
 	JobKind  queue.Kind
 	Attempts int
+	// Reads marks a reading aid (UC-AI-04 check 8): asked by everybody who may read the entry,
+	// unless the answer is to be applied, which changes it.
+	Reads bool
 }
 
 // queue checks and queues one question.
@@ -107,8 +110,36 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 		TargetType: suggestionTarget,
 		TargetID:   q.TargetID,
 	}
-	if q.Access != nil {
+	// A question about an entry reads the entry first and asks its permission along the entry's
+	// own path, so that a role held on its hub, its collection or the entry itself counts
+	// (domain-model.md §3.2, P-05). The read is the existence and visibility question at once: an
+	// entry the caller cannot read answers not-found exactly as reading it does, with the refusal
+	// that read records - so nothing is learned from asking first.
+	read := false
+	switch {
+	case q.Access != nil:
 		permission = *q.Access
+	case q.TargetType == domain.TargetWorkItem:
+		var subject Subject
+		if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			subject, err = c.Targets.Subject(ctx, actor, q.TargetType, q.TargetID)
+			return err
+		}); err != nil {
+			return shared.ID(""), err
+		}
+		read = true
+		if q.Reads && !q.Apply {
+			// A reading aid admits a token that reads entries, and one that asks for suggestions
+			// as it did before the aid was offered to readers: no token that worked stops working.
+			if err := actor.RequireAnyScope(suggestionsRead, suggestionsWrite); err != nil {
+				return shared.ID(""), err
+			}
+			permission = readsEntry(subject, q.TargetID, q.Action, q.TargetID)
+		} else {
+			permission = writesEntry(subject, q.TargetID, q.Action, q.TargetID)
+			permission.TokenScope = suggestionsWrite
+		}
 	}
 	permission.Action = q.Action
 	if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
@@ -139,8 +170,10 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 	// below: the target's reader records its refusal where it is asked from, and inside a
 	// read-write transaction that this refusal then rolls back, the DENIED entry went with it.
 	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if _, err := c.Targets.Digest(ctx, actor, q.TargetType, q.TargetID); err != nil {
-			return err
+		if !read {
+			if _, err := c.Targets.Digest(ctx, actor, q.TargetType, q.TargetID); err != nil {
+				return err
+			}
 		}
 		return c.workable(ctx, actor, question)
 	}); err != nil {
