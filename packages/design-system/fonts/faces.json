@@ -1,0 +1,95 @@
+{
+  "_comment": "Every face the installation ships (design-system.md §3), read by build/fonts.js, test/fonts.test.js and infrastructure/i18n/ScriptFaces_test.go. `scripts` maps each ISO 15924 script the face is there for to a few of its letters; `blocks` bounds a script face to its script's Unicode blocks, so that a character other faces share never fetches it; `weights` declares a static file over a range of weights; `subsets` keeps only those of a package's stylesheet blocks; `notice` names the licence text under third-party/licenses/_bundled/.",
+  "faces": [
+    {
+      "family": "IBM Plex Sans",
+      "rename": "IBM Plex Sans Variable",
+      "package": "@fontsource-variable/ibm-plex-sans",
+      "stylesheets": ["wght.css", "wght-italic.css"],
+      "output": "fonts.css",
+      "notice": "ibm-plex",
+      "scripts": { "Latn": "Hubtask", "Cyrl": "Задачи", "Grek": "Εργασίες" }
+    },
+    {
+      "family": "IBM Plex Sans Condensed",
+      "package": "@fontsource/ibm-plex-sans-condensed",
+      "stylesheets": ["600.css", "700.css"],
+      "output": "fonts.css",
+      "notice": "ibm-plex",
+      "scripts": { "Latn": "Hubtask" }
+    },
+    {
+      "family": "IBM Plex Mono",
+      "package": "@fontsource/ibm-plex-mono",
+      "stylesheets": ["400.css", "400-italic.css", "500.css"],
+      "output": "fonts.css",
+      "notice": "ibm-plex",
+      "scripts": { "Latn": "Hubtask", "Cyrl": "Задачи" }
+    },
+    {
+      "family": "IBM Plex Sans Arabic",
+      "package": "@fontsource/ibm-plex-sans-arabic",
+      "stylesheets": ["400.css", "500.css", "600.css", "700.css"],
+      "subsets": ["arabic"],
+      "weights": { "400": "400 450" },
+      "blocks": ["U+0600-06FF", "U+0750-077F", "U+0870-08FF", "U+FB50-FDFF", "U+FE70-FEFF"],
+      "output": "fonts-scripts.css",
+      "notice": "ibm-plex-sans-arabic",
+      "scripts": { "Arab": "المهام" }
+    },
+    {
+      "family": "IBM Plex Sans Hebrew",
+      "package": "@fontsource/ibm-plex-sans-hebrew",
+      "stylesheets": ["400.css", "500.css", "600.css", "700.css"],
+      "subsets": ["hebrew"],
+      "weights": { "400": "400 450" },
+      "blocks": ["U+0590-05FF", "U+FB1D-FB4F"],
+      "output": "fonts-scripts.css",
+      "notice": "ibm-plex-sans-hebrew",
+      "scripts": { "Hebr": "משימות" }
+    },
+    {
+      "family": "IBM Plex Sans Devanagari",
+      "package": "@fontsource/ibm-plex-sans-devanagari",
+      "stylesheets": ["400.css", "500.css", "600.css", "700.css"],
+      "subsets": ["devanagari"],
+      "weights": { "400": "400 450" },
+      "blocks": ["U+0900-097F", "U+1CD0-1CFF", "U+A8E0-A8FF"],
+      "output": "fonts-scripts.css",
+      "notice": "ibm-plex-sans-devanagari",
+      "scripts": { "Deva": "कार्य सूची" }
+    },
+    {
+      "family": "IBM Plex Sans Thai",
+      "package": "@fontsource/ibm-plex-sans-thai",
+      "stylesheets": ["400.css", "500.css", "600.css", "700.css"],
+      "subsets": ["thai"],
+      "weights": { "400": "400 450" },
+      "blocks": ["U+0E00-0E7F"],
+      "output": "fonts-scripts.css",
+      "notice": "ibm-plex-sans-thai",
+      "scripts": { "Thai": "งานของฉัน" }
+    },
+    {
+      "family": "IBM Plex Sans SC",
+      "package": "@ibm/plex-sans-sc",
+      "stylesheets": ["fonts/split/woff2/hinted/IBMPlexSansSC-Regular.css", "fonts/split/woff2/hinted/IBMPlexSansSC-SemiBold.css"],
+      "weights": { "400": "400 500", "600": "600 700" },
+      "blocks": ["U+3000-303F", "U+3300-33FF", "U+3400-4DBF", "U+4E00-9FFF", "U+FF00-FFEF"],
+      "output": "fonts-scripts.css",
+      "notice": "ibm-plex-sans-sc",
+      "scripts": { "Hans": "任务清单，今天。" }
+    },
+    {
+      "family": "Noto Sans Bengali",
+      "rename": "Noto Sans Bengali Variable",
+      "package": "@fontsource-variable/noto-sans-bengali",
+      "stylesheets": ["wght.css"],
+      "subsets": ["bengali"],
+      "blocks": ["U+0980-09FF"],
+      "output": "fonts-scripts.css",
+      "notice": "noto-sans-bengali",
+      "scripts": { "Beng": "কাজের তালিকা" }
+    }
+  ]
+}

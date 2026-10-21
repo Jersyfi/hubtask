@@ -11,6 +11,7 @@
     "./icons": "./src/icons/index.ts",
     "./tokens.css": "./dist/tokens.css",
     "./fonts.css": "./dist/fonts.css",
+    "./fonts-scripts.css": "./dist/fonts-scripts.css",
     "./fonts/*": "./dist/fonts/*",
     "./tokens.json": "./tokens/tokens.json"
   },

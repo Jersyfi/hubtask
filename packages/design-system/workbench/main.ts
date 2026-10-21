@@ -7,6 +7,7 @@ import { mount } from 'svelte';
 // `workbench` script runs first - a workbench rendering against stale tokens would be a
 // workbench that agrees with itself and with nothing else.
 import '../dist/fonts.css';
+import '../dist/fonts-scripts.css';
 import '../dist/tokens.css';
 import './chrome/chrome.css';
 
