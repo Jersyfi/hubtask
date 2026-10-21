@@ -18,7 +18,7 @@ When something cannot be done right now, the person finds out why at the place t
 
 ## Story
 
-In the template dialog, *Edit* is unavailable on a workspace template. Hovering or focusing it shows "Only this collection's templates are changed here"; the buttons beside it do not move.
+In a collection whose hub is archived, *Add an entry* is unavailable. Hovering or focusing it shows "The hub above this one is archived, so nothing here can be changed. Unarchive Old flat to work in it again."; the buttons beside it do not move.
 
 ## How to check
 

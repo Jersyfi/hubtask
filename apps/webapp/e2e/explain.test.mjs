@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn } from './fixture.mjs';
+import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -182,3 +182,93 @@ for (const width of WIDTHS) {
     assert.deepEqual(viewer.failures, []);
   });
 }
+
+/** A collection's template and a workspace-wide one, and one private saved view. */
+const TEMPLATES = [
+  { id: '01a0e2e0-0000-7000-8000-0000000007a1', scope_type: 'COLLECTION', scope_id: COLLECTION.id, name: 'Room checklist', root_type: 'TASK', nodes: [], created_at: '2026-09-01T08:00:00Z', version: 1 },
+  { id: '01a0e2e0-0000-7000-8000-0000000007a2', scope_type: 'TENANT', scope_id: null, name: 'Weekly review', root_type: 'TASK', nodes: [], created_at: '2026-09-01T08:00:00Z', version: 1 },
+];
+const VIEWS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000007b1', scope_type: 'ACCOUNT', scope_id: ACCOUNT.id, name: 'Mine, due soon', layout: 'LIST_COLLAPSED', query: {}, sharing: 'PRIVATE', version: 1 },
+];
+
+/** Opens one of the collection's set-up dialogs from its page menu. */
+async function openFromMenu(page, name) {
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await page.locator('[data-opener="container-menu"]').click();
+  await page.getByRole('menuitem', { name, exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.waitFor();
+  return dialog;
+}
+
+for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { use: true, shape: false }], ['VIEWER', { use: false, shape: false }]]) {
+  test(`chromium: 1280 px — templates and fields offer a ${role.toLowerCase()} only what the role allows, with no reason for the rest`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await as(browser, 1280, role);
+    await context.route('**/api/v1/templates**', (route) => route.fulfill({ json: { data: TEMPLATES, page: { next_cursor: null, has_more: false } } }));
+
+    const dialog = await openFromMenu(page, 'Templates');
+    await dialog.getByText('Room checklist').waitFor({ timeout: 10_000 });
+    // Let the role arrive: nothing that writes is drawn before it, so wait for the answer first.
+    await page.waitForTimeout(400);
+    const rows = dialog.locator('li');
+    assert.equal(await rows.nth(0).getByRole('button', { name: 'Use this template' }).count(), may.use ? 1 : 0);
+    assert.equal(await rows.nth(0).getByRole('button', { name: 'Edit' }).count(), may.shape ? 1 : 0);
+    // A workspace-wide template is changed where it was defined, which no screen here is.
+    assert.equal(await rows.nth(1).getByRole('button', { name: 'Edit' }).count(), 0);
+    assert.equal(await dialog.getByRole('button', { name: 'Define a template' }).count(), may.shape ? 1 : 0);
+    assert.equal(await dialog.locator('[aria-disabled="true"]').count(), 0, 'a control is drawn off with a reason');
+
+    if (may.shape) {
+      // Generate is never switched off for an empty description: pressed, the field says so.
+      const generate = dialog.getByRole('button', { name: /Generate from a description/ });
+      if ((await generate.count()) > 0) {
+        await generate.click();
+        await dialog.getByRole('button', { name: 'Generate', exact: true }).click();
+        await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+      }
+    }
+    await page.keyboard.press('Escape');
+
+    const fields = await openFromMenu(page, 'Custom fields').catch(() => undefined);
+    if (fields) {
+      assert.equal(await fields.getByLabel('Key', { exact: true }).count(), may.shape ? 1 : 0, 'the define form follows the role');
+      if (may.shape) {
+        // Pressed with no type ticked: the group says it, and nothing was said before.
+        for (const box of await fields.getByRole('checkbox').all()) if (await box.isChecked()) await box.uncheck();
+        assert.equal(await fields.getByText('Choose at least one type').count(), 0, 'the missing type is announced in advance');
+        await fields.getByLabel('Key', { exact: true }).fill('room');
+        await fields.getByRole('button', { name: 'Define a field' }).click();
+        await fields.getByText('Choose at least one type').waitFor();
+        await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+      }
+    }
+    assert.deepEqual(failures, []);
+  });
+}
+
+test('chromium: 1280 px — a saved view offers sharing only to who may share, and a way it cannot take says why in the list', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const [role, mayShare] of [['OWNER', true], ['MEMBER', false]]) {
+    const { page, context, failures } = await as(browser, 1280, role);
+    await context.route('**/api/v1/**/views**', (route) => route.fulfill({ json: VIEWS }));
+    await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+    await page.locator('[data-opener="views"]').click();
+    const dialog = page.getByRole('dialog');
+    await dialog.getByText('Mine, due soon').waitFor({ timeout: 10_000 });
+    await page.waitForTimeout(400);
+    await dialog.getByRole('button', { name: 'Edit' }).click();
+    assert.equal(await dialog.getByRole('button', { name: 'Save who sees it' }).count(), mayShare ? 1 : 0, `${role}: sharing offered against the role`);
+    assert.equal(await dialog.getByText('A public link is not offered').filter({ visible: true }).count(), 0, 'the refusal is a line under the field');
+    if (mayShare) {
+      const option = dialog.getByLabel('Who sees it').locator('option', { hasText: 'Anyone with a link' });
+      assert.match(await option.textContent(), /— A public link is not offered/);
+      assert.equal(await option.getAttribute('disabled'), '');
+    }
+    assert.deepEqual(failures, []);
+    await context.close();
+  }
+});
