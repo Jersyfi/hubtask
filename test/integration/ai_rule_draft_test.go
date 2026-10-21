@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	suggestionrepo "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -18,6 +19,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	suggestiondomain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // A rule drafted from a sentence (UC-AUT-10) against PostgreSQL: the row the schema now admits, read
@@ -149,4 +151,69 @@ func (c *creatingRules) Invoke(
 		return nil, err
 	}
 	return usecase.Output{"id": rule.ID.String(), "enabled": rule.Enabled}, nil
+}
+
+// An erasure takes what AI drafted for the person alone and the words a job still holds for them;
+// another person's draft stays.
+func TestAnErasureTakesThePersonsDraftsAndHeldWords(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	subject := freshID(t)
+	if _, err := adminPool(ctx, t).Exec(ctx, `
+		INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Erin')`,
+		subject.String(), tenantA.String()); err != nil {
+		t.Fatalf("seeding the person: %v", err)
+	}
+	store := postgres.NewSuggestionRepository(pageCursors())
+	draftFor := func(account shared.ID) suggestiondomain.Suggestion {
+		draft, err := suggestiondomain.New(suggestiondomain.NewInput{
+			ID: freshID(t), TenantID: tenantA,
+			TargetType: suggestiondomain.TargetAccount, TargetID: account, Kind: suggestiondomain.KindRule,
+			Payload: map[string]any{"scope": map[string]any{"type": "TENANT"}},
+			Provenance: suggestiondomain.Provenance{
+				Model: "a-model", PromptID: "draft-rule", PromptVersion: "v1", ProducedAt: created,
+			},
+			InputDigest: suggestiondomain.Digest(account.String(), ""), Now: created,
+		})
+		if err != nil {
+			t.Fatalf("building a draft: %v", err)
+		}
+		return draft
+	}
+	theirs, another := draftFor(subject), draftFor(authorA)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		for _, draft := range []suggestiondomain.Suggestion{theirs, another} {
+			if err := store.Record(ctx, draft); err != nil {
+				return err
+			}
+		}
+		return store.Put(ctx, suggestionrepo.Request{
+			ID: freshID(t), AskedBy: subject, Text: "When a task arrives, give it to Lisa", CreatedAt: created,
+		})
+	}); err != nil {
+		t.Fatalf("seeding the drafts: %v", err)
+	}
+
+	var removed int
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		removed, err = postgres.NewPrivacyRepository(pageCursors()).DiscardAiDrafts(ctx, subject)
+		return err
+	}); err != nil {
+		t.Fatalf("discarding: %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("%d rows removed, want the draft and the held words", removed)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		if _, err := store.Find(ctx, theirs.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("the person's draft is still there: %v", err)
+		}
+		if _, err := store.Find(ctx, another.ID); err != nil {
+			t.Errorf("somebody else's draft went too: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 }
