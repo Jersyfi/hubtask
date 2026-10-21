@@ -32,13 +32,18 @@
     onDismiss?: () => void;
     /** One thing to do about it - "Undo" is the reason this slot exists at all. */
     action?: Snippet;
+    /**
+     * Whether it announces itself. A frame that already says the same text through the
+     * application's one live region renders its toasts unannounced, so a reader hears it once.
+     */
+    isAnnounced?: boolean;
     children?: Snippet;
   }
 
-  const { tone = 'info', icon, dismissLabel, onDismiss, action, children }: Props = $props();
+  const { tone = 'info', icon, dismissLabel, onDismiss, action, isAnnounced = true, children }: Props = $props();
 </script>
 
-<div class="toast" data-tone={tone} role="status">
+<div class="toast" data-tone={tone} role={isAnnounced ? 'status' : undefined}>
   <span class="mark"><Icon name={icon ?? STATUS_ICON[tone]} size="sm" /></span>
   <p class="text">{@render children?.()}</p>
   {#if action}<div class="action">{@render action()}</div>{/if}
