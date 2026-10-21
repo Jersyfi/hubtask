@@ -173,7 +173,11 @@ func (h InstantiateTemplate) stamp(
 	if err != nil {
 		return InstantiationResult{}, err
 	}
-	hierarchy, err := service.NewHierarchy(rows, rows)
+	system, err := w.Profiles.ListSystem(ctx)
+	if err != nil {
+		return InstantiationResult{}, err
+	}
+	hierarchy, err := service.NewHierarchy(rows, system)
 	if err != nil {
 		return InstantiationResult{}, err
 	}
