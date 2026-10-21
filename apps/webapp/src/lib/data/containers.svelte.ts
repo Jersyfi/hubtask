@@ -19,7 +19,7 @@
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
-import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engine';
+import type { Container, ContainerPage, ResourceState, StructureChange } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -248,6 +248,18 @@ class Containers {
    * 773). A PUT: the whole document travels, and a key that is not sent falls back to its
    * default. `ifMatch` is the version the reader had when the form opened (ADR-0025).
    */
+  /**
+   * Changes a hub's or a collection's own structure (domain-model.md §2): the settings sent
+   * replace the layer's own value of each, whole. Online only - a structure is resolved by the
+   * server, and offline the engine refuses it with `sync.needs_connection`.
+   */
+  async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
+    return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
   async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
     return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
       ifMatch: etagFor(version),

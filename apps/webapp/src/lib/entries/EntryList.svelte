@@ -49,6 +49,7 @@
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
+  import CategoriesDialog from './CategoriesDialog.svelte';
   import LanguagePicker from './LanguagePicker.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
@@ -140,6 +141,14 @@
     structure?: EffectiveStructure;
     /** Goes to an address: what *Open* in a simple list's row menu does where no pane opens it. */
     onnavigate?: (path: string) => void;
+    /**
+     * Whether the reader may change the collection's shape (`STRUCTURE`): a simple list then
+     * offers to rename its *Done* section and to choose its categories where it is used. Absent
+     * for everybody else (P-05).
+     */
+    mayShape?: boolean;
+    /** The collection's version, which a change of its structure is made against. */
+    containerVersion?: number;
   }
 
   const {
@@ -156,6 +165,8 @@
     mayCreate,
     structure,
     onnavigate,
+    mayShape = false,
+    containerVersion,
   }: Props = $props();
 
   /**
@@ -172,6 +183,32 @@
   const categories = $derived(
     simpleLevel ? (structure?.settings?.fields?.[simpleLevel.type]?.categories ?? []) : [],
   );
+
+  /** Whether the shape controls are drawn: the right, an active collection, a version to write against. */
+  const shapes = $derived(isSimple && mayShape && !isReadOnly && containerVersion !== undefined);
+  let isChoosingCategories = $state(false);
+  let renamingDone = $state(false);
+  let draftDoneName = $state('');
+
+  /**
+   * Names the *Done* section (UC-WRK-25 check 3): the `levels` setting is written whole, the unit
+   * a structure stores, with this level's done name changed and every other part as it is.
+   */
+  async function saveDoneName() {
+    if (!structure?.settings?.levels || !simpleLevel || containerVersion === undefined) return;
+    writeFailure = undefined;
+    try {
+      const name = draftDoneName.trim();
+      const levels = structure.settings.levels.map((level) =>
+        level.type === simpleLevel?.type ? { ...level, done_name: name === '' ? null : name } : level,
+      );
+      await containers.setStructure(collectionId, { settings: { levels } }, containerVersion);
+      announcer.say(t('app.entries.done_name_saved_announced'));
+      renamingDone = false;
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
 
   /** The clock the sections are drawn at, moved on when the oldest entry under *Done* leaves it. */
   let now = $state(Date.now());
@@ -1408,6 +1445,13 @@
         <!-- A simple list's capture line is at its top, where the next thing to add is typed. -->
         {@render addForm()}
       {/if}
+      {#if shapes && simpleLevel && supports(simpleLevel.type, 'LABELS').status === 'permitted'}
+        <div>
+          <Button size="sm" tone="subtle" icon="tag" onclick={() => (isChoosingCategories = true)}>
+            {t('app.entries.categories')}
+          </Button>
+        </div>
+      {/if}
       <div class="level" bind:this={level} data-simple={isSimple ? '' : undefined}>
         {#if moment && moment.tier === 3}
           <!-- The rare one takes the level: a slot no taller than the token, at its foot. -->
@@ -1427,7 +1471,28 @@
             {/each}
           {/each}
           {#if sections.done.length > 0}
-            <h2 class="section-head" data-section="done">{doneName ?? t('app.entries.done_section')}</h2>
+            {#if renamingDone}
+              <Inline gap="100">
+                <Input label={t('app.entries.done_name_label')} bind:value={draftDoneName} maxlength={60} />
+                <Button size="sm" onclick={saveDoneName}>{t('app.entries.save')}</Button>
+                <Button size="sm" tone="secondary" onclick={() => (renamingDone = false)}>{t('app.entries.cancel')}</Button>
+              </Inline>
+            {:else}
+              <div class="section-row">
+                <h2 class="section-head" data-section="done">{doneName ?? t('app.entries.done_section')}</h2>
+                {#if shapes}
+                  <IconButton
+                    icon="pencil"
+                    size="sm"
+                    label={t('app.entries.rename_done')}
+                    onclick={() => {
+                      draftDoneName = doneName ?? '';
+                      renamingDone = true;
+                    }}
+                  />
+                {/if}
+              </div>
+            {/if}
             {#each sections.done as entry (entry.id)}
               {@const row = rowById.get(entry.id)}
               {#if row}{@render entryRow(row)}{/if}
@@ -1765,6 +1830,16 @@
   </Stack>
 {/snippet}
 
+{#if isChoosingCategories && structure && simpleLevel && containerVersion !== undefined}
+  <CategoriesDialog
+    {collectionId}
+    version={containerVersion}
+    {structure}
+    itemType={simpleLevel.type}
+    onclose={() => (isChoosingCategories = false)}
+  />
+{/if}
+
 {#if amending}
   <Dialog
     isOpen={true}
@@ -1831,6 +1906,8 @@
 
   /* A simple list's row ticks under a tap and a sideways swipe; scrolling stays the browser's. */
   .level[data-simple] .row { touch-action: pan-y; cursor: pointer; }
+
+  .section-row { display: flex; align-items: center; gap: var(--sp-050); }
 
   .section-head {
     margin: var(--sp-150) 0 0;

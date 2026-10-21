@@ -946,6 +946,8 @@
               mayCreate={mayCreateHere}
               structure={container.structure ?? undefined}
               {onnavigate}
+              {mayShape}
+              containerVersion={container.version}
             />
           {/if}
         </div>
