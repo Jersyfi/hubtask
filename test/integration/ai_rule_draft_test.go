@@ -68,13 +68,25 @@ func TestARuleDraftIsItsAskersAloneAndIsSavedSwitchedOff(t *testing.T) {
 
 	// Another workspace's owner naming the draft: row level security answers nothing, so the
 	// draft is unknown there - not found, as for an entry they cannot see.
-	if _, err := adminPool(ctx, t).Exec(ctx, `
-		INSERT INTO membership (id, tenant_id, account_id, scope_type, role)
-		VALUES ($1, $2, $3, 'TENANT', 'OWNER') ON CONFLICT DO NOTHING`,
-		freshID(t).String(), tenantB.String(), authorB.String()); err != nil {
-		t.Fatalf("seeding the other workspace's owner: %v", err)
+	// A workspace and an owner of their own: the package's tests share one database, and a role
+	// given in a shared fixture workspace is one the other tests count.
+	other, owner := freshID(t), freshID(t)
+	for _, statement := range []struct {
+		sql  string
+		args []any
+	}{
+		{`INSERT INTO tenant (id, slug, display_name) VALUES ($1, $2, 'Elsewhere')`,
+			[]any{other.String(), "drafts-" + other.String()[24:]}},
+		{`INSERT INTO account (id, tenant_id, display_name) VALUES ($1, $2, 'Bo')`,
+			[]any{owner.String(), other.String()}},
+		{`INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES ($1, $2, $3, 'TENANT', 'OWNER')`,
+			[]any{freshID(t).String(), other.String(), owner.String()}},
+	} {
+		if _, err := adminPool(ctx, t).Exec(ctx, statement.sql, statement.args...); err != nil {
+			t.Fatalf("seeding the other workspace's owner: %v", err)
+		}
 	}
-	stranger := drafting(tenantB, authorB)
+	stranger := drafting(other, owner)
 	if _, err := (suggestion.AcceptSuggestion{Cases: cases}).Execute(ctx, stranger, draft.ID,
 		map[string]any{"name": "x", "run_as": runAs.String()}); !errors.Is(err, shared.ErrNotFound) {
 		t.Errorf("another workspace's account was answered %v", err)
