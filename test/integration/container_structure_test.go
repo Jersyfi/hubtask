@@ -312,7 +312,7 @@ func forgetWorkspaceStructure(ctx context.Context, t *testing.T, tenant shared.I
 }
 
 // The lock writer and its refusal on every door (UC-WRK-23 checks 7 and 8): an administrator
-// locks dates on; a collection switching them off is refused through REST as through the catalogue;
+// locks the views; a collection changing them is refused through REST as through the catalogue;
 // the workspace's answer names the lock and who set it; another workspace sees none of it.
 func TestAWorkspaceLockRefusesACollectionOnEveryDoor(t *testing.T) {
 	ctx := context.Background()
@@ -325,13 +325,13 @@ func TestAWorkspaceLockRefusesACollectionOnEveryDoor(t *testing.T) {
 	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
 
 	if _, err := registry.Invoke(ctx, "SetWorkspaceStructure", actor, usecase.Input{
-		"locks": []any{"fields.TASK.DUE_DATE"}, "default_preset": "TASKS",
+		"locks": []any{"views"}, "default_preset": "TASKS",
 	}); err != nil {
 		t.Fatalf("locking: %v", err)
 	}
 
 	recorder := restStructure(ctx, t, registry, actor, hub,
-		`{"settings":{"fields":{"TASK":{"capabilities":["COMPLETION"]}}}}`)
+		`{"settings":{"views":{"offered":["KANBAN"],"default":"KANBAN"}}}`)
 	var problem map[string]any
 	_ = json.Unmarshal(recorder.Body.Bytes(), &problem)
 	params, _ := problem["params"].(map[string]any)
@@ -352,7 +352,7 @@ func TestAWorkspaceLockRefusesACollectionOnEveryDoor(t *testing.T) {
 		t.Fatalf("reading the workspace's structure: %v", err)
 	}
 	locks, _ := ours["locks"].(map[string]any)
-	dates, _ := locks["fields.TASK.DUE_DATE"].(map[string]any)
+	dates, _ := locks["views"].(map[string]any)
 	if dates["locked_by"] != authorA.String() || ours["default_preset"] != "TASKS" {
 		t.Errorf("the workspace answers %v", ours)
 	}
