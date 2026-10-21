@@ -68,3 +68,25 @@ func TestNoLookalikeIsAnEmptyList(t *testing.T) {
 		t.Errorf("status = %d, body = %s", recorder.Code, recorder.Body)
 	}
 }
+
+// The budget's state in the contract's words: the state, and the moment or null.
+func TestTheBudgetStateIsAWordAndAMoment(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"state": "NEARLY_SPENT", "renews_at": "2030-03-31T00:00:00Z"}}
+	recorder := containerRequest(t, registry, http.MethodGet, "/ai-budget-state", "", "")
+	if recorder.Code != http.StatusOK || registry.name != "ReadAiBudgetState" {
+		t.Fatalf("status = %d, use case %q, body = %s", recorder.Code, registry.name, recorder.Body)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &body); err != nil {
+		t.Fatalf("body: %v", err)
+	}
+	if body["state"] != "NEARLY_SPENT" || body["renews_at"] != "2030-03-31T00:00:00Z" {
+		t.Errorf("body = %v", body)
+	}
+
+	off := &catalogue{out: usecase.Output{"state": "OFF", "renews_at": nil}}
+	recorder = containerRequest(t, off, http.MethodGet, "/ai-budget-state", "", "")
+	if !strings.Contains(recorder.Body.String(), `"renews_at":null`) {
+		t.Errorf("OFF answered %s", recorder.Body)
+	}
+}

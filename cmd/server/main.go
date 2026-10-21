@@ -1781,6 +1781,11 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
+		// What a person reads before asking AI: the chosen source's day, never a number.
+		integrationservice.ReadAiBudgetState{
+			Choices: postgres.NewAiChoiceRepository(), Budget: quotaGuard,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),

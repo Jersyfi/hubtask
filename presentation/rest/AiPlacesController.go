@@ -44,3 +44,21 @@ func (c *RestController) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Re
 	w.Header().Set("Cache-Control", "no-store")
 	writeJSON(w, r, http.StatusOK, map[string]any{"items": items})
 }
+
+const readAiBudgetStateUseCase = "ReadAiBudgetState"
+
+// ReadAiBudgetState answers GET /ai-budget-state: how today's AI budget stands, for whoever is
+// about to ask (UC-AI-04 check 9).
+func (c *RestController) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), readAiBudgetStateUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, map[string]any{"state": out["state"], "renews_at": out["renews_at"]})
+}
