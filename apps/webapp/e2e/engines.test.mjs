@@ -187,6 +187,16 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     });
     assert.equal(reachedBehind, false, `${name}: a control behind the modal took focus`);
 
+    // Where the Tabs ended on a control that cannot be used yet, its reason is showing, and the
+    // first `Escape` is that bubble's (WCAG 1.4.13; design-system.md §4): one more closes the dialog.
+    const reasonShowing = () => page.evaluate(() =>
+      (document.activeElement?.getAttribute('aria-describedby') ?? '').split(' ')
+        .map((id) => document.getElementById(id))
+        .some((node) => node?.getAttribute('role') === 'tooltip' && !node.hidden));
+    if (await reasonShowing()) {
+      await page.keyboard.press('Escape');
+      assert.equal(await reasonShowing(), false, `${name}: Escape left the reason showing`);
+    }
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
     // Back on the trigger - polled, because an engine hands focus back a task after `close()`.

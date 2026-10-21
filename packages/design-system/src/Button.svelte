@@ -10,6 +10,7 @@
   import type { Snippet } from 'svelte';
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
+  import Reason from './_Reason.svelte';
   import Icon from './Icon.svelte';
   import Spinner from './Spinner.svelte';
   import VisuallyHidden from './VisuallyHidden.svelte';
@@ -61,13 +62,18 @@
     ...rest
   }: Props = $props();
 
-  // A busy button is not disabled - it is working, and a disabled control loses its focus. It is
-  // inert instead, which keeps the ring and the accessible name where they were.
+  // A busy button is not unavailable - it is working, and keeps its focus and its name.
+  //
+  // An unavailable one is `aria-disabled`, never the native attribute: the native attribute takes
+  // the button out of the tab order, and a keyboard reader would never reach the reason. What the
+  // attribute used to stop - the click, `Enter`, a form submitting through it - the guard in
+  // `_Reason.svelte` stops instead, before any handler of the caller's (reason.ts).
   const unavailable = $derived(disabledReason !== undefined);
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
   const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  let button = $state<HTMLButtonElement | null>(null);
 </script>
 
 <button
@@ -77,12 +83,18 @@
   data-full={isFull ? '' : undefined}
   data-tone={tone}
   data-size={size}
-  disabled={unavailable}
+  data-busy={isBusy && !icon ? '' : undefined}
+  aria-disabled={unavailable ? 'true' : undefined}
   aria-busy={isBusy ? 'true' : undefined}
   aria-describedby={reasonId}
+  bind:this={button}
   {...rest}
 >
-  {#if isBusy}
+  {#if isBusy && !icon}
+    <!-- Over the label rather than beside it: a button without an icon has no slot for the
+         spinner, and adding one would widen it (voice-and-tone.md §2.4 keeps its width). -->
+    <span class="busy"><Spinner size="sm" /></span>
+  {:else if isBusy}
     <Spinner size="sm" />
   {:else if icon}
     <Icon name={icon} size="sm" />
@@ -95,8 +107,8 @@
     <VisuallyHidden>{busyLabel}</VisuallyHidden>
   {/if}
 </button>
-{#if unavailable}
-  <span id={reasonId} class="reason">{disabledReason}</span>
+{#if unavailable && reasonId}
+  <Reason id={reasonId} text={disabledReason ?? ''} control={button} />
 {/if}
 
 <style>
@@ -155,23 +167,23 @@
     background: var(--accent-primary);
     color: var(--text-inverse);
   }
-  .button[data-tone='primary']:hover:not(:disabled) { background: var(--accent-primary-hover); }
-  .button[data-tone='primary']:active:not(:disabled) { background: var(--accent-primary-pressed); }
+  .button[data-tone='primary']:hover:not([aria-disabled='true']) { background: var(--accent-primary-hover); }
+  .button[data-tone='primary']:active:not([aria-disabled='true']) { background: var(--accent-primary-pressed); }
 
   .button[data-tone='secondary'] {
     background: var(--bg-surface);
     border-color: var(--border-default);
     color: var(--text-primary);
   }
-  .button[data-tone='secondary']:hover:not(:disabled) { background: var(--bg-surface-hover); }
-  .button[data-tone='secondary']:active:not(:disabled) { background: var(--bg-surface-pressed); }
+  .button[data-tone='secondary']:hover:not([aria-disabled='true']) { background: var(--bg-surface-hover); }
+  .button[data-tone='secondary']:active:not([aria-disabled='true']) { background: var(--bg-surface-pressed); }
 
   .button[data-tone='subtle'] {
     background: transparent;
     color: var(--text-secondary);
   }
-  .button[data-tone='subtle']:hover:not(:disabled) { background: var(--bg-surface-hover); color: var(--text-primary); }
-  .button[data-tone='subtle']:active:not(:disabled) { background: var(--bg-surface-pressed); }
+  .button[data-tone='subtle']:hover:not([aria-disabled='true']) { background: var(--bg-surface-hover); color: var(--text-primary); }
+  .button[data-tone='subtle']:active:not([aria-disabled='true']) { background: var(--bg-surface-pressed); }
 
   /* Rule 3: colour never stands alone. A danger button is red *and* says what it destroys - the
      label is the caller's, and voice-and-tone.md §2.6 is where that rule lives. */
@@ -180,12 +192,12 @@
     border-color: var(--border-default);
     color: var(--text-danger);
   }
-  .button[data-tone='danger']:hover:not(:disabled) { background: var(--bg-surface-hover); }
-  .button[data-tone='danger']:active:not(:disabled) { background: var(--bg-surface-pressed); }
+  .button[data-tone='danger']:hover:not([aria-disabled='true']) { background: var(--bg-surface-hover); }
+  .button[data-tone='danger']:active:not([aria-disabled='true']) { background: var(--bg-surface-pressed); }
 
-  .button:active:not(:disabled) { transform: scale(0.98); }
+  .button:active:not([aria-disabled='true']) { transform: scale(0.98); }
 
-  .button:disabled {
+  .button[aria-disabled='true'] {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     color: var(--text-subtle);
@@ -194,19 +206,23 @@
 
   .label:empty { display: none; }
 
-  .reason {
-    display: block;
-    max-width: 40ch;
-    margin-top: var(--sp-050);
-    color: var(--text-subtle);
-    font-size: var(--fs-075);
+  /* The spinner laid over a label that keeps its place, unseen: the width stays the label's. Not
+     `visibility: hidden`, which would take the label out of the button's accessible name too. */
+  .button[data-busy] { position: relative; }
+  .button[data-busy] .label { opacity: 0; }
+  .busy {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   }
 
   @media (prefers-reduced-motion: reduce) {
     .button { transition-duration: var(--dur-instant); }
-    .button:active:not(:disabled) { transform: none; }
+    .button:active:not([aria-disabled='true']) { transform: none; }
   }
 
   :global([data-motion='reduced']) .button { transition-duration: var(--dur-instant); }
-  :global([data-motion='reduced']) .button:active:not(:disabled) { transform: none; }
+  :global([data-motion='reduced']) .button:active:not([aria-disabled='true']) { transform: none; }
 </style>

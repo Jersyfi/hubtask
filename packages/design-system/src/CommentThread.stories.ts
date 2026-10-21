@@ -37,3 +37,10 @@ export const paged: Story = {
     '`LoadMore` rather than an infinite scroll: a list that loads on scroll has no end for a keyboard or a screen reader to reach. What arrived is announced in a polite live region, because pressing a button and being told nothing is the case where a sighted reader sees new rows and a screen-reader user hears silence.',
   args: { mode: 'paged' },
 };
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about:
+    'A comment whose edit and remove are off, beside the same comment with both on: the reasons are bubbles at the buttons, so the two rows are the same height.',
+  args: { mode: 'table' },
+};
