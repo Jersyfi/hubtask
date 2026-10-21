@@ -370,3 +370,31 @@ func TestAWorkspaceLockRefusesACollectionOnEveryDoor(t *testing.T) {
 		t.Errorf("tenant B reads tenant A's structure: %v", theirs)
 	}
 }
+
+// Tasks offers a step under a task where the installation's task holds one (migration 0185): the
+// preset is held to the installation's topology, read from the seeded profiles.
+func TestTasksOffersAStepUnderATaskInThisInstallation(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	out, err := structureCatalogue(t).Invoke(ctx, "ListPresets", structureActor(tenantB, authorB), usecase.Input{})
+	if err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	rows, _ := out["data"].([]usecase.Output)
+	for _, row := range rows {
+		if row["key"] != "TASKS" {
+			continue
+		}
+		settings, _ := row["settings"].(map[string]any)
+		levels, _ := settings["levels"].([]any)
+		var types []any
+		for _, level := range levels {
+			types = append(types, level.(map[string]any)["type"])
+		}
+		if len(types) != 2 || types[0] != "TASK" || types[1] != "ACTIVITY" {
+			t.Errorf("Tasks offers %v", types)
+		}
+		return
+	}
+	t.Fatal("no Tasks preset")
+}
