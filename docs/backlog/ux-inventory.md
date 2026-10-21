@@ -57,7 +57,7 @@ End-user:
 - [ ] 13 `views/NotificationsView.svelte` always-on cells → one note for the row
 - [ ] 14 `lib/entries/ReminderPanel.svelte`, `CustomFieldsDialog.svelte`, `ImportDialog.svelte` → 3
 - [ ] 15 panels gated by `CapabilityGate` (labels, cover, attachments, comments, recurrence, custom field) → 1 or 5
-- [ ] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback
+- [x] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback — UX-03: the refused part is absent (`lib/people/parts.ts`), so the gate never renders refused there, and the fallback is gone from `CapabilityGate`
 - [ ] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1
 
 Administration:
@@ -84,14 +84,14 @@ Installation:
 
 ### D.3 In the design system
 
-- [ ] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
-- [ ] `Tabs`, `ViewSwitcher`: reason at the tab; the arrows reach an unavailable one; unique ids (`ViewSwitcher`; `Tabs` has them)
-- [ ] `Select`: an option's reason shown (today never rendered)
-- [ ] `Checkbox`, `Switch` without label: tooltip
-- [ ] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
-- [ ] `CapabilityGate`: reason first, inline stays inline, no English fallback
-- [ ] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
-- [ ] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
+- [x] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
+- [x] `Tabs`, `ViewSwitcher`: reason at the tab; the arrows reach an unavailable one; unique ids (`ViewSwitcher`; `Tabs` has them)
+- [x] `Select`: an option's reason shown (today never rendered)
+- [x] `Checkbox`, `Switch` without label: tooltip
+- [x] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
+- [x] `CapabilityGate`: reason first, inline stays inline, no English fallback
+- [x] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
+- [x] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
 
 ## E1 — Frame
 

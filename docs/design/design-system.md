@@ -219,6 +219,34 @@ Two rules apply to every component after this wave. **There is no `disabled` boo
 `disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
 is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
+**A control that cannot be used now** explains itself without moving the page (UC-WRK-32). It is
+`aria-disabled`, never natively disabled, so a keyboard reaches it; a guard in `reason.ts` refuses
+what the native attribute used to - a click, `Enter`, `Space`, a form's implicit submission, an
+edit - in the capture phase, before any handler of the caller's or of a row around it, and lets a
+press start a drag as before. Its reason is a bubble at the control (`_Reason.svelte`), out of the
+flow at every moment and always its `aria-describedby`: it shows on hover of the control or of the
+bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
+and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
+from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
+option and in `Radio`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
+no reason moves a box. The eight cases, and the pattern each takes:
+
+1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
+   lock and the reason as in 2 (`CapabilityGate` with `isInline`).
+2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
+   hover, focus and tap; no space in the layout.
+3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
+   missing fields and moves focus to the first.
+4. *Nothing changed* — no unavailable save: `SaveBar` appears with the first change, "2 changes ·
+   Discard · Save".
+5. *A whole area is read-only* — one `ReadOnlyNotice` at the top of the area; the content stays
+   readable, its controls absent, its rows silent.
+6. *Set above (a lock, a default)* — `SourceChip` beside the name: value, source, whom to ask.
+7. *Working* — progress inside the control (`isBusy` on `Button`, `IconButton`, `Checkbox`,
+   `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
+8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
+   notice instead of the form, never a gated form.
+
 ### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
@@ -402,8 +430,9 @@ has it, an anchored overlay is raised into the **top layer**, so no transformed,
 `contain` ancestor clips it; the scale still decides for everything in the flow.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
-dialog and no key closes it; a popover opened from inside a dialog closes first, whatever the
-opening order. `src/layers.ts` holds that second order as one register for every component.
+dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
+and leaves every other one to the dialog; a popover opened from inside a dialog closes first,
+whatever the opening order. `src/layers.ts` holds that second order as one register for every component.
 
 **The five widths.** `primitive.breakpoint` carries five steps, each described in `tokens.json`:
 

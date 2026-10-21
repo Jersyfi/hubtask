@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-11, P-13]
 state: specified
 tasks: [UX-03, UX-04, UX-05]
-checked_by: []
+checked_by: [apps/webapp/e2e/workbench-layout.test.mjs]
 ---
 
 # Understand why I cannot do something
@@ -36,10 +36,10 @@ In the template dialog, *Edit* is unavailable on a workspace template. Hovering 
 
 ## Today
 
-* Check 1: not met — not built yet, tracked in milestone UX.
+* Check 1: met by the design system's components — every control with a reason stays focusable and shows it as a bubble on hover, focus and tap without moving a box, measured in three engines (`apps/webapp/e2e/workbench-layout.test.mjs`); the screens use them through UX-04 and UX-05 (check 7).
 * Check 2: not met — not built yet, tracked in milestone UX.
 * Check 3: not met — not built yet, tracked in milestone UX.
 * Check 4: not met — not built yet, tracked in milestone UX.
 * Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: not met — not built yet, tracked in milestone UX.
+* Check 6: met by the design system's components — `Button`, `IconButton`, `Checkbox` and `Switch` show progress in place without changing size (`apps/webapp/e2e/workbench-layout.test.mjs`), and the workbench's *Saving a setting* confirms with a `Toast` and *Undo*; the screens' "Saving…" lines move in UX-05 (check 7).
 * Check 7: not met — not built yet, tracked in milestone UX.
