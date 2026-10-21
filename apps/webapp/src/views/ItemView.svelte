@@ -45,7 +45,7 @@
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
-  import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
+  import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, ResourceState, Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -618,7 +618,13 @@
 
   // What stands about this entry, read once - the view is keyed on the id. A reader reads it too:
   // a summary of the discussion is a reading aid (check 8).
-  const listing = resource<SuggestionPage>(untrack(() => suggestionsPath(id)));
+  // Read only where the manifest announces AI: an installation without it reads nothing of it.
+  let listingState = $state<ResourceState<SuggestionPage>>({ status: 'idle' });
+  $effect(() => {
+    if (!hasAi) return;
+    return untrack(() => engine.subscribe<SuggestionPage>({ path: suggestionsPath(id) }, (next) => (listingState = next)));
+  });
+  const listing = { get state() { return listingState; } };
   /** Proposals a reader closed on this page: hidden here, unchanged for everybody else. */
   let closed = $state<ReadonlySet<string>>(new Set());
   const standing = $derived(
