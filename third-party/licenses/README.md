@@ -15,6 +15,8 @@ parties, so those materials have to travel with it.
 
 `_bundled/` is the exception to "generated": the typeface and the icon set reach the binary through
 the web bundle rather than through the module graph, so `go-licenses` cannot see them. Their texts
-are copied from the pnpm packages the lockfile pins — `@fontsource-variable/ibm-plex-sans` and
-`lucide-static` — and are checked in rather than regenerated, so that `make licenses` keeps working
+are copied from the pnpm packages the lockfile pins — `@fontsource-variable/ibm-plex-sans`, one
+per script face (`@fontsource/ibm-plex-sans-{arabic,hebrew,devanagari,thai}`, `@ibm/plex-sans-sc`,
+`@fontsource-variable/noto-sans-bengali`, each with its own copyright line) and `lucide-static` —
+and are checked in rather than regenerated, so that `make licenses` keeps working
 in a checkout where Node.js was never installed (`project-structure.md` §2.1).
