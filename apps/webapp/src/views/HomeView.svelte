@@ -20,7 +20,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack, TaskRow, type PageAction } from '@hubtask/design-system/components';
+  import { actionsOfHead } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
 
   import DueMark from '../lib/entries/DueMark.svelte';
 
@@ -88,15 +90,21 @@
   );
 
   const isLoading = $derived(overview.state.status === 'loading' || overview.state.status === 'idle');
+
+  /** The head's one action, handed to the head and to the palette alike (UC-WRK-27 check 2). */
+  const headPrimary = $derived<PageAction | undefined>(
+    actor.hasNoAccess || !createLabel
+      ? undefined
+      : { label: createLabel, icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' },
+  );
+  $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
 <Stack gap="300">
   <PageHeader
     title={t('app.nav.overview')}
     isTitleInBar={viewport.isCompact}
-    primary={actor.hasNoAccess || !createLabel
-      ? undefined
-      : { label: createLabel, icon: 'plus', onclick: () => (isCreatingHub = true), opener: 'add-hub' }}
+    primary={headPrimary}
   />
 
   {#if actor.hasNoAccess}

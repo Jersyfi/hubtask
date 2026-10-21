@@ -98,11 +98,11 @@ Installation:
 - [ ] Skip link → kept
 - [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
 - [ ] Wordmark → the mark (UX-06), leads to Today
-- [ ] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask*
+- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask*: UX-22
 - [ ] Page *⋯* on phones → kept
 - [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
-- [ ] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new)
+- [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
 - [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
