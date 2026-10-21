@@ -427,7 +427,7 @@ otherwise.
 | `item.due_soon` / `item.overdue` | `dueAt`, `thresholdSpec` | Reminders, automation |
 | `item.archived` / `.unarchived` / `.trashed` / `.restored` / `.purged` | Lifecycle | Cleanup, media reconciliation |
 | `bucket.created` / `.updated` / `.reordered` / `.deleted` | A bucket snapshot; `.updated` and `.reordered` add a `changeSet`, `.deleted` says where its items went | Kanban clients, automation, search |
-| `label.created` / `.updated` / `.deleted` | A label snapshot; `.updated` adds a `changeSet` | Automation, search |
+| `label.created` / `.updated` / `.deleted` / `.restored` | A label snapshot; `.updated` adds a `changeSet` | Automation, search |
 | `comment.created` / `.updated` / `.deleted` | The comment | Notification, automation |
 | `attachment.added` / `.removed` | A media reference | Media reconciliation |
 | `recurrence.occurrence_created` | `sourceItemId`, `newItemId`, `occurrenceAt` | History |

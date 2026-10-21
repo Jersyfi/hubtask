@@ -315,7 +315,8 @@ func TestADeletionSeedsOneCheckForItsTenant(t *testing.T) {
 	jobs := &queued{}
 	subscriber := CheckOnDeletion{Jobs: jobs}
 
-	if !subscriber.Wants(event.LabelDeleted) || !subscriber.Wants(event.BucketDeleted) ||
+	if !subscriber.Wants(event.LabelDeleted) || !subscriber.Wants(event.LabelRestored) ||
+		!subscriber.Wants(event.BucketDeleted) ||
 		!subscriber.Wants(event.ContainerDeleted) {
 		t.Error("a deletion of something a rule may name is not wanted")
 	}

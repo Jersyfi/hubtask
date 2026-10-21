@@ -2274,6 +2274,7 @@ class Label(TypedDict, total=False):
     color_token: Required[str]
     description: Required[str | None]
     version: Required[int]
+    deleted_at: str | None
 
 class LabelCreate(TypedDict, total=False):
     name: Required[str]

@@ -8285,6 +8285,9 @@ type Label struct {
 	// ColorToken A theme token rather than a colour value, so clients render it in their own palette. Required: a label is rendered as a chip and nothing else.
 	ColorToken string `json:"color_token"`
 
+	// DeletedAt When the label was taken out of the vocabulary. Present only in a list read with `include_deleted`; a label in the vocabulary carries null or omits it.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Description Always present, as null when unset.
 	Description *string            `json:"description"`
 	Id          openapi_types.UUID `json:"id"`
@@ -12583,6 +12586,12 @@ type ReorderBucketParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListLabelsParams defines parameters for ListLabels.
+type ListLabelsParams struct {
+	// IncludeDeleted Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client can offer to bring one back. Without it a deleted label is not in the list.
+	IncludeDeleted *bool `form:"include_deleted,omitempty" json:"include_deleted,omitempty"`
+}
+
 // DeleteLabelParams defines parameters for DeleteLabel.
 type DeleteLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -12593,6 +12602,12 @@ type DeleteLabelParams struct {
 type UpdateLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// RestoreLabelParams defines parameters for RestoreLabel.
+type RestoreLabelParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateContainerPoliciesParams defines parameters for UpdateContainerPolicies.
@@ -16494,7 +16509,7 @@ type ClientInterface interface {
 	ReorderBucket(ctx context.Context, containerId ContainerId, bucketId BucketId, params *ReorderBucketParams, body ReorderBucketJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListLabels performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
-	ListLabels(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error)
+	ListLabels(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CreateLabelWithBody performs a POST /containers/{containerId}/labels (the `CreateLabel` operationId) request,
 	// with any type of body and a specified content type.
@@ -16524,6 +16539,11 @@ type ClientInterface interface {
 	//
 	// Changes a label's own fields. A field that is not sent is left alone; sending description as null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing else. The name stays unique in the collection.
 	UpdateLabelWithApplicationMergePatchPlusJSONBody(ctx context.Context, containerId ContainerId, labelId LabelId, params *UpdateLabelParams, body UpdateLabelApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RestoreLabel performs a POST /containers/{containerId}/labels/{labelId}:restore (the `RestoreLabel` operationId) request.
+	//
+	// Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
+	RestoreLabel(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// UpdateContainerPoliciesWithBody performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
 	// with any type of body and a specified content type.
@@ -23912,8 +23932,8 @@ func (c *Client) ReorderBucket(ctx context.Context, containerId ContainerId, buc
 }
 
 // ListLabels performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
-func (c *Client) ListLabels(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*http.Response, error) {
-	req, err := NewListLabelsRequest(c.Server, containerId)
+func (c *Client) ListLabels(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListLabelsRequest(c.Server, containerId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -23993,6 +24013,21 @@ func (c *Client) UpdateLabelWithBody(ctx context.Context, containerId ContainerI
 // Changes a label's own fields. A field that is not sent is left alone; sending description as null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing else. The name stays unique in the collection.
 func (c *Client) UpdateLabelWithApplicationMergePatchPlusJSONBody(ctx context.Context, containerId ContainerId, labelId LabelId, params *UpdateLabelParams, body UpdateLabelApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateLabelRequestWithApplicationMergePatchPlusJSONBody(c.Server, containerId, labelId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RestoreLabel performs a POST /containers/{containerId}/labels/{labelId}:restore (the `RestoreLabel` operationId) request.
+//
+// Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
+func (c *Client) RestoreLabel(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRestoreLabelRequest(c.Server, containerId, labelId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -36375,7 +36410,7 @@ func NewReorderBucketRequestWithBody(server string, containerId ContainerId, buc
 }
 
 // NewListLabelsRequest constructs an http.Request for the ListLabels method
-func NewListLabelsRequest(server string, containerId ContainerId) (*http.Request, error) {
+func NewListLabelsRequest(server string, containerId ContainerId, params *ListLabelsParams) (*http.Request, error) {
 	var err error
 
 	var pathParam0 string
@@ -36398,6 +36433,33 @@ func NewListLabelsRequest(server string, containerId ContainerId) (*http.Request
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.IncludeDeleted != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "include_deleted", *params.IncludeDeleted, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
@@ -36573,6 +36635,62 @@ func NewUpdateLabelRequestWithBody(server string, containerId ContainerId, label
 			}
 
 			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRestoreLabelRequest constructs an http.Request for the RestoreLabel method
+func NewRestoreLabelRequest(server string, containerId ContainerId, labelId LabelId, params *RestoreLabelParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	var pathParam1 string
+
+	pathParam1, err = runtime.StyleParamWithOptions("simple", false, "labelId", labelId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/labels/%s:restore", pathParam0, pathParam1)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
 	}
@@ -48469,7 +48587,7 @@ type ClientWithResponsesInterface interface {
 	// ListLabelsWithResponse performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 	//
 	// Returns a wrapper object for the known response body format(s).
-	ListLabelsWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*ListLabelsResult, error)
+	ListLabelsWithResponse(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*ListLabelsResult, error)
 
 	// CreateLabelWithBodyWithResponse performs a POST /containers/{containerId}/labels (the `CreateLabel` operationId) request,
 	// with any type of body and a specified content type.
@@ -48505,6 +48623,13 @@ type ClientWithResponsesInterface interface {
 	//
 	// Changes a label's own fields. A field that is not sent is left alone; sending description as null clears it. The colour cannot be cleared - a label is rendered as a chip and nothing else. The name stays unique in the collection.
 	UpdateLabelWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, containerId ContainerId, labelId LabelId, params *UpdateLabelParams, body UpdateLabelApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateLabelResult, error)
+
+	// RestoreLabelWithResponse performs a POST /containers/{containerId}/labels/{labelId}:restore (the `RestoreLabel` operationId) request.
+	//
+	// Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	RestoreLabelWithResponse(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*RestoreLabelResult, error)
 
 	// UpdateContainerPoliciesWithBodyWithResponse performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
 	// with any type of body and a specified content type.
@@ -59398,6 +59523,61 @@ func (r UpdateLabelResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateLabelResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// RestoreLabelResult200Headers the declared response headers of an HTTP 200 response for RestoreLabel
+type RestoreLabelResult200Headers struct {
+	ETag *string
+}
+
+type RestoreLabelResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Label
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *RestoreLabelResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RestoreLabelResult) GetJSON200() *Label {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RestoreLabelResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RestoreLabelResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RestoreLabelResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RestoreLabelResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RestoreLabelResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -72681,8 +72861,8 @@ func (c *ClientWithResponses) ReorderBucketWithResponse(ctx context.Context, con
 // ListLabelsWithResponse performs a GET /containers/{containerId}/labels (the `ListLabels` operationId) request.
 //
 // Returns a wrapper object for the known response body format(s).
-func (c *ClientWithResponses) ListLabelsWithResponse(ctx context.Context, containerId ContainerId, reqEditors ...RequestEditorFn) (*ListLabelsResult, error) {
-	rsp, err := c.ListLabels(ctx, containerId, reqEditors...)
+func (c *ClientWithResponses) ListLabelsWithResponse(ctx context.Context, containerId ContainerId, params *ListLabelsParams, reqEditors ...RequestEditorFn) (*ListLabelsResult, error) {
+	rsp, err := c.ListLabels(ctx, containerId, params, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -72752,6 +72932,19 @@ func (c *ClientWithResponses) UpdateLabelWithApplicationMergePatchPlusJSONBodyWi
 		return nil, err
 	}
 	return ParseUpdateLabelResult(rsp)
+}
+
+// RestoreLabelWithResponse performs a POST /containers/{containerId}/labels/{labelId}:restore (the `RestoreLabel` operationId) request.
+//
+// Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) RestoreLabelWithResponse(ctx context.Context, containerId ContainerId, labelId LabelId, params *RestoreLabelParams, reqEditors ...RequestEditorFn) (*RestoreLabelResult, error) {
+	rsp, err := c.RestoreLabel(ctx, containerId, labelId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRestoreLabelResult(rsp)
 }
 
 // UpdateContainerPoliciesWithBodyWithResponse performs a PUT /containers/{containerId}/policies (the `UpdateContainerPolicies` operationId) request,
@@ -82756,6 +82949,52 @@ func ParseUpdateLabelResult(rsp *http.Response) (*UpdateLabelResult, error) {
 	switch {
 	case rsp.StatusCode == 200:
 		var headers UpdateLabelResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseRestoreLabelResult parses an HTTP response from a RestoreLabelWithResponse call
+func ParseRestoreLabelResult(rsp *http.Response) (*RestoreLabelResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RestoreLabelResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Label
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers RestoreLabelResult200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {

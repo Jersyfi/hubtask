@@ -728,6 +728,10 @@ type Labels interface {
 	// List returns a collection's labels by name, deleted ones left out.
 	List(ctx context.Context, collectionID shared.ID) ([]work.Label, error)
 
+	// ListWithDeleted returns a collection's labels by name, deleted ones included with their
+	// stamp, for a reader that offers to bring one back.
+	ListWithDeleted(ctx context.Context, collectionID shared.ID) ([]work.Label, error)
+
 	// Insert writes a new label. A name already taken in this collection comes back as
 	// `labels.name_taken`, from the unique index.
 	Insert(ctx context.Context, label work.Label) error
@@ -739,6 +743,10 @@ type Labels interface {
 	// which items carry it stay: the read side filters on the label's own stamp, which is what
 	// makes a deletion undoable without having to remember who wore it.
 	SetDeleted(ctx context.Context, label work.Label, expectedVersion int) error
+
+	// SetRestored clears the label's deletion stamp, or reports a version conflict. A name another
+	// label has taken since comes back as `labels.name_taken`, from the unique index.
+	SetRestored(ctx context.Context, label work.Label, expectedVersion int) error
 }
 
 // ItemLabels stores which items carry which labels, and the tags that decide it after a merge.

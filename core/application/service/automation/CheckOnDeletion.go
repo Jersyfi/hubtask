@@ -36,7 +36,9 @@ func (c CheckOnDeletion) Name() string { return CheckOnDeletionConsumer }
 // subscription's join here when their deletions become events.
 func (c CheckOnDeletion) Wants(eventType event.Type) bool {
 	switch eventType {
-	case event.LabelDeleted, event.BucketDeleted, event.ContainerDeleted:
+	// A label restored is in the list too: the check that reported a rule pointing at it when it
+	// went is what clears the finding when it comes back.
+	case event.LabelDeleted, event.LabelRestored, event.BucketDeleted, event.ContainerDeleted:
 		return true
 	default:
 		return false

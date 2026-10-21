@@ -419,8 +419,9 @@ audit entry `automation.rule_disabled` with `reason: check`, author notified, me
 reason.
 
 * It runs **on demand** (`POST /automation/rules:check`, called when the rules screen opens) and **on
-  the deletion events** of labels, buckets and containers, as one `automation.check` job per tenant
-  — never on a timer, never across tenants.
+  the deletion events** of labels, buckets and containers, and on a label's restoration (which
+  clears what its deletion found), as one `automation.check` job per tenant — never on a timer,
+  never across tenants.
 * It does not re-run §2.1's rights checks and repairs nothing.
 * **An edit leaves the rule unchecked** (findings emptied, `checked_at` cleared); a client asks for
   the check right after a save.
