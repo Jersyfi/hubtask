@@ -8085,6 +8085,9 @@ type JumbleDestinationPage struct {
 
 // JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
 type JumbleEntry struct {
+	// ArrivalJobId Where the workspace prepares proposals on arrival: the job preparing one about this undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`. Absent once it proposed something (the proposal is under `GET /suggestions`), for a settled entry, and where nothing was prepared.
+	ArrivalJobId *openapi_types.UUID `json:"arrival_job_id,omitempty"`
+
 	// Attachments Media objects, stored through the media pipeline.
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`

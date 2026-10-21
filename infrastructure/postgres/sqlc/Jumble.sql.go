@@ -68,10 +68,14 @@ func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpi
 }
 
 const findJumbleEntry = `-- name: FindJumbleEntry :one
-SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
-       target_item_id, received_at, processed_at
-FROM jumble_entry
-WHERE id = $1
+SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
+       e.target_item_id, e.received_at, e.processed_at,
+       (SELECT j.id FROM job j
+        WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
+          AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
+        ORDER BY j.created_at DESC LIMIT 1)::uuid AS arrival_job_id
+FROM jumble_entry e
+WHERE e.id = $1
 `
 
 type FindJumbleEntryRow struct {
@@ -86,10 +90,11 @@ type FindJumbleEntryRow struct {
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
+	ArrivalJobID pgtype.UUID
 }
 
 // tenant_id for ListJumbleEntries' reason, said in full there: the projection carries it because
-// the events a settlement announces are built from the projection.
+// the events a settlement announces are built from the projection. arrival_job_id as there.
 func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumbleEntryRow, error) {
 	row := q.db.QueryRow(ctx, findJumbleEntry, id)
 	var i FindJumbleEntryRow
@@ -105,6 +110,7 @@ func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumb
 		&i.TargetItemID,
 		&i.ReceivedAt,
 		&i.ProcessedAt,
+		&i.ArrivalJobID,
 	)
 	return i, err
 }
@@ -186,13 +192,17 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 }
 
 const listJumbleEntries = `-- name: ListJumbleEntries :many
-SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
-       target_item_id, received_at, processed_at
-FROM jumble_entry
-WHERE ($1::text IS NULL OR status = $1::text)
-  AND ($2::text IS NULL OR channel = $2::text)
-  AND ($3::uuid IS NULL OR id < $3::uuid)
-ORDER BY id DESC
+SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
+       e.target_item_id, e.received_at, e.processed_at,
+       (SELECT j.id FROM job j
+        WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
+          AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
+        ORDER BY j.created_at DESC LIMIT 1)::uuid AS arrival_job_id
+FROM jumble_entry e
+WHERE ($1::text IS NULL OR e.status = $1::text)
+  AND ($2::text IS NULL OR e.channel = $2::text)
+  AND ($3::uuid IS NULL OR e.id < $3::uuid)
+ORDER BY e.id DESC
 LIMIT $4
 `
 
@@ -215,6 +225,7 @@ type ListJumbleEntriesRow struct {
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
+	ArrivalJobID pgtype.UUID
 }
 
 // Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the arrival order.
@@ -225,6 +236,12 @@ type ListJumbleEntriesRow struct {
 // built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
 // an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
 // never worked at all, through a rule or through the API.
+//
+// arrival_job_id is the proposal the workspace is preparing about an undecided entry (UC-JUM-07
+// check 10): the newest such job still pending or running, or failed - a spent budget a card says
+// once. A succeeded one is not named: what it proposed is under the suggestions. Read through the
+// job table's two existing indexes (the pending and running dedupe key, the state of the pickup),
+// and named in the workspace's own scope: the table has no row level security.
 func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesParams) ([]ListJumbleEntriesRow, error) {
 	rows, err := q.db.Query(ctx, listJumbleEntries,
 		arg.Status,
@@ -251,6 +268,7 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 			&i.TargetItemID,
 			&i.ReceivedAt,
 			&i.ProcessedAt,
+			&i.ArrivalJobID,
 		); err != nil {
 			return nil, err
 		}

@@ -1833,6 +1833,7 @@ class JumbleEntry(TypedDict, total=False):
     target_item_id: str | None
     received_at: Required[str]
     settled_at: str | None
+    arrival_job_id: str | None
 
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""

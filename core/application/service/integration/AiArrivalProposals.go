@@ -23,7 +23,7 @@ const (
 )
 
 // SetAiArrivalProposals switches whether each new jumble entry gets a proposal without anybody
-// asking (UC-JUM-07 check 10, decision #1629).
+// asking (UC-JUM-07 check 10).
 //
 // The workspace's own switch, off by default, and set by nobody above it: what of a workspace's
 // content is sent to a model is the workspace's decision alone (P-14), so no installation or plan

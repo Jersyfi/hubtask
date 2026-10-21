@@ -16169,6 +16169,14 @@ components:
           type: [string, "null"]
           format: date-time
           description: When the entry stopped being NEW - a conversion or a dismissal.
+        arrival_job_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Where the workspace prepares proposals on arrival: the job preparing one about this
+            undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`.
+            Absent once it proposed something (the proposal is under `GET /suggestions`), for a
+            settled entry, and where nothing was prepared.
 
     JumbleEntrySubmit:
       type: object

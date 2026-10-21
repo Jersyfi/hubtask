@@ -1268,6 +1268,13 @@ func run() error {
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Conditions: celexpression.New(),
+		// A proposal the workspace prepares about an arrival (UC-JUM-07 check 10): read as the
+		// system for it, through the repositories, and counted against the day's cap.
+		Arrivals: suggestionservice.ArrivalSources{
+			Entries: postgres.NewJumbleRepository(cursors), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Collections: containers, Kept: keptOut,
+		},
+		Cap: quotaGuard,
 	}
 
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
@@ -3049,6 +3056,12 @@ func run() error {
 			work.SeedEmbedding{
 				Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 			},
+			// What asks for a proposal about each new jumble entry where the workspace switched
+			// that on: a seed, one job per arrival, judged when it runs (UC-JUM-07 check 10).
+			jumbleservice.ArrivalProposals{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Jobs: jobs,
+				Audit: auditSink, Clock: clockadapter.System{},
+			},
 		},
 			busFanOut...),
 		Clock:       clockadapter.System{},
@@ -3485,6 +3498,8 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
+		// Its own kind, which a process of the previous release leaves alone.
+		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

@@ -322,5 +322,8 @@ func entryOutput(entry domain.Entry) usecase.Output {
 	if entry.SettledAt != nil {
 		out["settled_at"] = *entry.SettledAt
 	}
+	if !entry.ArrivalJobID.IsZero() {
+		out["arrival_job_id"] = entry.ArrivalJobID.String()
+	}
 	return out
 }

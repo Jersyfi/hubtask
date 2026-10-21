@@ -70,7 +70,7 @@ type WorkspaceFinder interface {
 // ArrivalSources reads an arrival through the repositories rather than the catalogue.
 //
 // The one producer that does, and for the embedding pass's reason: the asker is the workspace,
-// acting as the system (decision #1629), and a system actor holds no role a catalogue read could
+// acting as the system (ai-first.md §2), and a system actor holds no role a catalogue read could
 // be authorised against. What it may read is decided by the switch the workspace set under
 // `STRUCTURE`, and what it reads is the workspace's own jumble - which every member who may read the
 // workspace reads - its default zone, and the shared set of collections.

@@ -266,6 +266,10 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 	if settled, ok := out["settled_at"].(time.Time); ok {
 		entry.SettledAt = &settled
 	}
+	if id := out.String("arrival_job_id"); id != "" {
+		job := uuidValue(id)
+		entry.ArrivalJobId = &job
+	}
 	return entry
 }
 
