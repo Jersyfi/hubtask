@@ -17,6 +17,7 @@
   import VisuallyHidden from './VisuallyHidden.svelte';
   import type { IconName } from './icons/index.ts';
   import type { Busyable, ButtonTone, ControlSize, Disableable } from './control.ts';
+  import { sharedReason } from './reason.ts';
 
   interface Props extends Omit<HTMLButtonAttributes, 'disabled'>, Disableable, Busyable {
     icon: IconName;
@@ -41,7 +42,11 @@
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
-  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  // Inside a composite that states this same reason once, the button points at that one and
+  // draws no bubble of its own; the composite's guard stands over it (reason.ts).
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const reasonId = $derived(unavailable ? (groupReasonId ?? `reason-${instanceId}`) : undefined);
   let button = $state<HTMLButtonElement | null>(null);
 </script>
 
@@ -64,7 +69,7 @@
   {/if}
   <VisuallyHidden>{label}</VisuallyHidden>
 </button>
-{#if unavailable && reasonId}
+{#if unavailable && reasonId && !groupReasonId}
   <Reason id={reasonId} text={disabledReason ?? ''} control={button} />
 {/if}
 

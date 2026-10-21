@@ -30,8 +30,13 @@
     id: string;
     /** Resolved text (ADR-0011), and short: a reason, not a paragraph. */
     text: string;
-    /** The control it describes, and the anchor it is drawn from. */
+    /**
+     * The control it describes: what is hovered, focused and tried. For a composite that states one
+     * reason for its parts, the composite itself - its parts' events reach it.
+     */
     control: HTMLElement | null;
+    /** What the bubble is drawn from, when that is not the control: a composite's mark. */
+    anchor?: HTMLElement | null;
     /** What else forwards a click to the control - its `label` - and is guarded with it. */
     forwarders?: readonly (HTMLElement | null)[];
     /**
@@ -47,6 +52,7 @@
     id,
     text,
     control,
+    anchor,
     forwarders = [],
     isGuarding = true,
     guardOptions = {},
@@ -74,7 +80,7 @@
   function hideAfterGrace() {
     clearTimeout(leaving);
     leaving = setTimeout(() => {
-      if (control?.matches(':focus-visible')) return;
+      if (control?.matches(':focus-visible, :has(:focus-visible)')) return;
       isShowing = false;
     }, graceOf(control));
   }
@@ -89,6 +95,14 @@
   $effect(() => {
     const node = control;
     if (!node) return;
+    // A composite's parts pass focus among themselves: leaving one for the next is not leaving.
+    // Asked once focus has settled rather than from `relatedTarget`: WebKit moves focus between a
+    // date field's own parts with a focusout that names nobody, and the field has not been left.
+    const onFocusout = () => {
+      setTimeout(() => {
+        if (!node.contains(document.activeElement)) hide();
+      });
+    };
     const onKeydown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape' || !isShowing) return;
       hide();
@@ -98,8 +112,10 @@
     };
     node.addEventListener('pointerenter', onEnter);
     node.addEventListener('pointerleave', onLeave);
-    node.addEventListener('focusin', show);
-    node.addEventListener('focusout', hide);
+    // `focus` and `blur` caught on the way down rather than `focusin`: WebKit sends no `focusin` for
+    // a date field.
+    node.addEventListener('focus', show, { capture: true });
+    node.addEventListener('blur', onFocusout, { capture: true });
     node.addEventListener('keydown', onKeydown);
     const lift = isGuarding ? guard([node, ...forwarders], show, guardOptions) : () => {};
     return () => {
@@ -107,8 +123,8 @@
       lift();
       node.removeEventListener('pointerenter', onEnter);
       node.removeEventListener('pointerleave', onLeave);
-      node.removeEventListener('focusin', show);
-      node.removeEventListener('focusout', hide);
+      node.removeEventListener('focus', show, { capture: true });
+      node.removeEventListener('blur', onFocusout, { capture: true });
       node.removeEventListener('keydown', onKeydown);
     };
   });
@@ -130,7 +146,7 @@
     if (!isShowing) return;
     const onPress = (event: PointerEvent) => {
       const target = event.target as Node | null;
-      if (target && (control?.contains(target) || bubble?.contains(target))) return;
+      if (target && (control?.contains(target) || anchor?.contains(target) || bubble?.contains(target))) return;
       hide();
     };
     document.addEventListener('pointerdown', onPress, { capture: true });
@@ -138,8 +154,9 @@
   });
 
   $effect(() => {
-    if (!isShowing || !control || !bubble) return;
-    return anchorTo(control, bubble, { placement });
+    const from = anchor ?? control;
+    if (!isShowing || !from || !bubble) return;
+    return anchorTo(from, bubble, { placement });
   });
 </script>
 

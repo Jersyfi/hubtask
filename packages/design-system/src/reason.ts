@@ -20,7 +20,8 @@ import { getContext, setContext } from 'svelte';
 const ACTIVATING = new Set(['Enter', ' ']);
 
 /** The keys a control that changes on any key still lets through: leaving it, and closing. */
-const PASSING = new Set(['Tab', 'Shift', 'Escape']);
+// The modifiers pass too: Safari moves focus to every control on Option+Tab.
+const PASSING = new Set(['Tab', 'Shift', 'Alt', 'Control', 'Meta', 'Escape']);
 
 export interface GuardOptions {
   /**
@@ -67,11 +68,19 @@ export function guard(
     onTried();
   };
 
+  // The value each field had before an edit got through, by the field: a guard on a composite
+  // stands over several, and learns each one's value when focus arrives in it.
   const kept = new WeakMap<EventTarget, string>();
+  const remember = (event: Event) => {
+    const field = event.target;
+    if (field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement) kept.set(field, field.value);
+  };
   const onInput = (event: Event) => {
-    const field = event.currentTarget as HTMLInputElement;
+    const field = event.target;
     event.stopImmediatePropagation();
-    field.value = kept.get(field) ?? field.value;
+    if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+    const value = kept.get(field);
+    if (value !== undefined) field.value = value;
   };
 
   const nodes = targets.filter((node): node is HTMLElement => node instanceof HTMLElement);
@@ -80,9 +89,9 @@ export function guard(
     ['keydown', onKeydown as EventListener],
   ];
   if (isPressRefused) listeners.push(['pointerdown', onClick], ['mousedown', refuse]);
-  if (isEditRefused) listeners.push(['beforeinput', refuse], ['drop', refuse], ['input', onInput]);
+  if (isEditRefused) listeners.push(['beforeinput', refuse], ['drop', refuse], ['input', onInput], ['focus', remember]);
   for (const node of nodes) {
-    if (isEditRefused && 'value' in node) kept.set(node, String(node.value));
+    if (isEditRefused && (node instanceof HTMLInputElement || node instanceof HTMLTextAreaElement)) kept.set(node, node.value);
     for (const [type, listener] of listeners) node.addEventListener(type, listener, { capture: true });
   }
   return () => {

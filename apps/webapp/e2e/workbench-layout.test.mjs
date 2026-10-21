@@ -75,6 +75,12 @@ const STORIES = [
   { id: 'wave-1-forms-switch--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-switch--busy', kind: 'busy' },
   { id: 'wave-3-domain-task-row--in-table-row', kind: 'reason' },
+  { id: 'wave-3-time-due-date-control--in-row', kind: 'group' },
+  { id: 'wave-3-time-due-date-control--in-table-row', kind: 'group' },
+  { id: 'wave-3-time-recurrence-editor--in-row', kind: 'group' },
+  { id: 'wave-3-time-recurrence-editor--in-table-row', kind: 'group' },
+  { id: 'wave-3-time-reminder-editor--in-row', kind: 'group' },
+  { id: 'wave-3-time-reminder-editor--in-table-row', kind: 'group' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -176,16 +182,18 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
-async function checkReason(page, what, engine, { isRoving = false } = {}) {
+async function checkReason(page, what, engine, { isRoving = false, isGroup = false } = {}) {
   const [tab, back] = engine === 'webkit' ? ['Alt+Tab', 'Alt+Shift+Tab'] : ['Tab', 'Shift+Tab'];
   const { control, bubble, described } = await subject(page);
+  // A composite's bubble comes from its mark: the pointer goes there, where the bubble is drawn.
+  const target = isGroup ? page.locator('.host [data-case="with"] [data-reason-mark]').first() : control;
   // A pane at 200 % is wider than the window: the pointer can only reach what is in view.
-  await control.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'center' }));
+  await target.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'center' }));
   const before = await boxes(page);
   const reason = (await bubble.textContent())?.trim();
   assert.ok(reason, `${what}: the bubble is empty`);
   assert.equal(await isShowing(bubble), false, `${what}: the bubble shows before anything happened`);
-  const at = await centre(control);
+  const at = await centre(target);
 
   // Hover: the bubble shows, and stays while the pointer crosses onto it (SC 1.4.13, hoverable).
   await page.mouse.move(at.x, at.y);
@@ -212,7 +220,12 @@ async function checkReason(page, what, engine, { isRoving = false } = {}) {
   await control.evaluate((node) => node.focus());
   // An item of a roving group is reached by the arrows (checkRoving), not by Tab.
   if (!isRoving) await page.keyboard.press(back);
-  if (!isRoving) await page.keyboard.press(tab);
+  // Forward again until it is reached: a date field's own parts and the workbench's chrome may
+  // lie between, and what is proven is that the control is a stop, not how many presses away.
+  for (let step = 0; !isRoving && step < 40; step += 1) {
+    await page.keyboard.press(tab);
+    if (await control.evaluate((node) => node === document.activeElement)) break;
+  }
   assert.equal(await control.evaluate((node) => node === document.activeElement), true, `${what}: Tab does not reach the control`);
   assert.equal(await isShowing(bubble), true, `${what}: focus shows no reason`);
   assert.equal(await control.getAttribute('aria-disabled'), 'true');
@@ -319,7 +332,26 @@ async function checkShape(page, what) {
   assert.ok(said.length > plain.length, `${what}: the unavailable option says "${said}", not why`);
 }
 
-const CHECKS = { reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
+/**
+ * A composite says its reason once: one bubble for all of its parts, none in the row without the
+ * reason, every unavailable part pointing at that one.
+ */
+async function checkGroup(page, what, engine) {
+  await checkReason(page, what, engine, { isGroup: true });
+  const reasons = await page.evaluate(() => ({
+    with: document.querySelectorAll('.host [data-case="with"] [role="tooltip"]').length,
+    without: document.querySelectorAll('.host [data-case="without"] [role="tooltip"]').length,
+    described: [...document.querySelectorAll('.host [data-case="with"] [aria-disabled="true"]')].map(
+      (node) => (node.getAttribute('aria-describedby') ?? '').split(' ').filter((id) => id.includes('reason')),
+    ),
+  }));
+  assert.equal(reasons.with, 1, `${what}: the composite says its reason ${reasons.with} times`);
+  assert.equal(reasons.without, 0, `${what}: the available composite carries a reason`);
+  const ids = new Set(reasons.described.flat());
+  assert.equal(ids.size, 1, `${what}: its parts point at ${ids.size} reasons`);
+}
+
+const CHECKS = { group: checkGroup, reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
 
 for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
   test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {

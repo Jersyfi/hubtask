@@ -27,6 +27,8 @@
   import Input from './Input.svelte';
   import Radio from './Radio.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
 
   /** The four the presets cover. `RAW` is the fifth path: the rule as it is written. */
   export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
@@ -120,6 +122,14 @@
     onModeChange,
     onHorizonChange,
   }: Props = $props();
+
+  const groupInstance = $props.id();
+
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${groupInstance}`;
+  provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
+  let container = $state<HTMLElement | null>(null);
 
   const RAW = '__raw__';
   const DAYS = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
@@ -228,10 +238,10 @@
   }
 </script>
 
-<fieldset class="editor">
+<fieldset class="editor" aria-describedby={disabledReason === undefined ? undefined : groupId} bind:this={container}>
   <!-- The whole thing is one question - "how does this repeat?" - and the fields inside it are its
        parts. A group with no name is a group a screen reader reads as six unrelated controls. -->
-  <legend>{label}</legend>
+  <legend>{label}<ReasonMark id={groupId} text={disabledReason} {container} /></legend>
 
   <Radio
     label={frequencyLabel}
