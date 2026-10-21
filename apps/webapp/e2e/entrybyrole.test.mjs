@@ -117,6 +117,29 @@ test('chromium: a contributor changes and comments on the entry assigned to them
   assert.deepEqual(failures, []);
 });
 
+// A search result is ticked off by the same rule as a row of its list: a role that only reads does
+// not complete it from the results either.
+test('chromium: a viewer cannot tick off a search result', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'VIEWER');
+  t.after(() => context.close());
+  const sent = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'GET') sent.push(new URL(request.url()).pathname);
+  });
+
+  await page.goto(`${served.origin}/search`);
+  await page.getByRole('searchbox', { name: 'Search the entries you can see' }).fill('electrician');
+  const box = page.getByRole('checkbox', { name: `Mark ${ITEMS[1].title} as done` });
+  await box.waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await box.click({ force: true });
+  await page.waitForTimeout(300);
+  assert.deepEqual(sent.filter((path) => path.endsWith(':complete')), []);
+  assert.deepEqual(failures, []);
+});
+
 /** The container page's menu, opened and closed again. */
 async function pageMenu(page, name) {
   await page.getByRole('button', { name: `Actions for ${name}` }).first().click();

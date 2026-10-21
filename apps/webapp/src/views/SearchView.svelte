@@ -38,7 +38,11 @@
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
 
+  import type { WorkItem } from '@hubtask/sync-engine';
+
   import { announcer } from '../lib/announce.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { changeRefusalCode, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -358,6 +362,36 @@
    */
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
+  /**
+   * Where a hit sits, for the reader's role there: its collection and that collection's hub. The
+   * role is read along the collection as the collection's own list reads it, so a hit and its row
+   * answer the same question the same way - and one read per collection, not per hit.
+   */
+  const hitPath = (hit: WorkItem) => ({
+    hubId: containers.find(hit.collection_id)?.parent_id ?? undefined,
+    collectionId: hit.collection_id,
+  });
+
+  // The roles along every collection the results come from, read with the results.
+  $effect(() => {
+    const paths = search.hits.map(hitPath);
+    untrack(() => {
+      for (const path of paths) people.open(path);
+    });
+  });
+
+  /**
+   * Why a hit cannot be ticked off from here, or nothing: what stops its row in the list stops it
+   * here too - the entry archived, its collection archived, or a role that may not change it.
+   */
+  function completeReason(hit: WorkItem): string | undefined {
+    if (hit.archived_at) return t('app.entries.archived');
+    if (containers.find(hit.collection_id)?.effective_archived) return t('app.entries.read_only');
+    const role = people.roleOf(hitPath(hit), actor.account?.id, roleOrder());
+    const code = changeRefusalCode(role, hit.assignee_id != null && hit.assignee_id === actor.account?.id);
+    return code ? t(code) : undefined;
+  }
+
   async function toggleComplete(id: string, title: string, isCompleted: boolean) {
     writeFailure = undefined;
     try {
@@ -512,7 +546,10 @@
           href={`/items/${hit.id}`}
           {isCompleted}
           completeLabel={t(isCompleted ? 'app.entries.reopen' : 'app.entries.complete', { title: hit.title })}
-          onToggleComplete={() => toggleComplete(hit.id, hit.title, isCompleted)}
+          completeDisabledReason={completeReason(hit)}
+          onToggleComplete={() => {
+            if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
+          }}
         />
       {/each}
     </Stack>

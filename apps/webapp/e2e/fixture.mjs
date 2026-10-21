@@ -591,7 +591,13 @@ export function fallback(route, request, path) {
     const { archived_at: _put, ...back } = ARCHIVED;
     return route.fulfill({ json: { ...back, version: ARCHIVED.version + 1 } });
   }
-  if (read === '/search') return route.fulfill({ json: { ...PAGE, data: [] } });
+  // Words find the entries whose title holds them; a search with no words - the overview's - finds
+  // nothing, so the screens that ask one are drawn empty as before.
+  if (read === '/search') {
+    const words = (request.postDataJSON()?.q ?? '').trim().toLowerCase();
+    const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
+    return route.fulfill({ json: { ...PAGE, data: hits } });
+  }
 
   // The three writes the walks make, each answered with the entry it
   // makes. Two of them are the subject of the walk that makes them - the timeline's drag sets a
