@@ -920,7 +920,9 @@ between columns is the card's menu (§11.9).
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
    A set cover is drawn above the title; no room is taken for an absent one.
-2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag. Every
+2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
+   carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
+   *Select*, since no bulk bar acts there. Every
    level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
    manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
    one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section

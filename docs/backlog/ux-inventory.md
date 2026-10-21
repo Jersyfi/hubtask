@@ -142,7 +142,7 @@ Installation:
 - [ ] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept
 - [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs
 - [ ] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes
-- [ ] Detail pane: close, open as page → kept; also from board and timeline
+- [x] Detail pane: close, open as page → kept; also from board and timeline — done in UX-16: `/collections/:id?item=` from list, board and timeline
 - [ ] Labels dialog: rename, delete (no confirmation), name, colour, create → *Structure → Labels*; delete with undo
 - [ ] Custom fields dialog: list, change, take out of use, key, kind, values, required, carried by → *Structure → Fields*
 - [ ] Templates dialog: use, edit, delete, define, generate from a description, stamp it out, editor per step → *Structure → Templates*; *From template* in capture; AI drafts land in the same panel
@@ -156,11 +156,11 @@ Installation:
 
 - [ ] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover
 - [ ] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08)
-- [ ] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo
+- [x] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo — done in UX-16: `EntryMenu` on the list and the subtree, labels undo on the chips
 - [ ] "Left some things behind" notice → kept
 - [ ] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more*
 - [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?`
-- [ ] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press
+- [x] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press — done in UX-16: `EntryMenu` on cards, Ctrl/⌘-click and the still long press (ADR-0088)
 - [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile
 - [ ] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3)
 
