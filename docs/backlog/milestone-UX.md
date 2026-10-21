@@ -43,6 +43,9 @@ task that moves a control ticks its rows there.
 15. **The installed app's icon is F7's** (the owner, 2026-10-21, #1671): UC-WRK-33 check 4 keeps the
     app bar and the browser tab; the installed app's icon is check 5, carried by F7, not by UX.
     UX-06 still ships the app-icon source F7 starts from.
+16. **A long press opens the entry menu** (the owner, 2026-10-21, #1685): a still hold opens the
+    entry menu on release, *Select* first; a moving hold drags. UC-WRK-28 check 4, design-system.md
+    §11.9, ADR-0088.
 
 ---
 
