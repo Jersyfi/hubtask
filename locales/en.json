@@ -3517,6 +3517,7 @@
   "app.people.title": "People",
   "app.comments.title": "Comments",
   "app.comments.none": "Nothing has been said about this entry yet. Start the conversation.",
+  "app.comments.none_closed": "Nothing has been said about this entry.",
   "app.comments.removed": "This comment was removed.",
   "app.comments.edited": "edited",
   "app.comments.edit": "Edit",

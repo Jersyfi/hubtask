@@ -2328,6 +2328,7 @@
   "app.people.title": "Leute",
   "app.comments.title": "Kommentare",
   "app.comments.none": "Zu diesem Eintrag wurde noch nichts gesagt. Fang das Gespräch an.",
+  "app.comments.none_closed": "Zu diesem Eintrag wurde nichts gesagt.",
   "app.comments.removed": "Dieser Kommentar wurde entfernt.",
   "app.comments.edited": "bearbeitet",
   "app.comments.edit": "Bearbeiten",

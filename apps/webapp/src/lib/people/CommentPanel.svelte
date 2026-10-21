@@ -184,7 +184,7 @@
     <CommentThread
       label={t('app.comments.title')}
       comments={threadRows()}
-      emptyLabel={t('app.comments.none')}
+      emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
       removedLabel={t('app.comments.removed')}
       editLabel={t('app.comments.edit')}
       deleteLabel={t('app.comments.remove')}
