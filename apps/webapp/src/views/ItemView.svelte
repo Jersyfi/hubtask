@@ -61,6 +61,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { changeRefusalCode, childTypes, declaresType, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor } from '../lib/data/customfields.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
@@ -198,6 +199,11 @@
     return untrack(() => containers.openSingle(wanted));
   });
   const collection = $derived(item ? containers.find(item.collection_id) : undefined);
+  /**
+   * Whether the collection, or the hub above it, is archived: then nothing in it can be changed
+   * (I-C3). The entry's own archive freezes the entry alone, never its children.
+   */
+  const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
   const trail = $derived([
     ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
@@ -883,7 +889,7 @@
                 </Button>
               {/if}
             </div>
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
 

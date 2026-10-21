@@ -8,15 +8,15 @@
  * or archived → trashed, trashed → active within the retention period, and then the retention job.
  * The distinctions this module makes are the ones a screen gets wrong.
  *
- * **Archived is read-only, not hidden** (I-C3, I-W4). An archived thing is reachable, readable,
- * and every control on it is off *with the reason* — which is what `CapabilityGate` was built for
- * and what a screen that removed the buttons would fail to say.
+ * **Archived is read-only, not hidden** (I-C3, I-W4). An archived thing is reachable and readable;
+ * the area says once, at its top, why nothing in it can be changed, and its writing controls are
+ * absent (design-system.md §4, case 5).
  *
  * **Archived in its own right is not the same as archived from above.** A container separates
  * `archived_at` from `effective_archived` precisely so a client can tell them apart, and they are
  * different offers: the first has an unarchive control here, the second has one on the thing above
- * it and none here. An **entry** has only `archived_at` — its inheritance is not a field but the
- * position it is in, so the caller says whether the thing above it is archived.
+ * it and none here. An **entry** has only `archived_at` — what reaches it from above is its
+ * collection's archive alone (I-C3); an archived parent entry freezes itself, not its children.
  */
 
 import type { WorkItem } from '@hubtask/sync-engine';
@@ -27,13 +27,23 @@ import type { Archival } from './containers.ts';
  * Where an entry stands in the archive.
  *
  * `isBelowArchived` is the caller's, because the contract does not give an entry an
- * `effective_archived`: an archived collection makes its entries read-only (I-C3) and an archived
- * entry makes its children read-only, and both of those are things the screen already knows from
- * what it is drawing.
+ * `effective_archived`: an archived collection makes its entries read-only (I-C3), which the screen
+ * already knows from what it is drawing. Answer it with `isBelowArchived` below.
  */
 export function archivalOfItem(item: WorkItem, isBelowArchived: boolean): Archival {
   if (item.archived_at) return 'archived';
   return isBelowArchived ? 'inherited' : 'active';
+}
+
+/**
+ * Whether the children of an entry stand below something archived.
+ *
+ * Only the collection's archive reaches down. An archived entry is frozen itself, and a work
+ * package under an archived task stays writable - "that is the model rather than an oversight"
+ * (ArchiveWorkItem.go) - so the parent's own archival is deliberately not an input that decides.
+ */
+export function isBelowArchived(_parent: Archival, isCollectionArchived: boolean): boolean {
+  return isCollectionArchived;
 }
 
 /** Milliseconds in a day, named once so the arithmetic below reads as what it is. */

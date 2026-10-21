@@ -61,7 +61,7 @@
   import ReplicaMark from '../frame/ReplicaMark.svelte';
   import DuePanel from './DuePanel.svelte';
   import { outcomeOf } from '../data/bulk.ts';
-  import { archivalOfItem } from '../data/lifecycle.ts';
+  import { archivalOfItem, isBelowArchived } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -313,11 +313,11 @@
     parents: readonly WorkItem[],
     depth: number,
     parentId: string | null,
-    isBelowArchived: boolean,
+    isUnderArchive: boolean,
   ): Row[] {
     const rows: Row[] = [];
     parents.forEach((item, index) => {
-      const archival = archivalOfItem(item, isBelowArchived);
+      const archival = archivalOfItem(item, isUnderArchive);
       // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
       rows.push({
@@ -330,10 +330,10 @@
         archival,
       });
       if (expanded.includes(item.id)) {
-        // An archived entry makes everything under it read-only (I-W4), and so does an archived
-        // collection above the whole list — which is what `isReadOnly` is at the top level.
+        // Only an archived collection reaches the rows under an entry - `isReadOnly` here. An
+        // archived entry freezes itself, not its children (lifecycle.ts, `isBelowArchived`).
         rows.push(
-          ...flatten(items.childrenOf(item.id), depth + 1, item.id, archival !== 'active'),
+          ...flatten(items.childrenOf(item.id), depth + 1, item.id, isBelowArchived(archival, isReadOnly)),
         );
       }
     });
