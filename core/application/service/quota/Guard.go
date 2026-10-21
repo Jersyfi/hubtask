@@ -211,6 +211,30 @@ func (g Guard) AiTokens(ctx context.Context, tenant string, own bool, now time.T
 	return spent < limit, nil
 }
 
+// AiStanding answers where the source's budget stands on the workspace's day: what was spent, the
+// ceiling, and whether there is one. It reports no ratio to the metric - nothing is being enforced,
+// somebody is reading before they ask (UC-AI-04 check 9).
+func (g Guard) AiStanding(ctx context.Context, own bool, now time.Time) (spent, limit int64, bounded bool, err error) {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	quota := aiQuota(own)
+	limit = limits.Of(quota)
+	if limit == Unlimited {
+		return 0, 0, false, nil
+	}
+	day, err := g.day(ctx, now)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	spent, err = g.Usage.MeteredSince(ctx, quota, day)
+	if err != nil {
+		return 0, 0, false, err
+	}
+	return spent, limit, true, nil
+}
+
 // MeterAi records what one call to one source cost, on the workspace's day. Called after the
 // provider answered, with what it reported.
 //
