@@ -219,11 +219,11 @@ Two rules apply to every component after this wave. **There is no `disabled` boo
 `disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
 is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
-### Wave 2 — structure (≈ 12)
+### Wave 2 — structure (≈ 13)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField
+Drawer · SearchField · ReadOnlyNotice
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
@@ -255,6 +255,11 @@ cycle's **third** press returns the caller's order, because an order such as "th
 then newest" is a statement, not a column.
 
 `SearchField` knows nothing about when a request is sent; debouncing and sending are the caller's.
+
+**`ReadOnlyNotice` says once, at the top, why a whole area cannot be changed** — an archived
+collection, a role that reads, a feature the plan does not carry — with the one action that changes
+that, if there is one. Not a `Banner` (never dismissed) and not a `Callout` (about this area now);
+the rows and fields under it say nothing about it.
 
 ### Wave 3 — Hubtask's own (≈ 20)
 
