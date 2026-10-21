@@ -28,8 +28,19 @@ export interface GuardOptions {
    * without being activated - a range moves on the arrows.
    */
   readonly isEveryKeyRefused?: boolean;
-  /** Whether a press is refused too, for a control that changes under the pointer - a range. */
+  /**
+   * Whether a press is refused too, for a control that changes under the pointer - a range - or
+   * would take focus and open a keyboard for nothing - a text field. The press shows the reason.
+   */
   readonly isPressRefused?: boolean;
+  /**
+   * Whether editing is refused, for a text field that stays editable to the platform. `readonly`
+   * would refuse it as well, but WebKit sizes a read-only field narrower than an editable one (it
+   * reserves no room for the caret), and the field would change its width with its reason.
+   * `beforeinput` is refused; what cannot be refused - a composition - is undone on `input`
+   * before the caller hears of it.
+   */
+  readonly isEditRefused?: boolean;
 }
 
 /**
@@ -39,7 +50,7 @@ export interface GuardOptions {
 export function guard(
   targets: readonly (HTMLElement | null | undefined)[],
   onTried: () => void,
-  { isEveryKeyRefused = false, isPressRefused = false }: GuardOptions = {},
+  { isEveryKeyRefused = false, isPressRefused = false, isEditRefused = false }: GuardOptions = {},
 ): () => void {
   const refuse = (event: Event) => {
     event.preventDefault();
@@ -56,17 +67,27 @@ export function guard(
     onTried();
   };
 
+  const kept = new WeakMap<EventTarget, string>();
+  const onInput = (event: Event) => {
+    const field = event.currentTarget as HTMLInputElement;
+    event.stopImmediatePropagation();
+    field.value = kept.get(field) ?? field.value;
+  };
+
   const nodes = targets.filter((node): node is HTMLElement => node instanceof HTMLElement);
+  const listeners: [string, EventListener][] = [
+    ['click', onClick],
+    ['keydown', onKeydown as EventListener],
+  ];
+  if (isPressRefused) listeners.push(['pointerdown', onClick], ['mousedown', refuse]);
+  if (isEditRefused) listeners.push(['beforeinput', refuse], ['drop', refuse], ['input', onInput]);
   for (const node of nodes) {
-    node.addEventListener('click', onClick, { capture: true });
-    node.addEventListener('keydown', onKeydown, { capture: true });
-    if (isPressRefused) node.addEventListener('pointerdown', refuse, { capture: true });
+    if (isEditRefused && 'value' in node) kept.set(node, String(node.value));
+    for (const [type, listener] of listeners) node.addEventListener(type, listener, { capture: true });
   }
   return () => {
     for (const node of nodes) {
-      node.removeEventListener('click', onClick, { capture: true });
-      node.removeEventListener('keydown', onKeydown, { capture: true });
-      node.removeEventListener('pointerdown', refuse, { capture: true });
+      for (const [type, listener] of listeners) node.removeEventListener(type, listener, { capture: true });
     }
   };
 }

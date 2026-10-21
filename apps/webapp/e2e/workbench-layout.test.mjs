@@ -60,6 +60,14 @@ const STORIES = [
   { id: 'wave-1-forms-icon-button--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--busy', kind: 'busy' },
   { id: 'wave-3-domain-comment-thread--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-input--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-input--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-input--range', kind: 'range' },
+  { id: 'wave-1-forms-textarea--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-textarea--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-select--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-select--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-select--option', kind: 'shape' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -75,14 +83,22 @@ const ENGINES = [
 const query = (story, axes) => `?story=${story}&dir=${axes.dir}&text=${axes.text}&zoom=${axes.zoom}&width=${axes.width}`;
 const label = (axes) => `${axes.dir}/${axes.text}/${axes.zoom}/${axes.width}`;
 
-/** Every element on the stage but the bubble, by its place in the tree, with its box. */
+/**
+ * Every element on the stage but the bubble, by its place in the tree, with its box - relative to
+ * the stage, so that focus scrolling a wide pane is not read as a box that moved.
+ */
 async function boxes(page, selector = '.host *') {
   return page.evaluate((selector) => {
     const out = [];
+    const origin = document.querySelector('.host').getBoundingClientRect();
     for (const element of document.querySelectorAll(selector)) {
-      if (element.closest('[role="tooltip"]')) continue;
+      // The bubble is out of the flow by design; an option of a native list has no box of its own.
+      if (element.closest('[role="tooltip"], option, optgroup')) continue;
+      // A visually hidden name is clipped to nothing and positioned against the page, not the
+      // pane: when focus scrolls a wide pane it stays where it was, which is no layout change.
+      if (getComputedStyle(element).clipPath === 'inset(50%)') continue;
       const box = element.getBoundingClientRect();
-      out.push([element.tagName, box.x, box.y, box.width, box.height]);
+      out.push([element.tagName, box.x - origin.x, box.y - origin.y, box.width, box.height]);
     }
     return out;
   }, selector);
@@ -106,7 +122,8 @@ async function rowShape(page, which) {
     const origin = row.getBoundingClientRect();
     const out = [[origin.width, origin.height]];
     for (const element of row.querySelectorAll('*')) {
-      if (element.closest('[role="tooltip"]')) continue;
+      // The bubble is out of the flow by design; an option of a native list has no box of its own.
+      if (element.closest('[role="tooltip"], option, optgroup')) continue;
       const box = element.getBoundingClientRect();
       out.push([element.tagName, box.x - origin.x, box.y - origin.y, box.width, box.height]);
     }
@@ -125,8 +142,11 @@ async function counters(page) {
 async function subject(page) {
   const control = page.locator('.host [data-case="with"] [aria-disabled="true"]').first();
   const described = (await control.getAttribute('aria-describedby')) ?? '';
-  const bubbleId = described.split(' ').find((id) => id.startsWith('reason-') || id.includes('reason'));
+  const bubbleId = described.split(' ').find((id) => id.includes('reason'));
   assert.ok(bubbleId, 'the unavailable control points at no reason');
+  // Only the reason describes an unavailable control; a field keeps its hint and its error too.
+  const isField = await control.evaluate((node) => ['INPUT', 'SELECT', 'TEXTAREA'].includes(node.tagName));
+  if (!isField) assert.equal(described, bubbleId, `the unavailable control is described by more than its reason: ${described}`);
   return { control, bubble: page.locator(`[id="${bubbleId}"]`), described };
 }
 
@@ -151,8 +171,10 @@ async function pastGrace(page) {
 
 async function checkReason(page, what, engine, { isRoving = false } = {}) {
   const [tab, back] = engine === 'webkit' ? ['Alt+Tab', 'Alt+Shift+Tab'] : ['Tab', 'Shift+Tab'];
-  const before = await boxes(page);
   const { control, bubble, described } = await subject(page);
+  // A pane at 200 % is wider than the window: the pointer can only reach what is in view.
+  await control.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'center' }));
+  const before = await boxes(page);
   const reason = (await bubble.textContent())?.trim();
   assert.ok(reason, `${what}: the bubble is empty`);
   assert.equal(await isShowing(bubble), false, `${what}: the bubble shows before anything happened`);
@@ -188,6 +210,13 @@ async function checkReason(page, what, engine, { isRoving = false } = {}) {
   assert.equal(await isShowing(bubble), true, `${what}: focus shows no reason`);
   assert.equal(await control.getAttribute('aria-disabled'), 'true');
   assert.ok(described.split(' ').length >= 1);
+  const isText = await control.evaluate((node) => node.tagName === 'TEXTAREA' || (node.tagName === 'INPUT' && !['range', 'color', 'file'].includes(node.type)));
+  if (isText) {
+    const value = await control.inputValue();
+    await page.keyboard.type('xy');
+    await page.keyboard.press('Backspace');
+    assert.equal(await control.inputValue(), value, `${what}: typing changed an unavailable field`);
+  }
   await page.keyboard.press('Enter');
   await page.keyboard.press('Space');
   assert.deepEqual(await counters(page), { caller: '0', row: '0' }, `${what}: a key reached a handler`);
@@ -253,7 +282,34 @@ async function checkRoving(page, what, engine) {
   assert.equal(await chosen(items.nth(2)), true, `${what}: the next available item was not chosen`);
 }
 
-const CHECKS = { reason: checkReason, busy: checkBusy, roving: checkRoving };
+/** A range ignores `readonly`: the guard has to keep its arrows from moving it. */
+async function checkRange(page, what, engine) {
+  await checkReason(page, what, engine);
+  const { control } = await subject(page);
+  const before = await control.inputValue();
+  await control.evaluate((node) => node.focus());
+  await page.keyboard.press('ArrowRight');
+  await page.keyboard.press('End');
+  assert.equal(await control.inputValue(), before, `${what}: the keys moved an unavailable range`);
+}
+
+/**
+ * Nothing unavailable to try, only a shape to keep: an option's reason does not widen the closed
+ * select, and the open list says it.
+ */
+async function checkShape(page, what) {
+  const [withReason, without] = [await rowShape(page, 'with'), await rowShape(page, 'without')];
+  assertSame(without.slice(1), withReason.slice(1), `${what}, the row with an option's reason against the row without`);
+  // The same option says more where it is unavailable than where it is not: its reason. Compared
+  // with its twin rather than with the reason's words, which the +40 % axis rewrites.
+  const option = page.locator('.host [data-case="with"] option[disabled]').first();
+  const value = await option.getAttribute('value');
+  const twin = page.locator(`.host [data-case="without"] option[value="${value}"]`);
+  const [said, plain] = [(await option.textContent()).trim(), (await twin.textContent()).trim()];
+  assert.ok(said.length > plain.length, `${what}: the unavailable option says "${said}", not why`);
+}
+
+const CHECKS = { reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
 
 for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
   test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
