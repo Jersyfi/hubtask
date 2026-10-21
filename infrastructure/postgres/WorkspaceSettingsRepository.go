@@ -66,6 +66,9 @@ type settingsDocument struct {
 	AiOptOutBasis   string `json:"ai_person_opt_out_basis"`
 	AiOptOutContact string `json:"ai_person_opt_out_contact"`
 	AiOptOutSince   string `json:"ai_person_opt_out_since"`
+	// AiArrivalProposals is written whatever its value, `ai_sources`' reason: switching it off has
+	// to write false into the merge rather than leave true standing. An absent key reads false.
+	AiArrivalProposals bool `json:"ai_arrival_proposals"`
 }
 
 // policyDocument is the stored patch, flat - the same shape the contract patches, so that the wire
@@ -245,6 +248,7 @@ func (WorkspaceSettingsRepository) Find(ctx context.Context) (identity.Workspace
 			AiOptOutBasis:       settings.AiOptOutBasis,
 			AiOptOutContact:     settings.AiOptOutContact,
 			AiOptOutSince:       sinceOf(settings.AiOptOutSince),
+			AiArrivalProposals:  settings.AiArrivalProposals,
 			SignIn:              patch,
 			Legal:               links,
 		},
@@ -285,6 +289,7 @@ func (WorkspaceSettingsRepository) Update(
 		AiOptOutBasis:       changed.Settings.AiOptOutBasis,
 		AiOptOutContact:     changed.Settings.AiOptOutContact,
 		AiOptOutSince:       sinceText(changed.Settings.AiOptOutSince),
+		AiArrivalProposals:  changed.Settings.AiArrivalProposals,
 	})
 	if err != nil {
 		return false, shared.Internalf("postgres: encoding the workspace settings: %w", err)

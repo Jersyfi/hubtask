@@ -1067,6 +1067,10 @@ class Client:
         """Whether each person may keep their own content out of AI"""
         return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
 
+    def set_ai_arrival_proposals(self, body: "AiArrivalProposalsChoice") -> "AiSource":
+        """Whether AI prepares a proposal for each new jumble entry"""
+        return self._call("PUT", "/ai-arrival-proposals", {}, None, {}, body, "json", "application/json", "json")
+
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""
         return self._call("PUT", "/ai-budget", {}, None, {}, body, "json", "application/json", "json")

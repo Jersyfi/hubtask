@@ -1344,6 +1344,11 @@ export class HubtaskClient {
     return this.call("PUT", "/ai-person-opt-out", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Whether AI prepares a proposal for each new jumble entry */
+  setAiArrivalProposals(body: NonNullable<operations["setAiArrivalProposals"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiArrivalProposals"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-arrival-proposals", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Set the daily budget of this workspace's own AI model */
   setOwnAiBudget(body: NonNullable<operations["setOwnAiBudget"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAiBudget"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ai-budget", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

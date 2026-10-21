@@ -54,6 +54,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `ai.arrival_proposals_set` | SetAiArrivalProposals | `ai_source` | NOTICE | Every time |
 | `ai.classification_asked` | AiClassify | `ai_suggestion` | NOTICE | Every time |
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |

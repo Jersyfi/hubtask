@@ -8971,6 +8971,41 @@
         }
       }
     },
+    "/ai-arrival-proposals": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setAiArrivalProposals",
+        "summary": "Whether AI prepares a proposal for each new jumble entry",
+        "description": "`true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiArrivalProposalsChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ai-budget": {
       "put": {
         "tags": [
@@ -15414,7 +15449,8 @@
           "version",
           "person_opt_out",
           "person_opt_out_origin",
-          "keeping_out_count"
+          "keeping_out_count",
+          "prepare_on_arrival"
         ],
         "properties": {
           "source": {
@@ -15519,6 +15555,10 @@
             "minimum": 0,
             "description": "How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.\n"
           },
+          "prepare_on_arrival": {
+            "type": "boolean",
+            "description": "Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.\n"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
@@ -15544,6 +15584,18 @@
           "LEGAL_OBLIGATION"
         ],
         "description": "The legal basis a workspace names for making AI part of everybody's work."
+      },
+      "AiArrivalProposalsChoice": {
+        "type": "object",
+        "required": [
+          "prepare"
+        ],
+        "properties": {
+          "prepare": {
+            "type": "boolean",
+            "description": "True prepares a proposal for each new jumble entry; false waits for somebody to ask."
+          }
+        }
       },
       "AiPersonOptOutChoice": {
         "type": "object",

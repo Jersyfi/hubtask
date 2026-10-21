@@ -5585,6 +5585,12 @@ type AdminTenantPage struct {
 	Page PageInfo      `json:"page"`
 }
 
+// AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
+type AiArrivalProposalsChoice struct {
+	// Prepare True prepares a proposal for each new jumble entry; false waits for somebody to ask.
+	Prepare bool `json:"prepare"`
+}
+
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
 	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.
@@ -5708,6 +5714,9 @@ type AiSource struct {
 
 	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
 	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
+
+	// PrepareOnArrival Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.
+	PrepareOnArrival bool `json:"prepare_on_arrival"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -13336,6 +13345,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
 
+// SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
+type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
+
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
 
@@ -13941,6 +13953,9 @@ type ServerInterface interface {
 	// ReadUsage The use per workspace, metric and day, for billing
 	// (GET /admin/usage)
 	ReadUsage(w http.ResponseWriter, r *http.Request, params ReadUsageParams)
+	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+	// (PUT /ai-arrival-proposals)
+	SetAiArrivalProposals(w http.ResponseWriter, r *http.Request)
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
@@ -17218,6 +17233,20 @@ func (siw *ServerInterfaceWrapper) ReadUsage(w http.ResponseWriter, r *http.Requ
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadUsage(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetAiArrivalProposals operation middleware
+func (siw *ServerInterfaceWrapper) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAiArrivalProposals(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -27429,6 +27458,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-person-opt-out", wrapper.SetAiPersonOptOut)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-arrival-proposals", wrapper.SetAiArrivalProposals)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)

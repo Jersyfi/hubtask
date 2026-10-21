@@ -98,6 +98,10 @@ type WorkspaceSettings struct {
 	AiOptOutBasis   string
 	AiOptOutContact string
 	AiOptOutSince   time.Time
+	// AiArrivalProposals is whether each new jumble entry gets an AI proposal without anybody
+	// asking (UC-JUM-07 check 10). The workspace's alone, off by default and where a document
+	// carries no such key.
+	AiArrivalProposals bool
 }
 
 // Offers reports whether this workspace switched on a provider the installation offers.

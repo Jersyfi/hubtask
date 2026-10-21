@@ -274,6 +274,7 @@ func Descriptors() []usecase.Descriptor {
 		integration.ReadAiSource{}.Descriptor(),
 		integration.ChooseAiSource{}.Descriptor(),
 		integration.SetAiPersonOptOut{}.Descriptor(),
+		integration.SetAiArrivalProposals{}.Descriptor(),
 		suggestionservice.ListSuggestions{}.Descriptor(),
 		suggestionservice.AcceptSuggestion{}.Descriptor(),
 		suggestionservice.DismissSuggestion{}.Descriptor(),

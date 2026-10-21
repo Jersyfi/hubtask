@@ -5591,6 +5591,12 @@ type AdminTenantPage struct {
 	Page PageInfo      `json:"page"`
 }
 
+// AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
+type AiArrivalProposalsChoice struct {
+	// Prepare True prepares a proposal for each new jumble entry; false waits for somebody to ask.
+	Prepare bool `json:"prepare"`
+}
+
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
 	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.
@@ -5714,6 +5720,9 @@ type AiSource struct {
 
 	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
 	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
+
+	// PrepareOnArrival Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.
+	PrepareOnArrival bool `json:"prepare_on_arrival"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -13342,6 +13351,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
 
+// SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
+type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
+
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
 
@@ -14993,6 +15005,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposals(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
 	//
@@ -20974,6 +21004,44 @@ func (c *Client) QueryTenants(ctx context.Context, body QueryTenantsJSONRequestB
 // Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 func (c *Client) ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadUsageRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *Client) SetAiArrivalProposalsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiArrivalProposalsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *Client) SetAiArrivalProposals(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiArrivalProposalsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -32088,6 +32156,46 @@ func NewReadUsageRequest(server string, params *ReadUsageParams) (*http.Request,
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetAiArrivalProposalsRequest calls the generic SetAiArrivalProposals builder with application/json body
+func NewSetAiArrivalProposalsRequest(server string, body SetAiArrivalProposalsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAiArrivalProposalsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAiArrivalProposalsRequestWithBody constructs an http.Request for the SetAiArrivalProposals method, with any body, and a specified content type
+func NewSetAiArrivalProposalsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-arrival-proposals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -46775,6 +46883,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsageWithResponse(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*ReadUsageResult, error)
 
+	// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error)
+
+	// SetAiArrivalProposalsWithResponse Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithResponse(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error)
+
 	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 	//
 	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -54405,6 +54531,54 @@ func (r ReadUsageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadUsageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAiArrivalProposalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAiArrivalProposalsResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAiArrivalProposalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAiArrivalProposalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAiArrivalProposalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAiArrivalProposalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAiArrivalProposalsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -70075,6 +70249,36 @@ func (c *ClientWithResponses) ReadUsageWithResponse(ctx context.Context, params 
 	return ParseReadUsageResult(rsp)
 }
 
+// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *ClientWithResponses) SetAiArrivalProposalsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error) {
+	rsp, err := c.SetAiArrivalProposalsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiArrivalProposalsResult(rsp)
+}
+
+// SetAiArrivalProposalsWithResponse Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *ClientWithResponses) SetAiArrivalProposalsWithResponse(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error) {
+	rsp, err := c.SetAiArrivalProposals(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiArrivalProposalsResult(rsp)
+}
+
 // SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 //
 // How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -79071,6 +79275,39 @@ func ParseReadUsageResult(rsp *http.Response) (*ReadUsageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest UsagePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAiArrivalProposalsResult parses an HTTP response from a SetAiArrivalProposalsWithResponse call
+func ParseSetAiArrivalProposalsResult(rsp *http.Response) (*SetAiArrivalProposalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAiArrivalProposalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

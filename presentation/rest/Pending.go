@@ -1408,6 +1408,10 @@ func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 func (pending) SetAiPersonOptOut(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }

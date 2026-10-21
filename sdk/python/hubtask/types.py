@@ -427,12 +427,16 @@ class AiSource(TypedDict, total=False):
     person_opt_out_contact: str
     person_opt_out_since: str
     keeping_out_count: Required[int]
+    prepare_on_arrival: Required[bool]
     updated_at: str
     version: Required[int]
 
 AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
 
 AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiArrivalProposalsChoice(TypedDict, total=False):
+    prepare: Required[bool]
 
 class AiPersonOptOutChoice(TypedDict, total=False):
     person_opt_out: Required["AiPersonOptOut"]

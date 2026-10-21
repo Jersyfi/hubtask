@@ -295,7 +295,7 @@ export const OFFERED_AI = [
  * A workspace's AI source on a private installation (D1): its own model, nothing offered, no lock -
  * today's screen. A walk of an installation that offers a model routes `/ai-source` itself.
  */
-export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0 };
+export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0, prepare_on_arrival: false };
 
 /**
  * A person's own view of keeping their content out of AI where there is nothing to choose: AI off

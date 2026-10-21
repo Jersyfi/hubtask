@@ -32,6 +32,8 @@
   import type { AiJurisdiction, AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { announcer } from '../lib/announce.svelte.ts';
   import PersonOptOutSection from '../lib/workspace/PersonOptOutSection.svelte';
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -101,6 +103,25 @@
     }
   }
   let choosingWorking = $state<string | undefined>(undefined);
+
+  /**
+   * Proposals on arrival, where there is AI to make them: absent rather than disabled where the
+   * manifest announces no AI (absence is absence). Switched at once, as a switch is.
+   */
+  const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+  let arrivalWorking = $state(false);
+  async function prepareOnArrival(prepare: boolean): Promise<void> {
+    arrivalWorking = true;
+    failure = undefined;
+    try {
+      await aiProvider.setArrivalProposals(prepare);
+      announcer.say(t(prepare ? 'app.ai.arrival_on_announced' : 'app.ai.arrival_off_announced'));
+    } catch (cause) {
+      failure = problemOf(cause);
+    } finally {
+      arrivalWorking = false;
+    }
+  }
 
   const reading = $derived(aiProvider.state);
   const provider = $derived(aiProvider.provider);
@@ -425,6 +446,17 @@
         <!-- Whether each person may keep their own content out of AI, or AI is part of
              everybody's work on a basis named here (data-protection.md §4.1). -->
         <PersonOptOutSection {source} />
+      {/if}
+
+      {#if source && hasAi && !allowsNone}
+        <Switch
+          label={t('app.ai.arrival_label')}
+          hint={t('app.ai.arrival_hint')}
+          checked={source.prepare_on_arrival}
+          disabledReason={arrivalWorking ? t('app.ai.saving') : undefined}
+          onchange={(event) => void prepareOnArrival((event.currentTarget as HTMLInputElement).checked)}
+          data-arrival-proposals
+        />
       {/if}
 
       <Stack gap="100">
