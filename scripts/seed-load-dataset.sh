@@ -66,7 +66,7 @@ started=$SECONDS
 copy tenant     "id, slug, display_name"
 copy account    "id, tenant_id, kind, display_name, status"
 copy membership "id, tenant_id, account_id, scope_type, role"
-copy container  "id, tenant_id, type, parent_id, name, order_key, created_by"
+copy container  "id, tenant_id, type, parent_id, name, order_key, created_by, policies"
 copy work_item  "id, tenant_id, collection_id, type, parent_id, path, depth, title, \
 is_completed, completed_at, order_key, due_at, created_by, created_at"
 

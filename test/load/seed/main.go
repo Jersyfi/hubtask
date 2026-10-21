@@ -277,22 +277,28 @@ func writeMemberships(out io.Writer, tenants int, seed string) error {
 	return nil
 }
 
+// collectionFigures is what counts in each of a tenant's collections, by position: the hub's level
+// is read with a figure counted for each (UC-WRK-29), and the three kinds whose statements read
+// the most rows are the ones a guard should see.
+var collectionFigures = [collectionsPerTenant]string{"PROGRESS", "DUE", "RHYTHM"}
+
 // writeContainers gives every tenant one hub and its collections under it. The hub is what the
 // collections hang from; the items reference their collection directly, which is why nothing
-// deeper is needed here.
+// deeper is needed here. Each collection counts one figure, stored as its own structure layer.
 func writeContainers(out io.Writer, tenants int, seed string) error {
 	for rank := range tenants {
 		hub := derive(seed, "hub", rank)
 		if err := row(out,
 			hub, tenantID(seed, rank), "HUB", `\N`,
-			fmt.Sprintf("Hub %04d", rank), orderKey(0), accountID(seed, rank),
+			fmt.Sprintf("Hub %04d", rank), orderKey(0), accountID(seed, rank), `{}`,
 		); err != nil {
 			return err
 		}
 		for n := range collectionsPerTenant {
+			policies := fmt.Sprintf(`{"structure":{"settings":{"counts":{"figure":%q}}}}`, collectionFigures[n])
 			if err := row(out,
 				derive(seed, "collection", rank, n), tenantID(seed, rank), "COLLECTION", hub,
-				fmt.Sprintf("Collection %04d-%d", rank, n), orderKey(n+1), accountID(seed, rank),
+				fmt.Sprintf("Collection %04d-%d", rank, n), orderKey(n+1), accountID(seed, rank), policies,
 			); err != nil {
 				return err
 			}
