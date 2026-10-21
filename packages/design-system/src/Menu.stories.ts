@@ -23,3 +23,10 @@ export const long: Story = {
     'Where arrows alone stop being usable. Open it and press “a” twice: focus walks the items that share the letter, starting after the one it is on, which is what makes a repeated letter walk a group rather than sticking on the first match.',
   args: { mode: 'long' },
 };
+
+export const outside: Story = {
+  name: 'Opened from the row it belongs to',
+  about:
+    'Right-click “Buy milk”, or focus it and press the context-menu key or Shift+F10: the same menu opens at its button with the first item focused, and Escape gives focus back to the row. A right click with Shift keeps the browser’s own menu. A long press on touch opens it the same way (design-system.md §11.9).',
+  args: { mode: 'outside' },
+};

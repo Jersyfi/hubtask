@@ -69,26 +69,43 @@
     'aria-expanded': isOpen,
     'aria-controls': isOpen ? id : undefined,
     'aria-haspopup': 'menu',
-    onclick: () => open(0),
+    onclick: () => toggle(0),
     onkeydown: (event: KeyboardEvent) => {
       // The arrows open the menu and say where to land, which is what a reader who never touches
-      // the pointer expects and what the practices specify.
-      if (event.key === 'ArrowDown') open(0);
-      else if (event.key === 'ArrowUp') open(items.length - 1);
+      // the pointer expects and what the practices specify. The context-menu key and Shift+F10
+      // are the keyboard's right click, and land on the first item.
+      if (event.key === 'ArrowDown' || isContextKey(event)) toggle(0);
+      else if (event.key === 'ArrowUp') toggle(items.length - 1);
       else return;
       event.preventDefault();
     },
   });
 
-  function open(index: number) {
+  function toggle(index: number) {
     if (isOpen) {
       close();
       return;
     }
-    opener = document.activeElement;
-    active = index;
+    open(index);
+  }
+
+  /**
+   * Opens the menu from outside its trigger - a right click on the row it belongs to, a long press,
+   * the context-menu key - with the item at `index` focused, as the trigger's own arrows do.
+   *
+   * Exported rather than left to binding `isOpen`: a menu opened by a binding would have no item
+   * focused and no idea where focus should return, and every caller would have to answer both. The
+   * surface is still drawn at the trigger, so a menu belongs to one place on the page.
+   */
+  export function open(index = 0) {
+    if (!isOpen) opener = document.activeElement;
+    active = Math.max(0, Math.min(index, items.length - 1));
     isOpen = true;
   }
+
+  /** The keyboard's right click: the context-menu key, or Shift+F10 where a keyboard has none. */
+  const isContextKey = (event: KeyboardEvent) =>
+    event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey);
 
   function close(returnFocus = true) {
     if (!isOpen) return;
