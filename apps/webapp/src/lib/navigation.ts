@@ -36,7 +36,7 @@ export type Group = 'primary' | 'account';
 export type Band = 'places' | 'tree' | 'keeping';
 
 /** What choosing a destination does: goes somewhere, or performs one of the two account verbs. */
-export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'tour' | 'sign-out' };
+export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'help' | 'sign-out' };
 
 export interface Destination {
   /** A stable identifier the drawings key on and the bottom bar announces; never display text. */
@@ -80,7 +80,9 @@ export const DESTINATIONS: readonly Destination[] = [
   // where it does not apply: somebody who is not an operator was never going to have it, and a
   // greyed row would be an invitation to ask why.
   { id: 'instance', group: 'account', icon: 'gauge', code: 'app.nav.instance', target: { kind: 'route', path: '/instance' }, routes: ['instance'], area: 'instance' },
-  { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
+  // Help and the list of shortcuts, with the tour inside it (ux-inventory.md §E1): one row for
+  // "how does this work", where the tour was a row of its own.
+  { id: 'help', group: 'account', icon: 'compass', code: 'app.help.label', target: { kind: 'action', action: 'help' }, routes: [] },
   // The installation: four facts — the product version, the API version, the tenancy and the
   // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
   // its address and its page; what it loses is a place in somebody's navigation. Everyone may see

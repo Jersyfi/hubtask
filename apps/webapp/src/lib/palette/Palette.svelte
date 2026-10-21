@@ -51,7 +51,7 @@
     /** Where a row sends the reader. The frame owns the router; this does not. */
     onnavigate: (path: string) => void;
     /** The account's verbs, which are the frame's. */
-    onaccount: (action: 'tour' | 'sign-out') => void;
+    onaccount: (action: 'help' | 'sign-out') => void;
   }
 
   const { host, onnavigate, onaccount }: Props = $props();

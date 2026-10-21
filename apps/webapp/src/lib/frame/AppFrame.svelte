@@ -29,6 +29,7 @@
   import Palette from '../palette/Palette.svelte';
   import { palette } from '../palette/palette.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
+  import HelpDialog from './HelpDialog.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
@@ -142,7 +143,7 @@
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
     if (!session.isSignedIn) return;
-    return listenForShortcuts(() => palette.isOpen, { palette: () => palette.summon() });
+    return listenForShortcuts(() => palette.isOpen, { palette: () => palette.summon(), help: () => (isHelpOpen = true) });
   });
 
   // The palette's state belongs to one drawing at a time: a width change closes it rather than
@@ -260,9 +261,12 @@
     else accountVerb(chosen.target.action);
   }
 
-  /** The account's two verbs, wherever they are chosen - the menu or the palette. */
-  function accountVerb(action: 'tour' | 'sign-out') {
-    if (action === 'tour') void tour.restart();
+  /** *Help and shortcuts*, open: from the account group, the palette, or `?`. */
+  let isHelpOpen = $state(false);
+
+  /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
+  function accountVerb(action: 'help' | 'sign-out') {
+    if (action === 'help') isHelpOpen = true;
     else void session.signOut();
   }
 
@@ -512,6 +516,9 @@
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
+  {/if}
+  {#if isHelpOpen}
+    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so

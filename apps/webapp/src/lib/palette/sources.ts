@@ -29,7 +29,7 @@ export type Translate = (code: string, params?: Record<string, string>) => strin
 /** What pressing a listed row does - the palette's own verbs, and nothing a screen does not offer. */
 export type Target =
   | { readonly kind: 'route'; readonly path: string }
-  | { readonly kind: 'account'; readonly action: 'tour' | 'sign-out' }
+  | { readonly kind: 'account'; readonly action: 'help' | 'sign-out' }
   | { readonly kind: 'search'; readonly line: string }
   | { readonly kind: 'open'; readonly containerId: string; readonly layout?: string; readonly add?: boolean };
 
@@ -205,6 +205,8 @@ export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
         id: destination.id,
         label: t(destination.code),
         area: destination.area,
+        // The one place-row with a key of its own: `?` opens help.
+        shortcut: destination.id === 'help' ? 'help' : undefined,
         target:
           destination.target.kind === 'route'
             ? { kind: 'route', path: destination.target.path }
