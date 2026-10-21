@@ -4,6 +4,7 @@
 package automation_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
@@ -58,6 +59,54 @@ func TestASentenceIsCompiledOnlyInsideItsBounds(t *testing.T) {
 		_, err := automation.CompileCondition(refused.node)
 		if detail := shared.AsError(err); detail == nil || detail.DetailCode != "automation.sentence_invalid" {
 			t.Errorf("%s: %v, want automation.sentence_invalid", refused.name, err)
+		}
+	}
+}
+
+// Every operator of every subject compiles with values of the kind it takes, and to the shape the
+// editor writes for it: the expression names what the subject reads.
+func TestEveryOperatorOfEverySubjectCompiles(t *testing.T) {
+	reads := map[string]string{
+		"type": "item.type", "title": "item.title", "notes": "item.notes", "completed": "item.completed",
+		"archived": "item.archived", "due": "item.due_at", "label": "item.labels", "assignee": "item.assignee_id",
+		"bucket": "item.bucket_id", "parent": "item.parent_id", "depth": "item.depth", "actor": "actor.id",
+		"hour": "now.getHours()", "field": "item.custom_fields",
+	}
+	subjects := automation.SentenceSubjects()
+	if len(subjects) != len(reads) {
+		t.Fatalf("%d subjects, the table knows %d", len(subjects), len(reads))
+	}
+	for _, subject := range subjects {
+		for _, op := range automation.SentenceOperators(subject) {
+			s := automation.Sentence{Subject: subject, Op: op}
+			switch automation.SentenceTakes(subject, op) {
+			case "value":
+				s.A = "x"
+			case "key_value":
+				s.A, s.B = "priority", "High"
+			case "number", "days":
+				s.A = "2"
+			case "range":
+				s.A, s.B = "8", "18"
+			}
+			expr, err := automation.CompileSentence(s)
+			if err != nil || !strings.Contains(expr, reads[subject]) {
+				t.Errorf("%s %s: %q, %v", subject, op, expr, err)
+			}
+		}
+	}
+	if len(automation.SentenceOperators("priority")) != 0 {
+		t.Error("an unknown subject has operators")
+	}
+	for _, refused := range []automation.Sentence{
+		{Subject: "field", Op: "is", A: "priority"},
+		{Subject: "hour", Op: "between", A: "8"},
+		{Subject: "depth", Op: "is", A: "2", B: "3"},
+		{Subject: "label", Op: "on", A: "x", B: "y"},
+		{Subject: "due", Op: "within", A: "1234"},
+	} {
+		if _, err := automation.CompileSentence(refused); err == nil {
+			t.Errorf("%+v compiled", refused)
 		}
 	}
 }
