@@ -9,6 +9,8 @@
   // value comes from, shows a lock as a lock, and explains a progress the levels show as open
   // entries rather than leaving the reader to wonder where the percentage went.
 
+  import { untrack } from 'svelte';
+
   import { Button, Dialog, Select, Stack } from '@hubtask/design-system/components';
   import type { Container } from '@hubtask/sync-engine';
 
@@ -34,12 +36,16 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   // The number fields a sum may name: the collection's own and the workspace's.
+  // From `untrack`: subscribing delivers at once and writes the store this effect would read.
   $effect(() => {
     if (!isOpen) return;
-    const stops = [customFields.open(container.id), customFields.open()];
-    return () => {
-      for (const stop of stops) stop();
-    };
+    const id = container.id;
+    return untrack(() => {
+      const stops = [customFields.open(id), customFields.open()];
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
   });
 
   const offer = $derived(
@@ -48,11 +54,19 @@
       : undefined,
   );
 
-  // Opening fills the choice from what is in force; closing leaves it alone.
+  // Opening fills the choice from what is in force, once: the fields arriving afterwards change the
+  // offer, and must not take back what the reader has chosen meanwhile.
+  let isFilled = false;
   $effect(() => {
-    if (!isOpen || !offer) return;
+    if (!isOpen) {
+      isFilled = false;
+      return;
+    }
+    if (!offer || isFilled) return;
+    isFilled = true;
     figure = offer.clippedFrom ?? offer.current;
     field = offer.currentField ?? '';
+    isFieldMissing = false;
     failure = undefined;
   });
 
