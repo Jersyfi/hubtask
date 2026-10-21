@@ -178,8 +178,10 @@
   .value {
     display: grid;
     gap: var(--sp-100);
-    /* The value and its lock side by side where there is room, one above the other on a phone. */
-    grid-template-columns: repeat(auto-fit, minmax(24ch, 1fr));
+    /* The value and its lock one above the other, at every width: side by side, a list of choices
+       beside a one-line select left every row a different shape, and the lock's column wandered
+       from row to row. One column keeps every setting the same shape. */
+    grid-template-columns: minmax(0, 52ch);
     align-items: start;
     padding-block-end: var(--sp-150);
     border-block-end: var(--bw-hairline) solid var(--border-subtle);
