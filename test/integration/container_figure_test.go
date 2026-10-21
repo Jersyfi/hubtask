@@ -88,10 +88,22 @@ func figureCatalogue(t *testing.T) *usecase.Registry {
 	return registry
 }
 
+// figureReader is tenant B's owner. Tenant B, because another test in this package narrows tenant
+// A's installation profile to a task without dates (capability_profile_test.go), and the figures
+// here are about a workspace whose installation offers every field.
 func figureReader() appshared.ActorContext {
-	actor := structureActor(tenantA, authorA)
+	actor := structureActor(tenantB, authorB)
 	actor.TimeZone, actor.WeekStart = "Europe/Berlin", "MONDAY"
 	return actor
+}
+
+func createFigured(ctx context.Context, t *testing.T, registry *usecase.Registry, in usecase.Input) string {
+	t.Helper()
+	out, err := registry.Invoke(ctx, "CreateContainer", figureReader(), in)
+	if err != nil {
+		t.Fatalf("creating %v: %v", in, err)
+	}
+	return out.String("id")
 }
 
 func restGet(ctx context.Context, t *testing.T, registry *usecase.Registry, path string) (int, map[string]any) {
@@ -117,18 +129,18 @@ func TestACollectionsReadAnswersWhatCountsOnEveryDoor(t *testing.T) {
 	seedMemberships(ctx, t)
 	registry := figureCatalogue(t)
 
-	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t), "preset": "PROJECT"})
-	project := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
-	list := createIn(ctx, t, registry, usecase.Input{
+	hub := createFigured(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t), "preset": "PROJECT"})
+	project := createFigured(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
+	list := createFigured(ctx, t, registry, usecase.Input{
 		"type": "COLLECTION", "parent_id": hub, "name": freshName(t), "preset": "LIST",
 	})
-	household := createIn(ctx, t, registry, usecase.Input{
+	household := createFigured(ctx, t, registry, usecase.Input{
 		"type": "COLLECTION", "parent_id": hub, "name": freshName(t), "preset": "TASKS",
 	})
-	trashed := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
+	trashed := createFigured(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
 
 	in := func(collection string, row entryRow) *seededEntry {
-		return seedEntry(ctx, t, tenantA, shared.MustParseID(collection), row)
+		return seedEntry(ctx, t, tenantB, shared.MustParseID(collection), row)
 	}
 	task := in(project, entryRow{})
 	in(project, entryRow{itemType: "WORK_PACKAGE", parent: task, completedAt: "2026-10-21T08:00:00Z"})
@@ -200,8 +212,8 @@ func TestProgressForAListIsRefusedOnEveryDoor(t *testing.T) {
 	seedMemberships(ctx, t)
 	registry := figureCatalogue(t)
 	actor := figureReader()
-	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t), "preset": "LIST"})
-	list := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
+	hub := createFigured(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t), "preset": "LIST"})
+	list := createFigured(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
 	progress := map[string]any{"counts": map[string]any{"figure": "PROGRESS"}}
 
 	document, _ := json.Marshal(map[string]any{"settings": progress})
