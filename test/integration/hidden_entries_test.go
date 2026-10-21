@@ -323,6 +323,13 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		}
 	}
 
+	// The REST answer carries the mark as the contract spells it.
+	fetched := restItem(ctx, t, registry, actor, http.MethodGet, "/items/"+taskID, "")
+	if fetched.Code != http.StatusOK || !strings.Contains(fetched.Body.String(), `"hidden":{`) ||
+		!strings.Contains(fetched.Body.String(), `"NOTES"`) {
+		t.Errorf("REST read answered %d %s", fetched.Code, fetched.Body)
+	}
+
 	// Writing what is hidden is refused the same way on every door, and nothing is written.
 	recorder := restItem(ctx, t, registry, actor, http.MethodPatch, "/items/"+taskID, `{"notes":"Budget 500"}`)
 	var problem map[string]any
