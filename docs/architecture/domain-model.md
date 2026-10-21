@@ -94,8 +94,11 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
 * **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
-  as below. `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
-  the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
+  as below. `views`, `capture`, `celebration` and `automation` are applied by clients; the server
+  stores and answers them. `counts` the server applies on the collection's read: it counts the
+  figure (`figure`, in the reader's day and week, leaving out trashed and hidden entries, in a
+  read-only transaction of its own so that a figure that cannot be counted is marked
+  `unavailable` and never fails the read) and the client draws it. `automation` holds no value yet: nothing runs by itself that
   a collection may switch on.
 * **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
   a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
