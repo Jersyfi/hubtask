@@ -1302,6 +1302,33 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CollectionFigureKind.
+const (
+	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
+	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
+	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
+	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the CollectionFigureKind enum.
+func (e CollectionFigureKind) Valid() bool {
+	switch e {
+	case CollectionFigureKindDUE:
+		return true
+	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindOPEN:
+		return true
+	case CollectionFigureKindPROGRESS:
+		return true
+	case CollectionFigureKindRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -4251,6 +4278,21 @@ func (e StructureCountsFigure) Valid() bool {
 	}
 }
 
+// Defines values for StructureCountsClipReason.
+const (
+	ONELEVEL StructureCountsClipReason = "ONE_LEVEL"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsClipReason enum.
+func (e StructureCountsClipReason) Valid() bool {
+	switch e {
+	case ONELEVEL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureLockOrigin.
 const (
 	StructureLockOriginINSTANCE  StructureLockOrigin = "INSTANCE"
@@ -6515,6 +6557,41 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
+type CollectionFigure struct {
+	// Days RHYTHM - the dates of the reader's week on which something was completed.
+	Days *[]openapi_types.Date `json:"days,omitempty"`
+
+	// Done PROGRESS - completed leaves, archived ones counted as they stand.
+	Done *int `json:"done,omitempty"`
+
+	// Due DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.
+	Due  *int                 `json:"due,omitempty"`
+	Kind CollectionFigureKind `json:"kind"`
+
+	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
+	Open *int `json:"open,omitempty"`
+
+	// Sum FIELD_SUM - the sum of the number field over those entries; null where the field is not a live number field the entries carry.
+	Sum *float32 `json:"sum,omitempty"`
+
+	// Summed FIELD_SUM - how many of those entries carry a value.
+	Summed *int               `json:"summed,omitempty"`
+	Today  openapi_types.Date `json:"today"`
+
+	// Total PROGRESS - all leaves.
+	Total *int `json:"total,omitempty"`
+
+	// Unavailable True where the figure could not be counted; the container is answered all the same.
+	Unavailable *bool `json:"unavailable,omitempty"`
+
+	// WeekStart RHYTHM - the first date of that week.
+	WeekStart *openapi_types.Date `json:"week_start,omitempty"`
+}
+
+// CollectionFigureKind defines model for CollectionFigure.Kind.
+type CollectionFigureKind string
+
 // Comment defines model for Comment.
 type Comment struct {
 	AuthorId openapi_types.UUID `json:"author_id"`
@@ -6631,16 +6708,22 @@ type ConsentWithdrawal struct {
 
 // Container defines model for Container.
 type Container struct {
-	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
-	ColorToken  *string    `json:"color_token,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-	Description *string    `json:"description,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
+	// ClippedByLevels On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.
+	ClippedByLevels *[]StructureSettingName `json:"clipped_by_levels,omitempty"`
+	ColorToken      *string                 `json:"color_token,omitempty"`
+	CreatedAt       *time.Time              `json:"created_at,omitempty"`
+	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
+	Description     *string                 `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
-	Icon              *string            `json:"icon,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	EffectiveArchived *bool `json:"effective_archived,omitempty"`
+
+	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
+	Figure *CollectionFigure  `json:"figure,omitempty"`
+	Icon   *string            `json:"icon,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
 	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
@@ -7031,6 +7114,9 @@ type DuplicateResult struct {
 
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
+	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+	CountsClipped *StructureCountsClip `json:"counts_clipped,omitempty"`
+
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
@@ -10616,7 +10702,7 @@ type StructureChange struct {
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
 
-// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+// StructureCounts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
 	Figure   StructureCountsFigure `json:"figure"`
@@ -10624,6 +10710,16 @@ type StructureCounts struct {
 
 // StructureCountsFigure defines model for StructureCounts.Figure.
 type StructureCountsFigure string
+
+// StructureCountsClip Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+type StructureCountsClip struct {
+	// From What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
+	From   StructureCounts           `json:"from"`
+	Reason StructureCountsClipReason `json:"reason"`
+}
+
+// StructureCountsClipReason defines model for StructureCountsClip.Reason.
+type StructureCountsClipReason string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
@@ -10667,7 +10763,7 @@ type StructureSettings struct {
 	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	Completion *CompletionPolicy `json:"completion,omitempty"`
 
-	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	// Counts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 	Counts *StructureCounts `json:"counts,omitempty"`
 
 	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
@@ -16254,13 +16350,13 @@ type ClientInterface interface {
 	// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
@@ -18468,13 +18564,13 @@ type ClientInterface interface {
 	// SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
@@ -23675,7 +23771,7 @@ func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, par
 // SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequestWithBody(c.Server, containerId, params, contentType, body)
 	if err != nil {
@@ -23691,7 +23787,7 @@ func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId 
 // SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
 	if err != nil {
@@ -28259,7 +28355,7 @@ func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ..
 // SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
@@ -28275,7 +28371,7 @@ func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetW
 // SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequest(c.Server, params, body)
 	if err != nil {
@@ -47870,7 +47966,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
@@ -47878,7 +47974,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
 
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
@@ -50328,7 +50424,7 @@ type ClientWithResponsesInterface interface {
 	// SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
@@ -50336,7 +50432,7 @@ type ClientWithResponsesInterface interface {
 	// SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
 
 	// ListTrashWithResponse What is in the trash
@@ -71858,7 +71954,7 @@ func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, con
 // SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
@@ -71872,7 +71968,7 @@ func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx cont
 // SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
 	rsp, err := c.SetContainerStructure(ctx, containerId, params, body, reqEditors...)
 	if err != nil {
@@ -75738,7 +75834,7 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 // SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
@@ -75752,7 +75848,7 @@ func (c *ClientWithResponses) SetWorkspaceStructureWithBodyWithResponse(ctx cont
 // SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *ClientWithResponses) SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
 	rsp, err := c.SetWorkspaceStructure(ctx, params, body, reqEditors...)
 	if err != nil {

@@ -9907,7 +9907,7 @@
           "meta"
         ],
         "operationId": "setWorkspaceStructure",
-        "description": "Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.\n",
+        "description": "Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -10220,7 +10220,7 @@
           "containers"
         ],
         "operationId": "setContainerStructure",
-        "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
+        "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -20564,6 +20564,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "clipped_by_levels": {
+            "type": "array",
+            "description": "On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.\n",
+            "items": {
+              "$ref": "#/components/schemas/StructureSettingName"
+            }
+          },
+          "figure": {
+            "$ref": "#/components/schemas/CollectionFigure",
+            "description": "What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).\n"
           }
         }
       },
@@ -20829,7 +20840,7 @@
       },
       "StructureCounts": {
         "type": "object",
-        "description": "The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.\n",
+        "description": "What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.\n",
         "required": [
           "figure"
         ],
@@ -20980,6 +20991,104 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/StructureLock"
             }
+          },
+          "counts_clipped": {
+            "$ref": "#/components/schemas/StructureCountsClip"
+          }
+        }
+      },
+      "StructureCountsClip": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.\n",
+        "required": [
+          "from",
+          "reason"
+        ],
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/StructureCounts"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "ONE_LEVEL"
+            ]
+          }
+        }
+      },
+      "CollectionFigure": {
+        "type": "object",
+        "description": "What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.\n",
+        "required": [
+          "kind",
+          "today"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "FIELD_SUM",
+              "DUE",
+              "RHYTHM",
+              "PROGRESS"
+            ]
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "unavailable": {
+            "type": "boolean",
+            "description": "True where the figure could not be counted; the container is answered all the same."
+          },
+          "open": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out."
+          },
+          "sum": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "FIELD_SUM - the sum of the number field over those entries; null where the field is not a live number field the entries carry.\n"
+          },
+          "summed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "FIELD_SUM - how many of those entries carry a value."
+          },
+          "due": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.\n"
+          },
+          "days": {
+            "type": "array",
+            "description": "RHYTHM - the dates of the reader's week on which something was completed.",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "description": "RHYTHM - the first date of that week."
+          },
+          "done": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "PROGRESS - completed leaves, archived ones counted as they stand."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "PROGRESS - all leaves."
           }
         }
       },

@@ -1455,6 +1455,8 @@ class Container(TypedDict, total=False):
     private: bool
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
+    clipped_by_levels: list["StructureSettingName"]
+    figure: "CollectionFigure"
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1506,7 +1508,7 @@ class StructureViews(TypedDict, total=False):
     default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
 
 class StructureCounts(TypedDict, total=False):
-    """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
+    """What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why."""
     figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
     field_key: str | None
 
@@ -1532,6 +1534,26 @@ class EffectiveStructure(TypedDict, total=False):
     settings: Required["StructureSettings"]
     sources: Required[dict[str, Any]]
     locks: Required[dict[str, Any]]
+    counts_clipped: "StructureCountsClip"
+
+StructureCountsClip = TypedDict("StructureCountsClip", {
+    "from": Required["StructureCounts"],
+    "reason": Required[Literal["ONE_LEVEL"]],
+}, total=False)
+
+class CollectionFigure(TypedDict, total=False):
+    """What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
+    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS"]]
+    today: Required[str]
+    unavailable: bool
+    open: int
+    sum: float | None
+    summed: int
+    due: int
+    days: list[str]
+    week_start: str
+    done: int
+    total: int
 
 class StructureLock(TypedDict, total=False):
     origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]
