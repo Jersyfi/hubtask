@@ -38,7 +38,10 @@ COPY packages packages
 # build ships them in its dist/ for the website's reference, and refuses to build without them.
 COPY api/openapi.yaml api/openapi.json api/
 COPY api/events api/events
-COPY locales/en.json locales/en.json
+# Every catalogue, not only the source: the client finds the others by a glob over this directory
+# and makes a lazy chunk of each, so a file left out here is a language the image's interface
+# never speaks while its API does (compose-smoke.sh asserts the German chunk).
+COPY locales/*.json locales/
 # In dependency order, because each one consumes the one before it.
 RUN pnpm --filter @hubtask/api-client build \
  && pnpm --filter @hubtask/design-system build \
