@@ -204,7 +204,7 @@ a flatten test with history; an engine walk of the preview.
 
 ## UX-12 — Keep a simple list
 
-*Depends on: UX-09.* · issue #1644
+*Depends on: UX-09, UX-24.* · issue #1644
 
 **Use cases:** UC-WRK-25 (1, 2, 3, 4, 5, 6, 7)
 
