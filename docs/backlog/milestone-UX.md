@@ -348,7 +348,7 @@ created switched off, drawn on the canvas with the probe offered.
 
 ## UX-24 — What counts
 
-*Depends on: UX-09.* · issue #1656
+*Depends on: UX-09, UX-29.* · issue #1656
 
 **Use cases:** UC-WRK-29 (1, 2, 3)
 
