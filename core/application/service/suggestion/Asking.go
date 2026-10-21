@@ -132,10 +132,11 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 		if q.Reads && !q.Apply {
 			// A reading aid admits a token that reads entries, and one that asks for suggestions
 			// as it did before the aid was offered to readers: no token that worked stops working.
-			if err := actor.RequireAnyScope(suggestionsRead, suggestionsWrite); err != nil {
-				return shared.ID(""), err
-			}
 			permission = readsEntry(subject, q.TargetID, q.Action, q.TargetID)
+			permission.TokenScope = suggestionsRead
+			if actor.HasScope(suggestionsWrite) && !actor.HasScope(suggestionsRead) {
+				permission.TokenScope = suggestionsWrite
+			}
 		} else {
 			permission = writesEntry(subject, q.TargetID, q.Action, q.TargetID)
 			permission.TokenScope = suggestionsWrite

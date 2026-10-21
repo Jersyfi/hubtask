@@ -109,9 +109,12 @@ func (h AiClassify) Execute(
 func (h AiSummarizeThread) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
+	// A reading aid (UC-AI-04 check 8): asked by everybody who may read the entry, unless the
+	// answer is to be applied to its notes, which changes it.
 	return Ask(h).queue(ctx, actor, asking{
 		TargetType: domain.TargetWorkItem, TargetID: itemID,
 		Action: SummaryAskedAction, Kind: domain.KindFields, PromptID: threadPrompt, Apply: apply,
+		Reads: true,
 	})
 }
 
@@ -233,10 +236,14 @@ func (h AiSummarizeThread) Descriptor() usecase.Descriptor {
 			"oldest first and bounded - a thread of four hundred comments is a token problem " +
 			"rather than a summary problem. The answer is a suggestion for the entry's notes, " +
 			"which somebody accepts or dismisses. An entry nobody has commented on is asked " +
-			"nothing at all.",
+			"nothing at all. A reading aid: asked by everybody who may read the entry, and asked " +
+			"with what changing it asks only when the answer is to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
-		TokenScope:  suggestionsWrite,
-		Input:       askInput("a summary of a discussion"),
+		// Reads entries; a token minted to ask for suggestions before the aid was offered to
+		// readers keeps asking it.
+		TokenScope: suggestionsRead,
+		AlsoScope:  suggestionsWrite,
+		Input:      askInput("a summary of a discussion"),
 		Audit: usecase.AuditDeclaration{
 			Action: SummaryAskedAction, TargetType: suggestionTarget,
 			Severity: audit.SeverityNotice, Required: true,
