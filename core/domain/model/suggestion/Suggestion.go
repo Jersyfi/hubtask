@@ -86,9 +86,13 @@ const (
 	// TargetContainer is a collection: a summary of how it stands is about the collection rather
 	// than about anything in it.
 	TargetContainer TargetType = "CONTAINER"
+	// TargetAccount is the person who asked, for a draft of something that does not exist yet: a
+	// rule drafted from their sentence may be for the whole workspace, so no container is its
+	// subject, and it names configuration only they asked to see. Only that account reads it.
+	TargetAccount TargetType = "ACCOUNT"
 )
 
-var targetTypes = []TargetType{TargetWorkItem, TargetJumbleEntry, TargetContainer}
+var targetTypes = []TargetType{TargetWorkItem, TargetJumbleEntry, TargetContainer, TargetAccount}
 
 // TargetTypes is the closed set, in the contract's order.
 func TargetTypes() []TargetType { return slices.Clone(targetTypes) }
@@ -120,9 +124,12 @@ const (
 	// above: accepting it defines a template rather than changing an entry, and the payload is a
 	// template's input rather than an entry's fields or a tree under one.
 	KindTemplate Kind = "TEMPLATE"
+	// KindRule proposes an automation rule drafted from a sentence. Its own kind by the rule above:
+	// accepting it writes a rule, switched off, rather than an entry or a template.
+	KindRule Kind = "RULE"
 )
 
-var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate}
+var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate, KindRule}
 
 // Kinds is the closed set, in the contract's order.
 func Kinds() []Kind { return slices.Clone(kinds) }

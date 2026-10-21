@@ -192,12 +192,12 @@ The catalogue uses no exclamation mark as punctuation (1.6) and no title case in
 ## 7. A proposal
 
 A suggestion the server made — a title, a tree of work, the labels an entry belongs under, a
-summary, a translation, a template drafted from a description — is rendered through one
+summary, a translation, a template drafted from a description, a rule drafted from a sentence — is rendered through one
 component, `AISuggestion`, and its words follow four more rules. The guardrails behind them are
 [`ai-first.md`](../architecture/ai-first.md) §2.
 
 **7.1 Offered, never asserted.** The heading names the kind and says that it is a proposal:
-`Suggested title`, `Suggested breakdown`, `Suggested labels`, `Summary suggested` — and never
+`Suggested title`, `Suggested breakdown`, `Suggested labels`, `Summary suggested`, `Suggested rule` — and never
 `Title`, which is what the entry's own field is called.
 
 **7.2 It names its model where the reader can find it, and nowhere the eye lands first.** The

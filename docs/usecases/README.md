@@ -224,7 +224,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | specified |
 | [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | specified |
 | [UC-WRK-26](./work/UC-WRK-26-capture-something-from-anywhere.md) | Capture something from anywhere in one step | work | specified |
-| [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | specified |
+| [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | built |
 | [UC-WRK-28](./work/UC-WRK-28-act-on-an-entry-the-same-way-everywhere.md) | Act on an entry the same way everywhere | work | specified |
 | [UC-WRK-29](./work/UC-WRK-29-see-what-counts.md) | See what counts in a hub or collection | work | specified |
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work | specified |
@@ -249,7 +249,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AUT-07](./automation/UC-AUT-07-keep-rules-from-running-away.md) | Keep rules from running away | automation | built |
 | [UC-AUT-08](./automation/UC-AUT-08-find-rules-that-need-attention-before-they-fail.md) | Find rules that need attention before they fail | automation | built |
 | [UC-AUT-09](./automation/UC-AUT-09-have-a-rule-tell-people.md) | Have a rule tell people something | automation | specified |
-| [UC-AUT-10](./automation/UC-AUT-10-describe-a-rule-and-get-a-draft.md) | Describe a rule and get a draft | automation | specified |
+| [UC-AUT-10](./automation/UC-AUT-10-describe-a-rule-and-get-a-draft.md) | Describe a rule and get a draft | automation | built |
 | [UC-INT-01](./integration/UC-INT-01-receive-workspace-events-on-my-server.md) | Receive the workspace's events on my own server | integration | built |
 | [UC-INT-02](./integration/UC-INT-02-recover-deliveries-my-server-missed.md) | Recover the deliveries my server missed | integration | built |
 | [UC-INT-03](./integration/UC-INT-03-replace-a-webhook-secret-without-dropping-deliveries.md) | Replace a webhook secret without dropping deliveries | integration | built |

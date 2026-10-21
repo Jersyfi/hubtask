@@ -89,8 +89,8 @@ test('the search exists once', () => {
 test('the administration row is offered only where the server says so', () => {
   const ids = (reachable: boolean) =>
     account({ isAdministrationReachable: reachable, isInstanceReachable: false }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'tour', 'about', 'sign-out']);
-  assert.deepEqual(ids(false), ['profile', 'tour', 'about', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'help', 'about', 'sign-out']);
+  assert.deepEqual(ids(false), ['profile', 'help', 'about', 'sign-out']);
 });
 
 test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
@@ -99,7 +99,7 @@ test('the instance row is offered only to an operator, and is absent rather than
   // and a row they cannot use is a row they have to ask about (ADR-0070 §5).
   const ids = (reachable: boolean) =>
     account({ isAdministrationReachable: true, isInstanceReachable: reachable }).map((destination) => destination.id);
-  assert.deepEqual(ids(true), ['profile', 'administration', 'instance', 'tour', 'about', 'sign-out']);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'instance', 'help', 'about', 'sign-out']);
   assert.ok(!ids(false).includes('instance'), 'a non-operator was offered the control plane');
 
   // And it is the row every screen of the area is current for, so the menu marks one place rather

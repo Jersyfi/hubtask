@@ -27,7 +27,9 @@
 
   import { untrack } from 'svelte';
 
-  import { AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { AutomationRuleCard, Banner, Button, PageHeader, Spinner, Stack, type PageAction } from '@hubtask/design-system/components';
+  import { actionsOfHead } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
 
   import { findingWords, listHealth } from '../lib/automation/findings.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -137,6 +139,14 @@
    */
   const rulesIncluded = $derived(includedHere('AUTOMATION_RULES') === true);
   const resting = $derived(includedHere('AUTOMATION_RULES') === false);
+
+  /** The head's one action, handed to the head and to the palette alike (UC-WRK-27 check 2). */
+  const headPrimary = $derived<PageAction | undefined>(
+    mayAutomate && rulesIncluded
+      ? { label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') }
+      : undefined,
+  );
+  $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
 <div class="screen">
@@ -145,7 +155,7 @@
       title={t('app.rules.title')}
       subtitle={t('app.rules.intro')}
       isTitleInBar={viewport.isCompact}
-      primary={mayAutomate && rulesIncluded ? { label: t('app.rules.new_rule'), icon: 'plus', opener: 'new-rule', onclick: () => onnavigate?.('/administration/rules/new') } : undefined}
+      primary={headPrimary}
     >
       {#snippet notices()}
         <WorkspaceRefusal permission="AUTOMATION" />

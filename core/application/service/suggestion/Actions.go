@@ -79,32 +79,40 @@ type AiSummarizeContainer struct {
 func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		FieldsAskedAction, domain.KindFields, itemFieldsPrompt, apply, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetWorkItem, TargetID: itemID,
+		Action: FieldsAskedAction, Kind: domain.KindFields, PromptID: itemFieldsPrompt, Apply: apply,
+	})
 }
 
 // Execute asks for a summary.
 func (h AiSummarize) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		SummaryAskedAction, domain.KindFields, "summarize", apply, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetWorkItem, TargetID: itemID,
+		Action: SummaryAskedAction, Kind: domain.KindFields, PromptID: "summarize", Apply: apply,
+	})
 }
 
 // Execute asks for labels.
 func (h AiClassify) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		ClassifyAskedAction, domain.KindFields, "classify", apply, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetWorkItem, TargetID: itemID,
+		Action: ClassifyAskedAction, Kind: domain.KindFields, PromptID: "classify", Apply: apply,
+	})
 }
 
 // Execute asks for a summary of the discussion.
 func (h AiSummarizeThread) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetWorkItem, itemID,
-		SummaryAskedAction, domain.KindFields, threadPrompt, apply, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetWorkItem, TargetID: itemID,
+		Action: SummaryAskedAction, Kind: domain.KindFields, PromptID: threadPrompt, Apply: apply,
+	})
 }
 
 // Execute asks how the collection stands.
@@ -114,8 +122,10 @@ func (h AiSummarizeThread) Execute(
 func (h AiSummarizeContainer) Execute(
 	ctx context.Context, actor appshared.ActorContext, containerID shared.ID,
 ) (shared.ID, error) {
-	return Ask(h).queue(ctx, actor, domain.TargetContainer, containerID,
-		SummaryAskedAction, domain.KindFields, collectionPrompt, false, "")
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetContainer, TargetID: containerID,
+		Action: SummaryAskedAction, Kind: domain.KindFields, PromptID: collectionPrompt,
+	})
 }
 
 // askInput is the input all three declare: which entry, and whether the answer is applied or
