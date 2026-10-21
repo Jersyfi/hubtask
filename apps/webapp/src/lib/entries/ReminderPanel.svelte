@@ -24,7 +24,6 @@
     AssigneeControl,
     Badge,
     Button,
-    CapabilityGate,
     focusFirst,
     ReminderEditor,
     Stack,
@@ -33,7 +32,6 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { reminders } from '../data/reminders.svelte.ts';
   import {
@@ -50,7 +48,6 @@
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
 
-  const capability = $derived(supports(item.type, 'REMINDER'));
   const limit = $derived(reminderLimitOf(manifest.value?.limits as Record<string, unknown> | undefined));
 
   $effect(() => {
@@ -166,11 +163,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.reminders.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if held.length === 0}
       <p class="quiet">{t('app.reminders.none')}</p>
@@ -288,7 +283,6 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
     {/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   /* A focus scope and nothing else: the editor keeps the layout it had. */

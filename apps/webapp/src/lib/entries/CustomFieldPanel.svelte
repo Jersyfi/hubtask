@@ -21,12 +21,11 @@
   // **`USER` is the member picker, handed into the renderer's slot for it.** Who may be named is the
   // memberships along the entry's path, which is the same list the assignee picker offers.
 
-  import { AssigneeControl, CapabilityGate, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
+  import { AssigneeControl, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
   import type { FieldValue } from '@hubtask/design-system/components';
   import type { CustomFieldDefinition, WorkItem } from '@hubtask/sync-engine';
 
   import { accounts } from '../data/accounts.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { definitionsFor, valueFor } from '../data/customfields.ts';
   import { people, type Path } from '../data/people.svelte.ts';
@@ -59,7 +58,6 @@
     invalidLabel: t('app.fields.number_invalid', { separator }),
   });
 
-  const capability = $derived(supports(item.type, 'CUSTOM_FIELDS'));
 
   const applicable = $derived(
     definitionsFor(customFields.of(item.collection_id), item.type as string).filter(
@@ -73,6 +71,13 @@
   let failedKey = $state<string | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
   let savingKey = $state<string | undefined>(undefined);
+  /**
+   * A change made while the field's last one is still on its way. The field is never switched off
+   * for "Saving…" (design-system.md §4, case 7): a change arriving meanwhile waits here and is
+   * written after the one in flight, against the version that one answered, so the two cannot meet
+   * as a conflict. Only the latest waits - it is the value the reader ended on.
+   */
+  const waiting = new Map<string, { definition: CustomFieldDefinition; next: FieldValue }>();
 
   const candidateIds = $derived(people.candidates(path));
   const candidates = $derived(
@@ -80,6 +85,10 @@
   );
 
   function write(definition: CustomFieldDefinition, next: FieldValue) {
+    if (savingKey === definition.key) {
+      waiting.set(definition.key, { definition, next });
+      return;
+    }
     savingKey = definition.key;
     failedKey = undefined;
     failure = undefined;
@@ -97,6 +106,9 @@
         failure = renderProblem(error as never, messages).message;
       } finally {
         savingKey = undefined;
+        const after = waiting.get(definition.key);
+        waiting.delete(definition.key);
+        if (after) write(after.definition, after.next);
       }
     })();
   }
@@ -113,11 +125,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.fields.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if applicable.length === 0}
       <p class="quiet">{t('app.fields.values_none')}</p>
@@ -130,7 +140,6 @@
             unknownKindLabel={t('app.fields.unknown_kind')}
             emptyValueLabel={t('app.fields.empty_value')}
             {numbers}
-            disabledReason={savingKey === definition.key ? t('app.workspace.saving') : undefined}
             onChange={(next) => write(definition, next)}
           >
             {#snippet user({ value })}
@@ -156,7 +165,6 @@
       {/each}
     {/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }

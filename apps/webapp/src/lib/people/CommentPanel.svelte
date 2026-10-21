@@ -4,27 +4,26 @@
   // What was said about an entry, and saying something.
   //
   // **The capability decides whether the thread exists at all.** An activity carries no comments,
-  // and the manifest is what says so — a gate with the reason, not an empty panel, because an
-  // empty panel says "nobody has commented" about a type where nobody ever can.
+  // and the manifest is what says so: the entry page draws no tab for it, rather than an empty
+  // panel that says "nobody has commented" about a type where nobody ever can.
   //
-  // **Edit and delete are switched on per comment**, from the two things this client already
-  // holds: the account it is signed in as, and the roles the actor holds along the path. That is
-  // the server's own rule mirrored, so a control the reader cannot use is off with a reason rather
-  // than refused after they press it — and when the mirror is wrong, the server's refusal is what
-  // they read.
+  // **Edit and delete are offered per comment**, from the two things this client already holds:
+  // the account it is signed in as, and the roles the actor holds along the path. That is the
+  // server's own rule mirrored, so a control the reader may never use is not drawn rather than
+  // refused after they press it (P-05) — and when the mirror is wrong, the server's refusal is
+  // what they read.
   //
   // **A body is plain text with its whitespace kept.** Rendering Markdown is a dependency and
   // therefore a proposal rather than a commit, and the notes are shown the same way.
 
   import { untrack } from 'svelte';
 
-  import { Button, CapabilityGate, CommentThread, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, CommentThread, Stack, Textarea } from '@hubtask/design-system/components';
   import type { ThreadComment } from '@hubtask/design-system/components';
   import type { Comment, CommentPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { comments, commentsPath } from '../data/comments.svelte.ts';
   import { BODY_LIMIT, bodyLength, isRemoved, isWithinLimit, mayModerate, mayReplyTo, threadOf } from '../data/comments.ts';
   import { people, type Path } from '../data/people.svelte.ts';
@@ -51,7 +50,6 @@
     isClosed = false,
   }: { item: WorkItem; path: Path; mayComment: boolean | undefined; isClosed?: boolean } = $props();
 
-  const capability = $derived(supports(item.type, 'COMMENTS'));
 
   // The path is taken once, as every other subscription in this application takes one: the view
   // is rebuilt per entry, so a path that re-derived would resubscribe on every unrelated change.
@@ -175,11 +173,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.comments.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="200">
     {#if failure}
       <p class="failure" role="alert">{failure.message}</p>
@@ -235,7 +231,6 @@
       </Stack>
     {/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   .actions { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
