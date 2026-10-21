@@ -97,6 +97,13 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   as below. `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
   the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
   a collection may switch on.
+* **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
+  a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
+  write whose own values set `PROGRESS` where the levels in force after it are one is refused
+  (`structure.figure_not_offered`); wherever else the two meet — a preset, a reset, a narrowing on
+  any layer, the installation's bound, a lock — the structure in force says `OPEN`,
+  `counts_clipped` keeps what the layers said, and the write that caused it names `counts` in
+  `clipped_by_levels`. A lock is judged against what the layers say, before the clip.
 * **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
   `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
   touches an entry. The container's write publishes `container.policies_updated` with the settings
