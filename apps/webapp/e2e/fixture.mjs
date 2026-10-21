@@ -64,7 +64,16 @@ export const CHILDREN = {
   ],
   '01a0e2e0-0000-7000-8000-000000000042': [],
 };
-export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
+/**
+ * An entry archived in its own right with an activity under it that is not - the server's model:
+ * archiving freezes the entry alone (ArchiveWorkItem.go) - and an entry in the archived collection.
+ * Neither is in `ITEMS`, so no list walk counts them; their pages are reached by address.
+ */
+export const ARCHIVED_ENTRY = item('61', 'Old shelving plan', { archived_at: '2026-08-15T09:00:00Z' });
+export const UNDER_ARCHIVED_ENTRY = item('62', 'Measure the alcove', { type: 'ACTIVITY', parent_id: ARCHIVED_ENTRY.id, depth: 1 });
+CHILDREN[ARCHIVED_ENTRY.id] = [UNDER_ARCHIVED_ENTRY];
+export const IN_ARCHIVED = item('63', 'Insulate the loft', { collection_id: ARCHIVED.id });
+export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat(), ARCHIVED_ENTRY, IN_ARCHIVED];
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 export const ROLES = [
@@ -323,6 +332,8 @@ export function stub(route) {
   }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
   if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
+  if (path.endsWith(`/api/v1/containers/${ARCHIVED_HUB.id}`)) return route.fulfill({ json: ARCHIVED_HUB });
+  if (path.endsWith(`/api/v1/containers/${UNDER_ARCHIVED.id}`)) return route.fulfill({ json: UNDER_ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${HUB.id}`)) return route.fulfill({ json: HUB });
   if (path.endsWith(`/api/v1/containers/${HUB.id}/privacy`) && request.method() === 'PUT') {
     return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });
@@ -332,8 +343,6 @@ export function stub(route) {
   // A hub's emergency accesses, and the reader's own notices: none, unless a walk routes them.
   if (/\/api\/v1\/private-hubs\/[^/]+\/accesses$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/labels')) return route.fulfill({ json: LABELS });
-  if (path.endsWith(`/api/v1/containers/${ARCHIVED_HUB.id}`)) return route.fulfill({ json: ARCHIVED_HUB });
-  if (path.endsWith(`/api/v1/containers/${UNDER_ARCHIVED.id}`)) return route.fulfill({ json: UNDER_ARCHIVED });
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });
   if (path.endsWith('/api/v1/memberships')) {
     const scope = url.searchParams.get('scope_type');

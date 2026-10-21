@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ARCHIVED, ARCHIVED_HUB, ITEMS, UNDER_ARCHIVED, signedIn } from './fixture.mjs';
+import { ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -129,3 +129,56 @@ test('chromium: 1280 px — the page menu of a collection under an archived hub 
   }
   assert.deepEqual(failures, []);
 });
+
+for (const width of WIDTHS) {
+  test(`chromium: ${width} px — an archived entry says why once; its children stay writable`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures } = await as(browser, width, 'OWNER');
+    await page.goto(`${served.origin}/items/${ARCHIVED_ENTRY.id}`);
+    const note = page.locator('main [role="note"]');
+    await note.waitFor({ timeout: 15_000 });
+    assert.match(await note.innerText(), /This entry is archived, so nothing on it can be changed\. Unarchive it/);
+    assert.equal(await note.getByRole('button', { name: 'Unarchive' }).count(), 1);
+
+    // Nothing that writes it is offered, and nothing repeats why.
+    assert.equal(await page.locator('button[data-detail]').count(), 0, 'a detail row still opens an editor');
+    assert.equal(await page.getByLabel('Say something').count(), 0, 'a comment can be written on an archived entry');
+    assert.equal(await page.locator('main').getByText('nothing on it can be changed').filter({ visible: true }).count(), 1);
+    const title = page.getByLabel('Title', { exact: false }).first();
+    if ((await title.count()) > 0) assert.equal(await title.getAttribute('title'), null, 'the title still carries the reason as a tooltip');
+
+    // The completion box says done or not done and names the notice.
+    const box = page.getByRole('checkbox', { name: `Mark ${ARCHIVED_ENTRY.title} as done` });
+    assert.equal(await box.getAttribute('aria-disabled'), 'true');
+    assert.match(await description(box), /This entry is archived/);
+
+    // Its child is an entry of its own and is not archived with it (ArchiveWorkItem.go).
+    await page.getByText(UNDER_ARCHIVED_ENTRY.title).first().waitFor({ timeout: 10_000 });
+    const child = page.getByRole('checkbox', { name: `Mark ${UNDER_ARCHIVED_ENTRY.title} as done` });
+    assert.equal(await child.getAttribute('aria-disabled'), null, 'the child of an archived entry is frozen');
+    assert.equal(await page.getByRole('button', { name: `Move ${UNDER_ARCHIVED_ENTRY.title}` }).count(), 1, 'the child lost its menu');
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium: ${width} px — an entry in an archived collection says the collection's reason, and a viewer reads its role's`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, failures } = await as(browser, width, 'OWNER');
+    await page.goto(`${served.origin}/items/${IN_ARCHIVED.id}`);
+    await page.waitForFunction(() => document.querySelector('main [role="note"]')?.textContent?.includes('This collection is archived'), undefined, { timeout: 15_000 });
+    assert.equal(await page.locator('main [role="note"]').getByRole('button').count(), 0, 'an Unarchive is offered that the collection would refuse');
+
+    const viewer = await as(browser, width, 'VIEWER');
+    await viewer.page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+    await viewer.page.waitForFunction(() => document.querySelector('main [role="note"]')?.textContent?.includes('Your role can read entries here'), undefined, { timeout: 15_000 });
+    // The entry's menu offers to read who is on it, not to share it.
+    const menu = viewer.page.locator('[data-opener="entry-menu"]').first();
+    if ((await menu.count()) > 0) {
+      await menu.click();
+      assert.equal(await viewer.page.getByRole('menuitem', { name: 'Share this entry' }).count(), 0, 'a viewer is offered to share');
+    }
+    assert.deepEqual(failures, []);
+    assert.deepEqual(viewer.failures, []);
+  });
+}

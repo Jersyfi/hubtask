@@ -2116,6 +2116,7 @@
   "app.entries.archive": "Archivieren",
   "app.entries.unarchive": "Aus dem Archiv holen",
   "app.entries.archived": "Dieser Eintrag ist archiviert, darum lässt sich nichts daran ändern. Hol ihn aus dem Archiv, um wieder daran zu arbeiten.",
+  "app.entries.archived_ask": "Dieser Eintrag ist archiviert, darum lässt sich nichts daran ändern. Bitte jemanden, der ihn ändern darf, ihn aus dem Archiv zu holen.",
   "app.entries.trash": "In den Papierkorb verschieben",
   "app.entries.archived_announced": "{title} ist archiviert.",
   "app.entries.unarchived_announced": "{title} ist nicht mehr archiviert.",

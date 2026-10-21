@@ -3305,6 +3305,7 @@
   "app.entries.archive": "Archive",
   "app.entries.unarchive": "Unarchive",
   "app.entries.archived": "This entry is archived, so nothing on it can be changed. Unarchive it to work on it again.",
+  "app.entries.archived_ask": "This entry is archived, so nothing on it can be changed. Ask whoever may change it to unarchive it.",
   "app.entries.trash": "Move to the trash",
   "app.entries.archived_announced": "{title} is archived.",
   "app.entries.unarchived_announced": "{title} is no longer archived.",
