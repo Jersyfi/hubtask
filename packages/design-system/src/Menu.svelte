@@ -201,6 +201,10 @@
     display: flex;
     flex-direction: column;
     min-width: var(--sp-1000);
+    /* As wide as its longest item rather than as wide as the room left beside the trigger: an
+       anchor near an edge would otherwise squeeze the list into a column of broken words, and a
+       surface that overflows instead is what lets the engine flip it to the side with room. */
+    width: max-content;
     max-width: 40ch;
     max-height: 60vh;
     overflow: auto;
