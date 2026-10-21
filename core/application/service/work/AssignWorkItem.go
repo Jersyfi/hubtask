@@ -59,6 +59,9 @@ type AssignmentWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Visibility Visibility
 	// Accounts answers whether a rule is about to put a restricted person on the entry: no rule
@@ -506,7 +509,7 @@ func (h AssignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Assignment.Gate.Answer(ctx, h.Assignment.UnitOfWork, actor, item)
 }
 
 func (h UnassignWorkItem) invoke(
@@ -521,7 +524,7 @@ func (h UnassignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Assignment.Gate.Answer(ctx, h.Assignment.UnitOfWork, actor, item)
 }
 
 // assignmentCommand is the adapter between the catalogue's untyped input and the typed command, for

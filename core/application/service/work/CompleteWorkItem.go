@@ -53,6 +53,9 @@ type CompletionWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -565,7 +568,7 @@ func (h CompleteWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Completion.Gate.Answer(ctx, h.Completion.UnitOfWork, actor, item)
 }
 
 func (h ReopenWorkItem) invoke(
@@ -579,7 +582,7 @@ func (h ReopenWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Completion.Gate.Answer(ctx, h.Completion.UnitOfWork, actor, item)
 }
 
 // completionCommand reads the untyped input, and refuses the one field the contract declares that this

@@ -48,6 +48,9 @@ type DueDateWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate EntryGate
 	// Reminders is here because a due date that moves takes the relative reminders with it: the
 	// reminder lives on the same entry, so its moment is recomputed in the same transaction rather
 	// than by a job that would leave the two disagreeing until it ran.
@@ -477,7 +480,7 @@ func (h SetDueDate) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Due.Gate.Answer(ctx, h.Due.UnitOfWork, actor, item)
 }
 
 func (h ClearDueDate) invoke(
@@ -492,7 +495,7 @@ func (h ClearDueDate) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Due.Gate.Answer(ctx, h.Due.UnitOfWork, actor, item)
 }
 
 // dueDateCommand is the adapter between the catalogue's untyped input and the typed command, for

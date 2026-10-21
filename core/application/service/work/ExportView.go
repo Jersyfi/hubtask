@@ -300,6 +300,6 @@ func (h ExportView) invoke(
 		"generated_at": exported.GeneratedAt.UTC(),
 		"count":        len(exported.Items),
 		"truncated":    exported.Truncated,
-		"rows":         rowsOf(exported.Items, exported.Labels),
+		"rows":         rowsOf(exported.Items, exported.Labels, nil),
 	}, nil
 }

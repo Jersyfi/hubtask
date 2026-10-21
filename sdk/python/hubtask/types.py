@@ -2061,6 +2061,12 @@ class WorkItem(TypedDict, total=False):
     hlc: str
     version: Required[int]
     children: list["WorkItem"]
+    hidden: "EntryHidden"
+
+class EntryHidden(TypedDict, total=False):
+    """What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again."""
+    level: Required[bool]
+    capabilities: Required[list[str]]
 
 class WorkItemCreate(TypedDict, total=False):
     type: Required["ItemType"]
@@ -2103,7 +2109,7 @@ class MoveResult(TypedDict, total=False):
 
 class DroppedReference(TypedDict, total=False):
     item_id: str
-    kind: Required[Literal["LABEL", "BUCKET", "MEMBER", "ASSIGNEE", "ATTACHMENT", "CUSTOM_FIELD"]]
+    kind: Required[Literal["LABEL", "BUCKET", "MEMBER", "ASSIGNEE", "ATTACHMENT", "CUSTOM_FIELD", "NOTES", "DUE_DATE"]]
     id: Required[str]
     code: Required[str]
 

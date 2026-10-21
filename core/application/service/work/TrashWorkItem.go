@@ -188,11 +188,11 @@ func (h RestoreWorkItem) Descriptor() usecase.Descriptor {
 func (h TrashWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return invokeLifecycle(ctx, actor, in, h.Execute)
+	return invokeLifecycle(ctx, actor, in, h.Lifecycle, h.Execute)
 }
 
 func (h RestoreWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return invokeLifecycle(ctx, actor, in, h.Execute)
+	return invokeLifecycle(ctx, actor, in, h.Lifecycle, h.Execute)
 }

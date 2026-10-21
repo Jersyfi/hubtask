@@ -45,6 +45,9 @@ type PlacementWriter struct {
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -851,7 +854,11 @@ func (h MoveWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return moveOutput(result), nil
+	answer, err := h.Placement.Gate.Answer(ctx, h.Placement.UnitOfWork, actor, result.Item)
+	if err != nil {
+		return nil, err
+	}
+	return moveOutput(result, answer), nil
 }
 
 func (h ReorderWorkItem) invoke(
@@ -875,12 +882,12 @@ func (h ReorderWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Placement.Gate.Answer(ctx, h.Placement.UnitOfWork, actor, item)
 }
 
 // moveOutput is the shape a move answers with: the contract's MoveResult, whose `dropped_references`
 // is always present and empty when the destination resolved everything (I-W6).
-func moveOutput(result MoveResult) usecase.Output {
+func moveOutput(result MoveResult, item usecase.Output) usecase.Output {
 	dropped := make([]usecase.Output, 0, len(result.DroppedReferences))
 	for _, reference := range result.DroppedReferences {
 		dropped = append(dropped, usecase.Output{
@@ -891,7 +898,7 @@ func moveOutput(result MoveResult) usecase.Output {
 		})
 	}
 	return usecase.Output{
-		"item":               ItemOutput(result.Item),
+		"item":               item,
 		"dropped_references": dropped,
 		"subtree_size":       result.SubtreeSize,
 	}

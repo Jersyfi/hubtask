@@ -327,6 +327,16 @@ SELECT
 FROM work_item wi
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: WorkItemTypes :many
+-- The type of each entry among ids, and nothing else: what a collection hides of an entry depends on
+-- the levels above it (domain-model.md §2), and a page of entries asks for every ancestor on it in
+-- this one statement rather than reading whole rows. An identifier of another tenant is absent, by
+-- the predicate and by row level security.
+SELECT wi.id, wi.type
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.id = ANY(sqlc.arg('ids')::uuid[]);
+
 -- name: LastWorkItemOrderKey :one
 -- The highest rank among the siblings of a new item: same collection, same parent. A NULL parent
 -- is the level directly under the collection, which is why the comparison is IS NOT DISTINCT FROM

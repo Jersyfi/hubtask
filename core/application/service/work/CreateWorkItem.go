@@ -142,6 +142,9 @@ type CreateWorkItem struct {
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Ownership  Ownership
 	Events     outbox.Events
@@ -1173,7 +1176,10 @@ func (h CreateWorkItem) invoke(
 		return nil, err
 	}
 
-	out := ItemOutput(item)
+	out, err := h.Gate.Answer(ctx, h.UnitOfWork, actor, item)
+	if err != nil {
+		return nil, err
+	}
 	if outcome != nil {
 		out = outcome.output(out)
 	}

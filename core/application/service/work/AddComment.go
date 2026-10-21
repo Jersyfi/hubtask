@@ -47,6 +47,9 @@ type CommentWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	// Moderation answers the one question the permission cannot: which role the actor holds.
 	// Only the edit and the deletion consult it - "only the author or an administrator may

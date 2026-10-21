@@ -44,6 +44,17 @@ func OfferedByBound(bound StructureBound) Offered {
 	return NewOffered(bound, EffectiveStructure{Values: bound.Default()})
 }
 
+// HidesALevel reports whether any level the bound holds is not offered. Where none is, no entry can
+// be hidden by its chain, and the levels above an entry need not be read.
+func (o Offered) HidesALevel() bool {
+	for _, itemType := range o.bound.Types() {
+		if !o.levels[itemType] {
+			return true
+		}
+	}
+	return false
+}
+
 // EntryHidden is what a read says an entry's collection hides of it.
 type EntryHidden struct {
 	// Level is true when the entry's own level, or the level of any entry above it, is not

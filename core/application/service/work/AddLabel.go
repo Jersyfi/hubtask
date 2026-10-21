@@ -47,6 +47,9 @@ type ItemLabelWriter struct {
 	Labels     repository.Labels
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog

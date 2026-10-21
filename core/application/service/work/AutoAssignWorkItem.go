@@ -456,5 +456,9 @@ func (h AutoAssignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return outcome.output(ItemOutput(item)), nil
+	answer, err := h.Assignment.Gate.Answer(ctx, h.Assignment.UnitOfWork, actor, item)
+	if err != nil {
+		return nil, err
+	}
+	return outcome.output(answer), nil
 }

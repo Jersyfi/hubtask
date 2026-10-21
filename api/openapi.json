@@ -23532,6 +23532,30 @@
             "items": {
               "$ref": "#/components/schemas/WorkItem"
             }
+          },
+          "hidden": {
+            "$ref": "#/components/schemas/EntryHidden"
+          }
+        }
+      },
+      "EntryHidden": {
+        "type": "object",
+        "required": [
+          "level",
+          "capabilities"
+        ],
+        "description": "What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.\n\nPresent on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.\n",
+        "properties": {
+          "level": {
+            "type": "boolean",
+            "description": "True when the collection does not offer the entry's level, or the level of an entry above it - an activity under a work package is hidden in a collection that offers tasks and activities but no work packages. Every write to the entry is refused with the detail `items.level_hidden`; trashing, restoring and archiving are not.\n"
+          },
+          "capabilities": {
+            "type": "array",
+            "description": "The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.\n",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -23766,12 +23790,14 @@
               "MEMBER",
               "ASSIGNEE",
               "ATTACHMENT",
-              "CUSTOM_FIELD"
+              "CUSTOM_FIELD",
+              "NOTES",
+              "DUE_DATE"
             ]
           },
           "id": {
             "type": "string",
-            "description": "The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it.\n"
+            "description": "The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it. For `NOTES` and `DUE_DATE`, which a template's node carries as values rather than references, the identifier of the entry created without them - never the value itself.\n"
           },
           "code": {
             "type": "string",

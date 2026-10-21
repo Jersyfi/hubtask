@@ -71,7 +71,10 @@ type DuplicateWorkItem struct {
 	Attachments mediarepo.Attachments
 	Media       MediaReferences
 	Profiles    metarepo.CapabilityProfiles
-	Authorizer  Authorizer
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
+	Authorizer Authorizer
 	// Ownership is the same question the create path asks: does the role the actor holds write only
 	// what is assigned to them. A copy is a create, so it has to ask it too.
 	Ownership  Ownership
@@ -1147,12 +1150,16 @@ func (h DuplicateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return duplicateOutput(result), nil
+	answer, err := h.Gate.Answer(ctx, h.UnitOfWork, actor, result.Item)
+	if err != nil {
+		return nil, err
+	}
+	return duplicateOutput(result, answer), nil
 }
 
 // duplicateOutput is the shape every channel returns: the field names of the contract
 // (api/openapi.yaml, schema DuplicateResult).
-func duplicateOutput(result DuplicateResult) usecase.Output {
+func duplicateOutput(result DuplicateResult, item usecase.Output) usecase.Output {
 	dropped := make([]usecase.Output, 0, len(result.DroppedReferences))
 	for _, reference := range result.DroppedReferences {
 		dropped = append(dropped, usecase.Output{
@@ -1163,7 +1170,7 @@ func duplicateOutput(result DuplicateResult) usecase.Output {
 		})
 	}
 	return usecase.Output{
-		"item":               ItemOutput(result.Item),
+		"item":               item,
 		"dropped_references": dropped,
 		"copied":             result.Copied,
 	}

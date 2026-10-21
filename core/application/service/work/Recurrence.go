@@ -52,7 +52,10 @@ type RecurrenceWriter struct {
 	Items       repository.Items
 	Containers  repository.Containers
 	Profiles    metarepo.CapabilityProfiles
-	Authorizer  Authorizer
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
+	Authorizer Authorizer
 	// Expander is the library behind ADR-0008's decision, as a port: it is what turns "is this a
 	// rule, and is it a sane one" from an opinion into an answer, and it is asked before anything
 	// is stored rather than by the scheduler afterwards (T-17, R-07).
