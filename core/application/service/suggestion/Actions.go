@@ -272,10 +272,10 @@ func (h AiSummarizeThread) Descriptor() usecase.Descriptor {
 			"nothing at all. A reading aid: asked by everybody who may read the entry, and asked " +
 			"with what changing it asks only when the answer is to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
-		// Reads entries; a token minted to ask for suggestions before the aid was offered to
-		// readers keeps asking it.
+		// Reads entries. A token minted to ask for suggestions reads entries as well - the entry's
+		// own read asks for it - so it keeps asking; a narrower scope beside this one is the control
+		// plane's alone (api-guidelines.md §7, UC-INS-06 check 6).
 		TokenScope: suggestionsRead,
-		AlsoScope:  suggestionsWrite,
 		Input:      askInput("a summary of a discussion"),
 		Audit: usecase.AuditDeclaration{
 			Action: SummaryAskedAction, TargetType: suggestionTarget,
