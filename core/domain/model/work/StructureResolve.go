@@ -162,6 +162,8 @@ func fixCapability(
 	case !on && has:
 		level.Capabilities = slices.DeleteFunc(level.Capabilities, func(c Capability) bool { return c == capability })
 	}
+	// A lock that turns labels off leaves nothing to group by.
+	level.Categories = categoriesBeside(level.Capabilities, level.Categories)
 	fixed[itemType] = level
 	return fixed
 }

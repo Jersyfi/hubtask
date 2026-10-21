@@ -138,13 +138,26 @@ const MaxLevelNameLength = 60
 type Level struct {
 	Type ItemType
 	Name string
+	// DoneName is what the level's done entries are shown under - "In the trolley" - where a
+	// person chose one (UC-WRK-25 check 3). The same kind of content as Name, under the same rule.
+	DoneName string
 }
 
 // LevelFields is what one offered type carries. An object rather than a bare list, so that field
 // definitions can sit beside the capabilities when a setting needs them.
 type LevelFields struct {
 	Capabilities []Capability
+	// Categories are the labels the collection groups this type's entries by, in their order
+	// (UC-WRK-25 check 5): an entry sits under the first of them it carries. Only beside LABELS,
+	// and only on a collection's own layer - labels belong to a collection, so a hub's or the
+	// workspace's layer naming one would name nothing; the use case checks that every one is a
+	// label of the collection. A label deleted afterwards stays named, and a client skips it.
+	Categories []shared.ID
 }
+
+// MaxCategories bounds how many labels a type's categories name: the aisles of a shop, not a
+// taxonomy.
+const MaxCategories = 50
 
 // Views is which layouts a client offers, and the one it opens with.
 type Views struct {
@@ -276,7 +289,8 @@ func (v StructureValues) SameSetting(setting StructureSetting, other StructureVa
 		}
 		for itemType, fields := range v.Fields {
 			theirs, held := other.Fields[itemType]
-			if !held || !sameCapabilities(fields.Capabilities, theirs.Capabilities) {
+			if !held || !sameCapabilities(fields.Capabilities, theirs.Capabilities) ||
+				!slices.Equal(fields.Categories, theirs.Categories) {
 				return false
 			}
 		}
@@ -350,7 +364,9 @@ func cloneFields(fields map[ItemType]LevelFields) map[ItemType]LevelFields {
 	}
 	clone := make(map[ItemType]LevelFields, len(fields))
 	for itemType, level := range fields {
-		clone[itemType] = LevelFields{Capabilities: slices.Clone(level.Capabilities)}
+		clone[itemType] = LevelFields{
+			Capabilities: slices.Clone(level.Capabilities), Categories: slices.Clone(level.Categories),
+		}
 	}
 	return clone
 }
@@ -519,7 +535,7 @@ func (b StructureBound) Clip(values StructureValues) StructureValues {
 					kept = append(kept, capability)
 				}
 			}
-			clipped[itemType] = LevelFields{Capabilities: kept}
+			clipped[itemType] = LevelFields{Capabilities: kept, Categories: categoriesBeside(kept, level.Categories)}
 		}
 		values.Fields = clipped
 	}
@@ -635,11 +651,15 @@ func (b StructureBound) validateLevels(levels []Level, form text.Normalizer) ([]
 		if _, twice := asked[level.Type]; twice {
 			return nil, settingInvalid(string(SettingLevels), level.Type)
 		}
-		name, err := levelName(level, form)
+		name, err := levelName(level.Type, level.Name, form)
 		if err != nil {
 			return nil, err
 		}
-		asked[level.Type] = Level{Type: level.Type, Name: name}
+		doneName, err := levelName(level.Type, level.DoneName, form)
+		if err != nil {
+			return nil, err
+		}
+		asked[level.Type] = Level{Type: level.Type, Name: name, DoneName: doneName}
 	}
 
 	kept := map[ItemType]bool{}
@@ -664,14 +684,14 @@ func (b StructureBound) validateLevels(levels []Level, form text.Normalizer) ([]
 	return ordered, nil
 }
 
-// levelName normalises a person's name for a level: trimmed, NFC, 1 to 60 code points. An empty
-// name is no name - the translated default applies. The refusal never carries the name: it is the
-// person's content (rule 10).
-func levelName(level Level, form text.Normalizer) (string, error) {
-	if level.Name == "" {
+// levelName normalises a name a person gave a level - its own, or its done entries' - trimmed,
+// NFC, 1 to 60 code points. An empty name is no name - the translated default applies. The refusal
+// never carries the name: it is the person's content (rule 10).
+func levelName(itemType ItemType, raw string, form text.Normalizer) (string, error) {
+	if raw == "" {
 		return "", nil
 	}
-	normalised, err := shared.NFC(strings.TrimSpace(level.Name), form)
+	normalised, err := shared.NFC(strings.TrimSpace(raw), form)
 	if err != nil {
 		return "", err
 	}
@@ -680,11 +700,11 @@ func levelName(level Level, form text.Normalizer) (string, error) {
 		return "", shared.ErrValidation.
 			WithDetail("structure.level_name_invalid").
 			WithParams(map[string]string{
-				"item_type": string(level.Type), "max": "60",
+				"item_type": string(itemType), "max": "60",
 			}).
 			WithFields(shared.FieldError{
 				Path: "/settings/levels", Code: "structure.level_name_invalid",
-				Params: map[string]string{"item_type": string(level.Type)},
+				Params: map[string]string{"item_type": string(itemType)},
 			})
 	}
 	return normalised, nil
@@ -718,9 +738,41 @@ func (b StructureBound) validateFields(fields map[ItemType]LevelFields) (map[Ite
 				ordered = append(ordered, capability)
 			}
 		}
-		validated[itemType] = LevelFields{Capabilities: ordered}
+		if err := validateCategories(itemType, level.Categories, seen[CapabilityLabels]); err != nil {
+			return nil, err
+		}
+		validated[itemType] = LevelFields{Capabilities: ordered, Categories: slices.Clone(level.Categories)}
 	}
 	return validated, nil
+}
+
+// validateCategories holds a type's categories to their shape: beside LABELS, at most
+// MaxCategories, each an identifier, none twice. Whether each is a label of the collection is the
+// use case's question, which can read the labels.
+func validateCategories(itemType ItemType, categories []shared.ID, labelled bool) error {
+	if len(categories) == 0 {
+		return nil
+	}
+	if !labelled || len(categories) > MaxCategories {
+		return settingInvalid(string(SettingFields), itemType)
+	}
+	seen := map[shared.ID]bool{}
+	for _, category := range categories {
+		if _, err := shared.ParseID(category.String()); err != nil || seen[category] {
+			return settingInvalid(string(SettingFields), itemType)
+		}
+		seen[category] = true
+	}
+	return nil
+}
+
+// categoriesBeside keeps categories only where their type still carries LABELS: without labels an
+// entry carries none to be grouped by.
+func categoriesBeside(capabilities []Capability, categories []shared.ID) []shared.ID {
+	if !slices.Contains(capabilities, CapabilityLabels) {
+		return nil
+	}
+	return slices.Clone(categories)
 }
 
 func validateViews(views Views) error {
