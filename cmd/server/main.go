@@ -1824,6 +1824,11 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		suggestionservice.DescribeRule{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
 		// The one that asks nothing of a provider: no `AI`, no `Queue`, and no provider
 		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
 		suggestionservice.SuggestDuplicates{

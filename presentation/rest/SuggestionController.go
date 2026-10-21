@@ -28,6 +28,7 @@ const (
 	aiSummarizeContainerUseCase = "AiSummarizeContainer"
 	aiTranslateUseCase          = "AiTranslate"
 	aiGenerateTemplateUseCase   = "AiGenerateTemplate"
+	describeRuleUseCase         = "DescribeRule"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -191,6 +192,33 @@ func (c *RestController) AiGenerateTemplate(
 		r.Context(), aiGenerateTemplateUseCase, actorOf(r),
 		usecase.Input{"collection_id": body.CollectionId.String(), "description": body.Description},
 	)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
+}
+
+// DescribeRule answers POST /automation/rules:describe: 202 with the job that drafts the rule.
+func (c *RestController) DescribeRule(
+	w http.ResponseWriter, r *http.Request, _ openapi.DescribeRuleParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.RuleDescription
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	scope := map[string]any{"type": string(body.Scope.Type)}
+	if body.Scope.Id != nil {
+		scope["id"] = body.Scope.Id.String()
+	}
+	out, err := c.UseCases.Invoke(r.Context(), describeRuleUseCase, actorOf(r),
+		usecase.Input{"scope": scope, "description": body.Description})
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
