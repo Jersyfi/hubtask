@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // CatalogueSources reads what a suggestion is made from, through the ordinary reads.
@@ -31,6 +32,14 @@ type CatalogueSources struct {
 	// Kept is whose content stays out of AI, read in the same transaction as the material
 	// (data-protection.md §4.1). Nil keeps nobody out - a build without the rule.
 	Kept KeptOutReader
+	// Served are the action kinds this build serves, from the catalogue: a rule draft may use
+	// only what is both in its allowlist and served. Empty offers a draft no action at all.
+	Served []string
+	// Permits narrows a rule draft's places to where the asker may write rules, and its people to
+	// the scopes the asker may read. Nil offers no place but the one asked.
+	Permits Permitter
+	// Text brings a sentence and the names it is matched against to one normal form.
+	Text porttext.Normalizer
 }
 
 // KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
@@ -53,6 +62,14 @@ func (s CatalogueSources) Material(
 			return Material{}, err
 		}
 		kept = read
+	}
+	if question.TargetType == domain.TargetAccount && question.PromptID == draftRulePrompt {
+		material, err := s.ruleMaterial(ctx, actor, question, kept)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Kept = kept
+		return material, nil
 	}
 	material, err := s.material(ctx, actor, question.TargetType, question.TargetID, question.PromptID, kept)
 	if err != nil {

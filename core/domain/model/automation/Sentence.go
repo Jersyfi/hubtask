@@ -70,6 +70,12 @@ var sentenceOperators = map[string][]string{
 	"field":     {"is", "is_not"},
 }
 
+// SentenceOperators answers the operators a subject takes, in the order the editor offers them;
+// nothing for a subject the composer does not know.
+func SentenceOperators(subject string) []string {
+	return append([]string(nil), sentenceOperators[subject]...)
+}
+
 // SentenceSubjects answers every subject the composer knows, for a caller narrowing them.
 func SentenceSubjects() []string {
 	subjects := make([]string, 0, len(sentenceOperators))

@@ -343,6 +343,97 @@ var acceptance = map[applierKey]accepted{
 	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
 }
 
+// draftableActions is what a rule drafted from a sentence may do (UC-AUT-10 check 2): entry-level
+// kinds, each field classified. An allowlist rather than everything served less a list of
+// exceptions, because a use case added to the catalogue tomorrow is one nobody has asked whether
+// a model may configure - and the answer to a question nobody asked is no.
+//
+// A field of an allowed kind that a draft may set picks from a set the model was shown (a person, a
+// collection, a label), from a closed enum (an entry type), or is bounded text. Every other field
+// the kind declares for a rule is in Never; `item_id` and `entry_id` are the run's (automation.md
+// §2.2). `test/architecture/draftableactions_test.go` holds the table to the catalogue: every kind
+// served, none destructive, every field classified.
+//
+// What is deliberately absent: telling people (no notification kind is built, UC-AUT-09), anything
+// that names an address (an outbound request or a webhook), anything destructive, asking AI, and a
+// branch.
+var draftableActions = map[string]draftable{
+	"ADD_LABEL":          {Fields: map[string]fieldUse{"label_id": useLabel}},
+	"REMOVE_LABEL":       {Fields: map[string]fieldUse{"label_id": useLabel}},
+	"ASSIGN_WORK_ITEM":   {Fields: map[string]fieldUse{"account_id": usePerson}},
+	"UNASSIGN_WORK_ITEM": {},
+	"COMPLETE_WORK_ITEM": {},
+	"REOPEN_WORK_ITEM":   {},
+	"CLEAR_DUE_DATE":     {},
+	"MOVE_WORK_ITEM": {
+		Fields: map[string]fieldUse{"target_collection_id": useCollection},
+		Never:  []string{"target_parent_id", "target_bucket_id", "before_item_id", "order_key"},
+	},
+	"CREATE_WORK_ITEM": {
+		Fields: map[string]fieldUse{
+			"collection_id": useCollection, "assignee_id": usePerson, "type": useItemType,
+			"title": useText, "notes": useText,
+		},
+		Never: []string{
+			"parent_id", "bucket_id", "content_language", "auto_assign", "start_at", "due_at",
+			"due_date_only", "due_time_zone", "calendar_uid", "label_ids", "custom_fields", "cover",
+			"before_item_id", "member_ids",
+		},
+	},
+	"ADD_COMMENT": {
+		Fields: map[string]fieldUse{"body": useText},
+		Never:  []string{"parent_comment_id"},
+	},
+	"CONVERT_JUMBLE_ENTRY": {
+		Fields: map[string]fieldUse{"collection_id": useCollection, "type": useItemType, "title": useText},
+		Never:  []string{"bucket_id"},
+	},
+}
+
+// runSupplied are the fields a run fills in itself (automation.md §2.2), never drafted.
+var runSupplied = []string{"item_id", "entry_id", "event_id"}
+
+// draftable is one kind a draft may use, and how each of its fields is drafted.
+type draftable struct {
+	Fields map[string]fieldUse
+	Never  []string
+}
+
+func (d draftable) fieldNames() []string {
+	names := make([]string, 0, len(d.Fields))
+	for name := range d.Fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// fieldUse is how one field of a draftable kind is drafted.
+type fieldUse string
+
+const (
+	usePerson     fieldUse = "a person shown"
+	useCollection fieldUse = "a collection shown"
+	useLabel      fieldUse = "a label shown"
+	useItemType   fieldUse = "an entry type"
+	useText       fieldUse = "text"
+)
+
+func (u fieldUse) describe() string { return string(u) }
+
+// DraftableActions is the table, for the gate that holds it to the catalogue: per kind, the fields
+// a draft sets, the fields it never sets, and the fields the run supplies.
+func DraftableActions() map[string]struct{ Drafted, Never []string } {
+	table := make(map[string]struct{ Drafted, Never []string }, len(draftableActions))
+	for kind, how := range draftableActions {
+		table[kind] = struct{ Drafted, Never []string }{
+			Drafted: how.fieldNames(),
+			Never:   append(append([]string(nil), how.Never...), runSupplied...),
+		}
+	}
+	return table
+}
+
 // The use cases this package calls for something other than applying a payload: the breakdown's
 // walk (`plant`) and a jumble entry's subtasks (`grow`), which are the same walk over two shapes,
 // and the move onto a board column (`place`).

@@ -66,6 +66,8 @@ type Material struct {
 	// Kept is whose content stayed out of this material, read in its transaction: what the
 	// producer applies to anything it appends, and how it learns the asker keeps their own out.
 	Kept integration.KeptOut
+	// Rule is what a rule drafted from this material may name; nil for every other question.
+	Rule *RuleSets
 }
 
 // Declared is one custom field definition, with the entry's own value beside it.
