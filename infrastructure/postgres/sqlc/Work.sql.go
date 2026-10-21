@@ -441,7 +441,7 @@ func (q *Queries) FindPrivateHubAccess(ctx context.Context, id pgtype.UUID) (Fin
 const findWorkItem = `-- name: FindWorkItem :one
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields: only the values whose own definition still lives. The hiding
@@ -481,6 +481,7 @@ type FindWorkItemRow struct {
 	Path                  string
 	Depth                 int32
 	Title                 string
+	Amount                *string
 	Notes                 *string
 	IsCompleted           bool
 	CompletedAt           pgtype.Timestamptz
@@ -528,6 +529,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.Path,
 		&i.Depth,
 		&i.Title,
+		&i.Amount,
 		&i.Notes,
 		&i.IsCompleted,
 		&i.CompletedAt,
@@ -566,7 +568,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 const findWorkItemByCalendarUID = `-- name: FindWorkItemByCalendarUID :one
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -596,6 +598,7 @@ type FindWorkItemByCalendarUIDRow struct {
 	Path                  string
 	Depth                 int32
 	Title                 string
+	Amount                *string
 	Notes                 *string
 	IsCompleted           bool
 	CompletedAt           pgtype.Timestamptz
@@ -645,6 +648,7 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 		&i.Path,
 		&i.Depth,
 		&i.Title,
+		&i.Amount,
 		&i.Notes,
 		&i.IsCompleted,
 		&i.CompletedAt,
@@ -683,7 +687,7 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 const findWorkItems = `-- name: FindWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -713,6 +717,7 @@ type FindWorkItemsRow struct {
 	Path                  string
 	Depth                 int32
 	Title                 string
+	Amount                *string
 	Notes                 *string
 	IsCompleted           bool
 	CompletedAt           pgtype.Timestamptz
@@ -768,6 +773,7 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 			&i.Path,
 			&i.Depth,
 			&i.Title,
+			&i.Amount,
 			&i.Notes,
 			&i.IsCompleted,
 			&i.CompletedAt,
@@ -941,16 +947,16 @@ func (q *Queries) InsertPrivateHubAccess(ctx context.Context, arg InsertPrivateH
 
 const insertWorkItem = `-- name: InsertWorkItem :exec
 INSERT INTO work_item (
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
   updated_at, version
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  normalize($7::text, NFC),
-  $8, $9, $10,
-  $11, $12, $13,
-  $14, $15, $15, 1
+  normalize($7::text, NFC), $8,
+  $9, $10, $11,
+  $12, $13, $14,
+  $15, $16, $16, 1
 )
 `
 
@@ -962,6 +968,7 @@ type InsertWorkItemParams struct {
 	Path            string
 	Depth           int32
 	Title           string
+	Amount          *string
 	Notes           *string
 	BucketID        pgtype.UUID
 	OrderKey        string
@@ -995,6 +1002,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.Path,
 		arg.Depth,
 		arg.Title,
+		arg.Amount,
 		arg.Notes,
 		arg.BucketID,
 		arg.OrderKey,
@@ -1009,7 +1017,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 
 const insertWorkItemCopy = `-- name: InsertWorkItemCopy :exec
 INSERT INTO work_item (
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
@@ -1017,15 +1025,15 @@ INSERT INTO work_item (
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  normalize($7::text, NFC),
-  $8, $9, $10,
-  $11,
-  $12, $13, coalesce($14, false),
-  $15,
-  $16, $17, $18,
-  $19::jsonb, $20::jsonb,
-  $21, $22, $23,
-  $24, $24, 1
+  normalize($7::text, NFC), $8,
+  $9, $10, $11,
+  $12,
+  $13, $14, coalesce($15, false),
+  $16,
+  $17, $18, $19,
+  $20::jsonb, $21::jsonb,
+  $22, $23, $24,
+  $25, $25, 1
 )
 `
 
@@ -1037,6 +1045,7 @@ type InsertWorkItemCopyParams struct {
 	Path            string
 	Depth           int32
 	Title           string
+	Amount          *string
 	Notes           *string
 	BucketID        pgtype.UUID
 	OrderKey        string
@@ -1097,6 +1106,7 @@ func (q *Queries) InsertWorkItemCopy(ctx context.Context, arg InsertWorkItemCopy
 		arg.Path,
 		arg.Depth,
 		arg.Title,
+		arg.Amount,
 		arg.Notes,
 		arg.BucketID,
 		arg.OrderKey,
@@ -1419,7 +1429,7 @@ func (q *Queries) ListPrivateHubs(ctx context.Context) ([]ListPrivateHubsRow, er
 const listWorkItems = `-- name: ListWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -1476,6 +1486,7 @@ type ListWorkItemsRow struct {
 	Path                  string
 	Depth                 int32
 	Title                 string
+	Amount                *string
 	Notes                 *string
 	IsCompleted           bool
 	CompletedAt           pgtype.Timestamptz
@@ -1546,6 +1557,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.Path,
 			&i.Depth,
 			&i.Title,
+			&i.Amount,
 			&i.Notes,
 			&i.IsCompleted,
 			&i.CompletedAt,
@@ -2203,17 +2215,19 @@ func (q *Queries) SetWorkItemAssignee(ctx context.Context, arg SetWorkItemAssign
 const setWorkItemAttributes = `-- name: SetWorkItemAttributes :execrows
 UPDATE work_item SET
   title            = $1,
-  notes            = $2,
-  bucket_id        = $3,
-  start_at         = $4,
-  content_language = $5,
-  updated_at       = $6,
+  amount           = $2,
+  notes            = $3,
+  bucket_id        = $4,
+  start_at         = $5,
+  content_language = $6,
+  updated_at       = $7,
   version          = version + 1
-WHERE id = $7::uuid AND version = $8
+WHERE id = $8::uuid AND version = $9
 `
 
 type SetWorkItemAttributesParams struct {
 	Title           string
+	Amount          *string
 	Notes           *string
 	BucketID        pgtype.UUID
 	StartAt         pgtype.Timestamptz
@@ -2242,6 +2256,7 @@ type SetWorkItemAttributesParams struct {
 func (q *Queries) SetWorkItemAttributes(ctx context.Context, arg SetWorkItemAttributesParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setWorkItemAttributes,
 		arg.Title,
+		arg.Amount,
 		arg.Notes,
 		arg.BucketID,
 		arg.StartAt,
@@ -2543,7 +2558,7 @@ func (q *Queries) SetWorkItemPlacement(ctx context.Context, arg SetWorkItemPlace
 const subtreeOfWorkItem = `-- name: SubtreeOfWorkItem :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -2584,6 +2599,7 @@ type SubtreeOfWorkItemRow struct {
 	Path                  string
 	Depth                 int32
 	Title                 string
+	Amount                *string
 	Notes                 *string
 	IsCompleted           bool
 	CompletedAt           pgtype.Timestamptz
@@ -2656,6 +2672,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.Path,
 			&i.Depth,
 			&i.Title,
+			&i.Amount,
 			&i.Notes,
 			&i.IsCompleted,
 			&i.CompletedAt,

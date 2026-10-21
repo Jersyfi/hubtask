@@ -270,7 +270,7 @@ SELECT
 -- returns them: the repository reports what is stored and judges none of it (I-W4).
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields: only the values whose own definition still lives. The hiding
@@ -307,7 +307,7 @@ WHERE wi.id = $1;
 -- would have shown it. An identifier of another tenant is simply absent (row level security).
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -359,13 +359,13 @@ LIMIT 1;
 -- The calendar UID is the create's own too, and only the create's: it is the address a calendar
 -- client chose for the entry, set once here and by no other statement.
 INSERT INTO work_item (
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
   updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
-  normalize(sqlc.arg('title')::text, NFC),
+  normalize(sqlc.arg('title')::text, NFC), sqlc.narg('amount'),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
@@ -378,7 +378,7 @@ INSERT INTO work_item (
 -- unique index the lookup uses - one UID is one entry per workspace and nothing across two.
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -422,7 +422,7 @@ WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calenda
 -- read on purpose, so that "too large" is distinguishable from "exactly at the bound".
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -481,7 +481,7 @@ LIMIT sqlc.arg('row_limit');
 -- copied from *as an occurrence*, and somebody duplicating an occurrence gets a task like it rather
 -- than a second occurrence of a series they did not touch.
 INSERT INTO work_item (
-  id, tenant_id, collection_id, type, parent_id, path, depth, title, notes,
+  id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, assignee_id,
   start_at, due_at, due_date_only, due_time_zone,
   cover_kind, cover_color_token, cover_media_id, custom_fields, custom_field_refs,
@@ -489,7 +489,7 @@ INSERT INTO work_item (
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
-  normalize(sqlc.arg('title')::text, NFC),
+  normalize(sqlc.arg('title')::text, NFC), sqlc.narg('amount'),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('assignee_id'),
   sqlc.narg('start_at'), sqlc.narg('due_at'), coalesce(sqlc.narg('due_date_only'), false),
@@ -514,7 +514,7 @@ INSERT INTO work_item (
 -- and for the same reasons.
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -622,6 +622,7 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- document is built under is not one PostgreSQL will let a generated column choose.
 UPDATE work_item SET
   title            = sqlc.arg('title'),
+  amount           = sqlc.narg('amount'),
   notes            = sqlc.narg('notes'),
   bucket_id        = sqlc.narg('bucket_id'),
   start_at         = sqlc.narg('start_at'),
