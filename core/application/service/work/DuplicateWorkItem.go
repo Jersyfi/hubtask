@@ -400,6 +400,16 @@ func (h DuplicateWorkItem) copyInto(
 		if err != nil {
 			return err
 		}
+		// The copy lands on a level the destination offers; what it carries is copied whole and
+		// marked where the destination hides it (domain-model.md §2) - dropped only where the
+		// installation no longer carries it (I-W6), which no switch would bring back.
+		offer, err := h.Gate.placing(ctx, fresh.destination, fresh.parent)
+		if err != nil {
+			return err
+		}
+		if err := offer.requireLevel(fresh.source.Type, "/target_parent_id"); err != nil {
+			return err
+		}
 
 		entries, err := h.entriesToCopy(ctx, fresh)
 		if err != nil {

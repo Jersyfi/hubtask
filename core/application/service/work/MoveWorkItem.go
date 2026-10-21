@@ -371,8 +371,19 @@ func (w PlacementWriter) perform(
 		if err != nil {
 			return err
 		}
+		// The destination decides: the entry has to land on a level it offers - which is also what
+		// refuses reordering an entry of a hidden level - while what it carries is kept, marked
+		// where the destination hides it (domain-model.md §2). An entry hidden where it is may be
+		// moved to a place that shows it: that is the way out without flattening.
+		offer, err := w.Gate.placing(ctx, fresh.destination, fresh.parent)
+		if err != nil {
+			return err
+		}
+		if err := offer.requireLevel(fresh.item.Type, "/target_parent_id"); err != nil {
+			return err
+		}
 
-		if err := w.ensureBucketAt(ctx, fresh, spot); err != nil {
+		if err := w.ensureBucketAt(ctx, fresh, spot, offer); err != nil {
 			return err
 		}
 
@@ -406,7 +417,7 @@ func (w PlacementWriter) perform(
 // A named column is checked against the collection the item is moving *into*, not the one it is
 // leaving, which is what makes "move it to the other board's Doing column" one operation.
 func (w PlacementWriter) ensureBucketAt(
-	ctx context.Context, plan placement, spot service.Placement,
+	ctx context.Context, plan placement, spot service.Placement, offer entryOffer,
 ) error {
 	if !plan.command.BucketGiven || plan.command.TargetBucketID.IsZero() {
 		// No column asked for, or the entry taken off the board. Neither needs the capability: an
@@ -418,7 +429,7 @@ func (w PlacementWriter) ensureBucketAt(
 	if err != nil {
 		return err
 	}
-	if err := profile.Require(domain.CapabilityBucket, "/target_bucket_id"); err != nil {
+	if err := offer.narrow(profile).Require(domain.CapabilityBucket, "/target_bucket_id"); err != nil {
 		return err
 	}
 	if spot.Depth != 1 {
