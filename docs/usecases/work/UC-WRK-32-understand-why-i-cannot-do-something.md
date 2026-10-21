@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-admin, PE-owner, PE-auditor, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-11, P-13]
-state: specified
+state: verified
 tasks: [UX-03, UX-04, UX-05]
-checked_by: [apps/webapp/e2e/workbench-layout.test.mjs, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/explain-settings.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs, docs/evidence/UX-04-2026-10-21.md]
+checked_by: [apps/webapp/e2e/workbench-layout.test.mjs, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/explain-settings.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs, docs/evidence/UX-04-2026-10-21.md, apps/webapp/e2e/adminreasons.test.mjs, apps/webapp/e2e/adminbyrole.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/quotas.test.mjs]
 ---
 
 # Understand why I cannot do something
@@ -33,13 +33,3 @@ In a collection whose hub is archived, *Add an entry* is unavailable. Hovering o
 ## Where it ends
 
 * Which actions are allowed is decided by the use cases and roles; this one is how a refusal is shown.
-
-## Today
-
-* Check 1: met by the design system's components — every control with a reason stays focusable and shows it as a bubble on hover, focus and tap without moving a box, measured in three engines (`apps/webapp/e2e/workbench-layout.test.mjs`); the screens use them through UX-04 and UX-05 (check 7).
-* Check 2: met on the end-user screens and Your settings (`apps/webapp/e2e/explain.test.mjs`); not met on administration and installation, tracked in UX-05.
-* Check 3: met on the end-user screens and Your settings (`explain.test.mjs`, `explain-settings.test.mjs`); not met on administration and installation, tracked in UX-05.
-* Check 4: met on the end-user screens and Your settings (`explain.test.mjs`, `explain-settings.test.mjs`); not met on administration and installation, tracked in UX-05.
-* Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: met by the design system's components — `Button`, `IconButton`, `Checkbox` and `Switch` show progress in place without changing size (`apps/webapp/e2e/workbench-layout.test.mjs`), and the workbench's *Saving a setting* confirms with a `Toast` and *Undo*; Your settings show it in place and confirm with a toast (`explain-settings.test.mjs`); administration and installation are tracked in UX-05.
-* Check 7: met for the end-user screens and Your settings at three widths (`explain.test.mjs`, `explain-settings.test.mjs`); not met for administration and installation, tracked in UX-05.
