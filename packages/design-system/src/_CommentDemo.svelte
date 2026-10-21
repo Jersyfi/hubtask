@@ -7,7 +7,7 @@
   import CommentThread, { type ThreadComment } from './CommentThread.svelte';
   import InContext from './_InContext.svelte';
 
-  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' | 'table' } = $props();
+  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' | 'table' | 'others' } = $props();
 
   /** One comment, its two affordances off for `reason` - or on, in the comparison row. */
   const single = (reason: string | undefined): ThreadComment[] => [
@@ -37,8 +37,8 @@
           body: 'Thursday is fine. I will move the fitters to the afternoon.',
           when: '4 Sep 2026, 09:31',
           at: '2026-09-04T07:31:00Z',
-          editDisabledReason: 'Only the author can change a comment.',
-          deleteDisabledReason: 'Only the author or an administrator can remove a comment.',
+          // Somebody else's, and this reader is no administrator: neither control is offered.
+          isChangeable: false,
         },
       ],
     },
@@ -49,9 +49,14 @@
       when: '4 Sep 2026, 11:48',
       at: '2026-09-04T09:48:00Z',
       editedLabel: 'edited',
-      editDisabledReason: 'Only the author can change a comment.',
-      deleteDisabledReason: 'Only the author or an administrator can remove a comment.',
+      isChangeable: false,
     },
+  ];
+
+  // The reader's own comment beside somebody else's: on theirs both controls, on the other none.
+  const others: ThreadComment[] = [
+    { id: 'o1', authorName: 'Jonas Brandt', body: 'The fitters are booked for Thursday afternoon.', when: '4 Sep 2026, 09:31', at: '2026-09-04T07:31:00Z' },
+    { id: 'o2', authorName: 'Sofia Marchetti', body: 'I have attached the revised plan to the work package.', when: '4 Sep 2026, 11:48', at: '2026-09-04T09:48:00Z', isChangeable: false },
   ];
 
   const withRemoved: ThreadComment[] = [
@@ -68,8 +73,7 @@
           body: 'Agreed — I have raised it with the supplier.',
           when: '3 Sep 2026, 16:20',
           at: '2026-09-03T14:20:00Z',
-          editDisabledReason: 'Only the author can change a comment.',
-          deleteDisabledReason: 'Only the author or an administrator can remove a comment.',
+          isChangeable: false,
         },
       ],
     },
@@ -95,7 +99,7 @@
 {:else}
 <CommentThread
   label="Comments"
-  comments={mode === 'empty' ? [] : mode === 'removed' ? withRemoved : conversation}
+  comments={mode === 'empty' ? [] : mode === 'removed' ? withRemoved : mode === 'others' ? others : conversation}
   emptyLabel="Nothing has been said about this entry yet. Start the conversation."
   removedLabel="This comment was removed."
   editLabel="Edit"
