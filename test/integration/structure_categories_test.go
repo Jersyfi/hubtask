@@ -16,29 +16,33 @@ import (
 // UC-WRK-25 check 5 against PostgreSQL: a collection names its own labels as categories, they are
 // stored in its layer and read back in order; another workspace's label is not found under row
 // level security and is refused like a label that does not exist.
+//
+// In tenant B, for the reason create_work_item_test.go gives: tenant A carries a narrowed TASK
+// profile without labels, and categories need them.
 func TestACollectionsCategoriesAreItsOwnLabelsInOrder(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	registry := structureCatalogue(t)
-	actor := structureActor(tenantA, authorA)
+	actor := structureActor(tenantB, authorB)
 
-	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
-	collection := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "name": freshName(t), "parent_id": hub})
-	collectionID := shared.MustParseID(collection)
+	// Seeded through the repository with its own rank keys: the suite shares one database, and a
+	// hub created through the use case would rank after whatever the other tests left in B.
+	collectionID := collectionFor(ctx, t, tenantB, authorB)
+	collection := collectionID.String()
 
 	dairy, produce := freshID(t), freshID(t)
-	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := labelRepo().Insert(ctx, labelIn(tenantA, collectionID, dairy, freshName(t))); err != nil {
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := labelRepo().Insert(ctx, labelIn(tenantB, collectionID, dairy, freshName(t))); err != nil {
 			return err
 		}
-		return labelRepo().Insert(ctx, labelIn(tenantA, collectionID, produce, freshName(t)))
+		return labelRepo().Insert(ctx, labelIn(tenantB, collectionID, produce, freshName(t)))
 	}); err != nil {
 		t.Fatalf("seeding labels: %v", err)
 	}
 	foreign := freshID(t)
-	foreignCollection := collectionFor(ctx, t, tenantB, authorB)
-	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return labelRepo().Insert(ctx, labelIn(tenantB, foreignCollection, foreign, freshName(t)))
+	foreignCollection := collectionFor(ctx, t, tenantA, authorA)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return labelRepo().Insert(ctx, labelIn(tenantA, foreignCollection, foreign, freshName(t)))
 	}); err != nil {
 		t.Fatalf("seeding the other workspace's label: %v", err)
 	}
@@ -60,7 +64,12 @@ func TestACollectionsCategoriesAreItsOwnLabelsInOrder(t *testing.T) {
 	if err := set(produce, dairy); err != nil {
 		t.Fatalf("naming categories: %v", err)
 	}
-	settings, _ := structureOf(ctx, t, registry, collection)["settings"].(map[string]any)
+	read, err := registry.Invoke(ctx, "GetContainer", actor, usecase.Input{"container_id": collection})
+	if err != nil {
+		t.Fatalf("reading: %v", err)
+	}
+	structure, _ := read["structure"].(map[string]any)
+	settings, _ := structure["settings"].(map[string]any)
 	fields, _ := settings["fields"].(map[string]any)
 	task, _ := fields["TASK"].(map[string]any)
 	got, _ := task["categories"].([]any)
@@ -68,11 +77,11 @@ func TestACollectionsCategoriesAreItsOwnLabelsInOrder(t *testing.T) {
 		t.Errorf("the read answers %v", task)
 	}
 
-	err := set(dairy, foreign)
+	err = set(dairy, foreign)
 	if refusal := shared.AsError(err); refusal == nil || refusal.DetailCode != "structure.category_unknown" {
 		t.Fatalf("another workspace's label answered %v", err)
 	}
-	if err := set(dairy, shared.MustParseID(hub)); shared.AsError(err) == nil ||
+	if err := set(dairy, foreignCollection); shared.AsError(err) == nil ||
 		shared.AsError(err).DetailCode != "structure.category_unknown" {
 		t.Errorf("an identifier that is no label answered %v", err)
 	}
