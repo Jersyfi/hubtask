@@ -56,6 +56,7 @@
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, roleOrder, rootTypes } from '../lib/data/capability.svelte.ts';
@@ -80,7 +81,7 @@
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
-  import { layoutsOffered } from '../lib/entries/layouts.ts';
+  import { DRAWABLE, isListLayout, layoutsOffered } from '../lib/entries/layouts.ts';
   import { actionsOfHead, type Act } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
   import { mayCreateIn } from '../lib/palette/sources.ts';
@@ -148,9 +149,9 @@
   /**
    * Which layout the reader is looking at, and what they have asked of the entries.
    *
-   * Kept on the device, in memory. Saving a view is its own act, and a switch here writes no
-   * `SavedView` — the choice is the reader's for as long as the screen is open, and no further
-   * claim is made about it.
+   * The layout a person chose for a collection is kept for them on this device (UC-WRK-28 check 6,
+   * design-system.md §11.10) and sent nowhere; saving a view is its own act, and a switch here
+   * writes no `SavedView`.
    */
   let layout = $state('LIST_COLLAPSED');
   let query = $state<ItemsQuery>({});
@@ -159,6 +160,46 @@
 
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+
+  /**
+   * What the opening layout is chosen from: what may be chosen here, the list's both values where
+   * the list is offered; everything this client draws while the manifest is not yet read.
+   */
+  const choosable = $derived(
+    offeredLayouts.length === 0
+      ? DRAWABLE
+      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))),
+  );
+
+  /** What the collection offers and opens with, as one key, so a re-read that changes neither leaves the layout alone. */
+  const offeredViews = $derived(JSON.stringify({ views: container?.structure?.settings?.views ?? null, choosable }));
+
+  // The layout a collection opens with: the person's remembered one where it is still offered,
+  // else the collection's default, else the list.
+  $effect(() => {
+    const wanted = id;
+    const account = actor.account?.id;
+    const read = JSON.parse(offeredViews) as {
+      views: { offered?: string[]; default?: string } | null;
+      choosable: string[];
+    };
+    untrack(() => {
+      layout = openingLayout({
+        store: deviceStore(),
+        accountId: account,
+        collectionId: wanted,
+        offered: read.views?.offered ?? [],
+        preferred: read.views?.default,
+        drawable: read.choosable,
+      });
+    });
+  });
+
+  /** A layout the person chose: drawn, and kept for them on this device. */
+  function chooseLayout(chosen: string) {
+    layout = chosen;
+    rememberLayout(deviceStore(), actor.account?.id, id, chosen);
+  }
 
   /**
    * The path this container sits on, and the role this reader holds along it.
@@ -761,7 +802,7 @@
       .map((each) => ({
         id: `page:layout-${each}`,
         label: t('app.palette.show_as', { layout: each }),
-        run: () => (layout = each),
+        run: () => chooseLayout(each),
       })),
   );
 
@@ -776,7 +817,7 @@
     const wish = commands.take(container.id);
     if (!wish) return;
     untrack(() => {
-      if (wish.layout && offeredLayouts.includes(wish.layout)) layout = wish.layout;
+      if (wish.layout && offeredLayouts.includes(wish.layout)) chooseLayout(wish.layout);
       if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
         if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
         isAddWished = true;
@@ -891,7 +932,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={(id) => (layout = id)} />
+          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={chooseLayout} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}
@@ -1113,7 +1154,7 @@
       // Both halves: the query the server validated, and the layout only a client knows what to do
       // with — which is what the `layout` field is for, declared uninterpreted.
       query = asked;
-      layout = appliedLayout;
+      chooseLayout(appliedLayout);
       announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
     }}
     onexport={(view) => {

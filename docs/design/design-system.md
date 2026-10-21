@@ -989,6 +989,7 @@ write falls back in silence where storage is refused.
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
 | What was opened last, for the overview | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
+| The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |
 | A resizable sheet's size | wherever its caller keeps it — the rule editor uses `localStorage` | the caller, never `Drawer` |
 | The last sign-in method used | `localStorage` | `lib/signin/lastMethod.ts` |
