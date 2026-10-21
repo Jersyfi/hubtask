@@ -17467,7 +17467,7 @@ type ClientInterface interface {
 	//
 	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-	// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -17478,7 +17478,7 @@ type ClientInterface interface {
 	//
 	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-	// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -26288,7 +26288,7 @@ func (c *Client) BulkUpdateWorkItems(ctx context.Context, params *BulkUpdateWork
 //
 // Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 // The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 //
 // Takes any type of body and a specified content type.
 //
@@ -26309,7 +26309,7 @@ func (c *Client) FindDuplicatesByTitleWithBody(ctx context.Context, contentType 
 //
 // Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 // The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -49523,7 +49523,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-	// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -49534,7 +49534,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-	// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -74535,7 +74535,7 @@ func (c *ClientWithResponses) BulkUpdateWorkItemsWithResponse(ctx context.Contex
 //
 // Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 // The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -74552,7 +74552,7 @@ func (c *ClientWithResponses) FindDuplicatesByTitleWithBodyWithResponse(ctx cont
 //
 // Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
 // The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
-// The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //

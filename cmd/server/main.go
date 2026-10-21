@@ -1839,6 +1839,19 @@ func run() error {
 			IDs:        ids,
 			Floor:      cfg.AI.DuplicateThreshold,
 		}.Descriptor(),
+		// Duplicates of a title before it is an entry: the search's own embedding of typed words,
+		// so the consent, the kept-out rule and the short wait are the search's.
+		suggestionservice.FindDuplicatesByTitle{
+			Meaning: work.SearchMeaning{
+				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
+				UnitOfWork: unitOfWork, Kept: keptOut,
+			},
+			Neighbours: postgres.NewEmbeddingRepository(),
+			Reader:     authorizer,
+			Items:      items,
+			UnitOfWork: unitOfWork,
+			Floor:      cfg.AI.DuplicateThreshold,
+		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		identity.CompleteOidcSignIn{Writer: oidcWriter}.Descriptor(),
 		// Where a provider's return belongs: the workspace's own address in multi-tenant

@@ -281,6 +281,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.AiSummarize{}.Descriptor(),
 		suggestionservice.AiClassify{}.Descriptor(),
 		suggestionservice.SuggestDuplicates{}.Descriptor(),
+		suggestionservice.FindDuplicatesByTitle{}.Descriptor(),
 		suggestionservice.AiSummarizeThread{}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{}.Descriptor(),
 		suggestionservice.AiGenerateTemplate{}.Descriptor(),

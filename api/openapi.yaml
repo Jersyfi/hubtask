@@ -6890,7 +6890,7 @@ paths:
         every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no
         provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
 
-        The nearest entries at or above the duplicate threshold (`ai-first.md` §2), at most five,
+        The nearest entries at or above the threshold the duplicates of an entry use, at most five,
         nearest first, each narrowed to what the caller may read along its own path - a role held
         on one hub finds that hub's entries, and an entry in a private hub the caller is outside of
         is never answered.
