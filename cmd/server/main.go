@@ -768,6 +768,7 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
+		Structure: structures,
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
