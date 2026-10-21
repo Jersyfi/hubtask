@@ -147,7 +147,7 @@ test('chromium: a page of the jumble that did not arrive because the connection 
   await listFailingOnce(context, {
     endsWith: '/jumble/entries',
     failure: 'offline',
-    answer: (cursor) => (cursor === 'p2' ? { data: [ARRIVAL(3)], next_cursor: null } : { data: [ARRIVAL(1), ARRIVAL(2)], next_cursor: 'p2' }),
+    answer: (cursor) => (cursor === 'p2' ? { data: [ARRIVAL(3)], page: { next_cursor: null, has_more: false } } : { data: [ARRIVAL(1), ARRIVAL(2)], page: { next_cursor: 'p2', has_more: true } }),
   });
   await page.goto(`${served.origin}/jumble`);
   await failsThenRetries(page, {

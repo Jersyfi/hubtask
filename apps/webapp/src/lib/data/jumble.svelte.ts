@@ -47,7 +47,13 @@ export interface JumbleEntry {
 
 interface EntryPage {
   readonly data?: readonly JumbleEntry[];
-  readonly next_cursor?: string | null;
+  /** Where the contract answers the walk's state (`JumbleEntryPage.page`). */
+  readonly page?: { readonly next_cursor?: string | null };
+}
+
+/** The cursor of the next page, as the contract places it. */
+function nextOf(page: EntryPage): string | undefined {
+  return page.page?.next_cursor ?? undefined;
 }
 
 /** A collection an arrival may become work in for the reader, with its hub. */
@@ -114,7 +120,7 @@ class Jumble {
       this.#pages = { ...this.#pages, [key]: next };
       if (next.status === 'ready') {
         this.#held = { ...this.#held, [key]: next.data.data ?? [] };
-        this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+        this.#cursors = { ...this.#cursors, [key]: nextOf(next.data) };
       }
     });
   }
@@ -136,7 +142,7 @@ class Jumble {
     if (next.status === 'failed') throw next.error;
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.data ?? [])] };
-    this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+    this.#cursors = { ...this.#cursors, [key]: nextOf(next.data) };
   }
 
   /**
