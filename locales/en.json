@@ -2689,6 +2689,7 @@
   "app.figure.source.workspace": "the workspace",
   "app.figure.source.hub": "the hub",
   "app.figure.source.collection": "this collection",
+  "app.figure.source_hint": "Set by {source}.",
   "app.figure.saved_announced": "What counts is saved.",
   "app.workspace.actions": "Actions for {name}",
   "app.workspace.expand_trail": "Show the levels in between",

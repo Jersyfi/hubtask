@@ -1018,6 +1018,7 @@
   "app.figure.source.workspace": "dem Arbeitsbereich",
   "app.figure.source.hub": "dem Hub",
   "app.figure.source.collection": "dieser Sammlung",
+  "app.figure.source_hint": "Festgelegt von {source}.",
   "app.figure.saved_announced": "Was zählt ist gespeichert.",
   "app.workspace.actions": "Aktionen für {name}",
   "app.workspace.expand_trail": "Die Ebenen dazwischen zeigen",

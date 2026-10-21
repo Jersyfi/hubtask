@@ -64,7 +64,9 @@
     }
     if (!offer || isFilled) return;
     isFilled = true;
-    figure = offer.clippedFrom ?? offer.current;
+    // A progress the levels clip is not on offer here; the choice starts at what is shown, and the
+    // note below says why.
+    figure = offer.figures.includes(offer.current) ? offer.current : 'NONE';
     field = offer.currentField ?? '';
     isFieldMissing = false;
     failure = undefined;
@@ -74,7 +76,9 @@
     (offer?.figures ?? []).map((kind) => ({ value: kind, label: t(`app.figure.option.${kind.toLowerCase()}`) })),
   );
   const isLocked = $derived(offer?.lockedBy !== undefined);
-  const sourceText = $derived(offer ? t(`app.figure.source.${offer.source.toLowerCase()}`) : '');
+  const sourceText = $derived(
+    offer ? t('app.figure.source_hint', { source: t(`app.figure.source.${offer.source.toLowerCase()}`) }) : '',
+  );
 
   async function save() {
     if (isSaving || isLocked) return;

@@ -144,6 +144,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   // A progress the hub set, shown as open entries: said so.
   const clipped = await choicesOf(FIGURES.open);
   assert.ok((await clipped.dialog.locator('[data-figure-clipped]').textContent()).includes('set by the hub'));
+  assert.equal(await clipped.dialog.getByRole('combobox', { name: 'Show' }).inputValue(), 'OPEN', 'the choice starts empty');
   await clipped.context.close();
 });
 
