@@ -442,6 +442,8 @@
   "privacy.consent_own_only": "Zustimmen kannst du nur für dich selbst. Eine Zustimmung für jemand anderen kann nur diese Person geben.",
   "app.back_to_start": "Zurück zum Anfang",
   "app.dismiss": "Schließen",
+  "app.toast.undo": "Rückgängig",
+  "app.offline.undo_waits": "Rückgängig braucht den Server, und dieses Gerät hat kein Netz. Es geht wieder, sobald das Netz zurück ist.",
   "app.retry": "Noch einmal versuchen",
   "app.nav.home": "Start",
   "app.nav.label": "Bereiche",

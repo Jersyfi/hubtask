@@ -44,6 +44,7 @@ import { recents } from './recents.svelte.ts';
 import { search } from './data/search.svelte.ts';
 import { recoveryNote } from './data/recoverynote.svelte.ts';
 import { stepUp } from './data/stepup.svelte.ts';
+import { toast } from './frame/toasts.svelte.ts';
 
 const SESSIONS = '/auth/sessions';
 const VERIFY = '/auth/sessions:verify';
@@ -664,6 +665,8 @@ class Session {
     live.stop();
     platform.releaseBearer();
     engine.reset();
+    // A passing message - an *Undo* least of all - belongs to the account that caused it.
+    toast.clear();
     // What this device remembered of the person who was signed in. Both hold their content - the
     // titles of what they opened, the words they searched for - so both end where the replica ends
     // rather than outliving them in a browser somebody else also uses.

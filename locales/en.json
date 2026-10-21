@@ -1560,6 +1560,8 @@
   "query.filter_too_expensive": "The filter's estimated cost is {cost}; at most {maximum} is planned for. Fewer text scans, shorter lists.",
   "app.back_to_start": "Back to the start",
   "app.dismiss": "Dismiss",
+  "app.toast.undo": "Undo",
+  "app.offline.undo_waits": "Undo needs the server, and this device has no network. It works again once the network is back.",
   "app.retry": "Try again",
   "app.nav.home": "Home",
   "app.nav.label": "Sections",
