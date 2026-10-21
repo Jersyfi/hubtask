@@ -246,6 +246,11 @@ export class HubtaskClient {
     return this.call("POST", "/automation/rules:check", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Ask AI to draft a rule from a sentence */
+  describeRule(body: NonNullable<operations["describeRule"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["describeRule"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/automation/rules:describe", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Dry-run a rule against a sample event */
   testRule(body: NonNullable<operations["testRule"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["testRule"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/automation/rules:test", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
