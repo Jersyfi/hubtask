@@ -3471,6 +3471,7 @@ func run() error {
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

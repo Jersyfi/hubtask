@@ -75,8 +75,10 @@ type asking struct {
 	// Access is what asking needs where it is not writing entries at the workspace - drafting a
 	// rule asks what writing one asks. Nil takes the default.
 	Access *access.Request
-	// JobKind is the queue kind the question runs as. Empty is the ordinary AI question.
-	JobKind queue.Kind
+	// JobKind is the queue kind the question runs as, and Attempts its budget. Empty and zero are
+	// the ordinary AI question.
+	JobKind  queue.Kind
+	Attempts int
 }
 
 // queue checks and queues one question.
@@ -185,7 +187,7 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 			payload["request_id"] = requestID.String()
 		}
 		queued, err := a.Queue.Enqueue(ctx, queue.Request{
-			Kind: jobKind, TenantID: actor.TenantID, Payload: payload,
+			Kind: jobKind, TenantID: actor.TenantID, Payload: payload, MaxAttempts: q.Attempts,
 		})
 		if err != nil {
 			return err
