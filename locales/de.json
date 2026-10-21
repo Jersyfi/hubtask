@@ -4162,7 +4162,7 @@
   "app.profile.celebrations_off_announced": "Momente werden nicht mehr markiert.",
   "app.profile.ai_title": "KI",
   "app.profile.ai_keep_out": "Meine Inhalte aus der KI heraushalten",
-  "app.profile.ai_keep_out_hint": "Nichts, was du geschrieben hast — deine Einträge, deine Kommentare, deine Notizen — wird an die KI geschickt, dein Name wird aus dem Rest herausgenommen, und KI-Aktionen werden dir nicht angeboten. Alle anderen nutzen die KI weiter so, wie der Arbeitsbereich sie eingerichtet hat. Du kannst das jederzeit wieder ändern.",
+  "app.profile.ai_keep_out_hint": "Nichts, was du geschrieben hast — deine Einträge, deine Kommentare, deine Notizen, was du an den Jumble schickst und, wo die KI neue Einträge im Jumble beim Eintreffen liest, was du dort hineinlegst — wird an die KI geschickt, dein Name wird aus dem Rest herausgenommen, und KI-Aktionen werden dir nicht angeboten. Alle anderen nutzen die KI weiter so, wie der Arbeitsbereich sie eingerichtet hat. Du kannst das jederzeit wieder ändern.",
   "app.profile.ai_kept_out_announced": "Deine Inhalte werden aus der KI herausgehalten.",
   "app.profile.ai_let_in_announced": "Deine Inhalte werden nicht mehr aus der KI herausgehalten.",
   "app.profile.ai_part_of_work": "In diesem Arbeitsbereich gehört die KI für alle zur Arbeit, auf der Grundlage {basis}. Wenn du Fragen dazu hast, wende dich an {contact}.",
