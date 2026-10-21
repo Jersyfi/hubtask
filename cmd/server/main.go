@@ -2028,7 +2028,7 @@ func run() error {
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
-		work.MoveContainer{Writer: containerWriter, Revocations: revocations}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
