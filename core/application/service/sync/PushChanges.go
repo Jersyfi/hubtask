@@ -184,6 +184,10 @@ func (p PushChanges) Push(
 			// whole queue again and the operation log makes the repeat of those exact.
 			return PushResponse{}, err
 		}
+		// The answer is what the operation log keeps and a repeat answers: no hidden mark.
+		if result.ServerState != nil {
+			result.ServerState = withoutHidden(result.ServerState)
+		}
 		results = append(results, result)
 	}
 
