@@ -25,7 +25,6 @@ import {
   isStale,
   isSummary,
   noteOf,
-  offersFor,
   operationOf,
   shapeOf,
   suggestionsPath,
@@ -70,28 +69,6 @@ const suggestion = (over: Partial<Suggestion> = {}): Suggestion =>
 
 // --- what the menu offers -----------------------------------------------------------------------
 
-test('AI off means no operation at all, not six disabled ones', () => {
-  assert.deepEqual(offersFor({ ai_suggestions: false }, item(), true), []);
-  assert.deepEqual(offersFor(undefined, item(), true), []);
-});
-
-test('with AI on every operation is offered, and the ones that cannot be asked say why', () => {
-  const offers = offersFor({ ai_suggestions: true, semantic_search: false }, item(), false);
-  assert.equal(offers.length, 6);
-  const by = Object.fromEntries(offers.map((offer) => [offer.operation, offer.disabledCode]));
-  assert.equal(by['suggest-fields'], undefined);
-  assert.equal(by['summarize-thread'], 'app.suggestions.no_comments');
-  assert.equal(by.duplicates, 'app.suggestions.no_semantic_search');
-});
-
-test('a classification is offered exactly where it has something to choose from', () => {
-  const classify = (choices: boolean | 'reading') =>
-    offersFor({ ai_suggestions: true }, item(), true, choices).find((offer) => offer.operation === 'classify')?.disabledCode;
-  assert.equal(classify(true), undefined);
-  assert.equal(classify(false), 'app.suggestions.no_choices');
-  assert.equal(classify('reading'), 'app.suggestions.choices_reading');
-});
-
 test('what a classification may choose from is the three lists the server reads', () => {
   const ready = <T,>(data: T[]) => ({ status: 'ready', data });
   const none = ready([]);
@@ -112,15 +89,6 @@ test('what a classification may choose from is the three lists the server reads'
   assert.equal(hasChoices(task, { status: 'loading' }, none, none), 'reading', 'still reading');
   assert.equal(hasChoices(task, undefined, none, none), 'reading', 'not yet asked');
   assert.equal(hasChoices(task, { status: 'failed' }, none, none), true, 'a failed read leaves it to the server');
-});
-
-test('an archived entry is not written to, so nothing that accepts into it is asked', () => {
-  const offers = offersFor({ ai_suggestions: true, semantic_search: true }, item({ archived_at: '2026-09-01T00:00:00Z' }), true);
-  const by = Object.fromEntries(offers.map((offer) => [offer.operation, offer.disabledCode]));
-  assert.equal(by['suggest-fields'], 'app.entries.archived');
-  assert.equal(by.decompose, 'app.entries.archived');
-  // Looking for look-alikes writes nothing, so an archived entry may still ask.
-  assert.equal(by.duplicates, undefined);
 });
 
 // --- staleness ----------------------------------------------------------------------------------

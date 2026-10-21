@@ -1,21 +1,24 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The entry read in another language (i18n-l10n.md §7 line 7).
+  // The entry read in another language (i18n-l10n.md §7 line 7), opened from the ✦ at the title.
   //
   // A read, not a record: `:translate` answers now, stores nothing, and there is nothing to
-  // accept - a person reads the answer and it is gone. So this holds the answer in component
-  // state alone, renders it beside the original as an `AISuggestion` with only a dismissal, and
-  // puts `lang` on the translated part from the language asked for, so that a screen reader
-  // switches voice (design-system.md §10, 3.1.2). The list of languages is the installation's
-  // `text_languages`, the person's own preselected; a tag outside it is fine - the provider
-  // translates into languages the product does not render.
+  // accept - a person reads the answer and it is gone. Offered to everybody who may read the entry
+  // (UC-AI-04 check 8). While it runs it can be stopped (check 9): the request is aborted, and the
+  // provider call behind it ends with it. The answer is rendered beside the original as an
+  // `AISuggestion` with only a dismissal, with `lang` on the translated part from the language
+  // asked for, so that a screen reader switches voice (design-system.md §10, 3.1.2). The list of
+  // languages is the installation's `text_languages`, the person's own preselected; a tag outside it
+  // is fine - the provider translates into languages the product does not render.
+
+  import { untrack } from 'svelte';
 
   import { AISuggestion, Button, Select } from '@hubtask/design-system/components';
   import type { AiTranslation, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../data/account.svelte.ts';
-  import { suggestions } from '../data/suggestions.svelte.ts';
+  import { entryAsks } from '../data/entryasks.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -25,9 +28,11 @@
     item: WorkItem;
     /** The languages the installation indexes, from the manifest. */
     languages: readonly string[];
+    /** Closes the panel. */
+    onclose: () => void;
   }
 
-  const { item, languages }: Props = $props();
+  const { item, languages, onclose }: Props = $props();
 
   // The person's own language first: it is what they read anything in. Where the manifest does
   // not list it, it is still the default - the provider does not need the installation to index a
@@ -44,20 +49,30 @@
   let answer = $state<AiTranslation | undefined>(undefined);
   let isAsking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /** The person stopped the request on its way: its failure is their own act, not one to report. */
+  let isStopped = false;
 
   async function ask() {
     if (isAsking) return;
     isAsking = true;
+    isStopped = false;
     failure = undefined;
     try {
-      answer = await suggestions.translate(item.id, target);
+      answer = await entryAsks.translate(item.id, target);
       announcer.say(t('app.translate.done_announced'));
     } catch (error) {
-      failure = renderProblem(error as never, messages);
+      if (!isStopped) failure = renderProblem(error as never, messages);
     } finally {
       isAsking = false;
     }
   }
+
+  function stop() {
+    isStopped = true;
+    entryAsks.stopTranslation(item.id);
+  }
+
+  $effect(() => () => untrack(() => entryAsks.stopTranslation(item.id)));
 
   const provenance = $derived(
     answer
@@ -71,12 +86,17 @@
   );
 </script>
 
-<div class="translate">
+<div class="translate" data-ai>
   <div class="ask">
     <Select label={t('app.translate.language')} size="sm" bind:value={target} {options} />
     <Button size="sm" tone="secondary" icon="sparkles" isBusy={isAsking} busyLabel={t('app.translate.asking')} onclick={ask}>
       {t('app.translate.read_in')}
     </Button>
+    {#if isAsking}
+      <Button size="sm" tone="subtle" onclick={stop}>{t('app.ai.stop')}</Button>
+    {:else if !answer}
+      <Button size="sm" tone="subtle" onclick={onclose}>{t('app.ai.close')}</Button>
+    {/if}
   </div>
   {#if failure}
     <p class="failure" role="alert">{failure.message}</p>
@@ -94,7 +114,7 @@
       </div>
       <p class="note">{t('app.translate.display_only')}</p>
       {#snippet actions()}
-        <Button tone="subtle" onclick={() => (answer = undefined)}>{t('app.suggestions.dismiss')}</Button>
+        <Button tone="subtle" onclick={() => { answer = undefined; onclose(); }}>{t('app.suggestions.dismiss')}</Button>
       {/snippet}
     </AISuggestion>
   {/if}
