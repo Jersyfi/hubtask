@@ -304,6 +304,9 @@ type accepted struct {
 	// one: a template's collection is its `scope_id`, not a `container_id` CreateTemplate would
 	// refuse. Empty takes `targetKeys`.
 	TargetKey string
+	// NoTarget marks an applier the target is never handed to: a rule drafted for the person who
+	// asked is about them, and their account is no input of CreateRule's.
+	NoTarget bool
 }
 
 // acceptance says, for every shape of proposal this build can produce, what accepting it does.
@@ -336,6 +339,10 @@ var acceptance = map[applierKey]accepted{
 	// payload is the template's input, the scope is the target, and the rights asked are the ones
 	// defining a template asks for - STRUCTURE at the collection.
 	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
+	// A rule drafted from the asker's sentence is written by CreateRule as the accepting person -
+	// who is the asker, since nobody else reads the draft - and so it is stored switched off. The
+	// draft carries no name and no `run_as`: the overrides do, as the person sets them.
+	{domain.TargetAccount, domain.KindRule}: {Applier: createRuleName, NoTarget: true},
 	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
@@ -448,6 +455,7 @@ const (
 	setDueDateName     = "SetDueDate"
 	updateWorkItemName = "UpdateWorkItem"
 	createTemplateName = "CreateTemplate"
+	createRuleName     = "CreateRule"
 )
 
 // under is the level a jumble entry's subtasks land at, under what the conversion made: the first
@@ -500,8 +508,9 @@ func (c Cases) apply(
 	grows := grown[applierKey{proposal.TargetType, proposal.Kind}]
 
 	in := usecase.Input{}
+	told := toldKeys[proposal.PromptID]
 	for field, value := range proposal.Payload {
-		if grows[field] {
+		if grows[field] || told[field] {
 			continue
 		}
 		in[field] = value
@@ -517,11 +526,13 @@ func (c Cases) apply(
 	// the overrides can move it. A proposal about one entry able to change another would be a
 	// stored capability, and the registry would refuse nothing about it: `item_id` is a field
 	// UpdateWorkItem declares, and `entry_id` one ConvertJumbleEntry does.
-	targetKey := how.TargetKey
-	if targetKey == "" {
-		targetKey = targetKeys[proposal.TargetType]
+	if !how.NoTarget {
+		targetKey := how.TargetKey
+		if targetKey == "" {
+			targetKey = targetKeys[proposal.TargetType]
+		}
+		in[targetKey] = proposal.TargetID.String()
 	}
-	in[targetKey] = proposal.TargetID.String()
 
 	// An applier that would be handed nothing but the target is not called. Every key a
 	// classification proposes about a work item is grown - the labels, the column, the custom

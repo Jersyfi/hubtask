@@ -62,6 +62,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
 		"decompose": {"children"},
+		// A rule drafted from a sentence: the sentences, steps and trigger inside are the
+		// draft's own shape, read by `ruleFrom`.
+		"draft-rule": {"scope", "trigger", "conditions", "actions", "not_drafted"},
 		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,

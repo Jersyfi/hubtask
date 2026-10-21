@@ -22,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -172,6 +173,9 @@ type Produce struct {
 	// they are deleted once the job is over. Nil in a build that asks no such question, and a job
 	// naming a row then fails by name.
 	Requests repository.Requests
+	// Conditions compiles a drafted rule's condition once more through the engine's own compiler.
+	// Nil skips that second check; the save compiles it anyway (automation.md §2.2).
+	Conditions expression.Compiler
 }
 
 // Outcome is what one question came to: whether a proposal was recorded, and how much of the
@@ -248,7 +252,21 @@ var promptFields = map[string]map[string]bool{
 	// and is written by the producer, never read from a model. What a *node* may carry is
 	// `keptTemplateNode`'s business.
 	templatePrompt: {"name": true, "description": true, "nodes": true},
+	// A rule drafted from a sentence: part of CreateRule's input, less what the person who saves
+	// it decides - the name, `run_as`, the throttle, what a failure does - and what it could not
+	// draft, which is told rather than applied (`toldKeys`). What each part may hold is `ruleFrom`'s.
+	draftRulePrompt: {"scope": true, "trigger": true, "conditions": true, "actions": true, notDraftedKey: true},
 }
+
+// toldKeys are the answer keys a prompt keeps to show the person and never hands an applier: what a
+// rule draft could not draft is for the person reading it, and no use case declares it.
+var toldKeys = map[string]map[string]bool{
+	draftRulePrompt: {notDraftedKey: true},
+}
+
+// ToldKeys is that map, for the gate that holds every kept key to an acceptance that applies it or
+// to this list.
+func ToldKeys() map[string]map[string]bool { return toldKeys }
 
 // choiceSets names, per prompt, which of its answer keys are chosen from a closed set.
 //
@@ -278,6 +296,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	"classify":             {domain.TargetWorkItem: domain.KindFields},
 	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
 	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
+	draftRulePrompt:        {domain.TargetAccount: domain.KindRule},
 }
 
 // PromptTargets is the map above, for the gate that reads it beside the registry.
@@ -410,6 +429,7 @@ var defaultPrompts = map[domain.Kind]string{
 	domain.KindFields:        "suggest-fields",
 	domain.KindDecomposition: "decompose",
 	domain.KindTemplate:      templatePrompt,
+	domain.KindRule:          draftRulePrompt,
 }
 
 // Execute asks, and records what came back.
@@ -472,6 +492,12 @@ func (h Produce) ask(
 			WithParams(map[string]string{
 				"prompt": promptID, "target_type": string(request.TargetType),
 			})
+	}
+	if request.Apply && request.Kind == domain.KindRule {
+		// An AI answer never becomes a rule without a person: a draft is saved by somebody, and a
+		// rule that drafted and saved rules would be exactly what UC-AUT-10 check 3 rules out.
+		return Outcome{}, shared.ErrInternal.WithDetail("ai.apply_not_for_kind").
+			WithParams(map[string]string{"kind": string(request.Kind)})
 	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {
@@ -563,9 +589,12 @@ func (h Produce) ask(
 		dropped int
 		ok      bool
 	)
-	if kind == domain.KindTemplate {
+	switch kind {
+	case domain.KindTemplate:
 		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, targetID)
-	} else {
+	case domain.KindRule:
+		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
+	default:
 		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
 	}
 	if !ok || len(payload) == 0 {
@@ -647,7 +676,8 @@ type Request struct {
 // any. A prompt that is asked with held words and has no line here is a defect in this build, and
 // the job fails by name rather than handing a model unlabelled text.
 var heldWords = map[string]string{
-	templatePrompt: "What the template should be for, in the person's words:",
+	templatePrompt:  "What the template should be for, in the person's words:",
+	draftRulePrompt: "What the rule should do, in the person's words:",
 }
 
 // The two ordinary reads that answer where the person who asked lives.

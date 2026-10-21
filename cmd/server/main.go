@@ -1265,6 +1265,7 @@ func run() error {
 		// suggestion was produced, stored, listed - and refused by every acceptance.
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Conditions: celexpression.New(),
 	}
 
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the

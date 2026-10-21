@@ -48,7 +48,7 @@ type KeptOutReader interface {
 	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }
 
-var _ Sources = CatalogueSources{}
+var _ Sources = (*CatalogueSources)(nil)
 
 // Material answers the text to describe, the fingerprint of the state it came from, and the closed
 // sets the question about to be asked may choose from.
