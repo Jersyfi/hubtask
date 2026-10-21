@@ -167,6 +167,10 @@ class Client:
         """Put something in the jumble"""
         return self._call("POST", "/jumble/entries", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def list_jumble_destinations(self, *, query: dict[str, Any] | None = None) -> "JumbleDestinationPage":
+        """Where an entry may become work for you"""
+        return self._call("GET", "/jumble/destinations", {}, query, {}, None, "none", None, "json")
+
     def get_jumble_entry(self, entry_id: str) -> "JumbleEntry":
         """One jumble entry"""
         return self._call("GET", "/jumble/entries/{entryId}", {"entryId": entry_id}, None, {}, None, "none", None, "json")

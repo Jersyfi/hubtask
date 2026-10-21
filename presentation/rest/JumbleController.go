@@ -26,6 +26,7 @@ const (
 	submitJumbleEntryUseCase      = "SubmitJumbleEntry"
 	listJumbleEntriesUseCase      = "ListJumbleEntries"
 	getJumbleEntryUseCase         = "GetJumbleEntry"
+	listJumbleDestinationsUseCase = "ListJumbleDestinations"
 	convertJumbleEntryUseCase     = "ConvertJumbleEntry"
 	suggestFromJumbleEntryUseCase = "SuggestFromJumbleEntry"
 	dismissJumbleEntryUseCase     = "DismissJumbleEntry"
@@ -164,6 +165,35 @@ func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, 
 		})
 	}, func(out usecase.Output) {
 		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
+
+// ListJumbleDestinations answers GET /jumble/destinations.
+func (c *RestController) ListJumbleDestinations(
+	w http.ResponseWriter, r *http.Request, params openapi.ListJumbleDestinationsParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{}
+		if params.Cursor != nil {
+			input["cursor"] = *params.Cursor
+		}
+		if params.Size != nil {
+			input["size"] = *params.Size
+		}
+		return c.UseCases.Invoke(r.Context(), listJumbleDestinationsUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		destinations := make([]openapi.JumbleDestination, 0, len(rows))
+		for _, row := range rows {
+			destinations = append(destinations, openapi.JumbleDestination{
+				Id: uuidValue(row.String("id")), Name: row.String("name"),
+				HubId: uuidValue(row.String("hub_id")), HubName: row.String("hub_name"),
+				HubPrivate: row["hub_private"] == true,
+			})
+		}
+		writeJSON(w, r, http.StatusOK, openapi.JumbleDestinationPage{
+			Data: destinations, Page: pageResponse(out),
+		})
 	})
 }
 

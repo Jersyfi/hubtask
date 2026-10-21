@@ -20,8 +20,9 @@ import (
 // something that can handle it.
 
 const (
-	jumblePath = "/jumble/entries"
-	intakePath = "/jumble/intake"
+	jumblePath       = "/jumble/entries"
+	destinationsPath = "/jumble/destinations"
+	intakePath       = "/jumble/intake"
 )
 
 func jumbleGroup() group {
@@ -46,6 +47,12 @@ func jumbleGroup() group {
 				usage:   "[--subject <s>] [--body <b>] [--channel API|QUICK_CAPTURE] [--attachment <id>…]",
 				summary: "put something in the jumble over a near channel",
 				run:     jumbleSubmit,
+			},
+			{
+				name:    "destinations",
+				usage:   "[--cursor <c>] [--size <n>]",
+				summary: "the collections you may turn an entry into work in",
+				run:     jumbleDestinations,
 			},
 			{
 				name:    "convert",
@@ -124,6 +131,46 @@ func jumbleShow(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 	return cli.Emit(entry, jumbleTable([]openapi.JumbleEntry{entry}))
+}
+
+// jumbleDestinations is `jumble destinations`: what `convert --collection` may name for the caller,
+// as the server decides it.
+func jumbleDestinations(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "jumble", "destinations", "[--cursor <c>] [--size <n>]")
+	cursor := flags.String("cursor", "", "continue the previous page")
+	size := flags.Int("size", 0, "how many collections to scan")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	query := url.Values{}
+	if *size > 0 {
+		query.Set("size", strconv.Itoa(*size))
+	}
+	if *cursor != "" {
+		query.Set("cursor", *cursor)
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var page openapi.JumbleDestinationPage
+	if err := client.Get(ctx, destinationsPath, query, &page); err != nil {
+		return err
+	}
+	rows := make([][]string, 0, len(page.Data))
+	for _, destination := range page.Data {
+		private := ""
+		if destination.HubPrivate {
+			private = "private"
+		}
+		rows = append(rows, []string{destination.Id.String(), destination.HubName, destination.Name, private})
+	}
+	if err := cli.Emit(page, Table{Columns: []string{"id", "hub", "collection", ""}, Rows: rows}); err != nil {
+		return err
+	}
+	cli.reportMore(page.Page)
+	return nil
 }
 
 func jumbleSubmit(ctx context.Context, cli *CLI, args []string) error {

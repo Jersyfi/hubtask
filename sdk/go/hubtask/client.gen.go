@@ -8054,6 +8054,23 @@ type JobRef struct {
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
 
+// JumbleDestination One collection a jumble entry may become work in, with its hub.
+type JumbleDestination struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	HubName string             `json:"hub_name"`
+
+	// HubPrivate Whether the hub is private - reached only by its own members.
+	HubPrivate bool               `json:"hub_private"`
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+}
+
+// JumbleDestinationPage defines model for JumbleDestinationPage.
+type JumbleDestinationPage struct {
+	Data []JumbleDestination `json:"data"`
+	Page PageInfo            `json:"page"`
+}
+
 // JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
 type JumbleEntry struct {
 	// Attachments Media objects, stored through the media pipeline.
@@ -12932,6 +12949,14 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleDestinationsParams defines parameters for ListJumbleDestinations.
+type ListJumbleDestinationsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Size Collections scanned per page.
+	Size *int `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListJumbleEntriesParams defines parameters for ListJumbleEntries.
 type ListJumbleEntriesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -17405,6 +17430,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 	CancelJob(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListJumbleDestinations Where an entry may become work for you
+	//
+	// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+	// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+	//
+	// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+	ListJumbleDestinations(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListJumbleEntries The jumble, newest first
 	//
@@ -26218,6 +26251,24 @@ func (c *Client) GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestE
 // Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 func (c *Client) CancelJob(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCancelJobRequest(c.Server, jobId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListJumbleDestinations Where an entry may become work for you
+//
+// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+//
+// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+func (c *Client) ListJumbleDestinations(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListJumbleDestinationsRequest(c.Server, params)
 	if err != nil {
 		return nil, err
 	}
@@ -41346,6 +41397,72 @@ func NewCancelJobRequest(server string, jobId JobId, params *CancelJobParams) (*
 	return req, nil
 }
 
+// NewListJumbleDestinationsRequest constructs an http.Request for the ListJumbleDestinations method
+func NewListJumbleDestinationsRequest(server string, params *ListJumbleDestinationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jumble/destinations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListJumbleEntriesRequest constructs an http.Request for the ListJumbleEntries method
 func NewListJumbleEntriesRequest(server string, params *ListJumbleEntriesParams) (*http.Request, error) {
 	var err error
@@ -49352,6 +49469,16 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 	CancelJobWithResponse(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*CancelJobResult, error)
+
+	// ListJumbleDestinationsWithResponse Where an entry may become work for you
+	//
+	// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+	// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+	ListJumbleDestinationsWithResponse(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*ListJumbleDestinationsResult, error)
 
 	// ListJumbleEntriesWithResponse The jumble, newest first
 	//
@@ -63862,6 +63989,54 @@ func (r CancelJobResult) ContentType() string {
 	return ""
 }
 
+type ListJumbleDestinationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *JumbleDestinationPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListJumbleDestinationsResult) GetJSON200() *JumbleDestinationPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListJumbleDestinationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListJumbleDestinationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListJumbleDestinationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListJumbleDestinationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListJumbleDestinationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListJumbleEntriesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -74297,6 +74472,22 @@ func (c *ClientWithResponses) CancelJobWithResponse(ctx context.Context, jobId J
 		return nil, err
 	}
 	return ParseCancelJobResult(rsp)
+}
+
+// ListJumbleDestinationsWithResponse Where an entry may become work for you
+//
+// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+func (c *ClientWithResponses) ListJumbleDestinationsWithResponse(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*ListJumbleDestinationsResult, error) {
+	rsp, err := c.ListJumbleDestinations(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListJumbleDestinationsResult(rsp)
 }
 
 // ListJumbleEntriesWithResponse The jumble, newest first
@@ -85902,6 +86093,39 @@ func ParseCancelJobResult(rsp *http.Response) (*CancelJobResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest Job
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListJumbleDestinationsResult parses an HTTP response from a ListJumbleDestinationsWithResponse call
+func ParseListJumbleDestinationsResult(rsp *http.Response) (*ListJumbleDestinationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListJumbleDestinationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JumbleDestinationPage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

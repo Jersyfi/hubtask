@@ -8048,6 +8048,23 @@ type JobRef struct {
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
 
+// JumbleDestination One collection a jumble entry may become work in, with its hub.
+type JumbleDestination struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	HubName string             `json:"hub_name"`
+
+	// HubPrivate Whether the hub is private - reached only by its own members.
+	HubPrivate bool               `json:"hub_private"`
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+}
+
+// JumbleDestinationPage defines model for JumbleDestinationPage.
+type JumbleDestinationPage struct {
+	Data []JumbleDestination `json:"data"`
+	Page PageInfo            `json:"page"`
+}
+
 // JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
 type JumbleEntry struct {
 	// Attachments Media objects, stored through the media pipeline.
@@ -12926,6 +12943,14 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleDestinationsParams defines parameters for ListJumbleDestinations.
+type ListJumbleDestinationsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Size Collections scanned per page.
+	Size *int `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListJumbleEntriesParams defines parameters for ListJumbleEntries.
 type ListJumbleEntriesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -14483,6 +14508,9 @@ type ServerInterface interface {
 	// CancelJob Stop a piece of background work
 	// (POST /jobs/{jobId}:cancel)
 	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
+	// ListJumbleDestinations Where an entry may become work for you
+	// (GET /jumble/destinations)
+	ListJumbleDestinations(w http.ResponseWriter, r *http.Request, params ListJumbleDestinationsParams)
 	// ListJumbleEntries The jumble, newest first
 	// (GET /jumble/entries)
 	ListJumbleEntries(w http.ResponseWriter, r *http.Request, params ListJumbleEntriesParams)
@@ -24115,6 +24143,52 @@ func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListJumbleDestinations operation middleware
+func (siw *ServerInterfaceWrapper) ListJumbleDestinations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJumbleDestinationsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJumbleDestinations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListJumbleEntries operation middleware
 func (siw *ServerInterfaceWrapper) ListJumbleEntries(w http.ResponseWriter, r *http.Request) {
 
@@ -27124,6 +27198,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/destinations", wrapper.ListJumbleDestinations)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries/{entryId}", wrapper.GetJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)

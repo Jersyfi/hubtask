@@ -24,6 +24,9 @@ import { engine } from './engine.ts';
 import { ENTRY_LISTS } from './touches.ts';
 
 const ENTRIES = '/jumble/entries';
+const DESTINATIONS = '/jumble/destinations';
+/** How many pages of destinations a picker reads: a hundred collections each, far beyond a workspace's tree. */
+const DESTINATION_PAGES = 10;
 const ROTATE = '/jumble/intake:rotate-token';
 /** A conversion creates an entry, so the containers a board reads are stale afterwards. */
 const TOUCHES = [ENTRIES, ENTRY_LISTS, '/containers'];
@@ -45,6 +48,20 @@ export interface JumbleEntry {
 interface EntryPage {
   readonly data?: readonly JumbleEntry[];
   readonly next_cursor?: string | null;
+}
+
+/** A collection an arrival may become work in for the reader, with its hub. */
+export interface JumbleDestination {
+  readonly id: string;
+  readonly name: string;
+  readonly hub_id: string;
+  readonly hub_name: string;
+  readonly hub_private: boolean;
+}
+
+interface DestinationPage {
+  readonly data?: readonly JumbleDestination[];
+  readonly page?: { readonly next_cursor?: string | null };
 }
 
 /** What a conversion needs: where it lands, and what it is called. */
@@ -71,6 +88,7 @@ export function entriesPath(status?: string, cursor?: string): string {
 }
 
 class Jumble {
+  #destinations = $state<readonly JumbleDestination[] | undefined>(undefined);
   #pages = $state<Record<string, ResourceState<EntryPage>>>({});
   /** Everything read so far for one filter, in arrival order, across the pages that have landed. */
   #held = $state<Record<string, readonly JumbleEntry[]>>({});
@@ -119,6 +137,29 @@ class Jumble {
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.data ?? [])] };
     this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+  }
+
+  /**
+   * Where the reader may turn an arrival into work: the server's answer, so the picker offers no
+   * collection a conversion would refuse (P-05). `undefined` until read.
+   */
+  get destinations(): readonly JumbleDestination[] | undefined {
+    return this.#destinations;
+  }
+
+  /** Reads the destinations, every page up to a bound; a page that fails ends the walk with what came. */
+  async loadDestinations(): Promise<void> {
+    const all: JumbleDestination[] = [];
+    let cursor: string | undefined;
+    for (let round = 0; round < DESTINATION_PAGES; round += 1) {
+      const path = cursor ? `${DESTINATIONS}?cursor=${encodeURIComponent(cursor)}` : DESTINATIONS;
+      const read = await engine.refresh<DestinationPage>({ path });
+      if (read.status !== 'ready') break;
+      all.push(...(read.data.data ?? []));
+      cursor = read.data.page?.next_cursor ?? undefined;
+      if (!cursor) break;
+    }
+    this.#destinations = all;
   }
 
   /** Quick capture from inside the product. */

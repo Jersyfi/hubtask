@@ -76,6 +76,24 @@ func TestOneEntryIsShownByItsIdentifier(t *testing.T) {
 	}
 }
 
+// The destinations are the server's answer, named with their hub.
+func TestTheDestinationsAreListedWithTheirHub(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"data":[{"id":"01936f2a-7c1e-7000-8000-000000000c01","name":"Orders",
+	  "hub_id":"01936f2a-7c1e-7000-8000-000000000c00","hub_name":"Shop","hub_private":false}],
+	  "page":{"has_more":false,"next_cursor":null}}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "destinations", "--size", "20")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.HasSuffix(stub.request.URL.Path, "/jumble/destinations") || stub.request.URL.Query().Get("size") != "20" {
+		t.Errorf("asked %s", stub.request.URL)
+	}
+	if !strings.Contains(out, "Shop") || !strings.Contains(out, "Orders") {
+		t.Errorf("the table is %q", out)
+	}
+}
+
 // Something has to be in an entry, and the client says so rather than sending an empty one.
 func TestAnEmptySubmissionIsRefusedHere(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneJumbleEntry)

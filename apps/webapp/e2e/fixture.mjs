@@ -12,6 +12,8 @@ export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
+/** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
+export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
 export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
 export const LABELS = [
   { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'label.teal' },
@@ -510,6 +512,7 @@ export function fallback(route, request, path) {
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
+  if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
   unstubbed.push(`${request.method()} ${read}`);
   return route.fulfill({ json: PAGE });

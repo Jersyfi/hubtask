@@ -88,6 +88,7 @@ func Descriptors() []usecase.Descriptor {
 		work.GetContainer{}.Descriptor(),
 		work.ListContainers{}.Descriptor(),
 		work.ListPresets{}.Descriptor(),
+		work.ListJumbleDestinations{}.Descriptor(),
 		work.GetWorkItem{}.Descriptor(),
 		work.ListWorkItems{}.Descriptor(),
 		work.QueryItems{}.Descriptor(),

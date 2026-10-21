@@ -43,7 +43,6 @@
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
-  import { containers } from '../lib/data/containers.svelte.ts';
   import { jumble, type IntakeToken, type JumbleEntry } from '../lib/data/jumble.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
   import { isPending } from '../lib/data/suggestions.ts';
@@ -73,10 +72,9 @@
   let isWorking = $state(false);
 
   $effect(() => untrack(() => jumble.open(filter)));
-  // The hubs, because a destination is a collection and a collection lives under one.
-  $effect(() => untrack(() => containers.start()));
+  // Where the reader may turn an arrival into work, as the server answers it.
   $effect(() => {
-    for (const hub of containers.hubs) untrack(() => containers.openLevel(hub.id));
+    if (mayWrite) untrack(() => void jumble.loadDestinations());
   });
 
   // The address dies with the screen, like every other one-time value in this client.
@@ -136,14 +134,12 @@
     }
   }
 
-  /** Every collection under every hub: where an arrival may become work. */
+  /** Where the reader may turn an arrival into work: only collections a conversion would accept (P-05). */
   const destinations = $derived(
-    containers.hubs.flatMap((hub) =>
-      containers.collectionsOf(hub.id).map((collection) => ({
-        value: collection.id,
-        label: `${hub.name} · ${collection.name}`,
-      })),
-    ),
+    (jumble.destinations ?? []).map((collection) => ({
+      value: collection.id,
+      label: `${collection.hub_name} · ${collection.name}`,
+    })),
   );
 
   const filters = $derived([

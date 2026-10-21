@@ -2102,6 +2102,10 @@ func run() error {
 			UnitOfWork: unitOfWork, Structure: structures,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListJumbleDestinations{
+			Collections: containers, Authorizer: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.GetWorkItem{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

@@ -1862,6 +1862,18 @@ class JumbleEntryPage(TypedDict, total=False):
     data: Required[list["JumbleEntry"]]
     page: Required["PageInfo"]
 
+class JumbleDestination(TypedDict, total=False):
+    """One collection a jumble entry may become work in, with its hub."""
+    id: Required[str]
+    name: Required[str]
+    hub_id: Required[str]
+    hub_name: Required[str]
+    hub_private: Required[bool]
+
+class JumbleDestinationPage(TypedDict, total=False):
+    data: Required[list["JumbleDestination"]]
+    page: Required["PageInfo"]
+
 class RuleTest(TypedDict, total=False):
     """A dry run's input: exactly one of `rule_id` (a stored rule) and `rule` (a definition you are about to save), plus the sample event to evaluate it against."""
     rule_id: str

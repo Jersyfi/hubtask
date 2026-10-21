@@ -63,6 +63,34 @@ type ContainerPage struct {
 	Info       PageInfo
 }
 
+// CollectionQuery asks for the collections across every hub, in the tree's order.
+type CollectionQuery struct {
+	// IncludePrivate keeps the collections of private hubs. Without it the answer is the shared
+	// set: the collections everybody who may convert an arrival may write in.
+	IncludePrivate bool
+	Page           Page
+}
+
+// CollectionInHub is one collection with the hub it sits in, as a picker names it.
+type CollectionInHub struct {
+	Collection work.Container
+	HubName    string
+	HubPrivate bool
+}
+
+// CollectionPage is one page of collections across the hubs.
+type CollectionPage struct {
+	Collections []CollectionInHub
+	Info        PageInfo
+}
+
+// Collections reads the collections across the hubs.
+type Collections interface {
+	// InOrder answers the collections that are neither trashed nor archived - their own stamp or
+	// their hub's - in the hubs' manual order and then each hub's. It judges no permission.
+	InOrder(ctx context.Context, query CollectionQuery) (CollectionPage, error)
+}
+
 // ItemQuery names one level of one collection.
 //
 // CollectionID is required even when ParentID decides the level on its own: it is what the index the

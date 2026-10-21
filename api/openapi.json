@@ -777,6 +777,47 @@
         }
       }
     },
+    "/jumble/destinations": {
+      "get": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "listJumbleDestinations",
+        "summary": "Where an entry may become work for you",
+        "description": "The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.\nA person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Collections scanned per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of destinations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JumbleDestinationPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/jumble/entries/{entryId}": {
       "parameters": [
         {
@@ -22569,6 +22610,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JumbleEntry"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "JumbleDestination": {
+        "type": "object",
+        "description": "One collection a jumble entry may become work in, with its hub.",
+        "required": [
+          "id",
+          "name",
+          "hub_id",
+          "hub_name",
+          "hub_private"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_name": {
+            "type": "string"
+          },
+          "hub_private": {
+            "type": "boolean",
+            "description": "Whether the hub is private - reached only by its own members."
+          }
+        }
+      },
+      "JumbleDestinationPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JumbleDestination"
             }
           },
           "page": {

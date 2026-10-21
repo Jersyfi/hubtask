@@ -461,6 +461,10 @@ func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+func (pending) ListJumbleDestinations(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleDestinationsParams) {
+	notAvailable(w, r)
+}
+
 func (pending) GetJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
