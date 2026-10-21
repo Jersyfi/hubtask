@@ -122,7 +122,14 @@ func (h ListSuggestions) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListQuery,
 ) (repository.Page, error) {
 	c := h.Cases
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+	if query.TargetType == domain.TargetAccount {
+		// A draft for the person who asked is theirs alone, wherever they hold their role: the
+		// check is that they are the account (`ownDraft`, read below as the target's digest), not a
+		// permission at the workspace a hub's administrator may not hold.
+		if err := ownDraft(actor, query.TargetID); err != nil {
+			return repository.Page{}, err
+		}
+	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
 		Path:       []identity.Scope{identity.TenantScope()},
 		Action:     SuggestionsReadAction,
@@ -172,7 +179,18 @@ type AcceptSuggestion struct{ Cases Cases }
 func (h AcceptSuggestion) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
 ) (domain.Suggestion, error) {
-	return h.Cases.decide(ctx, actor, id, domain.StatusAccepted, overrides)
+	accepted, _, err := h.Accept(ctx, actor, id, overrides)
+	return accepted, err
+}
+
+// Accept is Execute with what accepting created, where it created one thing - a template, a rule -
+// so that a client lands on it as it would after creating it by hand.
+func (h AcceptSuggestion) Accept(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
+) (domain.Suggestion, shared.ID, error) {
+	var created shared.ID
+	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &created)
+	return accepted, created, err
 }
 
 // DismissSuggestion turns one down.
@@ -191,11 +209,49 @@ func (c Cases) decide(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
 	overrides map[string]any,
 ) (domain.Suggestion, error) {
+	return c.decideAs(ctx, actor, id, status, overrides, nil)
+}
+
+// ownDraft is the one question about a draft made for the person who asked: are you that person,
+// holding the token scope drafting a rule needs. Anybody else - an owner, an auditor, another
+// workspace's account - is answered that there is no such suggestion, as for an entry they cannot
+// see.
+func ownDraft(actor appshared.ActorContext, accountID shared.ID) error {
+	if accountID.IsZero() || accountID != actor.AccountID {
+		return shared.ErrNotFound.WithDetail("suggestions.not_found")
+	}
+	return actor.RequireScope(automationScope)
+}
+
+// draftOf answers the target of a suggestion that is a draft for its asker, and nothing for any
+// other: which question decides who may answer it depends on that, so it is read first.
+func (c Cases) draftOf(ctx context.Context, actor appshared.ActorContext, id shared.ID) (shared.ID, bool) {
+	var target shared.ID
+	var draft bool
+	_ = c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		proposal, err := c.Suggestions.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		target, draft = proposal.TargetID, proposal.TargetType == domain.TargetAccount
+		return nil
+	})
+	return target, draft
+}
+
+func (c Cases) decideAs(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
+	overrides map[string]any, created *shared.ID,
+) (domain.Suggestion, error) {
 	action := SuggestionAcceptedAction
 	if status == domain.StatusDismissed {
 		action = SuggestionDismissedAction
 	}
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+	if target, draft := c.draftOf(ctx, actor, id); draft {
+		if err := ownDraft(actor, target); err != nil {
+			return domain.Suggestion{}, err
+		}
+	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		// Answering a proposal about an entry needs what changing the entry needs. Dismissing
 		// asks the same, deliberately: a workspace where anybody who can read can clear somebody
 		// else's inbox of proposals is one where the inbox is not theirs.
@@ -263,7 +319,7 @@ func (c Cases) decide(
 			// The whole design, in one call. The ordinary use case, the accepting person as the
 			// actor, and therefore the ordinary permission check - somebody who could not make
 			// this change by hand cannot make it by accepting.
-			if err := c.apply(ctx, actor, proposal, overrides); err != nil {
+			if err := c.apply(ctx, actor, proposal, overrides, created); err != nil {
 				return err
 			}
 		}
@@ -307,6 +363,8 @@ type accepted struct {
 	// NoTarget marks an applier the target is never handed to: a rule drafted for the person who
 	// asked is about them, and their account is no input of CreateRule's.
 	NoTarget bool
+	// Creates marks an applier that creates one thing, whose identifier the acceptance answers.
+	Creates bool
 }
 
 // acceptance says, for every shape of proposal this build can produce, what accepting it does.
@@ -338,11 +396,11 @@ var acceptance = map[applierKey]accepted{
 	// A template drafted for a collection is defined by CreateTemplate as the accepting person: the
 	// payload is the template's input, the scope is the target, and the rights asked are the ones
 	// defining a template asks for - STRUCTURE at the collection.
-	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
+	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id", Creates: true},
 	// A rule drafted from the asker's sentence is written by CreateRule as the accepting person -
 	// who is the asker, since nobody else reads the draft - and so it is stored switched off. The
 	// draft carries no name and no `run_as`: the overrides do, as the person sets them.
-	{domain.TargetAccount, domain.KindRule}: {Applier: createRuleName, NoTarget: true},
+	{domain.TargetAccount, domain.KindRule}: {Applier: createRuleName, NoTarget: true, Creates: true},
 	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
@@ -483,7 +541,7 @@ type applierKey struct {
 // apply performs the acceptance, and does nothing else.
 func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
-	overrides map[string]any,
+	overrides map[string]any, created *shared.ID,
 ) error {
 	how, served := acceptance[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
@@ -546,6 +604,9 @@ func (c Cases) apply(
 		out, err = c.Catalogue.Invoke(ctx, name, actor, in)
 		if err != nil {
 			return err
+		}
+		if how.Creates && created != nil {
+			*created, _ = shared.ParseID(out.String("id"))
 		}
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
@@ -1042,8 +1103,9 @@ func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 				Description: "The proposal to accept."},
 			{Name: "overrides", Kind: usecase.KindObject,
 				Description: "What the person changed or added before accepting, laid over the " +
-					"proposal. A jumble proposal needs the destination collection here, because " +
-					"a model cannot know which collections a workspace has."},
+					"proposal key by key. A jumble proposal needs the destination collection here, " +
+					"because a model cannot know which collections a workspace has; a RULE draft " +
+					"needs name and run_as, and any other key it carries replaces the draft's whole."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SuggestionAcceptedAction, TargetType: suggestionTarget,
@@ -1068,11 +1130,15 @@ func (h AcceptSuggestion) invoke(
 	// what is *in* it is the target use case's judgement, exactly as a query's filter tree is the
 	// grammar's (usecase.KindObject).
 	overrides, _ := in["overrides"].(map[string]any)
-	accepted, err := h.Execute(ctx, actor, id, overrides)
+	accepted, created, err := h.Accept(ctx, actor, id, overrides)
 	if err != nil {
 		return nil, err
 	}
-	return suggestionOutput(accepted), nil
+	out := suggestionOutput(accepted)
+	if !created.IsZero() {
+		out["created_id"] = created.String()
+	}
+	return out, nil
 }
 
 func (h DismissSuggestion) Descriptor() usecase.Descriptor {

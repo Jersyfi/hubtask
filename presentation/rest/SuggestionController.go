@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -322,7 +324,23 @@ func (c *RestController) decideSuggestion(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	writeJSON(w, r, http.StatusOK, suggestionResponse(out))
+	if name != acceptSuggestionUseCase {
+		writeJSON(w, r, http.StatusOK, suggestionResponse(out))
+		return
+	}
+	// The accept answer is the suggestion and what accepting created, where it created one thing.
+	accepted := acceptedResponse{Suggestion: suggestionResponse(out)}
+	if created := out.String("created_id"); created != "" {
+		id := uuidValue(created)
+		accepted.CreatedID = &id
+	}
+	writeJSON(w, r, http.StatusOK, accepted)
+}
+
+// acceptedResponse is `AcceptedSuggestion`: the suggestion's fields, flat, and `created_id`.
+type acceptedResponse struct {
+	openapi.Suggestion
+	CreatedID *openapi_types.UUID `json:"created_id,omitempty"`
 }
 
 // suggestionResponse maps the use case's answer.
