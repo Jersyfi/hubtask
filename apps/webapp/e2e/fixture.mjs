@@ -57,7 +57,53 @@ export const CHILDREN = {
   ],
   '01a0e2e0-0000-7000-8000-000000000042': [],
 };
-export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
+/**
+ * A grocery list on *List* (UC-WRK-25): one level, amounts, a name for its done entries, and three
+ * labels it groups by, in the shop's order. Reached by its address, not listed in the hub, so the
+ * walks that count the hub's collections are not disturbed. Its done entries are relative to now:
+ * two ticked minutes ago (*In the trolley*), two days ago and earlier (*Recently*, by use).
+ */
+export const GROCERY_LABELS = [
+  { id: '01a0e2e0-0000-7000-8000-000000000061', name: 'Produce', color_token: 'label.green' },
+  { id: '01a0e2e0-0000-7000-8000-000000000062', name: 'Dairy', color_token: 'label.blue' },
+  { id: '01a0e2e0-0000-7000-8000-000000000063', name: 'Bakery', color_token: 'label.amber' },
+];
+const listFields = (categories) => ({ TASK: { capabilities: ['COMPLETION', 'LABELS', 'HISTORY', 'CUSTOM_FIELDS', 'AMOUNT'], categories } });
+/** The structure in force of a list, as a container read answers it; `figure` is UX-24's. */
+export const LIST_STRUCTURE = {
+  preset: 'LIST',
+  settings: {
+    levels: [{ type: 'TASK', name: null, done_name: 'In the trolley' }],
+    fields: listFields(GROCERY_LABELS.map((label) => label.id)),
+    views: { offered: ['LIST_COLLAPSED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'OPEN', field_key: null },
+    completion: 'MANUAL',
+    capture: ['LINES', 'AMOUNT'],
+    celebration: 'SUBTLE',
+    automation: [],
+  },
+  sources: {},
+  locks: {},
+};
+export const GROCERIES = { id: '01a0e2e0-0000-7000-8000-000000000060', type: 'COLLECTION', parent_id: HUB.id, name: 'Groceries', order_key: 'a2', version: 1, structure: LIST_STRUCTURE };
+const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
+const grocery = (n, title, extra = {}) => ({ ...item(n, title, extra), collection_id: GROCERIES.id, completion_count: 0, amount: null, ...extra });
+export const GROCERY_ITEMS = [
+  grocery('71', 'apples', { amount: '1 kg', label_ids: [GROCERY_LABELS[0].id] }),
+  grocery('72', 'milk', { amount: '2', label_ids: [GROCERY_LABELS[1].id], completion_count: 6 }),
+  grocery('73', 'bread', { label_ids: [GROCERY_LABELS[2].id] }),
+  grocery('74', 'salt'),
+  grocery('75', 'butter', { label_ids: [GROCERY_LABELS[1].id], completion: { is_completed: true, completed_at: minutesAgo(2) }, completion_count: 3 }),
+  grocery('76', 'coffee', { amount: '500 g', completion: { is_completed: true, completed_at: minutesAgo(2 * 24 * 60) }, completion_count: 2 }),
+  grocery('77', 'oat milk', { completion: { is_completed: true, completed_at: minutesAgo(9 * 24 * 60) }, completion_count: 8 }),
+  grocery('78', 'tea', { completion: { is_completed: true, completed_at: minutesAgo(3 * 24 * 60) }, completion_count: 2 }),
+];
+const GROCERIES_AT_START = GROCERY_ITEMS.map((entry) => ({ ...entry }));
+/** Puts the grocery list back as it started: a walk that ticks things leaves the next one alone. */
+export function resetGroceries() {
+  GROCERY_ITEMS.splice(0, GROCERY_ITEMS.length, ...GROCERIES_AT_START.map((entry) => ({ ...entry })));
+}
+export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat(), ...GROCERY_ITEMS];
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 export const ROLES = [
@@ -76,7 +122,7 @@ export const MANIFEST = {
   // spelling included — the fixture said `ASSIGNEE` for `ASSIGNMENT` and gave a work package two
   // capabilities of fourteen, which is a fake that agrees with no installation.
   item_types: [
-    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'], max_depth: 3 },
+    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS', 'AMOUNT'], allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'], max_depth: 3 },
     { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'CUSTOM_FIELDS'], allowed_child_types: ['ACTIVITY'], max_depth: 2 },
     { type: 'ACTIVITY', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'HISTORY'], allowed_child_types: [], max_depth: 1 },
   ],
@@ -295,7 +341,13 @@ export function stub(route) {
     return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
   }
   if (path.endsWith('/api/v1/sync:snapshot')) {
-    const records = [HUB, COLLECTION].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    // The grocery list travels whole - its labels and its entries too - so a walk offline reads
+    // it from the local copy (UC-WRK-25 check 6).
+    const records = [
+      ...[HUB, COLLECTION, GROCERIES].map((c) => ({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c })),
+      ...GROCERY_LABELS.map((label) => ({ op: 'UPSERT', entity: 'label', entity_id: label.id, container_id: GROCERIES.id, payload: { ...label, collection_id: GROCERIES.id } })),
+      ...GROCERY_ITEMS.map((entry) => ({ op: 'UPSERT', entity: 'item', entity_id: entry.id, container_id: GROCERIES.id, payload: entry })),
+    ].map((record) => JSON.stringify(record));
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
   }
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
@@ -315,6 +367,15 @@ export function stub(route) {
     return route.fulfill({ json: { ...PAGE, data: rows } });
   }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
+  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}`)) return route.fulfill({ json: GROCERIES });
+  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}/labels`)) return route.fulfill({ json: GROCERY_LABELS });
+  // A device's queued writes, answered as applied (offline-sync.md §3.2): the walk offline sees
+  // its marks go when the network is back.
+  if (path.endsWith('/api/v1/sync:push') && request.method() === 'POST') {
+    const sent = request.postDataJSON();
+    pushed.push(sent);
+    return route.fulfill({ json: { results: (sent.mutations ?? []).map((mutation) => ({ op_id: mutation.op_id, result: 'APPLIED' })) } });
+  }
   if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${HUB.id}`)) return route.fulfill({ json: HUB });
   if (path.endsWith(`/api/v1/containers/${HUB.id}/privacy`) && request.method() === 'PUT') {
@@ -343,7 +404,8 @@ export function stub(route) {
       const data = below(body.scope.item_id);
       return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
     }
-    return route.fulfill({ json: { data: ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: ITEMS.length } });
+    const level = body.scope?.container_id === GROCERIES.id ? GROCERY_ITEMS : ITEMS;
+    return route.fulfill({ json: { data: level, groups: [], page: { next_cursor: null, has_more: false }, total: level.length } });
   }
   const one = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
   if (one && request.method() === 'GET') return route.fulfill({ json: one });
@@ -351,7 +413,14 @@ export function stub(route) {
   if (path.match(/\/api\/v1\/items\/[^/]+:(complete|reopen)$/) && request.method() === 'POST') {
     const id = path.split('/').pop().split(':')[0];
     const target = ALL_ITEMS.find((each) => each.id === id);
-    return route.fulfill({ json: { ...target, completion: { is_completed: path.endsWith(':complete') }, version: target.version + 1 } });
+    const done = path.endsWith(':complete');
+    // A grocery entry keeps what happened to it, so the list re-read after a tick draws it under
+    // *In the trolley*, as a server would.
+    const at = GROCERY_ITEMS.findIndex((each) => each.id === id);
+    const current = at >= 0 ? GROCERY_ITEMS[at] : target;
+    const next = { ...current, completion: done ? { is_completed: true, completed_at: new Date().toISOString() } : { is_completed: false }, completion_count: (current.completion_count ?? 0) + (done && !current.completion?.is_completed ? 1 : 0), version: current.version + 1 };
+    if (at >= 0) GROCERY_ITEMS[at] = next;
+    return route.fulfill({ json: next });
   }
   const covered = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}/cover`));
   if (covered && request.method() === 'PUT') return route.fulfill({ json: { ...covered, cover: request.postDataJSON(), version: covered.version + 1 } });
@@ -466,7 +535,11 @@ let unstubbed = [];
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  pushed.length = 0;
 }
+
+/** Every push a device sent, in order: what a walk offline reads back once the network returns. */
+export const pushed = [];
 
 /** What was asked for and guessed at, without repeats. */
 export function unstubbedSoFar() {
