@@ -253,7 +253,7 @@
         <h1 class="title">{title}</h1>
       {/if}
       {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
-      {#if figure}<div class="figure">{@render figure()}</div>{/if}
+      {#if figure}<div class="head-figure">{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
@@ -320,7 +320,7 @@
     overflow-wrap: anywhere;
   }
 
-  .figure {
+  .head-figure {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
