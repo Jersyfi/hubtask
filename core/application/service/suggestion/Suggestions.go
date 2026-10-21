@@ -371,9 +371,14 @@ const (
 // Asking the profiles here would be this package deciding what the domain decides.
 //
 // An activity takes no children at all, which is why it is absent rather than mapped to itself.
-var under = map[work.ItemType]work.ItemType{
-	work.ItemTask:        work.ItemWorkPackage,
-	work.ItemWorkPackage: work.ItemActivity,
+//
+// The candidates are in order, and the first the target collection offers is taken: a collection
+// whose structure offers tasks and activities but no work packages gets the titles as activities,
+// and one that offers tasks alone gets none (domain-model.md §2) - planting them at a hidden level
+// would be refused at every one.
+var under = map[work.ItemType][]work.ItemType{
+	work.ItemTask:        {work.ItemWorkPackage, work.ItemActivity},
+	work.ItemWorkPackage: {work.ItemActivity},
 }
 
 type applierKey struct {
@@ -705,7 +710,14 @@ func (c Cases) grow(
 	if named, held := in["type"].(string); held && strings.TrimSpace(named) != "" {
 		became = work.ItemType(named)
 	}
-	childType, takesChildren := under[became]
+	shape := shapeOf(ctx, c.Catalogue, actor, in)
+	childType, takesChildren := work.ItemType(""), false
+	for _, candidate := range under[became] {
+		if shape.Offers(candidate) {
+			childType, takesChildren = candidate, true
+			break
+		}
+	}
 	if !takesChildren {
 		// An entry converted to an activity has nowhere to put them. Not an error: the conversion
 		// is what was accepted, and inventing a level for the titles would put work where nobody
