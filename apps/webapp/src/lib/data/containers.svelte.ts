@@ -19,7 +19,7 @@
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
-import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engine';
+import type { Container, ContainerPage, ResourceState, StructureChange } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -275,6 +275,17 @@ class Containers {
    */
   async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
     return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Changes settings of a hub's or a collection's own structure (`PATCH …/structure`), one by one;
+   * the answer is the container with its structure in force, its figure read again with the level.
+   */
+  async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
+    return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
       ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });

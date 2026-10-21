@@ -36,6 +36,7 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
+  import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
@@ -427,6 +428,7 @@
   let isManagingViews = $state(false);
   /** The collection's policies: how it works, as opposed to what it is called. */
   let isManagingPolicies = $state(false);
+  let isChoosingWhatCounts = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -630,6 +632,8 @@
                 ...shaping([
                   { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
                   { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                  // What counts in it (UC-WRK-29); the Structure panel takes it when there is one.
+                  { id: 'what_counts', label: t('app.figure.menu'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
                 ]),
                 { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
                 { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
@@ -671,6 +675,7 @@
     else if (id === 'views') isManagingViews = true;
     else if (id === 'templates') isUsingTemplates = true;
     else if (id === 'policies') isManagingPolicies = true;
+    else if (id === 'what_counts') isChoosingWhatCounts = true;
     else if (id === 'people') isManagingMembers = true;
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
@@ -1007,6 +1012,9 @@
     path={containerPath}
     role={structureRole}
   />
+  {#if container.type === 'COLLECTION' && mayShape}
+    <WhatCountsDialog bind:isOpen={isChoosingWhatCounts} {container} />
+  {/if}
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}
