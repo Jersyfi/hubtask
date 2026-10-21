@@ -51,6 +51,12 @@
     progressLabel?: string;
     /** The types the dialog offers first. A hint to the platform, never a check (see above). */
     accept?: string;
+    /**
+     * What is wrong now - a file the form needs and nobody chose. Drawn under the target and
+     * hung on the button, the field marked `data-invalid` so a form can find the first thing to
+     * fix (design-system.md §4, case 3).
+     */
+    error?: string;
     onChoose?: (file: File) => void;
     onCancel?: () => void;
   }
@@ -67,6 +73,7 @@
     progress,
     progressLabel,
     accept,
+    error,
     disabledReason,
     onChoose,
     onCancel,
@@ -89,6 +96,7 @@
   provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
   let container = $state<HTMLElement | null>(null);
   const hintId = $derived(hint ? `hint-${instanceId}` : undefined);
+  const errorId = $derived(error ? `error-${instanceId}` : undefined);
   const isUploading = $derived(progress !== undefined);
 
   function take(files: FileList | null | undefined) {
@@ -98,7 +106,7 @@
   }
 </script>
 
-<div class="field" bind:this={container}>
+<div class="field" data-invalid={error ? '' : undefined} bind:this={container}>
   <label class="label" for={inputId}>{label}<ReasonMark id={groupId} text={disabledReason} {container} /></label>
   {#if hint}<p class="hint" id={hintId}>{hint}</p>{/if}
 
@@ -138,12 +146,17 @@
       onchange={(event) => take((event.currentTarget as HTMLInputElement).files)}
     />
     <span class="painted">
-      <Button tone="secondary" disabledReason={disabledReason} onclick={() => input?.click()}>
+      <Button tone="secondary" disabledReason={disabledReason} {...(errorId ? { 'aria-describedby': errorId } : {})} onclick={() => input?.click()}>
         {chooseLabel}
       </Button>
       <span class="drop">{dropLabel}</span>
     </span>
   </div>
+
+  {#if error}
+    <!-- Rule 3: a sentence, and the target's border its echo. -->
+    <p id={errorId} class="error">{error}</p>
+  {/if}
 
   {#if file}
     <p class="chosen">
@@ -188,6 +201,10 @@
   }
 
   .target[data-over] { background: var(--bg-surface-hover); border-color: var(--accent-primary); }
+
+  .field[data-invalid] .target { border-color: var(--text-danger); }
+
+  .error { margin: 0; color: var(--text-danger); font-size: var(--fs-075); text-align: start; }
 
   /* Transparent and on top, never hidden: the input is the control and everything beside it is a
      picture of it. It covers the whole target so that a click anywhere opens the dialog. */

@@ -74,6 +74,13 @@
     defaultRecipientsLabel: string;
     /** The application's member picker, handed in. Absent means the caller offers no choice. */
     recipients?: Snippet;
+    /**
+     * What is wrong with when it fires - counted from a due date the entry does not have, say.
+     * Said at the first question, the editor marked `data-invalid` so a form finds the first thing
+     * to fix (design-system.md §4, case 3); every part stays usable, because the way out may be
+     * one of them (a fixed time instead).
+     */
+    error?: string;
     onChange?: (value: string) => void;
     onChannelsChange?: (channels: readonly string[]) => void;
   }
@@ -98,6 +105,7 @@
     defaultRecipientsLabel,
     recipients,
     disabledReason,
+    error,
     onChange,
     onChannelsChange,
   }: Props = $props();
@@ -151,12 +159,13 @@
   }
 </script>
 
-<div class="editor" role="group" aria-label={label} aria-describedby={disabledReason === undefined ? undefined : groupId} bind:this={container}>
+<div class="editor" role="group" aria-label={label} data-invalid={error ? '' : undefined} aria-describedby={disabledReason === undefined ? undefined : groupId} bind:this={container}>
   <!-- The editor's heading is its first question's, inside `Radio`; the mark sits in its corner. -->
   <span class="corner"><ReasonMark id={groupId} text={disabledReason} {container} /></span>
   <Radio
     {label}
     options={choices}
+    {error}
     {disabledReason}
     bind:value={
       () => chosen,

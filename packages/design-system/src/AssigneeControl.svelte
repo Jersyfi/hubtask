@@ -63,6 +63,12 @@
     chosenLabel: string;
     /** What nobody-chosen-yet says, in the summary. */
     unassignedLabel: string;
+    /**
+     * What is wrong now - nobody chosen where the form needs somebody. Said under the list and
+     * hung on it, the list `aria-invalid`, so a form finds the first thing to fix
+     * (design-system.md §4, case 3).
+     */
+    error?: string;
     /** The next selection, already computed for the shape this control is in. */
     onSelect?: (ids: readonly string[]) => void;
   }
@@ -79,6 +85,7 @@
     chosenLabel,
     unassignedLabel,
     disabledReason,
+    error,
     onSelect,
   }: Props = $props();
 
@@ -95,6 +102,7 @@
   const groupId = `group-reason-${instanceId}`;
   provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
   let container = $state<HTMLElement | null>(null);
+  const errorId = $derived(error ? `assignee-${instanceId}-error` : undefined);
 
   const shown = $derived(
     term.trim() === ''
@@ -170,6 +178,8 @@
       role="listbox"
       aria-label={label}
       aria-multiselectable={selection === 'multiple'}
+      aria-invalid={error ? 'true' : undefined}
+      aria-describedby={errorId}
       bind:this={list}
       onkeydown={onKeydown}
     >
@@ -200,10 +210,15 @@
     </ul>
   {/if}
 
+  {#if error}
+    <p id={errorId} class="error">{error}</p>
+  {/if}
 </div>
 
 <style>
   .control { position: relative; display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
+
+  .error { margin: 0; color: var(--text-danger); font-size: var(--fs-075); text-align: start; }
 
   .corner {
     position: absolute;

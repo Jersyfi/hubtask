@@ -10,7 +10,7 @@
   import ReminderEditor, { type ReminderChannel } from './ReminderEditor.svelte';
   import AssigneeControl from './AssigneeControl.svelte';
 
-  const { mode = 'preset', disabledReason }: { mode?: 'preset' | 'relative' | 'absolute' | 'recipients' | 'row' | 'table'; disabledReason?: string } = $props();
+  const { mode = 'preset', disabledReason }: { mode?: 'preset' | 'relative' | 'absolute' | 'recipients' | 'row' | 'table' | 'missing'; disabledReason?: string } = $props();
 
   const presets = [
     { value: 'REL:-PT10M', label: 'Ten minutes before' },
@@ -51,6 +51,9 @@
 <div>
   <ReminderEditor
     {disabledReason}
+    error={mode === 'missing' && value.startsWith('REL:')
+      ? 'A reminder counted from the due date needs the entry to have one. Set a due date, or choose a fixed time.'
+      : undefined}
     label="Remind me"
     {value}
     {presets}

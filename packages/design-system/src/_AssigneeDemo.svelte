@@ -12,7 +12,7 @@
   const {
     mode = 'single',
     reason,
-  }: { mode?: 'single' | 'multiple' | 'empty' | 'unavailable' | 'row' | 'table'; reason?: string } = $props();
+  }: { mode?: 'single' | 'multiple' | 'empty' | 'unavailable' | 'row' | 'table' | 'missing'; reason?: string } = $props();
 
   const people: Candidate[] = [
     { id: 'p1', name: 'Amelie Fischer' },
@@ -26,7 +26,7 @@
   // happens after that is the caller's state, which is the half a static picture cannot show.
   let selected = $state<readonly string[]>([]);
   $effect(() => {
-    selected = mode === 'multiple' ? ['p1', 'p3'] : ['p2'];
+    selected = mode === 'multiple' ? ['p1', 'p3'] : mode === 'missing' ? [] : ['p2'];
   });
 </script>
 
@@ -50,6 +50,7 @@
   disabledReason={reason ?? (mode === 'unavailable'
     ? 'This installation assigns one person per entry, so a set cannot be chosen here.'
     : undefined)}
+  error={mode === 'missing' && selected.length === 0 ? 'Choose who to assign them to.' : undefined}
   onSelect={(ids) => {
     selected = ids;
   }}
