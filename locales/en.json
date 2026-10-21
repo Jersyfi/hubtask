@@ -385,6 +385,8 @@
   "structure.levels_not_closed": "A level can only be offered beneath a level it belongs under, and the top level is always offered.",
   "structure.setting_invalid": "That is not a value this setting can take.",
   "structure.lock_unknown": "There is no setting by that name to lock.",
+  "structure.categories_collection_only": "Categories are labels of one collection, so only a collection can name them.",
+  "structure.category_unknown": "A category has to be a label of this collection.",
   "containers.auto_assign_strategy_unknown": "{value} is not an assignment strategy this installation knows.",
   "containers.auto_assign_candidates_required": "An assignment policy needs at least one candidate.",
   "containers.auto_assign_single_candidate_required": "FIXED assigns to exactly one person - this policy names {count} candidates.",

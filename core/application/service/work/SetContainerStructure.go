@@ -48,6 +48,8 @@ type SetContainerStructure struct {
 	Structure StructureResolver
 	// Epochs is advanced instead of a fan-out past structureFanOutCeiling.
 	Epochs changelog.Epochs
+	// Labels answers whether a category the write names is a label of the collection.
+	Labels repository.Labels
 }
 
 // SetContainerStructureCommand is the input, typed.
@@ -219,6 +221,9 @@ func (h SetContainerStructure) decide(
 		}
 		if broken := domain.LockedAgainst(bound, above, validated); len(broken) > 0 {
 			return domain.StructureLayer{}, nil, domain.ErrSettingLocked(broken[0], above.Locks[broken[0]])
+		}
+		if err := ensureCategories(ctx, h.Labels, container, validated); err != nil {
+			return domain.StructureLayer{}, nil, err
 		}
 		layer.Values = layer.Values.Overlay(validated)
 	}

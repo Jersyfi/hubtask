@@ -1496,9 +1496,11 @@ class StructureSettings(TypedDict, total=False):
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
     name: str | None
+    done_name: str | None
 
 class StructureLevelFields(TypedDict, total=False):
     capabilities: Required[list[str]]
+    categories: list[str]
 
 class StructureViews(TypedDict, total=False):
     """The layouts a client offers, and the one it opens with. Applied by clients."""

@@ -1997,6 +1997,7 @@ func run() error {
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
+			Labels: labels,
 		}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: structures, Authorizer: authorizer, Changes: changes,

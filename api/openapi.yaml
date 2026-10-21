@@ -15009,6 +15009,14 @@ components:
           minLength: 1
           maxLength: 60
           description: The level's own name, counted in code points after trimming.
+        done_name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 60
+          description: >
+            What the level's done entries are shown under, such as "In the trolley" - a name a
+            person chose, under the same rule as the level's own. Without one, a client shows its
+            translated name for done entries.
 
     StructureLevelFields:
       type: object
@@ -15016,8 +15024,19 @@ components:
       properties:
         capabilities:
           type: array
-          description: The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+          description: >
+            The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+            AMOUNT is carried only where a layer names it.
           items: { type: string }
+        categories:
+          type: array
+          description: >
+            The labels this type's entries are grouped by, in their order: an entry sits under the
+            first of them it carries. Only beside LABELS, and only on a collection's own layer;
+            each a label of that collection (`structure.category_unknown` otherwise). A label
+            deleted afterwards stays named and is skipped by clients.
+          maxItems: 50
+          items: { type: string, format: uuid }
 
     StructureViews:
       type: object

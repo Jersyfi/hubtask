@@ -10621,6 +10621,9 @@ type StructureCountsFigure string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
+	// DoneName What the level's done entries are shown under, such as "In the trolley" - a name a person chose, under the same rule as the level's own. Without one, a client shows its translated name for done entries.
+	DoneName *string `json:"done_name,omitempty"`
+
 	// Name The level's own name, counted in code points after trimming.
 	Name *string `json:"name,omitempty"`
 
@@ -10630,8 +10633,11 @@ type StructureLevel struct {
 
 // StructureLevelFields defines model for StructureLevelFields.
 type StructureLevelFields struct {
-	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it. AMOUNT is carried only where a layer names it.
 	Capabilities []string `json:"capabilities"`
+
+	// Categories The labels this type's entries are grouped by, in their order: an entry sits under the first of them it carries. Only beside LABELS, and only on a collection's own layer; each a label of that collection (`structure.category_unknown` otherwise). A label deleted afterwards stays named and is skipped by clients.
+	Categories *[]openapi_types.UUID `json:"categories,omitempty"`
 }
 
 // StructureLock defines model for StructureLock.

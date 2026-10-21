@@ -87,7 +87,12 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   beneath one of its system parents (an activity has two). *Fields* are a capability set per type,
   completion always in it. An **opt-in** capability (`AMOUNT`) is carried only where a layer names
   it: Hubtask's default and a type a layer leaves out keep the behaviour from before it existed,
-  and of Hubtask's presets only *List* names it.
+  and of Hubtask's presets only *List* names it. A level may carry a name for its done entries
+  (*In the trolley*), the person's content like the level's own name. A type's fields may name
+  **categories**: labels of the collection, in order, that its entries are grouped by - only beside
+  `LABELS` and only on a collection's own layer (`structure.categories_collection_only`), each a
+  live label of that collection when first named (`structure.category_unknown`); one already named
+  stays when its label is deleted, so that undoing the deletion restores the order.
 * **Locks.** The workspace locks a whole setting (`views`) or one capability of one type
   (`fields.TASK.DUE_DATE`); a lock answers its origin and who set it. A locked value applies below:
   a lower layer's own value is ignored when resolving and refused when written

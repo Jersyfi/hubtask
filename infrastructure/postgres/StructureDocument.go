@@ -40,12 +40,14 @@ type structureSettingsDocument struct {
 }
 
 type levelDocument struct {
-	Type string `json:"type"`
-	Name string `json:"name,omitempty"`
+	Type     string `json:"type"`
+	Name     string `json:"name,omitempty"`
+	DoneName string `json:"done_name,omitempty"`
 }
 
 type levelFieldsDocument struct {
 	Capabilities []string `json:"capabilities"`
+	Categories   []string `json:"categories,omitempty"`
 }
 
 type viewsDocument struct {
@@ -68,7 +70,9 @@ func valuesDocument(values work.StructureValues) *structureSettingsDocument {
 		Celebration: string(values.Celebration),
 	}
 	for _, level := range values.Levels {
-		document.Levels = append(document.Levels, levelDocument{Type: string(level.Type), Name: level.Name})
+		document.Levels = append(document.Levels, levelDocument{
+			Type: string(level.Type), Name: level.Name, DoneName: level.DoneName,
+		})
 	}
 	if values.Fields != nil {
 		document.Fields = make(map[string]levelFieldsDocument, len(values.Fields))
@@ -77,7 +81,11 @@ func valuesDocument(values work.StructureValues) *structureSettingsDocument {
 			for _, capability := range level.Capabilities {
 				capabilities = append(capabilities, string(capability))
 			}
-			document.Fields[string(itemType)] = levelFieldsDocument{Capabilities: capabilities}
+			var categories []string
+			for _, category := range level.Categories {
+				categories = append(categories, category.String())
+			}
+			document.Fields[string(itemType)] = levelFieldsDocument{Capabilities: capabilities, Categories: categories}
 		}
 	}
 	if values.Views != nil {
@@ -119,7 +127,9 @@ func valuesFrom(document *structureSettingsDocument) work.StructureValues {
 	if document.Levels != nil {
 		values.Levels = make([]work.Level, 0, len(document.Levels))
 		for _, level := range document.Levels {
-			values.Levels = append(values.Levels, work.Level{Type: work.ItemType(level.Type), Name: level.Name})
+			values.Levels = append(values.Levels, work.Level{
+				Type: work.ItemType(level.Type), Name: level.Name, DoneName: level.DoneName,
+			})
 		}
 	}
 	if document.Fields != nil {
@@ -129,7 +139,11 @@ func valuesFrom(document *structureSettingsDocument) work.StructureValues {
 			for _, capability := range level.Capabilities {
 				capabilities = append(capabilities, work.Capability(capability))
 			}
-			values.Fields[work.ItemType(itemType)] = work.LevelFields{Capabilities: capabilities}
+			var categories []shared.ID
+			for _, category := range level.Categories {
+				categories = append(categories, shared.ID(category))
+			}
+			values.Fields[work.ItemType(itemType)] = work.LevelFields{Capabilities: capabilities, Categories: categories}
 		}
 	}
 	if document.Views != nil {
