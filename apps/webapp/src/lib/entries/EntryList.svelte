@@ -1781,19 +1781,21 @@
     {#if captureNote}
       <p class="note" role="status">{captureNote}</p>
     {/if}
-    <!-- The kind and the language are what a quick capture rarely needs, so they wait under
-         *More* (ux-inventory E5); a select with one option is no choice and is not drawn. -->
+    <!-- The kind stays in sight where there is a choice - it decides what the entry is - and a
+         select with one option is no choice and is not drawn. -->
+    {#if offeredTypes.length > 1 && !isTypeNamed}
+      <Select
+        label={t('app.entries.type_label')}
+        size="sm"
+        bind:value={draftType}
+        options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
+      />
+    {/if}
+    <!-- The language is what a quick capture rarely needs, so it waits under *More*
+         (ux-inventory E5). -->
     <details class="more">
       <summary>{t('app.entries.capture_more')}</summary>
       <Stack gap="150">
-        {#if offeredTypes.length > 1 && !isTypeNamed}
-          <Select
-            label={t('app.entries.type_label')}
-            size="sm"
-            bind:value={draftType}
-            options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
-          />
-        {/if}
         <!-- Which language it is written in (i18n-l10n.md §6 line 9): the person's own
              preselected, the installation's list to choose from, a typed tag for one outside it. -->
         <LanguagePicker

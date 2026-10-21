@@ -96,7 +96,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.equal(await page.locator('[data-opener="add-entry"]').first().evaluate((el) => el.textContent.trim()), 'Add an entry');
   await page.getByRole('button', { name: 'Add an entry', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'Title' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT', 'the form did not take focus');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA', 'the form did not take focus');
 
   // The switcher: three, with "show what is inside" within the list.
   const switcher = page.getByRole('radiogroup', { name: 'How these entries are shown' });
