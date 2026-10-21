@@ -13,6 +13,13 @@ export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', pa
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
 export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
+/**
+ * A hub archived in its own right and a collection under it that is not: read-only from above, the
+ * case where nothing on the collection's page can be unarchived and every reason names the hub.
+ * Neither is in the tree, as the archive leaves them out of it.
+ */
+export const ARCHIVED_HUB = { id: '01a0e2e0-0000-7000-8000-000000000006', type: 'HUB', parent_id: null, name: 'Old flat', order_key: 'a2', version: 1, archived_at: '2026-07-01T09:00:00Z', effective_archived: true };
+export const UNDER_ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000007', type: 'COLLECTION', parent_id: ARCHIVED_HUB.id, name: 'Moving boxes', order_key: 'a0', version: 1, effective_archived: true };
 export const LABELS = [
   { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'label.teal' },
   { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'label.red' },
@@ -325,6 +332,8 @@ export function stub(route) {
   // A hub's emergency accesses, and the reader's own notices: none, unless a walk routes them.
   if (/\/api\/v1\/private-hubs\/[^/]+\/accesses$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/labels')) return route.fulfill({ json: LABELS });
+  if (path.endsWith(`/api/v1/containers/${ARCHIVED_HUB.id}`)) return route.fulfill({ json: ARCHIVED_HUB });
+  if (path.endsWith(`/api/v1/containers/${UNDER_ARCHIVED.id}`)) return route.fulfill({ json: UNDER_ARCHIVED });
   if (path.endsWith('/buckets')) return route.fulfill({ json: BUCKETS });
   if (path.endsWith('/api/v1/memberships')) {
     const scope = url.searchParams.get('scope_type');

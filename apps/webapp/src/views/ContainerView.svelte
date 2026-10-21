@@ -26,6 +26,7 @@
     Input,
     ListRow,
     PageHeader,
+    ReadOnlyNotice,
     Skeleton,
     Stack,
     type MenuItem,
@@ -439,6 +440,22 @@
    * (UC-WRK-22 check 4, UC-WRK-01 check 6): absent rather than offered and refused (P-05).
    */
   const mayShape = $derived(structure.status === 'permitted');
+  /**
+   * Why nothing here can be changed - the notice's sentence, and the reason every control that
+   * stays on the page gives, so the page says one thing (design-system.md §4, case 5). Under an
+   * archived hub it names the hub, which is where *Unarchive* is; here there is none. Archived in
+   * its own right, it tells a reader who may not unarchive whom to ask instead.
+   */
+  const readOnlyReason = $derived(
+    archival === 'inherited'
+      ? t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })
+      : archival === 'archived'
+        ? t(mayShape ? 'app.workspace.archived' : 'app.workspace.archived_ask')
+        : undefined,
+  );
+  /** The notice's sentence, which the boxes that stay in the list name as their description. */
+  const instanceId = $props.id();
+  const readOnlyNoticeId = `container-${instanceId}-read-only`;
   function structureControl<T>(control: T): T | undefined {
     return mayShape ? control : undefined;
   }
@@ -554,7 +571,7 @@
   /** Why an entry cannot be created here, or nothing. The gate is the list's; the words are shared. */
   const addDisabledReason = $derived(
     isReadOnly
-      ? t('app.workspace.archived')
+      ? readOnlyReason
       : rootTypes().length === 0
         ? t('app.entries.no_root_type')
         : undefined,
@@ -604,16 +621,12 @@
             id: 'rename',
             label: t('app.workspace.rename'),
             icon: 'pencil',
-            disabledReason: isReadOnly
-              ? archival === 'archived'
-                ? t('app.workspace.archived')
-                : t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })
-              : undefined,
+            disabledReason: readOnlyReason,
           },
           {
             id: 'move',
             label: t('app.move.to_hub'),
-            disabledReason: container.type === 'HUB' ? t('app.move.hub_only') : isReadOnly ? t('app.workspace.archived') : undefined,
+            disabledReason: container.type === 'HUB' ? t('app.move.hub_only') : readOnlyReason,
           },
           ...(archival !== 'inherited'
             ? [{ id: 'archive', label: archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
@@ -627,12 +640,12 @@
                 // nothing else; the views and the templates are used by everybody, and their
                 // dialogs offer what changes the shape only to whom it belongs (UC-WRK-09 check 7).
                 ...shaping([
-                  { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
-                  { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                  { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: readOnlyReason },
+                  { id: 'fields', label: t('app.fields.title'), disabledReason: readOnlyReason },
                 ]),
                 { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
-                { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
-                ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }]),
+                { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: readOnlyReason },
+                ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: readOnlyReason }]),
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
             : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
@@ -652,7 +665,7 @@
                 icon: 'trash' as const,
                 isDestructive: true,
                 hasSeparatorBefore: true,
-                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+                disabledReason: readOnlyReason,
               }]
             : []),
         ],
@@ -742,7 +755,7 @@
             label: t('app.workspace.create_collection'),
             icon: 'plus',
             onclick: () => (isCreatingCollection = true),
-            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            disabledReason: readOnlyReason,
             opener: 'add-collection',
           })
         : mayCreateHere ? {
@@ -753,7 +766,7 @@
             opener: 'add-entry',
             menu: {
               label: t('app.entries.add_ways'),
-              items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
+              items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: readOnlyReason }],
               onselect: () => (isUsingTemplates = true),
             },
           } : undefined}
@@ -763,7 +776,7 @@
               {
                 label: t('app.import.open'),
                 onclick: () => (isImporting = true),
-                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+                disabledReason: readOnlyReason,
               },
             ]
           : []
@@ -783,12 +796,15 @@
         {#if container.type === 'HUB' && container.private}
           <p class="notice private"><Icon name="lock" size="sm" />{t('app.workspace.private_marker')}</p>
         {/if}
-        {#if archival === 'archived'}
-          <p class="notice">{t('app.workspace.archived')}</p>
-        {:else if archival === 'inherited'}
-          <p class="notice">
-            {t('app.workspace.archived_above', { hub: trail[0]?.label ?? '' })}
-          </p>
+        {#if readOnlyReason}
+          <!-- One notice for the whole page; the rows below say nothing about it. -->
+          <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId}>
+            {#snippet action()}
+              {#if archival === 'archived' && mayShape}
+                <Button size="sm" tone="secondary" onclick={() => void toggleArchived()}>{t('app.workspace.unarchive')}</Button>
+              {/if}
+            {/snippet}
+          </ReadOnlyNotice>
         {/if}
         {#if failure && !isRenaming}
           <p class="failure" role="alert">{failure.message}</p>
@@ -857,14 +873,15 @@
 
     {#if container.type === 'HUB'}
       {#if collections.length === 0}
-        <!-- §4.1: say what this place is for, and offer the one action. An archived hub offers it
-             with the reason rather than not at all, which is what every other control here does. -->
+        <!-- §4.1: say what this place is for, and offer the one action. An archived hub keeps it in
+             its place with the page's reason as a bubble, as the head's own actions do
+             (design-system.md §4, case 2), so the page does not change shape with the archive. -->
         <EmptyState kind="unused" title={t('app.workspace.no_collections')} icon="collection">
           {#snippet action()}
             {#if mayShape}
               <Button
                 icon="plus"
-                disabledReason={isReadOnly ? t('app.workspace.archived') : undefined}
+                disabledReason={readOnlyReason}
                 onclick={() => (isCreatingCollection = true)}
               >
                 {t('app.workspace.create_collection')}
@@ -929,13 +946,15 @@
               {mayShape}
             />
           {:else}
-            <!-- Read-only follows the container: an archived collection's entries are archived with
-                 it (I-C3), and the reason travels with the controls rather than the controls
-                 disappearing. From `large` a row opens beside the list and stays current. -->
+            <!-- Read-only follows the container: an archived collection's entries are read-only with
+                 it (I-C3), and the notice above says so once; the rows say nothing of their own.
+                 From `large` a row opens beside the list and stays current. -->
             <EntryList
               bind:this={list}
               collectionId={container.id}
               isReadOnly={isReadOnly}
+              {readOnlyReason}
+              {readOnlyNoticeId}
               {query}
               isExpanded={layout === 'LIST_EXPANDED'}
               {lastResults}
