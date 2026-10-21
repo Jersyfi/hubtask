@@ -39,6 +39,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -414,17 +415,19 @@
           {/if}
           <!-- The consent, as its own switch, naming who receives the content and where. -->
           <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.ai.saving')}
-              disabledReason={!kind ? t('app.ai.kind_choose') : !jurisdiction ? t('app.ai.jurisdiction_choose') : undefined}
-            >
-              {t('app.ai.save')}
-            </Button>
-          </div>
+          <WriteOnly>
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.ai.saving')}
+                disabledReason={!kind ? t('app.ai.kind_choose') : !jurisdiction ? t('app.ai.jurisdiction_choose') : undefined}
+              >
+                {t('app.ai.save')}
+              </Button>
+            </div>
+          </WriteOnly>
         </Stack>
       </form>
 
@@ -492,11 +495,13 @@
                   ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
                 }}
               />
-              <div>
-                <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
-                  {t('app.ai.budget_own_save')}
-                </Button>
-              </div>
+              <WriteOnly>
+                <div>
+                  <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
+                    {t('app.ai.budget_own_save')}
+                  </Button>
+                </div>
+              </WriteOnly>
               {#if ownBudgetSaved}<p class="quiet" role="status">{t('app.ai.budget_own_saved')}</p>{/if}
             </Stack>
           </form>
@@ -507,6 +512,7 @@
         {/if}
       </Stack>
 
+      <WriteOnly>
       {#if provider && allowsOwn}
         <Stack gap="150">
           <h2 class="section">{t('app.ai.remove_title')}</h2>
@@ -526,6 +532,7 @@
           {/if}
         </Stack>
       {/if}
+      </WriteOnly>
       </WorkspaceGate>
     {/if}
     </Stack>

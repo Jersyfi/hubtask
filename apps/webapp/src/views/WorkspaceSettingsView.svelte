@@ -29,6 +29,7 @@
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -220,17 +221,19 @@
                  screen with its step-up, its lock and its direction. A switch here was a second place
                  for the same rule, stored apart from it, and the two disagreed (UC-ID-12 check 1). -->
 
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.workspace.saving')}
-                disabledReason={hasChanges ? undefined : t('app.workspace.nothing_changed')}
-              >
-                {t('app.workspace.save')}
-              </Button>
-            </div>
+            <WriteOnly>
+              <div>
+                <Button
+                  type="submit"
+                  tone="primary"
+                  isBusy={isWorking}
+                  busyLabel={t('app.workspace.saving')}
+                  disabledReason={hasChanges ? undefined : t('app.workspace.nothing_changed')}
+                >
+                  {t('app.workspace.save')}
+                </Button>
+              </div>
+            </WriteOnly>
           </Stack>
         </form>
       </WorkspaceGate>

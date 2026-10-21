@@ -649,6 +649,7 @@
   "app.gate.change_assigned_only": "Deine Rolle ändert nur die Einträge, die dir zugewiesen sind.",
   "app.gate.deciding": "Was deine Rolle hier darf, wird gelesen…",
   "app.gate.workspace_permission_missing": "Du kannst das lesen, aber deine Rolle in diesem Arbeitsbereich kann es nicht ändern. Dazu braucht es die Berechtigung „{permission}“.",
+  "app.gate.ask_owner": "Um es zu ändern, frag einen Eigentümer dieses Arbeitsbereichs.",
   "app.sign_in.title": "Anmelden",
   "app.legal.imprint": "Impressum",
   "app.legal.privacy": "Datenschutz",

@@ -150,6 +150,7 @@
     <Stack gap="150">
       <h2 class="section">{t('app.service_accounts.new_title')}</h2>
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form class="panel" onsubmit={create}>
           <Stack gap="150">
             <Input
@@ -165,6 +166,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
       <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
     </Stack>

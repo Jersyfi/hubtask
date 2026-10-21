@@ -269,6 +269,7 @@
     <Stack gap="150">
       <h2 class="section">{t('app.groups.new_title')}</h2>
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form class="panel" onsubmit={create}>
           <Stack gap="150">
             <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired />
@@ -279,6 +280,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
     </Stack>

@@ -139,7 +139,11 @@ for (const screen of SCREENS) {
     for (const permission of screen.gates) {
       await auditor.page.getByText(refusedFor(permission)).first().waitFor({ timeout: 15_000 })
         .catch(() => assert.fail(`the auditor is not told why on ${screen.path} (${permission})`));
+      // Once per permission per page, however many areas it gates (UC-WRK-32 check 4).
+      assert.equal(await auditor.page.getByText(refusedFor(permission)).count(), 1, `the auditor is told twice on ${screen.path} (${permission})`);
     }
+    // Nothing the auditor reads is dimmed into illegibility: no gated area is drawn faded.
+    assert.equal(await auditor.page.locator('[data-status="refused"]').count(), 0, `a dimmed gate on ${screen.path}`);
     for (const control of screen.buttons.map(controlOf)) {
       assert.equal(await reachable(auditor.page, control), 0, `the auditor is offered "${control.name}" on ${screen.path}`);
     }

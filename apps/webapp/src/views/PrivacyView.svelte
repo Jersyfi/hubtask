@@ -585,6 +585,7 @@
     </Stack>
 
     <WorkspaceGate permission="MANAGE_MEMBERS">
+      {#snippet actions()}
       <form class="panel" onsubmit={record}>
         <Stack gap="150">
           <h2 class="section">{t('app.privacy.record_title')}</h2>
@@ -647,6 +648,7 @@
           </div>
         </Stack>
       </form>
+      {/snippet}
     </WorkspaceGate>
 
     <!-- Who keeps their own content out of AI: the register, here and nowhere else. -->
@@ -657,6 +659,7 @@
       <p class="quiet small">{t('app.privacy.articles_note')}</p>
 
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form
           class="panel"
           onsubmit={(event) => {
@@ -687,9 +690,11 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
 
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form
           class="panel"
           onsubmit={(event) => {
@@ -727,6 +732,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
     </Stack>

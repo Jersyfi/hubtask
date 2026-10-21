@@ -208,6 +208,7 @@
       <NotInPlan body={t('app.plan.runs_body')} />
       {:else}
       <WorkspaceGate permission="AUTOMATION">
+        {#snippet actions()}
       <Select
         label={t('app.runs.which_rule')}
         bind:value={testing}
@@ -231,6 +232,7 @@
           </Button>
         </div>
       {/if}
+        {/snippet}
       </WorkspaceGate>
       {/if}
 

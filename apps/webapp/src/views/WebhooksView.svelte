@@ -563,6 +563,7 @@
 
     {#if !resting}
     <WorkspaceGate permission="AUTOMATION">
+      {#snippet actions()}
       <form class="panel" onsubmit={subscribe}>
         <Stack gap="150">
           <h2 class="section">{t('app.webhooks.add_title')}</h2>
@@ -623,6 +624,7 @@
           </div>
         </Stack>
       </form>
+      {/snippet}
     </WorkspaceGate>
     {/if}
     </Stack>

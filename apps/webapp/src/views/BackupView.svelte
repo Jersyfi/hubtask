@@ -487,6 +487,7 @@
       {/if}
 
       <WorkspaceGate permission="DELETE_CONTAINER">
+        {#snippet actions()}
         <TargetForm
           heading={t('app.backup.add_target')}
           {isWorking}
@@ -499,6 +500,7 @@
             return added;
           }}
         />
+        {/snippet}
       </WorkspaceGate>
     </Stack>
 
@@ -547,17 +549,28 @@
               <!-- The write happens on the switch rather than behind a save button: `enabled`
                    is one field with two values, and a form around it would be a form with one
                    control in it. -->
-              <Switch
-                label={t('app.backup.enabled')}
-                checked={schedule.enabled !== false}
-                disabledReason={ownRefusal}
-                onchange={(event) =>
-                  void attempt(() =>
-                    backup.updateSchedule(schedule.id, {
-                      enabled: (event.currentTarget as HTMLInputElement).checked,
-                    }), t('app.backup.schedule_saved_announced')
-                  )}
-              />
+              <!-- Without the permission the switch is absent (P-05) and its state is read as a
+                   word; the page's one notice says why. -->
+              {#if mayHere('DELETE_CONTAINER').status === 'refused'}
+                <span class="state">
+                  {t('app.backup.enabled')}
+                  <Badge tone={schedule.enabled !== false ? 'success' : 'neutral'}>
+                    {schedule.enabled !== false ? t('app.backup.on') : t('app.backup.off')}
+                  </Badge>
+                </span>
+              {:else}
+                <Switch
+                  label={t('app.backup.enabled')}
+                  checked={schedule.enabled !== false}
+                  disabledReason={ownRefusal}
+                  onchange={(event) =>
+                    void attempt(() =>
+                      backup.updateSchedule(schedule.id, {
+                        enabled: (event.currentTarget as HTMLInputElement).checked,
+                      }), t('app.backup.schedule_saved_announced')
+                    )}
+                />
+              {/if}
               {#if mayOwn}
               <Button
                 size="sm"
@@ -579,6 +592,7 @@
 
       {#if targets.length > 0}
         <WorkspaceGate permission="DELETE_CONTAINER">
+          {#snippet actions()}
           <form class="panel" onsubmit={createSchedule}>
             <Stack gap="150">
               <h3 class="section">{t('app.backup.add_schedule')}</h3>
@@ -613,6 +627,7 @@
               </div>
             </Stack>
           </form>
+          {/snippet}
         </WorkspaceGate>
       {/if}
     </Stack>
@@ -620,6 +635,13 @@
 </Stack>
 
 <style>
+  /* A schedule's state where its switch is not offered: the name and the word, on one line. */
+  .state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-100);
+  }
+
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure

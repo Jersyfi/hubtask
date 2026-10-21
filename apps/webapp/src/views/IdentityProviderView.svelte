@@ -436,9 +436,11 @@
           <!-- The reason for every refused control on this screen: the rows' edit and remove are
                absent where the reader may not configure providers. -->
           <WorkspaceGate permission="MANAGE_MEMBERS">
+            {#snippet actions()}
             <div>
               <Button tone="primary" onclick={add}>{t('app.identity_provider.add')}</Button>
             </div>
+            {/snippet}
           </WorkspaceGate>
         {/if}
       </Stack>

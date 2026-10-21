@@ -65,6 +65,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { includedHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -718,16 +719,19 @@
               </Stack>
             </section>
 
-            <div>
-              <Button type="submit" tone="primary" isBusy={signInPolicy.isWorking} busyLabel={t('app.workspace.saving')}>
-                {t('app.workspace.save')}
-              </Button>
-            </div>
+            <WriteOnly>
+              <div>
+                <Button type="submit" tone="primary" isBusy={signInPolicy.isWorking} busyLabel={t('app.workspace.saving')}>
+                  {t('app.workspace.save')}
+                </Button>
+              </div>
+            </WriteOnly>
           </Stack>
         </form>
       </WorkspaceGate>
 
       <WorkspaceGate permission="STRUCTURE">
+        {#snippet actions()}
       <section class="panel">
         <Stack gap="150">
           <h2>{t('app.signin_settings.rotate_title')}</h2>
@@ -739,6 +743,7 @@
           </div>
         </Stack>
       </section>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
   {/if}

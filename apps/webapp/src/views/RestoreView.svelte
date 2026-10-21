@@ -299,6 +299,7 @@
     {/if}
 
     <WorkspaceGate permission="STRUCTURE">
+      {#snippet actions()}
       <form class="panel" onsubmit={rehearse}>
         <Stack gap="150">
           <h2 class="section">{t('app.restore.what_title')}</h2>
@@ -449,6 +450,7 @@
           <p class="quiet small">{t('app.restore.rehearse_note')}</p>
         </Stack>
       </form>
+      {/snippet}
     </WorkspaceGate>
 
     {#if watch}

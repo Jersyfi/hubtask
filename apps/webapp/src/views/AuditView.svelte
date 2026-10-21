@@ -434,6 +434,7 @@
       {/if}
       <p class="quiet small">{t('app.audit.anchoring_target_hint')}</p>
       <WorkspaceGate permission="STRUCTURE">
+        {#snippet actions()}
       <div class="fields">
         <Select
           label={t('app.audit.anchoring_target')}
@@ -463,6 +464,7 @@
           </Button>
         {/if}
       </div>
+        {/snippet}
       </WorkspaceGate>
       <p class="quiet small">{t('app.audit.anchoring_is_audited')}</p>
     </Stack>
