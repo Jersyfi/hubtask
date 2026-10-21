@@ -71,16 +71,34 @@ Administration:
 - [ ] 25 `views/SignInSettingsView.svelte` locks and origins → 6; busy → 7
 - [ ] 26 `views/AiSettingsView.svelte` "Saving…" under every model switch → 7
 - [ ] 27 `lib/workspace/PersonOptOutSection.svelte` "unchanged" and the replaced form → 4, 6
-- [ ] 28 workspace, backup, tokens, target form, restore: "nothing changed / pick first" → 3, 4
+- [ ] 28 workspace, target form, restore: "nothing changed / pick first" → 3, 4 (tokens: UX-04; backup's schedule switch is a role refusal, row 46)
 - [ ] 29 `WorkspaceGate` around whole forms (audit, retention, privacy, groups, webhooks, apps, sign-in, backup, workspace, runs, identity provider) → 5
-- [ ] 30 page-level banners and callouts (rules, rule editor, backup, webhooks, runs, identity provider) → 8
+- [ ] 30 page-level banners and callouts (rules, rule editor, webhooks, runs, identity provider; backup has none) → 8
 
 Installation:
-- [ ] 31 `views/InstanceProvidersView.svelte` remove before withdrawal; lock line → 2, 6
-- [ ] 32 `lib/instance/InstanceValueField.svelte` lock select (uneven columns) → 6
+- [ ] 31 `views/InstanceProvidersView.svelte` remove before withdrawal → 2; the lock line keeps its words (the operator sets it)
+- [ ] 32 `lib/instance/InstanceValueField.svelte` lock select (uneven columns) → one column per setting; the kind-specific lock words kept
 - [ ] 33 `views/InstancePlanView.svelte` locked rows as text → 6
-- [ ] 34 workspaces, plans, platform: validation reasons under submit → 3
+- [ ] 34 plans, platform: validation reasons under submit → 3; workspaces' `slug_taken` is a conflict, said at the field alone
 - [ ] 35 `lib/instance/InstanceGate.svelte` → kept (a page gate), styled as 5
+
+Administration and installation, found by UX-05's sweep:
+- [ ] 36 `lib/workspace/CreateContainerDialog.svelte` create without a name → 3 (end-user: UX-04)
+- [ ] 37 `lib/workspace/EmergencyAccessDialog.svelte` open without a reason → 3
+- [ ] 38 `views/IdentityProviderView.svelte`, `views/InstanceProvidersView.svelte` save on a personal-directory conflict → 3, checked in the client, nothing sent
+- [ ] 39 `lib/workspace/PrivateHubsAllowed.svelte` lock and origin line → 6
+- [ ] 40 `views/PeopleView.svelte` the last owner's revoke replaced by a sentence → 2
+- [ ] 41 `views/InstanceOperatorsView.svelte` the last operator's remove left out, a note under the table → 2
+- [ ] 42 `views/IdentityProviderView.svelte` the installation's providers as badges → 6
+- [ ] 43 `views/QuotasView.svelte` "Set by" column; read-only note at the end → 6, 5
+- [ ] 44 `views/InstanceSettingsView.svelte` file-enforced banner (path kept); lock words kept → 5
+- [ ] 45 `views/WorkspaceSettingsView.svelte` installation defaults in the hint → hint kept; 6 where the value follows the installation
+- [ ] 46 `views/BackupView.svelte` role refusal on every schedule's switch → 1: absent when refused, a badge shows the state
+- [ ] 47 forms that return silently on missing input (apps, groups, service accounts, runs, privacy, webhooks, people, operators, managed account, move plan, backup target and schedule, restore) → 3
+- [ ] 48 `views/AiSettingsView.svelte` own model's save before provider and region → 3
+- [ ] 49 `lib/instance/InstanceValueField.svelte` the lock select's reasons → 2, kept
+- [ ] 50 `views/SignInSettingsView.svelte` required, not offered, switched off above, the ways' hints → 2 and 6 (UX-05 D5)
+- [ ] 51 `views/AiSettingsView.svelte` own budget form → 3; confirmation as a toast
 
 ### D.3 In the design system
 
