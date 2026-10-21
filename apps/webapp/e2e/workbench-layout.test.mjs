@@ -91,6 +91,7 @@ const STORIES = [
   { id: 'wave-3-domain-capability-gate--in-table-row', kind: 'gate' },
   { id: 'wave-3-domain-capability-gate--deciding-permitted', kind: 'permitted' },
   { id: 'wave-3-domain-capability-gate--deciding-refused', kind: 'refused' },
+  { id: 'wave-2-structure-save-bar--form', kind: 'savebar' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -391,7 +392,33 @@ async function checkAnswer(page, what, _engine, { isSizeOnly }) {
   assertSame(before, await measure(), `${what}, answered`);
 }
 
+/**
+ * A form's save bar arrives with its first change and moves nothing above it; a field focused at
+ * the end of the scroll area scrolls clear of it rather than under it.
+ */
+async function checkSaveBar(page, what) {
+  const measure = () => boxes(page, '.host [data-scroll-area] :not([data-save-bar], [data-save-bar] *)');
+  const before = await measure();
+  await page.locator('.host [data-driver]').click();
+  const bar = page.locator('.host [data-save-bar] [role="region"]');
+  await bar.waitFor();
+  assertSame(before, await measure(), `${what}, the bar arrived`);
+  const status = await page.locator('.host [data-save-bar] [role="status"]').textContent();
+  assert.ok(status && status.trim().length > 0, `${what}: the count is not announced`);
+
+  const last = page.locator('.host [data-last]');
+  await last.evaluate((node) => node.focus());
+  await page.waitForTimeout(100);
+  const [field, over] = [await last.boundingBox(), await bar.boundingBox()];
+  assert.ok(field.y + field.height <= over.y + 0.5, `${what}: the focused last field ends at ${field.y + field.height}, under the bar from ${over.y}`);
+
+  await last.evaluate((node) => node.blur());
+  await page.locator('.host [data-driver]').click();
+  await bar.waitFor({ state: 'detached' });
+}
+
 const CHECKS = {
+  savebar: checkSaveBar,
   gate: checkGate,
   permitted: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: false }),
   refused: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: true }),
@@ -419,7 +446,7 @@ for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGIN
           if (each.text === 'long' && (story.kind === 'permitted' || story.kind === 'refused')) continue;
           const what = `${story.id} ${label(each)} in ${name}`;
           await page.goto(`${server.origin}/${query(story.id, each)}`);
-          await page.waitForSelector('.host .contexts');
+          await page.waitForSelector('.host :is(.contexts, [data-scroll-area])');
           await page.mouse.move(1, 1);
           await CHECKS[story.kind](page, what, name);
           const violations = await page.evaluate(() => window.__violations.filter((each) => each.inside));

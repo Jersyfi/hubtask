@@ -219,11 +219,11 @@ Two rules apply to every component after this wave. **There is no `disabled` boo
 `disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
 is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
-### Wave 2 — structure (≈ 13)
+### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField · ReadOnlyNotice
+Drawer · SearchField · ReadOnlyNotice · SaveBar
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
