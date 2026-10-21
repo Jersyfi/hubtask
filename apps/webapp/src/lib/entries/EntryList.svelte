@@ -25,7 +25,6 @@
     Icon,
     IconButton,
     Inline,
-    Input,
     LabelChip,
     LabelPicker,
     Menu,
@@ -36,9 +35,12 @@
     Skeleton,
     Stack,
     TaskRow,
+    Textarea,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { BulkResult, DroppedReference, WorkItem } from '@hubtask/sync-engine';
+  import type { BulkResult, DroppedReference, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
+
+  import { capture, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
 
   import type { Archival } from '../data/containers.ts';
 
@@ -127,6 +129,12 @@
     changeRefusal: (item: WorkItem) => string | undefined;
     /** Whether the reader may create entries here: the add controls are drawn only then. */
     mayCreate: boolean;
+    /**
+     * The collection's structure in force, as its record carries it (domain-model.md §2): what the
+     * capture line recognises - several lines, a leading amount - and which types carry an
+     * amount. Absent from a server that does not answer one, and then nothing is recognised.
+     */
+    structure?: EffectiveStructure;
   }
 
   const {
@@ -141,7 +149,9 @@
     onduplicate,
     changeRefusal,
     mayCreate,
+    structure,
   }: Props = $props();
+
 
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
   const topTypes = () => (root ? childTypes(root.type) : rootTypes());
@@ -406,6 +416,34 @@
   let isSaving = $state(false);
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
+  /** Whether the collection's fields in force give this type an amount. */
+  const offersAmount = (type: string) =>
+    (structure?.settings?.fields?.[type]?.capabilities ?? []).includes('AMOUNT');
+
+  /**
+   * What the capture line recognises (UC-WRK-25 checks 1, 2): several lines are several entries in
+   * a collection of one level or one that says `LINES`; a leading amount is read where the
+   * collection says `AMOUNT` and the type carries one. Only at the top of the collection: a line
+   * added inside an entry is that entry's one child.
+   */
+  const captureRules = $derived<CaptureRules>({
+    splitsLines:
+      !root &&
+      addingUnder === 'root' &&
+      ((structure?.settings?.levels?.length ?? 0) === 1 || (structure?.settings?.capture ?? []).includes('LINES')),
+    readsAmount: (structure?.settings?.capture ?? []).includes('AMOUNT') && offersAmount(draftType),
+    units: unitsOf(t('app.entries.capture_units')),
+  });
+
+  /** The person took the amount back into the title for this submit, from the chip. */
+  let keepsWhole = $state(false);
+  /** What the line reads its first line as, shown before submitting so a split can be undone. */
+  const preview = $derived(
+    captureRules.readsAmount && !keepsWhole ? parseLine(draftTitle.split(/\r?\n/u)[0] ?? '', captureRules) : undefined,
+  );
+  /** What the last submit left in the field, and why. */
+  let captureNote = $state<string | undefined>(undefined);
+
   const offeredTypes = $derived(
     addingUnder === null
       ? []
@@ -440,6 +478,8 @@
   function startAdding(under: string, type?: string) {
     addingUnder = under;
     draftTitle = '';
+    keepsWhole = false;
+    captureNote = undefined;
     draftLanguage = actor.locale ?? messages.locale;
     writeFailure = undefined;
     isTypeNamed = type !== undefined;
@@ -464,38 +504,72 @@
       : [{ type: undefined, label: addLabel }],
   );
 
+  /** A line as it is put back into the field when it was not added: amount first, as typed. */
+  const asTyped = (line: CapturedLine) => (line.amount ? `${line.amount} ${line.title}` : line.title);
+
   async function create() {
     if (draftTitle.trim() === '' || draftType === '' || addingUnder === null) return;
+    const under = addingUnder;
+    const { lines, rest } = capture(draftTitle, { ...captureRules, readsAmount: captureRules.readsAmount && !keepsWhole });
+    if (lines.length === 0) return;
     isSaving = true;
     writeFailure = undefined;
-    try {
-      // The language travels only when the person chose one: omitted is the contract's own
-      // default - the creator's locale - and sending the same thing would say it twice.
-      const language = draftLanguage.trim() ? { content_language: draftLanguage.trim() } : {};
-      await items.create(
-        addingUnder === 'root'
-          ? root
-            ? { type: draftType, parent_id: root.id, title: draftTitle.trim(), ...language }
-            : { type: draftType, collection_id: collectionId, title: draftTitle.trim(), ...language }
-          : { type: draftType, parent_id: addingUnder, title: draftTitle.trim(), ...language },
-        crypto.randomUUID(),
-      );
-      // The new entry appears because the write invalidated the level and the engine re-read it.
-      // Nothing is inserted into the list by hand here.
-      //
-      // Expanding the parent is not decoration: a child created under a collapsed row is a row
-      // nobody can see, so the reader would press Create and watch nothing happen. It opens the
-      // level it was just added to, which is also what fetches it.
-      if (addingUnder !== 'root' && !expanded.includes(addingUnder)) {
-        expanded = [...expanded, addingUnder];
+    captureNote = undefined;
+    // The language travels only when the person chose one: omitted is the contract's own
+    // default - the creator's locale - and sending the same thing would say it twice.
+    const language = draftLanguage.trim() ? { content_language: draftLanguage.trim() } : {};
+    const placement =
+      under === 'root'
+        ? root
+          ? { parent_id: root.id }
+          : { collection_id: collectionId }
+        : { parent_id: under };
+    // One entry per line, in the order typed, each its own request: a line the server refuses is
+    // that line's, and the others are added rather than held back by it. Created lines leave the
+    // field; refused ones stay in it with the reason, and so do the lines past the limit.
+    const refused: CapturedLine[] = [];
+    let created = 0;
+    for (const line of lines) {
+      try {
+        await items.create(
+          { type: draftType, ...placement, title: line.title, ...(line.amount ? { amount: line.amount } : {}), ...language },
+          crypto.randomUUID(),
+        );
+        created += 1;
+      } catch (error) {
+        refused.push(line);
+        writeFailure ??= renderProblem(error as never, messages);
       }
-      announcer.say(t('app.entries.created_announced', { title: draftTitle.trim() }));
-      addingUnder = null;
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-    } finally {
-      isSaving = false;
     }
+    isSaving = false;
+    keepsWhole = false;
+    // The new entries appear because the write invalidated the level and the engine re-read it.
+    // Nothing is inserted into the list by hand here.
+    //
+    // Expanding the parent is not decoration: a child created under a collapsed row is a row
+    // nobody can see, so the reader would press Create and watch nothing happen. It opens the
+    // level it was just added to, which is also what fetches it.
+    if (created > 0 && under !== 'root' && !expanded.includes(under)) {
+      expanded = [...expanded, under];
+    }
+    if (created === 1 && lines.length === 1) {
+      announcer.say(t('app.entries.created_announced', { title: lines[0]?.title ?? '' }));
+    } else if (created > 0) {
+      announcer.say(t('app.entries.created_lines_announced', { count: created }));
+    }
+    draftTitle = [...refused.map(asTyped), rest].filter((each) => each !== '').join('\n');
+    if (rest !== '') {
+      captureNote = t('app.entries.capture_rest', { count: rest.split('\n').length });
+    }
+    // A capture line stays open for the next thing to add; a form for one entry closes.
+    if (draftTitle === '' && !captureRules.splitsLines) addingUnder = null;
+  }
+
+  /** Enter adds and Shift+Enter starts a line; nothing is added while an input method composes. */
+  function onCaptureKey(event: KeyboardEvent) {
+    if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
+    event.preventDefault();
+    void create();
   }
 
   /**
@@ -1323,26 +1397,55 @@
     <!-- The chooser appears only when there is a choice: at most installations a work package takes
          activities and nothing else, and a select with one option is a decision nobody has. Nor
          when the control that opened the form already named the kind. -->
-    {#if offeredTypes.length > 1 && !isTypeNamed}
-      <Select
-        label={t('app.entries.type_label')}
-        size="sm"
-        bind:value={draftType}
-        options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
-      />
-    {/if}
-    <Input label={t('app.entries.new_title')} bind:value={draftTitle} />
-    <!-- Which language it is written in (i18n-l10n.md §6 line 9): the person's own preselected,
-         the installation's list to choose from, a typed tag for one outside it. -->
-    <LanguagePicker
-      {languages}
-      bind:value={draftLanguage}
-      size="sm"
-      label={t('app.entries.language')}
-      otherLabel={t('app.entries.language_other')}
-      tagLabel={t('app.entries.language_tag')}
-      tagHint={t('app.entries.language_tag_hint')}
+    <!-- One line or several (UC-WRK-25 check 1): a paste fills it, Enter adds what it holds, and
+         Shift+Enter starts a line. A textarea rather than an input, because a single-line input
+         drops the line breaks of a pasted list. -->
+    <Textarea
+      label={captureRules.splitsLines ? t('app.entries.capture_label') : t('app.entries.new_title')}
+      hint={captureRules.splitsLines ? t('app.entries.capture_hint') : undefined}
+      rows={1}
+      bind:value={draftTitle}
+      onkeydown={onCaptureKey}
+      oninput={() => (captureNote = undefined)}
     />
+    {#if preview?.amount}
+      <!-- The split the line will make, before it makes it (UC-WRK-25 check 2): pressing the chip
+           keeps the number in the title for this submit. -->
+      <div>
+        <Button size="sm" tone="subtle" icon="x" onclick={() => (keepsWhole = true)}>
+          {t('app.entries.capture_amount_chip', { amount: preview.amount })}
+        </Button>
+      </div>
+    {/if}
+    {#if captureNote}
+      <p class="note" role="status">{captureNote}</p>
+    {/if}
+    <!-- The kind and the language are what a quick capture rarely needs, so they wait under
+         *More* (ux-inventory E5); a select with one option is no choice and is not drawn. -->
+    <details class="more">
+      <summary>{t('app.entries.capture_more')}</summary>
+      <Stack gap="150">
+        {#if offeredTypes.length > 1 && !isTypeNamed}
+          <Select
+            label={t('app.entries.type_label')}
+            size="sm"
+            bind:value={draftType}
+            options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
+          />
+        {/if}
+        <!-- Which language it is written in (i18n-l10n.md §6 line 9): the person's own
+             preselected, the installation's list to choose from, a typed tag for one outside it. -->
+        <LanguagePicker
+          {languages}
+          bind:value={draftLanguage}
+          size="sm"
+          label={t('app.entries.language')}
+          otherLabel={t('app.entries.language_other')}
+          tagLabel={t('app.entries.language_tag')}
+          tagHint={t('app.entries.language_tag_hint')}
+        />
+      </Stack>
+    </details>
     <Inline gap="100">
       <!-- Off with a reason rather than silently doing nothing. `create()` returns early on an
            empty title, and a button that answers a press with nothing is the silent ignoring this
@@ -1466,6 +1569,10 @@
   :global([data-motion='reduced']) .row[data-dragging] { translate: none; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
+
+  .note { margin: 0; color: var(--text-subtle); font-size: var(--fs-075); max-width: 64ch; }
+
+  .more summary { cursor: pointer; color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */
