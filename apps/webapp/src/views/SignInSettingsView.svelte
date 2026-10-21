@@ -63,8 +63,9 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { includedHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
+  import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -302,6 +303,9 @@
   const passkeyOn = $derived(policy?.methods.value.includes('PASSKEY') ?? false);
   const waysOn = $derived((passwordOn ? 1 : 0) + providers.filter((one) => one.offered_here === true).length);
   let switching = $state<string | undefined>(undefined);
+  /** Whether the reader may switch the password and passkeys (the rule's) and the providers (`:offer`'s). */
+  const mayRule = $derived(mayHere('STRUCTURE').status === 'permitted');
+  const mayOffer = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
   /** The last refusal of a provider's switch, with the row it belongs to. */
   let wayFailure = $state<{ id: string; problem: ReturnType<typeof renderProblem> } | undefined>(undefined);
 
@@ -325,16 +329,25 @@
    */
   async function setPassword(on: boolean): Promise<void> {
     if (!policy) return;
-    switching = 'password';
-    wayFailure = undefined;
     const methods = [
       ...(on ? ['PASSWORD'] : []),
       ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
       // Kept as it is: switching the password must not switch passkeys off with it.
       ...(passkeyOn ? ['PASSKEY'] : []),
     ];
-    await signInPolicy.save({ methods });
+    await switchMethods('password', methods);
+  }
+
+  /**
+   * One way's switch, saved at once with its own busy state and its own refusal at its row - never
+   * the rules' save bar's (UC-ID-12 check 8).
+   */
+  async function switchMethods(id: 'password' | 'passkey', methods: readonly string[]): Promise<void> {
+    switching = id;
+    wayFailure = undefined;
+    const problem = await signInPolicy.saveMethods(methods);
     switching = undefined;
+    if (problem) wayFailure = { id, problem };
   }
 
   /** Why passkeys cannot be switched here, where they cannot. */
@@ -349,15 +362,12 @@
   /** Signing in with a passkey alone on or off, through the rule's `methods`. */
   async function setPasskey(on: boolean): Promise<void> {
     if (!policy) return;
-    switching = 'passkey';
-    wayFailure = undefined;
     const methods = [
       ...(passwordOn ? ['PASSWORD'] : []),
       ...(policy.methods.installation.includes('OIDC') ? ['OIDC'] : []),
       ...(on ? ['PASSKEY'] : []),
     ];
-    await signInPolicy.save({ methods });
-    switching = undefined;
+    await switchMethods('passkey', methods);
   }
 
   /** A provider on or off as a way in here: `:offer`, the one verb for both kinds of row. */
@@ -380,11 +390,6 @@
 
   $effect(() => page.entitle(t('app.signin_settings.title')));
 
-  /**
-   * Why the provider switches are off for this reader, if they are: offering a provider here goes
-   * through `:offer`, which asks `MANAGE_MEMBERS` - a different column from the rule's `STRUCTURE`.
-   */
-  const offerRefusal = $derived(workspaceRefusal('MANAGE_MEMBERS'));
 </script>
 
 {#snippet origin(text: string)}
@@ -546,116 +551,6 @@
               </Stack>
             </section>
 
-            <section class="panel">
-              <Stack gap="200">
-                <h2 id="ways">{t('app.signin_settings.ways')}</h2>
-                <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
-                {#if opening}
-                  <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
-                    <!-- Who asked and why come only to a reader of the configuration; without them the
-                         sentence says the rest rather than printing an empty attribution. -->
-                    {opening.requester && opening.reason
-                      ? t('app.signin_settings.opening_body', {
-                          until: formatDateTime(opening.until, messages.locale),
-                          requester: opening.requester,
-                          reason: opening.reason,
-                        })
-                      : t('app.signin_settings.opening_body_unattributed', {
-                          until: formatDateTime(opening.until, messages.locale),
-                        })}
-                  </Banner>
-                {:else if fallback}
-                  <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
-                    {t('app.signin_settings.fallback_no_way_in')}
-                  </Banner>
-                {/if}
-                <ul class="ways" aria-labelledby="ways">
-                  <li class="way" data-rule>
-                    <Switch
-                      label={t('app.signin_settings.way_password')}
-                      hint={t('app.signin_settings.way_password_hint')}
-                      checked={passwordOn}
-                      onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
-                      disabledReason={switching === 'password' ? t('app.signin_settings.switching') : passwordFixed()}
-                    />
-                    {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
-                      <!-- Only where it can go off: as the last way in, or under the installation's
-                           lock, the switch is held and the count would describe a choice nobody has. -->
-                      <p class="quiet small" data-reach>
-                        {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
-                      </p>
-                    {/if}
-                    {#if refusalOf('methods')}<p class="refusal" role="alert">{refusalOf('methods')}</p>{/if}
-                    {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
-                  </li>
-                  <li class="way" data-rule>
-                    <Switch
-                      label={t('app.signin_settings.way_passkey')}
-                      hint={t('app.signin_settings.way_passkey_hint')}
-                      checked={passkeyOn}
-                      onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
-                      disabledReason={switching === 'passkey' ? t('app.signin_settings.switching') : passkeyFixed()}
-                    />
-                    {@render origin(originOf(policy.methods, (value) => (value.includes('PASSKEY') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
-                  </li>
-                  {#each providers as one (one.id)}
-                    <li class="way" data-rule>
-                      <ProviderMark kind={one.kind} name={one.display_name} />
-                      {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
-                        <!-- Switched off where it is offered, or withdrawn from its date: not a choice
-                             this workspace has, so no switch - a sentence saying so. -->
-                        <span class="name">{one.display_name}</span>
-                        <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
-                      {:else if one.scope === 'workspace' && ownResting && one.enabled}
-                        <!-- The plan leaves the workspace's own providers out: this one signs nobody
-                             in and is not switched on here (multi-tenancy.md §4.2). Switching it off
-                             stays, so that it stays off when the plan includes it again; nothing
-                             else is offered. -->
-                        <Switch
-                          label={one.display_name}
-                          hint={t('app.plan.provider_resting_hint')}
-                          checked
-                          onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
-                          disabledReason={offerRefusal ?? (switching === one.id ? t('app.signin_settings.switching') : undefined)}
-                        />
-                        {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-                      {:else if one.scope === 'workspace' && ownResting}
-                        <!-- Resting and off: a sentence, no switch - switching it on is refused. -->
-                        <span class="name">{one.display_name}</span>
-                        <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
-                      {:else}
-                        {@const mandated = one.installation_lock === 'TURNS_ON'}
-                        {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
-                        <Switch
-                          label={one.display_name}
-                          hint={mandated
-                            ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
-                            : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
-                          checked={one.offered_here === true}
-                          onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
-                          disabledReason={offerRefusal ??
-                            (switching === one.id
-                              ? t('app.signin_settings.switching')
-                              : mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true))}
-                        />
-                        {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
-                          <!-- Said under the switch it is about, while there is still time to act. -->
-                          <p class="withdrawing">
-                            {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
-                              date: formatDateTime(one.withdraw_at ?? '', messages.locale),
-                            })}
-                          </p>
-                        {/if}
-                        <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
-                        {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-                      {/if}
-                    </li>
-                  {/each}
-                </ul>
-                <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
-              </Stack>
-            </section>
-
             {#if policy.managed_accounts}
               {@const managed = policy.managed_accounts}
               <section class="panel">
@@ -729,6 +624,128 @@
           </Stack>
         </form>
       </WorkspaceGate>
+
+      <!-- The ways in save the moment a switch moves, so they stand outside the rules' form and
+           its save: a form holds what waits for its save, and nothing else. -->
+      <section class="panel">
+        <Stack gap="200">
+          <h2 id="ways">{t('app.signin_settings.ways')}</h2>
+          <p class="quiet small">{t('app.signin_settings.ways_hint')}</p>
+          {#if opening}
+            <Banner tone="warning" title={t('app.signin_settings.opening_title')}>
+              <!-- Who asked and why come only to a reader of the configuration; without them the
+                   sentence says the rest rather than printing an empty attribution. -->
+              {opening.requester && opening.reason
+                ? t('app.signin_settings.opening_body', {
+                    until: formatDateTime(opening.until, messages.locale),
+                    requester: opening.requester,
+                    reason: opening.reason,
+                  })
+                : t('app.signin_settings.opening_body_unattributed', {
+                    until: formatDateTime(opening.until, messages.locale),
+                  })}
+            </Banner>
+          {:else if fallback}
+            <Banner tone="warning" title={t('app.signin_settings.fallback_title')}>
+              {t('app.signin_settings.fallback_no_way_in')}
+            </Banner>
+          {/if}
+          <!-- One list, one switch each (UC-ID-12 check 6), each row under its own permission: the
+               password and passkeys are the rule's (STRUCTURE, whose notice the rules above
+               already gave), a provider goes through `:offer`, which asks MANAGE_MEMBERS. A row
+               the reader may not switch stays, inert, to be read; the notice above says why. -->
+          <WorkspaceRefusal permission="MANAGE_MEMBERS" />
+          <ul class="ways" aria-labelledby="ways">
+            <li class="way" data-rule inert={!mayRule}>
+              <Switch
+                label={t('app.signin_settings.way_password')}
+                hint={t('app.signin_settings.way_password_hint')}
+                checked={passwordOn}
+                onchange={(event) => void setPassword((event.currentTarget as HTMLInputElement).checked)}
+                isBusy={switching === 'password'}
+                busyLabel={t('app.signin_settings.switching')}
+                disabledReason={passwordFixed()}
+              />
+              {#if passwordOn && passwordFixed() === undefined && (identityProvider.withoutProvider ?? 0) > 0}
+                <!-- Only where it can go off: as the last way in, or under the installation's
+                     lock, the switch is held and the count would describe a choice nobody has. -->
+                <p class="quiet small" data-reach>
+                  {t('app.signin_settings.password_off_reach', { count: identityProvider.withoutProvider ?? 0 })}
+                </p>
+              {/if}
+              {#if wayFailure && wayFailure.id === 'password'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+              {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+            </li>
+            <li class="way" data-rule inert={!mayRule}>
+              <Switch
+                label={t('app.signin_settings.way_passkey')}
+                hint={t('app.signin_settings.way_passkey_hint')}
+                checked={passkeyOn}
+                onchange={(event) => void setPasskey((event.currentTarget as HTMLInputElement).checked)}
+                isBusy={switching === 'passkey'}
+                busyLabel={t('app.signin_settings.switching')}
+                disabledReason={passkeyFixed()}
+              />
+              {#if wayFailure && wayFailure.id === 'passkey'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+              {@render origin(originOf(policy.methods, (value) => (value.includes('PASSKEY') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+            </li>
+            {#each providers as one (one.id)}
+              <li class="way" data-rule inert={!mayOffer}>
+                <ProviderMark kind={one.kind} name={one.display_name} />
+                {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawn'}
+                  <!-- Switched off where it is offered, or withdrawn from its date: not a choice
+                       this workspace has, so no switch - a sentence saying so. -->
+                  <span class="name">{one.display_name}</span>
+                  <Badge tone="warning">{t('app.signin_settings.way_off_above')}</Badge>
+                {:else if one.scope === 'workspace' && ownResting && one.enabled}
+                  <!-- The plan leaves the workspace's own providers out: this one signs nobody
+                       in and is not switched on here (multi-tenancy.md §4.2). Switching it off
+                       stays, so that it stays off when the plan includes it again; nothing
+                       else is offered. -->
+                  <Switch
+                    label={one.display_name}
+                    hint={t('app.plan.provider_resting_hint')}
+                    checked
+                    onchange={(event) => { if (!(event.currentTarget as HTMLInputElement).checked) void setProvider(one.id, false); }}
+                    isBusy={switching === one.id}
+                    busyLabel={t('app.signin_settings.switching')}
+                  />
+                  {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+                {:else if one.scope === 'workspace' && ownResting}
+                  <!-- Resting and off: a sentence, no switch - switching it on is refused. -->
+                  <span class="name">{one.display_name}</span>
+                  <Badge tone="neutral">{t('app.plan.not_included')}</Badge>
+                {:else}
+                  {@const mandated = one.installation_lock === 'TURNS_ON'}
+                  {@const mandatedByPlan = mandated && policy.methods.lock === 'PLAN'}
+                  <Switch
+                    label={one.display_name}
+                    hint={mandated
+                      ? t(mandatedByPlan ? 'app.signin_settings.way_mandated_plan' : 'app.signin_settings.way_mandated')
+                      : one.scope === 'installation' ? t('app.signin_settings.way_offered') : t('app.signin_settings.way_own')}
+                    checked={one.offered_here === true}
+                    onchange={(event) => void setProvider(one.id, (event.currentTarget as HTMLInputElement).checked)}
+                    isBusy={switching === one.id}
+                    busyLabel={t('app.signin_settings.switching')}
+                    disabledReason={mandated ? (lockedBecause(policy.methods.lock) ?? t('app.signin_settings.locked_installation')) : lastWay(one.offered_here === true)}
+                  />
+                  {#if one.scope === 'installation' && withdrawalPhase(one) === 'withdrawing'}
+                    <!-- Said under the switch it is about, while there is still time to act. -->
+                    <p class="withdrawing">
+                      {t(one.offered_here ? 'app.signin_settings.way_withdrawing' : 'app.signin_settings.way_withdrawing_off', {
+                        date: formatDateTime(one.withdraw_at ?? '', messages.locale),
+                      })}
+                    </p>
+                  {/if}
+                  <!-- A refusal for this switch lands at this row (check 8), not above the list. -->
+                  {#if wayFailure && wayFailure.id === one.id}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
+                {/if}
+              </li>
+            {/each}
+          </ul>
+          <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
+        </Stack>
+      </section>
 
       <WorkspaceGate permission="STRUCTURE">
         {#snippet actions()}
