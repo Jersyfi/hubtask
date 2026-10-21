@@ -1432,3 +1432,32 @@ func TestEveryPromptIsAskedAboutSomething(t *testing.T) {
 		}
 	}
 }
+
+// UC-AI-04 check 9: a question its asker stopped while the provider answered records nothing - the
+// job is held in the transaction that records the answer, and the fence refusing is the end of it.
+// One the fence still holds records as always.
+func TestAStoppedQuestionRecordsNothing(t *testing.T) {
+	produce, world := producer(`{"title":"Buy oat milk"}`)
+	lost := shared.ErrConflict.WithDetail("queue.lease_lost")
+	err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+		Hold: func(context.Context) error { return lost },
+	})
+	if shared.AsError(err).DetailCode != "queue.lease_lost" {
+		t.Fatalf("producing answered %v, want the fence's answer", err)
+	}
+	if len(world.store.proposals) != 0 {
+		t.Errorf("a stopped question recorded %d suggestions", len(world.store.proposals))
+	}
+
+	held := 0
+	if err := produce.Execute(context.Background(), person(), Request{
+		TargetType: domain.TargetJumbleEntry, TargetID: targetID, Kind: domain.KindFields,
+		Hold: func(context.Context) error { held++; return nil },
+	}); err != nil {
+		t.Fatalf("producing: %v", err)
+	}
+	if held != 1 || len(world.store.proposals) != 1 {
+		t.Errorf("held %d times, recorded %d", held, len(world.store.proposals))
+	}
+}

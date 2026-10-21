@@ -621,6 +621,14 @@ func (h Produce) ask(
 	}
 
 	if err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		// The job is held in the transaction that records its answer: a question its asker stopped
+		// while the provider answered is no longer this pass's, and its answer is not recorded
+		// (UC-AI-04 check 9). Stopped after this commits, the proposal stands.
+		if request.Hold != nil {
+			if err := request.Hold(ctx); err != nil {
+				return err
+			}
+		}
 		return h.Suggestions.Record(ctx, proposal)
 	}); err != nil {
 		return Outcome{}, err
@@ -671,6 +679,10 @@ type Request struct {
 	// Fields narrows a field set to the fields the person asked about - the title's ✦ asks for the
 	// title (UC-AI-04 check 6). Empty keeps every field the prompt's allow list keeps.
 	Fields []string
+	// Hold takes the job's row inside the transaction that records the answer, and fails when the
+	// job is no longer the pass's own - stopped, or taken over. Nil holds nothing, as for a call
+	// that comes from no job.
+	Hold func(ctx context.Context) error
 	// Scope is where a rule drafted from this question would apply, read back from the job's
 	// references. The zero value for every other question.
 	Scope automation.Scope

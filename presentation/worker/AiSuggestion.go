@@ -25,6 +25,15 @@ import (
 // again. A duplicate suggestion is a record somebody dismisses.
 type AiSuggestion struct {
 	Produce suggestion.Produce
+	// Jobs is the fence: the answer is recorded holding the job's row, so a question stopped while
+	// the provider answered records nothing (UC-AI-04 check 9). Nil holds nothing.
+	Jobs JobHolder
+}
+
+// JobHolder takes a job's row for the caller's transaction, and fails when the job is no longer
+// the pass's own (queue.Queue.Hold).
+type JobHolder interface {
+	Hold(ctx context.Context, job queue.Job) error
 }
 
 var (
@@ -86,6 +95,9 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		Apply:    payloadBool(job, "apply"),
 		// The fields asked about, where a field's ✦ named one; absent asks for all.
 		Fields: payloadStrings(job, "fields"),
+	}
+	if h.Jobs != nil {
+		request.Hold = func(ctx context.Context) error { return h.Jobs.Hold(ctx, job) }
 	}
 	// The scope a rule would apply at, where the question is about one: a kind and a container,
 	// both references (automation.md §1).

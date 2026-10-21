@@ -3493,8 +3493,8 @@ func run() error {
 		queueport.KindWayInChangedEmail:        wayInChangedMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
-		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
-		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

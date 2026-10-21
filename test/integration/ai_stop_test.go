@@ -143,3 +143,35 @@ func TestAQuestionIsNotThereNextDoor(t *testing.T) {
 		t.Errorf("A's question after B's attempt: %+v, %v", job, findErr)
 	}
 }
+
+// The fence a stopped question's answer meets (UC-AI-04 check 9), against the real queue: a claimed
+// job its asker stopped is no longer the pass's to hold, so the transaction that would record its
+// answer fails with queue.lease_lost and records nothing; a job still running is held, and a job
+// stopped after the answer's transaction committed leaves that answer where it is.
+func TestAStoppedQuestionIsNoLongerThePasssToHold(t *testing.T) {
+	ctx := context.Background()
+	id, claimed := claimOne(ctx, t)
+
+	if err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Hold(ctx, claimed)
+	}); err != nil {
+		t.Fatalf("holding a running job: %v", err)
+	}
+
+	// Stopped the way CancelJob stops it, past who may: that is the other tests' question.
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		_, err := jobRepo().Cancel(ctx, id, queueClock.Now())
+		return err
+	}); err != nil {
+		t.Fatalf("stopping the job: %v", err)
+	}
+	err := systemWrite(ctx, t, func(ctx context.Context) error {
+		return jobQueue(t).Hold(ctx, claimed)
+	})
+	if got := shared.AsError(err); got == nil || got.DetailCode != "queue.lease_lost" {
+		t.Fatalf("holding a stopped job answered %v, want queue.lease_lost", err)
+	}
+	if job, findErr := findJob(ctx, t, tenantA, id); findErr != nil || job.State != domain.StateCancelled {
+		t.Errorf("the stopped job reads %+v, %v", job, findErr)
+	}
+}
