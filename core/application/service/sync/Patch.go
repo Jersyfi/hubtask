@@ -32,7 +32,7 @@ const clockEntityItem = "item"
 var (
 	// updateFields are UpdateWorkItem's: one call carries every winner among them.
 	updateFields = map[string]bool{
-		work.FieldTitle: true, work.FieldNotes: true, work.FieldBucketID: true,
+		work.FieldTitle: true, work.FieldAmount: true, work.FieldNotes: true, work.FieldBucketID: true,
 		work.FieldContentLanguage: true, work.FieldStartAt: true,
 		work.FieldDueAt: true, work.FieldDueDateOnly: true, work.FieldDueTimeZone: true,
 	}

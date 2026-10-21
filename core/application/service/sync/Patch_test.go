@@ -296,3 +296,29 @@ func TestARefusedFieldRejectsTheWholeMutation(t *testing.T) {
 		t.Errorf("answered %+v", result)
 	}
 }
+
+// An amount is a scalar (offline-sync.md §4.2): the device's later reading wins it through the use
+// case that owns it, beside a title it loses - SY-1 for the field a list adds.
+func TestAnAmountMergesAsAScalarBesideTheTitle(t *testing.T) {
+	f := patching(t, map[string]shared.HLC{"title": reading(time.Hour, "server"), "amount": reading(-time.Hour, "server")})
+	base := 4
+	mine := reading(-time.Minute, "dev-a")
+
+	response, err := f.push.Push(t.Context(), pusher(), patchOf(map[string]FieldChange{
+		"title":  {Value: "milk, the good one", HLC: mine.String()},
+		"amount": {Value: "3", HLC: mine.String()},
+	}, &base))
+	if err != nil {
+		t.Fatalf("pushing: %v", err)
+	}
+	if result := response.Results[0]; result.Result != domain.Merged {
+		t.Errorf("answered %+v, want MERGED", result)
+	}
+	updates := f.calls("UpdateWorkItem")
+	if len(updates) != 1 || updates[0].in["amount"] != "3" {
+		t.Fatalf("UpdateWorkItem was asked %+v", updates)
+	}
+	if _, present := updates[0].in["title"]; present {
+		t.Errorf("the title the server wrote later was applied: %+v", updates[0].in)
+	}
+}
