@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"time"
 
+	openapi_types "github.com/oapi-codegen/runtime/types"
+
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 	"github.com/Jersyfi/hubtask/presentation/openapi"
@@ -26,6 +28,7 @@ const (
 	aiSummarizeContainerUseCase = "AiSummarizeContainer"
 	aiTranslateUseCase          = "AiTranslate"
 	aiGenerateTemplateUseCase   = "AiGenerateTemplate"
+	describeRuleUseCase         = "DescribeRule"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -196,6 +199,33 @@ func (c *RestController) AiGenerateTemplate(
 	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
+// DescribeRule answers POST /automation/rules:describe: 202 with the job that drafts the rule.
+func (c *RestController) DescribeRule(
+	w http.ResponseWriter, r *http.Request, _ openapi.DescribeRuleParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.RuleDescription
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	scope := map[string]any{"type": string(body.Scope.Type)}
+	if body.Scope.Id != nil {
+		scope["id"] = body.Scope.Id.String()
+	}
+	out, err := c.UseCases.Invoke(r.Context(), describeRuleUseCase, actorOf(r),
+		usecase.Input{"scope": scope, "description": body.Description})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
+}
+
 // SuggestDuplicates answers POST /items/{itemId}:duplicates.
 //
 // 200 with the suggestion, or 204 when there is nothing to propose - which is also the answer with
@@ -322,7 +352,23 @@ func (c *RestController) decideSuggestion(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	writeJSON(w, r, http.StatusOK, suggestionResponse(out))
+	if name != acceptSuggestionUseCase {
+		writeJSON(w, r, http.StatusOK, suggestionResponse(out))
+		return
+	}
+	// The accept answer is the suggestion and what accepting created, where it created one thing.
+	accepted := acceptedResponse{Suggestion: suggestionResponse(out)}
+	if created := out.String("created_id"); created != "" {
+		id := uuidValue(created)
+		accepted.CreatedID = &id
+	}
+	writeJSON(w, r, http.StatusOK, accepted)
+}
+
+// acceptedResponse is `AcceptedSuggestion`: the suggestion's fields, flat, and `created_id`.
+type acceptedResponse struct {
+	openapi.Suggestion
+	CreatedID *openapi_types.UUID `json:"created_id,omitempty"`
 }
 
 // suggestionResponse maps the use case's answer.

@@ -23,14 +23,17 @@
 
   import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
+  import type { Suggestion } from '@hubtask/sync-engine';
+
   import RuleCanvas from '../lib/automation/RuleCanvas.svelte';
+  import DescribeRule from '../lib/automation/DescribeRule.svelte';
   import BlocksPanel from '../lib/automation/BlocksPanel.svelte';
   import RuleInspector from '../lib/automation/RuleInspector.svelte';
   import RuleProbe from '../lib/automation/RuleProbe.svelte';
   import RuleRuns from '../lib/automation/RuleRuns.svelte';
   import { framesOfRun, framesOfTest, type Frame, type Outcome, type Verdict } from '../lib/automation/probe.ts';
   import type { Choice } from '../lib/automation/ActionForm.svelte';
-  import { addRung, canPlace, emptyDraft, endsRun, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
+  import { addRung, canPlace, emptyDraft, endsRun, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
   import { REFERENCE, eventWords, generatedName, kindWord, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
@@ -40,6 +43,8 @@
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { suggestions } from '../lib/data/suggestions.svelte.ts';
   import { buckets } from '../lib/data/buckets.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -258,7 +263,7 @@
   /* ---------- What the manifest and the workspace offer ---------- */
 
   const triggers = $derived(manifest.value?.automation?.triggers ?? []);
-  const actionKinds = $derived(manifest.value?.automation?.actions ?? []);
+  const actionKinds = $derived(offeredBlocks(manifest.value?.automation?.actions ?? []));
   const actionFields = $derived((manifest.value?.automation?.action_fields ?? {}) as Readonly<Record<string, readonly { name: string; kind: string; required: boolean; enum?: readonly string[]; description?: string }[]>>);
   const eventTypes = $derived(manifest.value?.event_types ?? []);
   const itemTypes = $derived<Choice[]>(
@@ -550,6 +555,23 @@
       return;
     }
     const body = toRuleDraft(draft, shownName);
+    if (isNew && drafted) {
+      // A drafted rule is saved by accepting its draft: CreateRule as the person, with the canvas
+      // as it stands laid over the draft, so the trail says the rule came from a suggestion
+      // (UC-AI-04 check 5). Stored switched off, as every new rule is.
+      const accepting = drafted;
+      let created: string | undefined;
+      const ok = await attempt(async () => {
+        created = (await suggestions.accept(accepting, body as unknown as Record<string, unknown>)).created_id ?? undefined;
+        if (created) await rules.adopt(created);
+      }, t('app.flow.saved_off_announced'));
+      if (ok && created) {
+        dirty = false;
+        drafted = undefined;
+        onnavigate(`/administration/rules/${created}`);
+      }
+      return;
+    }
     if (isNew) {
       let created: { id: string } | undefined;
       const ok = await attempt(async () => {
@@ -674,6 +696,33 @@
    */
   const rulesIncluded = $derived(includedHere('AUTOMATION_RULES') === true);
   const resting = $derived(includedHere('AUTOMATION_RULES') === false);
+
+  /* ---------- Describe it (UC-AUT-10) ---------- */
+
+  /** The draft on the canvas, while it is one: saving it is accepting it. */
+  let drafted = $state<Suggestion | undefined>(undefined);
+  /**
+   * *Describe it* is offered exactly where asking could succeed (P-05): a new rule, AI available to
+   * this person, and an editor that may save here - the three refusals a client can know.
+   */
+  const describing = $derived(
+    offersDescribing({
+      isNew,
+      aiAvailable: manifest.value?.features?.ai_suggestions === true,
+      mayAutomate,
+      rulesIncluded,
+    }) && actor.account !== undefined,
+  );
+
+  function drawDraft(suggestion: Suggestion): void {
+    drafted = suggestion;
+    update((current) => fromDraft(suggestion.payload ?? {}, current));
+    selection = { kind: 'rule' };
+    // The probe is offered at once (UC-AUT-10 check 3): the panel opens on it, ready, and runs
+    // nothing until the person presses it.
+    tab = 'probe';
+    if (narrow) sheetOpen = true;
+  }
 </script>
 
 <div class="editor">
@@ -746,6 +795,16 @@
           <Icon name={sentenceOpen ? 'chevron-up' : 'chevron-down'} size="sm" />
         </button>
       </div>
+
+      {#if describing && actor.account}
+        <DescribeRule
+          accountId={actor.account.id}
+          scope={draft.scope}
+          {drafted}
+          ondraft={drawDraft}
+          ondismissed={() => (drafted = undefined)}
+        />
+      {/if}
 
       {#if findings.length > 0}
         <Banner tone={isBroken ? 'danger' : 'warning'} title={isBroken ? t('app.flow.enable_refused_broken') : t('app.flow.health_attention')}>

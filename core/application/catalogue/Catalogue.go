@@ -284,6 +284,7 @@ func Descriptors() []usecase.Descriptor {
 		suggestionservice.AiSummarizeThread{}.Descriptor(),
 		suggestionservice.AiSummarizeContainer{}.Descriptor(),
 		suggestionservice.AiGenerateTemplate{}.Descriptor(),
+		suggestionservice.DescribeRule{}.Descriptor(),
 		work.AiTranslate{}.Descriptor(),
 		identity.StartOidcSignIn{}.Descriptor(),
 		identity.CompleteOidcSignIn{}.Descriptor(),

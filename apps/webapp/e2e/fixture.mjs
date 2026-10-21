@@ -100,6 +100,61 @@ export const MANIFEST = {
 };
 
 /**
+ * Rule drafting (UC-AUT-10): a service account a rule may run as, the vocabulary the rule editor
+ * offers, and the draft a sentence comes back as - about the reader's own account, with what it
+ * could not draft. `AI_MANIFEST` is the workspace with AI available; the shared `MANIFEST` keeps it
+ * off, so every other walk sees no AI control (UC-AI-01 check 1).
+ */
+export const SERVICE_ACCOUNT = { id: '01a0e2e0-0000-7000-8000-0000000000a5', display_name: 'Automation', kind: 'SERVICE' };
+export const DRAFT_JOB = '01a0e2e0-0000-7000-8000-0000000007c1';
+export const RULE_DRAFT_ID = '01a0e2e0-0000-7000-8000-0000000007c2';
+export const DRAFTED_RULE_ID = '01a0e2e0-0000-7000-8000-0000000007c3';
+export const AUTOMATION = {
+  triggers: ['EVENT', 'SCHEDULE', 'RELATIVE_DATE', 'INBOUND_WEBHOOK', 'MANUAL', 'JUMBLE_ENTRY'],
+  actions: ['ADD_LABEL', 'ASSIGN_WORK_ITEM', 'COMPLETE_WORK_ITEM', 'DESCRIBE_RULE'],
+  action_fields: {
+    ADD_LABEL: [{ name: 'item_id', kind: 'id', required: true }, { name: 'label_id', kind: 'id', required: true }],
+    ASSIGN_WORK_ITEM: [{ name: 'account_id', kind: 'id', required: true }, { name: 'item_id', kind: 'id', required: true }, { name: 'expected_version', kind: 'integer', required: false, rule: false }],
+    COMPLETE_WORK_ITEM: [{ name: 'item_id', kind: 'id', required: true }],
+    DESCRIBE_RULE: [{ name: 'scope', kind: 'object', required: true }, { name: 'description', kind: 'string', required: true }],
+  },
+  action_summaries: {},
+};
+
+/** The draft a sentence comes back as: made now, so it is newer than any ask a walk makes. */
+export function ruleDraft(status = 'PROPOSED') {
+  return {
+    id: RULE_DRAFT_ID, target_type: 'ACCOUNT', target_id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'RULE', status,
+    payload: {
+      scope: { type: 'TENANT' },
+      trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.created.v1' },
+      conditions: [{ expr: "item.type == 'TASK'" }],
+      actions: [{ kind: 'ASSIGN_WORK_ITEM', params: { account_id: '01a0e2e0-0000-7000-8000-000000000011' } }],
+      not_drafted: [{ part: 'set it due in two days' }],
+    },
+    source: 'AI', model: 'local-model-7b', prompt_id: 'draft-rule', prompt_version: 'v1',
+    produced_at: new Date().toISOString(), created_at: new Date().toISOString(), version: 1, dropped_nodes: 0,
+  };
+}
+
+/** The rule saving the draft created: switched off, as every new rule is. */
+export const DRAFTED_RULE = {
+  id: DRAFTED_RULE_ID, name: 'When a task is created, assign it', scope: { type: 'TENANT' }, enabled: false,
+  run_as: SERVICE_ACCOUNT.id, trigger: { kind: 'EVENT', event_type: 'de.hubtask.work.item.created.v1' },
+  conditions: [{ expr: "item.type == 'TASK'" }],
+  actions: [{ kind: 'ASSIGN_WORK_ITEM', params: { account_id: '01a0e2e0-0000-7000-8000-000000000011' } }],
+  on_error: 'STOP', failure_count: 0, version: 1, findings: [], last_run: null,
+};
+
+/** The workspace with AI available and the rule editor's vocabulary: what a drafting walk opens on. */
+export const AI_MANIFEST = {
+  ...MANIFEST,
+  features: { ...MANIFEST.features, ai_suggestions: true },
+  event_types: ['de.hubtask.work.item.created.v1', 'de.hubtask.work.item.overdue.v1'],
+  automation: AUTOMATION,
+};
+
+/**
  * What each role holds on the workspace when that is where it was granted - the role matrix of
  * `domain-model.md` §3.2, as `workspace_permissions` answers it. `BELOW` is somebody whose roles sit
  * only on a hub, a collection or an entry.
@@ -365,6 +420,25 @@ export function stub(route) {
   }
   if (path.endsWith('/api/v1/legal-holds') && request.method() === 'GET') return route.fulfill({ json: LEGAL_HOLDS });
   if (path.endsWith('/api/v1/identity-provider-presets')) return route.fulfill({ json: PROVIDER_PRESETS });
+  // Rule drafting: the ask, its job, the asker's own listing, the acceptance and the rule it made.
+  if (path.endsWith('/api/v1/automation/rules:describe') && request.method() === 'POST') {
+    return route.fulfill({ status: 202, json: { job_id: DRAFT_JOB, status: 'QUEUED', progress: null, result_url: null } });
+  }
+  if (path.endsWith(`/api/v1/jobs/${DRAFT_JOB}`)) {
+    return route.fulfill({ json: { job_id: DRAFT_JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed', progress: null, result_url: null, error_code: null, created_at: new Date().toISOString(), finished_at: new Date().toISOString() } });
+  }
+  if (path.endsWith('/api/v1/suggestions') && url.searchParams.get('target_type') === 'ACCOUNT') {
+    return route.fulfill({ json: { items: [ruleDraft()], has_more: false, next_cursor: null } });
+  }
+  if (path.endsWith(`/api/v1/suggestions/${RULE_DRAFT_ID}:accept`) && request.method() === 'POST') {
+    draftSaved = true;
+    return route.fulfill({ json: { ...ruleDraft('ACCEPTED'), created_id: DRAFTED_RULE_ID } });
+  }
+  if (path.endsWith(`/api/v1/suggestions/${RULE_DRAFT_ID}:dismiss`) && request.method() === 'POST') {
+    return route.fulfill({ json: ruleDraft('DISMISSED') });
+  }
+  if (path.endsWith(`/api/v1/automation/rules/${DRAFTED_RULE_ID}`)) return route.fulfill({ json: DRAFTED_RULE });
+  if (path.endsWith('/api/v1/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: draftSaved ? [DRAFTED_RULE] : [] } });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
@@ -466,7 +540,11 @@ let unstubbed = [];
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  draftSaved = false;
 }
+
+/** Whether a walk saved the rule draft: the workspace's rules hold it from then on. */
+let draftSaved = false;
 
 /** What was asked for and guessed at, without repeats. */
 export function unstubbedSoFar() {

@@ -226,6 +226,35 @@ func (q *Queries) DeleteAccount(ctx context.Context, id pgtype.UUID) (int64, err
 	return result.RowsAffected(), nil
 }
 
+const deleteAiDraftsOfAccount = `-- name: DeleteAiDraftsOfAccount :execrows
+DELETE FROM ai_suggestion
+WHERE tenant_id = current_tenant_id() AND target_type = 'ACCOUNT' AND target_id = $1
+`
+
+// What AI drafted for the person alone: a suggestion about their own account (a rule drafted from
+// their sentence). Suggestions about entries stay - they are about the workspace's content, and
+// the retention sweep ages them out.
+func (q *Queries) DeleteAiDraftsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAiDraftsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteAiRequestsOfAccount = `-- name: DeleteAiRequestsOfAccount :execrows
+DELETE FROM ai_request WHERE tenant_id = current_tenant_id() AND asked_by = $1
+`
+
+// The words a person asked with that a job still holds.
+func (q *Queries) DeleteAiRequestsOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteAiRequestsOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteCommentsOf = `-- name: DeleteCommentsOf :execrows
 DELETE FROM comment
 WHERE tenant_id = current_tenant_id() AND author_id = $1

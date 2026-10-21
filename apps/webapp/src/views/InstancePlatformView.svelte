@@ -30,7 +30,10 @@
     Spinner,
     Stack,
     Table,
+    type PageAction,
   } from '@hubtask/design-system/components';
+  import { actionsOfHead } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
   import type { PlatformSubscription, PlatformSubscriptionSecret } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -118,13 +121,19 @@
   }
 
   $effect(() => page.entitle(t('app.instance.platform')));
+
+  /** The head's one action, handed to the head and to the palette alike (UC-WRK-27 check 2). */
+  const headPrimary = $derived<PageAction | undefined>(
+    !isMulti || isFromFile ? undefined : { label: t('app.instance.platform_add'), icon: 'plus', onclick: () => ((isAdding = true), (failure = undefined)) },
+  );
+  $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
 <Stack gap="300">
   <PageHeader
     title={t('app.instance.platform')}
     isTitleInBar={viewport.isCompact}
-    primary={!isMulti || isFromFile ? undefined : { label: t('app.instance.platform_add'), icon: 'plus', onclick: () => ((isAdding = true), (failure = undefined)) }}
+    primary={headPrimary}
   />
 
   <InstanceGate onleave={() => onnavigate('/')}>

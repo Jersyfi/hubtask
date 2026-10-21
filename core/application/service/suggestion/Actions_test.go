@@ -287,7 +287,7 @@ func TestASummaryIsRefusedForWhatTheAskerMayNotRead(t *testing.T) {
 type fixedMaterial struct{ material Material }
 
 func (f fixedMaterial) Material(
-	context.Context, appshared.ActorContext, domain.TargetType, shared.ID, string,
+	context.Context, appshared.ActorContext, Question,
 ) (Material, error) {
 	return f.material, nil
 }

@@ -165,9 +165,11 @@ the response is bounded by the client's size cap and discarded.
 provenance, its acceptance audited as its own act, the change made through the owning use case as
 `run_as`. A workspace with no provider or no consent is refused before anything is queued.
 
-**Templating.** Parameters may use the CEL environment (`"Reminder: " + item.title`) and message
-codes. An `HTTP_REQUEST`'s `body_template` is compiled at the write and rendered from the run's
-event at each attempt, so a retry sends what the first attempt would have.
+**Templating.** A parameter is the value written, never an expression: a title is that title, a
+due date that instant. The one template is an `HTTP_REQUEST`'s `body_template`, a CEL expression
+producing text, compiled at the write and rendered from the run's event at each attempt, so a retry
+sends what the first attempt would have; `throttle.dedupe_key_expr` is the other text the rule's
+language produces (§2.0).
 
 ### 1.4 Recurring tasks
 
@@ -250,6 +252,14 @@ with nested branches, and a free graph would draw freedoms the engine lacks:
 language; a stored name equal to it is *automatic* and follows every edit, any other is owned until
 cleared. The rule's sentence stands collapsed under the name.
 
+**Describe it** ([UC-AUT-10](../usecases/automation/UC-AUT-10-describe-a-rule-and-get-a-draft.md)).
+The editor of a new rule offers it where asking could succeed - AI available to the person, the
+plan including rules, `AUTOMATION` here. A sentence is drafted into a `RULE` suggestion
+([ai-first.md](./ai-first.md) §2) and drawn on the canvas as an unsaved new rule, the probe tab open,
+with a strip naming it a proposal and listing what could not be drafted. The draft carries no name
+and no `run_as`; *Save* is the acceptance, `CreateRule` with the canvas as the overrides, so the rule
+is stored switched off like every new one. Not offered on a stored rule: a draft replaces a canvas.
+
 **Review, probe, runs and health.**
 
 * The probe sends the canvas as it stands to the dry run (§2), its sample the trigger's event type
@@ -301,7 +311,7 @@ Inside a run, the cheapest refusal comes first: **depth**, then **throttle**, th
 **Where the workspace's plan leaves the rules out** ([multi-tenancy.md](./multi-tenancy.md) §4.2) no
 event queues a run, a schedule moves on from now without firing, a relative-date occurrence that
 falls due meanwhile is dropped, a run queued before runs into nothing and a waiting run ends
-(`plan.not_included`, outside the streak); creating, changing, switching on, testing, starting and
+(`plan.not_included`, outside the streak); drafting, creating, changing, switching on, testing, starting and
 replaying a rule are refused, switching one off and deleting it stay. An action whose own feature
 the plan leaves out - a `SEND_WEBHOOK` on a plan without webhooks - is skipped, not failed, so no
 rule switches itself off for it.
