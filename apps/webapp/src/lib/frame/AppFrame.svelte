@@ -27,6 +27,8 @@
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
+  import { palette } from '../palette/palette.svelte.ts';
+  import { listenForShortcuts } from './keys.ts';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
@@ -135,6 +137,22 @@
 
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
+
+  // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
+  // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return listenForShortcuts(() => palette.isOpen, { palette: () => palette.summon() });
+  });
+
+  // The palette's state belongs to one drawing at a time: a width change closes it rather than
+  // leaving it open in a drawing that is no longer there.
+  $effect(() => {
+    void viewport.isCompact;
+    untrack(() => {
+      if (palette.isOpen) palette.dismiss();
+    });
+  });
 
   /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
   const destination = $derived(currentDestination(route));
@@ -483,10 +501,17 @@
       current={bottomCurrent}
       onnavigate={(id) => {
         if (id === 'you') isAccountOpen = true;
+        // Search opens the palette here, the bar having no field to type in: its *All results*
+        // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
+        else if (id === 'search') palette.summon();
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
     <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+  {/if}
+  <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
+  {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
+    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
