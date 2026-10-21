@@ -20,6 +20,7 @@ import {
   fromRule,
   notDraftedOf,
   offeredBlocks,
+  offersDescribing,
   emptyDraft,
   insertAt,
   isAutomatic,
@@ -399,5 +400,15 @@ test('what a draft could not draft is read as quotes and draft codes, and nothin
 
 test('the step that drafts rules is not a block', () => {
   assert.deepEqual(offeredBlocks(['ADD_LABEL', 'DESCRIBE_RULE', 'AI_CLASSIFY']), ['ADD_LABEL', 'AI_CLASSIFY']);
+});
+
+// *Describe it* is offered exactly where asking could succeed: a new rule, AI available to this
+// person, and an editor that may save here (UC-AUT-10 check 1, P-05).
+test('describing a rule is offered only where asking could succeed', () => {
+  const yes = { isNew: true, aiAvailable: true, mayAutomate: true, rulesIncluded: true };
+  assert.equal(offersDescribing(yes), true);
+  for (const missing of ['isNew', 'aiAvailable', 'mayAutomate', 'rulesIncluded'] as const) {
+    assert.equal(offersDescribing({ ...yes, [missing]: false }), false, missing);
+  }
 });
 

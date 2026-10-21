@@ -160,6 +160,16 @@ export function notDraftedOf(payload: Readonly<Record<string, unknown>>): NotDra
 }
 
 /**
+ * Whether the editor offers *Describe it* (UC-AUT-10 check 1): only for a new rule, only where AI is
+ * available to this person (absence is absence, ai-first.md §2), and only where the editor may save
+ * - the plan includes rules and the person may write them here. Each is a refusal the asking would
+ * answer, so nothing offered is refused (P-05).
+ */
+export function offersDescribing(at: { isNew: boolean; aiAvailable: boolean; mayAutomate: boolean; rulesIncluded: boolean }): boolean {
+  return at.isNew && at.aiAvailable && at.mayAutomate && at.rulesIncluded;
+}
+
+/**
  * The action kinds a block may be: every kind the manifest serves but the one that asks AI to draft
  * a rule - a step that drafts rules is a question for the editor, not something a rule does.
  */

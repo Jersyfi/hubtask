@@ -125,6 +125,19 @@ class Rules {
     });
   }
 
+  /**
+   * Reads one rule into the page: a rule written elsewhere - accepting a drafted rule writes it
+   * through the suggestion - that the editor is about to open, so the screen does not say "there is
+   * no such rule" in the beat before the list's re-read lands.
+   */
+  async adopt(ruleId: string): Promise<void> {
+    const read = await engine.refresh<Rule>({ path: `${PATH}/${ruleId}` });
+    if (read.status !== 'ready' || this.#page.status !== 'ready') return;
+    const adopted = read.data;
+    if ((this.#page.data.data ?? []).some((rule) => rule.id === adopted.id)) return;
+    this.#page = { ...this.#page, data: { ...this.#page.data, data: [adopted, ...(this.#page.data.data ?? [])] } };
+  }
+
   async write(draft: RuleDraft): Promise<Rule> {
     const created = await engine.mutate<Rule>('POST', PATH, draft, {
       idempotencyKey: crypto.randomUUID(),
