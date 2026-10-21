@@ -193,6 +193,9 @@ func (w CompletionWriter) change(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
+		if err := w.Gate.requireShown(ctx, collection, item); err != nil {
+			return err
+		}
 		if err := w.completable(ctx, item); err != nil {
 			return err
 		}

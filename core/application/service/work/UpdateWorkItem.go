@@ -134,7 +134,7 @@ func (h UpdateWorkItem) Execute(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-		profile, err := profileOf(ctx, h.Profiles, item.Type)
+		profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, item)
 		if err != nil {
 			return err
 		}

@@ -170,9 +170,16 @@ func (w DueDateWriter) change(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-		profile, err := profileOf(ctx, w.Profiles, item.Type)
+		profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
 		if err != nil {
 			return err
+		}
+		if cmd.Due == nil && item.Due != nil {
+			// Clearing takes a value away, and a value the collection hides is no more
+			// removable than writable: it comes back as it was when the collection offers it.
+			if err := refuseHiddenRemoval(profile, domain.CapabilityDueDate, "/due_at"); err != nil {
+				return err
+			}
 		}
 
 		wanted, changes, err := item.WithDueDate(cmd.Due, profile, now)
