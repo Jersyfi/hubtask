@@ -176,6 +176,10 @@ type Produce struct {
 	// Conditions compiles a drafted rule's condition once more through the engine's own compiler.
 	// Nil skips that second check; the save compiles it anyway (automation.md §2.2).
 	Conditions expression.Compiler
+	// Arrivals reads what a proposal prepared on arrival is made from, and Cap takes one of the
+	// day's. Nil in a build that prepares none; an arrival's job then fails by name.
+	Arrivals ArrivalSource
+	Cap      ArrivalCap
 }
 
 // Outcome is what one question came to: whether a proposal was recorded, and how much of the
@@ -452,6 +456,9 @@ func (h Produce) Execute(
 func (h Produce) Ask(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 ) (Outcome, error) {
+	if request.OnArrival {
+		return h.askArrival(ctx, actor, request)
+	}
 	outcome, err := h.ask(ctx, actor, request)
 	if err == nil || IsUnavailable(err) {
 		// The job is over either way - answered, answered nothing, or finished because the
@@ -674,6 +681,14 @@ type Request struct {
 	// Scope is where a rule drafted from this question would apply, read back from the job's
 	// references. The zero value for every other question.
 	Scope automation.Scope
+	// OnArrival is a proposal the workspace prepares about a jumble arrival, asked as the system for
+	// it (UC-JUM-07 check 10): judged and read by `askArrival`, never by a person's path.
+	OnArrival bool
+	// SubmittedBy and OnBehalfOf are who made the arrival, where an account did: the submitter, and
+	// the principal an agent or a rule acted for. The entry records neither, and whose content stays
+	// out is judged against them at the run.
+	SubmittedBy shared.ID
+	OnBehalfOf  shared.ID
 }
 
 // heldWords introduces, per prompt, the words a question was asked with, where the prompt takes
