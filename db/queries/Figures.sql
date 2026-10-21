@@ -126,7 +126,8 @@ SELECT wi.collection_id::uuid AS collection_id,
    )
    AND NOT EXISTS (
      SELECT 1 FROM work_item c
-      WHERE c.tenant_id = wi.tenant_id AND c.parent_id = wi.id AND c.deleted_at IS NULL
+      WHERE c.tenant_id = wi.tenant_id AND c.collection_id = wi.collection_id
+        AND c.parent_id = wi.id AND c.deleted_at IS NULL
         AND c.type::text = ANY (string_to_array(w.offered, ','))
    )
  GROUP BY wi.collection_id;
