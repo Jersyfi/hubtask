@@ -114,7 +114,8 @@ test('a person with an address is offered none', async (t) => {
   t.after(close);
 
   await page.goto(`${served.origin}/profile`);
-  await page.getByRole('button', { name: 'Save' }).waitFor({ timeout: 15_000 });
+  // The profile's form is drawn: its first field (its save appears only with a change).
+  await page.getByLabel('Language', { exact: true }).waitFor({ timeout: 15_000 });
   assert.equal(await page.getByRole('heading', { name: 'A mail address' }).count(), 0);
 });
 
