@@ -49,6 +49,7 @@
   import { createDrag } from './dragging.svelte.ts';
   import { attachEntryGestures } from './entryGestures.ts';
   import { entryMenu } from './entryMenu.ts';
+  import { offerUndo } from './undo.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -264,7 +265,10 @@
     try {
       const isOn = (item.label_ids ?? []).includes(labelId);
       await labels.setOnItem(item.id, labelId, !isOn, crypto.randomUUID());
-      announcer.say(t('app.labels.toggled_announced'));
+      // Taking one off is at once, with the way back (UC-WRK-28 check 3); putting one on is its own
+      // undo.
+      if (isOn) offerUndo({ kind: 'label-removed', itemId: item.id, labelId, title: item.title });
+      else announcer.say(t('app.labels.toggled_announced'));
     } catch (error) {
       writeFailure = renderProblem(error as never, messages);
     }
@@ -723,7 +727,7 @@
     if (!node || !isSelectable) return;
     // The capture phase, because the row is a link and the router listens for the click after it.
     const onClick = (event: MouseEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || selection.isOn) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
       const id = rowIdAt(event.target);
       if (!id) return;
       event.preventDefault();

@@ -606,7 +606,7 @@
     const node = board;
     if (!node) return;
     const onClick = (event: MouseEvent) => {
-      if (!(event.metaKey || event.ctrlKey) || selection.isOn) return;
+      if (!(event.metaKey || event.ctrlKey)) return;
       const id = cardIdAt(event.target);
       if (!id) return;
       event.preventDefault();

@@ -24,6 +24,7 @@
   import { Button, Dialog, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
 
   import { labels } from '../data/labels.svelte.ts';
+  import { offerUndo } from './undo.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -130,7 +131,8 @@
     failure = undefined;
     try {
       await labels.remove(collectionId, label.id, label.version);
-      announcer.say(t('app.labels.removed_announced'));
+      // At once, with the way back (UC-WRK-28 check 3): the entries that carried it carry it again.
+      offerUndo({ kind: 'label-deleted', collectionId, labelId: label.id, name: label.name });
       if (editing?.id === label.id) reset();
     } catch (error) {
       failure = renderProblem(error as never, messages);
