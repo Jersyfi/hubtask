@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -145,7 +146,43 @@ func (h ExportView) Select(
 		}
 		return ExportedView{}, err
 	}
-	return h.rows(ctx, actor, saved)
+	exported, err := h.rows(ctx, actor, saved)
+	if err != nil {
+		return ExportedView{}, err
+	}
+	return h.shown(ctx, actor, exported)
+}
+
+// shown is a selection as a calendar shows it: without the entries of a level their collection
+// hides, and without a due date it hides - so an entry whose date is hidden is no member of the
+// calendar, and a client's write that leaves DUE out clears nothing (domain-model.md §2). A
+// calendar has no place for the mark a read carries; leaving out is what it can say. The export
+// itself keeps everything: it is a copy of what is stored.
+func (h ExportView) shown(
+	ctx context.Context, actor appshared.ActorContext, exported ExportedView,
+) (ExportedView, error) {
+	marks, err := h.Query.Gate.marksOf(ctx, h.UnitOfWork, actor, exported.Items)
+	if err != nil {
+		return ExportedView{}, err
+	}
+	kept := make([]domain.WorkItem, 0, len(exported.Items))
+	for _, item := range exported.Items {
+		mark := marks[item.ID]
+		if mark.Level {
+			continue
+		}
+		kept = append(kept, shownInCalendar(item, mark))
+	}
+	exported.Items = kept
+	return exported, nil
+}
+
+// shownInCalendar is an entry without the due date its collection hides.
+func shownInCalendar(item domain.WorkItem, mark domain.EntryHidden) domain.WorkItem {
+	if slices.Contains(mark.Capabilities, domain.CapabilityDueDate) {
+		item.Due = nil
+	}
+	return item
 }
 
 // rows is the selection without the audit entry: the visibility question, the walk, and the

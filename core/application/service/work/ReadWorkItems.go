@@ -54,6 +54,9 @@ type GetWorkItemQuery struct {
 	// it is not drawing. Absent rather than empty when it was not asked for - so that a client can
 	// tell "this entry has no labels" from "I did not ask".
 	ExpandLabels bool
+	// ForCalendar answers the entry as a calendar shows it: without a due date its collection
+	// hides (ExportView.shown), so that a client's write that leaves DUE out clears nothing.
+	ForCalendar bool
 }
 
 // Execute returns the item.
@@ -112,6 +115,13 @@ func (h GetWorkItem) Execute(
 		On:         reading(item),
 	}); err != nil {
 		return domain.WorkItem{}, err
+	}
+	if query.ForCalendar {
+		marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, []domain.WorkItem{item})
+		if err != nil {
+			return domain.WorkItem{}, err
+		}
+		item = shownInCalendar(item, marks[item.ID])
 	}
 	return item, nil
 }
