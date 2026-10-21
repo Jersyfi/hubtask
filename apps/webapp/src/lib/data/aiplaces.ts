@@ -83,6 +83,9 @@ const ASKS: Readonly<Record<Place, readonly Ask[]>> = {
   comments: ['summarize-thread'],
 };
 
+/** The questions a place asks, in its menu's order: what its pending cards and notes are of. */
+export const asksOf = (place: Place): readonly Ask[] => ASKS[place];
+
 /** The reading aids: offered to everybody who may read the entry (check 8). */
 const READING_AIDS: ReadonlySet<Ask> = new Set(['translate', 'summarize-thread']);
 
@@ -151,7 +154,8 @@ export function offersAt(place: Place, context: PlaceContext): readonly AskOffer
 /** The reason an ask cannot be put now, apart from the budget. */
 function reasonOf(ask: Ask, context: PlaceContext): Said | undefined {
   if (ask === 'duplicates' && context.features?.semantic_search !== true) return { code: 'app.suggestions.no_semantic_search' };
-  if (READING_AIDS.has(ask)) return undefined;
+  // Looking for look-alikes accepts nothing into the entry, so an archived one may still ask.
+  if (READING_AIDS.has(ask) || ask === 'duplicates') return undefined;
   // An archived entry is not written to, so nothing that is accepted into it is asked.
   if (context.item.archived_at) return { code: 'app.entries.archived' };
   if (ask === 'classify' && context.choices !== true) {
