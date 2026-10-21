@@ -607,6 +607,35 @@ export function fallback(route, request, path) {
   if (due) return route.fulfill({ json: { ...due, ...request.postDataJSON(), version: due.version + 1 } });
   const ranked = ALL_ITEMS.find((each) => read === `/items/${each.id}:reorder`);
   if (ranked) return route.fulfill({ json: { ...ranked, ...request.postDataJSON(), version: ranked.version + 1 } });
+  // What an entry's menu writes (UC-WRK-28): each answered with what it makes, so a walk that
+  // presses an item proves the request it sends rather than a guess.
+  const lifecycle = read.match(/^\/items\/([^/:]+):(archive|unarchive|restore)$/);
+  const living = lifecycle && ALL_ITEMS.find((each) => each.id === lifecycle[1]);
+  if (living && request.method() === 'POST') {
+    return route.fulfill({ json: { ...living, archived_at: lifecycle[2] === 'archive' ? '2026-10-21T09:00:00Z' : null, version: living.version + 1 } });
+  }
+  if (ALL_ITEMS.some((each) => read === `/items/${each.id}`) && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  const moved = read.match(/^\/items\/([^/:]+):move$/);
+  const carried = moved && ALL_ITEMS.find((each) => each.id === moved[1]);
+  if (carried && request.method() === 'POST') return route.fulfill({ json: { item: { ...carried, version: carried.version + 1 }, dropped_references: [] } });
+  const tagged = read.match(/^\/items\/([^/]+)\/labels\/([^/]+)$/);
+  const labelled = tagged && ALL_ITEMS.find((each) => each.id === tagged[1]);
+  if (labelled && (request.method() === 'PUT' || request.method() === 'DELETE')) {
+    const others = (labelled.label_ids ?? []).filter((id) => id !== tagged[2]);
+    return route.fulfill({ json: { label_ids: request.method() === 'PUT' ? [...others, tagged[2]] : others } });
+  }
+  const vocabulary = read.match(/^\/containers\/[^/]+\/labels\/([^/:]+)(:restore)?$/);
+  const word = vocabulary && LABELS.find((each) => each.id === vocabulary[1]);
+  if (word && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  if (word && request.method() === 'POST' && vocabulary[2]) return route.fulfill({ json: { ...word, deleted_at: null, version: (word.version ?? 1) + 1 } });
+  if (read === '/items:bulk' && request.method() === 'POST') {
+    const operations = request.postDataJSON()?.operations ?? [];
+    const results = operations.map((operation, index) => {
+      const item = ALL_ITEMS.find((each) => each.id === operation.item_id);
+      return { index, status: 200, item: item ? { ...item, version: item.version + 1 } : undefined };
+    });
+    return route.fulfill({ json: { applied: results.length, failed: 0, results } });
+  }
   if (read === '/items' && request.method() === 'POST') {
     return route.fulfill({ status: 201, json: { ...ALL_ITEMS[0], id: '01a0e2e0-0000-7000-8000-0000000000ff', ...request.postDataJSON(), version: 1 } });
   }
