@@ -37,3 +37,16 @@ export const unavailable: Story = {
     'There is no `disabled` boolean in this package: `disabledReason` is what disables, and it reaches the accessibility tree through `aria-describedby`. `ErrCapabilityNotSupported` must never become silent ignoring — the CapabilityGate principle, one level down.',
   args: { mode: 'unavailable' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'People that cannot be chosen. It states its reason once - one bubble from the mark at its heading, whichever part is hovered, focused or tried. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};

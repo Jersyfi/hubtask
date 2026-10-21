@@ -81,6 +81,12 @@ const STORIES = [
   { id: 'wave-3-time-recurrence-editor--in-table-row', kind: 'group' },
   { id: 'wave-3-time-reminder-editor--in-row', kind: 'group' },
   { id: 'wave-3-time-reminder-editor--in-table-row', kind: 'group' },
+  { id: 'wave-3-domain-custom-field-renderer--in-row', kind: 'group' },
+  { id: 'wave-3-domain-custom-field-renderer--in-table-row', kind: 'group' },
+  { id: 'wave-3-domain-upload-field--in-row', kind: 'group' },
+  { id: 'wave-3-domain-upload-field--in-table-row', kind: 'group' },
+  { id: 'wave-3-domain-assignee-control--in-row', kind: 'group' },
+  { id: 'wave-3-domain-assignee-control--in-table-row', kind: 'group' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -153,7 +159,11 @@ async function counters(page) {
 
 /** The unavailable control of the row drawn with its reason, and its bubble. */
 async function subject(page) {
-  const control = page.locator('.host [data-case="with"] [aria-disabled="true"]').first();
+  // The first one a keyboard reaches by Tab, where there is one: an upload's native input is out
+  // of the tab order on purpose, and its button is the way in. A roving item has none.
+  const all = page.locator('.host [data-case="with"] [aria-disabled="true"]');
+  const tabbable = page.locator('.host [data-case="with"] [aria-disabled="true"]:not([tabindex="-1"])');
+  const control = (await tabbable.count()) > 0 ? tabbable.first() : all.first();
   const described = (await control.getAttribute('aria-describedby')) ?? '';
   const bubbleId = described.split(' ').find((id) => id.includes('reason'));
   assert.ok(bubbleId, 'the unavailable control points at no reason');
