@@ -219,11 +219,39 @@ Two rules apply to every component after this wave. **There is no `disabled` boo
 `disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
 is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
-### Wave 2 — structure (≈ 12)
+**A control that cannot be used now** explains itself without moving the page (UC-WRK-32). It is
+`aria-disabled`, never natively disabled, so a keyboard reaches it; a guard in `reason.ts` refuses
+what the native attribute used to - a click, `Enter`, `Space`, a form's implicit submission, an
+edit - in the capture phase, before any handler of the caller's or of a row around it, and lets a
+press start a drag as before. Its reason is a bubble at the control (`_Reason.svelte`), out of the
+flow at every moment and always its `aria-describedby`: it shows on hover of the control or of the
+bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
+and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
+from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
+option and in `Radio`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
+no reason moves a box. The eight cases, and the pattern each takes:
+
+1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
+   lock and the reason as in 2 (`CapabilityGate` with `isInline`).
+2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
+   hover, focus and tap; no space in the layout.
+3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
+   missing fields and moves focus to the first.
+4. *Nothing changed* — no unavailable save: `SaveBar` appears with the first change, "2 changes ·
+   Discard · Save".
+5. *A whole area is read-only* — one `ReadOnlyNotice` at the top of the area; the content stays
+   readable, its controls absent, its rows silent.
+6. *Set above (a lock, a default)* — `SourceChip` beside the name: value, source, whom to ask.
+7. *Working* — progress inside the control (`isBusy` on `Button`, `IconButton`, `Checkbox`,
+   `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
+8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
+   notice instead of the form, never a gated form.
+
+### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField
+Drawer · SearchField · ReadOnlyNotice · SaveBar
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
@@ -256,6 +284,11 @@ then newest" is a statement, not a column.
 
 `SearchField` knows nothing about when a request is sent; debouncing and sending are the caller's.
 
+**`ReadOnlyNotice` says once, at the top, why a whole area cannot be changed** — an archived
+collection, a role that reads, a feature the plan does not carry — with the one action that changes
+that, if there is one. Not a `Banner` (never dismissed) and not a `Callout` (about this area now);
+the rows and fields under it say nothing about it.
+
 ### Wave 3 — Hubtask's own (≈ 20)
 
 | Component | Why it follows from the model |
@@ -270,6 +303,7 @@ then newest" is a statement, not a column.
 | `ReminderEditor` | `REL:-PT1H` presets plus free entry, multiple channels |
 | `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
 | `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
+| `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
 | `CommentThread` | Nested, with "removed" as its own state |
 | `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced** |
 | `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
@@ -396,8 +430,9 @@ has it, an anchored overlay is raised into the **top layer**, so no transformed,
 `contain` ancestor clips it; the scale still decides for everything in the flow.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
-dialog and no key closes it; a popover opened from inside a dialog closes first, whatever the
-opening order. `src/layers.ts` holds that second order as one register for every component.
+dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
+and leaves every other one to the dialog; a popover opened from inside a dialog closes first,
+whatever the opening order. `src/layers.ts` holds that second order as one register for every component.
 
 **The five widths.** `primitive.breakpoint` carries five steps, each described in `tokens.json`:
 

@@ -8,6 +8,7 @@
   // the caller does not give one, so two groups on one page cannot silently become one.
 
   import type { Disableable } from './control.ts';
+  import { sharedReason } from './reason.ts';
 
   export interface RadioOption {
     readonly value: string;
@@ -44,7 +45,11 @@
   const uid = `radio-group-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
   const errorId = $derived(error ? `${uid}-error` : undefined);
-  const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);
+  // Inside a composite that states this same reason once, the group points at that one and says
+  // nothing of its own (reason.ts).
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const reasonId = $derived(disabledReason ? (groupReasonId ?? `${uid}-reason`) : undefined);
   const describedBy = $derived([errorId, reasonId, hintId].filter(Boolean).join(' ') || undefined);
 </script>
 
@@ -82,7 +87,7 @@
   {#if error}
     <p id={errorId} class="message error">{error}</p>
   {/if}
-  {#if disabledReason}
+  {#if disabledReason && !groupReasonId}
     <p id={reasonId} class="message">{disabledReason}</p>
   {/if}
   {#if hint}

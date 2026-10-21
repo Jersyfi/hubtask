@@ -37,3 +37,16 @@ export const none: Story = {
     'Clearing is a button rather than an emptied field: an empty date reads as "I have not typed it yet" as easily as "there is no due date", and one of those is a state worth saving.',
   args: { mode: 'none' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A due date that cannot be changed. It states its reason once - one bubble from the mark at its heading, whichever part is hovered, focused or tried - where it used to print it under every part. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};

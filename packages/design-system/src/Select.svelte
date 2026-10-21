@@ -41,6 +41,13 @@
     /** Shown first and unselectable, for a field that starts empty. */
     placeholder?: string;
     value?: string;
+    /**
+     * How an unavailable option is written in the open list: its label and its reason, joined by
+     * the caller from a message code - the separator and the order are a language's, not ours
+     * (voice-and-tone.md §0). Without it, an unavailable option shows its label, and its reason
+     * only as a pointer's tooltip.
+     */
+    describeUnavailable?: (label: string, reason: string) => string;
   }
 
   let {
@@ -54,55 +61,97 @@
     placeholder,
     groups = [],
     value = $bindable(''),
+    describeUnavailable,
     ...rest
   }: Props = $props();
+
+  const unavailable = $derived(disabledReason !== undefined);
+
+  /**
+   * What an option says. The option that is chosen says its label alone - the closed control
+   * shows it, and a reason there would read as the value - and the others say their reason where
+   * the person tries them, in the open list.
+   */
+  function textOf(option: Option): string {
+    if (option.disabledReason === undefined || option.value === value || !describeUnavailable) return option.label;
+    return describeUnavailable(option.label, option.disabledReason);
+  }
+
+  const all = $derived([...options, ...groups.flatMap((group) => group.options)]);
+  /**
+   * An unavailable select offers only what it holds: it stays focusable and readable, and a
+   * keyboard or a picker has nothing else to choose (design-system.md §4).
+   */
+  const current = $derived(all.filter((option) => option.value === value));
+  /** What sizes the closed control: every label, never a reason (see the sizer below). */
+  const labels = $derived([...(placeholder ? [placeholder] : []), ...all.map((option) => option.label)]);
 </script>
 
-<Field {label} {hint} {error} {disabledReason} {isRequired}>
+<!-- An unavailable select refuses the press as well: the platform opens its picker on the press,
+     and a picker opened over a reason is a list with nothing to choose. -->
+<Field {label} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEveryKeyRefused: true }} {isRequired}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       <select
         {id}
         class="select"
         bind:value
-        disabled={disabledReason !== undefined}
-        required={isRequired}
+        {...rest}
+        aria-disabled={unavailable ? 'true' : undefined}
+        required={isRequired && !unavailable}
         aria-invalid={invalid ? 'true' : undefined}
         aria-describedby={describedBy}
-        {...rest}
       >
-        {#if placeholder}
-          <option value="" disabled selected={value === ''}>{placeholder}</option>
-        {/if}
-        {#each options as option (option.value)}
-          <option value={option.value} disabled={option.disabledReason !== undefined}>
-            {option.label}
-          </option>
-        {/each}
-        {#each groups as group (group.label)}
-          {#if group.options.length > 0}
-            <optgroup label={group.label}>
-              {#each group.options as option (option.value)}
-                <option value={option.value} disabled={option.disabledReason !== undefined}>
-                  {option.label}
-                </option>
-              {/each}
-            </optgroup>
+        {#if unavailable}
+          {#if current.length === 0 && placeholder}
+            <option value="" selected>{placeholder}</option>
           {/if}
-        {/each}
+          {#each current as option (option.value)}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        {:else}
+          {#if placeholder}
+            <option value="" disabled selected={value === ''}>{placeholder}</option>
+          {/if}
+          {#each options as option (option.value)}
+            <option value={option.value} disabled={option.disabledReason !== undefined} title={option.disabledReason}>
+              {textOf(option)}
+            </option>
+          {/each}
+          {#each groups as group (group.label)}
+            {#if group.options.length > 0}
+              <optgroup label={group.label}>
+                {#each group.options as option (option.value)}
+                  <option value={option.value} disabled={option.disabledReason !== undefined} title={option.disabledReason}>
+                    {textOf(option)}
+                  </option>
+                {/each}
+              </optgroup>
+            {/if}
+          {/each}
+        {/if}
       </select>
       <!-- Decoration only: the native control already has its own affordance on some platforms,
            and this one is `aria-hidden` so it is never announced twice. -->
       <Icon name="chevron-down" size="sm" />
+      <!-- The closed control's width comes from here, not from its options: a native select is as
+           wide as its longest option, and an option's reason would widen it - a reason moving the
+           page. The labels sit in the select's column, take no height and are never seen; the
+           select is laid over the shell and contributes no width of its own. -->
+      <span class="sizer" aria-hidden="true">
+        {#each labels as each, position (position)}<span>{each}</span>{/each}
+      </span>
     </div>
   {/snippet}
 </Field>
 
 <style>
   .shell {
-    display: flex;
+    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    gap: var(--sp-100);
+    column-gap: var(--sp-100);
     padding-inline-end: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-md);
@@ -121,7 +170,7 @@
 
   .shell[data-invalid] { border-color: var(--text-danger); border-width: var(--bw-thick); }
 
-  .shell:has(.select:disabled) {
+  .shell:has(.select[aria-disabled='true']) {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     cursor: not-allowed;
@@ -145,5 +194,27 @@
   .shell[data-size='sm'] .select { padding-block: var(--density-control-sm-block); font-size: var(--fs-075); }
 
   .select:focus { outline: none; }
-  .select:disabled { color: var(--text-subtle); cursor: not-allowed; }
+  .select[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
+
+  /* Laid over the shell rather than in it, so its own width - its longest option, reason
+     included - sizes nothing. It covers the chevron too, which makes the chevron a place to press. */
+  .select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+  }
+
+  .sizer {
+    grid-row: 1;
+    grid-column: 1;
+    display: flex;
+    flex-direction: column;
+    height: 0;
+    padding-inline-start: var(--sp-150);
+    overflow: hidden;
+    visibility: hidden;
+    white-space: nowrap;
+  }
+
+  .shell[data-size='sm'] .sizer { font-size: var(--fs-075); }
 </style>

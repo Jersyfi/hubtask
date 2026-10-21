@@ -1,15 +1,29 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import InContext from './_InContext.svelte';
   import Input from './Input.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'unavailable' } = $props();
+  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'unavailable' | 'row' | 'table' | 'range' } = $props();
 
   let title = $state('Review the quote');
   let search = $state('');
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="This entry is archived. Restore it to change the title.">
+    {#snippet subject({ reason, onclick })}
+      <Input label="Title" value="Review the quote" disabledReason={reason} {onclick} />
+    {/snippet}
+  </InContext>
+{:else if mode === 'range'}
+  <InContext context="row" reason="The plan sets the volume; ask the workspace owner.">
+    {#snippet subject({ reason, onclick })}
+      <Input label="Volume" type="range" min="0" max="10" value="4" disabledReason={reason} {onclick} />
+    {/snippet}
+  </InContext>
+{:else}
 <Stack gap="300" class="form">
   {#if mode === 'invalid'}
     <Input label="Title" bind:value={title} error="A title needs at least one character." isRequired />
@@ -24,6 +38,7 @@
     <Input label="Search" icon="search" bind:value={search} placeholder="Find a task" size="sm" />
   {/if}
 </Stack>
+{/if}
 
 <style>
   :global(.form) { max-width: 44ch; }

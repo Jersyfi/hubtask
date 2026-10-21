@@ -85,8 +85,9 @@ showing only own-origin font requests.
 
 In the design system: `Button` and `IconButton` keep the reason inside the component, shown as a
 tooltip on hover, focus and tap, with `aria-disabled` so focus reaches it; `Tabs` and
-`ViewSwitcher` attach the reason to the tab (unique ids); `Select` shows an option's reason;
-`Checkbox` and `Switch` without a label use the tooltip; composite controls (`DueDateControl`,
+`ViewSwitcher` attach the reason to the tab, and the arrows reach an unavailable one (their ids
+are unique already, except `ViewSwitcher`'s); `Select` shows an option's reason; `Checkbox` without
+a label uses the tooltip (`Switch` always draws its label); composite controls (`DueDateControl`,
 `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`)
 state a reason once; `CapabilityGate` puts it first and never turns an inline control into a
 column, and has no English fallback. New: `SourceChip`, `SaveBar`, `ReadOnlyNotice`. Busy states

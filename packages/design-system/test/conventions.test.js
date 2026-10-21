@@ -141,6 +141,32 @@ test('a control that can be switched off carries its reason', () => {
   }
 });
 
+/**
+ * Where the native attribute stays: an option of a native list has no focus of its own to show a
+ * reason on and says it in its text, and a radio's option says it in its own line (design-system.md
+ * §4). Everywhere else an unavailable control keeps its focus.
+ */
+const NATIVE_DISABLED_ALLOWED = { tags: new Set(['option', 'optgroup']), components: new Set(['Radio.svelte']) };
+
+test('an unavailable control stays focusable', () => {
+  // design-system.md §4: a control that cannot be used now is `aria-disabled` and keeps its focus,
+  // so a keyboard reaches it and hears why; the native attribute takes it out of the tab order. The
+  // guard in reason.ts refuses what the attribute used to.
+  const native = /<([a-z][\w-]*)\b[^>]*?\sdisabled(?:=|\s|>|\/)/g;
+  for (const component of ALL) {
+    if (NATIVE_DISABLED_ALLOWED.components.has(component.name)) continue;
+    // An arrow function's `=>` would end a tag early for the pattern below.
+    const markup = component.source.slice(component.source.indexOf('</script>'), component.source.indexOf('<style>')).replaceAll('=>', '=_');
+    for (const match of markup.matchAll(native)) {
+      assert.ok(
+        NATIVE_DISABLED_ALLOWED.tags.has(match[1]),
+        `${component.relative} switches a ${match[1]} off with the native attribute. Use aria-disabled ` +
+          'and the guard in reason.ts: an unavailable control keeps its focus (design-system.md §4).',
+      );
+    }
+  }
+});
+
 test('motion is confined to opacity and transform', () => {
   // Rule 6. Layout is never animated: a transition on width or padding moves everything beside it,
   // and on a slow machine it moves it visibly.

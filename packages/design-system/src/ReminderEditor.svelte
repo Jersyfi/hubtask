@@ -30,6 +30,8 @@
   import Radio, { type RadioOption } from './Radio.svelte';
   import Select from './Select.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
 
   /** How long before the due date. The units a person actually thinks in. */
   export type OffsetUnit = 'M' | 'H' | 'D' | 'W';
@@ -100,6 +102,14 @@
     onChannelsChange,
   }: Props = $props();
 
+  const groupInstance = $props.id();
+
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${groupInstance}`;
+  provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
+  let container = $state<HTMLElement | null>(null);
+
   const CUSTOM = '__custom__';
 
   const isPreset = $derived(value !== null && presets.some((preset) => preset.value === value));
@@ -141,7 +151,9 @@
   }
 </script>
 
-<div class="editor">
+<div class="editor" role="group" aria-label={label} aria-describedby={disabledReason === undefined ? undefined : groupId} bind:this={container}>
+  <!-- The editor's heading is its first question's, inside `Radio`; the mark sits in its corner. -->
+  <span class="corner"><ReasonMark id={groupId} text={disabledReason} {container} /></span>
   <Radio
     {label}
     options={choices}
@@ -239,6 +251,14 @@
 </div>
 
 <style>
+  .editor { position: relative; }
+
+  .corner {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+  }
+
   .editor { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
