@@ -25,6 +25,7 @@ import (
 const (
 	submitJumbleEntryUseCase      = "SubmitJumbleEntry"
 	listJumbleEntriesUseCase      = "ListJumbleEntries"
+	getJumbleEntryUseCase         = "GetJumbleEntry"
 	convertJumbleEntryUseCase     = "ConvertJumbleEntry"
 	suggestFromJumbleEntryUseCase = "SuggestFromJumbleEntry"
 	dismissJumbleEntryUseCase     = "DismissJumbleEntry"
@@ -152,6 +153,17 @@ func (c *RestController) ListJumbleEntries(
 		writeJSON(w, r, http.StatusOK, openapi.JumbleEntryPage{
 			Data: entries, Page: pageResponse(out),
 		})
+	})
+}
+
+// GetJumbleEntry answers GET /jumble/entries/{entryId}.
+func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), getJumbleEntryUseCase, actor, usecase.Input{
+			"entry_id": entryID.String(),
+		})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
 	})
 }
 

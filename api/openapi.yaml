@@ -528,6 +528,30 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [jumble]
+      operationId: getJumbleEntry
+      summary: One jumble entry
+      description: >
+        One entry, whatever its state: what arrived and what became of it. The raw content is
+        answered here - to a credential that may read the workspace's entries - and nowhere that
+        travels. An entry of another workspace is answered `404`, as a missing one is.
+      responses:
+        "200":
+          description: The entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /jumble/entries/{entryId}:convert:
     parameters:
       - name: entryId

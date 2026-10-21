@@ -344,6 +344,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `jumble.entry_converted` | ConvertJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.entry_dismissed` | DismissJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_read` | GetJumbleEntry | `jumble_entry` | INFO | When refused |
 | `jumble.entry_read` | ListJumbleEntries | `jumble_entry` | INFO | When refused |
 | `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |

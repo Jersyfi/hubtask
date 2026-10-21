@@ -191,6 +191,11 @@ export class HubtaskClient {
     return this.call("POST", "/jumble/entries", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** One jumble entry */
+  getJumbleEntry(entryId: string, options: CallOptions = {}): Promise<operations["getJumbleEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/jumble/entries/{entryId}", { "entryId": entryId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Turn an entry into work */
   convertJumbleEntry(entryId: string, body: NonNullable<operations["convertJumbleEntry"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["convertJumbleEntry"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/jumble/entries/{entryId}:convert", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);

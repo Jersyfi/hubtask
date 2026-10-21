@@ -14489,6 +14489,9 @@ type ServerInterface interface {
 	// SubmitJumbleEntry Put something in the jumble
 	// (POST /jumble/entries)
 	SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params SubmitJumbleEntryParams)
+	// GetJumbleEntry One jumble entry
+	// (GET /jumble/entries/{entryId})
+	GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID)
 	// ConvertJumbleEntry Turn an entry into work
 	// (POST /jumble/entries/{entryId}:convert)
 	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
@@ -24225,6 +24228,32 @@ func (siw *ServerInterfaceWrapper) SubmitJumbleEntry(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// GetJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) GetJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJumbleEntry(w, r, entryId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConvertJumbleEntry operation middleware
 func (siw *ServerInterfaceWrapper) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request) {
 
@@ -27095,6 +27124,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries/{entryId}", wrapper.GetJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)

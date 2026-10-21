@@ -336,6 +336,7 @@ func Descriptors() []usecase.Descriptor {
 		automationservice.CheckRules{}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{}.Descriptor(),
 		jumbleservice.ListJumbleEntries{}.Descriptor(),
+		jumbleservice.GetJumbleEntry{}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{}.Descriptor(),
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 		jumbleservice.SuggestFromJumbleEntry{}.Descriptor(),

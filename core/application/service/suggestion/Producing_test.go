@@ -62,7 +62,7 @@ func TestAnEntryThatIssuesInstructionsProducesASuggestionAndNoAction(t *testing.
 	// One call, and it was the read of the entry. Nothing else was performed - no deletion, no
 	// conversion, nothing the text asked for.
 	for _, call := range world.performed {
-		if call.name != "ListJumbleEntries" {
+		if call.name != "GetJumbleEntry" {
 			t.Errorf("the entry's text caused %q to run", call.name)
 		}
 	}
@@ -1126,13 +1126,10 @@ func (w *producerWorld) Invoke(
 ) (usecase.Output, error) {
 	w.performed = append(w.performed, performed{name: name, actor: actor, in: in})
 	switch name {
-	case "ListJumbleEntries":
-		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
-		// `items` is how the wrong key survived until an end-to-end session asked for a
-		// suggestion.
-		return usecase.Output{"data": []usecase.Output{{
+	case "GetJumbleEntry":
+		return usecase.Output{
 			"id": targetID.String(), "raw_subject": w.subject, "raw_body": w.body,
-		}}}, nil
+		}, nil
 	case "GetWorkItem":
 		return usecase.Output{
 			"title": w.subject, "notes": w.body, "type": "TASK",
@@ -1247,7 +1244,7 @@ func TestAJobsActorIsGivenTheAskingPersonsZone(t *testing.T) {
 		t.Fatalf("producing: %v", err)
 	}
 
-	read := performedOn(world, "ListJumbleEntries")
+	read := performedOn(world, "GetJumbleEntry")
 	if read == nil {
 		t.Fatal("the material was never read")
 	}
@@ -1270,7 +1267,7 @@ func TestAnAccountThatInheritsTakesTheWorkspacesZone(t *testing.T) {
 		t.Fatalf("producing: %v", err)
 	}
 
-	read := performedOn(world, "ListJumbleEntries")
+	read := performedOn(world, "GetJumbleEntry")
 	if read == nil {
 		t.Fatal("the material was never read")
 	}

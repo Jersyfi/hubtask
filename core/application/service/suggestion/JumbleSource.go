@@ -108,51 +108,44 @@ func (s CatalogueSources) material(
 // entry is the subject and the body of one inbox arrival - the least trusted text in the system,
 // which travels to a provider as user content and never as instruction.
 //
-// The listing is unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that
-// asking about an entry somebody had already converted answered nothing at all, rather than
-// answering what the entry says.
-//
-// Unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that asking about an
-// entry somebody had already converted answered nothing at all, rather than answering what the
-// entry says.
+// Read by its identifier in every state, for `entryDigest`'s reason: a read narrowed to undecided
+// entries meant that asking about an entry somebody had already converted answered nothing at all,
+// rather than answering what the entry says.
 func (s CatalogueSources) entry(
 	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, kept integration.KeptOut,
 ) (Material, error) {
-	out, err := s.Catalogue.Invoke(ctx, "ListJumbleEntries", actor, usecase.Input{})
+	entry, err := s.Catalogue.Invoke(ctx, "GetJumbleEntry", actor, usecase.Input{"entry_id": entryID.String()})
 	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
+		}
 		return Material{}, err
 	}
-	// `data`, which is what a page answers under (api-guidelines.md §4). Any other key makes the
-	// loop below see an empty list, so no entry is ever found to ask about - and a test fake that
-	// invents the same wrong key agrees with the defect, so only a real registry can tell.
-	entries, _ := out["data"].([]usecase.Output)
-	for _, entry := range entries {
-		if entry.String("id") != entryID.String() {
-			continue
-		}
-		subject, body := entry.String("raw_subject"), entry.String("raw_body")
-		digest := domain.Digest(subject, body)
-		if kept.HasAddress(entry.String("sender")) {
-			// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
-			return Material{Digest: digest}, nil
-		}
-		subject, body = kept.Scrub(subject), kept.Scrub(body)
-		if strings.TrimSpace(subject) == "" && strings.TrimSpace(body) == "" {
-			// Nothing to describe. The labels below would otherwise make an empty entry look like
-			// content to the caller's emptiness check, and a provider would be asked about
-			// "Subject:" and nothing else.
-			return Material{Digest: digest}, nil
-		}
-		return Material{
-			// Two fields joined for the model with a label each, because a subject and a body are
-			// different things and a model told only "here is some text" describes the wrong one.
-			// The labels are the instruction's, not the content's: nothing here is interpolated
-			// into the system message (Prompt.Ask).
-			Content: "Subject: " + subject + "\n\n" + body,
-			Digest:  digest,
-		}, nil
+	return entryMaterial(entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), kept), nil
+}
+
+// entryMaterial is what one arrival tells a model, whoever asked about it.
+func entryMaterial(subject, body, sender string, kept integration.KeptOut) Material {
+	digest := domain.Digest(subject, body)
+	if kept.HasAddress(sender) {
+		// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
+		return Material{Digest: digest}
 	}
-	return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
+	subject, body = kept.Scrub(subject), kept.Scrub(body)
+	if strings.TrimSpace(subject) == "" && strings.TrimSpace(body) == "" {
+		// Nothing to describe. The labels below would otherwise make an empty entry look like
+		// content to the caller's emptiness check, and a provider would be asked about
+		// "Subject:" and nothing else.
+		return Material{Digest: digest}
+	}
+	return Material{
+		// Two fields joined for the model with a label each, because a subject and a body are
+		// different things and a model told only "here is some text" describes the wrong one.
+		// The labels are the instruction's, not the content's: nothing here is interpolated
+		// into the system message (Prompt.Ask).
+		Content: "Subject: " + subject + "\n\n" + body,
+		Digest:  digest,
+	}
 }
 
 // item is an entry's title and notes, the same two fields the fingerprint is taken over - and, for

@@ -33,6 +33,7 @@ import (
 const (
 	SubmitJumbleEntryName = "SubmitJumbleEntry"
 	ListJumbleEntriesName = "ListJumbleEntries"
+	GetJumbleEntryName    = "GetJumbleEntry"
 
 	// The jumble reads and writes with the work item scopes rather than a vocabulary of its own:
 	// the jumble is the work context's inbox, its entries exist to become items, and a
@@ -220,6 +221,41 @@ func (h ListJumbleEntries) Execute(
 		return repository.Page{}, err
 	}
 	return page, nil
+}
+
+// GetJumbleEntry answers one entry of the inbox, whatever its state.
+//
+// The reads that fingerprint a proposal and read its material ask for one entry by its
+// identifier. Searching a page of the listing for it found nothing behind fifty newer arrivals,
+// and a proposal about such an entry could be neither read, accepted nor dismissed.
+type GetJumbleEntry struct{ Writer Writer }
+
+// Execute reads the entry. Another workspace's entry is not found, as a missing one is (T-04).
+func (h GetJumbleEntry) Execute(
+	ctx context.Context, actor appshared.ActorContext, entryID shared.ID,
+) (domain.Entry, error) {
+	w := h.Writer
+	if err := w.Authorizer.Authorize(ctx, actor, access.Request{
+		Permission: service.PermissionRead,
+		Path:       []identity.Scope{identity.TenantScope()},
+		Action:     EntryReadAction,
+		TokenScope: itemsReadScope,
+		TargetType: entryTarget,
+		TargetID:   entryID,
+	}); err != nil {
+		return domain.Entry{}, err
+	}
+
+	var entry domain.Entry
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var findErr error
+		entry, findErr = w.Entries.Find(ctx, entryID)
+		return findErr
+	})
+	if err != nil {
+		return domain.Entry{}, err
+	}
+	return entry, nil
 }
 
 // record writes the trail entry for a settlement or an arrival. The channel and the state - never

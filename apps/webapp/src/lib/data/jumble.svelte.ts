@@ -141,14 +141,13 @@ class Jumble {
   }
 
   /**
-   * What one arrival became, read from the processed listing - there is no single-entry read in
-   * the contract. What a screen asks after an acceptance converted an entry, so that it can go
-   * to what was made rather than leave the reader to find it.
+   * What one arrival became, read by its identifier. What a screen asks after an acceptance
+   * converted an entry, so that it can go to what was made rather than leave the reader to find
+   * it - and an entry behind the first page of the processed listing is found as well.
    */
   async whatBecameOf(entryId: string): Promise<JumbleEntry | undefined> {
-    const page = await engine.refresh<EntryPage>({ path: entriesPath('PROCESSED') });
-    if (page.status !== 'ready') return undefined;
-    return (page.data.data ?? []).find((entry) => entry.id === entryId);
+    const read = await engine.refresh<JumbleEntry>({ path: `${ENTRIES}/${entryId}` });
+    return read.status === 'ready' ? read.data : undefined;
   }
 
   /** Decides against one. It stays readable and ages out by retention rule. */

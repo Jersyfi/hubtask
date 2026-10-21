@@ -17433,6 +17433,13 @@ type ClientInterface interface {
 	// Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 	SubmitJumbleEntry(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// GetJumbleEntry One jumble entry
+	//
+	// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+	//
+	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+	GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConvertJumbleEntryWithBody Turn an entry into work
 	//
 	// Creates a work item at the named destination - through the same use case a plain create goes through, with the same rights checked there - records the provenance on both sides (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of the same entry is refused, and two racing produce one item and one refusal.
@@ -26268,6 +26275,23 @@ func (c *Client) SubmitJumbleEntryWithBody(ctx context.Context, params *SubmitJu
 // Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 func (c *Client) SubmitJumbleEntry(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSubmitJumbleEntryRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetJumbleEntry One jumble entry
+//
+// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+//
+// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+func (c *Client) GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetJumbleEntryRequest(c.Server, entryId)
 	if err != nil {
 		return nil, err
 	}
@@ -41467,6 +41491,40 @@ func NewSubmitJumbleEntryRequestWithBody(server string, params *SubmitJumbleEntr
 	return req, nil
 }
 
+// NewGetJumbleEntryRequest constructs an http.Request for the GetJumbleEntry method
+func NewGetJumbleEntryRequest(server string, entryId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "entryId", entryId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jumble/entries/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewConvertJumbleEntryRequest calls the generic ConvertJumbleEntry builder with application/json body
 func NewConvertJumbleEntryRequest(server string, entryId openapi_types.UUID, params *ConvertJumbleEntryParams, body ConvertJumbleEntryJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -49323,6 +49381,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 	SubmitJumbleEntryWithResponse(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitJumbleEntryResult, error)
+
+	// GetJumbleEntryWithResponse One jumble entry
+	//
+	// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+	GetJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetJumbleEntryResult, error)
 
 	// ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
 	//
@@ -63891,6 +63958,54 @@ func (r SubmitJumbleEntryResult) ContentType() string {
 	return ""
 }
 
+type GetJumbleEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *JumbleEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetJumbleEntryResult) GetJSON200() *JumbleEntry {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetJumbleEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetJumbleEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetJumbleEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetJumbleEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetJumbleEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ConvertJumbleEntryResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -74229,6 +74344,21 @@ func (c *ClientWithResponses) SubmitJumbleEntryWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseSubmitJumbleEntryResult(rsp)
+}
+
+// GetJumbleEntryWithResponse One jumble entry
+//
+// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+func (c *ClientWithResponses) GetJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetJumbleEntryResult, error) {
+	rsp, err := c.GetJumbleEntry(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetJumbleEntryResult(rsp)
 }
 
 // ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
@@ -85842,6 +85972,39 @@ func ParseSubmitJumbleEntryResult(rsp *http.Response) (*SubmitJumbleEntryResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetJumbleEntryResult parses an HTTP response from a GetJumbleEntryWithResponse call
+func ParseGetJumbleEntryResult(rsp *http.Response) (*GetJumbleEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetJumbleEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JumbleEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

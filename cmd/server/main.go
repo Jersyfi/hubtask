@@ -1921,6 +1921,7 @@ func run() error {
 		}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.GetJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{
 			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
 		}.Descriptor(),

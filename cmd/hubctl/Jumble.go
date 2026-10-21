@@ -36,6 +36,12 @@ func jumbleGroup() group {
 				run:     jumbleList,
 			},
 			{
+				name:    "show",
+				usage:   "<id>",
+				summary: "one entry, whatever became of it",
+				run:     jumbleShow,
+			},
+			{
 				name:    "submit",
 				usage:   "[--subject <s>] [--body <b>] [--channel API|QUICK_CAPTURE] [--attachment <id>…]",
 				summary: "put something in the jumble over a near channel",
@@ -100,6 +106,24 @@ func jumbleList(ctx context.Context, cli *CLI, args []string) error {
 	}
 	cli.reportMore(page.Page)
 	return nil
+}
+
+// jumbleShow is `jumble show <id>`: one entry in the listing's columns, the body left to `--json`
+// for the listing's reason.
+func jumbleShow(ctx context.Context, cli *CLI, args []string) error {
+	entryID, err := cli.onlyID(args, "jumble show <id>")
+	if err != nil {
+		return err
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var entry openapi.JumbleEntry
+	if err := client.Get(ctx, jumblePath+"/"+entryID.String(), nil, &entry); err != nil {
+		return err
+	}
+	return cli.Emit(entry, jumbleTable([]openapi.JumbleEntry{entry}))
 }
 
 func jumbleSubmit(ctx context.Context, cli *CLI, args []string) error {
