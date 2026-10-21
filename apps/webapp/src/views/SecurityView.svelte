@@ -52,6 +52,7 @@
   import { password as passwordApi } from '../lib/data/password.svelte.ts';
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
   import { identities } from '../lib/data/identities.svelte.ts';
   import { passkeys } from '../lib/data/passkeys.svelte.ts';
@@ -87,8 +88,6 @@
 
   let newPassword = $state('');
   // One per panel: a sentence is drawn beside the thing it is about, never in the panel below it.
-  let passwordNotice = $state<string | undefined>(undefined);
-  let notice = $state<string | undefined>(undefined);
 
   // The rules this account's workspace applies, so the list under the field is this workspace's.
   $effect(() => signInRules.read());
@@ -105,13 +104,20 @@
     Boolean(account?.email) && (identities.connected.length > 0 || connectable.length > 0),
   );
 
+  /**
+   * What just landed, as a passing message the frame also says once - not a line in the panel,
+   * which pushed everything under it down (design-system.md §4, case 7).
+   */
+  function confirm(text: string): void {
+    toast.show({ text, tone: 'success' });
+  }
+
   async function changePassword(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const candidate = newPassword;
     newPassword = '';
     if (await passwordApi.change(candidate)) {
-      passwordNotice = t('app.password.changed');
-      announcer.say(passwordNotice);
+      confirm(t('app.password.changed'));
     }
   }
 
@@ -124,8 +130,7 @@
   }
 
   async function armedFactor(): Promise<void> {
-    notice = t('app.mfa.armed');
-    announcer.say(notice);
+    confirm(t('app.mfa.armed'));
     // The confirmation invalidated nothing (mfa.svelte.ts), so both answers that just moved are
     // read again: the account's, and whether the last passkey may now go.
     await Promise.all([actor.reread(), passkeys.reread()]);
@@ -133,15 +138,13 @@
   }
 
   async function replaced(): Promise<void> {
-    notice = t('app.mfa.replaced');
-    announcer.say(notice);
+    confirm(t('app.mfa.replaced'));
     await actor.reread();
   }
 
   async function disableFactor(): Promise<void> {
     if (await mfa.disable()) {
-      notice = t('app.mfa.disabled');
-      announcer.say(notice);
+      confirm(t('app.mfa.disabled'));
       await actor.reread();
     }
   }
@@ -163,7 +166,6 @@
           <p class="quiet">{t('app.password.none')}</p>
         {:else}
         <p class="quiet">{t('app.password.change_body')}</p>
-        {#if passwordNotice}<p class="quiet">{passwordNotice}</p>{/if}
         {#if passwordApi.problem}
           <Banner tone="danger" title={passwordApi.problem.message}>
             {#if passwordApi.problem.reference}{passwordApi.problem.reference}{/if}
@@ -242,9 +244,6 @@
       <Stack gap="150">
         <h2>{t('app.mfa.title')}</h2>
         <p class="quiet">{isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}</p>
-        <!-- Beside the state it is about. At the foot of the panel it sat under the "turn it off"
-             section and read as a caption for it. -->
-        {#if notice}<p class="quiet">{notice}</p>{/if}
 
         {#if factor}
           <div class="section">

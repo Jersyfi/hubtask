@@ -28,7 +28,7 @@
     Badge,
     Banner,
     Button,
-    Checkbox,
+    CheckboxGroup,
     Input,
     OneTimeSecret,
     Radio,
@@ -44,6 +44,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, without, type Missing } from '../lib/forms/missing.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
 
   interface Props {
@@ -182,13 +183,24 @@
     return new Date(Date.UTC(year, month - 1, day + 364)).toISOString().slice(0, 10);
   }
 
-  function toggle(scope: string, on: boolean): void {
-    chosen = on ? [...chosen, scope] : chosen.filter((each) => each !== scope);
-  }
+  /**
+   * What *Create token* found missing when it was pressed, by field: never switched off for it
+   * (design-system.md §4, case 3). Each mark goes when its field changes.
+   */
+  let missing = $state<Missing>({});
+  let mintForm = $state<HTMLElement | null>(null);
 
   async function mint(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!name.trim() || !expiresAt || requested.length === 0) return;
+    missing = check([
+      { kind: 'field', key: 'name', code: 'app.tokens.name_needed', isFilled: name.trim() !== '' },
+      { kind: 'field', key: 'expires', code: 'app.tokens.expiry_needed', isFilled: Boolean(expiresAt) },
+      { kind: 'at-least-one', key: 'scopes', code: 'app.tokens.pick_a_scope', chosen: requested.length },
+    ]);
+    if (!isComplete(missing)) {
+      queueMicrotask(() => focusFirst(mintForm));
+      return;
+    }
 
     failure = undefined;
     isWorking = true;
@@ -309,13 +321,17 @@
   {:else}
   <Stack gap="150">
     <h2 class="section">{t('app.tokens.mint_title')}</h2>
-    <form onsubmit={mint}>
+    <!-- `novalidate`: what is missing is said by the form itself, in its own words, when it is
+         pressed - not by the browser's bubble (design-system.md §4, case 3). -->
+    <form onsubmit={mint} bind:this={mintForm} novalidate>
       <Stack gap="200">
         <Input
           label={t('app.tokens.name')}
           hint={t('app.tokens.name_hint')}
           bind:value={name}
           isRequired
+          oninput={() => (missing = without(missing, 'name'))}
+          error={missing.name ? t(missing.name) : undefined}
         />
 
         <!-- `max` as well as `required`: the server refuses more than a year, and being told
@@ -324,34 +340,35 @@
           label={t('app.tokens.expires')}
           hint={t('app.tokens.expires_hint')}
           bind:value={expiresAt}
+          oninput={() => (missing = without(missing, 'expires'))}
+          error={missing.expires ? t(missing.expires) : undefined}
           type="date"
           min={today}
           max={latestAllowed()}
           isRequired
         />
 
-        <Stack gap="050">
-          <span class="label">{t('app.tokens.scopes')}</span>
-          <p class="quiet small">{t('app.tokens.scopes_hint')}</p>
-          {#if scopes.length === 0}
-            <!-- The manifest has not arrived. Offering nothing is honest; offering a list written
-                 here would be wrong on somebody's installation. -->
+        {#if scopes.length === 0}
+          <!-- The manifest has not arrived. Offering nothing is honest; offering a list written
+               here would be wrong on somebody's installation. -->
+          <Stack gap="050">
+            <span class="label">{t('app.tokens.scopes')}</span>
             <p class="quiet small">{t('app.tokens.scopes_unknown')}</p>
-          {:else}
-            <ul class="scope-list">
-              {#each scopes as scope (scope)}
-                <li>
-                  <Checkbox
-                    label={scope}
-                    checked={chosen.includes(scope)}
-                    onchange={(event: Event) =>
-                      toggle(scope, (event.currentTarget as HTMLInputElement).checked)}
-                  />
-                </li>
-              {/each}
-            </ul>
-          {/if}
-        </Stack>
+          </Stack>
+        {:else}
+          <!-- Nothing said in advance when none is ticked: *Create token* says it if it is pressed so. -->
+          <CheckboxGroup
+            label={t('app.tokens.scopes')}
+            hint={t('app.tokens.scopes_hint')}
+            options={scopes.map((scope) => ({ value: scope, label: scope }))}
+            selected={chosen}
+            error={missing.scopes ? t(missing.scopes) : undefined}
+            onChange={(next) => {
+              chosen = [...next];
+              missing = without(missing, 'scopes');
+            }}
+          />
+        {/if}
 
         {#if installationOptions.length > 0}
           <!-- Absent, not disabled, for somebody the register does not name (P-05). -->
@@ -371,7 +388,6 @@
             tone="primary"
             isBusy={isWorking}
             busyLabel={t('app.tokens.minting')}
-            disabledReason={requested.length === 0 ? t('app.tokens.pick_a_scope') : undefined}
           >
             {t('app.tokens.mint')}
           </Button>
@@ -396,10 +412,6 @@
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 
   .scopes { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
-
-  .scope-list { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
-
-  .scope-list :global(label) { font-family: var(--font-mono); }
 
   form { margin: 0; }
 </style>

@@ -15,15 +15,16 @@
 
   import { untrack } from 'svelte';
 
-  import { Checkbox, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
+  import { EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
+  import NotificationRow from '../lib/profile/NotificationRow.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import { categoriesOf, channelsOf, isAlwaysOn, preferenceFor } from '../lib/data/preferences.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
 
@@ -58,9 +59,19 @@
     ]),
   ]);
 
+  /**
+   * The boxes being written, as `category:channel:field`: each shows its progress in its own place
+   * and confirms as a passing message (design-system.md §4, case 7).
+   */
+  let writing = $state<ReadonlySet<string>>(new Set());
+  const busyOf = (category: string) =>
+    new Set([...writing].filter((key) => key.startsWith(`${category}:`)).map((key) => key.slice(category.length + 1)));
+
   async function setRow(category: string, channel: string, next: { enabled?: boolean; include_title?: boolean }) {
     if (!accountId) return;
     const current = preferenceFor(rows, category, channel);
+    const key = `${category}:${channel}:${next.enabled !== undefined ? 'enabled' : 'include_title'}`;
+    writing = new Set([...writing, key]);
     failure = undefined;
     try {
       // Both switches travel: a row is a statement about a category rather than two values that
@@ -69,9 +80,11 @@
         enabled: next.enabled ?? current?.enabled ?? true,
         include_title: next.include_title ?? current?.include_title ?? false,
       });
-      announcer.say(t('app.profile.notification_saved_announced'));
+      toast.show({ text: t('app.profile.notification_saved_announced'), tone: 'success' });
     } catch (error) {
       failure = renderProblem(error as never, messages);
+    } finally {
+      writing = new Set([...writing].filter((each) => each !== key));
     }
   }
 
@@ -108,35 +121,14 @@
       {:else}
         <Table label={t('app.profile.notifications')} isLabelHidden {columns}>
           {#each categories as category (category)}
-            <tr>
-              <!-- A phrase per category the catalogue knows, and `humanise` for one it does not:
-                   an installation that tells people about something newer still reads readably
-                   rather than showing a key. -->
-              <th scope="row" class="what">{t(`app.profile.category_${category}`)}</th>
-              {#each channels as channel (channel)}
-                {@const row = preferenceFor(rows, category, channel)}
-                {@const alwaysOn = isAlwaysOn(category)}
-                <td>
-                  <Checkbox
-                    label={t('app.profile.enabled')}
-                    isLabelHidden
-                    checked={row?.enabled ?? true}
-                    disabledReason={alwaysOn ? t('app.profile.always_on') : undefined}
-                    onchange={(event: Event) =>
-                      void setRow(category, channel, { enabled: (event.currentTarget as HTMLInputElement).checked })}
-                  />
-                </td>
-                <td>
-                  <Checkbox
-                    label={t('app.profile.include_title')}
-                    isLabelHidden
-                    checked={row?.include_title ?? false}
-                    onchange={(event: Event) =>
-                      void setRow(category, channel, { include_title: (event.currentTarget as HTMLInputElement).checked })}
-                  />
-                </td>
-              {/each}
-            </tr>
+            <NotificationRow
+              {category}
+              {channels}
+              {rows}
+              isAlwaysOn={isAlwaysOn(category)}
+              busy={busyOf(category)}
+              onset={(channel, next) => void setRow(category, channel, next)}
+            />
           {/each}
         </Table>
         <p class="quiet small">{t('app.profile.include_title_hint')}</p>
@@ -146,15 +138,6 @@
 {/if}
 
 <style>
-  /* The category is the column that grows, so the two questions stand together at the end of the
-     row rather than being pushed to opposite edges by a table sharing its width evenly. */
-  .what { inline-size: 100%; font-weight: var(--fw-regular); }
-
-  /* The one row nobody can switch off says why under its switch, and the column that carries that
-     sentence keeps room for it - a reason wrapped one word to a line is a row four times as tall
-     as its neighbours. Odd cells, because every channel draws "tell me" before "name the entry". */
-  td:nth-of-type(odd) { min-inline-size: 24ch; }
-
   .quiet { margin: 0; color: var(--text-secondary); }
 
   .small { font-size: var(--fs-075); }

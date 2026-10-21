@@ -90,7 +90,7 @@
     />
   </Stack>
 {:else}
-  <form onsubmit={add} bind:this={form}>
+  <form onsubmit={add} bind:this={form} novalidate>
     <Stack gap="150">
       <p class="quiet">{t('app.mfa.key_setup_hint')}</p>
       {#if passkeys.failure}

@@ -22,6 +22,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -66,7 +67,8 @@
       // `true` is written as the default's own value rather than cleared: what the person chose
       // is a choice, and "on" is not the same fact as "never decided".
       await preferences.setAccount(accountId, { celebrations: isOn });
-      announcer.say(t(isOn ? 'app.profile.celebrations_on_announced' : 'app.profile.celebrations_off_announced'));
+      // Confirmed as a passing message, which the frame also says once (design-system.md §4, case 7).
+      toast.show({ text: t(isOn ? 'app.profile.celebrations_on_announced' : 'app.profile.celebrations_off_announced'), tone: 'success' });
     } catch (error) {
       failure = renderProblem(error as never, messages);
       celebrationsOn = account?.celebrations !== false;
@@ -103,7 +105,8 @@
           label={t('app.profile.celebrations')}
           hint={t('app.profile.celebrations_hint')}
           bind:checked={celebrationsOn}
-          disabledReason={isSavingCelebrations ? t('app.workspace.saving') : undefined}
+          isBusy={isSavingCelebrations}
+          busyLabel={t('app.workspace.saving')}
           onchange={() => void setCelebrations(celebrationsOn)}
         />
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}

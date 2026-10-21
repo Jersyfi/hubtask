@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, signedIn } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -61,6 +61,103 @@ for (const width of [375, 768, 1280]) {
     await page.waitForFunction(() => [...document.querySelectorAll('[role="status"]')].filter((node) => node.textContent?.trim() === 'Saved.').length === 1);
     assert.deepEqual(sent, [{ week_start: 'SUNDAY' }], 'the save sent more than what changed');
     await bar.waitFor({ state: 'detached' });
+    assert.deepEqual(failures, []);
+  });
+}
+
+const CATEGORIES = ['ASSIGNMENT', 'COMMENT', 'INVITATION'];
+
+/** Serves the notification categories and the reader's rows, every one sent by mail. */
+async function withNotifications(context) {
+  await context.route('**/api/v1/meta/capabilities', (route) => route.fulfill({ json: { ...MANIFEST, notification_categories: CATEGORIES, notification_channels: ['EMAIL'] } }));
+  await context.route(`**/api/v1/accounts/${ACCOUNT.id}/notification-preferences**`, (route) => {
+    if (route.request().method() !== 'GET') return route.fulfill({ json: {} });
+    return route.fulfill({ json: { data: CATEGORIES.map((category) => ({ category, channel: 'EMAIL', enabled: true, include_title: false, is_default: true })) } });
+  });
+}
+
+for (const width of [375, 768, 1280]) {
+  test(`chromium: ${width} px — the always-on row says it once, and its box does not flip`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await signedIn(browser, width, 900);
+    await withNotifications(context);
+    await page.goto(`${served.origin}/profile/notifications`);
+    const row = page.locator('tbody tr', { hasText: 'I am invited to the workspace' });
+    await row.waitFor({ timeout: 15_000 });
+    assert.equal(await page.getByText('You are always told about this one').count(), 1, 'the always-on sentence is said more than once');
+    const box = row.getByRole('checkbox', { name: 'Tell me' });
+    assert.equal(await box.getAttribute('aria-disabled'), 'true');
+    const described = await box.evaluate((node) => document.getElementById(node.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+    assert.match(described, /You are always told about this one/);
+    await box.focus();
+    await page.keyboard.press(' ');
+    assert.equal(await box.isChecked(), true, 'the always-on box was switched off');
+    assert.equal(await page.locator('[role="tooltip"]:visible').count(), 0, 'the box drew a bubble beside the note');
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium: ${width} px — tokens and passkeys mark what is missing when pressed`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await signedIn(browser, width, 900);
+    const sent = [];
+    context.on('request', (request) => {
+      if (request.method() === 'POST' && request.url().includes('/api/v1/')) sent.push(new URL(request.url()).pathname);
+    });
+    await page.goto(`${served.origin}/profile/tokens`);
+    const create = page.getByRole('button', { name: 'Create the token' });
+    await create.waitFor({ timeout: 15_000 });
+    assert.equal(await create.getAttribute('aria-disabled'), null, 'Create is switched off before anything is filled');
+    await create.click();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+    assert.equal(await page.getByLabel('What it is for').getAttribute('aria-invalid'), 'true');
+
+    // A virtual authenticator, as passkeys.test.mjs has: without one this browser offers no
+    // passkey at all and the panel says so in the form's place.
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('WebAuthn.enable');
+    await cdp.send('WebAuthn.addVirtualAuthenticator', {
+      options: { protocol: 'ctap2', transport: 'internal', hasResidentKey: true, hasUserVerification: true, isUserVerified: true, automaticPresenceSimulation: true },
+    });
+    // At `localhost`: an address is no relying party, so the add form is drawn only there.
+    await page.goto(`${served.origin.replace('127.0.0.1', 'localhost')}/profile/security`);
+    const name = page.getByTestId('passkeys').getByRole('textbox', { name: /^Name/ });
+    await name.waitFor({ timeout: 15_000 });
+    await name.fill('');
+    await page.getByRole('button', { name: 'Add a passkey' }).click();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+    assert.deepEqual(sent.filter((path) => path.includes('token') || path.includes('passkey')), [], `something was sent: ${sent}`);
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium: ${width} px — a switch saves busy in place, and a toast confirms above the bars`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await signedIn(browser, width, 900);
+    let release;
+    const held = new Promise((resolve) => (release = resolve));
+    await context.route(`**/api/v1/accounts/${ACCOUNT.id}/preferences`, async (route) => {
+      await held;
+      return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
+    });
+    await page.goto(`${served.origin}/profile/appearance`);
+    const moments = page.getByRole('switch', { name: 'Mark the moments' }).or(page.getByLabel('Mark the moments'));
+    await moments.first().waitFor({ timeout: 15_000 });
+    await moments.first().click();
+    await page.waitForFunction(() => document.querySelector('[aria-busy="true"]') !== null);
+    assert.equal(await moments.first().getAttribute('aria-disabled'), null, 'the switch is switched off for "Saving"');
+    release();
+    const shown = page.locator('[data-tone="success"]').first();
+    await shown.waitFor({ timeout: 5_000 });
+    // Nothing covers it, and it covers no bar: it sits above the phone's bottom bar.
+    const bottom = await shown.evaluate((node) => node.getBoundingClientRect().bottom);
+    const bars = await page.locator('nav[aria-label] >> visible=true').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect()).filter((box) => box.bottom >= window.innerHeight - 1).map((box) => box.top));
+    for (const top of bars) assert.ok(bottom <= top + 1, `the toast covers a bar at the foot (${bottom} > ${top})`);
+    // Held while the pointer is on it.
+    await shown.hover();
+    await page.waitForTimeout(200);
+    assert.equal(await shown.isVisible(), true);
     assert.deepEqual(failures, []);
   });
 }

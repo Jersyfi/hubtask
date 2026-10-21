@@ -16,7 +16,7 @@
   import { Stack, Switch } from '@hubtask/design-system/components';
 
   import { aiObjection } from '../data/aiobjection.svelte.ts';
-  import { announcer } from '../announce.svelte.ts';
+  import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -41,7 +41,8 @@
       } else {
         await aiObjection.letIn();
       }
-      announcer.say(t(isOn ? 'app.profile.ai_kept_out_announced' : 'app.profile.ai_let_in_announced'));
+      // Confirmed as a passing message, which the frame also says once (design-system.md §4, case 7).
+      toast.show({ text: t(isOn ? 'app.profile.ai_kept_out_announced' : 'app.profile.ai_let_in_announced'), tone: 'success' });
     } catch (error) {
       failure = renderProblem(error as never, messages);
       keepingOut = position?.keeping_out === true;
@@ -68,7 +69,8 @@
           label={t('app.profile.ai_keep_out')}
           hint={t('app.profile.ai_keep_out_hint')}
           bind:checked={keepingOut}
-          disabledReason={isSaving ? t('app.workspace.saving') : undefined}
+          isBusy={isSaving}
+          busyLabel={t('app.workspace.saving')}
           onchange={() => void change(keepingOut)}
         />
       {/if}

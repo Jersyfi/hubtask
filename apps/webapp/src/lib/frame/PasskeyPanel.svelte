@@ -26,7 +26,8 @@
   import { canCopy } from '@hubtask/design-system/components';
   import { Banner, Button, Input, OneTimeSecret, Stack } from '@hubtask/design-system/components';
 
-  import { announcer } from '../announce.svelte.ts';
+  import { focusFirst } from '../forms/missing.ts';
+  import { toast } from './toasts.svelte.ts';
   import { passkeys } from '../data/passkeys.svelte.ts';
   import { canCreatePasskeys, isAtRelyingParty, isStale, nameFits, removalOf, suggestedName } from '../data/passkeys.ts';
   import { formatDay } from '../i18n/datetime.ts';
@@ -54,8 +55,19 @@
 
   let name = $state('');
   let nameTouched = $state(false);
-  let notice = $state<string | undefined>(undefined);
   let addButton = $state<HTMLElement | undefined>(undefined);
+  /** A name was asked for and is not usable: said at that field when its button is pressed. */
+  let missing = $state<'add' | 'rename' | undefined>(undefined);
+  let addForm = $state<HTMLElement | null>(null);
+  let renameForm = $state<HTMLElement | null>(null);
+
+  /** Marks the name and moves focus there; answers whether the name may go (design-system.md §4, case 3). */
+  function nameIsUsable(value: string, which: 'add' | 'rename', form: HTMLElement | null): boolean {
+    if (nameFits(value)) return true;
+    missing = which;
+    queueMicrotask(() => focusFirst(form));
+    return false;
+  }
 
   // The suggestion follows the list until the person types a name of their own.
   $effect(() => {
@@ -72,30 +84,33 @@
   let draft = $state('');
 
   function startRenaming(id: string, current: string): void {
-    notice = undefined;
+    missing = undefined;
     renaming = id;
     draft = current;
   }
 
   async function rename(event: SubmitEvent, id: string): Promise<void> {
     event.preventDefault();
+    if (!nameIsUsable(draft, 'rename', renameForm)) return;
     const chosen = draft.trim();
     acting = `rename:${id}`;
     if (await passkeys.rename(id, chosen)) {
       renaming = undefined;
-      notice = t('app.passkeys.renamed', { name: chosen });
-      announcer.say(notice);
+      toast.show({ text: t('app.passkeys.renamed', { name: chosen }), tone: 'success' });
     }
   }
 
   async function remove(id: string, name: string): Promise<void> {
-    notice = undefined;
     acting = `remove:${id}`;
     if (await passkeys.remove(id)) {
-      notice = t('app.passkeys.removed', { name });
-      announcer.say(notice);
+      toast.show({ text: t('app.passkeys.removed', { name }), tone: 'success' });
     }
   }
+
+  /** The distinct reasons keys offer no *Remove*, each said once for the list. */
+  const keptReasons = $derived(
+    list ? [...new Set(held.map((each) => removalOf(each, list)).filter((each) => !each.offered).map((each) => removalReason(each.reason)))] : [],
+  );
 
   /** Why a row offers no *Remove*, in words. */
   function removalReason(code: string): string {
@@ -104,13 +119,12 @@
 
   async function add(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    notice = undefined;
+    if (!nameIsUsable(name, 'add', addForm)) return;
     const chosen = name.trim();
     acting = 'add';
     const ended = await passkeys.add(chosen, (options) => navigator.credentials.create(options));
     if (ended === 'added') {
-      notice = t('app.passkeys.added', { name: chosen });
-      announcer.say(notice);
+      toast.show({ text: t('app.passkeys.added', { name: chosen }), tone: 'success' });
       nameTouched = false;
     } else if (ended === 'cancelled') {
       addButton?.querySelector('button')?.focus();
@@ -122,7 +136,6 @@
   <Stack gap="150">
     <h2>{t('app.passkeys.title')}</h2>
     <p class="quiet">{t('app.passkeys.body')}</p>
-    {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if passkeys.failure}
       <Banner tone="danger" title={passkeys.failure.message}>
         {#if passkeys.failure.reference}{passkeys.failure.reference}{/if}
@@ -154,7 +167,7 @@
             {@const removal = removalOf(each, list)}
             <li>
               {#if renaming === each.id}
-                <form onsubmit={(event) => rename(event, each.id)}>
+                <form onsubmit={(event) => rename(event, each.id)} bind:this={renameForm} novalidate>
                   <Stack gap="100">
                     <Input
                       label={t('app.passkeys.rename_label', { name: each.name })}
@@ -162,6 +175,8 @@
                       maxlength={64}
                       isRequired
                       autocomplete="off"
+                      oninput={() => (missing = undefined)}
+                      error={missing === 'rename' && !nameFits(draft) ? t('app.passkeys.name_needed') : undefined}
                     />
                     <div class="actions">
                       <Button
@@ -169,7 +184,6 @@
                         tone="secondary"
                         isBusy={busy(`rename:${each.id}`)}
                         busyLabel={t('app.passkeys.saving')}
-                        disabledReason={nameFits(draft) ? undefined : t('app.passkeys.name_needed')}
                       >
                         {t('app.passkeys.save')}
                       </Button>
@@ -205,13 +219,15 @@
                   </Button>
                 {/if}
               </div>
-              {#if !removal.offered}
-                <p class="quiet">{removalReason(removal.reason)}</p>
-              {/if}
               {/if}
             </li>
           {/each}
         </ul>
+        <!-- Why a key offers no *Remove*, said once under the list rather than under each key it
+             holds for - "required by the workspace" was one sentence repeated per row. -->
+        {#each keptReasons as said (said)}
+          <p class="quiet">{said}</p>
+        {/each}
       {/if}
       <!-- The limit, said before it is reached (UC-ID-22 check 3): at the limit the reason below
            says it instead. -->
@@ -226,13 +242,17 @@
       {#if reason}
         <p class="quiet">{reason}</p>
       {:else}
-        <form onsubmit={add}>
+        <form onsubmit={add} bind:this={addForm} novalidate>
           <Stack gap="150">
             <Input
               label={t('app.passkeys.name_label')}
               hint={t('app.passkeys.name_hint')}
               bind:value={name}
-              oninput={() => (nameTouched = true)}
+              oninput={() => {
+                nameTouched = true;
+                missing = undefined;
+              }}
+              error={missing === 'add' && !nameFits(name) ? t('app.passkeys.name_needed') : undefined}
               maxlength={64}
               isRequired
               autocomplete="off"
@@ -243,7 +263,6 @@
                 tone="secondary"
                 isBusy={busy('add')}
                 busyLabel={t('app.passkeys.adding')}
-                disabledReason={nameFits(name) ? undefined : t('app.passkeys.name_needed')}
               >
                 {t('app.passkeys.add')}
               </Button>
