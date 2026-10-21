@@ -82,3 +82,19 @@ func writesEntry(subject Subject, entryID shared.ID, action audit.Action, target
 func readsEntry(subject Subject, entryID shared.ID, action audit.Action, targetID shared.ID) access.Request {
 	return entryRequest(service.PermissionRead, service.ItemRead, subject, entryID, action, targetID)
 }
+
+// collectionPath is the path a question about a collection asks along: the workspace and the
+// collection, the hub filled in by the authoriser from storage - so that a role on the hub counts,
+// and an outsider of a private hub is told there is no such collection.
+func collectionPath(collectionID shared.ID) []identity.Scope {
+	return []identity.Scope{identity.TenantScope(), identity.CollectionScope(collectionID)}
+}
+
+// pathOfTarget is the path the target-level questions of a suggestion ask along: a collection's own
+// for a collection, the workspace for a jumble entry, which lies in no hub.
+func pathOfTarget(targetType domain.TargetType, targetID shared.ID) []identity.Scope {
+	if targetType == domain.TargetContainer && !targetID.IsZero() {
+		return collectionPath(targetID)
+	}
+	return []identity.Scope{identity.TenantScope()}
+}

@@ -107,7 +107,7 @@ func pathsRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 }
 
 func writer(tenant, account shared.ID) appshared.ActorContext {
-	return actorIn(tenant, account, "items:read", "items:write")
+	return actorIn(tenant, account, "items:read", "items:write", "containers:read")
 }
 
 func TestAskingAboutAnEntryIsDecidedAlongItsPath(t *testing.T) {

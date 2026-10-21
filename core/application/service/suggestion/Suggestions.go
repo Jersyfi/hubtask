@@ -21,7 +21,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
-	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -152,7 +151,7 @@ func (h ListSuggestions) Execute(
 		}
 	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
-		Path:       []identity.Scope{identity.TenantScope()},
+		Path:       pathOfTarget(query.TargetType, query.TargetID),
 		Action:     SuggestionsReadAction,
 		TokenScope: suggestionsRead,
 		TargetType: suggestionTarget,
@@ -301,7 +300,7 @@ func (c Cases) decideAs(
 		// asks the same, deliberately: a workspace where anybody who can read can clear somebody
 		// else's inbox of proposals is one where the inbox is not theirs.
 		Permission: service.PermissionWriteItems,
-		Path:       []identity.Scope{identity.TenantScope()},
+		Path:       pathOfTarget(targetType, target),
 		Action:     action,
 		TokenScope: suggestionsWrite,
 		TargetType: suggestionTarget,

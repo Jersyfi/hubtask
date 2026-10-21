@@ -140,6 +140,11 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 			permission = writesEntry(subject, q.TargetID, q.Action, q.TargetID)
 			permission.TokenScope = suggestionsWrite
 		}
+	case q.TargetType == domain.TargetContainer:
+		// About a collection: along its own path, so that a role on its hub counts; the
+		// authoriser fills in the hub, and answers an outsider of a private hub that there is no
+		// such collection.
+		permission.Path = collectionPath(q.TargetID)
 	}
 	permission.Action = q.Action
 	if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
