@@ -14,7 +14,9 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table, type PageAction } from '@hubtask/design-system/components';
+  import { actionsOfHead } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
   import type { Plan, PlanFeature } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -87,15 +89,21 @@
       isWorking = false;
     }
   }
+
+  /** The head's one action, handed to the head and to the palette alike (UC-WRK-27 check 2). */
+  const headPrimary = $derived<PageAction | undefined>(
+    manifest.isMultiTenant && !enforced && reading.status === 'ready'
+      ? { label: t('app.instance.plans_new'), icon: 'plus', opener: 'new-plan', onclick: openCreate }
+      : undefined,
+  );
+  $effect(() => commands.offer('page', actionsOfHead('page', { primary: headPrimary })));
 </script>
 
 <Stack gap="300">
   <PageHeader
     title={t('app.instance.plans')}
     isTitleInBar={viewport.isCompact}
-    primary={manifest.isMultiTenant && !enforced && reading.status === 'ready'
-      ? { label: t('app.instance.plans_new'), icon: 'plus', opener: 'new-plan', onclick: openCreate }
-      : undefined}
+    primary={headPrimary}
   />
 
   <InstanceGate onleave={() => onnavigate('/')}>

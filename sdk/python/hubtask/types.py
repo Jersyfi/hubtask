@@ -316,14 +316,39 @@ class SuggestionAcceptance(TypedDict, total=False):
     """What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights."""
     overrides: dict[str, Any]
 
+class AcceptedSuggestion(TypedDict, total=False):
+    """The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only."""
+    id: Required[str]
+    target_type: Required["SuggestionTargetType"]
+    target_id: Required[str]
+    kind: Required["SuggestionKind"]
+    status: Required["SuggestionStatus"]
+    payload: Required[dict[str, Any]]
+    source: Required[Literal["AI"]]
+    model: Required[str]
+    prompt_id: Required[str]
+    prompt_version: Required[str]
+    produced_at: Required[str]
+    created_at: Required[str]
+    decided_at: str | None
+    decided_by: str | None
+    dropped_nodes: int
+    version: Required[int]
+    created_id: str
+
+class RuleDescription(TypedDict, total=False):
+    """What to ask for, and where the rule would apply."""
+    scope: Required["RuleScope"]
+    description: Required[str]
+
 class SuggestionPage(TypedDict, total=False):
     items: Required[list["Suggestion"]]
     next_cursor: str | None
     has_more: Required[bool]
 
-SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER"]
+SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER", "ACCOUNT"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 

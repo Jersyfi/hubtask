@@ -32,7 +32,9 @@
   }: Props = $props();
 </script>
 
-<Field {label} {hint} {error} {disabledReason} {isRequired}>
+<!-- Unavailable, it stays editable to the platform and the guard refuses the press and every edit
+     (reason.ts), as `Input` does: a read-only field turns `Backspace` into "back" in some engines. -->
+<Field {label} {hint} {error} {disabledReason} guardOptions={{ isPressRefused: true, isEditRefused: true }} {isRequired}>
   {#snippet children({ id, describedBy, invalid })}
     <textarea
       {id}
@@ -40,11 +42,11 @@
       class="textarea"
       data-invalid={invalid ? '' : undefined}
       bind:value
-      disabled={disabledReason !== undefined}
-      required={isRequired}
+      {...rest}
+      aria-disabled={disabledReason !== undefined ? 'true' : undefined}
+      required={isRequired && disabledReason === undefined}
       aria-invalid={invalid ? 'true' : undefined}
       aria-describedby={describedBy}
-      {...rest}
     ></textarea>
   {/snippet}
 </Field>
@@ -81,7 +83,7 @@
 
   .textarea::placeholder { color: var(--text-subtle); }
 
-  .textarea:disabled {
+  .textarea[aria-disabled='true'] {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     color: var(--text-subtle);

@@ -14,6 +14,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
@@ -21,6 +22,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	aiprovider "github.com/Jersyfi/hubtask/core/port/ai"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/expression"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
@@ -71,6 +73,8 @@ type Material struct {
 	// Kept is whose content stayed out of this material, read in its transaction: what the
 	// producer applies to anything it appends, and how it learns the asker keeps their own out.
 	Kept integration.KeptOut
+	// Rule is what a rule drafted from this material may name; nil for every other question.
+	Rule *RuleSets
 }
 
 // Declared is one custom field definition, with the entry's own value beside it.
@@ -128,7 +132,25 @@ func (c Choices) offers(id string) bool {
 // offered the board's columns, and a summary of the same entry is not - reading them anyway would
 // spend a query and put a workspace's board in front of a provider for no reason.
 type Sources interface {
-	Material(ctx context.Context, actor appshared.ActorContext, targetType domain.TargetType, targetID shared.ID, promptID string) (Material, error)
+	Material(ctx context.Context, actor appshared.ActorContext, question Question) (Material, error)
+}
+
+// Question is what a material is read for: the target, the prompt, and what the asking carried
+// beside them - the scope a rule would apply at, and the words a question was asked with.
+//
+// One value rather than a growing list of parameters, because the asking and the producer read the
+// same material and have to be handed the same question.
+type Question struct {
+	TargetType domain.TargetType
+	TargetID   shared.ID
+	PromptID   string
+	// Scope is where a rule drafted from this question would apply. The zero value for every
+	// question that is not about a rule.
+	Scope automation.Scope
+	// Words are what the question was asked with, where it has any: read from the held request,
+	// never from the job's payload. Empty for every question that reads its material from the
+	// target.
+	Words string
 }
 
 // Produce asks a provider and records what it answered.
@@ -157,6 +179,9 @@ type Produce struct {
 	// they are deleted once the job is over. Nil in a build that asks no such question, and a job
 	// naming a row then fails by name.
 	Requests repository.Requests
+	// Conditions compiles a drafted rule's condition once more through the engine's own compiler.
+	// Nil skips that second check; the save compiles it anyway (automation.md §2.2).
+	Conditions expression.Compiler
 }
 
 // Outcome is what one question came to: whether a proposal was recorded, and how much of the
@@ -233,7 +258,21 @@ var promptFields = map[string]map[string]bool{
 	// and is written by the producer, never read from a model. What a *node* may carry is
 	// `keptTemplateNode`'s business.
 	templatePrompt: {"name": true, "description": true, "nodes": true},
+	// A rule drafted from a sentence: part of CreateRule's input, less what the person who saves
+	// it decides - the name, `run_as`, the throttle, what a failure does - and what it could not
+	// draft, which is told rather than applied (`toldKeys`). What each part may hold is `ruleFrom`'s.
+	draftRulePrompt: {"scope": true, "trigger": true, "conditions": true, "actions": true, notDraftedKey: true},
 }
+
+// toldKeys are the answer keys a prompt keeps to show the person and never hands an applier: what a
+// rule draft could not draft is for the person reading it, and no use case declares it.
+var toldKeys = map[string]map[string]bool{
+	draftRulePrompt: {notDraftedKey: true},
+}
+
+// ToldKeys is that map, for the gate that holds every kept key to an acceptance that applies it or
+// to this list.
+func ToldKeys() map[string]map[string]bool { return toldKeys }
 
 // choiceSets names, per prompt, which of its answer keys are chosen from a closed set.
 //
@@ -263,6 +302,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	"classify":             {domain.TargetWorkItem: domain.KindFields},
 	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
 	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
+	draftRulePrompt:        {domain.TargetAccount: domain.KindRule},
 }
 
 // PromptTargets is the map above, for the gate that reads it beside the registry.
@@ -395,6 +435,7 @@ var defaultPrompts = map[domain.Kind]string{
 	domain.KindFields:        "suggest-fields",
 	domain.KindDecomposition: "decompose",
 	domain.KindTemplate:      templatePrompt,
+	domain.KindRule:          draftRulePrompt,
 }
 
 // Execute asks, and records what came back.
@@ -458,6 +499,12 @@ func (h Produce) ask(
 				"prompt": promptID, "target_type": string(request.TargetType),
 			})
 	}
+	if request.Apply && request.Kind == domain.KindRule {
+		// An AI answer never becomes a rule without a person: a draft is saved by somebody, and a
+		// rule that drafted and saved rules would be exactly what UC-AUT-10 check 3 rules out.
+		return Outcome{}, shared.ErrInternal.WithDetail("ai.apply_not_for_kind").
+			WithParams(map[string]string{"kind": string(request.Kind)})
+	}
 	prompt, err := h.Prompts.Get(promptID)
 	if err != nil {
 		return Outcome{}, err
@@ -490,13 +537,12 @@ func (h Produce) ask(
 	var material Material
 	if err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
-			read, err := h.Sources.Material(ctx, actor, targetType, targetID, promptID)
-			if err != nil {
-				return err
-			}
 			// The words the question was asked with, where it has any: read in the same transaction
-			// as the rest of the material and appended as content, after it, so that a model reads
-			// the shape it is held to before the request it is answering.
+			// as the rest of the material, handed to it, and appended as content after it, so that
+			// a model reads the shape it is held to before the request it is answering.
+			question := Question{
+				TargetType: targetType, TargetID: targetID, PromptID: promptID, Scope: request.Scope,
+			}
 			if !request.RequestID.IsZero() {
 				if h.Requests == nil {
 					return shared.ErrInternal.WithDetail("suggestions.requests_not_wired")
@@ -505,7 +551,19 @@ func (h Produce) ask(
 				if err != nil {
 					return err
 				}
-				read.Content += "\n\nWhat the template should be for, in the person's words:\n" + read.Kept.Scrub(asked.Text)
+				question.Words = asked.Text
+			}
+			read, err := h.Sources.Material(ctx, actor, question)
+			if err != nil {
+				return err
+			}
+			if question.Words != "" {
+				phrase, held := heldWords[promptID]
+				if !held {
+					return shared.ErrInternal.WithDetail("suggestions.held_words_unknown").
+						WithParams(map[string]string{"prompt": promptID})
+				}
+				read.Content += "\n\n" + phrase + "\n" + read.Kept.Scrub(question.Words)
 			}
 			material = read
 			return nil
@@ -537,9 +595,12 @@ func (h Produce) ask(
 		dropped int
 		ok      bool
 	)
-	if kind == domain.KindTemplate {
+	switch kind {
+	case domain.KindTemplate:
 		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, material.Shape, targetID)
-	} else {
+	case domain.KindRule:
+		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
+	default:
 		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
 	}
 	if !ok || len(payload) == 0 {
@@ -612,6 +673,17 @@ type Request struct {
 	// RequestID names the words the question was asked with, where it has any. Zero for every
 	// question that reads its material from the target.
 	RequestID shared.ID
+	// Scope is where a rule drafted from this question would apply, read back from the job's
+	// references. The zero value for every other question.
+	Scope automation.Scope
+}
+
+// heldWords introduces, per prompt, the words a question was asked with, where the prompt takes
+// any. A prompt that is asked with held words and has no line here is a defect in this build, and
+// the job fails by name rather than handing a model unlabelled text.
+var heldWords = map[string]string{
+	templatePrompt:  "What the template should be for, in the person's words:",
+	draftRulePrompt: "What the rule should do, in the person's words:",
 }
 
 // The two ordinary reads that answer where the person who asked lives.

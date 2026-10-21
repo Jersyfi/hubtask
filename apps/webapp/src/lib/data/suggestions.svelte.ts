@@ -21,13 +21,14 @@
  * **No payload leaves in a URL.** The listing is by identifier; an override travels in a body.
  */
 
-import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
+import type { AcceptedSuggestion, AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import {
   endedAs,
   followArrival,
   suggestionsPath,
+  targetOf,
   waitWhileVisible,
   whilePending,
   type AskingState,
@@ -44,7 +45,7 @@ export type { SuggestionPage };
  * after about a minute without an end, or how it ended (`noteOf` says it).
  */
 export interface Asking extends AskingState {
-  readonly operation: Operation | 'jumble' | 'container' | 'template';
+  readonly operation: Operation | 'jumble' | 'container' | 'template' | 'rule';
   readonly askedAt: string;
 }
 
@@ -168,6 +169,26 @@ class Suggestions {
   }
 
   /**
+   * Asks for a rule drafted from a sentence (UC-AUT-10), and follows the person's own listing: the
+   * draft appears there as a `RULE` suggestion about their account, which only they read. The
+   * follow is keyed on the account, so the editor that asked reads `askingOf(accountId)`.
+   */
+  async describeRule(accountId: string, scope: { type: string; id?: string }, description: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    const accepted = await whilePending(
+      () => this.#put(accountId, { operation: 'rule', askedAt, outcome: 'following' }),
+      () => this.#withdraw(accountId, askedAt),
+      () =>
+        engine.mutate<Accepted | undefined>('POST', '/automation/rules:describe', { scope, description }, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: [],
+        }),
+    );
+    void this.#follow(accountId, 'rule', askedAt, 'ACCOUNT', accepted?.job_id);
+  }
+
+  /**
    * Reads the entry in another language. Synchronous and stored nowhere: the answer is
    * handed back and held by nothing here - it is the caller's to show and to drop.
    */
@@ -185,10 +206,9 @@ class Suggestions {
    * laid over the proposal by the server (`SuggestionAcceptance`) - for a jumble entry the
    * destination collection, which a model never chooses.
    */
-  async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<Suggestion> {
-    const target: Target =
-      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
-    return engine.mutate<Suggestion>(
+  async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<AcceptedSuggestion> {
+    const target = targetOf(suggestion);
+    return engine.mutate<AcceptedSuggestion>(
       'POST',
       `/suggestions/${suggestion.id}:accept`,
       overrides ? { overrides } : {},
@@ -198,21 +218,23 @@ class Suggestions {
         // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
         // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
         // A container's suggestion is a template: accepting it is `CreateTemplate`, so the
-        // templates that apply here are what changed.
+        // templates that apply here are what changed. A draft for its asker is a rule: the rules
+        // are what changed.
         invalidates:
           target === 'JUMBLE_ENTRY'
             ? [...touches(suggestion.target_id, target), '/jumble/entries', ENTRY_LISTS, '/containers']
             : target === 'CONTAINER'
               ? [...touches(suggestion.target_id, target), '/templates']
-              : [...touches(suggestion.target_id), ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
+              : target === 'ACCOUNT'
+                ? [...touches(suggestion.target_id, target), '/automation/rules']
+                : [...touches(suggestion.target_id), ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
       },
     );
   }
 
   /** Dismisses. A state, not a deletion; the listing narrows to what still stands. */
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
-    const target: Target =
-      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
+    const target = targetOf(suggestion);
     return engine.mutate<Suggestion>('POST', `/suggestions/${suggestion.id}:dismiss`, {}, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: touches(suggestion.target_id, target),

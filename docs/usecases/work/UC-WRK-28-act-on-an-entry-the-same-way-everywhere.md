@@ -25,7 +25,8 @@ On the board the person right-clicks a card and moves it to another collection �
 1. Every place that shows an entry offers the same menu by right-click, by its *⋯* button and by long-press on touch: open, tick off, dates, person, labels, move (up, down, to the top, to the bottom, inside, out, to another collection), duplicate, share, copy link, archive, move to the trash; only actions the person may perform and the entry's type supports are listed.
 2. The entry's own page carries the same menu in its head.
 3. Moving to the trash, archiving, removing a label and deleting a label from a collection take effect at once and offer *Undo* for at least eight seconds; actions that cannot be undone ask first.
-4. Selecting several entries works by `Ctrl`/`⌘`-click and long-press in the list and on the board.
+4. Selecting several entries works by `Ctrl`/`⌘`-click, and on touch by a long press and the entry
+   menu's *Select*, in the list and on the board.
 5. On wide screens, opening an entry from the list, the board or the timeline shows it in the detail pane.
 6. The layout chosen for a collection (list, board, timeline) is kept for the person on that device.
 

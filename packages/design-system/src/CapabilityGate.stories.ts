@@ -27,13 +27,39 @@ export const capability: Story = {
 export const role: Story = {
   name: 'The role does not permit it',
   about:
-    'The same treatment for a different question, because it is the same experience: a control the reader cannot use owes them the reason. Which of the two it was is in the sentence rather than in the shape — the reader does not care about the distinction, only about what to do next.',
+    'The mechanism with a role’s sentence. A control the reader’s role forbids is normally absent rather than gated (P-05); where a page needs it for orientation, the gate is how it says why.',
   args: { mode: 'role' },
 };
 
 export const pending: Story = {
   name: 'Before the installation has answered',
   about:
-    'The third state, and the one a screen gets wrong. Until /meta/capabilities is read nothing about the installation is known, so a control cannot honestly be shown as available — a screen that showed it anyway offers six actions that disappear a moment later. The mark turns rather than sitting still, so waiting and refusing are not the same picture; reduced motion stops it.',
+    'The third state, and the one a screen gets wrong. Until /meta/capabilities is read nothing about the installation is known, so a control cannot honestly be shown as available — a screen that showed it anyway offers six actions that disappear a moment later. Until then the content keeps its own boxes, dimmed and inert, with no line of its own, so the answer moves nothing.',
   args: { mode: 'pending' },
+};
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A control in a line behind a gate (`isInline`): it keeps its box, and a lock over it carries the reason. The reason is a bubble at the lock on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};
+
+export const decidingPermitted: Story = {
+  name: 'Deciding, then permitted',
+  about:
+    'Press *Answer*: while the installation has not answered, the content keeps its own boxes, dimmed and inert, with no line of its own - so the answer moves nothing.',
+  args: { mode: 'deciding-permitted' },
+};
+
+export const decidingRefused: Story = {
+  name: 'Deciding, then refused',
+  about: 'Press *Answer*: the reason arrives first, in one line above the content, which keeps its size.',
+  args: { mode: 'deciding-refused' },
 };

@@ -5,11 +5,14 @@
   // picture of one. Every string is resolved English here for the same reason it is in the other
   // demos: the component never sees a code (ADR-0011).
 
+  import InContext from './_InContext.svelte';
+  import Self from './_AssigneeDemo.svelte';
   import AssigneeControl, { type Candidate } from './AssigneeControl.svelte';
 
   const {
     mode = 'single',
-  }: { mode?: 'single' | 'multiple' | 'empty' | 'unavailable' } = $props();
+    reason,
+  }: { mode?: 'single' | 'multiple' | 'empty' | 'unavailable' | 'row' | 'table'; reason?: string } = $props();
 
   const people: Candidate[] = [
     { id: 'p1', name: 'Amelie Fischer' },
@@ -27,6 +30,13 @@
   });
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="Assigning is not available for this type of entry.">
+    {#snippet subject({ reason })}
+      <Self {reason} />
+    {/snippet}
+  </InContext>
+{:else}
 <AssigneeControl
   label="Assignee"
   candidates={mode === 'empty' ? [] : people}
@@ -37,10 +47,11 @@
   noMatchLabel="No one matches that. Try part of a name."
   chosenLabel="Assigned"
   unassignedLabel="Nobody yet"
-  disabledReason={mode === 'unavailable'
+  disabledReason={reason ?? (mode === 'unavailable'
     ? 'This installation assigns one person per entry, so a set cannot be chosen here.'
-    : undefined}
+    : undefined)}
   onSelect={(ids) => {
     selected = ids;
   }}
 />
+{/if}

@@ -58,3 +58,10 @@ export const beside: Story = {
     'From `large` up an entry opens in the detail pane beside its list rather than on its own page (ADR-0061 decision 4). The row it came from stays `aria-current` and carries the rail, and a plain press on a title opens beside — the link keeps its address, so a middle click, a modifier or “open in a new tab” still go to the entry’s page, and a reader still hears a link. Press a title: the current row moves and focus stays in the list.',
   args: { mode: 'beside' },
 };
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about:
+    'A row whose completion box is unavailable, beside the same row with it available: the reason is a bubble at the box, so the two rows are the same height.',
+  args: { mode: 'table' },
+};

@@ -149,6 +149,7 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
 | Summarisation | One entry's title and notes; its comment thread (oldest first, at most 100, fingerprinted against the entry so a reply does not make it stale); a collection's status (open, moved, overdue; one level, at most 100 entries). Nothing summarised reaches a log, metric, trace or audit entry. The weekly review is an MCP prompt | Suggestion accepted into the entry or dismissed; a collection's summary is only read and dismissed |
 | Semantic search | Embeddings of titles/notes in `pgvector`, hybrid with `tsvector`: one ranked page, one cursor, words winning over meaning, pgvector detected rather than demanded ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)). The index holds 1536 dimensions: narrower is zero-padded (cosine unchanged), wider is refused with `ai.embedding_too_wide` — before the first text where the provider states its width, else at the first batch — the job finishing, search staying lexical, `/meta/capabilities` and `/meta/health` saying so ([ADR-0054](../adr/ADR-0054-embedding-width.md)). A job seeded by the entry's write maintains its embedding | Search result |
 | Template generation | The caller's description and target collection → a template in the contract's shape. The material states which types may sit where (the profiles `CreateTemplate` checks); a refused node is dropped with its subtree and counted (`dropped_nodes`, `nodes_dropped`), a refused offset left off. The words are held under row level security (`ai_request`) for the job and deleted when it ends. Accepting is `CreateTemplate` as the accepter, scope from the target, never from the answer | `TEMPLATE` suggestion |
+| Rule drafting | `DescribeRule` takes a sentence and the scope the editor holds, and asks what writing a rule asks: `AUTOMATION` at the scope, `automation:manage`, a plan with rules (automation.md §2.1). The material is the vocabulary a draft may use - an allowlist of entry-level action kinds, each field classified (`draftableActions`, held to the catalogue by a test), the trigger kinds but `SCHEDULE`, the composer's condition subjects but board columns and custom fields - and the people, collections, labels and places the sentence names that the asker may see, at most twenty each; whoever keeps their content out is never named. The answer is narrowed to that: what was not shown is dropped and named in `not_drafted` (a message code, or the person's own words quoted - a quote that is not in their sentence is dropped). The words are held in `ai_request` for the job, which runs as `ai.draft_rule`. The draft is about the asker's own `ACCOUNT`: only they read, accept or dismiss it. Accepting is `CreateRule` as the asker with `name` and `run_as` in the overrides, so the rule is stored switched off; a draft is never applied without a person | `RULE` suggestion |
 | Translation | `AiTranslate` reads one entry's title and notes in a named language (default: the caller's). A *read*: the entry's read is the permission, consent and budget are asked after, the call is bounded because a person waits, every failure is `ai.unavailable`. Nothing is stored; the audit records entry and language, never text ([i18n-l10n.md](./i18n-l10n.md) §7) | Display only, not persisted |
 
 **Guardrails:**
@@ -175,10 +176,16 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
   listing as the asking person, passed as options — content, never instruction — and validated on
   return; anything else is dropped and the rest stands. Where the set has its own validation (a
   custom field's declaration), the check is that code, not a copy.
+* **A model writes no expression.** A condition a model drafts is answered as the rule editor's
+  sentences and compiled by the server's twin of the composer (`core/domain/model/automation`), so
+  no byte of an answer becomes expression text except as a literal the compiler escaped - rule 9's
+  reasoning, applied to the rules' language. Branch conditions, a dedupe key and an outbound body
+  are never drafted, and no draft names an address.
 * **A prompt asks for exactly what the code keeps.** `test/architecture/promptanswers_test.go`
   compares a prompt's fenced answer shape with the allow list in `Producing.go` both ways; the allow
   list stays the authority.
-* **Every key an allow list keeps is one the acceptance can apply.** A proposal is narrowed by the
+* **Every key an allow list keeps is one the acceptance can apply** - or one it only tells the
+  person (`toldKeys`: what a rule draft could not draft). A proposal is narrowed by the
   allow list and by what the applying use case declares; `test/architecture/applicablekeys_test.go`
   holds registry, allow lists, (prompt, target) declarations and acceptance table together. A
   payload built in code (duplicates) is never merged into a use case's input.

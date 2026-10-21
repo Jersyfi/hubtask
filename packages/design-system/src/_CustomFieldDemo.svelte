@@ -6,6 +6,7 @@
   // Every label here is resolved English: the key is `warranty_until`, and what a person reads is
   // "Warranty until". The component never sees a key where a label belongs.
 
+  import InContext from './_InContext.svelte';
   import CustomFieldRenderer, {
     type FieldDefinition,
     type FieldValue,
@@ -13,7 +14,7 @@
   import AssigneeControl from './AssigneeControl.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'all' }: { mode?: 'all' | 'unknown' | 'user' } = $props();
+  const { mode = 'all' }: { mode?: 'all' | 'unknown' | 'user' | 'row' | 'table' } = $props();
 
   const definitions: { definition: FieldDefinition; value: FieldValue }[] = [
     { definition: { key: 'supplier', label: 'Supplier', kind: 'TEXT', isRequired: true }, value: 'Nordhaus GmbH' },
@@ -44,6 +45,19 @@
   let responsible = $state<readonly string[]>(['p1']);
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="This field is set by the template this entry came from.">
+    {#snippet subject({ reason })}
+      <CustomFieldRenderer
+        definition={{ key: 'trades', label: 'Trades involved', kind: 'MULTI_SELECT', options: ['Electrics', 'Plumbing', 'Joinery'] }}
+        value={['Electrics']}
+        unknownKindLabel="This installation is newer than this client, so the field is shown as it was stored."
+        emptyValueLabel="Not set"
+        disabledReason={reason}
+      />
+    {/snippet}
+  </InContext>
+{:else}
 <Stack gap="150">
   {#if mode === 'all'}
     {#each definitions as field (field.definition.key)}
@@ -93,3 +107,4 @@
     />
   {/if}
 </Stack>
+{/if}

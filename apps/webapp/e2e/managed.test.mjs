@@ -126,7 +126,11 @@ test('Sign-in settings draws the switch, and says why it cannot be switched on u
     const control = page.getByRole('switch', { name: 'Accounts without a mail address allowed' });
     await control.waitFor();
     assert.equal(await control.isDisabled(), true, 'a switch the installation locked can be changed here');
-    await page.getByText('Set by the installation', { exact: false }).first().waitFor();
+    // The reason is the switch's own description - a bubble at the switch, not a line beside it
+    // (design-system.md §4) - so it is read where a person meets it.
+    const described = await control.evaluate((node) =>
+      (node.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+    assert.match(described, /Set by the installation/, 'the switch does not say who locked it');
   } finally {
     await close();
     await browser.close();

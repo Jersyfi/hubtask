@@ -352,7 +352,7 @@ func TestRenamedActionsAgreeWithTheCatalogue(t *testing.T) {
 	}
 }
 
-// What a plan can leave out reaches exactly the operations that create, change, switch on, run or
+// What a plan can leave out reaches exactly the operations that draft, create, change, switch on, run or
 // send its feature (multi-tenancy.md §4.2) - a rule's dry run among them, which reads nothing it
 // keeps but runs the rule - never an act that removes, and nothing outside the three features
 // (UC-INS-13 checks 4 and 5).
@@ -361,6 +361,7 @@ func TestTheOperationsAPlanCanLeaveOutAreExactlyThese(t *testing.T) {
 		"CreateRule": entitlement.AutomationRules, "UpdateRule": entitlement.AutomationRules,
 		"EnableRule": entitlement.AutomationRules, "TriggerRuleManually": entitlement.AutomationRules,
 		"ReplayRuleRun": entitlement.AutomationRules, "TestRule": entitlement.AutomationRules,
+		"DescribeRule":              entitlement.AutomationRules,
 		"CreateWebhookSubscription": entitlement.Webhooks, "SendWebhook": entitlement.Webhooks,
 		"ReplayWebhookDelivery":          entitlement.Webhooks,
 		"ConfigureIdentityProvider":      entitlement.OwnSignInProviders,

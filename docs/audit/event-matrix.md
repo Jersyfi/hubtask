@@ -65,6 +65,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
+| `ai.rule_asked` | DescribeRule | `automation_rule` | NOTICE | Every time |
 | `ai.source_chosen` | ChooseAiSource | `ai_source` | NOTICE | Every time |
 | `ai.source_read` | ReadAiSource | `ai_source` | INFO | When refused |
 | `ai.suggestion_accepted` | AcceptSuggestion | `ai_suggestion` | INFO | Every time |

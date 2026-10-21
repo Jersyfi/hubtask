@@ -14,7 +14,13 @@
   // rather than left out. Leaving it out would make the switcher disagree with the installation,
   // and a reader who has heard of the timeline would be looking for something that is simply
   // absent; there is no `disabled` boolean in this package for the same reason.
+  //
+  // **The arrows reach it.** A radio group chooses as it moves, so an unavailable view is the one
+  // place where focus and the choice part: the arrows land on it - focusable, `aria-disabled`, its
+  // reason a bubble - and the chosen view stays chosen. Skipping it would leave a keyboard reader
+  // no way to learn why it is off (design-system.md §4).
 
+  import Reason from './_Reason.svelte';
   import Icon from './Icon.svelte';
   import { rovingIndex } from './focus.ts';
   import type { IconName } from './icons/index.ts';
@@ -39,8 +45,17 @@
   let { label, views, selected = $bindable(views[0]?.id ?? ''), onselect }: Props = $props();
 
   let group = $state<HTMLElement | null>(null);
+  const viewElements: (HTMLButtonElement | null)[] = $state([]);
+
+  // Svelte's own id, not a random one: unique per instance, so two switchers on one page - the
+  // list's and the timeline's - do not share the ids their reasons hang on.
+  const instanceId = $props.id();
+  const reasonId = (id: string) => `views-${instanceId}-reason-${id}`;
 
   const chosen = $derived(Math.max(0, views.findIndex((view) => view.id === selected)));
+  /** Where focus is; the chosen view unless the arrows went onto an unavailable one. */
+  let focused = $state<number | null>(null);
+  const stop = $derived(focused ?? chosen);
 
   function choose(view: View) {
     if (view.unavailableReason !== undefined) return;
@@ -50,21 +65,20 @@
 
   function onKeydown(event: KeyboardEvent) {
     const dir = group !== null && getComputedStyle(group).direction === 'rtl' ? 'rtl' : 'ltr';
-    const moved = rovingIndex(event.key, chosen, views.length, { orientation: 'horizontal', dir });
+    const moved = rovingIndex(event.key, stop, views.length, { orientation: 'horizontal', dir });
     if (moved === null) return;
     event.preventDefault();
+    const view = views[moved];
+    if (!view) return;
+    focused = moved;
+    choose(view);
+    viewElements[moved]?.focus();
+  }
 
-    // The arrows skip what cannot be chosen rather than landing on it: a radio group moves the
-    // selection as it moves focus, so stopping on an unavailable view would mean choosing it.
-    for (let step = 0; step < views.length; step += 1) {
-      const at = (moved + step * (moved >= chosen ? 1 : -1) + views.length) % views.length;
-      const view = views[at];
-      if (view && view.unavailableReason === undefined) {
-        choose(view);
-        group?.querySelector<HTMLElement>(`[data-view="${view.id}"]`)?.focus();
-        return;
-      }
-    }
+  /** Leaving the group forgets an unavailable view: `Tab` back in lands on the chosen one. */
+  function onFocusout(event: FocusEvent) {
+    if (group && event.relatedTarget instanceof Node && group.contains(event.relatedTarget)) return;
+    focused = null;
   }
 </script>
 
@@ -78,8 +92,9 @@
   tabindex="-1"
   bind:this={group}
   onkeydown={onKeydown}
+  onfocusout={onFocusout}
 >
-  {#each views as view (view.id)}
+  {#each views as view, position (view.id)}
     {@const isChosen = view.id === selected}
     {@const isOff = view.unavailableReason !== undefined}
     <button
@@ -89,20 +104,25 @@
       data-view={view.id}
       aria-checked={isChosen}
       aria-disabled={isOff ? 'true' : undefined}
-      aria-describedby={isOff ? `reason-${view.id}` : undefined}
-      tabindex={isChosen ? 0 : -1}
-      onclick={() => choose(view)}
+      aria-describedby={isOff ? reasonId(view.id) : undefined}
+      tabindex={position === stop ? 0 : -1}
+      bind:this={viewElements[position]}
+      onclick={() => {
+        focused = position;
+        choose(view);
+      }}
     >
       {#if view.icon}<Icon name={view.icon} size="sm" />{/if}
       <span>{view.label}</span>
     </button>
-    {#if isOff}
-      <!-- The reason is announced and drawn: a control that cannot be used still says what it
-           would have done, and why it cannot. -->
-      <span id={`reason-${view.id}`} class="reason">{view.unavailableReason}</span>
-    {/if}
   {/each}
 </div>
+<!-- Outside the radio group, whose children are radios; out of the flow wherever they are. -->
+{#each views as view, position (view.id)}
+  {#if view.unavailableReason !== undefined}
+    <Reason id={reasonId(view.id)} text={view.unavailableReason} control={viewElements[position] ?? null} />
+  {/if}
+{/each}
 
 <style>
   .switcher {
@@ -151,5 +171,4 @@
   .view[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
   .view[aria-disabled='true']:hover { background: transparent; color: var(--text-subtle); }
 
-  .reason { color: var(--text-subtle); font-size: var(--fs-075); max-width: 40ch; }
 </style>

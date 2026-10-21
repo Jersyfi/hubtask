@@ -31,7 +31,7 @@ workbench chrome).
 | Case | Example before | Pattern |
 |---|---|---|
 | 1 The role forbids it | grey button with a sentence | not shown (P-05); where needed for orientation, a lock and the reason as in 2 |
-| 2 Not possible right now | "Already first" between the arrows | the control stays focusable (`aria-disabled`); the reason is a tooltip on hover and focus, a sheet on tap; no space in the layout |
+| 2 Not possible right now | "Already first" between the arrows | the control stays focusable (`aria-disabled`); the reason is a bubble at the control on hover, focus and tap; no space in the layout |
 | 3 Something must be filled in | "Tick at least one scope", "Name a period first" | the submit is enabled; pressing it marks the missing fields and focuses the first |
 | 4 Nothing changed | "Nothing has changed yet" | a save bar appears with changes only: "2 changes · Discard · Save" |
 | 5 A whole area is read-only | "Archived" under every row; a dimmed form with the reason at the end | one notice at the top of the area; content stays readable; controls are absent |
@@ -57,7 +57,7 @@ End-user:
 - [ ] 13 `views/NotificationsView.svelte` always-on cells → one note for the row
 - [ ] 14 `lib/entries/ReminderPanel.svelte`, `CustomFieldsDialog.svelte`, `ImportDialog.svelte` → 3
 - [ ] 15 panels gated by `CapabilityGate` (labels, cover, attachments, comments, recurrence, custom field) → 1 or 5
-- [ ] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback
+- [x] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback — UX-03: the refused part is absent (`lib/people/parts.ts`), so the gate never renders refused there, and the fallback is gone from `CapabilityGate`
 - [ ] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1
 
 Administration:
@@ -84,25 +84,25 @@ Installation:
 
 ### D.3 In the design system
 
-- [ ] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
-- [ ] `Tabs`, `ViewSwitcher`: reason at the tab; unique ids
-- [ ] `Select`: an option's reason shown (today never rendered)
-- [ ] `Checkbox`, `Switch` without label: tooltip
-- [ ] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
-- [ ] `CapabilityGate`: reason first, inline stays inline, no English fallback
-- [ ] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
-- [ ] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
+- [x] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
+- [x] `Tabs`, `ViewSwitcher`: reason at the tab; the arrows reach an unavailable one; unique ids (`ViewSwitcher`; `Tabs` has them)
+- [x] `Select`: an option's reason shown (today never rendered)
+- [x] `Checkbox`, `Switch` without label: tooltip
+- [x] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
+- [x] `CapabilityGate`: reason first, inline stays inline, no English fallback
+- [x] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
+- [x] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
 
 ## E1 — Frame
 
 - [ ] Skip link → kept
 - [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
 - [ ] Wordmark → the mark (UX-06), leads to Today
-- [ ] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask*
+- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask*: UX-22
 - [ ] Page *⋯* on phones → kept
 - [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
-- [ ] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new)
+- [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
 - [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
@@ -192,7 +192,7 @@ Installation:
 - [ ] Service accounts with tokens, third-party apps → *Machines and apps*
 - [ ] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips
 - [ ] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation
-- [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23)
+- [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
 - [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
 - [ ] Private hubs (allowed switch, table, emergency access) → *Data*
 - [ ] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms

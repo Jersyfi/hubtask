@@ -22,14 +22,18 @@ const TYPES = {
   '.webmanifest': 'application/manifest+json',
 };
 
-/** Serves `root` on a free loopback port; resolves to the origin and the function that stops it. */
-export function serve(root) {
+/**
+ * Serves `root` on a free loopback port; resolves to the origin and the function that stops it.
+ * `headers` go on every answer - the workbench layout test sends the product's `style-src 'self'`
+ * with it, so a component that writes an inline style fails there as it would in production.
+ */
+export function serve(root, { headers = {} } = {}) {
   const server = createServer(async (request, response) => {
     const path = normalize(decodeURIComponent(new URL(request.url, 'http://localhost').pathname));
     const file = join(root, path);
     try {
       const body = await readFile(file.startsWith(root) && extname(file) ? file : join(root, 'index.html'));
-      response.writeHead(200, { 'content-type': TYPES[extname(file)] ?? TYPES['.html'] });
+      response.writeHead(200, { ...headers, 'content-type': TYPES[extname(file)] ?? TYPES['.html'] });
       response.end(body);
     } catch {
       response.writeHead(404);

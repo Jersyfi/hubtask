@@ -37,3 +37,16 @@ export const conflict: Story = {
     '`UNTIL` and `COUNT` together are refused with a field error rather than silently repaired: repairing it would drop one of the two things the author wrote, and neither is safe to guess.',
   args: { mode: 'conflict' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A repetition that cannot be changed. It states its reason once - one bubble from the mark at its heading, whichever part is hovered, focused or tried - where it used to print it under every part. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};

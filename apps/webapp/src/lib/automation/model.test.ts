@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import type { Rule } from '../data/rules.svelte.ts';
 import { gapTakes } from './selection.ts';
@@ -15,7 +16,12 @@ import {
   compileSentence,
   countSteps,
   depthOf,
+  fromDraft,
   fromRule,
+  notDraftedOf,
+  offeredBlocks,
+  offersDescribing,
+  emptyDraft,
   insertAt,
   isAutomatic,
   moveStep,
@@ -283,6 +289,9 @@ test('a sentence compiles to the expression the server stores, and reads back fr
   }
   assert.equal(readSentence('size(item.title) > 3'), undefined, 'an expression the composer did not write');
   assert.equal(readSentence("item.type == 'TASK' || item.completed"), undefined);
+  // The composer writes no negated "starts with"; read as one, the sentence would say the opposite.
+  assert.equal(readSentence("!item.title.matches('(?i)^Permit')"), undefined, 'a negated starts-with stays an expression');
+  assert.equal(readNode("!item.title.matches('(?i)^Permit')"), undefined);
 });
 
 // A condition as a tree (automation.md §1.5): all / any / none over sentences and groups, compiled with
@@ -324,3 +333,82 @@ test('a tree of conditions compiles with parentheses and reads back the same', (
   // An empty group is no expression.
   assert.equal(compileNode({ mode: 'any', items: [] }), '');
 });
+
+// The server compiles a model's condition sentences with a twin of this composer
+// (test/architecture/conditionsentences_test.go reads the same vectors). Each compiled vector is what
+// this compiler writes and what it reads back; an unreadable one stays an expression on the canvas.
+test('the shared sentence vectors compile here as on the server, and read back', () => {
+  const vectors = JSON.parse(readFileSync(new URL('./sentences.golden.json', import.meta.url), 'utf8')) as {
+    compiled: { name: string; node: Node; expr: string; read?: Node | null }[];
+    unreadable: { name: string; expr: string }[];
+  };
+  assert.ok(vectors.compiled.length > 0 && vectors.unreadable.length > 0);
+  for (const vector of vectors.compiled) {
+    assert.equal(compileNode(vector.node), vector.expr, vector.name);
+    const expected = vector.read === undefined ? vector.node : (vector.read ?? undefined);
+    assert.deepEqual(readNode(vector.expr), expected, vector.name);
+  }
+  for (const vector of vectors.unreadable) {
+    assert.equal(readNode(vector.expr), undefined, vector.name);
+  }
+});
+
+// A drafted rule opens on the canvas as an unsaved new rule: its place, trigger, condition and steps,
+// and never a name or an account to run as - those stay the person's (UC-AUT-10 check 3).
+test('a drafted rule opens on the canvas, its condition as sentences, its name and runner untouched', () => {
+  const base = { ...emptyDraft('de.hubtask.work.item.created.v1'), name: '', runAs: 'svc-1' };
+  const draft = fromDraft(
+    {
+      scope: { type: 'COLLECTION', id: 'c-1' },
+      trigger: { kind: 'JUMBLE_ENTRY' },
+      conditions: [{ expr: "item.type == 'TASK' && !has(item.assignee_id)" }],
+      actions: [{ kind: 'ASSIGN_WORK_ITEM', params: { account_id: 'lisa' } }, { kind: 'STOP' }],
+      run_as: 'somebody-else',
+      not_drafted: [{ part: 'set it due in two days' }],
+    },
+    base,
+  );
+  assert.deepEqual(draft.scope, { type: 'COLLECTION', id: 'c-1' });
+  assert.deepEqual(draft.trigger, { kind: 'JUMBLE_ENTRY' });
+  assert.equal(draft.runAs, 'svc-1', 'a draft names no account to run as');
+  assert.equal(draft.name, '');
+  assert.deepEqual(draft.actions.map((step) => step.kind), ['ASSIGN_WORK_ITEM', 'STOP']);
+  assert.deepEqual(readNode(draft.conditions[0] ?? ''), {
+    mode: 'all',
+    items: [{ subject: 'type', op: 'is', a: 'TASK' }, { subject: 'assignee', op: 'lacks' }],
+  });
+  const missing = fromDraft({ not_drafted: [] }, base);
+  assert.deepEqual(missing.trigger, base.trigger, 'a draft without a trigger keeps the one the editor had');
+  assert.deepEqual(missing.actions, []);
+});
+
+test('what a draft could not draft is read as quotes and draft codes, and nothing else', () => {
+  assert.deepEqual(
+    notDraftedOf({
+      not_drafted: [
+        { part: 'set it due in two days' },
+        { code: 'automation.draft.kind_not_offered', params: { kind: 'HTTP_REQUEST' } },
+        { code: 'app.something_else' },
+        'a bare string',
+        { part: '   ' },
+      ],
+    }),
+    [{ part: 'set it due in two days' }, { code: 'automation.draft.kind_not_offered', params: { kind: 'HTTP_REQUEST' } }],
+  );
+  assert.deepEqual(notDraftedOf({}), []);
+});
+
+test('the step that drafts rules is not a block', () => {
+  assert.deepEqual(offeredBlocks(['ADD_LABEL', 'DESCRIBE_RULE', 'AI_CLASSIFY']), ['ADD_LABEL', 'AI_CLASSIFY']);
+});
+
+// *Describe it* is offered exactly where asking could succeed: a new rule, AI available to this
+// person, and an editor that may save here (UC-AUT-10 check 1, P-05).
+test('describing a rule is offered only where asking could succeed', () => {
+  const yes = { isNew: true, aiAvailable: true, mayAutomate: true, rulesIncluded: true };
+  assert.equal(offersDescribing(yes), true);
+  for (const missing of ['isNew', 'aiAvailable', 'mayAutomate', 'rulesIncluded'] as const) {
+    assert.equal(offersDescribing({ ...yes, [missing]: false }), false, missing);
+  }
+});
+

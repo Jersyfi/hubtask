@@ -15,6 +15,21 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AcceptedSuggestionSource.
+const (
+	AcceptedSuggestionSourceAI AcceptedSuggestionSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AcceptedSuggestionSource enum.
+func (e AcceptedSuggestionSource) Valid() bool {
+	switch e {
+	case AcceptedSuggestionSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountKind.
 const (
 	AccountKindSERVICEACCOUNT AccountKind = "SERVICE_ACCOUNT"
@@ -4421,6 +4436,7 @@ const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
+	RULE          SuggestionKind = "RULE"
 	TEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
@@ -4432,6 +4448,8 @@ func (e SuggestionKind) Valid() bool {
 	case DUPLICATES:
 		return true
 	case FIELDS:
+		return true
+	case RULE:
 		return true
 	case TEMPLATE:
 		return true
@@ -4463,6 +4481,7 @@ func (e SuggestionStatus) Valid() bool {
 
 // Defines values for SuggestionTargetType.
 const (
+	SuggestionTargetTypeACCOUNT     SuggestionTargetType = "ACCOUNT"
 	SuggestionTargetTypeCONTAINER   SuggestionTargetType = "CONTAINER"
 	SuggestionTargetTypeJUMBLEENTRY SuggestionTargetType = "JUMBLE_ENTRY"
 	SuggestionTargetTypeWORKITEM    SuggestionTargetType = "WORK_ITEM"
@@ -4471,6 +4490,8 @@ const (
 // Valid indicates whether the value is a known member of the SuggestionTargetType enum.
 func (e SuggestionTargetType) Valid() bool {
 	switch e {
+	case SuggestionTargetTypeACCOUNT:
+		return true
 	case SuggestionTargetTypeCONTAINER:
 		return true
 	case SuggestionTargetTypeJUMBLEENTRY:
@@ -5249,6 +5270,59 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 		return false
 	}
 }
+
+// AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
+type AcceptedSuggestion struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// CreatedId What accepting created, where it created one thing; absent where it changed an entry or created several.
+	CreatedId *openapi_types.UUID `json:"created_id,omitempty"`
+
+	// DecidedAt When it was accepted or dismissed.
+	DecidedAt *time.Time `json:"decided_at,omitempty"`
+
+	// DecidedBy Who accepted or dismissed it. A suggestion is decided by a person.
+	DecidedBy *openapi_types.UUID `json:"decided_by,omitempty"`
+
+	// DroppedNodes How many parts of the provider's answer the narrowing dropped before the payload was stored, so that a client can say the draft is not the whole answer. For `TEMPLATE` it is the nodes the collection's profile refused under their parent, each counted with its subtree; zero for every other kind, whose narrowing drops what it drops without a count. Absent on a row written before the count existed, which reads as zero.
+	DroppedNodes *int               `json:"dropped_nodes,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
+	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
+	Kind SuggestionKind `json:"kind"`
+
+	// Model The model that answered, as the provider named it — not as it was configured.
+	Model string `json:"model"`
+
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). It is data, never an instruction, and nothing acts on it until somebody accepts.
+	Payload map[string]interface{} `json:"payload"`
+
+	// ProducedAt When the provider answered, which is not when the record was written.
+	ProducedAt time.Time `json:"produced_at"`
+	PromptId   string    `json:"prompt_id"`
+
+	// PromptVersion Which version of the prompt produced this. Prompt files are versioned in their names and the old ones stay, so this resolves to the actual words a year later.
+	PromptVersion string `json:"prompt_version"`
+
+	// Source Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+	Source AcceptedSuggestionSource `json:"source"`
+
+	// Status `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
+	Status   SuggestionStatus   `json:"status"`
+	TargetId openapi_types.UUID `json:"target_id"`
+
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
+	TargetType SuggestionTargetType `json:"target_type"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// AcceptedSuggestionSource Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+type AcceptedSuggestionSource string
 
 // AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
 type AccessToken struct {
@@ -10027,6 +10101,15 @@ type RuleConditionResult struct {
 	Matched   bool    `json:"matched"`
 }
 
+// RuleDescription What to ask for, and where the rule would apply.
+type RuleDescription struct {
+	// Description What the rule should do, in the caller's own words. It travels to the provider as content, never as instruction.
+	Description string `json:"description"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
+}
+
 // RuleFinding One thing the check found about a rule. `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters.
 type RuleFinding struct {
 	Code string `json:"code"`
@@ -10725,13 +10808,14 @@ type Suggestion struct {
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -10748,7 +10832,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -10760,12 +10844,13 @@ type SuggestionSource string
 
 // SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
 type SuggestionAcceptance struct {
-	// Overrides Fields of the proposal to replace or add. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has.
+	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`.
 	Overrides *map[string]interface{} `json:"overrides,omitempty"`
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 // `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
 // `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -10779,7 +10864,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -12257,6 +12342,12 @@ type TriggerRuleManuallyParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DescribeRuleParams defines parameters for DescribeRule.
+type DescribeRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRuleRunsParams defines parameters for ListRuleRuns.
 type ListRuleRunsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -13347,6 +13438,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 // UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
 type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
 
+// DescribeRuleJSONRequestBody defines body for DescribeRule for application/json ContentType.
+type DescribeRuleJSONRequestBody = RuleDescription
+
 // TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
 type TestRuleJSONRequestBody = RuleTest
 
@@ -14027,6 +14121,9 @@ type ServerInterface interface {
 	// CheckRules Check every rule of the workspace against what exists now
 	// (POST /automation/rules:check)
 	CheckRules(w http.ResponseWriter, r *http.Request)
+	// DescribeRule Ask AI to draft a rule from a sentence
+	// (POST /automation/rules:describe)
+	DescribeRule(w http.ResponseWriter, r *http.Request, params DescribeRuleParams)
 	// TestRule Dry-run a rule against a sample event
 	// (POST /automation/rules:test)
 	TestRule(w http.ResponseWriter, r *http.Request)
@@ -18653,6 +18750,47 @@ func (siw *ServerInterfaceWrapper) CheckRules(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CheckRules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DescribeRule operation middleware
+func (siw *ServerInterfaceWrapper) DescribeRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DescribeRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DescribeRule(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -26990,6 +27128,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:check", wrapper.CheckRules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:describe", wrapper.DescribeRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)

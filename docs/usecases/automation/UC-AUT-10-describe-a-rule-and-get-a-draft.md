@@ -5,9 +5,9 @@ context: automation
 actors: [PE-admin, PE-owner]
 deployments: [D1, D3, D4, D5, D6]
 serves: [P-11, P-14]
-state: specified
+state: built
 tasks: [UX-23]
-checked_by: []
+checked_by: [core/application/service/suggestion/RuleDraft_test.go, core/application/service/suggestion/DescribeRule_test.go, core/application/service/suggestion/RuleAcceptance_test.go, test/integration/ai_rule_draft_test.go, test/architecture/conditionsentences_test.go, apps/webapp/e2e/ruledraft.test.mjs]
 ---
 
 # Describe a rule and get a draft
@@ -30,10 +30,3 @@ An administrator writes in a sentence what should happen and gets a rule drawn o
 ## Where it ends
 
 * The rule engine's limits stay [UC-AUT-07](./UC-AUT-07-keep-rules-from-running-away.md).
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.

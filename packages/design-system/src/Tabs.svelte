@@ -12,9 +12,15 @@
   // Selection follows focus, which the practices allow when showing a panel is cheap. It is here:
   // the panels are already rendered by the caller and switching is a class change. If a panel ever
   // costs a request, this is the decision to revisit - and it is one line.
+  //
+  // **Except onto a tab that cannot be opened.** Focus and selection are tracked apart for that
+  // one case: the arrows land on an unavailable tab - focusable, `aria-disabled`, its reason shown
+  // as a bubble - and the panel stays where it was. Skipping it would leave a keyboard reader no
+  // way to learn why it is off (design-system.md §4).
 
   import type { Snippet } from 'svelte';
 
+  import Reason from './_Reason.svelte';
   import { rovingIndex } from './focus.ts';
 
   /** One tab. `id` is what the caller switches on, never display text. */
@@ -44,33 +50,41 @@
   const instanceId = $props.id();
   const group = `tabs-${instanceId}`;
 
-  // A `title` is not an accessible description: it is a tooltip a pointer finds and a keyboard
-  // reader does not. Where a view cannot be opened the reason is rendered and pointed at, exactly
-  // as `Button` does it — the reason and the state cannot come apart (design-system.md §4).
   const reasonId = (id: string) => `${group}-reason-${id}`;
   let strip = $state<HTMLElement | null>(null);
+  const tabElements: (HTMLButtonElement | null)[] = $state([]);
 
   const index = $derived(Math.max(0, tabs.findIndex((tab) => tab.id === selected)));
+  /** Where focus is in the strip; the selected tab unless the arrows went onto an unavailable one. */
+  let focused = $state<number | null>(null);
+  const stop = $derived(focused ?? index);
 
   function choose(next: number) {
     const tab = tabs[next];
     if (!tab || tab.disabledReason !== undefined) return;
     selected = tab.id;
     onselect?.(tab.id);
-    // Focus follows the choice so that the arrows keep working from where the reader now is.
-    strip?.querySelector<HTMLElement>(`[data-index="${next}"]`)?.focus();
   }
 
   function onKeydown(event: KeyboardEvent) {
     // Horizontal, and therefore mirrored in RTL by `rovingIndex` rather than here: which key means
     // "the next one" is a direction question, and it is answered in one place.
-    const next = rovingIndex(event.key, index, tabs.length, {
+    const next = rovingIndex(event.key, stop, tabs.length, {
       orientation: 'horizontal',
       dir: strip && getComputedStyle(strip).direction === 'rtl' ? 'rtl' : 'ltr',
     });
     if (next === null) return;
     event.preventDefault();
+    focused = next;
     choose(next);
+    // Focus follows the arrows so that they keep working from where the reader now is.
+    tabElements[next]?.focus();
+  }
+
+  /** Leaving the strip forgets an unavailable tab: `Tab` back in lands on the selected one. */
+  function onFocusout(event: FocusEvent) {
+    if (strip && event.relatedTarget instanceof Node && strip.contains(event.relatedTarget)) return;
+    focused = null;
   }
 </script>
 
@@ -85,6 +99,7 @@
     tabindex="-1"
     bind:this={strip}
     onkeydown={onKeydown}
+    onfocusout={onFocusout}
   >
     {#each tabs as tab, position (tab.id)}
       <button
@@ -97,16 +112,23 @@
         aria-selected={tab.id === selected}
         aria-disabled={tab.disabledReason === undefined ? undefined : true}
         aria-describedby={tab.disabledReason === undefined ? undefined : reasonId(tab.id)}
-        tabindex={position === index ? 0 : -1}
-        onclick={() => choose(position)}
+        tabindex={position === stop ? 0 : -1}
+        bind:this={tabElements[position]}
+        onclick={() => {
+          focused = position;
+          choose(position);
+        }}
       >
         {tab.label}
       </button>
     {/each}
   </div>
 
-  {#each tabs.filter((tab) => tab.disabledReason !== undefined) as tab (tab.id)}
-    <span id={reasonId(tab.id)} class="reason">{tab.disabledReason}</span>
+  <!-- Outside the tab list, whose children are tabs; out of the flow wherever they are. -->
+  {#each tabs as tab, position (tab.id)}
+    {#if tab.disabledReason !== undefined}
+      <Reason id={reasonId(tab.id)} text={tab.disabledReason} control={tabElements[position] ?? null} />
+    {/if}
   {/each}
 
   {#if children}
@@ -168,13 +190,6 @@
   .panel:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
-  }
-
-  .reason {
-    display: block;
-    max-width: 40ch;
-    color: var(--text-subtle);
-    font-size: var(--fs-075);
   }
 
   .panel { min-width: 0; }

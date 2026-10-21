@@ -24,6 +24,8 @@
   import Input from './Input.svelte';
   import Select from './Select.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
 
   /** The eight the contract declares. A string beside them is a kind from a newer server. */
   export type CustomFieldKind =
@@ -125,6 +127,13 @@
   function toggle(option: string) {
     onChange?.(chosen.includes(option) ? chosen.filter((held) => held !== option) : [...chosen, option]);
   }
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${instanceId}`;
+  // Only a multiple choice has several parts; every other kind is one field, which says its reason
+  // itself.
+  provideReasonGroup(() => ({ id: groupId, reason: definition.kind === 'MULTI_SELECT' ? disabledReason : undefined }));
+  let container = $state<HTMLElement | null>(null);
 </script>
 
 {#if isUnknown}
@@ -161,10 +170,11 @@
   <!-- A group of checkboxes rather than a native multi-select list: that one is operable in
        theory and unusable in practice, because holding a modifier while clicking is a gesture
        most people have never been taught and no touch device offers. -->
-  <fieldset class="group">
+  <fieldset class="group" aria-describedby={disabledReason === undefined ? undefined : groupId} bind:this={container}>
     <legend>
       {definition.label}
       {#if definition.isRequired}<span class="required" aria-hidden="true">*</span>{/if}
+      <ReasonMark id={groupId} text={disabledReason} {container} />
     </legend>
     {#if definition.hint}<p class="hint">{definition.hint}</p>{/if}
     {#each definition.options ?? [] as option (option)}

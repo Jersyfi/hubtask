@@ -5,10 +5,12 @@
   // from the installation, and the specification the editor produces is shown so a reader of the
   // workbench can see the two paths agree on one grammar.
 
+  import InContext from './_InContext.svelte';
+  import Self from './_ReminderDemo.svelte';
   import ReminderEditor, { type ReminderChannel } from './ReminderEditor.svelte';
   import AssigneeControl from './AssigneeControl.svelte';
 
-  const { mode = 'preset' }: { mode?: 'preset' | 'relative' | 'absolute' | 'recipients' } = $props();
+  const { mode = 'preset', disabledReason }: { mode?: 'preset' | 'relative' | 'absolute' | 'recipients' | 'row' | 'table'; disabledReason?: string } = $props();
 
   const presets = [
     { value: 'REL:-PT10M', label: 'Ten minutes before' },
@@ -39,8 +41,16 @@
   });
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="Reminders are not available for this type of entry.">
+    {#snippet subject({ reason })}
+      <Self disabledReason={reason} />
+    {/snippet}
+  </InContext>
+{:else}
 <div>
   <ReminderEditor
+    {disabledReason}
     label="Remind me"
     {value}
     {presets}
@@ -86,6 +96,7 @@
     }}
   />
 {/snippet}
+{/if}
 
 <style>
   .produced { margin-block-start: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }

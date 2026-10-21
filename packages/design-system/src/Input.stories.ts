@@ -29,3 +29,23 @@ export const unavailable: Story = {
   about: 'The reason is rendered under the field and pointed at by `aria-describedby`.',
   args: { mode: 'unavailable' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A title field, unavailable. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};
+
+export const range: Story = {
+  name: 'A range, unavailable',
+  about:
+    '`readonly` does not reach a range, so the guard refuses the press and every key but leaving: the arrows move nothing, and the reason shows.',
+  args: { mode: 'range' },
+};

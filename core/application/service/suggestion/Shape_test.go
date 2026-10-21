@@ -166,7 +166,7 @@ func (hiddenNotes) Invoke(_ context.Context, name string, _ appshared.ActorConte
 // Notes the collection hides are kept, and not sent to a provider.
 func TestHiddenNotesAreNotSentToTheProvider(t *testing.T) {
 	material, err := CatalogueSources{Catalogue: hiddenNotes{}}.Material(
-		context.Background(), person(), domain.TargetWorkItem, targetID, "suggest-item-fields")
+		context.Background(), person(), Question{TargetType: domain.TargetWorkItem, TargetID: targetID, PromptID: "suggest-item-fields"})
 	if err != nil {
 		t.Fatalf("reading the material: %v", err)
 	}

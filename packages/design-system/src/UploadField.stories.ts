@@ -44,3 +44,16 @@ export const unavailable: Story = {
     '`disabledReason` is what disables, and it reaches the accessibility tree. `ErrCapabilityNotSupported` must never become silent ignoring: a control that simply did nothing would be indistinguishable from one that is broken.',
   args: { mode: 'unavailable' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A file that cannot be chosen. It states its reason once - one bubble from the mark at its heading, whichever part is hovered, focused or tried. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};
