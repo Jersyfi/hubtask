@@ -59,7 +59,9 @@ async function waitFor(condition, timeout = 10_000) {
 
 async function evidence(page, name) {
   if (!process.env.EVIDENCE) return;
-  await page.screenshot({ path: join(process.env.EVIDENCE, name), fullPage: true });
+  // `SCHEME=dark` takes the same pictures in the dark theme.
+  if (process.env.SCHEME) await page.emulateMedia({ colorScheme: process.env.SCHEME });
+  await page.screenshot({ path: join(process.env.EVIDENCE, name.replace('.png', `-${process.env.SCHEME ?? 'light'}.png`)), fullPage: true });
 }
 
 test('chromium: proposals on arrival are off until an administrator switches them on, and off again', async (t) => {

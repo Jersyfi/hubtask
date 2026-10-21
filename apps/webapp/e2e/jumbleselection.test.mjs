@@ -65,7 +65,9 @@ async function startSelecting(page) {
 
 async function evidence(page, name) {
   if (!process.env.EVIDENCE) return;
-  await page.screenshot({ path: join(process.env.EVIDENCE, name), fullPage: true });
+  // `SCHEME=dark` takes the same pictures in the dark theme.
+  if (process.env.SCHEME) await page.emulateMedia({ colorScheme: process.env.SCHEME });
+  await page.screenshot({ path: join(process.env.EVIDENCE, name.replace('.png', `-${process.env.SCHEME ?? 'light'}.png`)), fullPage: true });
 }
 
 for (const width of [1280, 768, 375]) {

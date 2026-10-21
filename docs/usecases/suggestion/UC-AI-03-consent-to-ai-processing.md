@@ -6,7 +6,7 @@ actors: [PE-owner, PE-admin, PE-person]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-14, P-11, P-12]
 state: built
-tasks: [J-01, J-02]
+tasks: [J-01, J-02, UX-21]
 checked_by: [core/application/service/integration/AiProviderConfig_test.go]
 ---
 
@@ -34,5 +34,8 @@ is the consent; switching it off stops every call before the next one.
 ## Where it ends
 
 * Consent is per workspace, not per person; a person who does not want AI suggestions simply does
-  not ask for them.
+  not ask for them. Where the workspace prepares proposals for new jumble entries
+  ([UC-JUM-07](../jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) check 10), what arrives in
+  its jumble is read without anybody asking; a person keeps their own content out of that as of
+  every AI use ([UC-PRV-05](../privacy/UC-PRV-05-withdraw-consent-to-optional-processing.md)).
 * Consent is never given by a provider or a plan ([NG-ai-consent-by-default](../../vision/non-goals.md)).
