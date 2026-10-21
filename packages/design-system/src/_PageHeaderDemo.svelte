@@ -3,10 +3,11 @@
 <script lang="ts">
   import Banner from './Banner.svelte';
   import PageHeader from './PageHeader.svelte';
+  import ProgressBar from './ProgressBar.svelte';
   import Stack from './Stack.svelte';
   import ViewSwitcher, { type View } from './ViewSwitcher.svelte';
 
-  const { mode = 'collection' }: { mode?: 'collection' | 'hub' | 'phone' | 'long' } = $props();
+  const { mode = 'collection' }: { mode?: 'collection' | 'hub' | 'phone' | 'long' | 'figure' | 'figurePhone' } = $props();
 
   let chosen = $state<string | undefined>(undefined);
   let layout = $state('LIST_COLLAPSED');
@@ -69,8 +70,14 @@
       }}
       secondary={[{ label: isLong ? 'Filtern' : 'Filter', icon: 'funnel', onclick: () => (chosen = 'filter') }]}
       menu={{ label: isLong ? 'Mehr für diese Sammlung' : 'More for this collection', items: menu, onselect: (id) => (chosen = id) }}
-      isTitleInBar={mode === 'phone'}
+      isTitleInBar={mode === 'phone' || mode === 'figurePhone'}
     >
+      {#snippet figure()}
+        {#if mode === 'figure' || mode === 'figurePhone'}
+          <span class="share"><ProgressBar label="Done in Renovation" value={38} size="sm" /></span>
+          <span>38 % done · 5 of 13 steps</span>
+        {/if}
+      {/snippet}
       {#snippet notices()}
         {#if mode === 'collection'}
           <Banner tone="warning" title="Archived above">
@@ -87,5 +94,6 @@
 </Stack>
 
 <style>
+  .share { inline-size: 12ch; }
   .state { margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
 </style>

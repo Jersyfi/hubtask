@@ -29,6 +29,12 @@
     /** Narrowed from the module's `string`: a component may only name an icon that exists. */
     readonly icon?: IconName;
     readonly children?: readonly NavNode[];
+    /**
+     * A short figure at the end of the row - what counts in the place, "5 open", "38 %". Text the
+     * caller resolved; part of the row's name, so it is heard with the label. Not drawn on the
+     * rail, which is a column of marks.
+     */
+    readonly meta?: string;
   }
 
   interface Props {
@@ -238,6 +244,7 @@
         </span>
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
+          {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
                through the logical padding, so it mirrors with the document.
                A **control** where the caller named one, because the row itself now goes to the
@@ -404,6 +411,16 @@
     line-clamp: 2;
     overflow: hidden;
     overflow-wrap: anywhere;
+  }
+
+  /* The figure keeps to one line and to its own width, so a long label wraps beside it rather than
+     pushing it out of the row. */
+  .meta {
+    flex: none;
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
   }
 
   /* The flyout: positioned by `anchorTo`, layered by `openOverlay`, drawn like every other

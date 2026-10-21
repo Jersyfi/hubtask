@@ -83,6 +83,12 @@
      * here or the head leaves - so the bar never keeps a menu belonging to a page that is gone.
      */
     onmenu?: (menu: { label: string; items: readonly MenuItem[]; onselect: (id: string) => void; opener?: string } | undefined) => void;
+    /**
+     * What counts in this place, drawn under the title beside the description: a line of text, a
+     * bar, a row of marks. The caller's drawing; the head gives it its place, so that a figure
+     * arriving later moves neither the title nor the actions.
+     */
+    figure?: Snippet;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
@@ -99,6 +105,7 @@
     isTitleInBar = false,
     isMenuInBar = false,
     onmenu,
+    figure,
     notices,
     views,
   }: Props = $props();
@@ -107,7 +114,7 @@
   const parent = $derived(breadcrumb && breadcrumb.trail.length > 1 ? breadcrumb.trail[breadcrumb.trail.length - 2] : undefined);
   // With the title drawn elsewhere and no subtitle, the actions have no title to stand beside
   // and take the trail's line; the title row then holds only the read-not-drawn heading.
-  const actionsOnTrail = $derived(isTitleInBar && !subtitle && breadcrumb !== undefined);
+  const actionsOnTrail = $derived(isTitleInBar && !subtitle && !figure && breadcrumb !== undefined);
 
   // Below `medium` the secondary actions join the menu, so one control holds everything that is
   // not the primary. The ids are prefixed so a caller's own ids cannot collide with them.
@@ -246,6 +253,7 @@
         <h1 class="title">{title}</h1>
       {/if}
       {#if subtitle}<p class="subtitle">{subtitle}</p>{/if}
+      {#if figure}<div class="figure">{@render figure()}</div>{/if}
     </div>
     {#if !actionsOnTrail}{@render actionBar()}{/if}
   </div>
@@ -310,6 +318,16 @@
     max-width: 72ch;
     color: var(--text-secondary);
     overflow-wrap: anywhere;
+  }
+
+  .figure {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-100);
+    min-width: 0;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
   }
 
   .actions {
