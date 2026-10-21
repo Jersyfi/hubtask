@@ -210,6 +210,17 @@ export function kindFamily(kind: string): KindFamily {
 }
 
 /**
+ * The action kinds a rule may be given here: what the manifest serves, less the AI family where the
+ * manifest announces no AI for this caller (UC-AI-01 check 1, ai-first.md §2 "absence is absence").
+ * A rule that already holds an AI step still shows it - a configuration is drawn as it is - but
+ * nothing offers to add one.
+ */
+export function offeredKinds(served: readonly string[], features: Readonly<Record<string, unknown>> | undefined): readonly string[] {
+  if (features?.ai_suggestions === true) return served;
+  return served.filter((kind) => kindFamily(kind) !== 'ai');
+}
+
+/**
  * How often each kind is used across the rules the client holds (automation.md §1.5): what the blocks
  * list's *Frequent* group is counted from, arms included. Nothing is asked of the server.
  */

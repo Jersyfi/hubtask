@@ -35,7 +35,7 @@
   import type { Choice } from '../lib/automation/ActionForm.svelte';
   import { addRung, canPlace, emptyDraft, endsRun, fromDraft, fromRule, insertAt, isAutomatic, listAt, moveStep, newStep, nudge, offeredBlocks, offersDescribing, removeAt, removeRung, replaceAt, stepAt, toRuleDraft, walk, type Draft, type Step } from '../lib/automation/model.ts';
   import { DRAG_TYPE, dragHint, type Drag, type Selection } from '../lib/automation/selection.ts';
-  import { REFERENCE, eventWords, generatedName, kindWord, sentence, usageOf, type Names } from '../lib/automation/words.ts';
+  import { REFERENCE, eventWords, generatedName, kindWord, offeredKinds, sentence, usageOf, type Names } from '../lib/automation/words.ts';
   import { findingWords, marksOf } from '../lib/automation/findings.ts';
   import { review, type Note } from '../lib/automation/review.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
@@ -263,7 +263,7 @@
   /* ---------- What the manifest and the workspace offer ---------- */
 
   const triggers = $derived(manifest.value?.automation?.triggers ?? []);
-  const actionKinds = $derived(offeredBlocks(manifest.value?.automation?.actions ?? []));
+  const actionKinds = $derived(offeredKinds(offeredBlocks(manifest.value?.automation?.actions ?? []), manifest.value?.features));
   const actionFields = $derived((manifest.value?.automation?.action_fields ?? {}) as Readonly<Record<string, readonly { name: string; kind: string; required: boolean; enum?: readonly string[]; description?: string }[]>>);
   const eventTypes = $derived(manifest.value?.event_types ?? []);
   const itemTypes = $derived<Choice[]>(

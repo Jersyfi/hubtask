@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { emptyDraft, newStep } from './model.ts';
-import { eventGroups, eventWord, eventWords, generatedName, grouped, kindWord, sentence, type Catalogue, type Names } from './words.ts';
+import { eventGroups, eventWord, eventWords, generatedName, grouped, kindWord, offeredKinds, sentence, type Catalogue, type Names } from './words.ts';
 
 /** A catalogue that answers the code and its parameters, so a test reads the shape rather than the prose. */
 const words: Catalogue = {
@@ -96,4 +96,13 @@ test('the sentence and the name are built from the rule, and follow it', () => {
   assert.match(said, /steps=app\.flow\.action\.add_labelapp\.flow\.sentence_then_sepapp\.flow\.sentence_branch\(condition=app\.flow\.in_sentence_subject_due app\.flow\.op_has,then=send webhook,else=app\.flow\.sentence_nothing\)/);
   draft.actions = [];
   assert.equal(generatedName(words, names, draft), 'app.flow.generated_name_empty(trigger=app.flow.name_trigger_event(event=ev:de.hubtask.work.item.updated.v1))');
+});
+
+// UC-AI-01 check 1: where the manifest announces no AI, the blocks list and the `+` offer none -
+// absent, not disabled. Everything else stays, in the manifest's order.
+test('without AI no AI action is offered to add', () => {
+  const served = ['ADD_LABEL', 'AI_CLASSIFY', 'SEND_WEBHOOK', 'AI_SUMMARIZE'];
+  assert.deepEqual(offeredKinds(served, { ai_suggestions: false }), ['ADD_LABEL', 'SEND_WEBHOOK']);
+  assert.deepEqual(offeredKinds(served, undefined), ['ADD_LABEL', 'SEND_WEBHOOK']);
+  assert.deepEqual(offeredKinds(served, { ai_suggestions: true }), served);
 });
