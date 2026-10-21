@@ -42,7 +42,7 @@ const ContainerStructureUpdatedAction audit.Action = "container.structure_update
 // 5, 8): a preset chosen, settings changed one by one, settings reset to the layer above.
 //
 // Not destructive, and declared so: a structure says what is offered, never what is kept - every
-// value an entry holds stays stored, and comes back when the setting does (decision #1620).
+// value an entry holds stays stored, and comes back when the setting does (domain-model.md §2, "Narrowing hides, it never deletes").
 type SetContainerStructure struct {
 	Writer    ContainerWriter
 	Structure StructureResolver
@@ -118,7 +118,7 @@ func (h SetContainerStructure) write(
 	now := w.Clock.Now()
 
 	// The workspace's row and the hub's are held before the layers are read, so a change to either
-	// waits for this one and its fan-out finds this layer (record UX-09, D10).
+	// waits for this one and its fan-out finds this layer (domain-model.md §2).
 	reading := h.Structure.within(repository.LayerShared)
 	if _, _, err := reading.Workspace(ctx); err != nil {
 		return StructureResult{}, err
@@ -260,7 +260,7 @@ func fanOut(
 
 // structureChangeSet is what the event's change set says under `structure`: each setting whose own
 // value or value in force moved, with the value in force on both sides, in the contract's words
-// (S6). Level names are among the values: the event reaches only those who may read the container,
+// (domain-model.md §4). Level names are among the values: the event reaches only those who may read the container,
 // who read its name already; the audit trail hashes them (rule 10).
 func structureChangeSet(
 	before, after domain.EffectiveStructure, ownMoved []domain.StructureSetting,

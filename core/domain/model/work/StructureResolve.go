@@ -93,7 +93,7 @@ func (e EffectiveStructure) SourceOf(setting StructureSetting) identity.PolicySo
 
 // ResolveStructure resolves the layers into what applies, nearest last: the workspace, then a hub,
 // then a collection. A layer's value is a default for the layers below, held only by the bound and
-// by a lock (N2): a collection may switch dates on under a hub without them.
+// by a lock: a collection may switch dates on under a hub without them.
 //
 // A locked setting takes the value the workspace resolved and ignores every lower layer's - a row
 // stored before the lock landed is shown with the lock rather than refused here; refusing is the

@@ -104,7 +104,7 @@ type CreateContainerCommand struct {
 	Private bool
 
 	// Preset is the preset the new container starts from, empty for none: a hub then takes the
-	// workspace's default, a collection follows its hub (record UX-09, B2).
+	// workspace's default, a collection follows its hub (domain-model.md §2).
 	Preset domain.PresetKey
 }
 
@@ -193,7 +193,7 @@ func (h CreateContainer) create(
 		}
 
 		// The structure is seeded with the row, the hub's and the workspace's rows held so that a
-		// change to either waits for this one and the next fan-out finds it (record UX-09, D10).
+		// change to either waits for this one and the next fan-out finds it (domain-model.md §2).
 		reading := h.Structure.within(repository.LayerShared)
 		if h.Structure.Wired() {
 			if container.Structure, err = h.seedStructure(ctx, reading, container, cmd.Preset); err != nil {
@@ -250,7 +250,7 @@ func (h CreateContainer) create(
 	return created, structure, nil
 }
 
-// seedStructure is the new container's own layer (record UX-09, B2 and B3). A preset chosen is
+// seedStructure is the new container's own layer (domain-model.md §2). A preset chosen is
 // copied, held to the installation and to the workspace's locks. A hub without one starts from the
 // workspace's default preset; a collection without one, or with its hub's, stores nothing and
 // follows its hub - so a later change of the hub reaches it.

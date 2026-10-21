@@ -192,7 +192,7 @@ func TestALevelsNameIsStoredAndTheTrailHashesIt(t *testing.T) {
 }
 
 // A lock binds: setting a locked value is refused; choosing a preset under it keeps the locked
-// value and says so (S4).
+// value and says so.
 func TestALockRefusesTheSettingAndKeepsItUnderAPreset(t *testing.T) {
 	h := newStructureHarness(t)
 	h.store.workspace = domain.WorkspaceStructure{
@@ -221,7 +221,7 @@ func TestALockRefusesTheSettingAndKeepsItUnderAPreset(t *testing.T) {
 	}
 }
 
-// S1: a reset is asked for by name, and a collection's reset completion is its stored key removed.
+// A reset is asked for by name, and a collection's reset completion is its stored key removed.
 func TestAResetGoesBackToTheLayerAbove(t *testing.T) {
 	h := newStructureHarness(t)
 	other := h.containers.stored[otherCollectionID]
@@ -285,7 +285,7 @@ func TestAStaleVersionAndARefusedRoleWriteNothing(t *testing.T) {
 	}
 }
 
-// N6: a fan-out past the ceiling advances the workspace's epoch rather than writing a row per heir.
+// A fan-out past the ceiling advances the workspace's epoch rather than writing a row per heir.
 func TestAFanOutPastTheCeilingAdvancesTheEpoch(t *testing.T) {
 	h := newStructureHarness(t)
 	for i := range structureFanOutCeiling {

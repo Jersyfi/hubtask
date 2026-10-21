@@ -35,8 +35,8 @@ func seededMatrix() []CapabilityProfile {
 	}
 }
 
-// withTaskHoldingActivities is the matrix once a task may hold an activity directly (decision
-// #1627): the activity then has two parents.
+// withTaskHoldingActivities is the matrix once a task may hold an activity directly (domain-model.md
+// §2): the activity then has two parents.
 func withTaskHoldingActivities() []CapabilityProfile {
 	matrix := seededMatrix()
 	matrix[0].AllowedChildTypes = []ItemType{ItemWorkPackage, ItemActivity}
@@ -245,7 +245,7 @@ func TestALevelNameIsNormalisedAndBounded(t *testing.T) {
 
 // Values are inherited setting by setting: a hub's value applies below unless the collection has
 // its own, and a collection may widen what its hub narrowed - only the installation and a lock
-// bind it (N2).
+// bind it.
 func TestASettingIsInheritedOnItsOwn(t *testing.T) {
 	bound := seededBound()
 	list, _ := FindPreset(PresetList, bound)
@@ -281,7 +281,7 @@ func TestASettingIsInheritedOnItsOwn(t *testing.T) {
 	}
 }
 
-// B2: a collection made with its hub's preset stores nothing and follows the hub when it switches.
+// A collection made with its hub's preset stores nothing and follows the hub when it switches.
 func TestACollectionMadeWithTheHubsPresetFollowsALaterHubSwitch(t *testing.T) {
 	bound := seededBound()
 	list, _ := FindPreset(PresetList, bound)
@@ -301,7 +301,7 @@ func TestACollectionMadeWithTheHubsPresetFollowsALaterHubSwitch(t *testing.T) {
 	}
 }
 
-// S3: a value stored before the installation narrowed is shown narrowed, not refused on read.
+// A value stored before the installation narrowed is shown narrowed, not refused on read.
 func TestTheInstallationNarrowedAfterTheCollectionStoredDueDates(t *testing.T) {
 	narrowed := seededMatrix()
 	narrowed[0].Capabilities = slices.DeleteFunc(narrowed[0].Capabilities,
@@ -324,7 +324,7 @@ func TestTheInstallationNarrowedAfterTheCollectionStoredDueDates(t *testing.T) {
 }
 
 // A workspace lock fixes the value for every layer below; a lower layer's own value is ignored
-// when resolving, refused when written, and kept aside when a preset is chosen (S4).
+// when resolving, refused when written, and kept aside when a preset is chosen.
 func TestALockBindsEveryLayerBelow(t *testing.T) {
 	bound := seededBound()
 	admin := shared.MustParseID("018f0000-0000-7000-8000-0000000000a1")

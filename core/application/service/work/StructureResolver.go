@@ -43,7 +43,7 @@ type layerReading struct {
 
 // within starts a reading inside the caller's transaction. A shared or exclusive hold takes the
 // workspace's row and every hub's row as it reads them, so a writer of those layers and this one
-// take turns (record D10).
+// take turns (domain-model.md §2).
 func (r StructureResolver) within(hold repository.LayerHold) *layerReading {
 	return &layerReading{resolver: r, hold: hold, hubs: map[shared.ID]domain.Container{}}
 }

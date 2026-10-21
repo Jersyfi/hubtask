@@ -162,7 +162,7 @@ func TestAHubMadeFromAPresetCopiesIt(t *testing.T) {
 	}
 }
 
-// B2: a hub made without a preset starts from the workspace's default.
+// A hub made without a preset starts from the workspace's default.
 func TestAHubWithoutAPresetStartsFromTheWorkspacesDefault(t *testing.T) {
 	h := newHarness()
 	store := h.withStructures()
@@ -177,7 +177,7 @@ func TestAHubWithoutAPresetStartsFromTheWorkspacesDefault(t *testing.T) {
 	}
 }
 
-// B2: a collection made with its hub's preset, or with none, stores nothing and follows its hub.
+// A collection made with its hub's preset, or with none, stores nothing and follows its hub.
 func TestACollectionWithItsHubsPresetFollowsTheHub(t *testing.T) {
 	for _, preset := range []domain.PresetKey{"", domain.PresetProject} {
 		h := newHarness()
@@ -221,7 +221,7 @@ func TestACollectionWithAnotherPresetKeepsItsOwnCopy(t *testing.T) {
 	}
 }
 
-// S4: a preset chosen under a workspace lock is accepted, the locked setting kept as locked.
+// A preset chosen under a workspace lock is accepted, the locked setting kept as locked.
 func TestAPresetChosenUnderALockKeepsTheLockedSetting(t *testing.T) {
 	h := newHarness()
 	store := h.withStructures()
