@@ -43,7 +43,7 @@ func manifest() usecase.Capabilities {
 		ItemTypes: []work.CapabilityProfile{{
 			Type:              work.ItemTask,
 			Capabilities:      []work.Capability{work.CapabilityCompletion, work.CapabilityCover},
-			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
+			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity},
 			MaxDepth:          3,
 		}},
 		QueryFields:            view.Fields(),
@@ -238,7 +238,7 @@ func TestTheManifestIsAnsweredFromTheUseCase(t *testing.T) {
 	if first["type"] != "TASK" || first["max_depth"] != float64(3) {
 		t.Errorf("first item type = %v", first)
 	}
-	if children, _ := first["allowed_child_types"].([]any); len(children) != 1 || children[0] != "WORK_PACKAGE" {
+	if children, _ := first["allowed_child_types"].([]any); len(children) != 2 || children[0] != "WORK_PACKAGE" || children[1] != "ACTIVITY" {
 		t.Errorf("allowed_child_types = %v", first["allowed_child_types"])
 	}
 	if caps, _ := first["capabilities"].([]any); len(caps) != 2 {

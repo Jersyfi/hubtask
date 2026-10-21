@@ -209,6 +209,56 @@ func TestReopeningRollsUpThroughTheDatabase(t *testing.T) {
 	}
 }
 
+// A task holding a work package and an activity of its own side by side (domain-model.md §2): the
+// roll-up counts every direct child, whatever its kind - the task completes only when both are done,
+// and reopening the task's own activity reopens the task.
+func TestTheRollUpCountsATasksMixedChildren(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	collection := collectionFor(ctx, t, tenantB, authorB)
+	setCompletionPolicy(ctx, t, collection, domain.CompletionRollup)
+
+	task, pack, first, second := subtree(ctx, t, collection)
+	own, err := itemCatalogueFor(ctx, t).Invoke(ctx, "CreateWorkItem", itemWriter(tenantB, authorB),
+		usecase.Input{"type": "ACTIVITY", "parent_id": task, "title": freshName(t)})
+	if err != nil {
+		t.Fatalf("the task's own activity: %v", err)
+	}
+	direct := own.String("id")
+	registry := completionCatalogueFor(ctx, t)
+	actor := itemWriter(tenantB, authorB)
+	complete := func(id string) {
+		t.Helper()
+		if _, err := registry.Invoke(ctx, "CompleteWorkItem", actor, usecase.Input{"item_id": id}); err != nil {
+			t.Fatalf("completing %s: %v", id, err)
+		}
+	}
+
+	complete(first)
+	complete(second)
+	if !isCompleted(ctx, t, pack) {
+		t.Fatal("the work package did not complete with its activities")
+	}
+	if isCompleted(ctx, t, task) {
+		t.Fatal("the task completed while its own activity was still open")
+	}
+
+	complete(direct)
+	if !isCompleted(ctx, t, task) {
+		t.Error("the task did not complete when its last open child, an activity, did")
+	}
+
+	if _, err := registry.Invoke(ctx, "ReopenWorkItem", actor, usecase.Input{"item_id": direct}); err != nil {
+		t.Fatalf("reopening the task's own activity: %v", err)
+	}
+	if isCompleted(ctx, t, task) {
+		t.Error("the task stayed completed with its own activity reopened")
+	}
+	if !isCompleted(ctx, t, pack) {
+		t.Error("reopening the task's activity reopened the work package beside it")
+	}
+}
+
 // A repeat writes nothing, which against a real database means the version does not move. That is what
 // makes an at-least-once delivery of the same automation action harmless.
 func TestCompletingTwiceLeavesTheVersionAlone(t *testing.T) {

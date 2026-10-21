@@ -315,11 +315,15 @@
   const moment = $derived(celebration.current);
   $effect(() => () => celebration.dismiss());
 
-  /** The subtree's head: the child type as the manifest names it, and how much of it is done. */
-  const childType = $derived(item ? childTypes(item.type)[0] : undefined);
+  /**
+   * The subtree's head: the child type as the manifest names it where the entry holds one kind, and
+   * "Under this entry" where it holds several - a task with work packages and activities side by
+   * side is headed by neither name alone. Beside it, how much of it is done, counting every kind.
+   */
+  const heldTypes = $derived(item ? childTypes(item.type) : []);
   /** A type as a name standing on its own - a heading, a badge - in the catalogue's words. */
   const typeName = (type: string) => t('app.item.type_name', { type });
-  const subtreeHeading = $derived(childType ? typeName(childType) : t('app.item.children'));
+  const subtreeHeading = $derived(heldTypes.length === 1 ? typeName(heldTypes[0] ?? '') : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
   /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
   let duplicating = $state<WorkItem | undefined>(undefined);

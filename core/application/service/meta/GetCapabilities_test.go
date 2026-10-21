@@ -69,7 +69,7 @@ func systemDefaults() []work.CapabilityProfile {
 		{
 			Type:              work.ItemTask,
 			Capabilities:      []work.Capability{work.CapabilityCompletion, work.CapabilityCover},
-			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
+			AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity},
 			MaxDepth:          3,
 		},
 		{

@@ -505,7 +505,7 @@ func systemProfiles() []domain.CapabilityProfile {
 			Capabilities: []domain.Capability{
 				domain.CapabilityCompletion, domain.CapabilityNotes, domain.CapabilityBucket,
 			},
-			AllowedChildTypes: []domain.ItemType{domain.ItemWorkPackage},
+			AllowedChildTypes: []domain.ItemType{domain.ItemWorkPackage, domain.ItemActivity},
 			MaxDepth:          3,
 		},
 		{
@@ -658,6 +658,18 @@ func (h *itemHarness) withWorkPackage(parent domain.WorkItem) domain.WorkItem {
 	return pkg
 }
 
+// withActivity stores an activity directly under the parent, which is a task here.
+func (h *itemHarness) withActivity(parent domain.WorkItem) domain.WorkItem {
+	id := shared.MustParseID("0192f000-0000-7000-8000-000000000203")
+	activity := domain.WorkItem{
+		ID: id, TenantID: tenantID, CollectionID: collectionID, Type: domain.ItemActivity,
+		ParentID: parent.ID, Path: parent.ChildPath(id), Depth: parent.Depth + 1, Title: "Call the plumber",
+		OrderKey: "a1", CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1,
+	}
+	h.items.stored[id] = activity
+	return activity
+}
+
 func itemActor() appshared.ActorContext {
 	return appshared.ActorContext{
 		Kind: appshared.ActorUser, TenantID: tenantID, AccountID: accountID,
@@ -715,6 +727,28 @@ func TestTheThreeLevelsCanAllBeCreated(t *testing.T) {
 	}
 	if task.CollectionID != collectionID || leaf.CollectionID != collectionID {
 		t.Error("the collection is not carried down the subtree")
+	}
+}
+
+// A task holds an activity directly, beside its work packages (domain-model.md §2): one level down,
+// on the task's path, in the task's collection.
+func TestAnActivityIsCreatedDirectlyUnderATask(t *testing.T) {
+	h := newItemHarness()
+	ctx := context.Background()
+	task := h.withTask()
+	h.withWorkPackage(task)
+
+	leaf, _, err := h.handler.Execute(ctx, itemActor(), CreateWorkItemCommand{
+		Type: domain.ItemActivity, ParentID: task.ID, Title: "Call the plumber",
+	})
+	if err != nil {
+		t.Fatalf("the activity under the task: %v", err)
+	}
+	if leaf.Depth != 2 || leaf.ParentID != task.ID || !hasPrefix(leaf.Path, task.Path) {
+		t.Errorf("unexpected activity: %+v", leaf)
+	}
+	if leaf.CollectionID != task.CollectionID {
+		t.Error("the collection is not carried down to the activity")
 	}
 }
 
@@ -927,14 +961,24 @@ func TestEveryForbiddenCombinationIsRefusedWithItsReason(t *testing.T) {
 		wantIs     error
 	}{
 		{
-			name: "an activity directly in a task, skipping the work package",
+			name: "an activity under an activity, which ends the hierarchy",
 			command: func(h *itemHarness) CreateWorkItemCommand {
 				task := h.withTask()
 				return CreateWorkItemCommand{
-					Type: domain.ItemActivity, ParentID: task.ID, Title: "Milk",
+					Type: domain.ItemActivity, ParentID: h.withActivity(task).ID, Title: "Milk",
 				}
 			},
 			wantDetail: "items.parent_type_invalid", wantIs: shared.ErrValidation,
+		},
+		{
+			name: "a note on an activity directly in a task, which carries none either",
+			command: func(h *itemHarness) CreateWorkItemCommand {
+				return CreateWorkItemCommand{
+					Type: domain.ItemActivity, ParentID: h.withTask().ID, Title: "Milk",
+					Notes: "Semi-skimmed",
+				}
+			},
+			wantDetail: "items.capability_not_supported", wantIs: shared.ErrCapabilityNotSupported,
 		},
 		{
 			name: "a work package with no parent at all",

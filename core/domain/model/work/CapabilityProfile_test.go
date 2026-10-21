@@ -18,7 +18,7 @@ func TestAProfileAnswersItsMatrixRow(t *testing.T) {
 		Capabilities: []Capability{
 			CapabilityCompletion, CapabilityBucket, CapabilityCover, CapabilityRecurrence,
 		},
-		AllowedChildTypes: []ItemType{ItemWorkPackage},
+		AllowedChildTypes: []ItemType{ItemWorkPackage, ItemActivity},
 		MaxDepth:          3,
 	}
 
@@ -30,11 +30,15 @@ func TestAProfileAnswersItsMatrixRow(t *testing.T) {
 	if task.Allows(CapabilityComments) {
 		t.Error("a capability outside the profile is allowed")
 	}
-	if !task.AllowsChild(ItemWorkPackage) {
-		t.Error("a work package may not sit under a task")
+	// Two permitted children, each answered on its own: a task holds work packages and activities
+	// side by side (domain-model.md §2).
+	for _, child := range []ItemType{ItemWorkPackage, ItemActivity} {
+		if !task.AllowsChild(child) {
+			t.Errorf("%s may not sit under a task", child)
+		}
 	}
-	if task.AllowsChild(ItemActivity) {
-		t.Error("an activity may sit directly under a task")
+	if task.AllowsChild(ItemTask) {
+		t.Error("a task may sit under a task")
 	}
 }
 

@@ -142,18 +142,20 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.keyboard.press('Escape');
   assert.deepEqual(written.filter((w) => w.method === 'GET' && w.path.endsWith('/recurrence')), [], 'the series was read for an entry whose row says it has none');
 
-  // The subtree: the child type's name with its count, every level, and a count on a branch.
-  const heading = page.getByRole('heading', { level: 2, name: /Work package/ });
-  assert.ok((await heading.textContent()).replace(/\s+/g, ' ').includes('1/2'), 'the section head carries no count');
+  // The subtree: a task holding work packages and an activity of its own is headed by neither
+  // name alone, and its count is every direct child of either kind; every level, and a count on a
+  // branch.
+  const heading = page.getByRole('heading', { level: 2, name: /Under this entry/ });
+  assert.ok((await heading.textContent()).replace(/\s+/g, ' ').includes('1/3'), 'the section head does not count every kind');
   const rows = page.locator('.level .row [data-row], .level [data-row]');
-  assert.equal(await rows.count(), 4, 'direct children open and their activities shown');
+  assert.equal(await rows.count(), 5, 'direct children open and their activities shown');
   assert.equal(await page.getByText('1/2', { exact: true }).count() >= 1, true);
   // Close every level, then open again - the choice is kept on this device.
   await page.getByRole('button', { name: 'Close every level' }).click();
-  assert.equal(await page.locator('.level [data-row]').count(), 2);
+  assert.equal(await page.locator('.level [data-row]').count(), 3);
   assert.equal(await page.evaluate((id) => sessionStorage.getItem(`hubtask.subtree.${id}`), ENTRY.id), '[]');
   await page.getByRole('button', { name: 'Open every level' }).click();
-  assert.equal(await page.locator('.level [data-row]').count(), 4);
+  assert.equal(await page.locator('.level [data-row]').count(), 5);
   // A child from the entry's page: "Add a work package" at the end, "Add an activity" inside a row.
   await page.getByRole('button', { name: 'Add a work package' }).click();
   const field = page.getByRole('textbox', { name: 'Title' }).last();
@@ -170,6 +172,29 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   const child = written.find((w) => w.method === 'POST' && w.body?.title === 'Cut the tiles');
   assert.deepEqual({ type: child?.body?.type, parent_id: child?.body?.parent_id }, { type: 'ACTIVITY', parent_id: CHILDREN[ENTRY.id][0].id });
+  // UC-WRK-03 check 1: the task offers both kinds the manifest permits under it, each by its own
+  // control, and an activity is created directly in the task - no chooser in between.
+  await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
+  assert.equal(await page.getByRole('combobox', { name: 'Kind of entry' }).count(), 0, 'a chooser for a kind the control already named');
+  await page.getByRole('textbox', { name: 'Title' }).last().fill('Ask about grout colours');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.waitForTimeout(300);
+  const direct = written.find((w) => w.method === 'POST' && w.body?.title === 'Ask about grout colours');
+  assert.deepEqual({ type: direct?.body?.type, parent_id: direct?.body?.parent_id }, { type: 'ACTIVITY', parent_id: ENTRY.id });
+  // The task's own activity cannot move out to the collection, and the menu says so in the
+  // server's words rather than offering a refusal (P-05); an activity of a work package may move
+  // out to the task. Both rows have the subtree's root as their parent's parent or parent.
+  const ownActivity = CHILDREN[ENTRY.id][2];
+  await page.getByRole('button', { name: `Move ${ownActivity.title}` }).click();
+  const out = page.getByRole('menuitem', { name: /Move out one level/ });
+  assert.ok((await out.textContent()).includes('An activity has to sit inside another entry.'), 'moving the task\'s activity out is offered without its reason');
+  assert.equal(await out.getAttribute('aria-disabled'), 'true');
+  await page.keyboard.press('Escape');
+  const packActivity = CHILDREN[CHILDREN[ENTRY.id][0].id][0];
+  await page.getByRole('button', { name: `Move ${packActivity.title}` }).click();
+  const up = page.getByRole('menuitem', { name: /Move out one level/ });
+  assert.notEqual(await up.getAttribute('aria-disabled'), 'true', 'an activity may move out of its work package to the task');
+  await page.keyboard.press('Escape');
 
   // Comments and activity as tabs.
   const tabs = page.getByRole('tablist', { name: "The entry's history" });
@@ -529,6 +554,42 @@ test('chromium: a page of history that did not arrive is said beside the button,
   await page.waitForFunction(() => (document.querySelector('.load-more [role="status"]')?.textContent ?? '').trim() !== '', null, { timeout: 5_000 }).catch(() => {});
   assert.equal((await alert.textContent()).trim(), '');
   assert.equal((await page.locator('.load-more [role="status"]').textContent()).trim(), 'History loaded: 3.');
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
+// UC-WRK-03 check 1 from a task's row in the collection: the one ＋ inside a task opens the form
+// with a chooser of the two kinds the manifest permits, named in the catalogue's words rather than
+// the contract's, and what is chosen is what is created.
+test('chromium: 1280 px — the ＋ inside a task offers a work package and an activity by name', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const { page, failures, context, unstubbed } = await signedIn(browser, 1280, 1000);
+  t.after(() => context.close());
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    written.push({ method: request.method(), body: request.method() === 'GET' ? undefined : request.postDataJSON() });
+    return stub(route);
+  });
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+
+  const inside = page.getByRole('button', { name: `Add something inside ${ENTRY.title}` });
+  await inside.waitFor({ timeout: 15_000 });
+  await inside.click();
+  const kind = page.getByRole('combobox', { name: 'Kind of entry' });
+  await kind.waitFor({ timeout: 5_000 });
+  assert.deepEqual(
+    (await kind.locator('option').allTextContents()).map((each) => each.trim()),
+    ['Work package', 'Activity'],
+  );
+  await kind.selectOption({ label: 'Activity' });
+  await page.getByRole('textbox', { name: 'Title' }).last().fill('Ring the supplier');
+  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.waitForTimeout(300);
+  const created = written.find((w) => w.method === 'POST' && w.body?.title === 'Ring the supplier');
+  assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'ACTIVITY', parent_id: ENTRY.id });
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });

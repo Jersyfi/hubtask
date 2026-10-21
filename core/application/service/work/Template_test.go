@@ -268,6 +268,37 @@ func TestATreeTheProfilesRefuseIsRefusedAtTheDefinition(t *testing.T) {
 	}
 }
 
+// A task holds work packages and activities side by side (domain-model.md §2), so a template may
+// too: defined and stamped out with both kinds directly under its root, each where the tree puts it.
+func TestAMixedTreeIsDefinedAndStamped(t *testing.T) {
+	h := newTemplateHarness(t)
+	spec := moveSpec(t)
+	spec.Root.Children = append(spec.Root.Children, domain.TemplateNode{
+		Type: domain.ItemActivity, Title: "Hand over the keys",
+	})
+
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: spec})
+	if err != nil {
+		t.Fatalf("a mixed tree was refused at the definition: %v", err)
+	}
+	result, err := h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+		Anchor: time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatalf("stamping the mixed tree failed: %v", err)
+	}
+	if result.Created != 4 {
+		t.Fatalf("%d entries were created, want 4", result.Created)
+	}
+	for _, item := range h.items.stored {
+		if item.Title == "Hand over the keys" &&
+			(item.Type != domain.ItemActivity || item.ParentID != result.Root.ID || item.Depth != 2) {
+			t.Errorf("the task's own activity was written as %+v", item)
+		}
+	}
+}
+
 // The acceptance's own sentence: relative dates become absolute ones against the anchor, in the
 // right zone, with the all-day flags preserved.
 func TestInstantiatingResolvesTheDatesAndWritesTheTree(t *testing.T) {

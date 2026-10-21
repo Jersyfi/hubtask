@@ -167,6 +167,13 @@ func (s CatalogueSources) item(
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  digest,
 	}
+	if promptID == decomposePrompt && s.Profiles != nil {
+		hierarchy, err := s.hierarchy(ctx)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Hierarchy = &hierarchy
+	}
 	if promptFields[promptID][fieldsKey] {
 		declared, err := s.declared(ctx, actor, out)
 		if err != nil {
@@ -212,6 +219,7 @@ func (s CatalogueSources) set(
 // dispatches on them: a discussion is read from the comments, and a collection from its entries.
 const (
 	threadPrompt     = "summarize-thread"
+	decomposePrompt  = "decompose"
 	collectionPrompt = "summarize-collection"
 	// The field question about an entry that already exists, which is a different question from
 	// the jumble's and therefore a different prompt (see `promptFields`).

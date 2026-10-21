@@ -21,11 +21,11 @@ var (
 	hierarchyActivity = shared.MustParseID("0192f000-0000-7000-8000-000000000103")
 )
 
-// systemProfiles is the matrix of domain-model.md §2, as db/migrations/0002 seeds it. The
-// capabilities are left out: this service asks only about children and depth.
+// systemProfiles is the matrix of domain-model.md §2, as db/migrations/0002 and 0185 seed it.
+// The capabilities are left out: this service asks only about children and depth.
 func systemProfiles() []work.CapabilityProfile {
 	return []work.CapabilityProfile{
-		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage}, MaxDepth: 3},
+		{Type: work.ItemTask, AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity}, MaxDepth: 3},
 		{Type: work.ItemWorkPackage, AllowedChildTypes: []work.ItemType{work.ItemActivity}, MaxDepth: 2},
 		{Type: work.ItemActivity, MaxDepth: 1},
 	}
@@ -57,9 +57,9 @@ func packageItem() *work.WorkItem {
 		taskItem().ChildPath(hierarchyPackage), 2)
 }
 
-// The placement rule read forwards: the three permitted placements all succeed, and each lands at
+// The placement rule read forwards: the four permitted placements all succeed, and each lands at
 // the depth and on the path the level implies.
-func TestTheThreePermittedPlacementsSucceed(t *testing.T) {
+func TestTheFourPermittedPlacementsSucceed(t *testing.T) {
 	h := hierarchyOf(t, systemProfiles())
 
 	cases := []struct {
@@ -85,6 +85,12 @@ func TestTheThreePermittedPlacementsSucceed(t *testing.T) {
 			newID: hierarchyActivity, wantDepth: 3,
 			wantPath: "/" + hierarchyTask.String() + "/" + hierarchyPackage.String() + "/" +
 				hierarchyActivity.String() + "/",
+		},
+		{
+			// Beside the work packages, not instead of them (domain-model.md §2, ADR-0087 §3).
+			name: "an activity directly under a task", parent: taskItem(), childType: work.ItemActivity,
+			newID: hierarchyActivity, wantDepth: 2,
+			wantPath: "/" + hierarchyTask.String() + "/" + hierarchyActivity.String() + "/",
 		},
 	}
 
@@ -124,8 +130,7 @@ func TestEveryForbiddenPlacementIsRefusedWithItsOwnReason(t *testing.T) {
 		wantIs     error
 	}{
 		{
-			name:   "an activity directly under a task, skipping the work package",
-			parent: taskItem(), childType: work.ItemActivity,
+			name: "a work package under a work package", parent: packageItem(), childType: work.ItemWorkPackage,
 			wantDetail: "items.parent_type_invalid", wantIs: shared.ErrValidation,
 		},
 		{
@@ -231,15 +236,18 @@ func TestAParentThatIsNotAcceptingWorkIsAConflict(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			parent := taskItem()
-			c.adjust(parent)
+			// Both kinds a task holds meet the same answer.
+			for _, childType := range []work.ItemType{work.ItemWorkPackage, work.ItemActivity} {
+				parent := taskItem()
+				c.adjust(parent)
 
-			_, err := h.Place(parent, work.ItemWorkPackage)
-			if !errors.Is(err, shared.ErrConflict) {
-				t.Fatalf("error = %v, want a conflict", err)
-			}
-			if got := shared.AsError(err).DetailCode; got != c.wantDetail {
-				t.Errorf("detail code = %s, want %s", got, c.wantDetail)
+				_, err := h.Place(parent, childType)
+				if !errors.Is(err, shared.ErrConflict) {
+					t.Fatalf("%s: error = %v, want a conflict", childType, err)
+				}
+				if got := shared.AsError(err).DetailCode; got != c.wantDetail {
+					t.Errorf("%s: detail code = %s, want %s", childType, got, c.wantDetail)
+				}
 			}
 		})
 	}

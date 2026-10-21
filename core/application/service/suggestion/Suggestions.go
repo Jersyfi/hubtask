@@ -359,8 +359,11 @@ const (
 	createTemplateName = "CreateTemplate"
 )
 
-// under is the level a proposed subtask lands at: the default profile's CHILDREN row
-// (domain-model.md §2), read downwards.
+// under is the level a jumble entry's subtasks land at, under what the conversion made: the first
+// entry of the default profile's CHILDREN row (domain-model.md §2), read downwards. A task may also
+// hold activities directly, and the titles still become work packages under it - a title implied
+// by an arrival is a piece of work rather than a single step, and choosing per title would be this
+// package deciding what nobody proposed.
 //
 // A table rather than a read of the workspace's own profiles, because it is a *default* and not an
 // authority: a workspace that narrowed what may sit under a task gets its refusal from the domain

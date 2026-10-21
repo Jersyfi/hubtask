@@ -940,7 +940,7 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: CreateWorkItemName,
 		Summary: "Creates a task, a work package or an activity. A task sits directly in a " +
-			"collection; a work package sits in a task, and an activity in a work package. " +
+			"collection; a work package sits in a task, and an activity in a task or a work package. " +
 			"Which combinations are permitted is configured per workspace rather than fixed, " +
 			"so a refusal names the reason rather than the rule.",
 		SideEffects: "Writes the item, announces " + string(event.ItemCreated) +
@@ -961,7 +961,7 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 				Enum: []string{
 					string(domain.ItemTask), string(domain.ItemWorkPackage), string(domain.ItemActivity),
 				},
-				Description: "The level: TASK in a collection, WORK_PACKAGE in a task, ACTIVITY in a work package.",
+				Description: "The level: TASK in a collection, WORK_PACKAGE in a task, ACTIVITY in a task or a work package.",
 			},
 			{
 				Name: "title", Kind: usecase.KindString, Required: true,

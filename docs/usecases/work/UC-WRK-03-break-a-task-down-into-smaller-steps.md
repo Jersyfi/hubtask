@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
-state: partial
+state: built
 tasks: [B-03, B-05, B-08, F2-09, F10-12, UX-08]
-checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs]
+checked_by: [test/integration/capability_profile_test.go, test/integration/create_work_item_test.go, test/integration/activity_under_task_test.go, core/domain/model/work/CapabilityProfile_test.go, apps/webapp/e2e/entry.test.mjs]
 ---
 
 # Break a task down into smaller steps
@@ -51,7 +51,3 @@ small by design: one person responsible, a due date, a reminder, no labels and n
 * No dependencies between steps ("B starts when A is done") — not planned.
 * Completing a parent when its children are done is [UC-WRK-04](./UC-WRK-04-tick-work-off-and-take-it-back.md).
 * An AI proposing the steps is the suggestion context's, and optional.
-
-## Today
-
-* Check 1: not met — a task offers only *Work package* under it; an activity directly under a task is milestone UX (decision #1627).

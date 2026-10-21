@@ -41,11 +41,15 @@ export const ITEMS = [
   item('34', 'Choose the paint', { bucket_id: null }),
   item('35', 'Clear the room', { bucket_id: BUCKETS[2].id, completion: { is_completed: true } }),
 ];
-/** The subtree under the first task: two work packages, one of them holding two activities. */
+/**
+ * The subtree under the first task: two work packages, one of them holding two activities, and an
+ * activity of the task's own beside them (domain-model.md §2).
+ */
 export const CHILDREN = {
   [ITEMS[0].id]: [
     { ...item('41', 'Tiles for the floor', { type: 'WORK_PACKAGE', parent_id: ITEMS[0].id, depth: 1 }) },
     { ...item('42', 'Tiles for the splashback', { type: 'WORK_PACKAGE', parent_id: ITEMS[0].id, depth: 1, completion: { is_completed: true } }) },
+    { ...item('43', 'Call the tiler', { type: 'ACTIVITY', parent_id: ITEMS[0].id, depth: 1 }) },
   ],
   '01a0e2e0-0000-7000-8000-000000000041': [
     { ...item('51', 'Measure the floor', { type: 'ACTIVITY', parent_id: '01a0e2e0-0000-7000-8000-000000000041', depth: 2, completion: { is_completed: true } }) },
@@ -72,7 +76,7 @@ export const MANIFEST = {
   // spelling included — the fixture said `ASSIGNEE` for `ASSIGNMENT` and gave a work package two
   // capabilities of fourteen, which is a fake that agrees with no installation.
   item_types: [
-    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE'], max_depth: 3 },
+    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'], max_depth: 3 },
     { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'CUSTOM_FIELDS'], allowed_child_types: ['ACTIVITY'], max_depth: 2 },
     { type: 'ACTIVITY', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'HISTORY'], allowed_child_types: [], max_depth: 1 },
   ],

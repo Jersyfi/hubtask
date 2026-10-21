@@ -143,7 +143,7 @@ func TestTheCapabilityManifestMatchesTheSchema(t *testing.T) {
 				Capabilities: []work.Capability{
 					work.CapabilityCompletion, work.CapabilityCover, work.CapabilityRecurrence,
 				},
-				AllowedChildTypes: []work.ItemType{work.ItemWorkPackage},
+				AllowedChildTypes: []work.ItemType{work.ItemWorkPackage, work.ItemActivity},
 				MaxDepth:          3,
 			},
 			{

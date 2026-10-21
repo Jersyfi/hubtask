@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -371,7 +372,7 @@ type ids struct{ issued int }
 
 func (i *ids) NewID() shared.ID {
 	i.issued++
-	return shared.MustParseID("0192f000-0000-7000-8000-00000000010" + string(rune('0'+i.issued)))
+	return shared.MustParseID(fmt.Sprintf("0192f000-0000-7000-8000-%012x", 0x100+i.issued))
 }
 
 type hlcSource struct{ reading shared.HLC }
