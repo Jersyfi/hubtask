@@ -29,6 +29,7 @@
     Skeleton,
     Stack,
     type MenuItem,
+    type PageAction,
   } from '@hubtask/design-system/components';
 
   import { untrack } from 'svelte';
@@ -78,6 +79,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { layoutsOffered } from '../lib/entries/layouts.ts';
+  import { actionsOfHead, type Act } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
+  import { mayCreateIn } from '../lib/palette/sources.ts';
   import { anchorFor } from '../lib/data/rank.ts';
   import type {
     BulkOperation,
@@ -676,6 +680,105 @@
     else if (id === 'trash') isTrashing = true;
   }
 
+  /**
+   * The head's three lists, built once and handed to the head and to the palette alike: the
+   * palette lists what the head offers and nothing else (UC-WRK-27 check 2). The hub's primary is
+   * what a hub is for - a collection - with import beside it; the collection's is an entry, with
+   * the filter beside it and the templates as the verb's own list.
+   */
+  const headPrimary = $derived<PageAction | undefined>(
+    container === undefined
+      ? undefined
+      : container.type === 'HUB'
+        ? structureControl({
+            label: t('app.workspace.create_collection'),
+            icon: 'plus',
+            onclick: () => (isCreatingCollection = true),
+            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            opener: 'add-collection',
+          })
+        : mayCreateHere
+          ? {
+              label: t('app.entries.add'),
+              icon: 'plus',
+              onclick: addFromHead,
+              disabledReason: addDisabledReason,
+              opener: 'add-entry',
+              menu: {
+                label: t('app.entries.add_ways'),
+                items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
+                onselect: () => (isUsingTemplates = true),
+              },
+            }
+          : undefined,
+  );
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    container?.type === 'HUB'
+      ? mayShape
+        ? [
+            {
+              label: t('app.import.open'),
+              onclick: () => (isImporting = true),
+              disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            },
+          ]
+        : []
+      : [
+          {
+            label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
+            icon: 'funnel',
+            onclick: () => (isFilterOpen = !isFilterOpen),
+            opener: 'filter',
+          },
+        ],
+  );
+  const headMenu = $derived({
+    label: t('app.workspace.actions', { name: container?.name ?? '' }),
+    items: pageMenu,
+    onselect: choseFromMenu,
+    opener: 'container-menu',
+  });
+
+  /** The other layouts this collection is shown in, as the palette's *Show as …*. */
+  const layoutActs = $derived<readonly Act[]>(
+    offeredLayouts
+      .filter((each) => each !== layout && !(each.startsWith('LIST_') && layout.startsWith('LIST_')))
+      .map((each) => ({
+        id: `page:layout-${each}`,
+        label: t('app.palette.show_as', { layout: each }),
+        run: () => (layout = each),
+      })),
+  );
+
+  // What the palette may list here: the head's own lists, then the layouts.
+  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...layoutActs]));
+
+  // A wish the palette left for this collection - a layout, or the add form - taken once and acted
+  // on only where this screen's own answers allow it. It wins over any layout this screen would
+  // otherwise open with: it is what the reader just asked for.
+  $effect(() => {
+    if (!container || myRole === undefined || !commands.isWaitingFor(container.id)) return;
+    const wish = commands.take(container.id);
+    if (!wish) return;
+    untrack(() => {
+      if (wish.layout && offeredLayouts.includes(wish.layout)) layout = wish.layout;
+      if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
+        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+        isAddWished = true;
+      }
+    });
+  });
+
+  // The add form is the list's, and on arrival the list may not be drawn yet: the wish waits for
+  // it rather than being spent on a list that is not there.
+  let isAddWished = $state(false);
+  $effect(() => {
+    if (!isAddWished || !list) return;
+    isAddWished = false;
+    const drawn = list;
+    untrack(() => drawn.addEntry());
+  });
+
   function startRename() {
     draft = container?.name ?? '';
     failure = undefined;
@@ -738,45 +841,9 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      primary={container.type === 'HUB'
-        ? structureControl({
-            label: t('app.workspace.create_collection'),
-            icon: 'plus',
-            onclick: () => (isCreatingCollection = true),
-            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
-            opener: 'add-collection',
-          })
-        : mayCreateHere ? {
-            label: t('app.entries.add'),
-            icon: 'plus',
-            onclick: addFromHead,
-            disabledReason: addDisabledReason,
-            opener: 'add-entry',
-            menu: {
-              label: t('app.entries.add_ways'),
-              items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
-              onselect: () => (isUsingTemplates = true),
-            },
-          } : undefined}
-      secondary={container.type === 'HUB'
-        ? mayShape
-          ? [
-              {
-                label: t('app.import.open'),
-                onclick: () => (isImporting = true),
-                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
-              },
-            ]
-          : []
-        : [
-            {
-              label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
-              icon: 'funnel',
-              onclick: () => (isFilterOpen = !isFilterOpen),
-              opener: 'filter',
-            },
-          ]}
-      menu={{ label: t('app.workspace.actions', { name: container.name }), items: pageMenu, onselect: choseFromMenu, opener: 'container-menu' }}
+      primary={headPrimary}
+      secondary={headSecondary}
+      menu={headMenu}
     >
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
