@@ -12,7 +12,7 @@ import (
 // Offered is what a collection offers its entries: the levels and the fields of its structure in
 // force, held to the installation's bound (domain-model.md §2). An entry of a level it does not
 // offer, and a value of a field it does not offer, stay stored and are hidden: every read marks
-// them, and writing them is refused (#1620, "narrowing hides, it never deletes").
+// them, and writing them is refused ("narrowing hides, it never deletes").
 //
 // One value answers both the mark and the refusal, so that what a read says is hidden is exactly
 // what a write is refused for (P-05).

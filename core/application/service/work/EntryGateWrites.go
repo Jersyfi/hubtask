@@ -116,7 +116,7 @@ func (g EntryGate) requireShown(ctx context.Context, collection domain.Container
 }
 
 // refuseHiddenRemoval refuses taking away a value the collection hides, as writing one is refused:
-// hidden is kept exactly as it was, so that widening shows it again (#1620).
+// hidden is kept exactly as it was, so that widening shows it again (domain-model.md §2).
 func refuseHiddenRemoval(profile domain.CapabilityProfile, capability domain.Capability, path string) error {
 	if !slices.Contains(profile.Hidden, capability) {
 		return nil
