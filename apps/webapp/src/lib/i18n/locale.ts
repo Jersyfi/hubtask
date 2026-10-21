@@ -107,13 +107,29 @@ export interface LocaleTarget {
 }
 
 /**
- * `lang` and `dir` on the root element, together, because they answer to the same fact. `lang` is
- * not decoration: it is what a screen reader picks a voice from and what hyphenation and quotation
- * marks follow, and a document that says `en` while showing Arabic is read aloud as gibberish.
+ * The script a locale is written in (ISO 15924), as CLDR's likely subtags infer it where the tag
+ * names none: `ru` is `Cyrl`, `zh-Hans` is `Hans`. A tag the platform cannot read is taken for
+ * Latin, which is what the document showed before it said anything.
+ */
+export function scriptOf(locale: string): string {
+  try {
+    return new Intl.Locale(locale).maximize().script ?? 'Latn';
+  } catch {
+    return 'Latn';
+  }
+}
+
+/**
+ * `lang`, `dir` and `data-script` on the root element, together, because they answer to the same
+ * fact. `lang` is not decoration: it is what a screen reader picks a voice from and what
+ * hyphenation and quotation marks follow, and a document that says `en` while showing Arabic is
+ * read aloud as gibberish. The script is what the design system's faces follow: a heading in a
+ * script the condensed cut lacks is set in the interface face as a whole (`design-system.md` §3).
  */
 export function applyDocumentLocale(root: LocaleTarget, locale: string, direction: 'ltr' | 'rtl'): void {
   root.setAttribute('lang', locale);
   root.setAttribute('dir', direction);
+  root.setAttribute('data-script', scriptOf(locale));
 }
 
 /**

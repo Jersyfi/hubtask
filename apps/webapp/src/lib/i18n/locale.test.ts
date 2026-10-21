@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { applyDocumentLocale, directionOf, fallbackChain, languageName, resolveLocale } from './locale.ts';
+import { applyDocumentLocale, directionOf, fallbackChain, languageName, resolveLocale, scriptOf } from './locale.ts';
 
 const supported = [
   { locale: 'en', direction: 'ltr' as const },
@@ -48,10 +48,18 @@ test('the direction comes from the manifest, not from a list written in the clie
   assert.equal(directionOf('he', supported), 'ltr');
 });
 
-test('the document says both, in one place', () => {
+test('the document says all three, in one place', () => {
   const written: Record<string, string> = {};
   applyDocumentLocale({ setAttribute: (name, value) => (written[name] = value) }, 'ar-EG', 'rtl');
-  assert.deepEqual(written, { lang: 'ar-EG', dir: 'rtl' });
+  assert.deepEqual(written, { lang: 'ar-EG', dir: 'rtl', 'data-script': 'Arab' });
+});
+
+test('the script of every locale of the 1.0 set, inferred where the tag names none', () => {
+  // What the server infers for the same tags (infrastructure/i18n), so that a heading and a face
+  // follow one answer.
+  const expected = { en: 'Latn', 'zh-Hans': 'Hans', hi: 'Deva', es: 'Latn', ar: 'Arab', fr: 'Latn', bn: 'Beng', pt: 'Latn', ru: 'Cyrl', id: 'Latn', de: 'Latn' };
+  for (const [tag, script] of Object.entries(expected)) assert.equal(scriptOf(tag), script, tag);
+  assert.equal(scriptOf('not a tag'), 'Latn');
 });
 
 test('a language is named in its own words and in the reader’s, and by its tag when it cannot be', () => {
