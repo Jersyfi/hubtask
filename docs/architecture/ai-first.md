@@ -139,13 +139,31 @@ skipped, not failed.
 provenance. Accepting performs the ordinary use cases as the accepting person, with their rights and
 audit entries; dismissing is a state on the record ([domain-model.md](./domain-model.md) §5).
 
+**Who may ask, and where** (UC-AI-04 checks 6–9). A request about an entry - an ask, the
+listing, an acceptance, a dismissal - reads the entry first and asks its permission along the
+entry's own path, so a role held on its hub, its collection or the entry itself counts and
+"assigned only" is measured against its stored assignee; a request about a collection asks along
+the collection's path. Asking and deciding ask what changing the entry asks; the listing and the
+two **reading aids** - a translation and a summary of the discussion - ask what reading it asks,
+so everybody who may read the entry is offered them; a summary applied to the notes asks what
+changing asks. A field suggestion may name the fields it asks about (`fields`); the producer keeps
+only those. The person who asked a question may watch and stop its job (`GET /jobs/{id}`,
+`:cancel`) as long as they may still read what it is about; a question stopped before its answer
+is recorded records nothing (the producer holds the job's row in that transaction), one stopped
+after leaves its proposal standing, and a stopped job ends without a failure. `GET
+/ai-budget-state` answers every signed-in person whether the chosen source can still be asked
+today - `OK`, `NEARLY_SPENT` (more than nine tenths used, A-18's condition), `SPENT` with when it
+renews, or `OFF` - and no number. A summary of a discussion is judged against the entry's title and
+notes, not the thread, so a reply does not mark it stale: it says what the discussion came to when
+it was made, and a writer dismisses it to ask again.
+
 | Feature | Rule | Result form |
 |---|---|---|
 | Jumble processing | Email/note → suggested title, notes, due date and implied subtasks; the material carries the current date. Accepting converts the entry, writes notes (`UpdateWorkItem`), the date as all-day in the accepter's zone (`SetDueDate`) and one child per subtask (`CreateWorkItem`); a refusal partway leaves what stands. **No labels** (no collection vocabulary yet) and **no collection** (`Producing.go` filters `collection_id`; the converter chooses) | Suggestion, confirmed by the user |
 | Field suggestions | An existing entry → a better title, notes, a due date, with its own prompt | Suggestion |
 | Decomposition | Task → work packages/activities as a tree; accepting is one `CreateWorkItem` per node in order, and a refusal leaves the nodes before it standing | Suggestion |
 | Classification | Labels and bucket, chosen from the options shown (the collection's labels, the entry's board columns with its own marked); anything else is dropped. Accepting is `AddLabel` per label and `MoveWorkItem`. Custom field values only for closed kinds (`SELECT`, `MULTI_SELECT`, `BOOL`), checked by `ValidateValue` and written one key per call; open kinds and `USER` never. No built-in priority: the classifier fills declared fields, and a workspace with none makes no extra call | Suggestion |
-| Duplicates | The nearest neighbours of an entry's embedding, at no token cost. Never its own branch; narrowed to what the caller may read; identifiers only, never titles. Floor `HUBTASK_AI_DUPLICATE_THRESHOLD`, default 0.85, measured ([evidence](../archive/evidence/K-04-2026-09-11.md)): a paraphrase scores about 0.85–0.89, a translation is not a duplicate. Without pgvector, an embedding provider (both stated in `/meta/capabilities`) or the entry's embedding, it answers nothing. Nothing accepts it; dismissing closes it | Suggestion |
+| Duplicates | The nearest neighbours of an entry's embedding, at no token cost. Never its own branch; narrowed to what the caller may read; identifiers only, never titles. Floor `HUBTASK_AI_DUPLICATE_THRESHOLD`, default 0.85, measured ([evidence](../archive/evidence/K-04-2026-09-11.md)): a paraphrase scores about 0.85–0.89, a translation is not a duplicate. Without pgvector, an embedding provider (both stated in `/meta/capabilities`) or the entry's embedding, it answers nothing. Nothing accepts it; dismissing closes it. **Before an entry exists** (`POST /items:duplicates`, `FindDuplicatesByTitle`): the typed title is embedded as a search's words are (consent, kept-out rule, the 800 ms wait), compared at the same floor, at most five, each narrowed to what the caller may read along its own path, answered with titles to the asker alone and stored nowhere, not audited. The floor was measured entry against entry; a typed title against stored title-and-notes vectors scores lower, so it finds fewer rather than more | Suggestion; a read while creating |
 | Summarisation | One entry's title and notes; its comment thread (oldest first, at most 100, fingerprinted against the entry so a reply does not make it stale); a collection's status (open, moved, overdue; one level, at most 100 entries). Nothing summarised reaches a log, metric, trace or audit entry. The weekly review is an MCP prompt | Suggestion accepted into the entry or dismissed; a collection's summary is only read and dismissed |
 | Semantic search | Embeddings of titles/notes in `pgvector`, hybrid with `tsvector`: one ranked page, one cursor, words winning over meaning, pgvector detected rather than demanded ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)). The index holds 1536 dimensions: narrower is zero-padded (cosine unchanged), wider is refused with `ai.embedding_too_wide` — before the first text where the provider states its width, else at the first batch — the job finishing, search staying lexical, `/meta/capabilities` and `/meta/health` saying so ([ADR-0054](../adr/ADR-0054-embedding-width.md)). A job seeded by the entry's write maintains its embedding | Search result |
 | Template generation | The caller's description and target collection → a template in the contract's shape. The material states which types may sit where (the profiles `CreateTemplate` checks); a refused node is dropped with its subtree and counted (`dropped_nodes`, `nodes_dropped`), a refused offset left off. The words are held under row level security (`ai_request`) for the job and deleted when it ends. Accepting is `CreateTemplate` as the accepter, scope from the target, never from the answer | `TEMPLATE` suggestion |

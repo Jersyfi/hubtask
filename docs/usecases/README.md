@@ -303,7 +303,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-AI-01](./suggestion/UC-AI-01-work-fully-without-ai.md) | Use all of Hubtask with AI switched off | suggestion | built |
 | [UC-AI-02](./suggestion/UC-AI-02-connect-our-own-ai-provider.md) | Connect our workspace's own AI model | suggestion | built |
 | [UC-AI-03](./suggestion/UC-AI-03-consent-to-ai-processing.md) | Decide whether our content may be sent to a model, and take it back | suggestion | built |
-| [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | partial |
+| [UC-AI-04](./suggestion/UC-AI-04-get-suggestions-and-decide.md) | Get suggestions and decide on each one | suggestion | built |
 | [UC-AI-05](./suggestion/UC-AI-05-use-the-model-our-provider-offers.md) | Use the AI model our provider offers, without setting anything up | suggestion | verified |
 | [UC-AI-06](./suggestion/UC-AI-06-decide-which-ai-workspaces-may-use.md) | Decide as a provider which AI our workspaces may use | suggestion | verified |
 | [UC-AI-07](./suggestion/UC-AI-07-keep-ai-within-a-budget.md) | Keep AI use within a budget | suggestion | built |
