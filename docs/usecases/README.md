@@ -224,7 +224,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | specified |
 | [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | specified |
 | [UC-WRK-26](./work/UC-WRK-26-capture-something-from-anywhere.md) | Capture something from anywhere in one step | work | specified |
-| [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | specified |
+| [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | built |
 | [UC-WRK-28](./work/UC-WRK-28-act-on-an-entry-the-same-way-everywhere.md) | Act on an entry the same way everywhere | work | specified |
 | [UC-WRK-29](./work/UC-WRK-29-see-what-counts.md) | See what counts in a hub or collection | work | specified |
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work | specified |
