@@ -60,6 +60,10 @@ const STORIES = [
   { id: 'wave-1-forms-icon-button--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-icon-button--busy', kind: 'busy' },
   { id: 'wave-3-domain-comment-thread--in-table-row', kind: 'reason' },
+  { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
+  { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
+  { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
+  { id: 'wave-3-hubtask-view-switcher--in-table-row', kind: 'roving' },
 ];
 
 const ENGINES = [
@@ -145,7 +149,7 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
-async function checkReason(page, what, engine) {
+async function checkReason(page, what, engine, { isRoving = false } = {}) {
   const [tab, back] = engine === 'webkit' ? ['Alt+Tab', 'Alt+Shift+Tab'] : ['Tab', 'Shift+Tab'];
   const before = await boxes(page);
   const { control, bubble, described } = await subject(page);
@@ -177,8 +181,9 @@ async function checkReason(page, what, engine) {
   // The keyboard: the control is in the tab order, focus shows the reason, Enter and Space do
   // nothing, Escape hides it.
   await control.evaluate((node) => node.focus());
-  await page.keyboard.press(back);
-  await page.keyboard.press(tab);
+  // An item of a roving group is reached by the arrows (checkRoving), not by Tab.
+  if (!isRoving) await page.keyboard.press(back);
+  if (!isRoving) await page.keyboard.press(tab);
   assert.equal(await control.evaluate((node) => node === document.activeElement), true, `${what}: Tab does not reach the control`);
   assert.equal(await isShowing(bubble), true, `${what}: focus shows no reason`);
   assert.equal(await control.getAttribute('aria-disabled'), 'true');
@@ -220,7 +225,35 @@ async function checkBusy(page, what) {
   assertSame(before, await measure(), `${what}, done`);
 }
 
-const CHECKS = { reason: checkReason, busy: checkBusy };
+/**
+ * A tab strip or a radio group with its middle item unavailable: the arrows land on it without
+ * choosing it, show its reason and move nothing; the next press moves on and chooses. "Next" is
+ * the arrow the writing direction says it is.
+ */
+async function checkRoving(page, what, engine) {
+  await checkReason(page, what, engine, { isRoving: true });
+  const items = page.locator('.host [data-case="with"] :is([role="tab"], [role="radio"])');
+  const chosen = (item) => item.evaluate((node) => (node.getAttribute('aria-selected') ?? node.getAttribute('aria-checked')) === 'true');
+  const isRtl = await items.nth(0).evaluate((node) => getComputedStyle(node).direction === 'rtl');
+  const next = isRtl ? 'ArrowLeft' : 'ArrowRight';
+  assert.equal(await chosen(items.nth(0)), true, `${what}: the first item is not the chosen one`);
+  await items.nth(0).evaluate((node) => node.focus());
+  const before = await boxes(page);
+
+  await page.keyboard.press(next);
+  assert.equal(await items.nth(1).evaluate((node) => node === document.activeElement), true, `${what}: ${next} does not reach the unavailable item`);
+  assert.equal(await chosen(items.nth(1)), false, `${what}: the unavailable item was chosen`);
+  assert.equal(await chosen(items.nth(0)), true, `${what}: the choice moved onto nothing`);
+  const bubbleId = (await items.nth(1).getAttribute('aria-describedby')) ?? '';
+  assert.equal(await isShowing(page.locator(`[id="${bubbleId}"]`)), true, `${what}: focus by arrow shows no reason`);
+  assertSame(before, await boxes(page), `${what}, arrowed onto`);
+
+  await page.keyboard.press(next);
+  assert.equal(await items.nth(2).evaluate((node) => node === document.activeElement), true, `${what}: ${next} does not move on`);
+  assert.equal(await chosen(items.nth(2)), true, `${what}: the next available item was not chosen`);
+}
+
+const CHECKS = { reason: checkReason, busy: checkBusy, roving: checkRoving };
 
 for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
   test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
@@ -237,7 +270,7 @@ for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGIN
           window.__violations.push({ inside, directive: event.violatedDirective, sample: event.sample });
         });
       });
-      for (const story of STORIES) {
+      for (const story of STORIES.filter((each) => !process.env.STORIES || each.id.includes(process.env.STORIES))) {
         for (const each of axes) {
           const what = `${story.id} ${label(each)} in ${name}`;
           await page.goto(`${server.origin}/${query(story.id, each)}`);
