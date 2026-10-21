@@ -27,6 +27,11 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
+
+  /** What an *Add* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -184,23 +189,21 @@
                 {/if}
               </td>
               <td>
-                {#if !isLast}
-                  <Button
-                    tone="subtle"
-                    isBusy={isWorking}
-                    busyLabel={t('app.instance.working')}
-                    onclick={() => (removing = { operator, step: 'first' })}
-                  >
-                    {t('app.instance.operator_remove')}
-                  </Button>
-                {/if}
+                <!-- The last operator's Remove stays in its place, unavailable, and says why on
+                     hover, focus and tap (UC-WRK-32 check 1) rather than under the table. -->
+                <Button
+                  tone="subtle"
+                  isBusy={isWorking}
+                  busyLabel={t('app.instance.working')}
+                  disabledReason={isLast ? t('app.instance.operator_last_note') : undefined}
+                  onclick={() => (removing = { operator, step: 'first' })}
+                >
+                  {t('app.instance.operator_remove')}
+                </Button>
               </td>
             </tr>
           {/each}
         </Table>
-        {#if isLast}
-          <p class="quiet">{t('app.instance.operator_last_note')}</p>
-        {/if}
       {/if}
 
       <form
@@ -209,7 +212,11 @@
           event.preventDefault();
           const slug = workspace.trim();
           const address = email.trim();
-          if (slug === '' || address === '') return;
+          missing = marked(event, [
+            { kind: 'field', key: 'workspace', code: 'app.forms.choose', isFilled: slug !== '' },
+            { kind: 'field', key: 'email', code: 'app.forms.required', isFilled: address !== '' },
+          ]);
+          if (!isComplete(missing)) return;
           void run(async () => {
             await instance.addOperator(slug, address);
             workspace = '';
@@ -235,6 +242,7 @@
               label: `${each.display_name} (${each.slug})`,
             }))}
             isRequired
+            error={missing.workspace && !workspace.trim() ? t(missing.workspace) : undefined}
           />
           <Input
             label={t('app.instance.operator_email_label')}
@@ -244,6 +252,7 @@
             autocomplete="off"
             spellcheck={false}
             isRequired
+            error={missing.email && !email.trim() ? t(missing.email) : undefined}
           />
           <div>
             <Button
@@ -264,7 +273,8 @@
         class="panel"
         onsubmit={(event) => {
           event.preventDefault();
-          if (machine === '') return;
+          missing = marked(event, [{ kind: 'field', key: 'machine', code: 'app.forms.choose', isFilled: machine !== '' }]);
+          if (!isComplete(missing)) return;
           void run(async () => {
             await instance.addOperatorById(machine);
             machine = '';
@@ -293,6 +303,7 @@
               bind:value={machine}
               options={candidates.map((each) => ({ value: each.id, label: each.display_name }))}
               isRequired
+              error={missing.machine && !machine ? t(missing.machine) : undefined}
             />
             <div>
               <Button

@@ -128,8 +128,15 @@ test('chromium: removing somebody asks once; removing oneself asks twice; the la
 
   const alone = await operatorsScreen(browser, [ME]);
   await alone.page.getByRole('table').getByText('Jérôme Winkel').waitFor();
-  assert.equal(await alone.page.getByRole('button', { name: 'Remove' }).count(), 0, 'the last operator offers Remove');
-  await alone.page.getByText('The only operator cannot be removed').waitFor();
+  // The last operator's Remove stays in its place, unavailable, its reason its own description
+  // (UC-WRK-32 check 1); pressing it opens nothing.
+  const remove = alone.page.getByRole('button', { name: 'Remove' });
+  assert.equal(await remove.getAttribute('aria-disabled'), 'true', 'the last operator offers Remove');
+  const described = await remove.evaluate((button) =>
+    (button.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.match(described, /The only operator cannot be removed/);
+  await remove.click({ force: true });
+  assert.equal(await alone.page.getByRole('dialog').count(), 0, 'pressing it asked to remove the last operator');
   await alone.context.close();
 });
 

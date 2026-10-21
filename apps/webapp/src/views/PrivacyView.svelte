@@ -62,6 +62,14 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
+
+  /**
+   * What a press of *Record*, *Restrict* or *Withdraw* found missing, marked at the field, focus on
+   * it, nothing sent (UC-WRK-32 check 3).
+   */
+  let missing = $state<Missing>({});
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { deviceZone, todayIn } from '../lib/i18n/zone.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
@@ -244,7 +252,10 @@
 
   async function record(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!draftEmail.trim() && !draftAccount.trim()) return;
+    missing = marked(event, [
+      { kind: 'field', key: 'subject', code: 'app.privacy.subject_needed', isFilled: draftEmail.trim() !== '' || draftAccount.trim() !== '' },
+    ]);
+    if (!isComplete(missing)) return;
     await attempt(async () => {
       await privacy.record({
         kind: draftKind as Kind,
@@ -601,6 +612,7 @@
             hint={t('app.privacy.subject_email_hint')}
             type="email"
             bind:value={draftEmail}
+            error={missing.subject && !draftEmail.trim() && !draftAccount.trim() ? t(missing.subject) : undefined}
           />
           <Input
             label={t('app.privacy.subject_account')}
@@ -664,7 +676,8 @@
           class="panel"
           onsubmit={(event) => {
             event.preventDefault();
-            if (!restrictAccount.trim()) return;
+            missing = marked(event, [{ kind: 'field', key: 'restrict', code: 'app.forms.required', isFilled: restrictAccount.trim() !== '' }]);
+            if (!isComplete(missing)) return;
             void attempt(async () => {
               await privacy.restrict(restrictAccount.trim(), true, restrictReason.trim() || undefined);
               restrictAccount = '';
@@ -676,7 +689,7 @@
             <h3 class="section">{t('app.privacy.restrict_title')}</h3>
             <!-- What it means for the person's sessions and for the workspace's automations. -->
             <p class="quiet small">{t('app.privacy.restrict_note')}</p>
-            <Input label={t('app.privacy.restrict_account')} bind:value={restrictAccount} />
+            <Input label={t('app.privacy.restrict_account')} bind:value={restrictAccount} error={missing.restrict && !restrictAccount.trim() ? t(missing.restrict) : undefined} />
             <Input label={t('app.privacy.restrict_reason')} bind:value={restrictReason} />
             <div>
               <Button
@@ -699,7 +712,8 @@
           class="panel"
           onsubmit={(event) => {
             event.preventDefault();
-            if (!withdrawPurpose.trim()) return;
+            missing = marked(event, [{ kind: 'field', key: 'purpose', code: 'app.forms.required', isFilled: withdrawPurpose.trim() !== '' }]);
+            if (!isComplete(missing)) return;
             void attempt(async () => {
               await privacy.withdraw(withdrawPurpose.trim(), withdrawAccount.trim() || undefined);
               withdrawPurpose = '';
@@ -714,6 +728,7 @@
               label={t('app.privacy.purpose')}
               hint={t('app.privacy.purpose_hint')}
               bind:value={withdrawPurpose}
+              error={missing.purpose && !withdrawPurpose.trim() ? t(missing.purpose) : undefined}
             />
             <Input
               label={t('app.privacy.withdraw_account')}

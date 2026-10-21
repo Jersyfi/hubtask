@@ -83,9 +83,17 @@ test('the only owner is not offered to revoke their own Owner, and is told why',
   await page.goto(`${served.origin}/administration/people`);
   const other = rowOf(page, OTHER.display_name);
   await other.getByRole('button', { name: 'Revoke' }).waitFor({ timeout: 15_000 });
+  // Revoke stays in its place, unavailable, and says why as the control's own description
+  // (UC-WRK-32 check 1) - not as a sentence in the row.
   const me = rowOf(page, ACCOUNT.display_name);
-  await me.getByText('The workspace needs an owner.').waitFor();
-  assert.equal(await me.getByRole('button', { name: 'Revoke' }).count(), 0, 'the last owner is offered Revoke');
+  const revoke = me.getByRole('button', { name: 'Revoke' });
+  await revoke.waitFor();
+  assert.equal(await revoke.getAttribute('aria-disabled'), 'true', 'the last owner is offered Revoke');
+  const described = await revoke.evaluate((button) =>
+    (button.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' '));
+  assert.match(described, /The workspace needs an owner\./);
+  await revoke.click({ force: true });
+  assert.equal(await page.getByRole('dialog').count(), 0, 'pressing it asked to revoke the last owner');
 });
 
 test('taking somebody out of a group that holds Owner asks for the proof and sends it', async (t) => {
