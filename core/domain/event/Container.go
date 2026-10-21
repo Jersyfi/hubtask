@@ -53,6 +53,23 @@ func NewContainerPoliciesUpdated(id shared.ID, container work.Container, changes
 	return newContainerChange(id, ContainerPoliciesUpdated, container, changes, actor, occurredAt, cause)
 }
 
+// NewContainerStructureChanged announces that a hub or a collection has a different structure
+// (domain-model.md §2). The policies event, because a structure is how a container works: its
+// change set names, under `structure`, each setting that moved with its value on both sides, in the
+// contract's words. A hub announces its own change once; the collections that follow it are not
+// announced one by one.
+func NewContainerStructureChanged(id shared.ID, container work.Container, moved map[string]any,
+	actor Actor, occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	if len(moved) == 0 {
+		return Envelope{}, shared.ErrInternal.WithDetail("events.change_set_empty")
+	}
+	payload := containerPayload(container)
+	payload["change_set"] = map[string]any{"structure": moved}
+	return NewEnvelope(id, ContainerPoliciesUpdated, container.TenantID,
+		ContainerSubject(container.ID), actor, occurredAt, cause, payload)
+}
+
 func newContainerChange(id shared.ID, eventType Type, container work.Container,
 	changes []work.FieldChange, actor Actor, occurredAt time.Time, cause Cause,
 ) (Envelope, error) {

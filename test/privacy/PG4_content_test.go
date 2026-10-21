@@ -41,8 +41,11 @@ var contentKeys = map[string]string{
 	// that arrives already looking like a technical value. `q` is the contract's name for
 	// it and `words` the domain's, which are the two a person reaches for when they are about to
 	// log a query "just to see what people search for".
-	"q":          "a search query is PERSONAL_CONTENT",
-	"words":      "a search query is PERSONAL_CONTENT",
+	"q":     "a search query is PERSONAL_CONTENT",
+	"words": "a search query is PERSONAL_CONTENT",
+	// The name a person gives a level of a collection ("item" for a task) is theirs, like the
+	// collection's own name (domain-model.md §2).
+	"level_name": "a level's own name is PERSONAL_CONTENT",
 	"password":   "a credential is SECRET",
 	"token":      "a credential is SECRET",
 	"secret":     "a credential is SECRET",

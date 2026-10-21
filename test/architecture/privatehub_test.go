@@ -79,6 +79,7 @@ var privateHubExemptions = map[string]string{
 	"ListAccessTokens":             noHub,
 	"ListGroups":                   noHub,
 	"ListIdentityProviderPresets":  noHub,
+	"ListPresets":                  noHub,
 	"ListIdentityProviders":        noHub,
 	"ListNotificationPreferences":  noHub,
 	"ListOauthClients":             noHub,

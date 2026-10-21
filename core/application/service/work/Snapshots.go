@@ -4,6 +4,9 @@
 package work
 
 import (
+	"context"
+
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -16,6 +19,27 @@ import (
 
 // ContainerSnapshot is a hub or a collection as `GET /containers/{id}` answers it.
 func ContainerSnapshot(container domain.Container) usecase.Output { return containerOutput(container) }
+
+// ContainerSnapshots are containers as a read answers them, each with its structure in force,
+// resolved in the caller's transaction. Without a wired resolver they carry none.
+func ContainerSnapshots(
+	ctx context.Context, structure StructureResolver, containers []domain.Container,
+) ([]usecase.Output, error) {
+	reading := structure.within(repository.LayerRead)
+	payloads := make([]usecase.Output, 0, len(containers))
+	for _, container := range containers {
+		out := containerOutput(container)
+		if structure.Wired() {
+			effective, err := reading.Of(ctx, container)
+			if err != nil {
+				return nil, err
+			}
+			out["structure"] = effectiveStructureOutput(effective)
+		}
+		payloads = append(payloads, out)
+	}
+	return payloads, nil
+}
 
 // BucketSnapshot is a column as the board lists it.
 func BucketSnapshot(bucket domain.Bucket) usecase.Output { return bucketOutput(bucket) }

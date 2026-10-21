@@ -197,6 +197,18 @@ export type Capabilities = components['schemas']['Capabilities'];
  */
 export type HealthReport = components['schemas']['HealthReport'];
 export type Container = components['schemas']['Container'];
+/**
+ * How much structure a hub, a collection or the workspace has (domain-model.md §2): each setting's
+ * value in force, where it came from and which are locked. Resolved by the server and carried whole
+ * on the container's record; the engine stores it as it arrives and decides nothing about it.
+ */
+export type EffectiveStructure = components['schemas']['EffectiveStructure'];
+export type StructureSettings = components['schemas']['StructureSettings'];
+export type StructureChange = components['schemas']['StructureChange'];
+export type WorkspaceStructure = components['schemas']['WorkspaceStructure'];
+export type WorkspaceStructureChange = components['schemas']['WorkspaceStructureChange'];
+/** A starting point for a hub or collection: Hubtask's four, as this installation offers them. */
+export type Preset = components['schemas']['Preset'];
 
 /**
  * Who holds which role at one scope, and the shapes around it.

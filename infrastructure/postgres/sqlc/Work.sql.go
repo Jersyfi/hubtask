@@ -307,6 +307,7 @@ const findContainer = `-- name: FindContainer :one
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
   aap.strategy AS auto_assign_strategy,
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
@@ -330,6 +331,7 @@ type FindContainerRow struct {
 	ColorToken           *string
 	OrderKey             string
 	CompletionPolicy     string
+	Structure            string
 	AutoAssignStrategy   *string
 	AutoAssignCandidates []byte
 	AutoAssignEnabled    *bool
@@ -384,6 +386,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.ColorToken,
 		&i.OrderKey,
 		&i.CompletionPolicy,
+		&i.Structure,
 		&i.AutoAssignStrategy,
 		&i.AutoAssignCandidates,
 		&i.AutoAssignEnabled,
@@ -846,28 +849,39 @@ func (q *Queries) HubsOpenedFor(ctx context.Context, arg HubsOpenedForParams) ([
 const insertContainer = `-- name: InsertContainer :exec
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
-  created_by, created_at, updated_at, version, private
+  created_by, created_at, updated_at, version, private, policies
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   normalize($4::text, NFC),
   $5, $6, $7, $8,
   $9, $10, $10, 1,
-  $11::boolean
+  $11::boolean,
+  -- A new container's own structure layer, and a collection's own completion beside it, where its
+  -- creator chose a preset: written with the row, so the container starts at version 1 like any
+  -- other. Bound as parameters (rule 9).
+  CASE WHEN $12::text = '' THEN
+    jsonb_build_object('structure', $13::jsonb)
+  ELSE
+    jsonb_build_object('structure', $13::jsonb,
+                       'completion_policy', $12::text)
+  END
 )
 `
 
 type InsertContainerParams struct {
-	ID          pgtype.UUID
-	Type        ContainerType
-	ParentID    pgtype.UUID
-	Name        string
-	Description *string
-	Icon        *string
-	ColorToken  *string
-	OrderKey    string
-	CreatedBy   pgtype.UUID
-	CreatedAt   pgtype.Timestamptz
-	Private     bool
+	ID               pgtype.UUID
+	Type             ContainerType
+	ParentID         pgtype.UUID
+	Name             string
+	Description      *string
+	Icon             *string
+	ColorToken       *string
+	OrderKey         string
+	CreatedBy        pgtype.UUID
+	CreatedAt        pgtype.Timestamptz
+	Private          bool
+	CompletionPolicy string
+	Structure        []byte
 }
 
 // The name arrives in Unicode normal form C - the constructor brings it there, behind the
@@ -889,6 +903,8 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CreatedBy,
 		arg.CreatedAt,
 		arg.Private,
+		arg.CompletionPolicy,
+		arg.Structure,
 	)
 	return err
 }
@@ -1158,6 +1174,7 @@ const listContainers = `-- name: ListContainers :many
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
   coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  coalesce(c.policies->'structure', '{}'::jsonb)::text AS structure,
   aap.strategy AS auto_assign_strategy,
   aap.candidates AS auto_assign_candidates,
   aap.enabled AS auto_assign_enabled,
@@ -1200,6 +1217,7 @@ type ListContainersRow struct {
 	ColorToken           *string
 	OrderKey             string
 	CompletionPolicy     string
+	Structure            string
 	AutoAssignStrategy   *string
 	AutoAssignCandidates []byte
 	AutoAssignEnabled    *bool
@@ -1267,6 +1285,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.ColorToken,
 			&i.OrderKey,
 			&i.CompletionPolicy,
+			&i.Structure,
 			&i.AutoAssignStrategy,
 			&i.AutoAssignCandidates,
 			&i.AutoAssignEnabled,
@@ -2052,10 +2071,9 @@ type SetContainerPoliciesParams struct {
 
 // One key of the policies document, set in place.
 //
-// `jsonb_set` rather than replacing the column, because the column holds four documented keys and this
-// use case owns one of them. Overwriting the whole document would silently discard a default bucket or
-// a capability override the moment either of those arrives - a data loss nobody would see until the
-// feature that wrote them stopped working.
+// `jsonb_set` rather than replacing the column, because the column holds other keys and this use
+// case owns one of them. Overwriting the whole document would silently discard the container's
+// structure layer (Settings.sql) - a data loss nobody would see until the collection lost its shape.
 //
 // The value is a parameter of the jsonb constructor rather than concatenated text: `to_jsonb` on a
 // bound parameter is what keeps this a parameterised statement, which rule 9 requires of every query

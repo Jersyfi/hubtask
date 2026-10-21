@@ -157,11 +157,17 @@ func (h CreateTemplate) Execute(
 func (w TemplateWriter) ensureTreeIsPossible(
 	ctx context.Context, template domain.Template,
 ) error {
+	// The topology is the installation's (NewHierarchy): a narrowed set read on its own would
+	// promote a type nothing in it accepts any more to a root it was never allowed to be.
 	rows, err := w.Profiles.List(ctx)
 	if err != nil {
 		return err
 	}
-	hierarchy, err := service.NewHierarchy(rows, rows)
+	system, err := w.Profiles.ListSystem(ctx)
+	if err != nil {
+		return err
+	}
+	hierarchy, err := service.NewHierarchy(rows, system)
 	if err != nil {
 		return err
 	}

@@ -141,6 +141,7 @@ type templateHarness struct {
 	authorizer  *authorizer
 	holds       *templateHolds
 	removals    *removalLog
+	profiles    *profiles
 }
 
 func newTemplateHarness(t *testing.T) *templateHarness {
@@ -155,11 +156,12 @@ func newTemplateHarness(t *testing.T) *templateHarness {
 		authorizer: &authorizer{},
 		holds:      &templateHolds{},
 		removals:   &removalLog{},
+		profiles:   &profiles{rows: templateProfiles()},
 	}
 
 	writer := TemplateWriter{
 		Templates: h.templates, Containers: h.containers,
-		Profiles: &profiles{rows: templateProfiles()}, Authorizer: h.authorizer,
+		Profiles: h.profiles, Authorizer: h.authorizer,
 		Changes: h.changes, Audit: h.audit,
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), IDs: &ids{}, HLC: &hlcSource{},
 		Holds: h.holds, Removals: h.removals, TombstoneWindow: 90 * 24 * time.Hour,
@@ -837,5 +839,64 @@ func TestAMalformedNodeIsRefusedByItsOwnPath(t *testing.T) {
 	if len(refusal.Fields) != 1 ||
 		refusal.Fields[0].Path != "/nodes/0/children/0/due_offset" {
 		t.Errorf("the refusal points at %v", refusal.Fields)
+	}
+}
+
+// narrowTheTask is a workspace whose task no longer accepts a work package, beside the
+// installation's topology in which it still does.
+func narrowTheTask(h *templateHarness) {
+	narrowed := templateProfiles()
+	for i := range narrowed {
+		if narrowed[i].Type == domain.ItemTask {
+			narrowed[i].AllowedChildTypes = nil
+		}
+	}
+	h.profiles.rows = narrowed
+	h.profiles.system = templateProfiles()
+}
+
+// A narrowing never promotes a level to the top: the roots come from the installation's topology,
+// so a work package does not become something a template may start with because the workspace's
+// task stopped accepting it.
+func TestANarrowingDoesNotMakeAWorkPackageATemplateRoot(t *testing.T) {
+	h := newTemplateHarness(t)
+	narrowTheTask(h)
+
+	spec := moveSpec(t)
+	spec.RootType = string(domain.ItemWorkPackage)
+	spec.Root = domain.TemplateNode{Type: domain.ItemWorkPackage, Title: "Book the van"}
+
+	_, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: spec})
+	refusal := shared.AsError(err)
+	if refusal == nil || refusal.DetailCode != "templates.root_not_permitted" {
+		t.Fatalf("refused as %v, want templates.root_not_permitted", err)
+	}
+}
+
+// The stamp asks the same topology: a stored template rooted at a work package does not land
+// directly in a collection after a narrowing.
+func TestANarrowingDoesNotLetAWorkPackageLandInACollection(t *testing.T) {
+	h := newTemplateHarness(t)
+	spec := moveSpec(t)
+	spec.Root.Children = nil
+	template, err := h.create.Execute(t.Context(), actor(), CreateTemplateCommand{Spec: spec})
+	if err != nil {
+		t.Fatalf("defining the template failed: %v", err)
+	}
+	stored := h.templates.stored[template.ID]
+	stored.RootType = domain.ItemWorkPackage
+	stored.Root = domain.TemplateNode{Type: domain.ItemWorkPackage, Title: "Book the van"}
+	h.templates.stored[template.ID] = stored
+	narrowTheTask(h)
+
+	_, err = h.instantiate.Execute(t.Context(), actor(), InstantiateTemplateCommand{
+		TemplateID: template.ID, CollectionID: collectionID,
+		Anchor: time.Date(2026, 9, 7, 0, 0, 0, 0, time.UTC),
+	})
+	if err == nil {
+		t.Fatal("a work package was stamped directly into a collection")
+	}
+	if len(h.items.stored) != 0 {
+		t.Errorf("%d entries were written", len(h.items.stored))
 	}
 }

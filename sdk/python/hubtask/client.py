@@ -1167,6 +1167,14 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
+        """PATCH /tenant/structure"""
+        return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def list_presets(self) -> dict[str, Any]:
+        """The presets a hub or collection can start from"""
+        return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")
+
     def list_containers(self, *, query: dict[str, Any] | None = None) -> "ContainerPage":
         """GET /containers"""
         return self._call("GET", "/containers", {}, query, {}, None, "none", None, "json")
@@ -1190,6 +1198,10 @@ class Client:
     def update_container_policies(self, container_id: str, body: "ContainerPolicies", *, if_match: str | None = None) -> "Container":
         """PUT /containers/{containerId}/policies"""
         return self._call("PUT", "/containers/{containerId}/policies", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def set_container_structure(self, container_id: str, body: "StructureChange", *, if_match: str | None = None) -> "Container":
+        """PATCH /containers/{containerId}/structure"""
+        return self._call("PATCH", "/containers/{containerId}/structure", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
     def set_hub_privacy(self, container_id: str, body: "HubPrivacy", *, if_match: str | None = None) -> "Container":
         """PUT /containers/{containerId}/privacy"""

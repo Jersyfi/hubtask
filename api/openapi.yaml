@@ -7822,6 +7822,60 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /tenant/structure:
+    patch:
+      tags: [meta]
+      operationId: setWorkspaceStructure
+      description: >
+        Changes the workspace's own structure: the values every hub and collection inherits unless
+        it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind
+        every hub and collection - the whole set, keyed by a setting or by one capability of one
+        type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes
+        it). A value beyond what the installation offers is refused with
+        `capability_not_supported`. Needs the right to change the workspace's shape. The answer is
+        the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkspaceStructureChange"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkspaceStructure"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /presets:
+    get:
+      tags: [containers]
+      operationId: listPresets
+      summary: The presets a hub or collection can start from
+      description: >
+        Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as
+        this installation offers them. A bounded list, not a page: there are four.
+      responses:
+        "200":
+          description: The presets
+          content:
+            application/json:
+              schema:
+                type: array
+                maxItems: 4
+                items:
+                  $ref: "#/components/schemas/Preset"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers:
     get:
       tags: [containers]
@@ -7952,6 +8006,42 @@ paths:
       responses:
         "200":
           description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Container"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/structure:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    patch:
+      tags: [containers]
+      operationId: setContainerStructure
+      description: >
+        Changes how much structure a hub or collection has: `preset` copies a preset's eight
+        settings into it, replacing its own; `settings` sets settings one by one on top; `reset`
+        names settings that go back to what the hub or the workspace says. A value beyond what the
+        installation offers is refused with `capability_not_supported` (`structure.widens`); a
+        setting the workspace locked is refused with `structure.setting_locked` - except that a
+        preset chosen under a lock is accepted with the locked setting kept, named in
+        `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the
+        workspace's shape where the container sits. Writing what is stored changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StructureChange"
+      responses:
+        "200":
+          description: Updated, with the structure in force
           headers:
             ETag:
               schema: { type: string }
@@ -11728,6 +11818,8 @@ components:
             How people in this workspace prove who they are. Absent on an installation
             with no instance layer, where there is no level above to resolve against - a screen that
             drew eighteen rows it could not save would be a screen that lies about what it offers.
+        structure:
+          $ref: "#/components/schemas/WorkspaceStructure"
         hosts:
           type: array
           readOnly: true
@@ -11845,7 +11937,7 @@ components:
 
     PolicySource:
       type: string
-      enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+      enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE, HUB, COLLECTION]
       description: >
         Where a value in force came from: Hubtask's own default, the installation, the plan, or this
         workspace. A screen says it beside every rule, so nobody meets a value
@@ -11854,7 +11946,7 @@ components:
 
     PolicyLock:
       type: [string, "null"]
-      enum: [INSTANCE, PLAN, null]
+      enum: [INSTANCE, PLAN, WORKSPACE, null]
       description: >
         Where a lock came from, or null where there is none. The origin is answered rather than a
         bare boolean because "ask your administrator" and "ask your provider" are different
@@ -14771,6 +14863,19 @@ components:
             Whether this hub is private: reached only by people holding a role on it or below it,
             not by the workspace's own roles - its owners and administrators included. Always
             false on a collection, which shares its hub's privacy.
+        structure:
+          $ref: "#/components/schemas/EffectiveStructure"
+          description: >
+            How much structure this hub or collection has, setting by setting, with where each value
+            comes from and which are locked. Answered by every read of the container, by its
+            creation and by a change of its structure; the answer to another change may leave it
+            out.
+        kept_by_lock:
+          type: array
+          description: >
+            On the answer to a change of the structure only: the locks that kept a value the chosen
+            preset would have changed. Empty where none did.
+          items: { type: string }
 
     ContainerCreate:
       type: object
@@ -14791,6 +14896,13 @@ components:
             the workspace may create one, without the right to create shared hubs, and becomes its
             owner. A service account may not. Refused on a collection
             (`containers.private_only_hubs`).
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: >
+            The preset the new hub or collection starts from; its values are copied. A collection
+            given its hub's preset, or none, follows its hub instead and stores nothing of its own. A
+            hub given none starts from the workspace's default preset where one is set.
 
     ContainerUpdate:
       type: object
@@ -14833,6 +14945,223 @@ components:
         reopened. /meta/capabilities returns the valid values.
       enum: [MANUAL, ROLLUP]
       default: MANUAL
+
+    StructureSettings:
+      type: object
+      description: >
+        How much structure a hub or collection has: eight settings. Answered whole wherever a
+        structure is in force; a write sends only the settings it changes. Every value is held
+        inside what this installation offers (`/meta/capabilities`, `item_types`): a value that
+        would widen it is refused with `capability_not_supported`. `completion` is applied by the
+        server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`,
+        `celebration` and `automation` are applied by clients, and the server stores and answers
+        them.
+      properties:
+        levels:
+          type: array
+          description: >
+            The item types offered, top-down. The top level is always among them, and a type only
+            beneath one of its parent types. A name is what a person chose to call the level; it is
+            their content. Without one, a client shows its translated name for the type.
+          minItems: 1
+          maxItems: 16
+          items: { $ref: "#/components/schemas/StructureLevel" }
+        fields:
+          type: object
+          description: >
+            What each item type carries, keyed by type. A type left out carries everything this
+            installation offers it. Completion cannot be left out.
+          additionalProperties: { $ref: "#/components/schemas/StructureLevelFields" }
+        views: { $ref: "#/components/schemas/StructureViews" }
+        counts: { $ref: "#/components/schemas/StructureCounts" }
+        completion: { $ref: "#/components/schemas/CompletionPolicy" }
+        capture:
+          type: array
+          description: >
+            What a capture field recognises when it adds to this collection: several lines as
+            several entries, a leading amount, a date, a person, a label. Applied by clients.
+          maxItems: 5
+          items:
+            type: string
+            enum: [LINES, AMOUNT, DATE, PERSON, LABEL]
+        celebration:
+          type: string
+          description: >
+            How success is shown: every tier of celebration, or the subtle first one alone.
+            Applied by clients; a person's own `celebrations` preference switches it off.
+          enum: [ALL, SUBTLE]
+        automation:
+          type: array
+          description: >
+            What runs by itself in this collection. A closed set that holds no value yet: every
+            value is refused with `capability_not_supported` until a behaviour exists that a
+            collection may switch on.
+          maxItems: 0
+          items: { type: string }
+
+    StructureLevel:
+      type: object
+      required: [type]
+      properties:
+        type: { $ref: "#/components/schemas/ItemType" }
+        name:
+          type: [string, "null"]
+          minLength: 1
+          maxLength: 60
+          description: The level's own name, counted in code points after trimming.
+
+    StructureLevelFields:
+      type: object
+      required: [capabilities]
+      properties:
+        capabilities:
+          type: array
+          description: The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+          items: { type: string }
+
+    StructureViews:
+      type: object
+      description: The layouts a client offers, and the one it opens with. Applied by clients.
+      required: [offered, default]
+      properties:
+        offered:
+          type: array
+          minItems: 1
+          maxItems: 4
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+        default: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+
+    StructureCounts:
+      type: object
+      description: >
+        The figure a client shows for the collection: open entries, the sum of a number field
+        (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing.
+        Applied by clients.
+      required: [figure]
+      properties:
+        figure:
+          type: string
+          enum: [OPEN, FIELD_SUM, DUE, RHYTHM, PROGRESS, FLOW, NONE]
+        field_key:
+          type: [string, "null"]
+          maxLength: 64
+
+    StructureChange:
+      type: object
+      description: >
+        A change of a hub's or collection's own structure. Applied in this order: the preset, the
+        settings, the resets.
+      properties:
+        preset:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        reset:
+          type: array
+          maxItems: 8
+          items: { $ref: "#/components/schemas/StructureSettingName" }
+
+    WorkspaceStructureChange:
+      type: object
+      description: >
+        A change of the workspace's structure. Applied in this order: the preset, the settings, the
+        resets; then the locks and the default preset.
+      properties:
+        preset:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        reset:
+          type: array
+          maxItems: 8
+          items: { $ref: "#/components/schemas/StructureSettingName" }
+        locks:
+          type: array
+          description: >
+            The whole set of locks after the change. Omitted leaves them as they are; an empty list
+            removes them all. A lock kept keeps who set it.
+          maxItems: 64
+          items: { type: string, maxLength: 64 }
+        default_preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: The preset a hub created without one starts from; null removes it.
+
+    StructureSettingName:
+      type: string
+      enum: [levels, fields, views, counts, completion, capture, celebration, automation]
+
+    EffectiveStructure:
+      type: object
+      description: >
+        The structure in force: every setting's value, where it came from (Hubtask's default, the
+        installation, the workspace, the hub, this collection), and which settings are locked, by
+        whom. A locked setting is answered with its value, not withheld; writing it is refused with
+        `structure.setting_locked`. `preset` is where the nearest layer's values were copied from -
+        provenance only.
+      required: [preset, settings, sources, locks]
+      properties:
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        sources:
+          type: object
+          description: For each of the eight settings, the level its value comes from.
+          additionalProperties: { $ref: "#/components/schemas/PolicySource" }
+        locks:
+          type: object
+          description: >
+            The locks in force, keyed by a setting (`views`) or by one capability of one type
+            (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
+          additionalProperties: { $ref: "#/components/schemas/StructureLock" }
+
+    StructureLock:
+      type: object
+      required: [origin]
+      properties:
+        origin:
+          type: string
+          enum: [INSTANCE, PLAN, WORKSPACE]
+        locked_by:
+          type: [string, "null"]
+          format: uuid
+          description: The account that set the lock, where a person did.
+
+    WorkspaceStructure:
+      type: object
+      description: >
+        The workspace's own structure: the values every hub and collection inherits unless it has
+        its own, the locks that bind them all, and the preset a new hub starts from.
+      required: [preset, settings, sources, locks, default_preset]
+      properties:
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        sources:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/PolicySource" }
+        locks:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/StructureLock" }
+        default_preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: The preset a hub created without one starts from. Collections follow their hub.
+
+    Preset:
+      type: object
+      description: >
+        A starting point for a hub or collection: values for all eight settings, held to what this
+        installation offers. Choosing one copies its values; nothing follows a preset afterwards.
+        The key is stable; a client translates it.
+      required: [key, settings]
+      properties:
+        key:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
 
     AutoAssignPolicy:
       type: object
@@ -19123,7 +19452,7 @@ components:
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
-            `sign_in_rules`, `search_filter` and `setup_open`.
+            `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
 
             `setup_open` is `true` exactly while the installation has no workspace and nobody in its
             operator register: then `POST /auth/installation:set-up` is offered, and a client shows
@@ -19134,6 +19463,12 @@ components:
             served) and `search_filter` (`POST /search` takes a `filter`, and answers one without
             `words`). They are here for a client that also talks to an older server, which does
             not answer them: it can tell rather than probe.
+
+            `structure`, a property of this version as well, says that `/presets` is served, that
+            every container read answers its `structure` and `GET /tenant` the workspace's, and that
+            both can be written (`PATCH /containers/{containerId}/structure`,
+            `PATCH /tenant/structure`). It does not say that entries already obey `levels` and
+            `fields`; a client offers only what they allow either way.
 
             `ai_suggestions` and `semantic_search` are the same two names `degraded_features`
             uses in `/meta/health`, so a client reading either

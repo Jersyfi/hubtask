@@ -73,6 +73,16 @@ type WorkspaceWriter struct {
 	// People decides several_people, and with the switch private_hubs_offered: a workspace of one
 	// person has nobody to keep a hub from (UC-ID-16 check 8). Nil offers nothing.
 	People repository.People
+	// Structure answers the workspace's structure beside its sign-in rule (domain-model.md §2).
+	// Nil answers none.
+	Structure WorkspaceStructureReader
+}
+
+// WorkspaceStructureReader answers the workspace's own structure, its locks and the preset a new
+// hub starts from, in the contract's words. Declared here and answered by the work context, which
+// owns structures; the composition root joins the two.
+type WorkspaceStructureReader interface {
+	WorkspaceStructure(ctx context.Context, actor appshared.ActorContext) (map[string]any, error)
 }
 
 // severalPeople is whether more than one person can act here: where private hubs, and the switch
@@ -111,6 +121,13 @@ func (w WorkspaceWriter) answer(
 	}
 	out["several_people"] = several
 	out["private_hubs_offered"] = several && privateHubsAllowed(resolved)
+	if w.Structure != nil {
+		structure, err := w.Structure.WorkspaceStructure(ctx, actor)
+		if err != nil {
+			return nil, err
+		}
+		out["structure"] = structure
+	}
 	return out, nil
 }
 

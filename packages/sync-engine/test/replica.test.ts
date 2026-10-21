@@ -108,6 +108,37 @@ test('§9.7: a field the engine has never seen is stored and read back unchanged
   assert.deepEqual((await second.storage.get<StoredRecord<unknown>>('something_newer', OTHER_ITEM))?.document, { id: OTHER_ITEM, shape: [1, 2, 3] });
 });
 
+test('a container\'s structure arrives with its record and a later one replaces it whole', async () => {
+  const structure = (celebration: string, locks: Record<string, unknown>) => ({
+    preset: 'LIST', settings: { celebration }, sources: { celebration: 'HUB' }, locks,
+  });
+  const transport = new FakeTransport()
+    .snapshotSessions({
+      records: [whole('container', COLLECTION, {
+        type: 'COLLECTION', name: 'Inbox', parent_id: HUB, version: 1,
+        structure: structure('SUBTLE', { views: { origin: 'WORKSPACE', locked_by: null } }),
+      }, HUB)],
+      cursor: 'c-1',
+    })
+    .streamSessions({ open: true })
+    .answerEach('/sync:pull', [{
+      changes: [{
+        op: 'UPSERT', entity: 'container', entity_id: COLLECTION, container_id: COLLECTION,
+        payload: { structure: structure('ALL', {}) },
+      }],
+      cursor: 'c-2', has_more: false,
+    }]);
+  const { engine, storage } = await attached(transport);
+  const stop = engine.listen({ pathsFor });
+  await settle();
+  stop();
+  const held = await storage.get<StoredRecord<Record<string, unknown>>>(collectionOf('container'), COLLECTION);
+  // Transcribed, not merged: the server resolved the structure, and the lock it no longer answers
+  // is gone from the copy too.
+  assert.deepEqual(held?.document.structure, structure('ALL', {}));
+  assert.equal(held?.document.name, 'Inbox', 'the rest of the container stays');
+});
+
 test('a second start takes the delta from the held cursor and no snapshot', async () => {
   const storage = new MemoryStorage();
   const first = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-100' }).streamSessions({ open: true });

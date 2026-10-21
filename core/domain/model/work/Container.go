@@ -101,6 +101,11 @@ type Container struct {
 	// collection carries a meaningful one - a hub holds no items - and it is read off both, because
 	// the column is on both and a reader that skipped hubs would be a second rule to keep.
 	CompletionPolicy CompletionPolicy
+	// Structure is this container's own layer of its structure settings (domain-model.md §2):
+	// the values it decided itself, and the preset they were copied from. Empty where it follows the
+	// layer above. On a collection its completion is the same value CompletionPolicy reads - one
+	// stored value, `policies.completion_policy` - and empty where the collection never decided one.
+	Structure StructureLayer
 	// AutoAssign is how what is created in this collection is handed out, nil for not at all
 	// (domain-model.md §3.6). Stored in its own row and loaded by the adapter; nil on a hub,
 	// which has no policies to carry it.
@@ -527,6 +532,9 @@ func (c Container) WithPolicies(policies ContainerPolicies, at time.Time) (Conta
 		})
 		c.CompletionPolicy = policy
 	}
+	// The PUT stores a value even where none was sent, which makes it the collection's own: the
+	// layer says so too, so the two readings of the one stored key cannot disagree.
+	c.Structure.Values.Completion = policy
 	if change, moved := autoAssignChange(c.AutoAssign, policies.AutoAssign); moved {
 		changes = append(changes, change)
 		c.AutoAssign = policies.AutoAssign

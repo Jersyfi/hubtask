@@ -252,7 +252,7 @@
         },
         "change_set": {
           "type": "object",
-          "description": "The fields that moved, each with the value on both sides. A field change trigger is written against this: a rule fires on \"the name became X\" or on \"it stopped being Y\", and only the second needs the value that went. Fields that did not move are not here.",
+          "description": "The fields that moved, each with the value on both sides. A field change trigger is written against this: a rule fires on \"the name became X\" or on \"it stopped being Y\", and only the second needs the value that went. Fields that did not move are not here. A change of the structure is under `structure`: each setting that moved, keyed by its name (`levels`, `fields`, `views`, `counts`, `completion`, `capture`, `celebration`, `automation`, and `preset` for the provenance), with `from` and `to` in the words of the contract's StructureSettings. The event is a hub's as well as a collection's for a structure; a hub's change is announced once, on the hub.",
           "additionalProperties": true
         }
       }

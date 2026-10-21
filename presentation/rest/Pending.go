@@ -1501,3 +1501,18 @@ func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvail
 func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadUsageParams) {
 	notAvailable(w, r)
 }
+
+// The structure of hubs and collections (domain-model.md §2).
+func (pending) ListPresets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetContainerStructure(
+	w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.SetContainerStructureParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, _ openapi.SetWorkspaceStructureParams) {
+	notAvailable(w, r)
+}

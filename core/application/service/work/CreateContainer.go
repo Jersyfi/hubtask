@@ -102,6 +102,10 @@ type CreateContainerCommand struct {
 
 	// Private makes a new hub private, its creator its owner (ADR-0073 §2).
 	Private bool
+
+	// Preset is the preset the new container starts from, empty for none: a hub then takes the
+	// workspace's default, a collection follows its hub (domain-model.md §2).
+	Preset domain.PresetKey
 }
 
 // CreateContainer creates a hub or a collection.
@@ -130,22 +134,34 @@ type CreateContainer struct {
 	HLC         clock.HLCSource
 	// Text brings the names people type to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Structure resolves and seeds the new container's structure (domain-model.md §2). A build
+	// without it creates containers with no layer of their own and answers no structure.
+	Structure StructureResolver
 }
 
 // Execute creates the container and returns it.
 func (h CreateContainer) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd CreateContainerCommand,
 ) (domain.Container, error) {
+	created, _, err := h.create(ctx, actor, cmd)
+	return created, err
+}
+
+// create is Execute with the structure in force beside the container, for the answer.
+func (h CreateContainer) create(
+	ctx context.Context, actor appshared.ActorContext, cmd CreateContainerCommand,
+) (domain.Container, *domain.EffectiveStructure, error) {
 	if cmd.Private && cmd.Type != domain.ContainerHub {
 		// Before the permission, so that the answer is the same for everybody: the request asks for
 		// something that does not exist.
-		return domain.Container{}, domain.ErrPrivateOnlyHubs()
+		return domain.Container{}, nil, domain.ErrPrivateOnlyHubs()
 	}
 	if err := h.authorize(ctx, actor, cmd); err != nil {
-		return domain.Container{}, err
+		return domain.Container{}, nil, err
 	}
 
 	var created domain.Container
+	var structure *domain.EffectiveStructure
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		if err := h.checkParent(ctx, cmd); err != nil {
 			return err
@@ -176,6 +192,17 @@ func (h CreateContainer) Execute(
 			return err
 		}
 
+		// The structure is seeded with the row, the hub's and the workspace's rows held so that a
+		// change to either waits for this one and the next fan-out finds it (domain-model.md §2).
+		reading := h.Structure.within(repository.LayerShared)
+		if h.Structure.Wired() {
+			if container.Structure, err = h.seedStructure(ctx, reading, container, cmd.Preset); err != nil {
+				return err
+			}
+		} else if cmd.Preset != "" {
+			return shared.ErrInternal.WithDetail("containers.structure_unwired")
+		}
+
 		if err := h.Containers.Insert(ctx, container); err != nil {
 			return err
 		}
@@ -195,6 +222,16 @@ func (h CreateContainer) Execute(
 		if err := h.recordChange(ctx, container, actor, announcement.Payload); err != nil {
 			return err
 		}
+		if h.Structure.Wired() {
+			effective, err := reading.Of(ctx, container)
+			if err != nil {
+				return err
+			}
+			if err := recordStructure(ctx, h.Changes, h.HLC, container, actor, effective); err != nil {
+				return err
+			}
+			structure = &effective
+		}
 		if err := h.recordAudit(ctx, container, actor, now); err != nil {
 			return err
 		}
@@ -208,9 +245,39 @@ func (h CreateContainer) Execute(
 		return nil
 	})
 	if err != nil {
-		return domain.Container{}, err
+		return domain.Container{}, nil, err
 	}
-	return created, nil
+	return created, structure, nil
+}
+
+// seedStructure is the new container's own layer (domain-model.md §2). A preset chosen is
+// copied, held to the installation and to the workspace's locks. A hub without one starts from the
+// workspace's default preset; a collection without one, or with its hub's, stores nothing and
+// follows its hub - so a later change of the hub reaches it.
+func (h CreateContainer) seedStructure(
+	ctx context.Context, reading *layerReading, container domain.Container, preset domain.PresetKey,
+) (domain.StructureLayer, error) {
+	workspace, _, err := reading.Workspace(ctx)
+	if err != nil {
+		return domain.StructureLayer{}, err
+	}
+	if container.Type == domain.ContainerHub && preset == "" {
+		preset = workspace.DefaultPreset
+	}
+	if container.Type == domain.ContainerCollection {
+		hub, err := reading.hub(ctx, container.ParentID)
+		if err != nil {
+			return domain.StructureLayer{}, err
+		}
+		if preset == "" || preset == hub.Structure.Preset {
+			return domain.StructureLayer{}, nil
+		}
+	}
+	if preset == "" {
+		return domain.StructureLayer{}, nil
+	}
+	layer, _, err := choosePreset(ctx, reading, container, preset)
+	return layer, err
 }
 
 // authorize asks the question the container decides: STRUCTURE where it is created, or - for a
@@ -479,6 +546,16 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 				Description: "A theme token rather than a colour value, so clients render it in their own palette.",
 			},
 			{
+				Name: "preset", Kind: usecase.KindString,
+				Enum: []string{
+					string(domain.PresetList), string(domain.PresetTasks),
+					string(domain.PresetProject), string(domain.PresetFlow),
+				},
+				Description: "The preset the container starts from; its eight settings are copied. " +
+					"A collection given its hub's preset, or none, follows its hub instead. A hub " +
+					"given none starts from the workspace's default preset where one is set.",
+			},
+			{
 				Name: "private", Kind: usecase.KindBool,
 				Description: "A hub reached only by its own members, the workspace's administrators " +
 					"included; the creator becomes its owner. Any person holding a role in the " +
@@ -508,7 +585,7 @@ func (h CreateContainer) invoke(
 		return nil, err
 	}
 
-	container, err := h.Execute(ctx, actor, CreateContainerCommand{
+	container, structure, err := h.create(ctx, actor, CreateContainerCommand{
 		Type:        domain.ContainerType(in.String("type")),
 		ParentID:    parentID,
 		Name:        in.String("name"),
@@ -516,9 +593,14 @@ func (h CreateContainer) invoke(
 		Icon:        in.String("icon"),
 		ColorToken:  in.String("color_token"),
 		Private:     in.Bool("private"),
+		Preset:      domain.PresetKey(in.String("preset")),
 	})
 	if err != nil {
 		return nil, err
 	}
-	return containerOutput(container), nil
+	out := containerOutput(container)
+	if structure != nil {
+		out["structure"] = effectiveStructureOutput(*structure)
+	}
+	return out, nil
 }

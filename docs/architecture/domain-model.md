@@ -63,9 +63,44 @@ does, what capture recognises, how success is shown, and what runs by itself. Ev
 changed per hub or collection, and a collection inherits from its hub, its hub from the workspace,
 the workspace from the installation; an administrator may lock a setting (P-06, P-07). A setting
 **narrows** the system profile and never widens it. The effective profile is what the gate below
-applies; `policies.capability_overrides` holds a container's own narrowing. A level may carry a
-name a person chose; it is that person's content (rule 10), and the translated default applies
-without one.
+applies; `policies.structure` holds a container's own layer. A level may carry a name a person
+chose; it is that person's content (rule 10), and the translated default applies without one.
+
+How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `StructureResolve.go`):
+
+* **Layers.** Per setting, the nearest layer that decides it wins: the collection, its hub, the
+  workspace, the installation, Hubtask's default. A layer stores *values*; the preset it names is
+  provenance only — choosing a preset copies its eight values into the layer and replaces the
+  layer's own, and nothing follows a preset afterwards. Hubtask's default is the behaviour from
+  before settings existed, so a container nobody configured answers exactly that.
+* **Creation.** A collection created with its hub's preset, or with none, stores nothing and follows
+  its hub — a later change of the hub reaches it. A hub created without a preset starts from the
+  workspace's *default preset*, which applies to hubs only.
+* **The bound.** Every value at every layer is held inside what the installation offers: the
+  system profile intersected with the profiles in force (`item_capability_profile`'s tenant rows
+  stay that bound; a workspace narrows through its own layer). A write beyond it is refused with
+  `capability_not_supported` (`structure.widens`); a value stored before the installation narrowed
+  is clipped on read, never refused. A layer's value is a default for the layers below, not a bound
+  on them: a collection may switch dates on under a hub without them.
+* **Levels and fields.** *Levels* are the offered types, top-down: a root always, any other type only
+  beneath one of its system parents (an activity has two). *Fields* are a capability set per type,
+  completion always in it.
+* **Locks.** The workspace locks a whole setting (`views`) or one capability of one type
+  (`fields.TASK.DUE_DATE`); a lock answers its origin and who set it. A locked value applies below:
+  a lower layer's own value is ignored when resolving and refused when written
+  (`structure.setting_locked`); a preset chosen under a lock is accepted with the locked value kept
+  and named (`kept_by_lock`). The installation's and the plan's locks arrive with their writers.
+* **Completion** is the one setting the server applies here: the roll-up (I-W5) follows the value in
+  force. A collection's own completion is one stored value, `policies.completion_policy`, which
+  `PUT /containers/{id}/policies` writes too.
+* **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
+  as below. `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
+  the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
+  a collection may switch on.
+* **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
+  `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
+  touches an entry. The container's write publishes `container.policies_updated` with the settings
+  that moved; the workspace's is in the audit trail, as every workspace setting is (§4).
 
 **Narrowing hides, it never deletes** (decision #1620). Values and children a collection's
 settings no longer offer stay stored, are returned by every read marked as hidden, and writing
@@ -208,7 +243,7 @@ refuses. It is the account's roles; a token's scopes bound it further.
 | `description` | text? | |
 | `icon`, `color` | string? | |
 | `orderKey` | string | A fractional index within the parent: a hub among the workspace's hubs, a collection among its hub's |
-| `policies` | JSONB | `completionPolicy`, `defaultBucketId`, `capabilityOverrides`, `autoAssign` |
+| `policies` | JSONB | `completionPolicy` and `structure` (the container's own layer of its settings, §2); `autoAssign` is read with it from its own row |
 | `archivedAt`, `deletedAt` | timestamptz? | Lifecycle |
 | `private` | bool | A `HUB` only; reached only through a membership on it or below it (§3.2) |
 | `version` | int | Optimistic locking |

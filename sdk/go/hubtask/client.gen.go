@@ -1383,6 +1383,33 @@ func (e ConsentRegisterEntrySource) Valid() bool {
 	}
 }
 
+// Defines values for ContainerCreatePreset.
+const (
+	ContainerCreatePresetFLOW        ContainerCreatePreset = "FLOW"
+	ContainerCreatePresetLIST        ContainerCreatePreset = "LIST"
+	ContainerCreatePresetLessThannil ContainerCreatePreset = "<nil>"
+	ContainerCreatePresetPROJECT     ContainerCreatePreset = "PROJECT"
+	ContainerCreatePresetTASKS       ContainerCreatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the ContainerCreatePreset enum.
+func (e ContainerCreatePreset) Valid() bool {
+	switch e {
+	case ContainerCreatePresetFLOW:
+		return true
+	case ContainerCreatePresetLIST:
+		return true
+	case ContainerCreatePresetLessThannil:
+		return true
+	case ContainerCreatePresetPROJECT:
+		return true
+	case ContainerCreatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -1632,6 +1659,33 @@ func (e DroppedReferenceKind) Valid() bool {
 	}
 }
 
+// Defines values for EffectiveStructurePreset.
+const (
+	EffectiveStructurePresetFLOW        EffectiveStructurePreset = "FLOW"
+	EffectiveStructurePresetLIST        EffectiveStructurePreset = "LIST"
+	EffectiveStructurePresetLessThannil EffectiveStructurePreset = "<nil>"
+	EffectiveStructurePresetPROJECT     EffectiveStructurePreset = "PROJECT"
+	EffectiveStructurePresetTASKS       EffectiveStructurePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the EffectiveStructurePreset enum.
+func (e EffectiveStructurePreset) Valid() bool {
+	switch e {
+	case EffectiveStructurePresetFLOW:
+		return true
+	case EffectiveStructurePresetLIST:
+		return true
+	case EffectiveStructurePresetLessThannil:
+		return true
+	case EffectiveStructurePresetPROJECT:
+		return true
+	case EffectiveStructurePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for EncryptionStoreCountStore.
 const (
 	EncryptionStoreCountStoreAccountMfa          EncryptionStoreCountStore = "account_mfa"
@@ -1829,22 +1883,22 @@ func (e HealthReportMigrationStatus) Valid() bool {
 
 // Defines values for HealthReportRole.
 const (
-	Api        HealthReportRole = "api"
-	Automation HealthReportRole = "automation"
-	Scheduler  HealthReportRole = "scheduler"
-	Worker     HealthReportRole = "worker"
+	HealthReportRoleApi        HealthReportRole = "api"
+	HealthReportRoleAutomation HealthReportRole = "automation"
+	HealthReportRoleScheduler  HealthReportRole = "scheduler"
+	HealthReportRoleWorker     HealthReportRole = "worker"
 )
 
 // Valid indicates whether the value is a known member of the HealthReportRole enum.
 func (e HealthReportRole) Valid() bool {
 	switch e {
-	case Api:
+	case HealthReportRoleApi:
 		return true
-	case Automation:
+	case HealthReportRoleAutomation:
 		return true
-	case Scheduler:
+	case HealthReportRoleScheduler:
 		return true
-	case Worker:
+	case HealthReportRoleWorker:
 		return true
 	default:
 		return false
@@ -3002,6 +3056,7 @@ const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
 	PolicyLockLessThannil PolicyLock = "<nil>"
 	PolicyLockPLAN        PolicyLock = "PLAN"
+	PolicyLockWORKSPACE   PolicyLock = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PolicyLock enum.
@@ -3013,6 +3068,8 @@ func (e PolicyLock) Valid() bool {
 		return true
 	case PolicyLockPLAN:
 		return true
+	case PolicyLockWORKSPACE:
+		return true
 	default:
 		return false
 	}
@@ -3020,22 +3077,52 @@ func (e PolicyLock) Valid() bool {
 
 // Defines values for PolicySource.
 const (
-	PolicySourceDEFAULT   PolicySource = "DEFAULT"
-	PolicySourceINSTANCE  PolicySource = "INSTANCE"
-	PolicySourcePLAN      PolicySource = "PLAN"
-	PolicySourceWORKSPACE PolicySource = "WORKSPACE"
+	PolicySourceCOLLECTION PolicySource = "COLLECTION"
+	PolicySourceDEFAULT    PolicySource = "DEFAULT"
+	PolicySourceHUB        PolicySource = "HUB"
+	PolicySourceINSTANCE   PolicySource = "INSTANCE"
+	PolicySourcePLAN       PolicySource = "PLAN"
+	PolicySourceWORKSPACE  PolicySource = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PolicySource enum.
 func (e PolicySource) Valid() bool {
 	switch e {
+	case PolicySourceCOLLECTION:
+		return true
 	case PolicySourceDEFAULT:
+		return true
+	case PolicySourceHUB:
 		return true
 	case PolicySourceINSTANCE:
 		return true
 	case PolicySourcePLAN:
 		return true
 	case PolicySourceWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PresetKey.
+const (
+	PresetKeyFLOW    PresetKey = "FLOW"
+	PresetKeyLIST    PresetKey = "LIST"
+	PresetKeyPROJECT PresetKey = "PROJECT"
+	PresetKeyTASKS   PresetKey = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the PresetKey enum.
+func (e PresetKey) Valid() bool {
+	switch e {
+	case PresetKeyFLOW:
+		return true
+	case PresetKeyLIST:
+		return true
+	case PresetKeyPROJECT:
+		return true
+	case PresetKeyTASKS:
 		return true
 	default:
 		return false
@@ -4107,6 +4194,213 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangePreset.
+const (
+	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
+	StructureChangePresetLIST    StructureChangePreset = "LIST"
+	StructureChangePresetPROJECT StructureChangePreset = "PROJECT"
+	StructureChangePresetTASKS   StructureChangePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangePreset enum.
+func (e StructureChangePreset) Valid() bool {
+	switch e {
+	case StructureChangePresetFLOW:
+		return true
+	case StructureChangePresetLIST:
+		return true
+	case StructureChangePresetPROJECT:
+		return true
+	case StructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureCountsFigure.
+const (
+	StructureCountsFigureDUE      StructureCountsFigure = "DUE"
+	StructureCountsFigureFIELDSUM StructureCountsFigure = "FIELD_SUM"
+	StructureCountsFigureFLOW     StructureCountsFigure = "FLOW"
+	StructureCountsFigureNONE     StructureCountsFigure = "NONE"
+	StructureCountsFigureOPEN     StructureCountsFigure = "OPEN"
+	StructureCountsFigurePROGRESS StructureCountsFigure = "PROGRESS"
+	StructureCountsFigureRHYTHM   StructureCountsFigure = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsFigure enum.
+func (e StructureCountsFigure) Valid() bool {
+	switch e {
+	case StructureCountsFigureDUE:
+		return true
+	case StructureCountsFigureFIELDSUM:
+		return true
+	case StructureCountsFigureFLOW:
+		return true
+	case StructureCountsFigureNONE:
+		return true
+	case StructureCountsFigureOPEN:
+		return true
+	case StructureCountsFigurePROGRESS:
+		return true
+	case StructureCountsFigureRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureLockOrigin.
+const (
+	StructureLockOriginINSTANCE  StructureLockOrigin = "INSTANCE"
+	StructureLockOriginPLAN      StructureLockOrigin = "PLAN"
+	StructureLockOriginWORKSPACE StructureLockOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the StructureLockOrigin enum.
+func (e StructureLockOrigin) Valid() bool {
+	switch e {
+	case StructureLockOriginINSTANCE:
+		return true
+	case StructureLockOriginPLAN:
+		return true
+	case StructureLockOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingName.
+const (
+	StructureSettingNameAutomation  StructureSettingName = "automation"
+	StructureSettingNameCapture     StructureSettingName = "capture"
+	StructureSettingNameCelebration StructureSettingName = "celebration"
+	StructureSettingNameCompletion  StructureSettingName = "completion"
+	StructureSettingNameCounts      StructureSettingName = "counts"
+	StructureSettingNameFields      StructureSettingName = "fields"
+	StructureSettingNameLevels      StructureSettingName = "levels"
+	StructureSettingNameViews       StructureSettingName = "views"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingName enum.
+func (e StructureSettingName) Valid() bool {
+	switch e {
+	case StructureSettingNameAutomation:
+		return true
+	case StructureSettingNameCapture:
+		return true
+	case StructureSettingNameCelebration:
+		return true
+	case StructureSettingNameCompletion:
+		return true
+	case StructureSettingNameCounts:
+		return true
+	case StructureSettingNameFields:
+		return true
+	case StructureSettingNameLevels:
+		return true
+	case StructureSettingNameViews:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCapture.
+const (
+	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
+	StructureSettingsCaptureDATE   StructureSettingsCapture = "DATE"
+	StructureSettingsCaptureLABEL  StructureSettingsCapture = "LABEL"
+	StructureSettingsCaptureLINES  StructureSettingsCapture = "LINES"
+	StructureSettingsCapturePERSON StructureSettingsCapture = "PERSON"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCapture enum.
+func (e StructureSettingsCapture) Valid() bool {
+	switch e {
+	case StructureSettingsCaptureAMOUNT:
+		return true
+	case StructureSettingsCaptureDATE:
+		return true
+	case StructureSettingsCaptureLABEL:
+		return true
+	case StructureSettingsCaptureLINES:
+		return true
+	case StructureSettingsCapturePERSON:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCelebration.
+const (
+	StructureSettingsCelebrationALL    StructureSettingsCelebration = "ALL"
+	StructureSettingsCelebrationSUBTLE StructureSettingsCelebration = "SUBTLE"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCelebration enum.
+func (e StructureSettingsCelebration) Valid() bool {
+	switch e {
+	case StructureSettingsCelebrationALL:
+		return true
+	case StructureSettingsCelebrationSUBTLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsDefault.
+const (
+	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
+	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
+	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
+	StructureViewsDefaultTIMELINE      StructureViewsDefault = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsDefault enum.
+func (e StructureViewsDefault) Valid() bool {
+	switch e {
+	case StructureViewsDefaultKANBAN:
+		return true
+	case StructureViewsDefaultLISTCOLLAPSED:
+		return true
+	case StructureViewsDefaultLISTEXPANDED:
+		return true
+	case StructureViewsDefaultTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsOffered.
+const (
+	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
+	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
+	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
+	StructureViewsOfferedTIMELINE      StructureViewsOffered = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsOffered enum.
+func (e StructureViewsOffered) Valid() bool {
+	switch e {
+	case StructureViewsOfferedKANBAN:
+		return true
+	case StructureViewsOfferedLISTCOLLAPSED:
+		return true
+	case StructureViewsOfferedLISTEXPANDED:
+		return true
+	case StructureViewsOfferedTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for SuggestionSource.
 const (
 	SuggestionSourceAI SuggestionSource = "AI"
@@ -4665,6 +4959,111 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructureDefaultPreset.
+const (
+	WorkspaceStructureDefaultPresetFLOW        WorkspaceStructureDefaultPreset = "FLOW"
+	WorkspaceStructureDefaultPresetLIST        WorkspaceStructureDefaultPreset = "LIST"
+	WorkspaceStructureDefaultPresetLessThannil WorkspaceStructureDefaultPreset = "<nil>"
+	WorkspaceStructureDefaultPresetPROJECT     WorkspaceStructureDefaultPreset = "PROJECT"
+	WorkspaceStructureDefaultPresetTASKS       WorkspaceStructureDefaultPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureDefaultPreset enum.
+func (e WorkspaceStructureDefaultPreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureDefaultPresetFLOW:
+		return true
+	case WorkspaceStructureDefaultPresetLIST:
+		return true
+	case WorkspaceStructureDefaultPresetLessThannil:
+		return true
+	case WorkspaceStructureDefaultPresetPROJECT:
+		return true
+	case WorkspaceStructureDefaultPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructurePreset.
+const (
+	WorkspaceStructurePresetFLOW        WorkspaceStructurePreset = "FLOW"
+	WorkspaceStructurePresetLIST        WorkspaceStructurePreset = "LIST"
+	WorkspaceStructurePresetLessThannil WorkspaceStructurePreset = "<nil>"
+	WorkspaceStructurePresetPROJECT     WorkspaceStructurePreset = "PROJECT"
+	WorkspaceStructurePresetTASKS       WorkspaceStructurePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructurePreset enum.
+func (e WorkspaceStructurePreset) Valid() bool {
+	switch e {
+	case WorkspaceStructurePresetFLOW:
+		return true
+	case WorkspaceStructurePresetLIST:
+		return true
+	case WorkspaceStructurePresetLessThannil:
+		return true
+	case WorkspaceStructurePresetPROJECT:
+		return true
+	case WorkspaceStructurePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructureChangeDefaultPreset.
+const (
+	WorkspaceStructureChangeDefaultPresetFLOW        WorkspaceStructureChangeDefaultPreset = "FLOW"
+	WorkspaceStructureChangeDefaultPresetLIST        WorkspaceStructureChangeDefaultPreset = "LIST"
+	WorkspaceStructureChangeDefaultPresetLessThannil WorkspaceStructureChangeDefaultPreset = "<nil>"
+	WorkspaceStructureChangeDefaultPresetPROJECT     WorkspaceStructureChangeDefaultPreset = "PROJECT"
+	WorkspaceStructureChangeDefaultPresetTASKS       WorkspaceStructureChangeDefaultPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureChangeDefaultPreset enum.
+func (e WorkspaceStructureChangeDefaultPreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureChangeDefaultPresetFLOW:
+		return true
+	case WorkspaceStructureChangeDefaultPresetLIST:
+		return true
+	case WorkspaceStructureChangeDefaultPresetLessThannil:
+		return true
+	case WorkspaceStructureChangeDefaultPresetPROJECT:
+		return true
+	case WorkspaceStructureChangeDefaultPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructureChangePreset.
+const (
+	WorkspaceStructureChangePresetFLOW    WorkspaceStructureChangePreset = "FLOW"
+	WorkspaceStructureChangePresetLIST    WorkspaceStructureChangePreset = "LIST"
+	WorkspaceStructureChangePresetPROJECT WorkspaceStructureChangePreset = "PROJECT"
+	WorkspaceStructureChangePresetTASKS   WorkspaceStructureChangePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureChangePreset enum.
+func (e WorkspaceStructureChangePreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureChangePresetFLOW:
+		return true
+	case WorkspaceStructureChangePresetLIST:
+		return true
+	case WorkspaceStructureChangePresetPROJECT:
+		return true
+	case WorkspaceStructureChangePresetTASKS:
 		return true
 	default:
 		return false
@@ -6025,9 +6424,10 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
+	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -6238,21 +6638,27 @@ type Container struct {
 	Description *string    `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool               `json:"effective_archived,omitempty"`
-	Icon              *string             `json:"icon,omitempty"`
-	Id                openapi_types.UUID  `json:"id"`
-	Name              string              `json:"name"`
-	OrderKey          *string             `json:"order_key,omitempty"`
-	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
+	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
+	Icon              *string            `json:"icon,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
+	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
+	Name       string              `json:"name"`
+	OrderKey   *string             `json:"order_key,omitempty"`
+	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
 
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
-	Private   *bool         `json:"private,omitempty"`
-	Type      ContainerType `json:"type"`
-	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
-	Version   int           `json:"version"`
+	Private *bool `json:"private,omitempty"`
+
+	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
+	Structure *EffectiveStructure `json:"structure,omitempty"`
+	Type      ContainerType       `json:"type"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
+	Version   int                 `json:"version"`
 }
 
 // ContainerCreate defines model for ContainerCreate.
@@ -6263,10 +6669,16 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+	Preset *ContainerCreatePreset `json:"preset,omitempty"`
+
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
 	Private *bool         `json:"private,omitempty"`
 	Type    ContainerType `json:"type"`
 }
+
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+type ContainerCreatePreset string
 
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
@@ -6616,6 +7028,22 @@ type DuplicateResult struct {
 	DroppedReferences []DroppedReference `json:"dropped_references"`
 	Item              WorkItem           `json:"item"`
 }
+
+// EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
+type EffectiveStructure struct {
+	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
+	Locks  map[string]StructureLock  `json:"locks"`
+	Preset *EffectiveStructurePreset `json:"preset"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+
+	// Sources For each of the eight settings, the level its value comes from.
+	Sources map[string]PolicySource `json:"sources"`
+}
+
+// EffectiveStructurePreset defines model for EffectiveStructure.Preset.
+type EffectiveStructurePreset string
 
 // EncryptionKeyUsage defines model for EncryptionKeyUsage.
 type EncryptionKeyUsage struct {
@@ -8903,6 +9331,17 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.
+type Preset struct {
+	Key PresetKey `json:"key"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+}
+
+// PresetKey defines model for Preset.Key.
+type PresetKey string
+
 // PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
 type PrivateHubAccess struct {
 	EndsAt   time.Time          `json:"ends_at"`
@@ -10165,6 +10604,100 @@ type StepUpRequest struct {
 	State *string `json:"state,omitempty"`
 }
 
+// StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
+type StructureChange struct {
+	Preset *StructureChangePreset  `json:"preset,omitempty"`
+	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// StructureChangePreset defines model for StructureChange.Preset.
+type StructureChangePreset string
+
+// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+type StructureCounts struct {
+	FieldKey *string               `json:"field_key,omitempty"`
+	Figure   StructureCountsFigure `json:"figure"`
+}
+
+// StructureCountsFigure defines model for StructureCounts.Figure.
+type StructureCountsFigure string
+
+// StructureLevel defines model for StructureLevel.
+type StructureLevel struct {
+	// Name The level's own name, counted in code points after trimming.
+	Name *string `json:"name,omitempty"`
+
+	// Type Extensible; /meta/capabilities returns the valid values.
+	Type ItemType `json:"type"`
+}
+
+// StructureLevelFields defines model for StructureLevelFields.
+type StructureLevelFields struct {
+	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+	Capabilities []string `json:"capabilities"`
+}
+
+// StructureLock defines model for StructureLock.
+type StructureLock struct {
+	// LockedBy The account that set the lock, where a person did.
+	LockedBy *openapi_types.UUID `json:"locked_by,omitempty"`
+	Origin   StructureLockOrigin `json:"origin"`
+}
+
+// StructureLockOrigin defines model for StructureLock.Origin.
+type StructureLockOrigin string
+
+// StructureSettingName defines model for StructureSettingName.
+type StructureSettingName string
+
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+type StructureSettings struct {
+	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
+	Automation *[]string `json:"automation,omitempty"`
+
+	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
+	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
+
+	// Celebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+	Celebration *StructureSettingsCelebration `json:"celebration,omitempty"`
+
+	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
+	Completion *CompletionPolicy `json:"completion,omitempty"`
+
+	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	Counts *StructureCounts `json:"counts,omitempty"`
+
+	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
+	Fields *map[string]StructureLevelFields `json:"fields,omitempty"`
+
+	// Levels The item types offered, top-down. The top level is always among them, and a type only beneath one of its parent types. A name is what a person chose to call the level; it is their content. Without one, a client shows its translated name for the type.
+	Levels *[]StructureLevel `json:"levels,omitempty"`
+
+	// Views The layouts a client offers, and the one it opens with. Applied by clients.
+	Views *StructureViews `json:"views,omitempty"`
+}
+
+// StructureSettingsCapture defines model for StructureSettings.Capture.
+type StructureSettingsCapture string
+
+// StructureSettingsCelebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+type StructureSettingsCelebration string
+
+// StructureViews The layouts a client offers, and the one it opens with. Applied by clients.
+type StructureViews struct {
+	Default StructureViewsDefault   `json:"default"`
+	Offered []StructureViewsOffered `json:"offered"`
+}
+
+// StructureViewsDefault defines model for StructureViews.Default.
+type StructureViewsDefault string
+
+// StructureViewsOffered defines model for StructureViews.Offered.
+type StructureViewsOffered string
+
 // Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
 type Suggestion struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -11144,8 +11677,11 @@ type Workspace struct {
 	Slug string `json:"slug"`
 
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
-	Status    WorkspaceStatus `json:"status"`
-	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+	Status WorkspaceStatus `json:"status"`
+
+	// Structure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
+	Structure *WorkspaceStructure `json:"structure,omitempty"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
@@ -11187,6 +11723,44 @@ type WorkspacePasswordOpening struct {
 	// Until When the opening ends on its own.
 	Until time.Time `json:"until"`
 }
+
+// WorkspaceStructure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
+type WorkspaceStructure struct {
+	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
+	DefaultPreset *WorkspaceStructureDefaultPreset `json:"default_preset"`
+	Locks         map[string]StructureLock         `json:"locks"`
+	Preset        *WorkspaceStructurePreset        `json:"preset"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings       `json:"settings"`
+	Sources  map[string]PolicySource `json:"sources"`
+}
+
+// WorkspaceStructureDefaultPreset The preset a hub created without one starts from. Collections follow their hub.
+type WorkspaceStructureDefaultPreset string
+
+// WorkspaceStructurePreset defines model for WorkspaceStructure.Preset.
+type WorkspaceStructurePreset string
+
+// WorkspaceStructureChange A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset.
+type WorkspaceStructureChange struct {
+	// DefaultPreset The preset a hub created without one starts from; null removes it.
+	DefaultPreset *WorkspaceStructureChangeDefaultPreset `json:"default_preset,omitempty"`
+
+	// Locks The whole set of locks after the change. Omitted leaves them as they are; an empty list removes them all. A lock kept keeps who set it.
+	Locks  *[]string                       `json:"locks,omitempty"`
+	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
+	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// WorkspaceStructureChangeDefaultPreset The preset a hub created without one starts from; null removes it.
+type WorkspaceStructureChangeDefaultPreset string
+
+// WorkspaceStructureChangePreset defines model for WorkspaceStructureChange.Preset.
+type WorkspaceStructureChangePreset string
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
@@ -11785,6 +12359,12 @@ type UpdateContainerPoliciesParams struct {
 
 // SetHubPrivacyParams defines parameters for SetHubPrivacy.
 type SetHubPrivacyParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetContainerStructureParams defines parameters for SetContainerStructure.
+type SetContainerStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -12487,6 +13067,12 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
+type SetWorkspaceStructureParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -12787,6 +13373,9 @@ type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 // SetHubPrivacyJSONRequestBody defines body for SetHubPrivacy for application/json ContentType.
 type SetHubPrivacyJSONRequestBody = HubPrivacy
 
+// SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
+type SetContainerStructureJSONRequestBody = StructureChange
+
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
@@ -12993,6 +13582,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
+type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -15659,6 +16251,18 @@ type ClientInterface interface {
 	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
 	SetHubPrivacy(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -17083,6 +17687,13 @@ type ClientInterface interface {
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListPresets The presets a hub or collection can start from
+	//
+	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	//
+	// Corresponds with GET /presets (the `ListPresets` operationId).
+	ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
 	//
 	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
@@ -17853,6 +18464,18 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
 	//
@@ -23049,6 +23672,38 @@ func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, par
 	return c.Client.Do(req)
 }
 
+// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetContainerStructureRequestWithBody(c.Server, containerId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 //
 // Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -26203,6 +26858,23 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 	return c.Client.Do(req)
 }
 
+// ListPresets The presets a hub or collection can start from
+//
+// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+//
+// Corresponds with GET /presets (the `ListPresets` operationId).
+func (c *Client) ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPresetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ReadOwnAiPosition The caller's own view of keeping their content out of AI
 //
 // Whether there is anything to choose here (`shown`: AI answers this workspace and more than
@@ -27574,6 +28246,38 @@ func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceStructureRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+func (c *Client) SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetWorkspaceStructureRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -35473,6 +36177,68 @@ func NewSetHubPrivacyRequestWithBody(server string, containerId ContainerId, par
 	return req, nil
 }
 
+// NewSetContainerStructureRequest calls the generic SetContainerStructure builder with application/json body
+func NewSetContainerStructureRequest(server string, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetContainerStructureRequestWithBody(server, containerId, params, "application/json", bodyReader)
+}
+
+// NewSetContainerStructureRequestWithBody constructs an http.Request for the SetContainerStructure method, with any body, and a specified content type
+func NewSetContainerStructureRequestWithBody(server string, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/structure", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewArchiveContainerRequest constructs an http.Request for the ArchiveContainer method
 func NewArchiveContainerRequest(server string, containerId ContainerId, params *ArchiveContainerParams) (*http.Request, error) {
 	var err error
@@ -41744,6 +42510,33 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewListPresetsRequest constructs an http.Request for the ListPresets method
+func NewListPresetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/presets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadOwnAiPositionRequest constructs an http.Request for the ReadOwnAiPosition method
 func NewReadOwnAiPositionRequest(server string) (*http.Request, error) {
 	var err error
@@ -43702,6 +44495,61 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetWorkspaceStructureRequest calls the generic SetWorkspaceStructure builder with application/json body
+func NewSetWorkspaceStructureRequest(server string, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetWorkspaceStructureRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSetWorkspaceStructureRequestWithBody constructs an http.Request for the SetWorkspaceStructure method, with any body, and a specified content type
+func NewSetWorkspaceStructureRequestWithBody(server string, params *SetWorkspaceStructureParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/structure")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -47019,6 +47867,20 @@ type ClientWithResponsesInterface interface {
 	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
 	SetHubPrivacyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error)
 
+	// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
+
+	// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
+
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -48631,6 +49493,15 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
 
+	// ListPresetsWithResponse The presets a hub or collection can start from
+	//
+	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /presets (the `ListPresets` operationId).
+	ListPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPresetsResult, error)
+
 	// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
 	//
 	// Whether there is anything to choose here (`shown`: AI answers this workspace and more than
@@ -49453,6 +50324,20 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
+
+	// SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
 
 	// ListTrashWithResponse What is in the trash
 	//
@@ -57838,6 +58723,61 @@ func (r SetHubPrivacyResult) ContentType() string {
 	return ""
 }
 
+// SetContainerStructureResult200Headers the declared response headers of an HTTP 200 response for SetContainerStructure
+type SetContainerStructureResult200Headers struct {
+	ETag *string
+}
+
+type SetContainerStructureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Container
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *SetContainerStructureResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetContainerStructureResult) GetJSON200() *Container {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetContainerStructureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetContainerStructureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetContainerStructureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetContainerStructureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetContainerStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // ArchiveContainerResult200Headers the declared response headers of an HTTP 200 response for ArchiveContainer
 type ArchiveContainerResult200Headers struct {
 	ETag *string
@@ -63992,6 +64932,54 @@ func (r ExchangeOauthCodeResult) ContentType() string {
 	return ""
 }
 
+type ListPresetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]Preset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPresetsResult) GetJSON200() *[]Preset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPresetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPresetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPresetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPresetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPresetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadOwnAiPositionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -66057,6 +67045,61 @@ func (r CountAccountsWithoutProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CountAccountsWithoutProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// SetWorkspaceStructureResult200Headers the declared response headers of an HTTP 200 response for SetWorkspaceStructure
+type SetWorkspaceStructureResult200Headers struct {
+	ETag *string
+}
+
+type SetWorkspaceStructureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceStructure
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *SetWorkspaceStructureResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetWorkspaceStructureResult) GetJSON200() *WorkspaceStructure {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetWorkspaceStructureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetWorkspaceStructureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetWorkspaceStructureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetWorkspaceStructureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetWorkspaceStructureResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -70812,6 +71855,32 @@ func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, con
 	return ParseSetHubPrivacyResult(rsp)
 }
 
+// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
+	rsp, err := c.SetContainerStructureWithBody(ctx, containerId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetContainerStructureResult(rsp)
+}
+
+// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
+	rsp, err := c.SetContainerStructure(ctx, containerId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetContainerStructureResult(rsp)
+}
+
 // ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 //
 // Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -73462,6 +74531,21 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 	return ParseExchangeOauthCodeResult(rsp)
 }
 
+// ListPresetsWithResponse The presets a hub or collection can start from
+//
+// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /presets (the `ListPresets` operationId).
+func (c *ClientWithResponses) ListPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPresetsResult, error) {
+	rsp, err := c.ListPresets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPresetsResult(rsp)
+}
+
 // ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
 //
 // Whether there is anything to choose here (`shown`: AI answers this workspace and more than
@@ -74649,6 +75733,32 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseCountAccountsWithoutProviderResult(rsp)
+}
+
+// SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
+	rsp, err := c.SetWorkspaceStructureWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceStructureResult(rsp)
+}
+
+// SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+func (c *ClientWithResponses) SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
+	rsp, err := c.SetWorkspaceStructure(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetWorkspaceStructureResult(rsp)
 }
 
 // ListTrashWithResponse What is in the trash
@@ -80694,6 +81804,52 @@ func ParseSetHubPrivacyResult(rsp *http.Response) (*SetHubPrivacyResult, error) 
 	return response, nil
 }
 
+// ParseSetContainerStructureResult parses an HTTP response from a SetContainerStructureWithResponse call
+func ParseSetContainerStructureResult(rsp *http.Response) (*SetContainerStructureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetContainerStructureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Container
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers SetContainerStructureResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseArchiveContainerResult parses an HTTP response from a ArchiveContainerWithResponse call
 func ParseArchiveContainerResult(rsp *http.Response) (*ArchiveContainerResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -85259,6 +86415,39 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 	return response, nil
 }
 
+// ParseListPresetsResult parses an HTTP response from a ListPresetsWithResponse call
+func ParseListPresetsResult(rsp *http.Response) (*ListPresetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPresetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Preset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseReadOwnAiPositionResult parses an HTTP response from a ReadOwnAiPositionWithResponse call
 func ParseReadOwnAiPositionResult(rsp *http.Response) (*ReadOwnAiPositionResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -86711,6 +87900,52 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseSetWorkspaceStructureResult parses an HTTP response from a SetWorkspaceStructureWithResponse call
+func ParseSetWorkspaceStructureResult(rsp *http.Response) (*SetWorkspaceStructureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetWorkspaceStructureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceStructure
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers SetWorkspaceStructureResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

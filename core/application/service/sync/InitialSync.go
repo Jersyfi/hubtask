@@ -148,11 +148,15 @@ func (p PullChanges) pageOf(ctx context.Context, kind, after string, batch int) 
 		if err != nil {
 			return nil, err
 		}
+		payloads, err := workservice.ContainerSnapshots(ctx, p.Structure, containers)
+		if err != nil {
+			return nil, err
+		}
 		rows := make([]walkRow, 0, len(containers))
-		for _, container := range containers {
+		for i, container := range containers {
 			rows = append(rows, walkRow{
 				entity: entityContainer, entityID: container.ID, containerID: container.ID,
-				payload: workservice.ContainerSnapshot(container), key: container.ID.String(),
+				payload: payloads[i], key: container.ID.String(),
 			})
 		}
 		return rows, nil

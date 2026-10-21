@@ -229,6 +229,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.read` | ListContainers | `container` | INFO | When refused |
 | `container.renamed` | RenameContainer | `container` | INFO | Every time |
 | `container.restored` | RestoreContainer | `container` | NOTICE | Every time |
+| `container.structure_updated` | SetContainerStructure | `container` | INFO | Every time |
 | `container.unarchived` | UnarchiveContainer | `container` | INFO | Every time |
 
 ## Data: media
@@ -400,6 +401,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `plan.read` | ReadPlan | `plan` | INFO | When refused |
 | `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
 
+## Presets
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `presets.read` | ListPresets | `preset` | INFO | When refused |
+
 ## Private_hubs
 
 | Action | Use case | Target | Severity | Recorded |
@@ -540,3 +547,4 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
+| `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

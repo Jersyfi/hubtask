@@ -579,3 +579,46 @@ func TestReopeningRecordsItsOwnVerb(t *testing.T) {
 		t.Errorf("the history recorded %s, want %s", step.Verb, activity.ItemReopened)
 	}
 }
+
+// The completion in force is inherited: a collection that decided none rolls up when its hub - or
+// the workspace - says ROLLUP, and its own MANUAL wins over the hub's ROLLUP.
+func TestTheRollUpFollowsTheCompletionInForce(t *testing.T) {
+	cases := []struct {
+		name      string
+		own       domain.CompletionPolicy
+		hub       domain.CompletionPolicy
+		workspace domain.CompletionPolicy
+		rollsUp   bool
+	}{
+		{"the hub's", "", domain.CompletionRollup, "", true},
+		{"the workspace's", "", "", domain.CompletionRollup, true},
+		{"its own over the hub's", domain.CompletionManual, domain.CompletionRollup, "", false},
+		{"Hubtask's default", "", "", "", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			h := newCompletionHarness(tc.own.OrDefault())
+			collection := h.containers.stored[collectionID]
+			collection.Structure.Values.Completion = tc.own
+			h.containers.stored[collectionID] = collection
+			hub := h.containers.stored[hubID]
+			hub.Structure.Values.Completion = tc.hub
+			h.containers.stored[hubID] = hub
+			store := newStructureStore(h.containers)
+			store.workspace.Layer.Values.Completion = tc.workspace
+			h.writer.Structure = StructureResolver{
+				Containers: h.containers, Structures: store, Profiles: &profiles{rows: systemProfiles()},
+			}
+			h.alreadyDone(otherActID)
+			h.summarise(packageID, 2, 2)
+
+			if _, err := (CompleteWorkItem{Completion: h.writer}).
+				Execute(t.Context(), actorFixture(), CompletionCommand{ItemID: activityID}); err != nil {
+				t.Fatalf("completing: %v", err)
+			}
+			if h.completed(packageID) != tc.rollsUp {
+				t.Errorf("the work package completed: %v, want %v", h.completed(packageID), tc.rollsUp)
+			}
+		})
+	}
+}

@@ -162,20 +162,25 @@ through REST and MCP, an engine walk of the add menu.
 
 *Depends on: nothing.* · issue #1641
 
-**Use cases:** UC-WRK-23 (2, 5, 6, 8), UC-WRK-24 (3)
+**Use cases:** UC-WRK-23 (2, 5, 6, 8)
 
-Contract first: a `Preset` resource (scope installation, workspace, hub, person; eight settings;
-locks), a container's `preset` and overrides, the effective profile on every container read, and
-the hidden mark on item reads. Migration (expand only), domain narrowing that refuses widening,
-hidden values kept and refused on write, level names as content. REST, MCP, `hubctl`, the sync
-engine's replica.
+Contract first: Hubtask's four presets (`/presets`, build data, by key); the eight settings in
+layers - collection, hub, workspace, installation, Hubtask's default - with sources and locks; the
+structure in force on every container read and on `GET /tenant`; `PATCH /containers/{id}/structure`
+and `PATCH /tenant/structure` (values, locks with who set them, the default preset for new hubs).
+Domain narrowing that refuses widening, level names as content, the roll-up following the
+completion in force. REST, MCP, automation, `hubctl`, the sync engine's replica. Presets are scoped
+Hubtask, installation, workspace and person; a hub is a layer of settings, not a scope of the
+catalogue (UC-WRK-30 check 2, #1619). Split at its readiness (coordinator, 2026-10-21, #1670):
+what entries do with the structure is UX-29.
 
-**Acceptance:** domain table tests; integration tests per door with cross-tenant negatives; a
-round trip narrow → write refused → widen → value back.
+**Acceptance:** domain table tests; integration tests per door with cross-tenant negatives; a hub's
+change reaching the collections that follow it; a level's name in no log line and no audit entry
+in clear.
 
 ## UX-10 — The Structure panel
 
-*Depends on: UX-09, UX-03.* · issue #1642
+*Depends on: UX-09, UX-29, UX-03.* · issue #1642
 
 **Use cases:** UC-WRK-23 (1, 3, 4, 7, 9)
 
@@ -187,7 +192,7 @@ no field, view or child type the collection does not offer.
 
 ## UX-11 — Switching levels without loss
 
-*Depends on: UX-09, UX-10.* · issue #1643
+*Depends on: UX-29, UX-10.* · issue #1643
 
 **Use cases:** UC-WRK-24 (1, 2, 4, 5, 6, 7, 8)
 
@@ -378,7 +383,9 @@ the flow figure.
 **Use cases:** UC-WRK-30 (1, 2, 3, 4, 5)
 
 *Save as preset*, the workspace's catalogue with default and locks, presets offered with their
-origin, the starter set at the first start.
+origin, the starter set at the first start. The workspace's default preset and its locks have a
+writer from UX-09 (`PATCH /tenant/structure`); this task gives them their screen and adds the
+workspace's and the person's own presets.
 
 **Acceptance:** integration tests; engine walk of the first start.
 
@@ -392,3 +399,27 @@ Installation presets in the defaults, through the API, `hubctl` and the instance
 locks; hidden in a single-workspace installation.
 
 **Acceptance:** instance-file test; engine walk as operator.
+
+## UX-29 — Entries honour their collection's structure
+
+*Depends on: UX-09.* · issue #1670
+
+**Use cases:** UC-WRK-24 (3)
+
+Split from UX-09 at its readiness (coordinator, 2026-10-21). Every item writer reads its
+collection's effective profile; values and levels the collection no longer offers stay stored, are
+returned by every read marked hidden, and are refused on write with `capability_not_supported` (or
+`items.level_hidden` for an entry of a hidden level); moving or copying into a narrower collection
+keeps values and marks them hidden; the replica derives the mark from the container's structure.
+
+What the build starts from: the item writers reach the profile through `profileOf(ctx, profiles,
+type)` (`core/application/service/work/Items.go`), 20 call sites in 17 files, each to become a
+read of the collection's structure in force (`StructureResolver`, UX-09); template stamping drops
+and reports a node's value the target does not carry, and refuses a node of a hidden level. An
+entry's level is hidden when its type is not offered **or an ancestor's level is hidden**; a type
+with several system parents (an activity, under a task or a work package) is offered when **any**
+offered level may hold it. *Tasks* offers an activity under a task only once UX-08's pair is in the
+installation's profile; until then the preset is clipped to tasks.
+
+**Acceptance:** a round trip per door (REST, MCP, hubctl, automation, sync push): narrow → write
+refused → read shows hidden → widen → value back; cross-tenant negatives.

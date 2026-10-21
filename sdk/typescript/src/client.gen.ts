@@ -1470,6 +1470,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** PATCH /tenant/structure */
+  setWorkspaceStructure(body: NonNullable<operations["setWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The presets a hub or collection can start from */
+  listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** GET /containers */
   listContainers(options: CallOptions & { readonly query?: NonNullable<operations["listContainers"]['parameters']['query']> } = {}): Promise<operations["listContainers"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/containers", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1498,6 +1508,11 @@ export class HubtaskClient {
   /** PUT /containers/{containerId}/policies */
   updateContainerPolicies(containerId: string, body: NonNullable<operations["updateContainerPolicies"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["updateContainerPolicies"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** PATCH /containers/{containerId}/structure */
+  setContainerStructure(containerId: string, body: NonNullable<operations["setContainerStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setContainerStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/containers/{containerId}/structure", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
   /** PUT /containers/{containerId}/privacy */

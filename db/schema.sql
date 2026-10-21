@@ -810,9 +810,10 @@ CREATE TABLE container (
   icon         text,
   color_token  text,
   order_key    text NOT NULL,
-  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP),
-  -- default_bucket_id, capability_overrides, auto_assign. An absent key means the default; the column
-  -- starts as {} and UpdateContainerPolicies is what writes into it.
+  -- policies keys (domain-model.md §3.3): completion_policy (MANUAL | ROLLUP), structure (the
+  -- container's own layer of its settings, domain-model.md §2), auto_assign. An absent key means the
+  -- default - for completion_policy and structure, what the layer above says; the column starts as {}
+  -- and UpdateContainerPolicies and SetContainerStructure write into it, each its own keys.
   --
   -- auto_assign is a key of the policies *document*, not of this column: it is stored in
   -- auto_assign_policy, because ROUND_ROBIN's cursor has to be lockable, and the container queries

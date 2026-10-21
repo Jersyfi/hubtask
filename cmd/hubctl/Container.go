@@ -26,9 +26,15 @@ func containerGroup() group {
 			},
 			{
 				name:    "create",
-				usage:   "--type HUB|COLLECTION --name <name> [--parent <id>]",
+				usage:   "--type HUB|COLLECTION --name <name> [--parent <id>] [--preset LIST|TASKS|PROJECT|FLOW]",
 				summary: "create a hub or a collection",
 				run:     containerCreate,
+			},
+			{
+				name:    "structure",
+				usage:   structureUsage,
+				summary: "show or change how much structure a hub or collection has",
+				run:     containerStructure,
 			},
 			{
 				name:    "emergency-access",
@@ -94,7 +100,7 @@ func containerList(ctx context.Context, cli *CLI, args []string) error {
 
 func containerCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "container", "create",
-		"--type HUB|COLLECTION --name <name> [--parent <id>] [--private]")
+		"--type HUB|COLLECTION --name <name> [--parent <id>] [--private] [--preset <key>]")
 	kind := flags.String("type", "", "HUB or COLLECTION")
 	name := flags.String("name", "", "what it is called")
 	parent := flags.String("parent", "", "the hub a collection goes into")
@@ -102,6 +108,7 @@ func containerCreate(ctx context.Context, cli *CLI, args []string) error {
 	icon := flags.String("icon", "", "an icon token")
 	colour := flags.String("color", "", "a colour token")
 	private := flags.Bool("private", false, "a hub only its own members reach, you its owner")
+	preset := flags.String("preset", "", "the preset it starts from: LIST, TASKS, PROJECT or FLOW")
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
@@ -125,6 +132,14 @@ func containerCreate(ctx context.Context, cli *CLI, args []string) error {
 	if *private {
 		// Sent only when asked, so a create without the flag reads as it always did.
 		body.Private = private
+	}
+	if *preset != "" {
+		key := openapi.ContainerCreatePreset(*preset)
+		if !key.Valid() || key == openapi.ContainerCreatePresetLessThannil {
+			message, _ := cli.Catalogue.Message("presets.unknown", map[string]string{"preset": *preset})
+			return usageError{error: errorString(message)}
+		}
+		body.Preset = &key
 	}
 
 	client, err := cli.client()

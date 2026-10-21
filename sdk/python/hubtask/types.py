@@ -474,6 +474,7 @@ class Workspace(TypedDict, total=False):
     private_hubs_offered: bool
     several_people: bool
     sign_in_policy: "SignInPolicy"
+    structure: "WorkspaceStructure"
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
 
@@ -517,9 +518,9 @@ class SignInPolicyMethods(TypedDict, total=False):
     source: Required["PolicySource"]
     installation_source: Required["PolicySource"]
 
-PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
+PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION"]
 
-PolicyLock = Literal["INSTANCE", "PLAN"] | None
+PolicyLock = Literal["INSTANCE", "PLAN", "WORKSPACE"] | None
 
 class SignInPolicy(TypedDict, total=False):
     """The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
@@ -1452,6 +1453,8 @@ class Container(TypedDict, total=False):
     updated_at: str
     version: Required[int]
     private: bool
+    structure: "EffectiveStructure"
+    kept_by_lock: list[str]
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1461,6 +1464,7 @@ class ContainerCreate(TypedDict, total=False):
     icon: str | None
     color_token: str | None
     private: bool
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
 
 class ContainerUpdate(TypedDict, total=False):
     name: str
@@ -1477,6 +1481,74 @@ class ContainerPolicies(TypedDict, total=False):
     auto_assign: "AutoAssignPolicy" | Any
 
 CompletionPolicy = Literal["MANUAL", "ROLLUP"]
+
+class StructureSettings(TypedDict, total=False):
+    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them."""
+    levels: list["StructureLevel"]
+    fields: dict[str, Any]
+    views: "StructureViews"
+    counts: "StructureCounts"
+    completion: "CompletionPolicy"
+    capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
+    celebration: Literal["ALL", "SUBTLE"]
+    automation: list[str]
+
+class StructureLevel(TypedDict, total=False):
+    type: Required["ItemType"]
+    name: str | None
+
+class StructureLevelFields(TypedDict, total=False):
+    capabilities: Required[list[str]]
+
+class StructureViews(TypedDict, total=False):
+    """The layouts a client offers, and the one it opens with. Applied by clients."""
+    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
+
+class StructureCounts(TypedDict, total=False):
+    """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
+    figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
+    field_key: str | None
+
+class StructureChange(TypedDict, total=False):
+    """A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets."""
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    reset: list["StructureSettingName"]
+
+class WorkspaceStructureChange(TypedDict, total=False):
+    """A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset."""
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    reset: list["StructureSettingName"]
+    locks: list[str]
+    default_preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+
+StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"]
+
+class EffectiveStructure(TypedDict, total=False):
+    """The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only."""
+    preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    settings: Required["StructureSettings"]
+    sources: Required[dict[str, Any]]
+    locks: Required[dict[str, Any]]
+
+class StructureLock(TypedDict, total=False):
+    origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]
+    locked_by: str | None
+
+class WorkspaceStructure(TypedDict, total=False):
+    """The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from."""
+    preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    settings: Required["StructureSettings"]
+    sources: Required[dict[str, Any]]
+    locks: Required[dict[str, Any]]
+    default_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+
+class Preset(TypedDict, total=False):
+    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it."""
+    key: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
+    settings: Required["StructureSettings"]
 
 class AutoAssignPolicy(TypedDict, total=False):
     """A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document."""

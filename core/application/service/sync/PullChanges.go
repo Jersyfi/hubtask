@@ -9,6 +9,7 @@ import (
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/sync"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/sync"
@@ -116,6 +117,9 @@ type PullChanges struct {
 	// Snapshot reads the current state for an initial synchronisation. Nil means this
 	// installation does not serve one, and a device with no cursor is told so.
 	Snapshot repository.Snapshot
+	// Structure resolves each container's structure in force onto its record in the initial
+	// synchronisation, as every read of a container answers it (domain-model.md §2).
+	Structure workservice.StructureResolver
 }
 
 // Pull answers one page.

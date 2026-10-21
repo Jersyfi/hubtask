@@ -67,6 +67,24 @@ type CompletionWriter struct {
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
 	HLC        clock.HLCSource
+	// Structure answers the completion in force: the collection's own, else its hub's, else the
+	// workspace's (domain-model.md §2). A build without it reads the collection's own alone.
+	Structure StructureResolver
+}
+
+// completionOf is what completing a child does in this collection: the value in force, inherited
+// where the collection decided none.
+func (w CompletionWriter) completionOf(
+	ctx context.Context, collection domain.Container,
+) (domain.CompletionPolicy, error) {
+	if !w.Structure.Wired() {
+		return collection.CompletionPolicy, nil
+	}
+	effective, err := w.Structure.within(repository.LayerRead).Of(ctx, collection)
+	if err != nil {
+		return "", err
+	}
+	return effective.Values.Completion.OrDefault(), nil
 }
 
 // CompleteWorkItem marks a task, work package or activity done.
@@ -201,7 +219,11 @@ func (w CompletionWriter) change(
 		}
 		changed = written
 
-		return w.rollUp(ctx, actor, written, collection.CompletionPolicy, now, announcement)
+		policy, err := w.completionOf(ctx, collection)
+		if err != nil {
+			return err
+		}
+		return w.rollUp(ctx, actor, written, policy, now, announcement)
 	})
 	if err != nil {
 		return domain.WorkItem{}, err
