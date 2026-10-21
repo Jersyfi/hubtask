@@ -2036,6 +2036,7 @@ class WorkItem(TypedDict, total=False):
     amount: str | None
     notes: str | None
     completion: Required["Completion"]
+    completion_count: int
     bucket_id: str | None
     order_key: str
     start_at: str | None

@@ -16634,6 +16634,14 @@ components:
             `capability_not_supported`. Nothing sums it or reads a unit out of it.
         notes: { type: [string, "null"] }
         completion: { $ref: "#/components/schemas/Completion" }
+        completion_count:
+          type: integer
+          minimum: 0
+          readOnly: true
+          description: >
+            How often the entry went from open to done. Completing it again while it is done
+            counts nothing, and reopening it keeps the count. What a list ranks entries it can
+            bring back by, most used first. Kept by the server; a client never sends it.
         bucket_id: { type: [string, "null"], format: uuid }
         order_key: { type: string }
         start_at: { type: [string, "null"], format: date-time }

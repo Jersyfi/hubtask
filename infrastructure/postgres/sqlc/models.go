@@ -1714,4 +1714,5 @@ type WorkItem struct {
 	SearchConfiguration   *string
 	CalendarUid           *string
 	Amount                *string
+	CompletionCount       int32
 }

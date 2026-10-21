@@ -11526,6 +11526,9 @@ type WorkItem struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Completion   Completion         `json:"completion"`
 
+	// CompletionCount How often the entry went from open to done. Completing it again while it is done counts nothing, and reopening it keeps the count. What a list ranks entries it can bring back by, most used first. Kept by the server; a client never sends it.
+	CompletionCount *int `json:"completion_count,omitempty"`
+
 	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.
 	ContentLanguage *string                 `json:"content_language,omitempty"`
 	Cover           *Cover                  `json:"cover,omitempty"`

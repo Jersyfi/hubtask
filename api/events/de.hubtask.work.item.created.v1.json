@@ -195,6 +195,11 @@
             }
           }
         },
+        "completion_count": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "How often the item went from open to done; a reopen keeps it. Kept by the server."
+        },
         "order_key": {
           "type": "string",
           "description": "The rank among the siblings: a fractional index, not a number."

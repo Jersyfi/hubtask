@@ -164,7 +164,8 @@ LIMIT sqlc.arg('batch');
 -- name: SnapshotWorkItems :many
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)

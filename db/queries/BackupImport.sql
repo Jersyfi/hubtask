@@ -535,7 +535,8 @@ INSERT INTO work_item (
   retention_rule_id,
   retention_action,
   retention_blocked_by,
-  amount
+  amount,
+  completion_count
 )
 SELECT
   r.id,
@@ -581,7 +582,9 @@ SELECT
   r.retention_rule_id,
   r.retention_action,
   r.retention_blocked_by,
-  r.amount
+  r.amount,
+  -- An archive written before migration 0189 carries no count, and the column takes no NULL.
+  coalesce(r.completion_count, 0)
 FROM jsonb_populate_record(
   NULL::work_item,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -629,7 +632,8 @@ ON CONFLICT (id) DO UPDATE SET
   retention_rule_id = EXCLUDED.retention_rule_id,
   retention_action = EXCLUDED.retention_action,
   retention_blocked_by = EXCLUDED.retention_blocked_by,
-  amount = EXCLUDED.amount
+  amount = EXCLUDED.amount,
+  completion_count = EXCLUDED.completion_count
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkItem :one

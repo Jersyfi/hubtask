@@ -107,6 +107,11 @@ type WorkItem struct {
 	// Notes is Markdown, unrendered on the server. Capability NOTES, so an activity has none.
 	Notes      string
 	Completion Completion
+	// CompletionCount is how often the entry went from open to done - what a list ranks its
+	// *Recently* by (UC-WRK-25 check 4). Beside Completion rather than in it, because a reopen
+	// clears the completion and keeps this. The server's alone: the completing statement counts,
+	// and no device writes it (offline-sync.md §4.2).
+	CompletionCount int
 	// StartAt is when the work begins, for the timeline view, and nil for an entry with no start
 	// (domain-model.md §3.4). A plain instant with no zone beside it: nothing counts from it the
 	// way a reminder counts from a due date, so there is no local time for the business logic to
@@ -589,7 +594,10 @@ const (
 	// FieldCompletion is the done/open state as one field - `completion` in the contract, the
 	// object with is_completed, completed_at and completed_by - which merges as one
 	// (offline-sync.md §4.2).
-	FieldCompletion      = "completion"
+	FieldCompletion = "completion"
+	// FieldCompletionCount is how often the entry was completed: answered with it, never written by
+	// anything but the completing statement.
+	FieldCompletionCount = "completion_count"
 	FieldContentLanguage = "content_language"
 	// FieldCalendarUID is the address a calendar client knows the entry by. Not something an
 	// update may set - it is written once by the create - but a field the projections spell.
@@ -816,6 +824,7 @@ func (i WorkItem) Completed(by shared.ID, at time.Time) WorkItem {
 
 	completedAt := at.UTC()
 	i.Completion = Completion{IsCompleted: true, CompletedAt: &completedAt, CompletedBy: by}
+	i.CompletionCount++
 	i.UpdatedAt = at
 	return i
 }

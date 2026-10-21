@@ -253,6 +253,7 @@ func TestAPatchIsJudgedByItsFieldNames(t *testing.T) {
 	}{
 		"no fields":                       {fields: map[string]FieldChange{}, code: "sync.fields_required"},
 		"a server-owned field":            {fields: map[string]FieldChange{"version": {Value: 9, HLC: reading(0, "dev-a").String()}}, code: "sync.field_not_mergeable"},
+		"the completion count":            {fields: map[string]FieldChange{"completion_count": {Value: 7, HLC: reading(0, "dev-a").String()}}, code: "sync.field_not_mergeable"},
 		"the hierarchy travels as a MOVE": {fields: map[string]FieldChange{"parent_id": {Value: nil, HLC: reading(0, "dev-a").String()}}, code: "sync.field_unavailable"},
 		"a field nobody knows":            {fields: map[string]FieldChange{"colour": {Value: "x", HLC: reading(0, "dev-a").String()}}, code: "sync.field_unknown"},
 		"a cover that is not an object": {

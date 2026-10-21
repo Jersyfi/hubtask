@@ -270,7 +270,8 @@ SELECT
 -- returns them: the repository reports what is stored and judges none of it (I-W4).
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields: only the values whose own definition still lives. The hiding
@@ -307,7 +308,8 @@ WHERE wi.id = $1;
 -- would have shown it. An identifier of another tenant is simply absent (row level security).
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -378,7 +380,8 @@ INSERT INTO work_item (
 -- unique index the lookup uses - one UID is one entry per workspace and nothing across two.
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   (SELECT coalesce(jsonb_object_agg(kv.key, kv.value), '{}'::jsonb)
@@ -422,7 +425,8 @@ WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calenda
 -- read on purpose, so that "too large" is distinguishable from "exactly at the bound".
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -514,7 +518,8 @@ INSERT INTO work_item (
 -- and for the same reasons.
 SELECT
   wi.id, wi.tenant_id, wi.collection_id, wi.type, wi.parent_id, wi.path, wi.depth, wi.title,
-  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.bucket_id, wi.order_key,
+  wi.amount, wi.notes, wi.is_completed, wi.completed_at, wi.completed_by, wi.completion_count,
+  wi.bucket_id, wi.order_key,
   wi.assignee_id, wi.start_at, wi.due_at, wi.due_date_only, wi.due_time_zone,
   wi.cover_kind, wi.cover_color_token, wi.cover_media_id,
   -- The visible custom fields, exactly as FindWorkItem computes them and for the same reason.
@@ -576,7 +581,13 @@ WHERE parent_id = sqlc.arg('parent_id')::uuid
 -- `is_completed = (completed_at IS NOT NULL)`, so a statement that set one without the other would be
 -- refused by the database - which is the right place for that rule and the reason this query has no
 -- branch in it.
+--
+-- The count moves in the same statement, and only with a move from open to done: the old row's
+-- `is_completed` is what the CASE reads, so a repeat counts nothing and nothing reads the count to
+-- write it back (migration 0189).
 UPDATE work_item SET
+  completion_count = completion_count +
+    CASE WHEN sqlc.arg('is_completed')::boolean AND NOT is_completed THEN 1 ELSE 0 END,
   is_completed = sqlc.arg('is_completed'),
   completed_at = sqlc.narg('completed_at'),
   completed_by = sqlc.narg('completed_by'),

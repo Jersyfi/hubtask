@@ -921,6 +921,8 @@ CREATE TABLE work_item (
   is_completed       boolean NOT NULL DEFAULT false,
   completed_at       timestamptz,
   completed_by       uuid,
+  -- How often it went from open to done; kept by a reopen (migration 0189).
+  completion_count   integer NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
   bucket_id          uuid,
   order_key          text NOT NULL,
   start_at           timestamptz,

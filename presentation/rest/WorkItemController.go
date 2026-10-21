@@ -350,6 +350,10 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if amount := out.String("amount"); amount != "" {
 		item.Amount = &amount
 	}
+	if _, counted := out["completion_count"]; counted {
+		count := out.Int("completion_count")
+		item.CompletionCount = &count
+	}
 	if bucket := out.String("bucket_id"); bucket != "" {
 		bucketID := uuidValue(bucket)
 		item.BucketId = &bucketID

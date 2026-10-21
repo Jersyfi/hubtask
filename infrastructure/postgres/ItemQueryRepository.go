@@ -202,6 +202,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 		if err := rows.Scan(
 			&row.ID, &row.TenantID, &row.CollectionID, &row.Type, &row.ParentID, &row.Path,
 			&row.Depth, &row.Title, &row.Amount, &row.Notes, &row.IsCompleted, &row.CompletedAt, &row.CompletedBy,
+			&row.CompletionCount,
 			&row.BucketID, &row.OrderKey, &row.AssigneeID,
 			&row.StartAt, &row.DueAt, &row.DueDateOnly, &row.DueTimeZone,
 			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,
@@ -382,6 +383,7 @@ func readHits(
 		if err := rows.Scan(
 			&row.ID, &row.TenantID, &row.CollectionID, &row.Type, &row.ParentID, &row.Path,
 			&row.Depth, &row.Title, &row.Amount, &row.Notes, &row.IsCompleted, &row.CompletedAt, &row.CompletedBy,
+			&row.CompletionCount,
 			&row.BucketID, &row.OrderKey, &row.AssigneeID,
 			&row.StartAt, &row.DueAt, &row.DueDateOnly, &row.DueTimeZone,
 			&row.CoverKind, &row.CoverColorToken, &row.CoverMediaID, &row.CustomFields,

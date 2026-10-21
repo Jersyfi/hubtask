@@ -1210,6 +1210,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 			CompletedAt: optionalTime(row.CompletedAt),
 			CompletedBy: completedBy,
 		},
+		CompletionCount:    int(row.CompletionCount),
 		BucketID:           bucketID,
 		OrderKey:           row.OrderKey,
 		AssigneeID:         assigneeID,

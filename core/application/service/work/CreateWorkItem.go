@@ -855,6 +855,8 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 			"completed_at": timeOrNil(item.Completion.CompletedAt),
 			"completed_by": idOrNil(item.Completion.CompletedBy),
 		},
+		// How often it went from open to done, which a list ranks what it can bring back by.
+		"completion_count": item.CompletionCount,
 		// Always present, as null for an entry on no board. A field that appeared only once
 		// somebody had dragged the card into a column is one a client cannot read unconditionally.
 		"bucket_id": idOrNil(item.BucketID),
