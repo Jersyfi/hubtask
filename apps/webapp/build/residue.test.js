@@ -358,7 +358,7 @@ test('with AI on, the screens that carry a proposal render it - so the first tes
   }
 });
 
-test('the AI tokens are consumed by AISuggestion and the rule editor AI marks, and nothing else', () => {
+test('the AI tokens are consumed by AISuggestion, the rule editor AI marks and the lookalikes, and nothing else', () => {
   // The mark above is what the render finds; this is what makes the mark complete. A component
   // that used `--ai-*` without carrying `data-ai` would be residue the render could not see. The
   // rule editor's two carry it on every AI block (automation.md §1.3), and offer none with AI off.
@@ -377,6 +377,7 @@ test('the AI tokens are consumed by AISuggestion and the rule editor AI marks, a
     '../../packages/design-system/src/AISuggestion.svelte',
     'src/lib/automation/BlocksPanel.svelte',
     'src/lib/automation/RuleCanvasList.svelte',
+    'src/lib/entries/Lookalikes.svelte',
   ]);
   for (const consumer of consumers) {
     assert.ok(fs.readFileSync(path.join(ROOT, consumer), 'utf8').includes('data-ai'), `${consumer} styles AI without marking it`);

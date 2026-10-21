@@ -45,6 +45,7 @@
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
   import LanguagePicker from './LanguagePicker.svelte';
+  import Lookalikes from './Lookalikes.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
@@ -1332,6 +1333,8 @@
       />
     {/if}
     <Input label={t('app.entries.new_title')} bind:value={draftTitle} />
+    <!-- What already looks like it, while it is typed (UC-AI-04 check 7): nothing when nothing is. -->
+    <Lookalikes title={draftTitle} />
     <!-- Which language it is written in (i18n-l10n.md §6 line 9): the person's own preselected,
          the installation's list to choose from, a typed tag for one outside it. -->
     <LanguagePicker

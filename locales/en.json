@@ -1748,6 +1748,7 @@
   "app.labels.saved_announced": "Label saved.",
   "app.labels.removed_announced": "Label deleted.",
   "app.entries.title_required": "Give the entry a title first.",
+  "app.lookalikes.lead": "Possibly already here:",
   "app.entries.creating": "Creating",
   "app.entries.cancel": "Cancel",
   "app.entries.complete": "Mark {title} as done",

@@ -603,6 +603,7 @@
   "app.labels.saved_announced": "Label gespeichert.",
   "app.labels.removed_announced": "Label gelöscht.",
   "app.entries.title_required": "Gib dem Eintrag zuerst einen Titel.",
+  "app.lookalikes.lead": "Vielleicht schon da:",
   "app.entries.creating": "Wird angelegt",
   "app.entries.cancel": "Abbrechen",
   "app.entries.complete": "{title} als erledigt markieren",
