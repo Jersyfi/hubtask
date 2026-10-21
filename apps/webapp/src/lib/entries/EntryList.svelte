@@ -121,8 +121,6 @@
     onnavigate?: (path: string) => void;
     /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
     mayShare?: boolean;
-    /** After an act that can be taken back: what was done, for the screen's undo. */
-    ondone?: (act: { readonly kind: 'trash' | 'archive'; readonly item: WorkItem }) => void;
     /**
      * Why the reader may not change this entry, in their words, or nothing where they may - from
      * their role along the path (UC-WRK-22 checks 1, 2). The view decides, because the role is the
@@ -152,7 +150,6 @@
     currentId,
     onnavigate,
     mayShare = false,
-    ondone,
     changeRefusal,
     mayCreate,
     isSelectable = false,
@@ -824,7 +821,7 @@
          an entry carried to another collection leaves both behind — and the operation reports what
          it left rather than dropping it in silence. Showing it is the part that makes the report
          worth having; a client that swallowed it would turn a designed behaviour into data loss. -->
-    <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} {ondone} />
+    <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} />
 
     {#if rows.length === 0}
       <!-- The form belongs here as well as below. §4.1's empty state is the only one that carries a

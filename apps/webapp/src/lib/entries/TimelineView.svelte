@@ -77,8 +77,6 @@
     mayCreate?: boolean;
     /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
     mayShare?: boolean;
-    /** After an act that can be taken back: what was done, for the screen's undo. */
-    ondone?: (act: { readonly kind: 'trash' | 'archive'; readonly item: WorkItem }) => void;
   }
 
   const {
@@ -91,7 +89,6 @@
     onnavigate,
     mayCreate = false,
     mayShare = false,
-    ondone,
   }: Props = $props();
 
   /**
@@ -373,7 +370,7 @@
   {/if}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
-  <EntryActions bind:this={actions} {onopen} {onnavigate} {ondone} />
+  <EntryActions bind:this={actions} {onopen} {onnavigate} />
 </div>
 
 <style>

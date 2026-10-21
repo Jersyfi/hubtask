@@ -20,6 +20,7 @@
   import LabelsPanel from './LabelsPanel.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import type { EntryLevel } from './entryMenu.ts';
+  import { offerUndo } from './undo.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -39,14 +40,9 @@
     onnavigate?: (path: string) => void;
     /** *Select*, on a surface whose bulk bar acts on what is picked. */
     onselect?: (itemId: string) => void;
-    /**
-     * After an act that can be taken back, for the surface's undo (UC-WRK-28 check 3): what was
-     * done, to which entry.
-     */
-    ondone?: (act: { readonly kind: 'trash' | 'archive'; readonly item: WorkItem }) => void;
   }
 
-  const { onopen, onnavigate, onselect, ondone }: Props = $props();
+  const { onopen, onnavigate, onselect }: Props = $props();
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let dropped = $state<{ title: string; references: readonly DroppedReference[] } | undefined>(undefined);
@@ -182,15 +178,18 @@
           announcer.say(t('app.entry_menu.link_copied'));
           return;
         case 'archive':
+          // At once, and the message offers the way back (UC-WRK-28 check 3); it is also what
+          // the reader hears.
+          await items.setArchived(item.id, true, crypto.randomUUID());
+          offerUndo({ kind: 'archive', itemId: item.id, title: item.title });
+          return;
         case 'unarchive':
-          await items.setArchived(item.id, choice === 'archive', crypto.randomUUID());
-          announcer.say(t(choice === 'archive' ? 'app.entries.archived_announced' : 'app.entries.unarchived_announced', { title: item.title }));
-          if (choice === 'archive') ondone?.({ kind: 'archive', item });
+          await items.setArchived(item.id, false, crypto.randomUUID());
+          announcer.say(t('app.entries.unarchived_announced', { title: item.title }));
           return;
         case 'trash':
           await items.trash(item.id, item.version);
-          announcer.say(t('app.entries.trashed_announced', { title: item.title }));
-          ondone?.({ kind: 'trash', item });
+          offerUndo({ kind: 'trash', itemId: item.id, title: item.title });
           return;
         case 'inside': {
           const level = siblings ?? siblingsOf(item);

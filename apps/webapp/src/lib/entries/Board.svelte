@@ -97,8 +97,6 @@
     onnavigate?: (path: string) => void;
     /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
     mayShare?: boolean;
-    /** After an act that can be taken back: what was done, for the screen's undo. */
-    ondone?: (act: { readonly kind: 'trash' | 'archive'; readonly item: WorkItem }) => void;
     /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
@@ -120,7 +118,6 @@
     currentId,
     onnavigate,
     mayShare = false,
-    ondone,
     changeRefusal,
     mayCreate,
     mayShape,
@@ -674,7 +671,7 @@
 {:else}
   <ReplicaMark state={boardState} />
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
-  <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} onselect={(id) => selection.pick(visibleIds, id)} {ondone} />
+  <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} onselect={(id) => selection.pick(visibleIds, id)} />
 
   {#if isOneColumn && strip.length > 1}
     <div class="strip">
