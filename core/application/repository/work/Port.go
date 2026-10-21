@@ -1199,3 +1199,10 @@ type Structures interface {
 	// conflict.
 	SetWorkspace(ctx context.Context, workspace work.WorkspaceStructure, expectedVersion int, at time.Time) error
 }
+
+// Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
+// kind needs, over the entries that are neither trashed nor hidden. A collection with nothing to
+// count is answered with zeros, or not at all.
+type Figures interface {
+	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
+}
