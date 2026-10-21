@@ -222,7 +222,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-22](./work/UC-WRK-22-work-within-what-my-role-allows.md) | Work within what my role allows | work | built |
 | [UC-WRK-23](./work/UC-WRK-23-choose-how-much-structure-a-collection-has.md) | Choose how much structure a collection has | work | partial |
 | [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | specified |
-| [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | specified |
+| [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | partial |
 | [UC-WRK-26](./work/UC-WRK-26-capture-something-from-anywhere.md) | Capture something from anywhere in one step | work | specified |
 | [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | specified |
 | [UC-WRK-28](./work/UC-WRK-28-act-on-an-entry-the-same-way-everywhere.md) | Act on an entry the same way everywhere | work | specified |

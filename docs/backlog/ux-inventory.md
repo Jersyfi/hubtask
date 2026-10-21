@@ -158,7 +158,7 @@ Installation:
 - [ ] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08)
 - [ ] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo
 - [ ] "Left some things behind" notice → kept
-- [ ] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more*
+- [x] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more* (UX-12: the capture line takes several lines and a leading amount; kind and language under *More*; a simple list keeps it open at its top)
 - [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?`
 - [ ] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press
 - [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile

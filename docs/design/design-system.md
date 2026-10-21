@@ -870,6 +870,21 @@ between columns is the card's menu (§11.9).
    `DetailPane`.
 4. **Comments and activity**, as tabs.
 
+**A simple list** is how the list layout draws a collection whose levels in force are one
+([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
+the open entries under the collection's categories in their order, the entries ticked in the last 24
+hours under the collection's name for done entries (*Done* without one), and the older ones under
+*Recently*, most often completed first and narrowed by what the capture line holds. The capture line
+takes several lines as several entries and reads a leading amount where the collection offers one,
+showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
+the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still
+hold opens the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
+and the grip drags within its section. The title is not a link there: *Open* is in the row's menu,
+beside the amount and the category. For somebody who may change the shape, the *Done* heading can be
+renamed and *Categories* chosen and ordered where the list is used; the *Structure* panel opens the
+same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
+swipe included.
+
 **One way to edit.** No edit form. Title, notes and completion are edited in place; every other
 field is a details row opening its editor in a `Popover` from `medium` up and a `Drawer` below. An
 empty field is a row that says "add".

@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-10, P-13]
-state: specified
+state: partial
 tasks: [UX-12]
-checked_by: []
+checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/entries/simplelist.test.ts, apps/webapp/src/lib/entries/swipe.test.ts, apps/webapp/e2e/simplelist.test.mjs, core/domain/model/work/Amount_test.go, core/domain/model/work/Categories_test.go, core/domain/model/work/CompletionCount_test.go, core/application/service/work/AmountGate_test.go, core/application/service/work/StructureCategories_test.go, core/application/service/work/CompletionCount_test.go, test/integration/item_amount_test.go, test/integration/completion_count_test.go, test/integration/structure_categories_test.go, test/integration/list_devices_test.go]
 ---
 
 # Keep a simple list
@@ -37,10 +37,4 @@ The family's "Groceries" list is open on two phones in the shop. One person tick
 
 ## Today
 
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: not met — not built yet, tracked in milestone UX.
-* Check 7: not met — not built yet, tracked in milestone UX.
+* Check 7: not met — the head's figure is not drawn yet, tracked in #1656.
