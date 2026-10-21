@@ -68,6 +68,13 @@ const STORIES = [
   { id: 'wave-1-forms-select--in-row', kind: 'reason' },
   { id: 'wave-1-forms-select--in-table-row', kind: 'reason' },
   { id: 'wave-1-forms-select--option', kind: 'shape' },
+  { id: 'wave-1-forms-checkbox--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-checkbox--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-checkbox--busy', kind: 'busy' },
+  { id: 'wave-1-forms-switch--in-row', kind: 'reason' },
+  { id: 'wave-1-forms-switch--in-table-row', kind: 'reason' },
+  { id: 'wave-1-forms-switch--busy', kind: 'busy' },
+  { id: 'wave-3-domain-task-row--in-table-row', kind: 'reason' },
   { id: 'wave-2-structure-tabs--in-row', kind: 'roving' },
   { id: 'wave-2-structure-tabs--in-table-row', kind: 'roving' },
   { id: 'wave-3-hubtask-view-switcher--in-row', kind: 'roving' },
@@ -210,16 +217,19 @@ async function checkReason(page, what, engine, { isRoving = false } = {}) {
   assert.equal(await isShowing(bubble), true, `${what}: focus shows no reason`);
   assert.equal(await control.getAttribute('aria-disabled'), 'true');
   assert.ok(described.split(' ').length >= 1);
-  const isText = await control.evaluate((node) => node.tagName === 'TEXTAREA' || (node.tagName === 'INPUT' && !['range', 'color', 'file'].includes(node.type)));
+  const isText = await control.evaluate((node) => node.tagName === 'TEXTAREA' || (node.tagName === 'INPUT' && !['range', 'color', 'file', 'checkbox', 'radio'].includes(node.type)));
   if (isText) {
     const value = await control.inputValue();
     await page.keyboard.type('xy');
     await page.keyboard.press('Backspace');
     assert.equal(await control.inputValue(), value, `${what}: typing changed an unavailable field`);
   }
+  const checked = () => control.evaluate((node) => (node.type === 'checkbox' ? node.checked : null));
+  const wasChecked = await checked();
   await page.keyboard.press('Enter');
   await page.keyboard.press('Space');
   assert.deepEqual(await counters(page), { caller: '0', row: '0' }, `${what}: a key reached a handler`);
+  assert.equal(await checked(), wasChecked, `${what}: a key switched an unavailable box`);
   assertSame(before, await boxes(page), `${what}, focused`);
   await page.keyboard.press('Escape');
   assert.equal(await isShowing(bubble), false, `${what}: Escape leaves the reason`);
@@ -244,7 +254,7 @@ async function checkReason(page, what, engine, { isRoving = false } = {}) {
 }
 
 async function checkBusy(page, what) {
-  const measure = () => boxes(page, '.host button, .host .row, .host .contexts');
+  const measure = () => boxes(page, '.host button, .host input, .host label, .host .row, .host .contexts');
   const before = await measure();
   await page.locator('.host [data-driver]').click();
   await page.waitForSelector('.host [aria-busy="true"]');
