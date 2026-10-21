@@ -1470,6 +1470,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The presets a hub or collection can start from */
+  listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** GET /containers */
   listContainers(options: CallOptions & { readonly query?: NonNullable<operations["listContainers"]['parameters']['query']> } = {}): Promise<operations["listContainers"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/containers", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

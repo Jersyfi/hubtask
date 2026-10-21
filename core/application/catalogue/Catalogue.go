@@ -85,6 +85,7 @@ func Descriptors() []usecase.Descriptor {
 		work.DeleteComment{}.Descriptor(),
 		work.GetContainer{}.Descriptor(),
 		work.ListContainers{}.Descriptor(),
+		work.ListPresets{}.Descriptor(),
 		work.GetWorkItem{}.Descriptor(),
 		work.ListWorkItems{}.Descriptor(),
 		work.QueryItems{}.Descriptor(),

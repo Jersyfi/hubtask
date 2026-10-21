@@ -1478,6 +1478,39 @@ class ContainerPolicies(TypedDict, total=False):
 
 CompletionPolicy = Literal["MANUAL", "ROLLUP"]
 
+class StructureSettings(TypedDict, total=False):
+    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them."""
+    levels: list["StructureLevel"]
+    fields: dict[str, Any]
+    views: "StructureViews"
+    counts: "StructureCounts"
+    completion: "CompletionPolicy"
+    capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
+    celebration: Literal["ALL", "SUBTLE"]
+    automation: list[str]
+
+class StructureLevel(TypedDict, total=False):
+    type: Required["ItemType"]
+    name: str | None
+
+class StructureLevelFields(TypedDict, total=False):
+    capabilities: Required[list[str]]
+
+class StructureViews(TypedDict, total=False):
+    """The layouts a client offers, and the one it opens with. Applied by clients."""
+    offered: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
+
+class StructureCounts(TypedDict, total=False):
+    """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
+    figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
+    field_key: str | None
+
+class Preset(TypedDict, total=False):
+    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it."""
+    key: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
+    settings: Required["StructureSettings"]
+
 class AutoAssignPolicy(TypedDict, total=False):
     """A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document."""
     strategy: Required["AutoAssignStrategy"]

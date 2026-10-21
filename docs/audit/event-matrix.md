@@ -400,6 +400,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `plan.read` | ReadPlan | `plan` | INFO | When refused |
 | `plan.removed` | RemovePlan | `plan` | NOTICE | Every time |
 
+## Presets
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `presets.read` | ListPresets | `preset` | INFO | When refused |
+
 ## Private_hubs
 
 | Action | Use case | Target | Severity | Recorded |

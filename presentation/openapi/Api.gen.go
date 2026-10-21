@@ -3036,6 +3036,30 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PresetKey.
+const (
+	PresetKeyFLOW    PresetKey = "FLOW"
+	PresetKeyLIST    PresetKey = "LIST"
+	PresetKeyPROJECT PresetKey = "PROJECT"
+	PresetKeyTASKS   PresetKey = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the PresetKey enum.
+func (e PresetKey) Valid() bool {
+	switch e {
+	case PresetKeyFLOW:
+		return true
+	case PresetKeyLIST:
+		return true
+	case PresetKeyPROJECT:
+		return true
+	case PresetKeyTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -4095,6 +4119,132 @@ func (e StepUpGrantMethod) Valid() bool {
 	case StepUpGrantMethodRECOVERY:
 		return true
 	case StepUpGrantMethodTOTP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureCountsFigure.
+const (
+	StructureCountsFigureDUE      StructureCountsFigure = "DUE"
+	StructureCountsFigureFIELDSUM StructureCountsFigure = "FIELD_SUM"
+	StructureCountsFigureFLOW     StructureCountsFigure = "FLOW"
+	StructureCountsFigureNONE     StructureCountsFigure = "NONE"
+	StructureCountsFigureOPEN     StructureCountsFigure = "OPEN"
+	StructureCountsFigurePROGRESS StructureCountsFigure = "PROGRESS"
+	StructureCountsFigureRHYTHM   StructureCountsFigure = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsFigure enum.
+func (e StructureCountsFigure) Valid() bool {
+	switch e {
+	case StructureCountsFigureDUE:
+		return true
+	case StructureCountsFigureFIELDSUM:
+		return true
+	case StructureCountsFigureFLOW:
+		return true
+	case StructureCountsFigureNONE:
+		return true
+	case StructureCountsFigureOPEN:
+		return true
+	case StructureCountsFigurePROGRESS:
+		return true
+	case StructureCountsFigureRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCapture.
+const (
+	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
+	StructureSettingsCaptureDATE   StructureSettingsCapture = "DATE"
+	StructureSettingsCaptureLABEL  StructureSettingsCapture = "LABEL"
+	StructureSettingsCaptureLINES  StructureSettingsCapture = "LINES"
+	StructureSettingsCapturePERSON StructureSettingsCapture = "PERSON"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCapture enum.
+func (e StructureSettingsCapture) Valid() bool {
+	switch e {
+	case StructureSettingsCaptureAMOUNT:
+		return true
+	case StructureSettingsCaptureDATE:
+		return true
+	case StructureSettingsCaptureLABEL:
+		return true
+	case StructureSettingsCaptureLINES:
+		return true
+	case StructureSettingsCapturePERSON:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCelebration.
+const (
+	StructureSettingsCelebrationALL    StructureSettingsCelebration = "ALL"
+	StructureSettingsCelebrationSUBTLE StructureSettingsCelebration = "SUBTLE"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCelebration enum.
+func (e StructureSettingsCelebration) Valid() bool {
+	switch e {
+	case StructureSettingsCelebrationALL:
+		return true
+	case StructureSettingsCelebrationSUBTLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsDefault.
+const (
+	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
+	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
+	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
+	StructureViewsDefaultTIMELINE      StructureViewsDefault = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsDefault enum.
+func (e StructureViewsDefault) Valid() bool {
+	switch e {
+	case StructureViewsDefaultKANBAN:
+		return true
+	case StructureViewsDefaultLISTCOLLAPSED:
+		return true
+	case StructureViewsDefaultLISTEXPANDED:
+		return true
+	case StructureViewsDefaultTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsOffered.
+const (
+	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
+	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
+	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
+	StructureViewsOfferedTIMELINE      StructureViewsOffered = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsOffered enum.
+func (e StructureViewsOffered) Valid() bool {
+	switch e {
+	case StructureViewsOfferedKANBAN:
+		return true
+	case StructureViewsOfferedLISTCOLLAPSED:
+		return true
+	case StructureViewsOfferedLISTEXPANDED:
+		return true
+	case StructureViewsOfferedTIMELINE:
 		return true
 	default:
 		return false
@@ -8897,6 +9047,17 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.
+type Preset struct {
+	Key PresetKey `json:"key"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+}
+
+// PresetKey defines model for Preset.Key.
+type PresetKey string
+
 // PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
 type PrivateHubAccess struct {
 	EndsAt   time.Time          `json:"ends_at"`
@@ -10158,6 +10319,75 @@ type StepUpRequest struct {
 	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
 	State *string `json:"state,omitempty"`
 }
+
+// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+type StructureCounts struct {
+	FieldKey *string               `json:"field_key,omitempty"`
+	Figure   StructureCountsFigure `json:"figure"`
+}
+
+// StructureCountsFigure defines model for StructureCounts.Figure.
+type StructureCountsFigure string
+
+// StructureLevel defines model for StructureLevel.
+type StructureLevel struct {
+	// Name The level's own name, counted in code points after trimming.
+	Name *string `json:"name,omitempty"`
+
+	// Type Extensible; /meta/capabilities returns the valid values.
+	Type ItemType `json:"type"`
+}
+
+// StructureLevelFields defines model for StructureLevelFields.
+type StructureLevelFields struct {
+	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+	Capabilities []string `json:"capabilities"`
+}
+
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+type StructureSettings struct {
+	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
+	Automation *[]string `json:"automation,omitempty"`
+
+	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
+	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
+
+	// Celebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+	Celebration *StructureSettingsCelebration `json:"celebration,omitempty"`
+
+	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
+	Completion *CompletionPolicy `json:"completion,omitempty"`
+
+	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	Counts *StructureCounts `json:"counts,omitempty"`
+
+	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
+	Fields *map[string]StructureLevelFields `json:"fields,omitempty"`
+
+	// Levels The item types offered, top-down. The top level is always among them, and a type only beneath one of its parent types. A name is what a person chose to call the level; it is their content. Without one, a client shows its translated name for the type.
+	Levels *[]StructureLevel `json:"levels,omitempty"`
+
+	// Views The layouts a client offers, and the one it opens with. Applied by clients.
+	Views *StructureViews `json:"views,omitempty"`
+}
+
+// StructureSettingsCapture defines model for StructureSettings.Capture.
+type StructureSettingsCapture string
+
+// StructureSettingsCelebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+type StructureSettingsCelebration string
+
+// StructureViews The layouts a client offers, and the one it opens with. Applied by clients.
+type StructureViews struct {
+	Default StructureViewsDefault   `json:"default"`
+	Offered []StructureViewsOffered `json:"offered"`
+}
+
+// StructureViewsDefault defines model for StructureViews.Default.
+type StructureViewsDefault string
+
+// StructureViewsOffered defines model for StructureViews.Offered.
+type StructureViewsOffered string
 
 // Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
 type Suggestion struct {
@@ -13881,6 +14111,9 @@ type ServerInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	// (POST /oauth/token)
 	ExchangeOauthCode(w http.ResponseWriter, r *http.Request)
+	// ListPresets The presets a hub or collection can start from
+	// (GET /presets)
+	ListPresets(w http.ResponseWriter, r *http.Request)
 	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
 	// (GET /privacy/ai-objection)
 	ReadOwnAiPosition(w http.ResponseWriter, r *http.Request)
@@ -24364,6 +24597,20 @@ func (siw *ServerInterfaceWrapper) ExchangeOauthCode(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListPresets operation middleware
+func (siw *ServerInterfaceWrapper) ListPresets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPresets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadOwnAiPosition operation middleware
 func (siw *ServerInterfaceWrapper) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
 
@@ -26501,6 +26748,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups/{groupId}", wrapper.GetGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)

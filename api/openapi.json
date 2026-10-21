@@ -9901,6 +9901,35 @@
         }
       }
     },
+    "/presets": {
+      "get": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "listPresets",
+        "summary": "The presets a hub or collection can start from",
+        "description": "Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.\n",
+        "responses": {
+          "200": {
+            "description": "The presets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "maxItems": 4,
+                  "items": {
+                    "$ref": "#/components/schemas/Preset"
+                  }
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers": {
       "get": {
         "tags": [
@@ -20539,6 +20568,186 @@
           "ROLLUP"
         ],
         "default": "MANUAL"
+      },
+      "StructureSettings": {
+        "type": "object",
+        "description": "How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.\n",
+        "properties": {
+          "levels": {
+            "type": "array",
+            "description": "The item types offered, top-down. The top level is always among them, and a type only beneath one of its parent types. A name is what a person chose to call the level; it is their content. Without one, a client shows its translated name for the type.\n",
+            "minItems": 1,
+            "maxItems": 16,
+            "items": {
+              "$ref": "#/components/schemas/StructureLevel"
+            }
+          },
+          "fields": {
+            "type": "object",
+            "description": "What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.\n",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/StructureLevelFields"
+            }
+          },
+          "views": {
+            "$ref": "#/components/schemas/StructureViews"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/StructureCounts"
+          },
+          "completion": {
+            "$ref": "#/components/schemas/CompletionPolicy"
+          },
+          "capture": {
+            "type": "array",
+            "description": "What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.\n",
+            "maxItems": 5,
+            "items": {
+              "type": "string",
+              "enum": [
+                "LINES",
+                "AMOUNT",
+                "DATE",
+                "PERSON",
+                "LABEL"
+              ]
+            }
+          },
+          "celebration": {
+            "type": "string",
+            "description": "How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.\n",
+            "enum": [
+              "ALL",
+              "SUBTLE"
+            ]
+          },
+          "automation": {
+            "type": "array",
+            "description": "What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.\n",
+            "maxItems": 0,
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StructureLevel": {
+        "type": "object",
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ItemType"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "The level's own name, counted in code points after trimming."
+          }
+        }
+      },
+      "StructureLevelFields": {
+        "type": "object",
+        "required": [
+          "capabilities"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array",
+            "description": "The capabilities this type carries, out of those `/meta/capabilities` lists for it.",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "StructureViews": {
+        "type": "object",
+        "description": "The layouts a client offers, and the one it opens with. Applied by clients.",
+        "required": [
+          "offered",
+          "default"
+        ],
+        "properties": {
+          "offered": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": {
+              "type": "string",
+              "enum": [
+                "LIST_COLLAPSED",
+                "LIST_EXPANDED",
+                "KANBAN",
+                "TIMELINE"
+              ]
+            }
+          },
+          "default": {
+            "type": "string",
+            "enum": [
+              "LIST_COLLAPSED",
+              "LIST_EXPANDED",
+              "KANBAN",
+              "TIMELINE"
+            ]
+          }
+        }
+      },
+      "StructureCounts": {
+        "type": "object",
+        "description": "The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.\n",
+        "required": [
+          "figure"
+        ],
+        "properties": {
+          "figure": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "FIELD_SUM",
+              "DUE",
+              "RHYTHM",
+              "PROGRESS",
+              "FLOW",
+              "NONE"
+            ]
+          },
+          "field_key": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 64
+          }
+        }
+      },
+      "Preset": {
+        "type": "object",
+        "description": "A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.\n",
+        "required": [
+          "key",
+          "settings"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "enum": [
+              "LIST",
+              "TASKS",
+              "PROJECT",
+              "FLOW"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/StructureSettings"
+          }
+        }
       },
       "AutoAssignPolicy": {
         "type": "object",

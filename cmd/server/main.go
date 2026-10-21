@@ -2072,6 +2072,7 @@ func run() error {
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.GetWorkItem{
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

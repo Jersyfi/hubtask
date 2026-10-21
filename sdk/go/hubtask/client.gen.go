@@ -3042,6 +3042,30 @@ func (e PolicySource) Valid() bool {
 	}
 }
 
+// Defines values for PresetKey.
+const (
+	PresetKeyFLOW    PresetKey = "FLOW"
+	PresetKeyLIST    PresetKey = "LIST"
+	PresetKeyPROJECT PresetKey = "PROJECT"
+	PresetKeyTASKS   PresetKey = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the PresetKey enum.
+func (e PresetKey) Valid() bool {
+	switch e {
+	case PresetKeyFLOW:
+		return true
+	case PresetKeyLIST:
+		return true
+	case PresetKeyPROJECT:
+		return true
+	case PresetKeyTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -4101,6 +4125,132 @@ func (e StepUpGrantMethod) Valid() bool {
 	case StepUpGrantMethodRECOVERY:
 		return true
 	case StepUpGrantMethodTOTP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureCountsFigure.
+const (
+	StructureCountsFigureDUE      StructureCountsFigure = "DUE"
+	StructureCountsFigureFIELDSUM StructureCountsFigure = "FIELD_SUM"
+	StructureCountsFigureFLOW     StructureCountsFigure = "FLOW"
+	StructureCountsFigureNONE     StructureCountsFigure = "NONE"
+	StructureCountsFigureOPEN     StructureCountsFigure = "OPEN"
+	StructureCountsFigurePROGRESS StructureCountsFigure = "PROGRESS"
+	StructureCountsFigureRHYTHM   StructureCountsFigure = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsFigure enum.
+func (e StructureCountsFigure) Valid() bool {
+	switch e {
+	case StructureCountsFigureDUE:
+		return true
+	case StructureCountsFigureFIELDSUM:
+		return true
+	case StructureCountsFigureFLOW:
+		return true
+	case StructureCountsFigureNONE:
+		return true
+	case StructureCountsFigureOPEN:
+		return true
+	case StructureCountsFigurePROGRESS:
+		return true
+	case StructureCountsFigureRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCapture.
+const (
+	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
+	StructureSettingsCaptureDATE   StructureSettingsCapture = "DATE"
+	StructureSettingsCaptureLABEL  StructureSettingsCapture = "LABEL"
+	StructureSettingsCaptureLINES  StructureSettingsCapture = "LINES"
+	StructureSettingsCapturePERSON StructureSettingsCapture = "PERSON"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCapture enum.
+func (e StructureSettingsCapture) Valid() bool {
+	switch e {
+	case StructureSettingsCaptureAMOUNT:
+		return true
+	case StructureSettingsCaptureDATE:
+		return true
+	case StructureSettingsCaptureLABEL:
+		return true
+	case StructureSettingsCaptureLINES:
+		return true
+	case StructureSettingsCapturePERSON:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingsCelebration.
+const (
+	StructureSettingsCelebrationALL    StructureSettingsCelebration = "ALL"
+	StructureSettingsCelebrationSUBTLE StructureSettingsCelebration = "SUBTLE"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsCelebration enum.
+func (e StructureSettingsCelebration) Valid() bool {
+	switch e {
+	case StructureSettingsCelebrationALL:
+		return true
+	case StructureSettingsCelebrationSUBTLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsDefault.
+const (
+	StructureViewsDefaultKANBAN        StructureViewsDefault = "KANBAN"
+	StructureViewsDefaultLISTCOLLAPSED StructureViewsDefault = "LIST_COLLAPSED"
+	StructureViewsDefaultLISTEXPANDED  StructureViewsDefault = "LIST_EXPANDED"
+	StructureViewsDefaultTIMELINE      StructureViewsDefault = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsDefault enum.
+func (e StructureViewsDefault) Valid() bool {
+	switch e {
+	case StructureViewsDefaultKANBAN:
+		return true
+	case StructureViewsDefaultLISTCOLLAPSED:
+		return true
+	case StructureViewsDefaultLISTEXPANDED:
+		return true
+	case StructureViewsDefaultTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureViewsOffered.
+const (
+	StructureViewsOfferedKANBAN        StructureViewsOffered = "KANBAN"
+	StructureViewsOfferedLISTCOLLAPSED StructureViewsOffered = "LIST_COLLAPSED"
+	StructureViewsOfferedLISTEXPANDED  StructureViewsOffered = "LIST_EXPANDED"
+	StructureViewsOfferedTIMELINE      StructureViewsOffered = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructureViewsOffered enum.
+func (e StructureViewsOffered) Valid() bool {
+	switch e {
+	case StructureViewsOfferedKANBAN:
+		return true
+	case StructureViewsOfferedLISTCOLLAPSED:
+		return true
+	case StructureViewsOfferedLISTEXPANDED:
+		return true
+	case StructureViewsOfferedTIMELINE:
 		return true
 	default:
 		return false
@@ -8903,6 +9053,17 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.
+type Preset struct {
+	Key PresetKey `json:"key"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+}
+
+// PresetKey defines model for Preset.Key.
+type PresetKey string
+
 // PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
 type PrivateHubAccess struct {
 	EndsAt   time.Time          `json:"ends_at"`
@@ -10164,6 +10325,75 @@ type StepUpRequest struct {
 	// State The handle `POST /auth/step-up:provider` minted, as the provider echoed it.
 	State *string `json:"state,omitempty"`
 }
+
+// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+type StructureCounts struct {
+	FieldKey *string               `json:"field_key,omitempty"`
+	Figure   StructureCountsFigure `json:"figure"`
+}
+
+// StructureCountsFigure defines model for StructureCounts.Figure.
+type StructureCountsFigure string
+
+// StructureLevel defines model for StructureLevel.
+type StructureLevel struct {
+	// Name The level's own name, counted in code points after trimming.
+	Name *string `json:"name,omitempty"`
+
+	// Type Extensible; /meta/capabilities returns the valid values.
+	Type ItemType `json:"type"`
+}
+
+// StructureLevelFields defines model for StructureLevelFields.
+type StructureLevelFields struct {
+	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+	Capabilities []string `json:"capabilities"`
+}
+
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+type StructureSettings struct {
+	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
+	Automation *[]string `json:"automation,omitempty"`
+
+	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
+	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
+
+	// Celebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+	Celebration *StructureSettingsCelebration `json:"celebration,omitempty"`
+
+	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
+	Completion *CompletionPolicy `json:"completion,omitempty"`
+
+	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	Counts *StructureCounts `json:"counts,omitempty"`
+
+	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
+	Fields *map[string]StructureLevelFields `json:"fields,omitempty"`
+
+	// Levels The item types offered, top-down. The top level is always among them, and a type only beneath one of its parent types. A name is what a person chose to call the level; it is their content. Without one, a client shows its translated name for the type.
+	Levels *[]StructureLevel `json:"levels,omitempty"`
+
+	// Views The layouts a client offers, and the one it opens with. Applied by clients.
+	Views *StructureViews `json:"views,omitempty"`
+}
+
+// StructureSettingsCapture defines model for StructureSettings.Capture.
+type StructureSettingsCapture string
+
+// StructureSettingsCelebration How success is shown: every tier of celebration, or the subtle first one alone. Applied by clients; a person's own `celebrations` preference switches it off.
+type StructureSettingsCelebration string
+
+// StructureViews The layouts a client offers, and the one it opens with. Applied by clients.
+type StructureViews struct {
+	Default StructureViewsDefault   `json:"default"`
+	Offered []StructureViewsOffered `json:"offered"`
+}
+
+// StructureViewsDefault defines model for StructureViews.Default.
+type StructureViewsDefault string
+
+// StructureViewsOffered defines model for StructureViews.Offered.
+type StructureViewsOffered string
 
 // Suggestion One thing AI proposed about one entry, with its provenance. It has changed nothing: what a suggestion is, is a record.
 type Suggestion struct {
@@ -17082,6 +17312,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListPresets The presets a hub or collection can start from
+	//
+	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	//
+	// Corresponds with GET /presets (the `ListPresets` operationId).
+	ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
 	//
@@ -26193,6 +26430,23 @@ func (c *Client) ExchangeOauthCodeWithBody(ctx context.Context, contentType stri
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeOauthCodeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListPresets The presets a hub or collection can start from
+//
+// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+//
+// Corresponds with GET /presets (the `ListPresets` operationId).
+func (c *Client) ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListPresetsRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -41744,6 +41998,33 @@ func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body
 	return req, nil
 }
 
+// NewListPresetsRequest constructs an http.Request for the ListPresets method
+func NewListPresetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/presets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewReadOwnAiPositionRequest constructs an http.Request for the ReadOwnAiPosition method
 func NewReadOwnAiPositionRequest(server string) (*http.Request, error) {
 	var err error
@@ -48630,6 +48911,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
+
+	// ListPresetsWithResponse The presets a hub or collection can start from
+	//
+	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /presets (the `ListPresets` operationId).
+	ListPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPresetsResult, error)
 
 	// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
 	//
@@ -63992,6 +64282,54 @@ func (r ExchangeOauthCodeResult) ContentType() string {
 	return ""
 }
 
+type ListPresetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]Preset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListPresetsResult) GetJSON200() *[]Preset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListPresetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListPresetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListPresetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListPresetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListPresetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadOwnAiPositionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -73460,6 +73798,21 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseExchangeOauthCodeResult(rsp)
+}
+
+// ListPresetsWithResponse The presets a hub or collection can start from
+//
+// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /presets (the `ListPresets` operationId).
+func (c *ClientWithResponses) ListPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPresetsResult, error) {
+	rsp, err := c.ListPresets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListPresetsResult(rsp)
 }
 
 // ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
@@ -85246,6 +85599,39 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListPresetsResult parses an HTTP response from a ListPresetsWithResponse call
+func ParseListPresetsResult(rsp *http.Response) (*ListPresetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListPresetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []Preset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
