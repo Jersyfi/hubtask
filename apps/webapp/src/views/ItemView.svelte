@@ -61,7 +61,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { changeRefusalCode, childTypes, declaresType, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, childTypes, declaresType, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -80,7 +80,6 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
-  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
@@ -335,8 +334,6 @@
   const typeName = (type: string) => t('app.item.type_name', { type });
   const subtreeHeading = $derived(heldTypes.length === 1 ? typeName(heldTypes[0] ?? '') : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
-  /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
-  let duplicating = $state<WorkItem | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
   /** The entry's own menu. What the head and the details rows do is not repeated in it. */
@@ -411,6 +408,8 @@
   const mayChangeHere = $derived(mayDo(role, 'change', isMine));
   const mayCreateHere = $derived(mayDo(role, 'create', isMine) === true);
   const mayCommentHere = $derived(mayDo(role, 'comment', isMine));
+  /** Whether the reader may share an entry of the subtree: granting a role asks `MANAGE_MEMBERS` (D5). */
+  const mayShareHere = $derived(holds(role ?? undefined, 'MANAGE_MEMBERS').status === 'permitted');
   /**
    * The one line that says why nothing here can be changed (UC-WRK-22 check 2): the role reads and
    * does not change, or changes only what is assigned to the reader. Not while the role is unknown.
@@ -939,7 +938,7 @@
                 </Button>
               {/if}
             </div>
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
 
@@ -1071,16 +1070,6 @@
 {/snippet}
 
 <!-- The same copy the collection's list makes: a duplicate ends on the copy, which is a page. -->
-<DuplicateDialog
-  item={duplicating}
-  hubId={peoplePath.hubId}
-  onclose={() => (duplicating = undefined)}
-  onopened={(itemId) => {
-    duplicating = undefined;
-    onnavigate?.(`/items/${itemId}`);
-  }}
-/>
-
 {#if item}
   <MembersDialog
     bind:isOpen={isSharing}

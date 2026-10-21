@@ -18,7 +18,6 @@
     Badge,
     Button,
     Checkbox,
-    Dialog,
     EmptyState,
     ErrorState,
     focusFirst,
@@ -28,7 +27,6 @@
     Input,
     LabelChip,
     LabelPicker,
-    Menu,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -39,28 +37,29 @@
     TaskRow,
     type RankCommand,
   } from '@hubtask/design-system/components';
-  import type { BulkResult, DroppedReference, WorkItem } from '@hubtask/sync-engine';
+  import type { BulkResult, WorkItem } from '@hubtask/sync-engine';
 
   import type { Archival } from '../data/containers.ts';
 
   import type { ItemsQuery } from '../data/items.svelte.ts';
 
+  import EntryActions from './EntryActions.svelte';
+  import EntryMenu from './EntryMenu.svelte';
   import LanguagePicker from './LanguagePicker.svelte';
-  import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
+  import { attachEntryGestures } from './entryGestures.ts';
+  import { entryMenu } from './entryMenu.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
   import { acceptsChild, childTypes, placementOf, rootTypes, supports } from '../data/capability.svelte.ts';
-  import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { selection } from '../data/selection.svelte.ts';
   import DueMark from './DueMark.svelte';
   import ReplicaMark from '../frame/ReplicaMark.svelte';
-  import DuePanel from './DuePanel.svelte';
   import { outcomeOf } from '../data/bulk.ts';
   import { archivalOfItem, isBelowArchived } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -118,14 +117,12 @@
     onopen?: (itemId: string) => void;
     /** The entry open beside the list, so its row is announced as current. */
     currentId?: string;
-    /**
-     * Asked to copy an entry.
-     *
-     * Handed up rather than handled here, because a duplicate ends on the copy — and navigation is
-     * the view's, not a list's. The same reason `MoveDialog` is opened from here and the move's
-     * destination comes from the tree the view holds.
-     */
-    onduplicate?: (item: WorkItem) => void;
+    /** Where a link the list cannot follow itself leads: the entry's page, a copy made from it. */
+    onnavigate?: (path: string) => void;
+    /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
+    mayShare?: boolean;
+    /** After an act that can be taken back: what was done, for the screen's undo. */
+    ondone?: (act: { readonly kind: 'trash' | 'archive'; readonly item: WorkItem }) => void;
     /**
      * Why the reader may not change this entry, in their words, or nothing where they may - from
      * their role along the path (UC-WRK-22 checks 1, 2). The view decides, because the role is the
@@ -153,7 +150,9 @@
     lastResults,
     onopen,
     currentId,
-    onduplicate,
+    onnavigate,
+    mayShare = false,
+    ondone,
     changeRefusal,
     mayCreate,
     isSelectable = false,
@@ -176,9 +175,6 @@
       return undefined;
     }
   }
-
-  /** The entry whose dates are being changed from the row, if one is. */
-  let dating = $state<WorkItem | undefined>(undefined);
 
   /** The sentence one row shows about the last bulk, or nothing where it was not in it. */
   function bulkNote(itemId: string): string | undefined {
@@ -568,16 +564,6 @@
     }
   }
 
-  /** The reason a command is unavailable, or nothing. There is no `disabled` boolean anywhere. */
-  function rankReason(row: Row, command: RankCommand): string | undefined {
-    const frozen = frozenReason(row);
-    if (frozen) return frozen;
-    if (rankTarget(command, row.index, row.siblings.length) !== null) return undefined;
-    return command === 'up' || command === 'top'
-      ? t('app.rank.already_first')
-      : t('app.rank.already_last');
-  }
-
   /**
    * The keyboard shortcuts, on the level rather than on a row.
    *
@@ -637,107 +623,6 @@
     return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.move.moving');
   }
 
-  /**
-   * Moves an entry to another parent, another collection, or both.
-   *
-   * `:move` rather than `:reorder` the moment the parent changes, and it answers a `MoveResult`
-   * rather than an entry. **The second half of that answer is shown**: I-W6 says a reference the
-   * destination cannot resolve is reported rather than dropped in silence, and swallowing it here
-   * would turn a designed behaviour into data loss — the chips would simply be gone, which is
-   * indistinguishable from a rendering fault.
-   */
-  async function move(
-    row: Row,
-    destination: { parentId: string | null; collectionId?: string },
-  ) {
-    writeFailure = undefined;
-    try {
-      const result = await items.move(
-        row.item.id,
-        destination,
-        row.item.version,
-        crypto.randomUUID(),
-      );
-      dropped = { title: row.item.title, references: result.dropped_references ?? [] };
-      announcer.say(t('app.move.announced', { title: row.item.title }));
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-    }
-  }
-
-  /** What the last move left behind, until the reader has read it. */
-  let dropped = $state<{ title: string; references: readonly DroppedReference[] } | undefined>(
-    undefined,
-  );
-
-  /** Which row the destination picker is open for. */
-  let movingRow = $state<Row | undefined>(undefined);
-  let isMoving = $state(false);
-
-  /**
-   * Every collection the workspace holds, read when the picker opens.
-   *
-   * That is the one place it is right to read them. `containers.svelte.ts` argues against reading
-   * every hub's level at boot, because that is a request per hub for rows nobody has asked to see;
-   * here somebody has asked, and a picker offering only the hubs they happened to have expanded
-   * would hide half the workspace.
-   *
-   * `untrack` around the subscribing, for the reason every store here records: the listener writes
-   * the level and writing it reads it, so an effect tracking that read cancels its own
-   * subscription before the answer arrives.
-   */
-  $effect(() => {
-    if (!movingRow) return;
-    const hubs = containers.hubs.map((hub) => hub.id);
-    return untrack(() => {
-      const stops = hubs.map((hubId) => containers.openLevel(hubId));
-      return () => {
-        for (const stop of stops) stop();
-      };
-    });
-  });
-
-  const destinations = $derived(
-    containers.hubs.flatMap((hub) =>
-      containers
-        .collectionsOf(hub.id)
-        // The collection it is already in is not a destination, and an archived one is read-only
-        // (I-C3) — offering it would be offering a move the server refuses.
-        .filter((collection) => collection.id !== collectionId && !collection.effective_archived)
-        .map((collection) => ({
-          value: collection.id,
-          label: t('app.move.destination_option', { hub: hub.name, collection: collection.name }),
-        })),
-    ),
-  );
-
-  async function moveElsewhere(collectionId: string) {
-    const row = movingRow;
-    if (!row) return;
-    isMoving = true;
-    // The top level of the destination: an entry that had a parent here has none there, because
-    // the parent is not in that collection. `target_collection_id` is what names where it lands.
-    await move(row, { parentId: null, collectionId });
-    isMoving = false;
-    movingRow = undefined;
-  }
-
-  /**
-   * Moves an entry out to the level above it.
-   *
-   * The grandparent, or the collection itself when the parent is already at the top level — and
-   * that is why `target_parent_id` is sent as `null` *with* a collection rather than left out. An
-   * entry's collection is the one its parent is in, so an entry with no parent has to name one.
-   */
-  function moveOut(row: Row) {
-    if (!row.parentId) return;
-    const grandParentId = grandParentOf(row);
-    void move(
-      row,
-      grandParentId === null ? { parentId: null, collectionId } : { parentId: grandParentId },
-    );
-  }
-
   /** The entry a row moves out to: its parent's parent, or `null` for the collection's top level. */
   function grandParentOf(row: Row): string | null {
     const parent = rows.find((each) => each.item.id === row.parentId);
@@ -770,90 +655,37 @@
     return verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
   }
 
-  const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
-    { id: 'up', label: 'app.rank.up' },
-    { id: 'down', label: 'app.rank.down' },
-    { id: 'top', label: 'app.rank.top' },
-    { id: 'bottom', label: 'app.rank.bottom' },
-  ];
-
-  /**
-   * Everything a rank change or a move can do to this row, as one list.
-   *
-   * One menu rather than two, because they are one question to the reader — "where should this go"
-   * — and the API's split between `:reorder` and `:move` is an answer about which operation, not
-   * about which control. The separator is where the level stops being the level.
-   */
+  /** The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. */
   function menuItems(row: Row) {
-    // A row the role may not change offers only what does not write it: a copy, where the reader
-    // may create one. Nothing else is drawn, not even off.
-    if (isRoleRefused(row)) return everyItem(row).filter((each) => each.id === 'duplicate' && mayCreate);
-    return everyItem(row).filter((each) => each.id !== 'duplicate' || mayCreate);
+    return entryMenu(
+      {
+        surface: root ? 'subtree' : isSelectable ? 'list' : 'subtree',
+        item: {
+          title: row.item.title,
+          isCompleted: row.item.completion?.is_completed ?? false,
+          hasDue: Boolean(row.item.due_at),
+        },
+        archival: row.archival,
+        isCollectionReadOnly: isReadOnly,
+        mayChange: !isRoleRefused(row),
+        mayCreate,
+        mayShare,
+        carries: (capability) => supports(row.item.type, capability).status === 'permitted',
+        level: {
+          index: row.index,
+          count: row.siblings.length,
+          aboveTitle: previousSibling(row)?.title,
+          insideReason: insideReason(row),
+          outReason: outReason(row),
+        },
+      },
+      t,
+    );
   }
 
-  function everyItem(row: Row) {
-    const above = previousSibling(row);
-    return [
-      ...RANK_COMMANDS.map((command) => ({
-        id: command.id,
-        label: t(command.label),
-        disabledReason: rankReason(row, command.id),
-      })),
-      {
-        id: 'inside',
-        label: above ? t('app.move.inside', { name: above.title }) : t('app.move.inside_above'),
-        disabledReason: insideReason(row),
-        hasSeparatorBefore: true,
-      },
-      {
-        id: 'out',
-        label: t('app.move.out'),
-        // The archive comes first: a row that cannot be written to cannot be moved out of
-        // anything, and telling it "this is already at the top level" would answer a different
-        // question from the one the reader is about to ask.
-        disabledReason: outReason(row),
-      },
-      {
-        id: 'elsewhere',
-        label: t('app.move.elsewhere'),
-        disabledReason: frozenReason(row),
-      },
-      // Archived is read-only, **not hidden**: the entry stays where it is, and its writing items
-      // say why they are off (I-W4). This one is offered on an archived row — it is the way back.
-      // A row of a read-only list has no menu at all; the page's notice speaks for it.
-      {
-        id: 'archive',
-        label: t(row.archival === 'archived' ? 'app.entries.unarchive' : 'app.entries.archive'),
-        hasSeparatorBefore: true,
-      },
-      {
-        id: 'due',
-        label: t(row.item.due_at ? 'app.due.edit' : 'app.due.set'),
-        disabledReason: frozenReason(row),
-        hasSeparatorBefore: true,
-      },
-      {
-        id: 'duplicate',
-        label: t('app.duplicate.title'),
-        // Offered on an archived entry too: copying one does not write to it, and the copy is a
-        // new entry in an active place. What stops it is a read-only collection, which the copy
-        // would have to be written into.
-        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
-        hasSeparatorBefore: true,
-      },
-      {
-        id: 'trash',
-        label: t('app.entries.trash'),
-        // **Archived is not frozen against this one.** §3.4's state machine reads "active *or
-        // archived* → trashed", so an archived entry may still be deleted; what stops it is an
-        // archived collection (I-C3), and a row of one has no menu.
-        //
-        // Offered without a confirmation because it is reversible: the subtree goes in under one
-        // deletion and comes back as one act. Destroying is what asks first, on the trash screen.
-        isDestructive: true,
-      },
-    ];
-  }
+  /** The menus of the rows, so a right click, a key or a long press can open one. */
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
 
   /**
    * The pointer path, and it reaches the same call.
@@ -867,60 +699,42 @@
    * `:move` without the reader asking for it. Changing the parent is the menu's, where it is a
    * decision rather than a slip.
    */
-  /**
-   * A press held on a coarse pointer, which is what a finger has where a mouse has a modifier.
-   *
-   * 300 ms and no movement — the same hold the board's drag waits for, deliberately, so that one
-   * gesture cannot mean two things: the drag starts on the grip and this starts anywhere else on
-   * the row. A fine pointer is excluded, because a mouse held still for a third of a second is
-   * somebody reading, not somebody selecting.
-   */
-  const HOLD_MS = 300;
+  const rowIdAt = (target: EventTarget | null) =>
+    (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
 
   /**
-   * The two gestures on the level itself, for the reason the key handler beside them is there: a
-   * `<div>` carrying an interaction is a static element with one, and Svelte is right to warn.
-   * One listener for the level rather than one per row, and each finds its row by `data-row`.
+   * A right click, the context-menu key and a long press open the row's menu (ADR-0088): a still
+   * hold opens it on release, *Select* first; a hold on the grip that moves is the drag's.
+   */
+  $effect(() => {
+    const node = level;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: rowIdAt,
+      open: (id) => menus[id]?.open(0),
+      ignore: '[data-grip]',
+    });
+  });
+
+  /**
+   * `Ctrl`/`⌘`-click picks a row (UC-WRK-28 check 4), where the screen has a bar to act on it. On the
+   * level itself, for the reason the key handler beside it is there: a `<div>` carrying an
+   * interaction is a static element with one, and Svelte is right to warn.
    */
   $effect(() => {
     const node = level;
     if (!node || !isSelectable) return;
-    let held: ReturnType<typeof setTimeout> | undefined;
-    const idAt = (target: EventTarget | null) =>
-      (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
-    const release = () => {
-      if (held === undefined) return;
-      clearTimeout(held);
-      held = undefined;
-    };
-    const onDown = (event: PointerEvent) => {
-      if (event.pointerType === 'mouse' || selection.isOn) return;
-      const id = idAt(event.target);
-      if (!id) return;
-      held = setTimeout(() => selection.pick(visibleIds, id), HOLD_MS);
-    };
     // The capture phase, because the row is a link and the router listens for the click after it.
     const onClick = (event: MouseEvent) => {
       if (!(event.metaKey || event.ctrlKey) || selection.isOn) return;
-      const id = idAt(event.target);
+      const id = rowIdAt(event.target);
       if (!id) return;
       event.preventDefault();
       event.stopPropagation();
       selection.pick(visibleIds, id);
     };
-    node.addEventListener('pointerdown', onDown);
-    node.addEventListener('pointerup', release);
-    node.addEventListener('pointercancel', release);
-    node.addEventListener('pointermove', release);
     node.addEventListener('click', onClick, true);
-    return () => {
-      release();
-      node.removeEventListener('pointerdown', onDown);
-      node.removeEventListener('pointerup', release);
-      node.removeEventListener('pointercancel', release);
-      node.removeEventListener('pointermove', release);
-      node.removeEventListener('click', onClick, true);
-    };
+    return () => node.removeEventListener('click', onClick, true);
   });
 
   const drag = createDrag({
@@ -946,6 +760,8 @@
       if (!row) return;
       void rankTo(row, to);
     },
+    // A finger held still on the grip and lifted asks for the menu, as anywhere else on the row.
+    onhold: (id) => menus[id]?.open(0),
   });
 
   $effect(() => {
@@ -953,57 +769,17 @@
     return node ? drag.attach(node) : undefined;
   });
 
-  /**
-   * Archives an entry or brings it back.
-   *
-   * Only where the entry is archived **in its own right** or active. A row that is read-only
-   * because something above it is archived has no control here — the control is on that thing, and
-   * offering one that unarchives this row would leave it read-only afterwards, which is the exact
-   * failure `archivalOfItem` exists to prevent.
-   */
-  async function setArchived(row: Row, isArchived: boolean) {
-    writeFailure = undefined;
-    try {
-      await items.setArchived(row.item.id, isArchived, crypto.randomUUID());
-      announcer.say(
-        t(isArchived ? 'app.entries.archived_announced' : 'app.entries.unarchived_announced', {
-          title: row.item.title,
-        }),
-      );
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-    }
-  }
-
-  /**
-   * Moves an entry and everything under it to the trash.
-   *
-   * Reversible, which is why it is offered without a confirmation: the subtree goes in under one
-   * deletion and comes back as one act (I-C2), and the trash screen is where it can be brought
-   * back or destroyed. Destroying is the thing that asks first.
-   */
-  async function moveToTrash(row: Row) {
-    writeFailure = undefined;
-    try {
-      await items.trash(row.item.id, row.item.version);
-      announcer.say(t('app.entries.trashed_announced', { title: row.item.title }));
-    } catch (error) {
-      writeFailure = renderProblem(error as never, messages);
-    }
-  }
-
-  /** One press, whichever operation it turns out to be. */
+  /** One chosen item: what only the list knows answers here, the rest is the screen's actions. */
   function chose(row: Row, id: string) {
-    if (id === 'inside') {
-      const above = previousSibling(row);
-      if (above) void move(row, { parentId: above.id });
-    } else if (id === 'out') moveOut(row);
-    else if (id === 'elsewhere') movingRow = row;
-    else if (id === 'archive') void setArchived(row, row.archival !== 'archived');
-    else if (id === 'due') dating = row.item;
-    else if (id === 'duplicate') onduplicate?.(row.item);
-    else if (id === 'trash') void moveToTrash(row);
-    else void rank(row, id as RankCommand);
+    if (id === 'select') {
+      selection.pick(visibleIds, row.item.id);
+      return;
+    }
+    if (id === 'open' && !onopen) {
+      onnavigate?.(`/items/${row.item.id}`);
+      return;
+    }
+    void actions?.run(row.item, id, row.siblings);
   }
 
   async function toggleComplete(item: WorkItem) {
@@ -1048,26 +824,7 @@
          an entry carried to another collection leaves both behind — and the operation reports what
          it left rather than dropping it in silence. Showing it is the part that makes the report
          worth having; a client that swallowed it would turn a designed behaviour into data loss. -->
-    {#if dropped && dropped.references.length > 0}
-      <div class="dropped">
-        <p>{t('app.move.dropped', { title: dropped.title })}</p>
-        <ul>
-          {#each dropped.references as reference, index (`${reference.kind}-${reference.id}-${index}`)}
-            <li>
-              <strong>{t(`app.move.dropped_kind.${reference.kind}`)}</strong>
-              <!-- The server's own message code says why. One fact, one sentence, whichever
-                   channel reported it (ADR-0011). -->
-              {t(reference.code)}
-            </li>
-          {/each}
-        </ul>
-        <div>
-          <Button size="sm" tone="secondary" onclick={() => (dropped = undefined)}>
-            {t('app.dismiss')}
-          </Button>
-        </div>
-      </div>
-    {/if}
+    <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} {ondone} />
 
     {#if rows.length === 0}
       <!-- The form belongs here as well as below. §4.1's empty state is the only one that carries a
@@ -1264,22 +1021,12 @@
                 <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
                      first: every position a drag can reach is an item here, each with the reason it
                      cannot be used rather than a control that goes grey for no stated cause. -->
-                {#if !isReadOnly && menuItems(row).length > 0}
-                  <Menu
-                    label={t('app.rank.actions', { title: row.item.title })}
-                    items={menuItems(row)}
-                    onselect={(id) => chose(row, id)}
-                  >
-                    {#snippet trigger(props)}
-                      <IconButton
-                        icon="ellipsis"
-                        label={t('app.rank.actions', { title: row.item.title })}
-                        size="sm"
-                        {...props}
-                      />
-                    {/snippet}
-                  </Menu>
-                {/if}
+                <EntryMenu
+                  bind:this={menus[row.item.id]}
+                  title={row.item.title}
+                  items={menuItems(row)}
+                  onselect={(id) => chose(row, id)}
+                />
               {/snippet}
             </TaskRow>
 
@@ -1311,24 +1058,6 @@
     {/if}
   {/if}
 </Stack>
-
-{#if movingRow}
-  <MoveDialog
-    isOpen={true}
-    title={t('app.rank.actions', { title: movingRow.item.title })}
-    label={t('app.move.destination')}
-    placeholder={t('app.move.choose')}
-    options={destinations}
-    emptyLabel={t('app.move.no_destination')}
-    warning={t('app.move.leaves_behind')}
-    confirmLabel={t('app.move.confirm')}
-    busyLabel={t('app.move.moving')}
-    cancelLabel={t('app.entries.cancel')}
-    chooseFirstLabel={t('app.move.choose_first')}
-    isBusy={isMoving}
-    onmove={(destination) => moveElsewhere(destination)}
-  />
-{/if}
 
 {#snippet addForm()}
   <!-- Opened by a button that stays where it is; the focus still moves in, because the next Tab
@@ -1376,20 +1105,6 @@
     </Inline>
   </Stack>
 {/snippet}
-
-{#if dating}
-  <!-- The same panel the entry screen draws, in a dialog: a due date is one thing, so it has one
-       control, and a second implementation of it on the row would be a second set of rules about
-       zones and all-day dates. -->
-  <Dialog
-    isOpen={true}
-    title={t('app.due.title')}
-    dismissLabel={t('app.workspace.cancel')}
-    onClose={() => (dating = undefined)}
-  >
-    <DuePanel item={dating} disabledReason={isReadOnly ? t('app.entries.read_only') : undefined} />
-  </Dialog>
-{/if}
 
 <style>
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
@@ -1483,26 +1198,4 @@
 
   /* Rule 1: a standalone notice, so it is raised rather than tinted. Rule 3: it is a list of what
      was lost and why, so nothing about it rests on the colour. */
-  .dropped {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-100);
-    max-width: 64ch;
-    padding: var(--sp-150);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-md);
-    background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
-    font-size: var(--fs-075);
-  }
-
-  .dropped p { margin: 0; }
-
-  .dropped ul {
-    display: flex;
-    flex-direction: column;
-    gap: var(--sp-050);
-    margin: 0;
-    padding-inline-start: var(--sp-200);
-  }
 </style>

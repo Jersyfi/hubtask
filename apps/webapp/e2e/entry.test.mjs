@@ -112,7 +112,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
 
   // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
   // menu offers no second form over the same three fields.
-  await page.getByRole('button', { name: /Actions for/ }).click();
+  await page.getByRole('button', { name: `Actions for ${ENTRY.title}`, exact: true }).click();
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
   assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Share this entry']);
@@ -185,13 +185,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   // server's words rather than offering a refusal (P-05); an activity of a work package may move
   // out to the task. Both rows have the subtree's root as their parent's parent or parent.
   const ownActivity = CHILDREN[ENTRY.id][2];
-  await page.getByRole('button', { name: `Move ${ownActivity.title}` }).click();
+  await page.getByRole('button', { name: `Actions for ${ownActivity.title}` }).click();
   const out = page.getByRole('menuitem', { name: /Move out one level/ });
   assert.ok((await out.textContent()).includes('An activity has to sit inside another entry.'), 'moving the task\'s activity out is offered without its reason');
   assert.equal(await out.getAttribute('aria-disabled'), 'true');
   await page.keyboard.press('Escape');
   const packActivity = CHILDREN[CHILDREN[ENTRY.id][0].id][0];
-  await page.getByRole('button', { name: `Move ${packActivity.title}` }).click();
+  await page.getByRole('button', { name: `Actions for ${packActivity.title}` }).click();
   const up = page.getByRole('menuitem', { name: /Move out one level/ });
   assert.notEqual(await up.getAttribute('aria-disabled'), 'true', 'an activity may move out of its work package to the task');
   await page.keyboard.press('Escape');

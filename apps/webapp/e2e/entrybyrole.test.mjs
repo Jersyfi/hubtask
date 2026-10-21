@@ -76,7 +76,7 @@ async function offered(page) {
     complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
     comment: (await count(page.getByLabel('Say something'))) === 1,
     addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
-    childMenu: (await count(page.getByRole('button', { name: `Move ${CHILD.title}` }))) === 1,
+    childMenu: (await count(page.getByRole('button', { name: `Actions for ${CHILD.title}` }))) === 1,
     assigneeEditor: (await count(page.locator('button[data-detail="assignee"]'))) === 1,
     notYours: (await count(page.locator('main [role="note"]', { hasText: 'Your role changes only the entries assigned to you.' }))) > 0,
     readsOnly: (await count(page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }))) > 0,
@@ -86,8 +86,8 @@ async function offered(page) {
 const EXPECTED = {
   MEMBER: { complete: true, comment: true, addInside: true, childMenu: true, assigneeEditor: true, notYours: false, readsOnly: false },
   CONTRIBUTOR: { complete: false, comment: false, addInside: true, childMenu: true, assigneeEditor: false, notYours: true, readsOnly: false },
-  VIEWER: { complete: false, comment: false, addInside: false, childMenu: false, assigneeEditor: false, notYours: false, readsOnly: true },
-  GUEST: { complete: false, comment: true, addInside: false, childMenu: false, assigneeEditor: false, notYours: false, readsOnly: true },
+  VIEWER: { complete: false, comment: false, addInside: false, childMenu: true, assigneeEditor: false, notYours: false, readsOnly: true },
+  GUEST: { complete: false, comment: true, addInside: false, childMenu: true, assigneeEditor: false, notYours: false, readsOnly: true },
 };
 
 for (const [role, expected] of Object.entries(EXPECTED)) {

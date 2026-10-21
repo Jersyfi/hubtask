@@ -1040,7 +1040,8 @@
               {lastResults}
               onopen={viewport.isLarge ? openBeside : undefined}
               currentId={openItemId}
-              onduplicate={(item) => (duplicating = item)}
+              {onnavigate}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               isSelectable
