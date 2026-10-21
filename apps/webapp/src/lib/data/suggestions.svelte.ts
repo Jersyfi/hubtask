@@ -25,6 +25,8 @@ import type { AcceptedSuggestion, AiTranslation, Suggestion, SuggestionPage } fr
 
 import { engine } from './engine.ts';
 import {
+  arrivalEndedAs,
+  budgetSpentOf,
   endedAs,
   followArrival,
   suggestionsPath,
@@ -33,6 +35,7 @@ import {
   whilePending,
   type AskingState,
   type Operation,
+  type Said,
   type Target,
 } from './suggestions.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
@@ -66,8 +69,36 @@ const touches = (targetId: string, target: Target = 'WORK_ITEM') => [suggestions
 
 class Suggestions {
   #asking = $state<Record<string, Asking>>({});
+  /** A spent budget a proposal prepared on arrival ended on: said once for the jumble, not per card. */
+  #arrivalBudget = $state<Said | undefined>(undefined);
   /** Which follow is current per entry, outside `$state`: a token, not something a template reads. */
   readonly #follows = new Map<string, symbol>();
+
+  /** The spent budget proposals prepared on arrival met, where one did. */
+  get arrivalBudgetSpent(): Said | undefined {
+    return this.#arrivalBudget;
+  }
+
+  /**
+   * Follows the proposal the workspace prepares about a jumble entry on its arrival (UC-JUM-07
+   * check 10), which nobody here asked for: the card says *Suggesting…* while the job runs and
+   * shows the proposal when it stands. Not while the entry is already followed - an ask a person
+   * made says itself - and never said as slow: nobody is waiting for it.
+   */
+  followArrivalJob(entryId: string, jobId: string, receivedAt: string): void {
+    if (this.#asking[entryId]) return;
+    this.#put(entryId, { operation: 'jumble', askedAt: receivedAt, outcome: 'following' });
+    const token = Symbol('arrival');
+    this.#follows.set(entryId, token);
+    const isLive = () => this.#follows.get(entryId) === token;
+    void followArrival(engine, entryId, receivedAt, wait, isLive, 'JUMBLE_ENTRY', jobId).then((outcome) => {
+      if (outcome === 'left' || !isLive()) return;
+      this.#follows.delete(entryId);
+      const spent = budgetSpentOf(outcome);
+      if (spent) this.#arrivalBudget = spent;
+      this.#put(entryId, { operation: 'jumble', askedAt: receivedAt, ...arrivalEndedAs(outcome) });
+    });
+  }
 
   /** What is being asked about one entry, or nothing. */
   askingOf(itemId: string): Asking | undefined {

@@ -2539,6 +2539,7 @@
   "app.jumble.ask": "KI fragen, was daraus werden soll",
   "app.jumble.ask_empty": "Dieser Eingang hat weder Betreff noch Text, darum hat die KI nichts, womit sie arbeiten kann.",
   "app.jumble.suggested": "Vorgeschlagener Eintrag",
+  "app.jumble.suggested_collection": "Vorgeschlagene Sammlung",
   "app.jumble.suggested_subtasks": "Vorgeschlagene Schritte darunter",
   "app.jumble.accept_suggestion": "Diesen Eintrag anlegen",
   "app.jumble.working": "Läuft",

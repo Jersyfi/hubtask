@@ -50,7 +50,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { renderProblem, renderRefusal } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -221,6 +221,11 @@
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
     {#if askFailure}<Banner tone="danger">{askFailure}</Banner>{/if}
+    <!-- Said once for the page rather than on every card it held back: proposals prepared on
+         arrival met a spent budget, and the arrivals wait for somebody to ask. -->
+    {#if hasAi && suggestions.arrivalBudgetSpent}
+      <p class="quiet" data-arrival-budget>{renderRefusal(suggestions.arrivalBudgetSpent, messages)}</p>
+    {/if}
 
     <Select label={t('app.jumble.showing')} bind:value={filter} options={filters} />
 

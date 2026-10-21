@@ -43,6 +43,8 @@ export interface JumbleEntry {
   readonly target_item_id?: string | null;
   readonly received_at: string;
   readonly settled_at?: string | null;
+  /** The job preparing a proposal about it on arrival, while it runs or once it ended refused. */
+  readonly arrival_job_id?: string | null;
 }
 
 interface EntryPage {
