@@ -474,6 +474,7 @@ class Workspace(TypedDict, total=False):
     private_hubs_offered: bool
     several_people: bool
     sign_in_policy: "SignInPolicy"
+    structure: "WorkspaceStructure"
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
 
@@ -517,9 +518,9 @@ class SignInPolicyMethods(TypedDict, total=False):
     source: Required["PolicySource"]
     installation_source: Required["PolicySource"]
 
-PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE"]
+PolicySource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION"]
 
-PolicyLock = Literal["INSTANCE", "PLAN"] | None
+PolicyLock = Literal["INSTANCE", "PLAN", "WORKSPACE"] | None
 
 class SignInPolicy(TypedDict, total=False):
     """The workspace's sign-in rule, every switch at the levels that decide it: what is in force here, what the level above set, and whether a lock is on it."""
@@ -1452,6 +1453,7 @@ class Container(TypedDict, total=False):
     updated_at: str
     version: Required[int]
     private: bool
+    structure: "EffectiveStructure"
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1461,6 +1463,7 @@ class ContainerCreate(TypedDict, total=False):
     icon: str | None
     color_token: str | None
     private: bool
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
 
 class ContainerUpdate(TypedDict, total=False):
     name: str
@@ -1505,6 +1508,25 @@ class StructureCounts(TypedDict, total=False):
     """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
     figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
     field_key: str | None
+
+class EffectiveStructure(TypedDict, total=False):
+    """The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only."""
+    preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    settings: Required["StructureSettings"]
+    sources: Required[dict[str, Any]]
+    locks: Required[dict[str, Any]]
+
+class StructureLock(TypedDict, total=False):
+    origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]
+    locked_by: str | None
+
+class WorkspaceStructure(TypedDict, total=False):
+    """The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from."""
+    preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    settings: Required["StructureSettings"]
+    sources: Required[dict[str, Any]]
+    locks: Required[dict[str, Any]]
+    default_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
 
 class Preset(TypedDict, total=False):
     """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it."""

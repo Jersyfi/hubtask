@@ -46,7 +46,12 @@ func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request,
 		return
 	}
 
+	var preset any
+	if body.Preset != nil {
+		preset = string(*body.Preset)
+	}
 	out, err := c.UseCases.Invoke(r.Context(), createContainerUseCase, actor, usecase.Input{
+		"preset":      preset,
 		"type":        string(body.Type),
 		"name":        body.Name,
 		"parent_id":   optionalUUIDField(body.ParentId),
@@ -204,6 +209,15 @@ func containerResponse(out usecase.Output) openapi.Container {
 			container.Policies.CompletionPolicy = &completionPolicy
 		}
 		container.Policies.AutoAssign = autoAssignResponse(policies["auto_assign"])
+	}
+	// The structure in force travels in the contract's words already; mapped through its JSON
+	// spelling rather than field by field (throughJSON). A shape that does not map is a defect of
+	// this build, answered without the structure rather than without the container.
+	if structure, held := out["structure"]; held {
+		var answered openapi.EffectiveStructure
+		if throughJSON(structure, &answered) == nil {
+			container.Structure = &answered
+		}
 	}
 	return container
 }

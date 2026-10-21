@@ -58,7 +58,7 @@ func TestEveryContractCodeIsInTheCatalogue(t *testing.T) {
 // function whose name merely ends in "Action" does not carry its literals past the gate.
 var actionConversion = regexp.MustCompile(`\bAction\("`)
 
-var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|auth|oauth|admin|seed|groups|memberships|idempotency|config|errors|dependency|capacity|containers|items|buckets|labels|comments|fields|media|ordering|events|sync|storage|audit|usecase|shared|automation|lifecycle|activity|query|views|notifications|email|mail|jobs|crypto|calendar|backup|imports|ai)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
+var messageCode = regexp.MustCompile(`"((?:route|request|access|accounts|auth|oauth|admin|seed|groups|memberships|idempotency|config|errors|dependency|capacity|containers|presets|structure|items|buckets|labels|comments|fields|media|ordering|events|sync|storage|audit|usecase|shared|automation|lifecycle|activity|query|views|notifications|email|mail|jobs|crypto|calendar|backup|imports|ai)\.[a-z][a-z0-9_]*(?:\.[a-z][a-z0-9_]*)*)"`)
 
 // TestEveryUsedMessageCodeIsInTheCatalogue reads the source rather than a registry: a code is
 // used where it is written, and a registry would only be a second place to forget.

@@ -51,6 +51,8 @@ type GetContainer struct {
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Structure resolves the container's structure in force for the answer (domain-model.md §2).
+	Structure StructureResolver
 }
 
 // GetContainerQuery is the input, typed.
@@ -133,7 +135,11 @@ func (h GetContainer) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return containerOutput(container), nil
+	structures, err := h.Structure.Resolve(ctx, actor, h.UnitOfWork, []domain.Container{container})
+	if err != nil {
+		return nil, err
+	}
+	return withStructure(containerOutput(container), structures, container.ID), nil
 }
 
 // ListContainers reads one level of the container tree.
@@ -142,6 +148,9 @@ type ListContainers struct {
 	Authorizer Authorizer
 	Reader     Reader
 	UnitOfWork persistence.UnitOfWork
+	// Structure resolves each container's structure in force, after the page was narrowed to what
+	// the caller may see.
+	Structure StructureResolver
 }
 
 // ListContainersQuery is the input, typed.
@@ -307,9 +316,13 @@ func (h ListContainers) invoke(
 		return nil, err
 	}
 
+	structures, err := h.Structure.Resolve(ctx, actor, h.UnitOfWork, page.Containers)
+	if err != nil {
+		return nil, err
+	}
 	data := make([]usecase.Output, 0, len(page.Containers))
 	for _, container := range page.Containers {
-		data = append(data, containerOutput(container))
+		data = append(data, withStructure(containerOutput(container), structures, container.ID))
 	}
 	return pageOutput(data, page.Info), nil
 }

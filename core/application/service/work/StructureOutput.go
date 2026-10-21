@@ -87,3 +87,40 @@ func presetOutput(preset domain.Preset) usecase.Output {
 		"settings": structureValuesOutput(preset.Values),
 	}
 }
+
+// effectiveStructureOutput is the EffectiveStructure schema.
+func effectiveStructureOutput(effective domain.EffectiveStructure) map[string]any {
+	sources := make(map[string]any, len(domain.StructureSettingNames()))
+	for _, setting := range domain.StructureSettingNames() {
+		sources[string(setting)] = string(effective.SourceOf(setting))
+	}
+	locks := make(map[string]any, len(effective.Locks))
+	for key, lock := range effective.Locks {
+		var by any
+		if !lock.LockedBy.IsZero() {
+			by = lock.LockedBy.String()
+		}
+		locks[string(key)] = map[string]any{"origin": string(lock.Origin), "locked_by": by}
+	}
+	var preset any
+	if effective.Preset != "" {
+		preset = string(effective.Preset)
+	}
+	return map[string]any{
+		"preset":   preset,
+		"settings": structureValuesOutput(effective.Values),
+		"sources":  sources,
+		"locks":    locks,
+	}
+}
+
+// workspaceStructureOutput is the WorkspaceStructure schema: what the workspace resolves to, and the
+// preset a new hub starts from.
+func workspaceStructureOutput(effective domain.EffectiveStructure, workspace domain.WorkspaceStructure) map[string]any {
+	out := effectiveStructureOutput(effective)
+	out["default_preset"] = nil
+	if workspace.DefaultPreset != "" {
+		out["default_preset"] = string(workspace.DefaultPreset)
+	}
+	return out
+}

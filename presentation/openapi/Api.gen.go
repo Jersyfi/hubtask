@@ -1377,6 +1377,33 @@ func (e ConsentRegisterEntrySource) Valid() bool {
 	}
 }
 
+// Defines values for ContainerCreatePreset.
+const (
+	ContainerCreatePresetFLOW        ContainerCreatePreset = "FLOW"
+	ContainerCreatePresetLIST        ContainerCreatePreset = "LIST"
+	ContainerCreatePresetLessThannil ContainerCreatePreset = "<nil>"
+	ContainerCreatePresetPROJECT     ContainerCreatePreset = "PROJECT"
+	ContainerCreatePresetTASKS       ContainerCreatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the ContainerCreatePreset enum.
+func (e ContainerCreatePreset) Valid() bool {
+	switch e {
+	case ContainerCreatePresetFLOW:
+		return true
+	case ContainerCreatePresetLIST:
+		return true
+	case ContainerCreatePresetLessThannil:
+		return true
+	case ContainerCreatePresetPROJECT:
+		return true
+	case ContainerCreatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ContainerType.
 const (
 	ContainerTypeCOLLECTION ContainerType = "COLLECTION"
@@ -1620,6 +1647,33 @@ func (e DroppedReferenceKind) Valid() bool {
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for EffectiveStructurePreset.
+const (
+	EffectiveStructurePresetFLOW        EffectiveStructurePreset = "FLOW"
+	EffectiveStructurePresetLIST        EffectiveStructurePreset = "LIST"
+	EffectiveStructurePresetLessThannil EffectiveStructurePreset = "<nil>"
+	EffectiveStructurePresetPROJECT     EffectiveStructurePreset = "PROJECT"
+	EffectiveStructurePresetTASKS       EffectiveStructurePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the EffectiveStructurePreset enum.
+func (e EffectiveStructurePreset) Valid() bool {
+	switch e {
+	case EffectiveStructurePresetFLOW:
+		return true
+	case EffectiveStructurePresetLIST:
+		return true
+	case EffectiveStructurePresetLessThannil:
+		return true
+	case EffectiveStructurePresetPROJECT:
+		return true
+	case EffectiveStructurePresetTASKS:
 		return true
 	default:
 		return false
@@ -2996,6 +3050,7 @@ const (
 	PolicyLockINSTANCE    PolicyLock = "INSTANCE"
 	PolicyLockLessThannil PolicyLock = "<nil>"
 	PolicyLockPLAN        PolicyLock = "PLAN"
+	PolicyLockWORKSPACE   PolicyLock = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PolicyLock enum.
@@ -3007,6 +3062,8 @@ func (e PolicyLock) Valid() bool {
 		return true
 	case PolicyLockPLAN:
 		return true
+	case PolicyLockWORKSPACE:
+		return true
 	default:
 		return false
 	}
@@ -3014,16 +3071,22 @@ func (e PolicyLock) Valid() bool {
 
 // Defines values for PolicySource.
 const (
-	PolicySourceDEFAULT   PolicySource = "DEFAULT"
-	PolicySourceINSTANCE  PolicySource = "INSTANCE"
-	PolicySourcePLAN      PolicySource = "PLAN"
-	PolicySourceWORKSPACE PolicySource = "WORKSPACE"
+	PolicySourceCOLLECTION PolicySource = "COLLECTION"
+	PolicySourceDEFAULT    PolicySource = "DEFAULT"
+	PolicySourceHUB        PolicySource = "HUB"
+	PolicySourceINSTANCE   PolicySource = "INSTANCE"
+	PolicySourcePLAN       PolicySource = "PLAN"
+	PolicySourceWORKSPACE  PolicySource = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PolicySource enum.
 func (e PolicySource) Valid() bool {
 	switch e {
+	case PolicySourceCOLLECTION:
+		return true
 	case PolicySourceDEFAULT:
+		return true
+	case PolicySourceHUB:
 		return true
 	case PolicySourceINSTANCE:
 		return true
@@ -4158,6 +4221,27 @@ func (e StructureCountsFigure) Valid() bool {
 	}
 }
 
+// Defines values for StructureLockOrigin.
+const (
+	StructureLockOriginINSTANCE  StructureLockOrigin = "INSTANCE"
+	StructureLockOriginPLAN      StructureLockOrigin = "PLAN"
+	StructureLockOriginWORKSPACE StructureLockOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the StructureLockOrigin enum.
+func (e StructureLockOrigin) Valid() bool {
+	switch e {
+	case StructureLockOriginINSTANCE:
+		return true
+	case StructureLockOriginPLAN:
+		return true
+	case StructureLockOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingsCapture.
 const (
 	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
@@ -4809,6 +4893,60 @@ func (e WorkspaceHostState) Valid() bool {
 	case WorkspaceHostStatePENDING:
 		return true
 	case WorkspaceHostStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructureDefaultPreset.
+const (
+	WorkspaceStructureDefaultPresetFLOW        WorkspaceStructureDefaultPreset = "FLOW"
+	WorkspaceStructureDefaultPresetLIST        WorkspaceStructureDefaultPreset = "LIST"
+	WorkspaceStructureDefaultPresetLessThannil WorkspaceStructureDefaultPreset = "<nil>"
+	WorkspaceStructureDefaultPresetPROJECT     WorkspaceStructureDefaultPreset = "PROJECT"
+	WorkspaceStructureDefaultPresetTASKS       WorkspaceStructureDefaultPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureDefaultPreset enum.
+func (e WorkspaceStructureDefaultPreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureDefaultPresetFLOW:
+		return true
+	case WorkspaceStructureDefaultPresetLIST:
+		return true
+	case WorkspaceStructureDefaultPresetLessThannil:
+		return true
+	case WorkspaceStructureDefaultPresetPROJECT:
+		return true
+	case WorkspaceStructureDefaultPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructurePreset.
+const (
+	WorkspaceStructurePresetFLOW        WorkspaceStructurePreset = "FLOW"
+	WorkspaceStructurePresetLIST        WorkspaceStructurePreset = "LIST"
+	WorkspaceStructurePresetLessThannil WorkspaceStructurePreset = "<nil>"
+	WorkspaceStructurePresetPROJECT     WorkspaceStructurePreset = "PROJECT"
+	WorkspaceStructurePresetTASKS       WorkspaceStructurePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructurePreset enum.
+func (e WorkspaceStructurePreset) Valid() bool {
+	switch e {
+	case WorkspaceStructurePresetFLOW:
+		return true
+	case WorkspaceStructurePresetLIST:
+		return true
+	case WorkspaceStructurePresetLessThannil:
+		return true
+	case WorkspaceStructurePresetPROJECT:
+		return true
+	case WorkspaceStructurePresetTASKS:
 		return true
 	default:
 		return false
@@ -6393,10 +6531,13 @@ type Container struct {
 	Policies *ContainerPolicies `json:"policies,omitempty"`
 
 	// Private Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.
-	Private   *bool         `json:"private,omitempty"`
-	Type      ContainerType `json:"type"`
-	UpdatedAt *time.Time    `json:"updated_at,omitempty"`
-	Version   int           `json:"version"`
+	Private *bool `json:"private,omitempty"`
+
+	// Structure How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.
+	Structure *EffectiveStructure `json:"structure,omitempty"`
+	Type      ContainerType       `json:"type"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
+	Version   int                 `json:"version"`
 }
 
 // ContainerCreate defines model for ContainerCreate.
@@ -6407,10 +6548,16 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+	Preset *ContainerCreatePreset `json:"preset,omitempty"`
+
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
 	Private *bool         `json:"private,omitempty"`
 	Type    ContainerType `json:"type"`
 }
+
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+type ContainerCreatePreset string
 
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
@@ -6760,6 +6907,22 @@ type DuplicateResult struct {
 	DroppedReferences []DroppedReference `json:"dropped_references"`
 	Item              WorkItem           `json:"item"`
 }
+
+// EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
+type EffectiveStructure struct {
+	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
+	Locks  map[string]StructureLock  `json:"locks"`
+	Preset *EffectiveStructurePreset `json:"preset"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+
+	// Sources For each of the eight settings, the level its value comes from.
+	Sources map[string]PolicySource `json:"sources"`
+}
+
+// EffectiveStructurePreset defines model for EffectiveStructure.Preset.
+type EffectiveStructurePreset string
 
 // EncryptionKeyUsage defines model for EncryptionKeyUsage.
 type EncryptionKeyUsage struct {
@@ -10344,6 +10507,16 @@ type StructureLevelFields struct {
 	Capabilities []string `json:"capabilities"`
 }
 
+// StructureLock defines model for StructureLock.
+type StructureLock struct {
+	// LockedBy The account that set the lock, where a person did.
+	LockedBy *openapi_types.UUID `json:"locked_by,omitempty"`
+	Origin   StructureLockOrigin `json:"origin"`
+}
+
+// StructureLockOrigin defines model for StructureLock.Origin.
+type StructureLockOrigin string
+
 // StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
 	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
@@ -11368,8 +11541,11 @@ type Workspace struct {
 	Slug string `json:"slug"`
 
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
-	Status    WorkspaceStatus `json:"status"`
-	UpdatedAt *time.Time      `json:"updated_at,omitempty"`
+	Status WorkspaceStatus `json:"status"`
+
+	// Structure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
+	Structure *WorkspaceStructure `json:"structure,omitempty"`
+	UpdatedAt *time.Time          `json:"updated_at,omitempty"`
 
 	// Version The optimistic lock, as everywhere else.
 	Version int `json:"version"`
@@ -11411,6 +11587,24 @@ type WorkspacePasswordOpening struct {
 	// Until When the opening ends on its own.
 	Until time.Time `json:"until"`
 }
+
+// WorkspaceStructure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
+type WorkspaceStructure struct {
+	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
+	DefaultPreset *WorkspaceStructureDefaultPreset `json:"default_preset"`
+	Locks         map[string]StructureLock         `json:"locks"`
+	Preset        *WorkspaceStructurePreset        `json:"preset"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings       `json:"settings"`
+	Sources  map[string]PolicySource `json:"sources"`
+}
+
+// WorkspaceStructureDefaultPreset The preset a hub created without one starts from. Collections follow their hub.
+type WorkspaceStructureDefaultPreset string
+
+// WorkspaceStructurePreset defines model for WorkspaceStructure.Preset.
+type WorkspaceStructurePreset string
 
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {

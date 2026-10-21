@@ -692,6 +692,11 @@ func run() error {
 	privacyStore := postgres.NewPrivacyRepository(cursors)
 	lifecycleStore := postgres.NewLifecycleRepository()
 	profiles := postgres.NewCapabilityProfileRepository()
+	// One resolver of the structure in force, for every reader and writer of one (domain-model.md
+	// §2): a value read on one door is the value written on another.
+	structures := work.StructureResolver{
+		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
+	}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
@@ -1273,6 +1278,8 @@ func run() error {
 		// The hosts the workspace answers at. Read-only: nothing resolves a request
 		// through them yet.
 		Hosts: postgres.NewTenantHostRepository(),
+		// The workspace's structure, answered beside its sign-in rule.
+		Structure: work.WorkspaceStructureAnswer{Resolver: structures, UnitOfWork: unitOfWork},
 		// The ways in beside the password, so that the last one cannot be switched off.
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Authorizer: authorizer,
@@ -1940,6 +1947,7 @@ func run() error {
 			IDs:         ids,
 			HLC:         hybrid,
 			Text:        forms,
+			Structure:   structures,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items:        items,
@@ -2064,13 +2072,14 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
+			Structure: structures,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork,
+			UnitOfWork: unitOfWork, Structure: structures,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.GetWorkItem{
@@ -2590,6 +2599,8 @@ func run() error {
 				Devices: postgres.NewDeviceRepository(),
 				// The initial synchronisation reads the current state kind by kind.
 				Snapshot: postgres.NewSnapshotRepository(),
+				// A container's structure in force rides on its record, as on every read of it.
+				Structure: structures,
 			},
 			Signals: metrics,
 			// The push applies a device's queue through the catalogue as the pushing person:

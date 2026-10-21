@@ -167,6 +167,12 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 	if policy, held := out["sign_in_policy"].(usecase.Output); held {
 		answer.SignInPolicy = signInPolicyResponse(policy)
 	}
+	if structure, held := out["structure"]; held {
+		var answered openapi.WorkspaceStructure
+		if throughJSON(structure, &answered) == nil {
+			answer.Structure = &answered
+		}
+	}
 	if day := out.String("default_week_start"); day != "" {
 		weekStart := openapi.WorkspaceDefaultWeekStart(day)
 		answer.DefaultWeekStart = &weekStart

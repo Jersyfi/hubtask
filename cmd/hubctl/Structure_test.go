@@ -16,6 +16,32 @@ const presetsAnswer = `[
     "views":{"offered":["KANBAN","LIST_COLLAPSED"],"default":"KANBAN"}}}
 ]`
 
+// `--preset` names the preset a container starts from; a key that is not one is refused before
+// anything is sent.
+func TestCreatingAContainerFromAPresetSendsItsKey(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"id":"01936f2a-7c1e-7000-8000-0000000000a1","type":"HUB",
+			"name":"Groceries","version":1}`))
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"container", "create", "--type", "HUB", "--name", "Groceries", "--preset", "LIST")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"preset":"LIST"`) {
+		t.Errorf("the body %q does not name the preset", stub.body)
+	}
+
+	code, _, _ = invokeAgainst(t, stub, signedIn(stub), "",
+		"container", "create", "--type", "HUB", "--name", "Groceries", "--preset", "SHOPPING")
+	if code == exitOK {
+		t.Error("an unknown preset was sent")
+	}
+}
+
 func TestListingPresetsShowsTheirLevelsAndViews(t *testing.T) {
 	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")

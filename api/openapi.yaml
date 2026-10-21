@@ -11749,6 +11749,8 @@ components:
             How people in this workspace prove who they are. Absent on an installation
             with no instance layer, where there is no level above to resolve against - a screen that
             drew eighteen rows it could not save would be a screen that lies about what it offers.
+        structure:
+          $ref: "#/components/schemas/WorkspaceStructure"
         hosts:
           type: array
           readOnly: true
@@ -11866,7 +11868,7 @@ components:
 
     PolicySource:
       type: string
-      enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE]
+      enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE, HUB, COLLECTION]
       description: >
         Where a value in force came from: Hubtask's own default, the installation, the plan, or this
         workspace. A screen says it beside every rule, so nobody meets a value
@@ -11875,7 +11877,7 @@ components:
 
     PolicyLock:
       type: [string, "null"]
-      enum: [INSTANCE, PLAN, null]
+      enum: [INSTANCE, PLAN, WORKSPACE, null]
       description: >
         Where a lock came from, or null where there is none. The origin is answered rather than a
         bare boolean because "ask your administrator" and "ask your provider" are different
@@ -14792,6 +14794,13 @@ components:
             Whether this hub is private: reached only by people holding a role on it or below it,
             not by the workspace's own roles - its owners and administrators included. Always
             false on a collection, which shares its hub's privacy.
+        structure:
+          $ref: "#/components/schemas/EffectiveStructure"
+          description: >
+            How much structure this hub or collection has, setting by setting, with where each value
+            comes from and which are locked. Answered by every read of the container, by its
+            creation and by a change of its structure; the answer to another change may leave it
+            out.
 
     ContainerCreate:
       type: object
@@ -14812,6 +14821,13 @@ components:
             the workspace may create one, without the right to create shared hubs, and becomes its
             owner. A service account may not. Refused on a collection
             (`containers.private_only_hubs`).
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: >
+            The preset the new hub or collection starts from; its values are copied. A collection
+            given its hub's preset, or none, follows its hub instead and stores nothing of its own. A
+            hub given none starts from the workspace's default preset where one is set.
 
     ContainerUpdate:
       type: object
@@ -14954,6 +14970,65 @@ components:
         field_key:
           type: [string, "null"]
           maxLength: 64
+
+    EffectiveStructure:
+      type: object
+      description: >
+        The structure in force: every setting's value, where it came from (Hubtask's default, the
+        installation, the workspace, the hub, this collection), and which settings are locked, by
+        whom. A locked setting is answered with its value, not withheld; writing it is refused with
+        `structure.setting_locked`. `preset` is where the nearest layer's values were copied from -
+        provenance only.
+      required: [preset, settings, sources, locks]
+      properties:
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        sources:
+          type: object
+          description: For each of the eight settings, the level its value comes from.
+          additionalProperties: { $ref: "#/components/schemas/PolicySource" }
+        locks:
+          type: object
+          description: >
+            The locks in force, keyed by a setting (`views`) or by one capability of one type
+            (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
+          additionalProperties: { $ref: "#/components/schemas/StructureLock" }
+
+    StructureLock:
+      type: object
+      required: [origin]
+      properties:
+        origin:
+          type: string
+          enum: [INSTANCE, PLAN, WORKSPACE]
+        locked_by:
+          type: [string, "null"]
+          format: uuid
+          description: The account that set the lock, where a person did.
+
+    WorkspaceStructure:
+      type: object
+      description: >
+        The workspace's own structure: the values every hub and collection inherits unless it has
+        its own, the locks that bind them all, and the preset a new hub starts from.
+      required: [preset, settings, sources, locks, default_preset]
+      properties:
+        preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        sources:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/PolicySource" }
+        locks:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/StructureLock" }
+        default_preset:
+          type: [string, "null"]
+          enum: [LIST, TASKS, PROJECT, FLOW, null]
+          description: The preset a hub created without one starts from. Collections follow their hub.
 
     Preset:
       type: object
