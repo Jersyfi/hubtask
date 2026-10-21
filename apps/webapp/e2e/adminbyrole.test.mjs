@@ -60,7 +60,7 @@ const TENANT = {
  */
 const SCREENS = [
   { path: '/administration/workspace', buttons: ['Save'], gates: ['STRUCTURE'] },
-  { path: '/administration/sign-in', buttons: ['Save', 'Require a new password from everyone'], gates: ['STRUCTURE'] },
+  { path: '/administration/sign-in', buttons: ['Require a new password from everyone'], gates: ['STRUCTURE'] },
   { path: '/administration/identity-provider', buttons: ['Add a provider'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/apps', buttons: ['Register it'], gates: ['MANAGE_MEMBERS'] },
   { path: '/administration/groups', buttons: ['Create the group'], gates: ['MANAGE_MEMBERS'] },

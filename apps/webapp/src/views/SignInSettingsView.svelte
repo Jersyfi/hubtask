@@ -53,7 +53,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
@@ -63,9 +63,12 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { signInPolicy, type LockOrigin, type PolicySource, type Setting } from '../lib/data/signinpolicy.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { enterSubmits } from '../lib/forms/enter.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -93,9 +96,10 @@
    * workspace has now decided for itself: posting the whole form would pin all eighteen to
    * whatever they happened to be, which is not what somebody who moved one of them asked for.
    */
-  let baseline: Record<string, unknown> = {};
+  let baseline = $state<Record<string, unknown>>({});
   let filled = false;
   let confirming = $state(false);
+  let form = $state<HTMLFormElement | undefined>(undefined);
 
   $effect(() => {
     if (!policy || filled) return;
@@ -158,18 +162,16 @@
   }
 
   /**
-   * Where a link comes from, said under its field: nothing where it is locked (the field says who
-   * locked it), the installation's where this workspace set none, the installation's beside the
-   * workspace's own where both are set, or that nobody set one and the footer shows none (UC-ID-18
-   * checks 1 to 3).
+   * What applies above a link, said beside its field next to the source chip: nothing where it is
+   * locked (the field shows the installation's link and the chip its lock), the installation's
+   * beside the workspace's own where both are set, the installation's where this workspace set
+   * none, or that nobody set one and the footer shows none (UC-ID-18 checks 1 to 3).
    */
   function linkOrigin(setting: Setting<string>, own: string): string {
     if (setting.lock !== null) return '';
     const inherited = setting.installation_source !== 'DEFAULT' && setting.installation !== '';
     if (own.trim() !== '') {
-      return inherited
-        ? `${t('app.signin_settings.source_workspace')} ${aboveValue(setting.installation_source, setting.installation)}`
-        : t('app.signin_settings.source_workspace');
+      return inherited ? aboveValue(setting.installation_source, setting.installation) : '';
     }
     if (!inherited) return t('app.signin_settings.link_none');
     return setting.installation_source === 'PLAN'
@@ -210,23 +212,22 @@
       : t('app.signin_settings.required_above');
   }
 
-  /** Where a rule's value came from, said in a sentence; the installation's value beside it where it decided one. */
+  /**
+   * The level above's value beside a rule this workspace set itself - "Installation: 12" - so an
+   * administrator sees what applies before overriding it (UC-ID-12's story). Where the value in
+   * force is the level above's, the control already shows it and the chip says whose it is.
+   */
   function originOf<T>(setting: Setting<T>, shown: (value: T) => string): string {
-    if (setting.lock !== null) return '';
-    const above = setting.installation_source === 'DEFAULT'
-      ? ''
-      : ` ${aboveValue(setting.installation_source, shown(setting.installation))}`;
-    switch (setting.source) {
-      case 'WORKSPACE': return `${t('app.signin_settings.source_workspace')}${above}`;
-      case 'INSTANCE': return t('app.signin_settings.source_installation');
-      case 'PLAN': return t('app.signin_settings.source_plan');
-      default: return t('app.signin_settings.source_default');
-    }
+    if (setting.lock !== null || setting.source !== 'WORKSPACE' || setting.installation_source === 'DEFAULT') return '';
+    return aboveValue(setting.installation_source, shown(setting.installation));
   }
 
   /** A number as a reader says it: zero is the word for "off", not the digit. */
   const amount = (value: number): string => (value === 0 ? t('app.signin_settings.off') : String(value));
   const yesNo = (value: boolean): string => (value ? t('app.signin_settings.on') : t('app.signin_settings.off'));
+  /** Whether the password, or passkeys, are among the ways in, as a reader says it. */
+  const passwordWord = (methods: readonly string[]): string => yesNo(methods.includes('PASSWORD'));
+  const passkeyWord = (methods: readonly string[]): string => yesNo(methods.includes('PASSKEY'));
   const mfaLabel = (value: string): string =>
     value === 'EVERYONE' ? t('app.signin_settings.mfa_everyone')
       : value === 'ADMINS' ? t('app.signin_settings.mfa_admins')
@@ -264,21 +265,26 @@
   /** Whether "empty is off" is a choice here: not where the installation set a value, because off is looser. */
   const mayBeOff = (setting: Setting<number>): boolean => setting.installation === 0;
 
+  /** How many rules moved: the save bar's count, and whether it is there at all. */
+  const changedCount = $derived(Object.keys(moved()).length);
+
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const changes = moved();
-    if (Object.keys(changes).length === 0) {
-      // Nothing to send. A `PATCH` of nothing would answer a success banner for a save that did
-      // not happen, and would ask for the step-up on the way to doing nothing.
-      announcer.say(t('app.signin_settings.unchanged'));
-      return;
-    }
+    // Nothing to send - Enter in an untouched field. A `PATCH` of nothing would ask for the
+    // step-up on the way to doing nothing.
+    if (Object.keys(changes).length === 0) return;
     if (await signInPolicy.save(changes)) {
       // From the answer rather than from the draft: what is in force is the server's word, and a
       // value it bounded is a value this form has to show.
       fill();
-      announcer.say(t('app.signin_settings.saved'));
+      toast.show({ text: t('app.signin_settings.saved'), tone: 'success' });
     }
+  }
+
+  /** The rules back as they were read. */
+  function discard(): void {
+    draft = { ...baseline };
   }
 
   // The ways in, and how many of them are on. The last one on cannot be switched off.
@@ -345,7 +351,7 @@
   async function switchMethods(id: 'password' | 'passkey', methods: readonly string[]): Promise<void> {
     switching = id;
     wayFailure = undefined;
-    const problem = await signInPolicy.saveMethods(methods);
+    const problem = await signInPolicy.saveAtOnce({ methods });
     switching = undefined;
     if (problem) wayFailure = { id, problem };
   }
@@ -392,10 +398,14 @@
 
 </script>
 
-{#snippet origin(text: string)}
-  <!-- Where the value came from, under the control it is about. A locked rule has none: its
-       control already says who locked it, as its reason, and saying it twice reads as two facts. -->
-  {#if text}<p class="origin" data-origin>{text}</p>{/if}
+{#snippet origin(setting: { readonly source: string; readonly lock: string | null }, shown: string, above: string)}
+  <!-- Where the value comes from, at the control it is about: the one chip every administration
+       screen draws (UC-WRK-32 check 5), and beside it the level above's value where this workspace
+       set its own. -->
+  <p class="origin" data-origin>
+    <ValueSource source={setting.source} lock={setting.lock} value={shown} />
+    {#if above}<span>{above}</span>{/if}
+  </p>
 {/snippet}
 
 {#snippet countRow(key: string, setting: Setting<number>, label: string, hint?: string, bounds: { min?: number; max?: number } = { min: setting.installation }, emptyIsOff = false)}
@@ -415,7 +425,7 @@
       disabledReason={lockedBecause(setting.lock)}
       error={refusalOf(key)}
     />
-    {@render origin(originOf(setting, amount))}
+    {@render origin(setting, amount(setting.value), originOf(setting, amount))}
   </div>
 {/snippet}
 
@@ -429,7 +439,7 @@
       disabledReason={requiredAbove(setting)}
     />
     {#if refusalOf(key)}<p class="refusal" role="alert">{refusalOf(key)}</p>{/if}
-    {@render origin(originOf(setting, yesNo))}
+    {@render origin(setting, yesNo(setting.value), originOf(setting, yesNo))}
   </div>
 {/snippet}
 
@@ -445,7 +455,7 @@
         disabledReason={lockedBecause(policy.legal[key].lock)}
         error={refusalOf(key)}
       />
-      {@render origin(linkOrigin(policy.legal[key], String(draft[key] ?? '')))}
+      {@render origin(policy.legal[key], policy.legal[key].value || t('app.source.nothing'), linkOrigin(policy.legal[key], String(draft[key] ?? '')))}
     </div>
   {/if}
 {/snippet}
@@ -498,12 +508,10 @@
         <Banner tone="danger" title={general.message}>
           {#if general.reference}{general.reference}{/if}
         </Banner>
-      {:else if signInPolicy.wasSaved}
-        <Banner tone="success">{t('app.signin_settings.saved')}</Banner>
       {/if}
 
       <WorkspaceGate permission="STRUCTURE">
-        <form onsubmit={save}>
+        <form bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="300">
             <section class="panel">
               <Stack gap="200">
@@ -546,7 +554,7 @@
                     disabledReason={lockedBecause(policy.mfa_required_for.lock)}
                     error={refusalOf('mfa_required_for')}
                   />
-                  {@render origin(originOf(policy.mfa_required_for, mfaLabel))}
+                  {@render origin(policy.mfa_required_for, mfaLabel(policy.mfa_required_for.value), originOf(policy.mfa_required_for, mfaLabel))}
                 </div>
               </Stack>
             </section>
@@ -568,7 +576,7 @@
                         (managed.installation ? undefined : t('app.signin_settings.managed_off_above'))}
                     />
                     {#if refusalOf('managed_accounts')}<p class="refusal" role="alert">{refusalOf('managed_accounts')}</p>{/if}
-                    {@render origin(originOf(managed, yesNo))}
+                    {@render origin(managed, yesNo(managed.value), originOf(managed, yesNo))}
                   </div>
                 </Stack>
               </section>
@@ -605,7 +613,7 @@
                       error={refusalOf('terms_version')}
                       maxlength={64}
                     />
-                    {@render origin(linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
+                    {@render origin(policy.legal.terms_version, policy.legal.terms_version.value || t('app.source.nothing'), linkOrigin(policy.legal.terms_version, String(draft['terms_version'] ?? '')))}
                   </div>
                 {/if}
                 <!-- The fourth link, which the sign-in footer shows: without this row a workspace
@@ -614,14 +622,19 @@
               </Stack>
             </section>
 
-            <WriteOnly>
-              <div>
-                <Button type="submit" tone="primary" isBusy={signInPolicy.isWorking} busyLabel={t('app.workspace.saving')}>
-                  {t('app.workspace.save')}
-                </Button>
-              </div>
-            </WriteOnly>
           </Stack>
+          <WriteOnly>
+            <SaveBar
+              label={t('app.save_bar.label')}
+              changesLabel={changedCount > 0 ? t('app.save_bar.changes', { count: String(changedCount) }) : undefined}
+              discardLabel={t('app.save_bar.discard')}
+              saveLabel={t('app.workspace.save')}
+              isSaving={signInPolicy.isWorking}
+              savingLabel={t('app.workspace.saving')}
+              onDiscard={discard}
+              onSave={() => form?.requestSubmit()}
+            />
+          </WriteOnly>
         </form>
       </WorkspaceGate>
 
@@ -674,7 +687,7 @@
                 </p>
               {/if}
               {#if wayFailure && wayFailure.id === 'password'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-              {@render origin(originOf(policy.methods, (value) => (value.includes('PASSWORD') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+              {@render origin(policy.methods, passwordWord(policy.methods.value), originOf(policy.methods, passwordWord))}
             </li>
             <li class="way" data-rule inert={!mayRule}>
               <Switch
@@ -687,7 +700,7 @@
                 disabledReason={passkeyFixed()}
               />
               {#if wayFailure && wayFailure.id === 'passkey'}<p class="refusal" role="alert">{wayFailure.problem.message}</p>{/if}
-              {@render origin(originOf(policy.methods, (value) => (value.includes('PASSKEY') ? t('app.signin_settings.on') : t('app.signin_settings.off'))))}
+              {@render origin(policy.methods, passkeyWord(policy.methods.value), originOf(policy.methods, passkeyWord))}
             </li>
             {#each providers as one (one.id)}
               <li class="way" data-rule inert={!mayOffer}>
