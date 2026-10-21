@@ -1883,22 +1883,22 @@ func (e HealthReportMigrationStatus) Valid() bool {
 
 // Defines values for HealthReportRole.
 const (
-	Api        HealthReportRole = "api"
-	Automation HealthReportRole = "automation"
-	Scheduler  HealthReportRole = "scheduler"
-	Worker     HealthReportRole = "worker"
+	HealthReportRoleApi        HealthReportRole = "api"
+	HealthReportRoleAutomation HealthReportRole = "automation"
+	HealthReportRoleScheduler  HealthReportRole = "scheduler"
+	HealthReportRoleWorker     HealthReportRole = "worker"
 )
 
 // Valid indicates whether the value is a known member of the HealthReportRole enum.
 func (e HealthReportRole) Valid() bool {
 	switch e {
-	case Api:
+	case HealthReportRoleApi:
 		return true
-	case Automation:
+	case HealthReportRoleAutomation:
 		return true
-	case Scheduler:
+	case HealthReportRoleScheduler:
 		return true
-	case Worker:
+	case HealthReportRoleWorker:
 		return true
 	default:
 		return false
@@ -4194,6 +4194,30 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangePreset.
+const (
+	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
+	StructureChangePresetLIST    StructureChangePreset = "LIST"
+	StructureChangePresetPROJECT StructureChangePreset = "PROJECT"
+	StructureChangePresetTASKS   StructureChangePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangePreset enum.
+func (e StructureChangePreset) Valid() bool {
+	switch e {
+	case StructureChangePresetFLOW:
+		return true
+	case StructureChangePresetLIST:
+		return true
+	case StructureChangePresetPROJECT:
+		return true
+	case StructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureCountsFigure.
 const (
 	StructureCountsFigureDUE      StructureCountsFigure = "DUE"
@@ -4242,6 +4266,42 @@ func (e StructureLockOrigin) Valid() bool {
 	case StructureLockOriginPLAN:
 		return true
 	case StructureLockOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingName.
+const (
+	StructureSettingNameAutomation  StructureSettingName = "automation"
+	StructureSettingNameCapture     StructureSettingName = "capture"
+	StructureSettingNameCelebration StructureSettingName = "celebration"
+	StructureSettingNameCompletion  StructureSettingName = "completion"
+	StructureSettingNameCounts      StructureSettingName = "counts"
+	StructureSettingNameFields      StructureSettingName = "fields"
+	StructureSettingNameLevels      StructureSettingName = "levels"
+	StructureSettingNameViews       StructureSettingName = "views"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingName enum.
+func (e StructureSettingName) Valid() bool {
+	switch e {
+	case StructureSettingNameAutomation:
+		return true
+	case StructureSettingNameCapture:
+		return true
+	case StructureSettingNameCelebration:
+		return true
+	case StructureSettingNameCompletion:
+		return true
+	case StructureSettingNameCounts:
+		return true
+	case StructureSettingNameFields:
+		return true
+	case StructureSettingNameLevels:
+		return true
+	case StructureSettingNameViews:
 		return true
 	default:
 		return false
@@ -6526,12 +6586,15 @@ type Container struct {
 	Description *string    `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool               `json:"effective_archived,omitempty"`
-	Icon              *string             `json:"icon,omitempty"`
-	Id                openapi_types.UUID  `json:"id"`
-	Name              string              `json:"name"`
-	OrderKey          *string             `json:"order_key,omitempty"`
-	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
+	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
+	Icon              *string            `json:"icon,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
+	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
+	Name       string              `json:"name"`
+	OrderKey   *string             `json:"order_key,omitempty"`
+	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
@@ -10489,6 +10552,18 @@ type StepUpRequest struct {
 	State *string `json:"state,omitempty"`
 }
 
+// StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
+type StructureChange struct {
+	Preset *StructureChangePreset  `json:"preset,omitempty"`
+	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// StructureChangePreset defines model for StructureChange.Preset.
+type StructureChangePreset string
+
 // StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
@@ -10522,6 +10597,9 @@ type StructureLock struct {
 
 // StructureLockOrigin defines model for StructureLock.Origin.
 type StructureLockOrigin string
+
+// StructureSettingName defines model for StructureSettingName.
+type StructureSettingName string
 
 // StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
@@ -12213,6 +12291,12 @@ type SetHubPrivacyParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetContainerStructureParams defines parameters for SetContainerStructure.
+type SetContainerStructureParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13210,6 +13294,9 @@ type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 
 // SetHubPrivacyJSONRequestBody defines body for SetHubPrivacy for application/json ContentType.
 type SetHubPrivacyJSONRequestBody = HubPrivacy
+
+// SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
+type SetContainerStructureJSONRequestBody = StructureChange
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
@@ -16082,6 +16169,18 @@ type ClientInterface interface {
 	//
 	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
 	SetHubPrivacy(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
@@ -23470,6 +23569,38 @@ func (c *Client) SetHubPrivacyWithBody(ctx context.Context, containerId Containe
 // Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
 func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetHubPrivacyRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetContainerStructureRequestWithBody(c.Server, containerId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -35921,6 +36052,68 @@ func NewSetHubPrivacyRequestWithBody(server string, containerId ContainerId, par
 	return req, nil
 }
 
+// NewSetContainerStructureRequest calls the generic SetContainerStructure builder with application/json body
+func NewSetContainerStructureRequest(server string, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetContainerStructureRequestWithBody(server, containerId, params, "application/json", bodyReader)
+}
+
+// NewSetContainerStructureRequestWithBody constructs an http.Request for the SetContainerStructure method, with any body, and a specified content type
+func NewSetContainerStructureRequestWithBody(server string, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/structure", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewArchiveContainerRequest constructs an http.Request for the ArchiveContainer method
 func NewArchiveContainerRequest(server string, containerId ContainerId, params *ArchiveContainerParams) (*http.Request, error) {
 	var err error
@@ -47494,6 +47687,20 @@ type ClientWithResponsesInterface interface {
 	// Makes a hub private - reached only by people holding a role on it, on a collection in it or on an entry in one, and no longer by the workspace's own roles, its owners and administrators included - or shared again. Making it private needs the right to create hubs and the role OWNER on the hub itself; sharing it again needs OWNER on the hub. A hub nobody may see answers not found. Refused with `containers.private_hub_has_groups` while a group holds a role in the hub, and with `containers.private_only_hubs` on a collection. Every device that loses the hub is told. Writing what is already stored changes nothing.
 	SetHubPrivacyWithResponse(ctx context.Context, containerId ContainerId, params *SetHubPrivacyParams, body SetHubPrivacyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetHubPrivacyResult, error)
 
+	// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
+
+	// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
+
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -58316,6 +58523,61 @@ func (r SetHubPrivacyResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetHubPrivacyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// SetContainerStructureResult200Headers the declared response headers of an HTTP 200 response for SetContainerStructure
+type SetContainerStructureResult200Headers struct {
+	ETag *string
+}
+
+type SetContainerStructureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Container
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *SetContainerStructureResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetContainerStructureResult) GetJSON200() *Container {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetContainerStructureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetContainerStructureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetContainerStructureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetContainerStructureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetContainerStructureResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -71344,6 +71606,32 @@ func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, con
 	return ParseSetHubPrivacyResult(rsp)
 }
 
+// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
+	rsp, err := c.SetContainerStructureWithBody(ctx, containerId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetContainerStructureResult(rsp)
+}
+
+// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
+	rsp, err := c.SetContainerStructure(ctx, containerId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetContainerStructureResult(rsp)
+}
+
 // ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 //
 // Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -81228,6 +81516,52 @@ func ParseSetHubPrivacyResult(rsp *http.Response) (*SetHubPrivacyResult, error) 
 	switch {
 	case rsp.StatusCode == 200:
 		var headers SetHubPrivacyResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseSetContainerStructureResult parses an HTTP response from a SetContainerStructureWithResponse call
+func ParseSetContainerStructureResult(rsp *http.Response) (*SetContainerStructureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetContainerStructureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Container
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers SetContainerStructureResult200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {

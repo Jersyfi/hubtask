@@ -15,7 +15,8 @@ import (
 
 // The structure use cases: presets and the settings of hubs, collections and the workspace.
 const (
-	listPresetsUseCase = "ListPresets"
+	listPresetsUseCase           = "ListPresets"
+	setContainerStructureUseCase = "SetContainerStructure"
 )
 
 // ListPresets answers GET /presets.
@@ -43,6 +44,79 @@ func (c *RestController) ListPresets(w http.ResponseWriter, r *http.Request) {
 		presets = append(presets, preset)
 	}
 	writeJSON(w, r, http.StatusOK, presets)
+}
+
+// SetContainerStructure answers PATCH /containers/{containerId}/structure.
+//
+// The body is decoded into the generated type first, so an unknown key is refused here as on every
+// other route; the settings then travel to the catalogue in the contract's words, the same document
+// an MCP client sends.
+func (c *RestController) SetContainerStructure(
+	w http.ResponseWriter, r *http.Request,
+	containerID openapi.ContainerId, params openapi.SetContainerStructureParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.StructureChange
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in, err := structureChangeInput(body)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in["container_id"] = containerID.String()
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), setContainerStructureUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	answer := containerResponse(out)
+	if kept, held := out["kept_by_lock"].([]any); held {
+		keys := make([]string, 0, len(kept))
+		for _, key := range kept {
+			if text, ok := key.(string); ok {
+				keys = append(keys, text)
+			}
+		}
+		answer.KeptByLock = &keys
+	}
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// structureChangeInput is a structure change as the catalogue reads it: the preset, the settings as
+// a document, and the settings to reset.
+func structureChangeInput(body openapi.StructureChange) (usecase.Input, error) {
+	in := usecase.Input{}
+	if body.Preset != nil {
+		in["preset"] = string(*body.Preset)
+	}
+	if body.Settings != nil {
+		var settings map[string]any
+		if err := throughJSON(body.Settings, &settings); err != nil {
+			return nil, err
+		}
+		in["settings"] = settings
+	}
+	if body.Reset != nil {
+		reset := make([]any, 0, len(*body.Reset))
+		for _, name := range *body.Reset {
+			reset = append(reset, string(name))
+		}
+		in["reset"] = reset
+	}
+	return in, nil
 }
 
 // throughJSON maps a catalogue output onto a generated schema by its JSON spelling. Used for the

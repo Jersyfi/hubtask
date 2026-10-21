@@ -229,6 +229,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.read` | ListContainers | `container` | INFO | When refused |
 | `container.renamed` | RenameContainer | `container` | INFO | Every time |
 | `container.restored` | RestoreContainer | `container` | NOTICE | Every time |
+| `container.structure_updated` | SetContainerStructure | `container` | INFO | Every time |
 | `container.unarchived` | UnarchiveContainer | `container` | INFO | Every time |
 
 ## Data: media

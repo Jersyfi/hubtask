@@ -10163,6 +10163,57 @@
         }
       }
     },
+    "/containers/{containerId}/structure": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "setContainerStructure",
+        "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StructureChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated, with the structure in force",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Container"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}/privacy": {
       "parameters": [
         {
@@ -20460,6 +20511,13 @@
           "structure": {
             "$ref": "#/components/schemas/EffectiveStructure",
             "description": "How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.\n"
+          },
+          "kept_by_lock": {
+            "type": "array",
+            "description": "On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.\n",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -20750,6 +20808,44 @@
             "maxLength": 64
           }
         }
+      },
+      "StructureChange": {
+        "type": "object",
+        "description": "A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.\n",
+        "properties": {
+          "preset": {
+            "type": "string",
+            "enum": [
+              "LIST",
+              "TASKS",
+              "PROJECT",
+              "FLOW"
+            ]
+          },
+          "settings": {
+            "$ref": "#/components/schemas/StructureSettings"
+          },
+          "reset": {
+            "type": "array",
+            "maxItems": 8,
+            "items": {
+              "$ref": "#/components/schemas/StructureSettingName"
+            }
+          }
+        }
+      },
+      "StructureSettingName": {
+        "type": "string",
+        "enum": [
+          "levels",
+          "fields",
+          "views",
+          "counts",
+          "completion",
+          "capture",
+          "celebration",
+          "automation"
+        ]
       },
       "EffectiveStructure": {
         "type": "object",

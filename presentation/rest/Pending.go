@@ -1506,3 +1506,9 @@ func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadU
 func (pending) ListPresets(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) SetContainerStructure(
+	w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.SetContainerStructureParams,
+) {
+	notAvailable(w, r)
+}

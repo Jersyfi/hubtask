@@ -1454,6 +1454,7 @@ class Container(TypedDict, total=False):
     version: Required[int]
     private: bool
     structure: "EffectiveStructure"
+    kept_by_lock: list[str]
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1508,6 +1509,14 @@ class StructureCounts(TypedDict, total=False):
     """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
     figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
     field_key: str | None
+
+class StructureChange(TypedDict, total=False):
+    """A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets."""
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    reset: list["StructureSettingName"]
+
+StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"]
 
 class EffectiveStructure(TypedDict, total=False):
     """The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only."""

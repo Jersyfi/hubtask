@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
 func listPresetsAnswer() usecase.Output {
@@ -103,5 +104,75 @@ func TestACreateNamesItsPreset(t *testing.T) {
 	containerRequest(t, registry, http.MethodPost, "/containers", `{"type":"HUB","name":"Home"}`, "")
 	if registry.in["preset"] != nil {
 		t.Errorf("an absent preset reached the catalogue as %v", registry.in["preset"])
+	}
+}
+
+// A structure change reaches the catalogue as the contract wrote it: the preset, the settings as a
+// document, the resets by name, and the version from If-Match. The answer carries the new ETag and
+// the locks that kept a value.
+func TestAStructureChangeReachesTheCatalogueAsSent(t *testing.T) {
+	answer := renamedContainer()
+	answer["structure"] = structureAnswer()
+	answer["kept_by_lock"] = []any{"celebration"}
+	registry := &catalogue{out: answer}
+
+	recorder := containerRequest(t, registry, http.MethodPatch, "/containers/"+containerID+"/structure",
+		`{"preset":"LIST","settings":{"views":{"offered":["KANBAN"],"default":"KANBAN"},"capture":[]},"reset":["counts"]}`,
+		`"3"`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SetContainerStructure" || registry.in["preset"] != "LIST" ||
+		registry.in["expected_version"] != 3 || registry.in["container_id"] != containerID {
+		t.Errorf("in = %v", registry.in)
+	}
+	settings, _ := registry.in["settings"].(map[string]any)
+	views, _ := settings["views"].(map[string]any)
+	if views["default"] != "KANBAN" {
+		t.Errorf("settings = %v", settings)
+	}
+	// An empty list is a value - "recognise nothing" - and must arrive as one, not vanish.
+	if capture, held := settings["capture"].([]any); !held || len(capture) != 0 {
+		t.Errorf("capture = %v", settings["capture"])
+	}
+	if reset, _ := registry.in["reset"].([]any); len(reset) != 1 || reset[0] != "counts" {
+		t.Errorf("reset = %v", registry.in["reset"])
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"4"` {
+		t.Errorf("ETag = %q", tag)
+	}
+	var body map[string]any
+	_ = json.Unmarshal(recorder.Body.Bytes(), &body)
+	if kept, _ := body["kept_by_lock"].([]any); len(kept) != 1 || kept[0] != "celebration" {
+		t.Errorf("kept_by_lock = %v", body["kept_by_lock"])
+	}
+}
+
+// UC-WRK-23 check 5 at the door: a widening answers 422 capability_not_supported, and an unknown
+// setting in the body is refused before the catalogue is asked.
+func TestAWideningAnswers422AndAnUnknownSettingNeverReachesTheCatalogue(t *testing.T) {
+	registry := &catalogue{err: shared.ErrCapabilityNotSupported.WithDetail("structure.widens").
+		WithParams(map[string]string{"setting": "fields", "item_type": "ACTIVITY", "capability": "NOTES"})}
+
+	recorder := containerRequest(t, registry, http.MethodPatch, "/containers/"+containerID+"/structure",
+		`{"settings":{"fields":{"ACTIVITY":{"capabilities":["COMPLETION","NOTES"]}}}}`, "")
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+	var problem map[string]any
+	_ = json.Unmarshal(recorder.Body.Bytes(), &problem)
+	if problem["code"] != "capability_not_supported" || problem["detail_code"] != "structure.widens" {
+		t.Errorf("problem = %v", problem)
+	}
+
+	untouched := &catalogue{out: renamedContainer()}
+	recorder = containerRequest(t, untouched, http.MethodPatch, "/containers/"+containerID+"/structure",
+		`{"settings":{"colour":"red"}}`, "")
+	if recorder.Code != http.StatusBadRequest && recorder.Code != http.StatusUnprocessableEntity {
+		t.Errorf("status = %d", recorder.Code)
+	}
+	if untouched.invoked {
+		t.Error("an unknown setting reached the catalogue")
 	}
 }

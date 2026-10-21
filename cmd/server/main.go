@@ -1992,6 +1992,9 @@ func run() error {
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
+		work.SetContainerStructure{
+			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
+		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

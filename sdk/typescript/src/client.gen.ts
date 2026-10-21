@@ -1505,6 +1505,11 @@ export class HubtaskClient {
     return this.call("PUT", "/containers/{containerId}/policies", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** PATCH /containers/{containerId}/structure */
+  setContainerStructure(containerId: string, body: NonNullable<operations["setContainerStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setContainerStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/containers/{containerId}/structure", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** PUT /containers/{containerId}/privacy */
   setHubPrivacy(containerId: string, body: NonNullable<operations["setHubPrivacy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setHubPrivacy"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/privacy", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

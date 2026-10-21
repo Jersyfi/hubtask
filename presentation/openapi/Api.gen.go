@@ -1877,22 +1877,22 @@ func (e HealthReportMigrationStatus) Valid() bool {
 
 // Defines values for HealthReportRole.
 const (
-	Api        HealthReportRole = "api"
-	Automation HealthReportRole = "automation"
-	Scheduler  HealthReportRole = "scheduler"
-	Worker     HealthReportRole = "worker"
+	HealthReportRoleApi        HealthReportRole = "api"
+	HealthReportRoleAutomation HealthReportRole = "automation"
+	HealthReportRoleScheduler  HealthReportRole = "scheduler"
+	HealthReportRoleWorker     HealthReportRole = "worker"
 )
 
 // Valid indicates whether the value is a known member of the HealthReportRole enum.
 func (e HealthReportRole) Valid() bool {
 	switch e {
-	case Api:
+	case HealthReportRoleApi:
 		return true
-	case Automation:
+	case HealthReportRoleAutomation:
 		return true
-	case Scheduler:
+	case HealthReportRoleScheduler:
 		return true
-	case Worker:
+	case HealthReportRoleWorker:
 		return true
 	default:
 		return false
@@ -4188,6 +4188,30 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangePreset.
+const (
+	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
+	StructureChangePresetLIST    StructureChangePreset = "LIST"
+	StructureChangePresetPROJECT StructureChangePreset = "PROJECT"
+	StructureChangePresetTASKS   StructureChangePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangePreset enum.
+func (e StructureChangePreset) Valid() bool {
+	switch e {
+	case StructureChangePresetFLOW:
+		return true
+	case StructureChangePresetLIST:
+		return true
+	case StructureChangePresetPROJECT:
+		return true
+	case StructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureCountsFigure.
 const (
 	StructureCountsFigureDUE      StructureCountsFigure = "DUE"
@@ -4236,6 +4260,42 @@ func (e StructureLockOrigin) Valid() bool {
 	case StructureLockOriginPLAN:
 		return true
 	case StructureLockOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureSettingName.
+const (
+	StructureSettingNameAutomation  StructureSettingName = "automation"
+	StructureSettingNameCapture     StructureSettingName = "capture"
+	StructureSettingNameCelebration StructureSettingName = "celebration"
+	StructureSettingNameCompletion  StructureSettingName = "completion"
+	StructureSettingNameCounts      StructureSettingName = "counts"
+	StructureSettingNameFields      StructureSettingName = "fields"
+	StructureSettingNameLevels      StructureSettingName = "levels"
+	StructureSettingNameViews       StructureSettingName = "views"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingName enum.
+func (e StructureSettingName) Valid() bool {
+	switch e {
+	case StructureSettingNameAutomation:
+		return true
+	case StructureSettingNameCapture:
+		return true
+	case StructureSettingNameCelebration:
+		return true
+	case StructureSettingNameCompletion:
+		return true
+	case StructureSettingNameCounts:
+		return true
+	case StructureSettingNameFields:
+		return true
+	case StructureSettingNameLevels:
+		return true
+	case StructureSettingNameViews:
 		return true
 	default:
 		return false
@@ -6520,12 +6580,15 @@ type Container struct {
 	Description *string    `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool               `json:"effective_archived,omitempty"`
-	Icon              *string             `json:"icon,omitempty"`
-	Id                openapi_types.UUID  `json:"id"`
-	Name              string              `json:"name"`
-	OrderKey          *string             `json:"order_key,omitempty"`
-	ParentId          *openapi_types.UUID `json:"parent_id,omitempty"`
+	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
+	Icon              *string            `json:"icon,omitempty"`
+	Id                openapi_types.UUID `json:"id"`
+
+	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
+	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
+	Name       string              `json:"name"`
+	OrderKey   *string             `json:"order_key,omitempty"`
+	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
@@ -10483,6 +10546,18 @@ type StepUpRequest struct {
 	State *string `json:"state,omitempty"`
 }
 
+// StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
+type StructureChange struct {
+	Preset *StructureChangePreset  `json:"preset,omitempty"`
+	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// StructureChangePreset defines model for StructureChange.Preset.
+type StructureChangePreset string
+
 // StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
@@ -10516,6 +10591,9 @@ type StructureLock struct {
 
 // StructureLockOrigin defines model for StructureLock.Origin.
 type StructureLockOrigin string
+
+// StructureSettingName defines model for StructureSettingName.
+type StructureSettingName string
 
 // StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
@@ -12207,6 +12285,12 @@ type SetHubPrivacyParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// SetContainerStructureParams defines parameters for SetContainerStructure.
+type SetContainerStructureParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13205,6 +13289,9 @@ type UpdateContainerPoliciesJSONRequestBody = ContainerPolicies
 // SetHubPrivacyJSONRequestBody defines body for SetHubPrivacy for application/json ContentType.
 type SetHubPrivacyJSONRequestBody = HubPrivacy
 
+// SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
+type SetContainerStructureJSONRequestBody = StructureChange
+
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
@@ -13936,6 +14023,9 @@ type ServerInterface interface {
 
 	// (PUT /containers/{containerId}/privacy)
 	SetHubPrivacy(w http.ResponseWriter, r *http.Request, containerId ContainerId, params SetHubPrivacyParams)
+
+	// (PATCH /containers/{containerId}/structure)
+	SetContainerStructure(w http.ResponseWriter, r *http.Request, containerId ContainerId, params SetContainerStructureParams)
 
 	// (POST /containers/{containerId}:archive)
 	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
@@ -19740,6 +19830,56 @@ func (siw *ServerInterfaceWrapper) SetHubPrivacy(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetHubPrivacy(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetContainerStructure operation middleware
+func (siw *ServerInterfaceWrapper) SetContainerStructure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetContainerStructureParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetContainerStructure(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -26949,6 +27089,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}", wrapper.GetContainer)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)

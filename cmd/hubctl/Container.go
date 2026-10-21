@@ -31,6 +31,12 @@ func containerGroup() group {
 				run:     containerCreate,
 			},
 			{
+				name:    "structure",
+				usage:   structureUsage,
+				summary: "show or change how much structure a hub or collection has",
+				run:     containerStructure,
+			},
+			{
 				name:    "emergency-access",
 				usage:   "<hub id> --reason <why>",
 				summary: "open a private hub for one hour as the workspace's owner; every member is told",
