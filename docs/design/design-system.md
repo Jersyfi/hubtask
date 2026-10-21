@@ -115,10 +115,7 @@ web app's bundle. `lint-no-literals` does not apply to its own chrome; colour is
 IBM Plex in three cuts, OFL 1.1, self-hosted. The script faces of the family — IBM Plex Sans
 Arabic, Hebrew, Devanagari, Thai and SC (Simplified Chinese) — and, for Bengali, which IBM Plex
 does not cover, Noto Sans Bengali (OFL 1.1) are shipped beside them, split by `unicode-range` so a
-browser loads only what its text needs (decision #1625). Every language in `supported_locales` has
-a shipped face for its script; a test holds the two lists together. Until that task lands, the
-build ships the Latin, Latin Extended, Cyrillic, Greek and Vietnamese subsets of the three cuts
-only, and the condensed cut carries Cyrillic Extended without basic Cyrillic.
+browser loads only what its text needs (decision #1625).
 
 | Style | Family | Size / line height | Weight | Used for |
 |---|---|---|---|---|
@@ -137,6 +134,32 @@ prose on the website, such as the legal pages.
 
 Font files ship with the product (`THIRD-PARTY-LICENSES.md`), never from Google Fonts: a self-hosted
 Hubtask contacts no foreign domain on load, which `font-src 'self'` enforces.
+
+**Every script in its own face.** `packages/design-system/fonts/faces.json` lists what ships, and
+`build/fonts.js` builds two stylesheets from it: `fonts.css`, the three cuts for Latin, Cyrillic and
+Greek, which every client imports, and `fonts-scripts.css`, the script faces, which the web app
+imports and the English-only website does not.
+
+* **Each face keeps its family name and its script.** The three stacks in `tokens.json` name the
+  script faces after the Latin cut, and each script face is cut down to its script's Unicode blocks:
+  a character the faces share — an arrow, a Greek letter — never fetches a script face for a page in
+  another script.
+* **Weights.** The static script faces ship 400, 500, 600 and 700, the 400 file declared over
+  400–450 so that body text keeps the regular cut; Noto Sans Bengali is variable. IBM Plex Sans SC
+  ships two cuts, regular (declared 400–500) and semibold (600–700): a Han heading at 700 uses the
+  nearest cut that ships. None has an italic.
+* **Headings.** The condensed cut covers Latin only — no basic Cyrillic, no Greek, no other script.
+  The display stack falls to IBM Plex Sans at the heading's weight glyph by glyph, and a document
+  whose script is not Latin (`data-script` on the root, beside `lang` and `dir`) sets its headings
+  in the interface stack entirely, so that a heading is not half condensed.
+* **Which languages.** Every language of the `1.0` set and every catalogue the binary carries has a
+  shipped face for its script; `infrastructure/i18n/ScriptFaces_test.go` and
+  `packages/design-system/test/fonts.test.js` hold the lists together. A catalogue an operator adds
+  through `HUBTASK_LOCALE_DIR` in a script no shipped face covers is set in the device's own fonts
+  — still nothing from another server.
+* **Installing them runs nothing.** IBM Plex Sans SC comes from IBM's own package, which depends on
+  a telemetry package; the workspace removes that dependency and refuses the package's install
+  script (`pnpm-workspace.yaml`), and the design system's test fails if either comes back.
 
 **Alignment is `start`/`end` only, never `left`/`right`.** `build/lint-direction.js` refuses a
 physical inline side — `padding-left`, a bare `left:`, `float: right`, a physical corner radius, a
