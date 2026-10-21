@@ -45,12 +45,39 @@
   $effect(() => {
     announced = changesLabel ?? '';
   });
+
+  let bar = $state<HTMLElement | null>(null);
+
+  /** The nearest ancestor that scrolls the field, or the page. */
+  function scrollerOf(node: HTMLElement): Element {
+    for (let at = node.parentElement; at; at = at.parentElement) {
+      const overflow = getComputedStyle(at).overflowY;
+      if ((overflow === 'auto' || overflow === 'scroll') && at.scrollHeight > at.clientHeight) return at;
+    }
+    return document.scrollingElement ?? document.documentElement;
+  }
+
+  // A field that takes focus under the bar is brought above it. The scroll padding below does
+  // this where focus honours it; WebKit scrolls a focused field into view without it, and the
+  // bar may be taller than the padding where a font's metrics make it so - so the field is moved
+  // by exactly what the bar still covers.
+  $effect(() => {
+    if (!isOpen) return;
+    const onFocus = (event: FocusEvent) => {
+      const field = event.target;
+      if (!(field instanceof HTMLElement) || !bar || bar.contains(field)) return;
+      const covered = field.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+      if (covered > 0) scrollerOf(field).scrollBy({ top: covered });
+    };
+    document.addEventListener('focusin', onFocus);
+    return () => document.removeEventListener('focusin', onFocus);
+  });
 </script>
 
 <div class="anchor" data-save-bar="" data-open={isOpen ? '' : undefined}>
   <span class="status" role="status">{announced}</span>
   {#if isOpen}
-    <div class="bar" role="region" aria-label={label}>
+    <div class="bar" role="region" aria-label={label} bind:this={bar}>
       <span class="count" aria-hidden="true">{changesLabel}</span>
       <span class="actions">
         <Button tone="subtle" onclick={() => onDiscard?.()}>{discardLabel}</Button>
@@ -69,10 +96,10 @@
     height: 0;
   }
 
-  /* Open, it adds its own height after everything else - at the very end, where it moves nothing -
+  /* Open, it is as tall as the bar it holds, after everything else - at the very end, where it moves nothing -
      so the last field can scroll clear of the bar. */
   .anchor[data-open] {
-    height: var(--layout-bottombar-height);
+    height: auto;
   }
 
   /* The announcement, not drawn: the bar already shows the count. */
@@ -86,9 +113,6 @@
   }
 
   .bar {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline: 0;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
