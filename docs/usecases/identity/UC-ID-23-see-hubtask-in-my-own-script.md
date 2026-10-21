@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-09, P-13]
-state: specified
+state: verified
 tasks: [UX-02]
-checked_by: []
+checked_by: [infrastructure/i18n/ScriptFaces_test.go, packages/design-system/test/fonts.test.js, apps/webapp/src/lib/i18n/locale.test.ts, apps/webapp/e2e/scripts.test.mjs, presentation/webui/Handler_test.go, docs/evidence/UX-02-2026-10-21.md]
 ---
 
 # See Hubtask in my own script
@@ -30,10 +30,3 @@ A person switches their language to Bengali; headings and text keep their weight
 ## Where it ends
 
 * Which languages are translated is i18n-l10n.md's; this use case is about the letters.
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.

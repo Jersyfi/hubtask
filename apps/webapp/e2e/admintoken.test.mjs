@@ -157,6 +157,9 @@ test('chromium: a service account\'s token panel speaks about the service accoun
   const section = page.locator('section', { hasText: SERVICE.display_name });
   await section.getByRole('button', { name: 'Its tokens' }).click();
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
+  // The form is drawn before the list's answer arrives, so the list's sentence is waited for
+  // rather than counted at once - counted at once, the test read whichever came first.
+  await section.getByText('This service account has no tokens.').waitFor({ timeout: 5_000 }).catch(() => {});
   assert.equal(await section.getByText('This service account has no tokens.').count(), 1);
   assert.equal(await section.getByText('You have no tokens.').count(), 0, 'the panel told the administrator they have no tokens');
 });

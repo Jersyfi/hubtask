@@ -7,6 +7,7 @@ settings:
 overrides:
   devalue@<5.9.3: ^5.9.4
   brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
+  '@ibm/telemetry-js': '-'
 
 importers:
 
@@ -88,12 +89,30 @@ importers:
       '@fontsource-variable/ibm-plex-sans':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource-variable/noto-sans-bengali':
+        specifier: ^5.3.0
+        version: 5.3.0
       '@fontsource/ibm-plex-mono':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans-arabic':
         specifier: ^5.3.0
         version: 5.3.0
       '@fontsource/ibm-plex-sans-condensed':
         specifier: ^5.3.0
         version: 5.3.0
+      '@fontsource/ibm-plex-sans-devanagari':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans-hebrew':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@fontsource/ibm-plex-sans-thai':
+        specifier: ^5.3.0
+        version: 5.3.0
+      '@ibm/plex-sans-sc':
+        specifier: 1.1.0
+        version: 1.1.0
     devDependencies:
       '@sveltejs/vite-plugin-svelte':
         specifier: ^7.3.1
@@ -173,11 +192,29 @@ packages:
   '@fontsource-variable/ibm-plex-sans@5.3.0':
     resolution: {integrity: sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ==}
 
+  '@fontsource-variable/noto-sans-bengali@5.3.0':
+    resolution: {integrity: sha512-035m0mzOcsVC1GHFH1ioeXjIFqVhuflGvnn8Xvr6esaZlGErNe1d+Jx2sEN/2WGPhjrT+5wwKPPSO8rbBeQo3w==}
+
   '@fontsource/ibm-plex-mono@5.3.0':
     resolution: {integrity: sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q==}
 
+  '@fontsource/ibm-plex-sans-arabic@5.3.0':
+    resolution: {integrity: sha512-ZZ4g+JDgQY0NqSh4o0MNWU1sHQmtcee1g++aKAwyJvZxnT5y51JXsN1cIXnaQaMd40dcbK6QFYa+Z1LbaiNuqA==}
+
   '@fontsource/ibm-plex-sans-condensed@5.3.0':
     resolution: {integrity: sha512-fQyBpwbkguP4azjq7Cw8h/J3C/d8MFAzXOiSoFxyKCUK4x0XKrWEh3tGdTxhDM0HctVRQilQo1zGoyxDHLm5jQ==}
+
+  '@fontsource/ibm-plex-sans-devanagari@5.3.0':
+    resolution: {integrity: sha512-jPhKEfsF4bYClUBD/AG9NoYs7Zk+iBDvFn5oncQ3u6H8osnQstjY4kOrKqkT7ym7X4MjVn7LDISrloSwrBVPww==}
+
+  '@fontsource/ibm-plex-sans-hebrew@5.3.0':
+    resolution: {integrity: sha512-6sYM3VzG65AnG1jul3dl+H8eBWYfx6Rqzm7946VNBIXx/ArU1NR5ZKdFx80EDehVqdbPsLOpP1fjImQFjVMopg==}
+
+  '@fontsource/ibm-plex-sans-thai@5.3.0':
+    resolution: {integrity: sha512-olXzgcA/CTk0PibqGMJrheml3/z8N9VzNLcHkzv9tCoBqnaMoxYYwZp4PZrDkPuOCUe1gW942e9f5fGOOlr3zg==}
+
+  '@ibm/plex-sans-sc@1.1.0':
+    resolution: {integrity: sha512-IkhORwgw/CrsUss7uW9Rj6KKSsGQoIyIaNWjjju/7sV7SYS3yk0c/DgZN/leIG3Co5lN/X4Or/sQaL+SdvmSIg==}
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: {integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA==}
@@ -1215,9 +1252,21 @@ snapshots:
 
   '@fontsource-variable/ibm-plex-sans@5.3.0': {}
 
+  '@fontsource-variable/noto-sans-bengali@5.3.0': {}
+
   '@fontsource/ibm-plex-mono@5.3.0': {}
 
+  '@fontsource/ibm-plex-sans-arabic@5.3.0': {}
+
   '@fontsource/ibm-plex-sans-condensed@5.3.0': {}
+
+  '@fontsource/ibm-plex-sans-devanagari@5.3.0': {}
+
+  '@fontsource/ibm-plex-sans-hebrew@5.3.0': {}
+
+  '@fontsource/ibm-plex-sans-thai@5.3.0': {}
+
+  '@ibm/plex-sans-sc@1.1.0': {}
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:

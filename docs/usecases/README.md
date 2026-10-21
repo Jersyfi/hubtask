@@ -178,7 +178,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-ID-20](./identity/UC-ID-20-give-someone-an-account-without-an-address.md) | Give a family member an account without their own mail address | identity | built |
 | [UC-ID-21](./identity/UC-ID-21-sign-in-with-a-passkey.md) | Sign in with a passkey | identity | verified |
 | [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity | verified |
-| [UC-ID-23](./identity/UC-ID-23-see-hubtask-in-my-own-script.md) | See Hubtask in my own script | identity | specified |
+| [UC-ID-23](./identity/UC-ID-23-see-hubtask-in-my-own-script.md) | See Hubtask in my own script | identity | verified |
 | [UC-ID-24](./identity/UC-ID-24-run-the-workspace-from-one-overview.md) | Run the workspace from one overview | identity | specified |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin | verified |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin | built |

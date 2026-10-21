@@ -39,11 +39,18 @@ that a self-hosted Hubtask contacts nobody when it loads
 | [IBM Plex Sans](https://github.com/IBM/plex/blob/master/LICENSE.txt) (variable) | OFL-1.1 |
 | [IBM Plex Sans Condensed](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
 | [IBM Plex Mono](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [IBM Plex Sans Arabic](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [IBM Plex Sans Hebrew](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [IBM Plex Sans Devanagari](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [IBM Plex Sans Thai](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [IBM Plex Sans SC](https://github.com/IBM/plex/blob/master/LICENSE.txt) | OFL-1.1 |
+| [Noto Sans Bengali](https://github.com/notofonts/bengali/blob/main/OFL.txt) (variable) | OFL-1.1 |
 | [Lucide](https://github.com/lucide-icons/lucide/blob/main/LICENSE) (the declared subset) | ISC |
 
-The font files come from the `@fontsource` packages the pnpm lockfile pins; those packages
-repackage the upstream release and are themselves MIT, while the typeface stays under the SIL Open
-Font License 1.1. OFL is copyleft for *fonts* - a modified font must keep the licence and change
+The font files come from the packages the pnpm lockfile pins: the `@fontsource` packages, which
+repackage the upstream release and are themselves MIT, and for IBM Plex Sans SC IBM's own
+`@ibm/plex-sans-sc`, which is OFL itself. Every typeface stays under the SIL Open Font License 1.1,
+and each one's text with its own copyright line is under `third-party/licenses/_bundled/`. OFL is copyleft for *fonts* - a modified font must keep the licence and change
 its name - and it places no condition whatever on software that merely embeds or displays one, so
 it does not touch the terms the paragraph above is about.
 

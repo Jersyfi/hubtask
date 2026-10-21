@@ -11,6 +11,7 @@
     "./icons": "./src/icons/index.ts",
     "./tokens.css": "./dist/tokens.css",
     "./fonts.css": "./dist/fonts.css",
+    "./fonts-scripts.css": "./dist/fonts-scripts.css",
     "./fonts/*": "./dist/fonts/*",
     "./tokens.json": "./tokens/tokens.json"
   },
@@ -40,7 +41,13 @@
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "^5.3.0",
+    "@fontsource-variable/noto-sans-bengali": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",
-    "@fontsource/ibm-plex-sans-condensed": "^5.3.0"
+    "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+    "@fontsource/ibm-plex-sans-condensed": "^5.3.0",
+    "@fontsource/ibm-plex-sans-devanagari": "^5.3.0",
+    "@fontsource/ibm-plex-sans-hebrew": "^5.3.0",
+    "@fontsource/ibm-plex-sans-thai": "^5.3.0",
+    "@ibm/plex-sans-sc": "1.1.0"
   }
 }

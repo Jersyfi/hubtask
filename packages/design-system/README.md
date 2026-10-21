@@ -21,9 +21,13 @@ tokens/tokens.json                        the source, W3C DTCG
   │  pnpm build   (Style Dictionary)
   ├─→ dist/tokens.css                     custom properties, :root + [data-theme]
   ├─→ dist/tokens.ts                      typed constants for TypeScript consumers
-  ├─→ dist/fonts.css + dist/fonts/        IBM Plex, self-hosted
   └─→ ../../core/domain/model/shared/LabelTokens.go
                                           the ten label token NAMES, for the backend
+
+fonts/faces.json                          the faces that ship, design-system.md §3
+  │  pnpm build   (build/fonts.js)
+  ├─→ dist/fonts.css + dist/fonts/        IBM Plex for Latin, Cyrillic and Greek, self-hosted
+  └─→ dist/fonts-scripts.css              the faces for every other script, and their headings
 ```
 
 `dist/` is ignored by git. `LabelTokens.go` is **committed**, because `go build ./...` has to work
@@ -41,6 +45,7 @@ would undo that.
 <html data-theme="dark">
   <link rel="stylesheet" href="…/tokens.css">
   <link rel="stylesheet" href="…/fonts.css">
+  <link rel="stylesheet" href="…/fonts-scripts.css">   <!-- where text in other scripts is shown -->
 ```
 
 There is deliberately **no** fallback for a document without `data-theme`: a page that forgets it

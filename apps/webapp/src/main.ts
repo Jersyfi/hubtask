@@ -24,6 +24,7 @@
  */
 
 import '@hubtask/design-system/fonts.css';
+import '@hubtask/design-system/fonts-scripts.css';
 import '@hubtask/design-system/tokens.css';
 import './app.css';
 

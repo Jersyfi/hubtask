@@ -127,6 +127,19 @@ else
 		echo "FAILED: the hashed asset answers '$asset_cache', expected immutable"
 		failures=$((failures + 1))
 	fi
+
+	# Every catalogue reaches the image's interface, not only the source: the entry loads each
+	# other one as a chunk of its own (i18n-l10n.md §3), so the German one has to be named by the
+	# entry and served. A build stage that copied en.json alone passes everything above.
+	entry="$(curl -fsS "http://127.0.0.1:$HTTP_PORT$asset" || true)"
+	german="$(grep -o 'de-[A-Za-z0-9_-]*\.js' <<< "$entry" | head -1)"
+	if [ -z "$german" ]; then
+		echo "FAILED: the entry names no chunk for locales/de.json - the image's interface speaks English only"
+		failures=$((failures + 1))
+	elif ! curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/assets/$german"; then
+		echo "FAILED: the entry names /assets/$german, and the image does not serve it"
+		failures=$((failures + 1))
+	fi
 fi
 
 # The UI policy of security.md §9 / ADR-0028 travels with the document, and it is the strict

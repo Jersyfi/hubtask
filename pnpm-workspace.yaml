@@ -17,3 +17,12 @@ packages:
 overrides:
   devalue@<5.9.3: ^5.9.4
   brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
+  # The one distribution of IBM Plex Sans SC (design-system.md §3) depends on a telemetry package
+  # and runs it after install. Nothing of this repository phones home (NG-phone-home), installing
+  # included: the dependency is removed here, and the package's install script is refused below,
+  # so that neither a lockfile change nor a later allow-list entry brings it back unnoticed
+  # (packages/design-system/test/fonts.test.js holds both).
+  '@ibm/telemetry-js': '-'
+
+allowBuilds:
+  '@ibm/plex-sans-sc': false

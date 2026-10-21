@@ -55,4 +55,4 @@ await dictionary.hasInitialized;
 await dictionary.buildAllPlatforms();
 
 const fonts = buildFonts();
-console.log(`\nfonts\n✔︎ dist/fonts.css (${fonts.faces} faces, ${fonts.files} files in dist/fonts/)`);
+console.log(`\nfonts\n✔︎ dist/fonts.css, dist/fonts-scripts.css (${fonts.faces} faces, ${fonts.files} files in dist/fonts/)`);
