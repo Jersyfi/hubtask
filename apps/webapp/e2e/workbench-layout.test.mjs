@@ -199,8 +199,26 @@ async function pastGrace(page) {
   await page.waitForTimeout(ms + 150);
 }
 
+/**
+ * Leaves the control backwards and comes back to it forwards, as a keyboard reader would: the
+ * control is a stop in the tab order. Forward until it is reached - a date field's own parts and
+ * the workbench's chrome may lie between, and what is proven is that it is a stop, not how many
+ * presses away. With the key that engine's users press: WebKit on macOS keeps buttons out of `Tab`
+ * by default, as Safari does, and its users reach them with Option+Tab; WebKit on Linux, which CI
+ * runs, takes buttons on plain `Tab` and moves no focus on Alt+Tab.
+ */
+async function reachByTab(page, control, engine) {
+  const isMacWebKit = engine === 'webkit' && (await page.evaluate(() => navigator.platform.startsWith('Mac')));
+  const [back, forward] = isMacWebKit ? ['Alt+Shift+Tab', 'Alt+Tab'] : ['Shift+Tab', 'Tab'];
+  await control.evaluate((node) => node.focus());
+  await page.keyboard.press(back);
+  for (let step = 0; step < 40; step += 1) {
+    if (await control.evaluate((node) => node === document.activeElement)) return;
+    await page.keyboard.press(forward);
+  }
+}
+
 async function checkReason(page, what, engine, { isRoving = false, isGroup = false, shape = '*' } = {}) {
-  const [tab, back] = engine === 'webkit' ? ['Alt+Tab', 'Alt+Shift+Tab'] : ['Tab', 'Shift+Tab'];
   const { control, bubble, described } = await subject(page);
   // A composite's bubble comes from its mark: the pointer goes there, where the bubble is drawn.
   const target = isGroup ? page.locator('.host [data-case="with"] [data-reason-mark]').first() : control;
@@ -234,15 +252,9 @@ async function checkReason(page, what, engine, { isRoving = false, isGroup = fal
 
   // The keyboard: the control is in the tab order, focus shows the reason, Enter and Space do
   // nothing, Escape hides it.
-  await control.evaluate((node) => node.focus());
   // An item of a roving group is reached by the arrows (checkRoving), not by Tab.
-  if (!isRoving) await page.keyboard.press(back);
-  // Forward again until it is reached: a date field's own parts and the workbench's chrome may
-  // lie between, and what is proven is that the control is a stop, not how many presses away.
-  for (let step = 0; !isRoving && step < 40; step += 1) {
-    await page.keyboard.press(tab);
-    if (await control.evaluate((node) => node === document.activeElement)) break;
-  }
+  if (isRoving) await control.evaluate((node) => node.focus());
+  else await reachByTab(page, control, engine);
   assert.equal(await control.evaluate((node) => node === document.activeElement), true, `${what}: Tab does not reach the control`);
   assert.equal(await isShowing(bubble), true, `${what}: focus shows no reason`);
   assert.equal(await control.getAttribute('aria-disabled'), 'true');
@@ -270,7 +282,10 @@ async function checkReason(page, what, engine, { isRoving = false, isGroup = fal
   // the mouse's leaving would put the bubble away during the tap.
   await page.mouse.move(1, 1);
   await pastGrace(page);
-  await page.touchscreen.tap(at.x, at.y);
+  // Where it is now: the walk by keyboard may have scrolled the page through the workbench's chrome.
+  await target.evaluate((node) => node.scrollIntoView({ block: 'center', inline: 'center' }));
+  const tapAt = await centre(target);
+  await page.touchscreen.tap(tapAt.x, tapAt.y);
   assert.equal(await isShowing(bubble), true, `${what}: a tap shows no reason`);
   assertSame(before, await boxes(page), `${what}, tapped`);
   assert.deepEqual(await counters(page), { caller: '0', row: '0' }, `${what}: a tap reached a handler`);
