@@ -346,6 +346,9 @@ func mergeCatalogueFor(ctx context.Context, t *testing.T) (*usecase.Registry, wo
 			Authorizer: authorizer, Events: outbox, Changes: changes, Audit: sink, Activity: journal,
 			UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid, DueDates: dueDates,
 			Text: text.Composing{},
+			Structure: work.StructureResolver{
+				Containers: containerRepo(), Structures: postgres.NewStructureRepository(), Profiles: profiles,
+			},
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),

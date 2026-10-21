@@ -148,7 +148,7 @@ logged.
 | Kind of field | Examples | Method |
 |---|---|---|
 | Scalar attributes | Title, amount, due date, bucket, cover, content language | LWW per field, via the HLC. A title and an amount are lines and merge silently as scalars |
-| Status fields with meaning | `completed` | LWW, but "completed" beats "reopened" only if genuinely later; a reopen is never silently discarded and leaves a visible history entry |
+| Status fields with meaning | `completed` | LWW, but "completed" beats "reopened" only if genuinely later; a reopen is never silently discarded and leaves a visible history entry. The entry's `completion_count` is the server's: it travels inside the completion's change log entry and is never pushed (`sync.field_not_mergeable`) |
 | Sets | Labels, members, attachments | An **OR-set**: additions and removals carry their own tags, so a label added offline survives a concurrent removal of another. An attachment's bytes reach the server first, online (`RequestMediaUpload`, `ConfirmMediaUpload`); only then is the `SET_ADD` pushed. `watchers` is in the contract's enum but no use case writes one: a push naming it is `503 sync.set_unavailable`, not recorded, and kept by the client; any other unknown set is `sync.set_unknown` |
 | Maps | Custom field values (`custom_fields`) | **LWW per key**, via the HLC: one change log entry per key, carrying only that key, one key written per call. A cleared key travels as an explicit null; an absent key means "not touched" |
 | Ordering / position | Order in lists and boards | **Fractional indexing**: a lexicographic key between the neighbours, so devices insert without renumbering; collisions resolve through the device ID |
