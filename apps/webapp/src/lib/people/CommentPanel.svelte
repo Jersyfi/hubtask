@@ -39,8 +39,17 @@
    * viewer may not, a guest may, a contributor only on what is assigned to them (UC-WRK-19 check 4).
    * Without it there is no field and no reply, rather than a field whose every send is refused;
    * `undefined` while the role is unknown draws neither.
+   *
+   * `isClosed`: the entry or its collection is archived, and the server refuses every comment,
+   * change and removal there (AddComment, ChangeComment). The thread stays readable; nothing on it
+   * is offered, and the page's notice says why once.
    */
-  const { item, path, mayComment }: { item: WorkItem; path: Path; mayComment: boolean | undefined } = $props();
+  const {
+    item,
+    path,
+    mayComment,
+    isClosed = false,
+  }: { item: WorkItem; path: Path; mayComment: boolean | undefined; isClosed?: boolean } = $props();
 
   const capability = $derived(supports(item.type, 'COMMENTS'));
 
@@ -103,8 +112,9 @@
       at: comment.created_at,
       isRemoved: removed,
       editedLabel: comment.edited_at ? t('app.comments.edited') : undefined,
-      editDisabledReason: moderates ? undefined : t('app.comments.not_yours'),
-      deleteDisabledReason: moderates ? undefined : t('app.comments.not_yours'),
+      // Offered to the author and to an administrator, and to nobody else - not drawn off with a
+      // sentence on every comment (UC-WRK-19 check 3, P-05) - and to nobody while it is closed.
+      isChangeable: moderates && !isClosed,
     };
   }
 

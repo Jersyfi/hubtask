@@ -3526,7 +3526,6 @@
   "app.comments.replying": "Your reply",
   "app.comments.editing": "Your comment",
   "app.comments.send": "Comment",
-  "app.comments.not_yours": "Only the person who wrote a comment, or an administrator, can change it.",
   "app.comments.reply_to_removed": "That comment was removed, so it cannot be replied to.",
   "app.comments.too_long": "A comment holds at most {limit} characters; this one has {length}.",
   "app.comments.deciding": "Working out whether this type carries comments",

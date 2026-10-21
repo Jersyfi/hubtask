@@ -2337,7 +2337,6 @@
   "app.comments.replying": "Deine Antwort",
   "app.comments.editing": "Dein Kommentar",
   "app.comments.send": "Kommentieren",
-  "app.comments.not_yours": "Nur wer einen Kommentar geschrieben hat, oder ein Administrator, kann ihn ändern.",
   "app.comments.reply_to_removed": "Dieser Kommentar wurde entfernt, darum lässt sich nicht darauf antworten.",
   "app.comments.too_long": "Ein Kommentar fasst höchstens {limit} Zeichen; dieser hat {length}.",
   "app.comments.deciding": "Es wird ermittelt, ob diese Art Kommentare trägt",
