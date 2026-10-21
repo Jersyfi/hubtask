@@ -25,7 +25,8 @@ The person gives "House" raspberry and a house symbol, "Agency" indigo and a bri
 1. Creating and editing a hub or collection offers a colour from the ten label colours and a symbol from the icon set; both appear in the navigation, the page head, and next to its entries in lists that mix collections.
 2. Cards and panels are told apart from the page in both modes: the contrast between page and card is at least 1.18:1 and every text pair meets WCAG 2.2 AA, measured by the token test.
 3. Every status is shown as a coloured surface with text or an icon, never colour alone.
-4. The Hubtask mark is shown in the app bar, as the browser tab's icon and as the installed app's icon, in a light and a dark form; below 24 pixels the reduced mark is used.
+4. The Hubtask mark is shown in the app bar and as the browser tab's icon, in a light and a dark form; below 24 pixels the reduced mark is used.
+5. The Hubtask mark is the installed app's icon on every platform an installed app is offered for.
 
 ## Where it ends
 
@@ -38,3 +39,4 @@ The person gives "House" raspberry and a house symbol, "Agency" indigo and a bri
 * Check 2: not met — not built yet, tracked in milestone UX.
 * Check 3: not met — not built yet, tracked in milestone UX.
 * Check 4: not met — not built yet, tracked in milestone UX.
+* Check 5: not met — no installed app exists before milestone F7, which carries it (decision #1671).

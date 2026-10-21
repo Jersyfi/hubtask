@@ -40,6 +40,9 @@ task that moves a control ticks its rows there.
 13. **A starter set at the first start** (worker, at the cut, within #1631): UC-WRK-30 check 5.
 14. **No fixed symbol per level** (the owner, 2026-10-20): the depth mark is computed from the
     effective settings (design-system.md §9).
+15. **The installed app's icon is F7's** (the owner, 2026-10-21, #1671): UC-WRK-33 check 4 keeps the
+    app bar and the browser tab; the installed app's icon is check 5, carried by F7, not by UX.
+    UX-06 still ships the app-icon source F7 starts from.
 
 ---
 

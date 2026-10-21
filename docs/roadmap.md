@@ -78,7 +78,8 @@ no developer account and no paid certificate.
 
 * **The Tauri desktop shell for Windows and Linux**: SQLite and the keystore behind the `Storage`
   port, the updater, installers published as direct downloads with checksums and the updater's
-  signature, the webview smoke matrix on WebView2 and WebKitGTK (`1.0.0` prerequisite 18).
+  signature, the webview smoke matrix on WebView2 and WebKitGTK (`1.0.0` prerequisite 18). Each shell's icon is the
+  Hubtask mark, from the app-icon source milestone UX ships (UC-WRK-33 check 5, #1671).
 * **The Android shell** after it: an APK signed with the project's own key, published as a direct
   download, what is left of platform adaptation
   once the web app's phone layout exists ([`design-system.md`](./design/design-system.md) §9: the
