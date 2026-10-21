@@ -3,6 +3,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
 import type { Rule } from '../data/rules.svelte.ts';
 import { gapTakes } from './selection.ts';
@@ -326,4 +327,23 @@ test('a tree of conditions compiles with parentheses and reads back the same', (
   assert.deepEqual(readNode("item.title.matches('(?i)a && b')"), { subject: 'title', op: 'contains', a: 'a && b' });
   // An empty group is no expression.
   assert.equal(compileNode({ mode: 'any', items: [] }), '');
+});
+
+// The server compiles a model's condition sentences with a twin of this composer
+// (test/architecture/conditionsentences_test.go reads the same vectors). Each compiled vector is what
+// this compiler writes and what it reads back; an unreadable one stays an expression on the canvas.
+test('the shared sentence vectors compile here as on the server, and read back', () => {
+  const vectors = JSON.parse(readFileSync(new URL('./sentences.golden.json', import.meta.url), 'utf8')) as {
+    compiled: { name: string; node: Node; expr: string; read?: Node | null }[];
+    unreadable: { name: string; expr: string }[];
+  };
+  assert.ok(vectors.compiled.length > 0 && vectors.unreadable.length > 0);
+  for (const vector of vectors.compiled) {
+    assert.equal(compileNode(vector.node), vector.expr, vector.name);
+    const expected = vector.read === undefined ? vector.node : (vector.read ?? undefined);
+    assert.deepEqual(readNode(vector.expr), expected, vector.name);
+  }
+  for (const vector of vectors.unreadable) {
+    assert.equal(readNode(vector.expr), undefined, vector.name);
+  }
 });

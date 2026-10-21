@@ -849,6 +849,7 @@
   "automation.offset_required": "Say how far from the anchor this rule fires.",
   "automation.offset_invalid": "{offset} is not a length of time this rule can use. Use days, hours or minutes, like -PT24H.",
   "automation.condition_invalid": "One of this rule's conditions is not a valid expression.",
+  "automation.sentence_invalid": "This condition is not one the rule editor can compose.",
   "automation.expression_engine_unavailable": "This installation cannot check conditions, so it will not store one.",
   "expression.syntax": "That is not a valid expression. Check it at line {line}, column {column}.",
   "expression.unknown_name": "That expression uses a name that is not available here. Check it at line {line}, column {column}.",
