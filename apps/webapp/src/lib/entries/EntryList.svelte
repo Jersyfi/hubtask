@@ -135,6 +135,11 @@
     changeRefusal: (item: WorkItem) => string | undefined;
     /** Whether the reader may create entries here: the add controls are drawn only then. */
     mayCreate: boolean;
+    /**
+     * Whether rows can be picked for the bulk bar. Only where the screen draws that bar: a list that
+     * drew checkboxes nothing acts on would be asking the reader to select for nothing.
+     */
+    isSelectable?: boolean;
   }
 
   const {
@@ -151,6 +156,7 @@
     onduplicate,
     changeRefusal,
     mayCreate,
+    isSelectable = false,
   }: Props = $props();
 
   provideReasonGroup(() => ({ id: readOnlyNoticeId ?? '', reason: isReadOnly && readOnlyNoticeId ? inheritedReason() : undefined }));
@@ -878,7 +884,7 @@
    */
   $effect(() => {
     const node = level;
-    if (!node) return;
+    if (!node || !isSelectable) return;
     let held: ReturnType<typeof setTimeout> | undefined;
     const idAt = (target: EventTarget | null) =>
       (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined;
@@ -1116,7 +1122,7 @@
                  decision 8). Shift is read from the event rather than from a mode of its own: one
                  code path for the pointer and the keyboard is what keeps the two from drifting
                  apart, and `selection.pick` is where it lives. -->
-            {#if selection.isOn}
+            {#if isSelectable && selection.isOn}
             <span class="pick">
               <Checkbox
                 label={t('app.bulk.select', { title: row.item.title })}

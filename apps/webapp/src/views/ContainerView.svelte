@@ -1043,6 +1043,7 @@
               onduplicate={(item) => (duplicating = item)}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
+              isSelectable
             />
           {/if}
         </div>

@@ -558,6 +558,24 @@ test('chromium: a page of history that did not arrive is said beside the button,
   assert.deepEqual(unstubbed(), []);
 });
 
+// The subtree on an entry's page has no bulk bar, so nothing there starts selecting: a Ctrl-click
+// (⌘ on a Mac) on a row of it follows the row and draws no checkbox nothing would act on.
+test('chromium: 1280 px — the subtree on an entry\'s page does not select', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close, unstubbed } = await openEntry(browser, 1280);
+  t.after(close);
+
+  const child = CHILDREN[ENTRY.id][0];
+  const row = page.locator(`[data-row="${child.id}"] a`).first();
+  await row.waitFor({ timeout: 15_000 });
+  await row.click({ modifiers: ['ControlOrMeta'] });
+  await page.waitForTimeout(200);
+  assert.equal(await page.getByRole('checkbox', { name: `Select ${child.title}` }).count(), 0);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(unstubbed(), []);
+});
+
 // UC-WRK-03 check 1 from a task's row in the collection: the one ＋ inside a task opens the form
 // with a chooser of the two kinds the manifest permits, named in the catalogue's words rather than
 // the contract's, and what is chosen is what is created.
