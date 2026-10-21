@@ -147,6 +147,20 @@ class Suggestions {
    * would be as work - a title, notes, a date, and the subtasks the material implies.
    */
   async askJumble(entryId: string): Promise<void> {
+    await (await this.#askJumble(entryId))();
+  }
+
+  /**
+   * The same ask, answered once it is accepted rather than once it ended: the follow goes on in
+   * the background, on the entry's card. What asking about a selection waits for, so its next ask
+   * is not held up by a model's answer to the last one.
+   */
+  async queueJumble(entryId: string): Promise<void> {
+    void (await this.#askJumble(entryId))();
+  }
+
+  /** Sends the ask, and answers the follow that is left to run. */
+  async #askJumble(entryId: string): Promise<() => Promise<void>> {
     const askedAt = new Date().toISOString();
     const accepted = await whilePending(
       () => this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' }),
@@ -158,7 +172,7 @@ class Suggestions {
           invalidates: [],
         }),
     );
-    await this.#follow(entryId, 'jumble', askedAt, 'JUMBLE_ENTRY', accepted?.job_id);
+    return () => this.#follow(entryId, 'jumble', askedAt, 'JUMBLE_ENTRY', accepted?.job_id);
   }
 
   /**

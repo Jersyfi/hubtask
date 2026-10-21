@@ -30,6 +30,7 @@
   import {
     Banner,
     Button,
+    Checkbox,
     Input,
     JumbleInboxItem,
     LoadMore,
@@ -45,6 +46,8 @@
   import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { jumble, type IntakeToken, type JumbleEntry } from '../lib/data/jumble.svelte.ts';
   import { suggestions } from '../lib/data/suggestions.svelte.ts';
+  import { selection } from '../lib/data/selection.svelte.ts';
+  import { askEach } from '../lib/data/askEach.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -134,6 +137,57 @@
     }
   }
 
+  // **Asking about a selection** (UC-JUM-07 check 12): a mode, off until the page's menu starts
+  // it (design-system.md §11.9), offered where AI is and the reader may write, over the undecided
+  // entries on screen - the loaded pages, nothing beyond them. Each is asked on its own and
+  // followed on its own card; a refusal that holds for all stops the rest and is said once.
+  const selectable = $derived(hasAi && mayWrite && filter === 'NEW');
+  const undecided = $derived(entries.filter((entry) => entry.status === 'NEW').map((entry) => entry.id));
+  $effect(() => {
+    const visible = undecided;
+    untrack(() => selection.keepVisible(visible));
+  });
+  // A selection is about what is in front of somebody: a new filter, or leaving, ends it.
+  $effect(() => {
+    void filter;
+    untrack(() => selection.clear());
+  });
+  $effect(() => () => selection.clear());
+  let askingSelection = $state(false);
+  let selectionFailure = $state<string | undefined>(undefined);
+
+  async function askSelected(): Promise<void> {
+    if (askingSelection || selection.count === 0) return;
+    askingSelection = true;
+    selectionFailure = undefined;
+    const result = await askEach([...selection.ids], (id) => suggestions.queueJumble(id));
+    askingSelection = false;
+    if (result.stoppedBy !== undefined) {
+      selectionFailure = renderProblem(result.stoppedBy as never, messages).message;
+    } else if (result.failed.length > 0) {
+      selectionFailure = t('app.jumble.selection_some_failed', { count: result.failed.length });
+    } else {
+      announcer.say(t('app.jumble.selection_asked'));
+    }
+    selection.stop();
+  }
+
+  function onkeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && selection.isOn) selection.stop();
+  }
+
+  const pageMenu = $derived(
+    selectable
+      ? {
+          label: t('app.jumble.actions'),
+          items: [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' as const }],
+          onselect: (id: string) => {
+            if (id === 'select') selection.start();
+          },
+        }
+      : undefined,
+  );
+
   /** Where the reader may turn an arrival into work: only collections a conversion would accept (P-05). */
   const destinations = $derived(
     (jumble.destinations ?? []).map((collection) => ({
@@ -211,11 +265,19 @@
   $effect(() => page.entitle(t('app.jumble.title')));
 </script>
 
+<svelte:window {onkeydown} />
+
 <div class="screen">
   <Stack gap="300">
     <!-- `data-tour`: where the tour points for "where things arrive before they are work". -->
     <div data-tour="jumble">
-      <PageHeader title={t('app.jumble.title')} isTitleInBar={viewport.isCompact} />
+      <PageHeader
+        title={t('app.jumble.title')}
+        isTitleInBar={viewport.isCompact}
+        menu={pageMenu}
+        isMenuInBar={viewport.isCompact}
+        onmenu={(offered) => page.offer(offered)}
+      />
       <p class="quiet">{t('app.jumble.intro')}</p>
     </div>
 
@@ -228,6 +290,26 @@
     {/if}
 
     <Select label={t('app.jumble.showing')} bind:value={filter} options={filters} />
+
+    {#if selectable && selection.isOn}
+      <div class="selection" role="toolbar" aria-label={t('app.jumble.actions')} data-jumble-selection>
+        <span class="count">{t('app.bulk.selected', { count: selection.count })}</span>
+        <Button tone="subtle" onclick={() => selection.allVisible()}>{t('app.bulk.select_all')}</Button>
+        <Button
+          tone="primary"
+          icon="sparkles"
+          data-ai
+          isBusy={askingSelection}
+          busyLabel={t('app.jumble.asking_selection')}
+          disabledReason={selection.count === 0 ? t('app.jumble.select_first') : undefined}
+          onclick={() => void askSelected()}
+        >
+          {t('app.jumble.ask_selection')}
+        </Button>
+        <Button tone="subtle" onclick={() => selection.stop()}>{t('app.bulk.done')}</Button>
+      </div>
+    {/if}
+    {#if selectionFailure}<p class="quiet" role="alert">{selectionFailure}</p>{/if}
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="waiting"><Spinner label={t('app.jumble.reading')} /> <span>{t('app.jumble.reading')}</span></p>
@@ -254,7 +336,13 @@
               {/if}
             {/snippet}
             {#snippet actions()}
-              {#if mayWrite && entry.status === 'NEW'}
+              {#if selectable && selection.isOn && entry.status === 'NEW'}
+                <Checkbox
+                  label={t('app.bulk.select', { title: subjectOf(entry) })}
+                  checked={selection.has(entry.id)}
+                  onchange={() => selection.pick(undecided, entry.id)}
+                />
+              {:else if mayWrite && entry.status === 'NEW'}
                 {#if converting === entry.id}
                   <Stack gap="150">
                     <Select
@@ -416,6 +504,10 @@
   .waiting { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+
+  .selection { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .count { font-weight: var(--fw-semibold); margin-inline-end: var(--sp-100); }
 
   form { margin: 0; }
 </style>
