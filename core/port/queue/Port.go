@@ -154,6 +154,16 @@ const (
 	// being a record rather than a change.
 	KindAiSuggest Kind = "ai.suggest"
 
+	// KindAiDraftRule drafts an automation rule from a person's sentence (UC-AUT-10). The same
+	// question as KindAiSuggest, under a kind of its own for the rolling update's sake: a process of
+	// the previous release would claim an `ai.suggest` job asking a prompt it does not know and
+	// spend the retry ladder into the dead letter, while a kind it has no handler for goes back to
+	// the queue for a process that has one (presentation/worker.Runner).
+	KindAiDraftRule Kind = "ai.draft_rule"
+
+	// AiDraftRuleAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
+	AiDraftRuleAttempts = 20
+
 	// KindAiEmbed brings one workspace's embeddings up to date with its entries.
 	//
 	// One job per tenant that reschedules itself, the retention sweep's shape rather than the

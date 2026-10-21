@@ -1,0 +1,792 @@
+{
+  "compiled": [
+    {
+      "name": "type is",
+      "node": {
+        "subject": "type",
+        "op": "is",
+        "a": "TASK"
+      },
+      "expr": "item.type == 'TASK'"
+    },
+    {
+      "name": "type is not",
+      "node": {
+        "subject": "type",
+        "op": "is_not",
+        "a": "ACTIVITY"
+      },
+      "expr": "item.type != 'ACTIVITY'"
+    },
+    {
+      "name": "title contains",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "permit"
+      },
+      "expr": "item.title.matches('(?i)permit')"
+    },
+    {
+      "name": "title does not contain",
+      "node": {
+        "subject": "title",
+        "op": "not_contains",
+        "a": "draft"
+      },
+      "expr": "!item.title.matches('(?i)draft')"
+    },
+    {
+      "name": "title starts with",
+      "node": {
+        "subject": "title",
+        "op": "starts_with",
+        "a": "Request"
+      },
+      "expr": "item.title.matches('(?i)^Request')"
+    },
+    {
+      "name": "notes empty",
+      "node": {
+        "subject": "notes",
+        "op": "empty"
+      },
+      "expr": "item.notes == ''"
+    },
+    {
+      "name": "notes not empty",
+      "node": {
+        "subject": "notes",
+        "op": "not_empty"
+      },
+      "expr": "item.notes != ''"
+    },
+    {
+      "name": "notes contain",
+      "node": {
+        "subject": "notes",
+        "op": "contains",
+        "a": "blocked"
+      },
+      "expr": "item.notes.matches('(?i)blocked')"
+    },
+    {
+      "name": "completed",
+      "node": {
+        "subject": "completed",
+        "op": "yes"
+      },
+      "expr": "item.completed == true"
+    },
+    {
+      "name": "not completed",
+      "node": {
+        "subject": "completed",
+        "op": "no"
+      },
+      "expr": "item.completed == false"
+    },
+    {
+      "name": "archived",
+      "node": {
+        "subject": "archived",
+        "op": "yes"
+      },
+      "expr": "item.archived == true"
+    },
+    {
+      "name": "not archived",
+      "node": {
+        "subject": "archived",
+        "op": "no"
+      },
+      "expr": "item.archived == false"
+    },
+    {
+      "name": "has a due date",
+      "node": {
+        "subject": "due",
+        "op": "has"
+      },
+      "expr": "has(item.due_at)"
+    },
+    {
+      "name": "lacks a due date",
+      "node": {
+        "subject": "due",
+        "op": "lacks"
+      },
+      "expr": "!has(item.due_at)"
+    },
+    {
+      "name": "due in the past",
+      "node": {
+        "subject": "due",
+        "op": "past"
+      },
+      "expr": "has(item.due_at) && item.due_at < now"
+    },
+    {
+      "name": "due in the future",
+      "node": {
+        "subject": "due",
+        "op": "future"
+      },
+      "expr": "has(item.due_at) && item.due_at > now"
+    },
+    {
+      "name": "due within days",
+      "node": {
+        "subject": "due",
+        "op": "within",
+        "a": "3"
+      },
+      "expr": "has(item.due_at) && item.due_at < now + duration('72h')"
+    },
+    {
+      "name": "due within no days",
+      "node": {
+        "subject": "due",
+        "op": "within",
+        "a": "0"
+      },
+      "expr": "has(item.due_at) && item.due_at < now + duration('0h')"
+    },
+    {
+      "name": "label on",
+      "node": {
+        "subject": "label",
+        "op": "on",
+        "a": "018f0000-0000-7000-8000-000000000001"
+      },
+      "expr": "item.labels.exists(l, l == '018f0000-0000-7000-8000-000000000001')"
+    },
+    {
+      "name": "label not on",
+      "node": {
+        "subject": "label",
+        "op": "not_on",
+        "a": "018f0000-0000-7000-8000-000000000002"
+      },
+      "expr": "!item.labels.exists(l, l == '018f0000-0000-7000-8000-000000000002')"
+    },
+    {
+      "name": "assignee has",
+      "node": {
+        "subject": "assignee",
+        "op": "has"
+      },
+      "expr": "has(item.assignee_id)"
+    },
+    {
+      "name": "assignee lacks",
+      "node": {
+        "subject": "assignee",
+        "op": "lacks"
+      },
+      "expr": "!has(item.assignee_id)"
+    },
+    {
+      "name": "assignee is",
+      "node": {
+        "subject": "assignee",
+        "op": "is",
+        "a": "018f0000-0000-7000-8000-000000000003"
+      },
+      "expr": "item.assignee_id == '018f0000-0000-7000-8000-000000000003'"
+    },
+    {
+      "name": "assignee is not",
+      "node": {
+        "subject": "assignee",
+        "op": "is_not",
+        "a": "018f0000-0000-7000-8000-000000000004"
+      },
+      "expr": "item.assignee_id != '018f0000-0000-7000-8000-000000000004'"
+    },
+    {
+      "name": "bucket is",
+      "node": {
+        "subject": "bucket",
+        "op": "is",
+        "a": "018f0000-0000-7000-8000-000000000005"
+      },
+      "expr": "item.bucket_id == '018f0000-0000-7000-8000-000000000005'"
+    },
+    {
+      "name": "bucket is not",
+      "node": {
+        "subject": "bucket",
+        "op": "is_not",
+        "a": "018f0000-0000-7000-8000-000000000006"
+      },
+      "expr": "item.bucket_id != '018f0000-0000-7000-8000-000000000006'"
+    },
+    {
+      "name": "parent has",
+      "node": {
+        "subject": "parent",
+        "op": "has"
+      },
+      "expr": "has(item.parent_id)"
+    },
+    {
+      "name": "parent lacks",
+      "node": {
+        "subject": "parent",
+        "op": "lacks"
+      },
+      "expr": "!has(item.parent_id)"
+    },
+    {
+      "name": "depth is",
+      "node": {
+        "subject": "depth",
+        "op": "is",
+        "a": "0"
+      },
+      "expr": "item.depth == 0"
+    },
+    {
+      "name": "depth at most",
+      "node": {
+        "subject": "depth",
+        "op": "at_most",
+        "a": "2"
+      },
+      "expr": "item.depth <= 2"
+    },
+    {
+      "name": "actor is",
+      "node": {
+        "subject": "actor",
+        "op": "is",
+        "a": "018f0000-0000-7000-8000-000000000007"
+      },
+      "expr": "actor.id == '018f0000-0000-7000-8000-000000000007'"
+    },
+    {
+      "name": "actor is not",
+      "node": {
+        "subject": "actor",
+        "op": "is_not",
+        "a": "018f0000-0000-7000-8000-000000000008"
+      },
+      "expr": "actor.id != '018f0000-0000-7000-8000-000000000008'"
+    },
+    {
+      "name": "hour between",
+      "node": {
+        "subject": "hour",
+        "op": "between",
+        "a": "8",
+        "b": "18"
+      },
+      "expr": "now.getHours() >= 8 && now.getHours() < 18"
+    },
+    {
+      "name": "hour from midnight to the end of the day",
+      "node": {
+        "subject": "hour",
+        "op": "between",
+        "a": "0",
+        "b": "24"
+      },
+      "expr": "now.getHours() >= 0 && now.getHours() < 24"
+    },
+    {
+      "name": "field is",
+      "node": {
+        "subject": "field",
+        "op": "is",
+        "a": "priority",
+        "b": "High"
+      },
+      "expr": "item.custom_fields['priority'] == 'High'"
+    },
+    {
+      "name": "field is not",
+      "node": {
+        "subject": "field",
+        "op": "is_not",
+        "a": "priority",
+        "b": "Low"
+      },
+      "expr": "item.custom_fields['priority'] != 'Low'"
+    },
+    {
+      "name": "a quote in a value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "it's"
+      },
+      "expr": "item.title.matches('(?i)it\\'s')"
+    },
+    {
+      "name": "a backslash in a value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "a\\b"
+      },
+      "expr": "item.title.matches('(?i)a\\\\\\\\b')"
+    },
+    {
+      "name": "an escaped quote in a value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "\\'"
+      },
+      "expr": "item.title.matches('(?i)\\\\\\\\\\'')"
+    },
+    {
+      "name": "regular expression metacharacters",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": ".*^$|?+()[]{}"
+      },
+      "expr": "item.title.matches('(?i)\\\\.\\\\*\\\\^\\\\$\\\\|\\\\?\\\\+\\\\(\\\\)\\\\[\\\\]\\\\{\\\\}')"
+    },
+    {
+      "name": "a case flag in a value",
+      "node": {
+        "subject": "title",
+        "op": "starts_with",
+        "a": "(?i)x"
+      },
+      "expr": "item.title.matches('(?i)^\\\\(\\\\?i\\\\)x')"
+    },
+    {
+      "name": "a join and a closing parenthesis in a value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "') || true || ('"
+      },
+      "expr": "item.title.matches('(?i)\\'\\\\) \\\\|\\\\| true \\\\|\\\\| \\\\(\\'')"
+    },
+    {
+      "name": "a join inside a quoted value",
+      "node": {
+        "subject": "notes",
+        "op": "contains",
+        "a": "a && b"
+      },
+      "expr": "item.notes.matches('(?i)a && b')"
+    },
+    {
+      "name": "a quote in an identifier value",
+      "node": {
+        "subject": "label",
+        "op": "on",
+        "a": "x') || true || ('"
+      },
+      "expr": "item.labels.exists(l, l == 'x\\') || true || (\\'')"
+    },
+    {
+      "name": "a quote in a field value",
+      "node": {
+        "subject": "field",
+        "op": "is",
+        "a": "it's",
+        "b": "o'clock"
+      },
+      "expr": "item.custom_fields['it\\'s'] == 'o\\'clock'"
+    },
+    {
+      "name": "a value in another script",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "Größe 申请 ทดสอบ"
+      },
+      "expr": "item.title.matches('(?i)Größe 申请 ทดสอบ')"
+    },
+    {
+      "name": "all of",
+      "node": {
+        "mode": "all",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "subject": "due",
+            "op": "has"
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK' && has(item.due_at)"
+    },
+    {
+      "name": "any of",
+      "node": {
+        "mode": "any",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "subject": "completed",
+            "op": "no"
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK' || item.completed == false"
+    },
+    {
+      "name": "none of",
+      "node": {
+        "mode": "none",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "subject": "archived",
+            "op": "yes"
+          }
+        ]
+      },
+      "expr": "!(item.type == 'TASK' || item.archived == true)"
+    },
+    {
+      "name": "none of one",
+      "node": {
+        "mode": "none",
+        "items": [
+          {
+            "subject": "due",
+            "op": "past"
+          }
+        ]
+      },
+      "expr": "!((has(item.due_at) && item.due_at < now))"
+    },
+    {
+      "name": "a nested group",
+      "node": {
+        "mode": "any",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "mode": "all",
+            "items": [
+              {
+                "subject": "due",
+                "op": "has"
+              },
+              {
+                "subject": "completed",
+                "op": "no"
+              }
+            ]
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK' || (has(item.due_at) && item.completed == false)"
+    },
+    {
+      "name": "a nested group of one",
+      "node": {
+        "mode": "any",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "mode": "all",
+            "items": [
+              {
+                "subject": "due",
+                "op": "has"
+              }
+            ]
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK' || (has(item.due_at))"
+    },
+    {
+      "name": "a nested none",
+      "node": {
+        "mode": "all",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          },
+          {
+            "mode": "none",
+            "items": [
+              {
+                "subject": "label",
+                "op": "on",
+                "a": "l1"
+              },
+              {
+                "subject": "label",
+                "op": "on",
+                "a": "l2"
+              }
+            ]
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK' && (!(item.labels.exists(l, l == 'l1') || item.labels.exists(l, l == 'l2')))"
+    },
+    {
+      "name": "a joined sentence among others",
+      "node": {
+        "mode": "all",
+        "items": [
+          {
+            "subject": "hour",
+            "op": "between",
+            "a": "8",
+            "b": "18"
+          },
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          }
+        ]
+      },
+      "expr": "(now.getHours() >= 8 && now.getHours() < 18) && item.type == 'TASK'"
+    },
+    {
+      "name": "a due comparison among others",
+      "node": {
+        "mode": "any",
+        "items": [
+          {
+            "subject": "due",
+            "op": "past"
+          },
+          {
+            "subject": "completed",
+            "op": "yes"
+          }
+        ]
+      },
+      "expr": "(has(item.due_at) && item.due_at < now) || item.completed == true"
+    },
+    {
+      "name": "a group of one",
+      "node": {
+        "mode": "all",
+        "items": [
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK'",
+      "read": {
+        "subject": "type",
+        "op": "is",
+        "a": "TASK"
+      }
+    },
+    {
+      "name": "a group of one joined sentence",
+      "node": {
+        "mode": "all",
+        "items": [
+          {
+            "subject": "due",
+            "op": "within",
+            "a": "2"
+          }
+        ]
+      },
+      "expr": "(has(item.due_at) && item.due_at < now + duration('48h'))",
+      "read": {
+        "subject": "due",
+        "op": "within",
+        "a": "2"
+      }
+    },
+    {
+      "name": "an empty group",
+      "node": {
+        "mode": "all",
+        "items": []
+      },
+      "expr": "",
+      "read": null
+    },
+    {
+      "name": "an empty group beside a sentence",
+      "node": {
+        "mode": "any",
+        "items": [
+          {
+            "mode": "all",
+            "items": []
+          },
+          {
+            "subject": "type",
+            "op": "is",
+            "a": "TASK"
+          }
+        ]
+      },
+      "expr": "item.type == 'TASK'",
+      "read": {
+        "subject": "type",
+        "op": "is",
+        "a": "TASK"
+      }
+    }
+  ],
+  "unreadable": [
+    {
+      "name": "a negated starts-with",
+      "expr": "!item.title.matches('(?i)^Permit')"
+    },
+    {
+      "name": "not all of",
+      "expr": "!(item.type == 'TASK' && has(item.due_at))"
+    },
+    {
+      "name": "an unescaped metacharacter",
+      "expr": "item.title.matches('(?i)a.b')"
+    },
+    {
+      "name": "a free expression",
+      "expr": "size(item.title) > 3"
+    },
+    {
+      "name": "an always-true join",
+      "expr": "item.type == 'TASK' || true"
+    },
+    {
+      "name": "a due window that is not whole days",
+      "expr": "has(item.due_at) && item.due_at < now + duration('25h')"
+    }
+  ],
+  "refused": [
+    {
+      "name": "a line break in a value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": "a\nb"
+      }
+    },
+    {
+      "name": "an empty value",
+      "node": {
+        "subject": "title",
+        "op": "contains",
+        "a": ""
+      }
+    },
+    {
+      "name": "an hour range backwards",
+      "node": {
+        "subject": "hour",
+        "op": "between",
+        "a": "18",
+        "b": "8"
+      }
+    },
+    {
+      "name": "an hour past the day",
+      "node": {
+        "subject": "hour",
+        "op": "between",
+        "a": "8",
+        "b": "25"
+      }
+    },
+    {
+      "name": "a depth too deep",
+      "node": {
+        "subject": "depth",
+        "op": "is",
+        "a": "5"
+      }
+    },
+    {
+      "name": "days past a year",
+      "node": {
+        "subject": "due",
+        "op": "within",
+        "a": "366"
+      }
+    },
+    {
+      "name": "a number that is not a number",
+      "node": {
+        "subject": "depth",
+        "op": "is",
+        "a": "1e1"
+      }
+    },
+    {
+      "name": "a negative number",
+      "node": {
+        "subject": "due",
+        "op": "within",
+        "a": "-1"
+      }
+    },
+    {
+      "name": "an operator the subject does not take",
+      "node": {
+        "subject": "type",
+        "op": "contains",
+        "a": "TASK"
+      }
+    },
+    {
+      "name": "a subject the composer does not know",
+      "node": {
+        "subject": "priority",
+        "op": "is",
+        "a": "High"
+      }
+    },
+    {
+      "name": "a value where none is taken",
+      "node": {
+        "subject": "due",
+        "op": "has",
+        "a": "x"
+      }
+    },
+    {
+      "name": "a group of no known mode",
+      "node": {
+        "mode": "some",
+        "items": [
+          {
+            "subject": "due",
+            "op": "has"
+          }
+        ]
+      }
+    }
+  ]
+}

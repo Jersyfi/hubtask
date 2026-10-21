@@ -211,6 +211,10 @@ class Client:
         """Check every rule of the workspace against what exists now"""
         return self._call("POST", "/automation/rules:check", {}, None, {}, None, "none", None, "json")
 
+    def describe_rule(self, body: "RuleDescription", *, idempotency_key: str | None = None) -> "JobRef":
+        """Ask AI to draft a rule from a sentence"""
+        return self._call("POST", "/automation/rules:describe", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def test_rule(self, body: "RuleTest") -> "RuleTestResult":
         """Dry-run a rule against a sample event"""
         return self._call("POST", "/automation/rules:test", {}, None, {}, body, "json", "application/json", "json")
@@ -1023,7 +1027,7 @@ class Client:
         """What AI has proposed, and not done"""
         return self._call("GET", "/suggestions", {}, query, {}, None, "none", None, "json")
 
-    def accept_suggestion(self, suggestion_id: str, body: "SuggestionAcceptance") -> "Suggestion":
+    def accept_suggestion(self, suggestion_id: str, body: "SuggestionAcceptance") -> "AcceptedSuggestion":
         """Accept a suggestion"""
         return self._call("POST", "/suggestions/{suggestionId}:accept", {"suggestionId": suggestion_id}, None, {}, body, "json", "application/json", "json")
 

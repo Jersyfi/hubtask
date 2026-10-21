@@ -15,6 +15,8 @@ import {
   FOLLOW_ATTEMPTS,
   acceptCodeOf,
   arrivedSince,
+  ruleDraftSince,
+  targetOf,
   endedAs,
   followArrival,
   hasChoices,
@@ -581,3 +583,20 @@ test('a stale acceptance is the server’s refusal, carried as the code the cata
   );
   assert.equal(transport.sends[0]?.path, '/suggestions/s1:accept');
 });
+
+// The draft an ask produced is the newest proposed rule draft made after the ask - not an older one
+// of the person's own, and not another kind (UC-AUT-10).
+test('a rule ask takes the draft it produced', () => {
+  const at = (id: string, kind: string, status: string, created: string) => ({ id, kind, status, created_at: created }) as unknown as Suggestion;
+  const listing = [
+    at('older', 'RULE', 'PROPOSED', '2030-01-01T00:00:00Z'),
+    at('dismissed', 'RULE', 'DISMISSED', '2030-01-01T00:02:00Z'),
+    at('mine', 'RULE', 'PROPOSED', '2030-01-01T00:01:30Z'),
+    at('template', 'TEMPLATE', 'PROPOSED', '2030-01-01T00:03:00Z'),
+  ];
+  assert.equal(ruleDraftSince(listing, '2030-01-01T00:01:00Z')?.id, 'mine');
+  assert.equal(ruleDraftSince(listing, '2030-01-01T00:04:00Z'), undefined);
+  assert.equal(targetOf({ target_type: 'ACCOUNT' }), 'ACCOUNT');
+  assert.equal(targetOf({ target_type: 'WORK_ITEM' }), 'WORK_ITEM');
+});
+

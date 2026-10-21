@@ -414,6 +414,11 @@ func (w *world) Invoke(
 			return nil, w.readFails
 		}
 		return usecase.Output{"id": containerTargetID.String(), "name": w.containerName}, nil
+	case createRuleName:
+		if w.performFails != nil {
+			return nil, w.performFails
+		}
+		return usecase.Output{"id": createdRuleID.String(), "enabled": false}, nil
 	case "ListComments":
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
@@ -1394,7 +1399,7 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
 		createWorkItemName: true, moveWorkItemName: true,
 		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
-		createTemplateName: true,
+		createTemplateName: true, createRuleName: true,
 	}
 	for key, how := range acceptance {
 		switch {

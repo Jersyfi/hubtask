@@ -53,6 +53,14 @@ func (t EntryTargets) Digest(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID,
 ) ([]byte, error) {
+	if targetType == domain.TargetAccount {
+		// A draft for the person who asked: theirs alone, and nothing to read - the digest is the
+		// account, and a draft is never stale, since the save checks everything again.
+		if err := ownDraft(actor, targetID); err != nil {
+			return nil, err
+		}
+		return domain.Digest(targetID.String(), ""), nil
+	}
 	name, served := readers[targetType]
 	if !served {
 		// A target kind this build does not produce suggestions for. Not-found rather than an

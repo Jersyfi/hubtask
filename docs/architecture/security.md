@@ -253,6 +253,10 @@ Rules trigger HTTP calls and agents write, so:
    (documented in the data catalogue); AI results are suggestions with provenance.
 6. **MCP tools** carry `readOnly`/`destructive` hints; destructive tools need explicit release per
    token and are audited.
+7. **A model writes no expression and names no address** (T-10). A rule drafted from a sentence
+   holds its condition as sentences the server compiles, every value an escaped literal; it drafts no
+   branch condition, dedupe key, outbound request or webhook, and only entry-level steps from an
+   allowlist ([ai-first.md](./ai-first.md) §2).
 
 ---
 

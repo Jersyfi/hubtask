@@ -67,8 +67,9 @@ func TestEveryKeyASuggestionKeepsIsOneTheAcceptanceCanApply(t *testing.T) {
 				continue
 			}
 			var dropped []string
+			told := suggestion.ToldKeys()[promptID]
 			for _, key := range keys[promptID] {
-				if !applicable[key] {
+				if !applicable[key] && !told[key] {
 					dropped = append(dropped, key)
 				}
 			}
@@ -102,12 +103,8 @@ func TestAPayloadNoAllowListNarrowsIsNeverMergedIntoAnInput(t *testing.T) {
 		}
 	}
 
-	for _, target := range []domain.TargetType{
-		domain.TargetWorkItem, domain.TargetJumbleEntry, domain.TargetContainer,
-	} {
-		for _, kind := range []domain.Kind{
-			domain.KindFields, domain.KindDecomposition, domain.KindDuplicates, domain.KindTemplate,
-		} {
+	for _, target := range domain.TargetTypes() {
+		for _, kind := range domain.Kinds() {
 			if produced[applierPair{target, kind}] {
 				continue
 			}

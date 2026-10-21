@@ -1179,6 +1179,7 @@ func run() error {
 	// cases below.
 	suggestionCases.Material = suggestionservice.CatalogueSources{
 		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+		Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
 	}
 	// A person's own view of keeping their content out of AI, over the same rule every AI call
 	// resolves (data-protection.md §4.1).
@@ -1252,7 +1253,10 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
+		Sources: suggestionservice.CatalogueSources{
+			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut,
+			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1261,6 +1265,7 @@ func run() error {
 		// suggestion was produced, stored, listed - and refused by every acceptance.
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Conditions: celexpression.New(),
 	}
 
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
@@ -1815,6 +1820,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.AiGenerateTemplate{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.DescribeRule{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -3466,6 +3476,7 @@ func run() error {
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

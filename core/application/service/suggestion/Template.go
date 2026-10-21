@@ -53,8 +53,11 @@ func (h AiGenerateTemplate) Execute(
 		return shared.ID(""), shared.ErrValidation.WithDetail("suggestions.description_invalid").
 			WithFields(shared.FieldError{Path: "/description", Code: "suggestions.description_invalid"})
 	}
-	return Ask(h).queue(ctx, actor, domain.TargetContainer, collectionID,
-		TemplateAskedAction, domain.KindTemplate, templatePrompt, false, description)
+	return Ask(h).queue(ctx, actor, asking{
+		TargetType: domain.TargetContainer, TargetID: collectionID,
+		Action: TemplateAskedAction, Kind: domain.KindTemplate, PromptID: templatePrompt,
+		Text: description,
+	})
 }
 
 // Descriptor is the catalogue entry.

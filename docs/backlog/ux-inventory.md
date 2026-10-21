@@ -192,7 +192,7 @@ Installation:
 - [ ] Service accounts with tokens, third-party apps → *Machines and apps*
 - [ ] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips
 - [ ] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation
-- [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23)
+- [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
 - [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
 - [ ] Private hubs (allowed switch, table, emergency access) → *Data*
 - [ ] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms
