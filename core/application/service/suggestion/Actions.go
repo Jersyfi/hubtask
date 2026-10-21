@@ -79,9 +79,26 @@ type AiSummarizeContainer struct {
 func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
+	return h.ExecuteFor(ctx, actor, itemID, apply, nil)
+}
+
+// ExecuteFor asks for the named fields only, or for all three where none is named (UC-AI-04
+// check 6: each field's ✦ asks about its own field). A field the question does not propose is
+// refused before anything is asked.
+func (h AiSuggestFields) ExecuteFor(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool, fields []string,
+) (shared.ID, error) {
+	for _, field := range fields {
+		if !promptFields[itemFieldsPrompt][field] {
+			return shared.ID(""), shared.ErrValidation.WithDetail("suggestions.field_not_offered").
+				WithParams(map[string]string{"field": field}).
+				WithFields(shared.FieldError{Path: "/fields", Code: "suggestions.field_not_offered"})
+		}
+	}
 	return Ask(h).queue(ctx, actor, asking{
 		TargetType: domain.TargetWorkItem, TargetID: itemID,
 		Action: FieldsAskedAction, Kind: domain.KindFields, PromptID: itemFieldsPrompt, Apply: apply,
+		Fields: fields,
 	})
 }
 
@@ -160,7 +177,11 @@ func (h AiSuggestFields) Descriptor() usecase.Descriptor {
 			"asked for it to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
 		TokenScope:  suggestionsWrite,
-		Input:       askInput("a set of fields"),
+		Input: append(askInput("a set of fields"), usecase.Field{
+			Name: "fields", Kind: usecase.KindList,
+			Description: "Which of title, notes and due_date to propose. Absent asks for all three; " +
+				"an answer that proposes none of the named ones proposes nothing.",
+		}),
 		Audit: usecase.AuditDeclaration{
 			Action: FieldsAskedAction, TargetType: suggestionTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -175,7 +196,19 @@ func (h AiSuggestFields) Descriptor() usecase.Descriptor {
 func (h AiSuggestFields) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return askInvoke(ctx, actor, in, h.Execute)
+	var fields []string
+	if in.Present("fields") {
+		named, err := in.StringList("fields")
+		if err != nil {
+			return nil, err
+		}
+		fields = named
+	}
+	return askInvoke(ctx, actor, in, func(
+		ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
+	) (shared.ID, error) {
+		return h.ExecuteFor(ctx, actor, itemID, apply, fields)
+	})
 }
 
 func (h AiSummarize) Descriptor() usecase.Descriptor {

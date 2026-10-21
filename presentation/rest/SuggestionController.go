@@ -129,13 +129,30 @@ func (c *RestController) askAi(
 	// an empty one is not an error. Anything that is there is read, and a malformed document still
 	// is (StartOidcSignIn's reasoning).
 	if r.ContentLength > 0 {
-		var body openapi.AiAsk
-		if err := decodeJSON(r, &body); err != nil {
+		// The field set alone names fields (`AiFieldsAsk`); every other ask is `AiAsk`, and a
+		// `fields` sent to one of them is refused as any undeclared member is.
+		var body openapi.AiFieldsAsk
+		var err error
+		if name == aiSuggestFieldsUseCase {
+			err = decodeJSON(r, &body)
+		} else {
+			var plain openapi.AiAsk
+			err = decodeJSON(r, &plain)
+			body.Apply = plain.Apply
+		}
+		if err != nil {
 			WriteProblem(w, err, requestID)
 			return
 		}
 		if body.Apply != nil {
 			in["apply"] = *body.Apply
+		}
+		if body.Fields != nil {
+			named := make([]any, 0, len(*body.Fields))
+			for _, field := range *body.Fields {
+				named = append(named, string(field))
+			}
+			in["fields"] = named
 		}
 	}
 

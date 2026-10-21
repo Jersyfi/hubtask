@@ -90,3 +90,24 @@ func TestTheBudgetStateIsAWordAndAMoment(t *testing.T) {
 		t.Errorf("OFF answered %s", recorder.Body)
 	}
 }
+
+// The field set names its fields in the body (`AiFieldsAsk`), and they reach the use case; a field
+// it does not propose is its refusal, not the router's.
+func TestAFieldSetIsAskedForTheNamedFieldsOverREST(t *testing.T) {
+	registry := &catalogue{out: usecase.Output{"job_id": "0192f000-0000-7000-8000-00000000ac01"}}
+	recorder := containerRequest(t, registry, http.MethodPost, "/items/"+containerID+":suggest-fields",
+		`{"fields":["due_date"]}`, "")
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if fields, _ := registry.in["fields"].([]any); len(fields) != 1 || fields[0] != "due_date" {
+		t.Errorf("the use case was handed %v", registry.in)
+	}
+
+	registry = &catalogue{err: shared.ErrValidation.WithDetail("suggestions.field_not_offered")}
+	recorder = containerRequest(t, registry, http.MethodPost, "/items/"+containerID+":suggest-fields",
+		`{"fields":["subtasks"]}`, "")
+	if recorder.Code != http.StatusUnprocessableEntity || !strings.Contains(recorder.Body.String(), "suggestions.field_not_offered") {
+		t.Errorf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+}

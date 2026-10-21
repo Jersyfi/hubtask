@@ -1121,6 +1121,7 @@
   "suggestions.decider_required": "A suggestion is answered by a person, and this answer names none.",
   "suggestions.already_decided": "Somebody has already answered that suggestion.",
   "suggestions.stale": "That entry has changed since the suggestion was made, so it no longer fits. Ask for a new suggestion.",
+  "suggestions.field_not_offered": "AI can propose a title, notes or a due date here, not {field}.",
   "suggestions.choices_unknown": "That question asks a model to choose from a set this installation cannot read, so no suggestion was made.",
   "suggestions.nothing_to_apply": "This suggestion is something to read rather than something to apply. Dismiss it when you are done with it.",
   "suggestions.description_invalid": "Say what the template should be for, in up to 2000 characters.",

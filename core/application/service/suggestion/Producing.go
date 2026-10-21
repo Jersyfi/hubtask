@@ -596,6 +596,7 @@ func (h Produce) ask(
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
 	default:
 		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
+		payload = onlyAsked(payload, request.Fields)
 	}
 	if !ok || len(payload) == 0 {
 		// A model that answered something this cannot read has answered nothing useful. Finished
@@ -667,6 +668,9 @@ type Request struct {
 	// RequestID names the words the question was asked with, where it has any. Zero for every
 	// question that reads its material from the target.
 	RequestID shared.ID
+	// Fields narrows a field set to the fields the person asked about - the title's ✦ asks for the
+	// title (UC-AI-04 check 6). Empty keeps every field the prompt's allow list keeps.
+	Fields []string
 	// Scope is where a rule drafted from this question would apply, read back from the job's
 	// references. The zero value for every other question.
 	Scope automation.Scope

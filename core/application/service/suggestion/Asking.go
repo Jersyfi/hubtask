@@ -82,6 +82,9 @@ type asking struct {
 	// Reads marks a reading aid (UC-AI-04 check 8): asked by everybody who may read the entry,
 	// unless the answer is to be applied, which changes it.
 	Reads bool
+	// Fields are the fields of a field set the person asked about, travelling on the job; empty
+	// asks for every field the prompt keeps.
+	Fields []string
 }
 
 // queue checks and queues one question.
@@ -205,6 +208,13 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 			// and it is written only when it is true, so a job without it is a proposal - an AI
 			// result is a suggestion unless somebody said otherwise (ai-first.md §2).
 			payload["apply"] = true
+		}
+		if len(q.Fields) > 0 {
+			named := make([]any, 0, len(q.Fields))
+			for _, field := range q.Fields {
+				named = append(named, field)
+			}
+			payload["fields"] = named
 		}
 		if q.Scope.Type != "" {
 			// References, as everything a job carries: the scope's kind and its container.

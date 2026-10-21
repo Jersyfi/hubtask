@@ -84,6 +84,8 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		// one carries (core/port/queue: the payload outlives the process that wrote it).
 		PromptID: payloadString(job, "prompt"),
 		Apply:    payloadBool(job, "apply"),
+		// The fields asked about, where a field's ✦ named one; absent asks for all.
+		Fields: payloadStrings(job, "fields"),
 	}
 	// The scope a rule would apply at, where the question is about one: a kind and a container,
 	// both references (automation.md §1).
@@ -139,6 +141,22 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 
 // payloadBool reads one flag. Absent is false, which is what a proposal is: applying an answer
 // without a person reading it is the exception `automation.md` §1.3 asks to be configured.
+// payloadStrings reads a list of words the asking wrote, or nothing: a payload is the queue's, and
+// anything else in it is not a list this reads.
+func payloadStrings(job queue.Job, key string) []string {
+	raw, _ := job.Payload[key].([]any)
+	words := make([]string, 0, len(raw))
+	for _, each := range raw {
+		if word, ok := each.(string); ok {
+			words = append(words, word)
+		}
+	}
+	if len(words) == 0 {
+		return nil
+	}
+	return words
+}
+
 func payloadBool(job queue.Job, key string) bool {
 	value, _ := job.Payload[key].(bool)
 	return value
