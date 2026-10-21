@@ -508,3 +508,17 @@ func TestTheAskersTokenStillNeedsTheScope(t *testing.T) {
 		t.Error("the asker's read was asked for a token that may not stop anything")
 	}
 }
+
+// A rule drafted for its asker is theirs to stop: the draft is about nobody's content but theirs, so
+// being the asker is the whole question.
+func TestTheAskerStopsTheDraftingOfTheirRule(t *testing.T) {
+	h := newHarness(domain.StateRunning)
+	h.jobs.asker = repository.Asker{Kind: "ai.draft_rule", AskedBy: actorID, TargetType: "ACCOUNT", TargetID: actorID}
+
+	if _, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID}); err != nil {
+		t.Fatalf("stopping the draft: %v", err)
+	}
+	if len(h.authorizer.requests) != 0 || len(h.authorizer.permitted) != 0 {
+		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
+	}
+}
