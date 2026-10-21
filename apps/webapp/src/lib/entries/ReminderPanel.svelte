@@ -45,6 +45,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst as focusFirstMissing } from '../forms/missing.ts';
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
 
@@ -137,8 +138,20 @@
     }
   }
 
+  /**
+   * *Save* was pressed with a reminder counted from a due date the entry does not have. Said at
+   * the editor's first question; the editor stays usable, because the way out - a fixed time - is
+   * one of its own choices (design-system.md §4, case 3). It used to be switched off whole.
+   */
+  let isWhenMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
+
   function save() {
-    if (refusal) return;
+    if (refusal) {
+      isWhenMissing = true;
+      queueMicrotask(() => focusFirstMissing(form));
+      return;
+    }
     const current = editing;
     void attempt(async () => {
       const body = {
@@ -204,7 +217,7 @@
 
     {#if isComposing}
       <!-- The editor appears under the control that opened it; the focus goes in with it (2.4.3). -->
-      <div class="opened" {@attach focusFirst({ returnTo: '[data-opener="reminder"]' })}>
+      <div class="opened" bind:this={form} {@attach focusFirst({ returnTo: '[data-opener="reminder"]' })}>
       <ReminderEditor
         label={t('app.reminders.editor')}
         value={spec}
@@ -228,8 +241,11 @@
         unknownChannelLabel={t('app.reminders.channel_unknown')}
         recipientsLabel={t('app.reminders.recipients')}
         defaultRecipientsLabel={t('app.reminders.default_recipients')}
-        disabledReason={refusal ? t(refusal) : undefined}
-        onChange={(next) => (spec = next)}
+        error={isWhenMissing && refusal ? t(refusal) : undefined}
+        onChange={(next) => {
+          spec = next;
+          isWhenMissing = false;
+        }}
         onChannelsChange={(next) => (chosenChannels = next)}
       >
         {#snippet recipients()}
@@ -259,7 +275,6 @@
         <Button
           isBusy={isSaving}
           busyLabel={t('app.workspace.saving')}
-          disabledReason={refusal ? t(refusal) : undefined}
           onclick={save}
         >
           {t('app.reminders.save')}

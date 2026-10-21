@@ -300,16 +300,15 @@
                   >
                     {t('app.jumble.dismiss')}
                   </Button>
-                  {#if hasAi}
+                  <!-- Absent for an arrival with neither subject nor text: there is nothing to ask
+                       about, and nothing the reader could change about that - the content came
+                       from outside. Waiting for an answer is said at the button. -->
+                  {#if hasAi && (entry.raw_subject?.trim() || entry.raw_body?.trim())}
                     <Button
                       tone="secondary"
                       icon="sparkles"
                       data-ai
-                      disabledReason={isPending(suggestions.askingOf(entry.id))
-                        ? t('app.suggestions.pending')
-                        : !entry.raw_subject?.trim() && !entry.raw_body?.trim()
-                          ? t('app.jumble.ask_empty')
-                          : undefined}
+                      disabledReason={isPending(suggestions.askingOf(entry.id)) ? t('app.suggestions.pending') : undefined}
                       onclick={() => void ask(entry)}
                     >
                       {t('app.jumble.ask')}

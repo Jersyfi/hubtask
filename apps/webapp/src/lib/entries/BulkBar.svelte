@@ -53,6 +53,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   interface Props {
     collectionId: string;
@@ -78,6 +79,9 @@
   let isApplying = $state(false);
   let confirming = $state(false);
   let failure = $state<string | undefined>(undefined);
+  /** *Apply* was pressed without the value its operation needs: said at that field. */
+  let isValueMissing = $state(false);
+  let bar = $state<HTMLElement | null>(null);
 
   const collectionLabels = $derived(labels.of(collectionId));
   const collectionBuckets = $derived(buckets.of(collectionId));
@@ -89,13 +93,28 @@
    * and inventing one from what happens to be cached would offer a different set on every screen.
    */
   const collections = $derived(path.hubId ? containers.collectionsOf(path.hubId) : []);
+  /**
+   * The operations offered: one that needs a value from a list is not offered while the list is
+   * empty - a label to add where the collection has none - since nothing could ever be chosen.
+   */
+  const offered = $derived(
+    BULK_OPERATIONS.filter((each) => {
+      if (each === 'ADD_LABEL' || each === 'REMOVE_LABEL') return collectionLabels.length > 0;
+      if (each === 'UPDATE_ITEM') return collectionBuckets.length > 0;
+      if (each === 'MOVE_ITEM') return collections.length > 0;
+      return true;
+    }),
+  );
 
   const candidateIds = $derived(people.candidates(path));
   const candidates = $derived(
     candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
 
-  /** Whether the operation has everything it needs. Apply is off with a reason until it does. */
+  /**
+   * Whether the operation has everything it needs. *Apply* is never switched off for it
+   * (design-system.md §4, case 3): pressed without it, the field says so and takes focus.
+   */
   const ready = $derived.by(() => {
     switch (op) {
       case 'ADD_LABEL':
@@ -140,6 +159,11 @@
   }
 
   function apply() {
+    if (!ready) {
+      isValueMissing = true;
+      queueMicrotask(() => focusFirst(bar));
+      return;
+    }
     if (isDestructive(op)) {
       confirming = true;
       return;
@@ -185,7 +209,7 @@
 <!-- Drawn only while somebody is selecting (ADR-0063 decision 8). It used to stand above every
      list saying "select every entry on screen" whether or not anybody was selecting anything. -->
 {#if selection.isOn}
-<div class="bar" data-active={count > 0 || op === 'CREATE_ITEM' ? '' : undefined}>
+<div class="bar" bind:this={bar} data-active={count > 0 || op === 'CREATE_ITEM' ? '' : undefined}>
   <!-- The way in, and the only control here that is drawn with nothing selected: without it a
        keyboard reader would have to press every row to act on a screenful. -->
   <Checkbox
@@ -210,7 +234,8 @@
         label={t('app.bulk.operation')}
         size="sm"
         bind:value={op}
-        options={BULK_OPERATIONS.map((each) => ({ value: each, label: t(`app.bulk.op_${each}`) }))}
+        options={offered.map((each) => ({ value: each, label: t(`app.bulk.op_${each}`) }))}
+        onchange={() => (isValueMissing = false)}
       />
 
       {#if op === 'ADD_LABEL' || op === 'REMOVE_LABEL'}
@@ -218,6 +243,8 @@
           label={t('app.bulk.label')}
           size="sm"
           bind:value={labelId}
+          error={isValueMissing && labelId === '' ? t('app.bulk.needs_value') : undefined}
+          onchange={() => (isValueMissing = false)}
           options={collectionLabels.map((label) => ({ value: label.id, label: label.name }))}
         />
       {:else if op === 'ASSIGN'}
@@ -232,13 +259,19 @@
           noMatchLabel={t('app.bulk.assignee_no_match')}
           chosenLabel={t('app.bulk.assignee_chosen')}
           unassignedLabel={t('app.bulk.assignee_none')}
-          onSelect={(ids) => (accountId = ids[0] ?? '')}
+          error={isValueMissing && accountId === '' ? t('app.bulk.needs_value') : undefined}
+          onSelect={(ids) => {
+            accountId = ids[0] ?? '';
+            isValueMissing = false;
+          }}
         />
       {:else if op === 'MOVE_ITEM'}
         <Select
           label={t('app.bulk.collection')}
           size="sm"
           bind:value={targetCollectionId}
+          error={isValueMissing && targetCollectionId === '' ? t('app.bulk.needs_value') : undefined}
+          onchange={() => (isValueMissing = false)}
           options={collections.map((collection) => ({ value: collection.id, label: collection.name }))}
         />
       {:else if op === 'UPDATE_ITEM'}
@@ -246,10 +279,18 @@
           label={t('app.bulk.bucket')}
           size="sm"
           bind:value={bucketId}
+          error={isValueMissing && bucketId === '' ? t('app.bulk.needs_value') : undefined}
+          onchange={() => (isValueMissing = false)}
           options={collectionBuckets.map((bucket) => ({ value: bucket.id, label: bucket.name }))}
         />
       {:else if op === 'CREATE_ITEM'}
-        <Textarea label={t('app.bulk.titles')} bind:value={titles} rows={3} />
+        <Textarea
+          label={t('app.bulk.titles')}
+          bind:value={titles}
+          rows={3}
+          error={isValueMissing && titles.trim() === '' ? t('app.bulk.needs_value') : undefined}
+          oninput={() => (isValueMissing = false)}
+        />
       {/if}
 
       <!-- Off by default and offered where it matters: all-or-nothing is the right answer for a move
@@ -260,11 +301,7 @@
         size="sm"
         isBusy={isApplying}
         busyLabel={t('app.workspace.saving')}
-        disabledReason={overCap
-          ? t('app.bulk.over_cap')
-          : ready
-            ? undefined
-            : t('app.bulk.needs_value')}
+        disabledReason={overCap ? t('app.bulk.over_cap') : undefined}
         onclick={apply}
       >
         {t('app.bulk.apply')}

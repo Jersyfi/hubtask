@@ -31,6 +31,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { focusFirst } from '../forms/missing.ts';
   import { renderProblem } from '../problem.ts';
 
   import type { TransportError } from '@hubtask/sync-engine';
@@ -79,8 +80,17 @@
   const isPrivacyOffered = $derived(isHub && !isPrivateOnly && workspace.workspace?.private_hubs_offered === true);
   const title = $derived(t(isPrivateHubOnly ? 'app.workspace.create_private_hub' : isHub ? 'app.workspace.create_hub' : 'app.workspace.create_collection'));
 
+  /** *Create* was pressed without a name: the field says so (design-system.md §4, case 3). */
+  let isNameMissing = $state(false);
+  let body = $state<HTMLElement | null>(null);
+
   async function create() {
-    if (name.trim() === '' || isSaving) return;
+    if (isSaving) return;
+    if (name.trim() === '') {
+      isNameMissing = true;
+      queueMicrotask(() => focusFirst(body));
+      return;
+    }
     isSaving = true;
     failure = undefined;
     isNameFailure = false;
@@ -117,11 +127,13 @@
   {title}
   dismissLabel={t('app.workspace.cancel')}
 >
+  <div bind:this={body}>
   <Stack gap="150">
     <Input
       label={t(isHub ? 'app.workspace.hub_name' : 'app.workspace.collection_name')}
       bind:value={name}
-      error={isNameFailure ? failure?.message : undefined}
+      oninput={() => (isNameMissing = false)}
+      error={isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined}
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
     {#if isPrivateHubOnly}
@@ -135,13 +147,13 @@
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
   </Stack>
+  </div>
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
     <Button
       isBusy={isSaving}
       busyLabel={t('app.workspace.creating')}
-      disabledReason={name.trim() === '' ? t('app.workspace.name_required') : undefined}
       onclick={create}
     >
       {title}

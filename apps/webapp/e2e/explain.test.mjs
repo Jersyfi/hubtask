@@ -272,3 +272,87 @@ test('chromium: 1280 px — a saved view offers sharing only to who may share, a
     await context.close();
   }
 });
+
+/** Records every write the page sends, by method and path. */
+function writes(context) {
+  const sent = [];
+  context.on('request', (request) => {
+    if (request.method() !== 'GET' && request.url().includes('/api/v1/')) sent.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  });
+  return sent;
+}
+
+for (const width of WIDTHS) {
+  test(`chromium: ${width} px — a bulk Apply without its value marks the field and sends nothing`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await as(browser, width, 'OWNER');
+    const sent = writes(context);
+    await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+    await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
+    await page.locator('[data-opener="container-menu"]').click();
+    await page.getByRole('menuitem', { name: 'Select entries' }).click();
+    await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
+    await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });
+    const apply = page.getByRole('button', { name: 'Apply', exact: true });
+    assert.equal(await apply.getAttribute('aria-disabled'), null, 'Apply is switched off for want of a person');
+    await apply.click();
+    await page.waitForFunction(() => document.activeElement?.closest('[aria-invalid="true"]') !== null);
+    assert.equal(sent.filter((each) => each.includes('bulk')).length, 0, `a bulk was sent: ${sent}`);
+    assert.deepEqual(failures, []);
+  });
+
+  test(`chromium: ${width} px — creating a collection without a name marks the name and sends nothing`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { page, context, failures } = await as(browser, width, 'OWNER');
+    const sent = writes(context);
+    await page.goto(`${served.origin}/hubs/${COLLECTION.parent_id}`);
+    const create = page.locator('[data-opener="add-collection"]').first();
+    await create.waitFor({ timeout: 15_000 });
+    await create.click();
+    const dialog = page.getByRole('dialog');
+    await dialog.waitFor();
+    await dialog.getByRole('button', { name: 'Create collection' }).click();
+    await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+    assert.equal(sent.filter((each) => each.startsWith('POST /api/v1/containers')).length, 0, `a container was created: ${sent}`);
+    assert.deepEqual(failures, []);
+  });
+}
+
+test('chromium: 1280 px — a reminder counted from a due date the entry lacks is marked on save, and a fixed time stays reachable', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await as(browser, 1280, 'OWNER');
+  const sent = writes(context);
+  const undated = ITEMS.find((each) => !each.due_at) ?? ITEMS[0];
+  await page.goto(`${served.origin}/items/${undated.id}`);
+  const row = page.locator('button[data-detail="reminders"]');
+  await row.waitFor({ timeout: 15_000 });
+  await row.click();
+  await page.getByRole('button', { name: 'Add a reminder' }).click();
+  const save = page.getByRole('button', { name: 'Save the reminder' });
+  await save.waitFor();
+  assert.equal(await save.getAttribute('aria-disabled'), null, 'Save is switched off for want of a due date');
+  // By keyboard: the editor is taller than the popover's room, and a keyboard is how its foot is
+  // reached there.
+  await save.focus();
+  await page.keyboard.press('Enter');
+  await page.locator('[role="group"][data-invalid]').waitFor({ timeout: 5_000 });
+  await page.waitForFunction(() => document.activeElement?.closest('[data-invalid]') !== null);
+  assert.equal(sent.filter((each) => each.includes('reminders')).length, 0, `a reminder was sent: ${sent}`);
+  // The way out is still there: no part of the editor is off.
+  assert.equal(await page.locator('[role="group"][data-invalid] [aria-disabled="true"]').count(), 0, 'the editor is switched off');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 1280 px — Ask is absent for an arrival with nothing to ask about', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures } = await as(browser, 1280, 'OWNER');
+  await page.goto(`${served.origin}/jumble`);
+  await page.locator('main').waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(500);
+  assert.equal(await page.getByText('nothing for AI to work with').count(), 0, 'the empty arrival still says why it cannot be asked');
+  assert.deepEqual(failures, []);
+});

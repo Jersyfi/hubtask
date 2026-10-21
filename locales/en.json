@@ -3705,7 +3705,6 @@
   "app.jumble.convert": "Make an entry from it",
   "app.jumble.dismiss": "Dismiss",
   "app.jumble.ask": "Ask AI what this should become",
-  "app.jumble.ask_empty": "This arrival has neither a subject nor a text, so there is nothing for AI to work with.",
   "app.jumble.suggested": "Suggested entry",
   "app.jumble.suggested_subtasks": "Suggested steps under it",
   "app.jumble.accept_suggestion": "Make this entry",
