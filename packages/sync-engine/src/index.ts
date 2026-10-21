@@ -105,6 +105,7 @@ export type {
   Container,
   ContainerPage,
   EffectiveStructure,
+  CollectionFigure,
   Preset,
   StructureChange,
   StructureSettings,

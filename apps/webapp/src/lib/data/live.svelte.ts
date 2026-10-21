@@ -24,6 +24,7 @@ import type { ChangeRecord } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
 import { engine } from './engine.ts';
+import { figures } from './figures.svelte.ts';
 import { pathsFor, revokedContainerOf } from './live.ts';
 
 /**
@@ -147,6 +148,9 @@ class Live {
    * a record is not one - it is a change that arrived through a connection that was already up.
    */
   #notice(record: ChangeRecord): void {
+    // A collection's figure is counted from its entries; a change to them reads it again, gathered
+    // rather than once per record (figures.svelte.ts).
+    figures.note(record);
     const lost = revokedContainerOf(record);
     if (lost && !this.#revoked.includes(lost)) {
       this.#revoked = [...this.#revoked, lost];

@@ -35,6 +35,7 @@
 
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
+  import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
@@ -716,6 +717,11 @@
        is about a *failure* rendered as an empty list; this is the other way round. -->
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
+  <!-- What counts in the collection, counted by the server on its read (UC-WRK-29). Absent on a
+       hub, offline, and where the collection counts nothing. -->
+  {#snippet collectionFigure()}
+    {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
+  {/snippet}
   <Stack gap="300">
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
@@ -776,6 +782,7 @@
             },
           ]}
       menu={{ label: t('app.workspace.actions', { name: container.name }), items: pageMenu, onselect: choseFromMenu, opener: 'container-menu' }}
+      figure={container.type === 'COLLECTION' && container.figure ? collectionFigure : undefined}
     >
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the

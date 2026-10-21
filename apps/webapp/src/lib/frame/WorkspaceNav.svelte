@@ -28,6 +28,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
+  import { rowMessage } from '../data/figure.ts';
   import { KEEPING, primary } from '../navigation.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -121,11 +122,16 @@
       children: containers
         .collectionsOf(hub.id)
         .filter((collection) => !live.hasLost(collection.id))
-        .map((collection) => ({
-          id: collection.id,
-          label: collection.name,
-          icon: 'collection' as const,
-        })),
+        .map((collection) => {
+          // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
+          const figure = collection.figure ? rowMessage(collection.figure, messages.locale) : undefined;
+          return {
+            id: collection.id,
+            label: collection.name,
+            icon: 'collection' as const,
+            meta: figure ? t(figure.code, figure.params) : undefined,
+          };
+        }),
     })),
   );
 
