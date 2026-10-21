@@ -165,6 +165,18 @@ func (w CommentWriter) change(
 		if err := item.EnsureEditable(); err != nil {
 			return err
 		}
+		// A thread the collection hides is kept as it is: an edit, and the author taking their own
+		// words back, are refused like a new comment. Moderation is not - an administrator removing
+		// somebody else's comment is the lifecycle, which no structure stops.
+		if want == editing || actor.AccountID == current.AuthorID {
+			profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
+			if err != nil {
+				return err
+			}
+			if err := profile.Require(domain.CapabilityComments, "/comment_id"); err != nil {
+				return err
+			}
+		}
 
 		if want == deleting && current.DeletedAt != nil {
 			// Already a tombstone. Nothing is written, no version is spent and nothing is

@@ -168,13 +168,22 @@ func (w ItemMemberWriter) change(
 
 	// Only on the way in. Somebody who has lost access has to be removable - that is precisely the
 	// tidying up a revoked membership leaves behind, and refusing it would strand them on the entry
-	// for good.
+	// for good. For the same reason that removal passes a collection that hides members: everything
+	// else hidden is kept as it is, but an entry on somebody who cannot see it is one nobody can act
+	// on.
+	gated := true
 	if want == addingMember {
 		if err := ensureAccountCanSee(
 			ctx, w.Visibility, actor, cmd.AccountID, collection,
 		); err != nil {
 			return ItemMemberSet{}, err
 		}
+	} else {
+		sees, err := w.Visibility.CanSee(ctx, actor, cmd.AccountID, containerPath(collection))
+		if err != nil {
+			return ItemMemberSet{}, err
+		}
+		gated = sees
 	}
 
 	var result ItemMemberSet
@@ -183,7 +192,7 @@ func (w ItemMemberWriter) change(
 		if err != nil {
 			return err
 		}
-		if err := w.ensureMembersAllowed(ctx, item); err != nil {
+		if err := w.ensureMembersAllowed(ctx, item, gated); err != nil {
 			return err
 		}
 		// A trashed or archived entry is read-only (I-W4). Asked after the capability, exactly as
@@ -243,7 +252,7 @@ func (w ItemMemberWriter) addWithin(
 	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
 	collection domain.Container, accountID shared.ID, position int, now time.Time,
 ) error {
-	if err := w.ensureMembersAllowed(ctx, item); err != nil {
+	if err := w.ensureMembersAllowed(ctx, item, true); err != nil {
 		return atListElement(err, "/member_ids", position)
 	}
 	// A rule creating an entry puts no restricted person on it; the entry is made without them.
@@ -425,8 +434,14 @@ func (w ItemMemberWriter) recordAudit(
 // the capability matrix where the two part company (domain-model.md §2). Refused rather than
 // silently ignored - a client that put somebody on an activity and received a 200 would believe
 // they were on it.
-func (w ItemMemberWriter) ensureMembersAllowed(ctx context.Context, item domain.WorkItem) error {
+//
+// Gated, it asks the entry's collection too: a collection that hides members refuses changing them.
+// Ungated is the one removal that passes it (change).
+func (w ItemMemberWriter) ensureMembersAllowed(ctx context.Context, item domain.WorkItem, gated bool) error {
 	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	if gated {
+		profile, err = w.Gate.gatedProfileFor(ctx, w.Profiles, item)
+	}
 	if err != nil {
 		return err
 	}

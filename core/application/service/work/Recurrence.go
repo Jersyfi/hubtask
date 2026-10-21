@@ -435,7 +435,7 @@ func (w RecurrenceWriter) readRecurringItem(
 	if err := collection.EnsureAcceptsItems(); err != nil {
 		return domain.WorkItem{}, err
 	}
-	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
 	if err != nil {
 		return domain.WorkItem{}, err
 	}

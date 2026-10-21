@@ -123,3 +123,18 @@ func refuseHiddenRemoval(profile domain.CapabilityProfile, capability domain.Cap
 	}
 	return profile.Require(capability, path)
 }
+
+// gatedProfileFor is gatedProfile for a writer that holds the entry and not its collection: the
+// collection is read in the same transaction.
+func (g EntryGate) gatedProfileFor(
+	ctx context.Context, profiles metarepo.CapabilityProfiles, item domain.WorkItem,
+) (domain.CapabilityProfile, error) {
+	if !g.Wired() {
+		return profileOf(ctx, profiles, item.Type)
+	}
+	collection, err := findCollection(ctx, g.Structure.Containers, item.CollectionID)
+	if err != nil {
+		return domain.CapabilityProfile{}, err
+	}
+	return g.gatedProfile(ctx, profiles, collection, item)
+}
