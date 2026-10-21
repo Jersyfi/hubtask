@@ -211,9 +211,10 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	registry := hiddenCatalogue(t)
-	actor := hiddenActor(tenantA, authorA)
-	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
-	collection := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
+	actor := hiddenActor(tenantB, authorB)
+	// Tenant B, seeded through the repository with its own ranks: tenant A carries a narrowed TASK
+	// profile and tenant B's hub level a rank another test wrote, both in the shared database.
+	collection := collectionFor(ctx, t, tenantB, authorB).String()
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
 		"type": "TASK", "collection_id": collection, "title": "Summer party", "notes": "Budget 400",
@@ -235,7 +236,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		t.Fatalf("creating the activity: %v", err)
 	}
 	if _, err := registry.Invoke(ctx, "AssignWorkItem", actor, usecase.Input{
-		"item_id": taskID, "account_id": authorA.String(),
+		"item_id": taskID, "account_id": authorB.String(),
 	}); err != nil {
 		t.Fatalf("assigning: %v", err)
 	}
@@ -252,7 +253,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	attachment := freshID(t)
 	if _, err := adminPool(ctx, t).Exec(ctx, `INSERT INTO media_object (id, tenant_id, storage_key, mime_type, byte_size, usage, status)
 		VALUES ($1, $2, $3, 'application/pdf', 12, 'ATTACHMENT', 'READY')`,
-		attachment.String(), tenantA.String(), "test/"+attachment.String()); err != nil {
+		attachment.String(), tenantB.String(), "test/"+attachment.String()); err != nil {
 		t.Fatalf("the file: %v", err)
 	}
 	for _, write := range []struct {
@@ -261,7 +262,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	}{
 		{"UpdateWorkItem", usecase.Input{"item_id": taskID, "bucket_id": column.String("id")}},
 		{"SetCover", usecase.Input{"item_id": taskID, "kind": "COLOR", "color_token": "surface.sand"}},
-		{"AddMember", usecase.Input{"item_id": taskID, "account_id": authorA.String()}},
+		{"AddMember", usecase.Input{"item_id": taskID, "account_id": authorB.String()}},
 		{"AttachMedia", usecase.Input{"item_id": taskID, "media_id": attachment.String()}},
 		{"AddComment", usecase.Input{"item_id": taskID, "body": "Who brings the speakers?"}},
 		{"CreateReminder", usecase.Input{"item_id": taskID, "offset_spec": "REL:-PT1H"}},
@@ -274,6 +275,19 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		}
 	}
 	entries := []string{taskID, pack.String("id"), step.String("id")}
+	// The shared database: other tests ask what tenant B owes next, so the date, the reminder
+	// and the series go when this test ends.
+	t.Cleanup(func() {
+		for _, statement := range []string{
+			`DELETE FROM reminder WHERE item_id::text = ANY($1)`,
+			`UPDATE work_item SET due_at = NULL, due_date_only = false, due_time_zone = NULL, recurrence_rule_id = NULL WHERE id::text = ANY($1)`,
+			`DELETE FROM recurrence_rule WHERE source_item_id::text = ANY($1)`,
+		} {
+			if _, err := adminPool(ctx, t).Exec(ctx, statement, entries); err != nil {
+				t.Errorf("cleaning up: %v", err)
+			}
+		}
+	})
 	before := storedAbout(ctx, t, entries...)
 
 	// Narrow to List: nothing stored moves.
@@ -296,7 +310,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		!slices.Contains(capabilities, "DUE_DATE") {
 		t.Errorf("the task is marked %v %v", level, capabilities)
 	}
-	if read["notes"] != "Budget 400" || read["assignee_id"] != authorA.String() || read["due_at"] == nil {
+	if read["notes"] != "Budget 400" || read["assignee_id"] != authorB.String() || read["due_at"] == nil {
 		t.Errorf("the read lost a hidden value: %v", read)
 	}
 	for _, id := range entries[1:] {
@@ -397,9 +411,13 @@ func TestAnotherWorkspaceReadsNoHiddenEntry(t *testing.T) {
 	ctx := context.Background()
 	seedMemberships(ctx, t)
 	registry := hiddenCatalogue(t)
-	actor := hiddenActor(tenantA, authorA)
-	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t), "preset": "LIST"})
-	collection := createIn(ctx, t, registry, usecase.Input{"type": "COLLECTION", "parent_id": hub, "name": freshName(t)})
+	actor := hiddenActor(tenantB, authorB)
+	collection := collectionFor(ctx, t, tenantB, authorB).String()
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	}); err != nil {
+		t.Fatalf("narrowing: %v", err)
+	}
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
 		"type": "TASK", "collection_id": collection, "title": "Ours",
 	})
@@ -407,7 +425,7 @@ func TestAnotherWorkspaceReadsNoHiddenEntry(t *testing.T) {
 		t.Fatalf("creating: %v", err)
 	}
 
-	_, err = registry.Invoke(ctx, "GetWorkItem", hiddenActor(tenantB, authorB), usecase.Input{"item_id": task.String("id")})
+	_, err = registry.Invoke(ctx, "GetWorkItem", hiddenActor(tenantA, authorA), usecase.Input{"item_id": task.String("id")})
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("tenant B read tenant A's entry: %v", err)
 	}
