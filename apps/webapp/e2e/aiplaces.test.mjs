@@ -55,7 +55,17 @@ const COMMENT = { id: '01a0e2e0-0000-7000-8000-0000000009c1', item_id: ENTRY.id,
  * A signed-in tab on the entry: AI on or off, the reader's role on the workspace, what stands, and
  * how the budget stands. Answers the page and what the walk saw asked.
  */
-async function openEntry(browser, { width = 1280, ai = true, role = 'OWNER', standing = [], budget = { state: 'OK', renews_at: '2030-01-02T00:00:00Z' }, scheme = 'light', jobs = () => ({ status: 'RUNNING' }) } = {}) {
+async function openEntry(browser, options = {}) {
+  try {
+    return await reachEntry(browser, options);
+  } catch (error) {
+    // A browser left open keeps the walk's process alive after its last test.
+    await browser.close();
+    throw error;
+  }
+}
+
+async function reachEntry(browser, { width = 1280, ai = true, role = 'OWNER', standing = [], budget = { state: 'OK', renews_at: '2030-01-02T00:00:00Z' }, scheme = 'light', jobs = () => ({ status: 'RUNNING' }) } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 1100 }, colorScheme: scheme });
   const asked = [];
   await context.route('**/api/v1/**', async (route) => {
@@ -221,24 +231,27 @@ test('chromium: a field question asks for its one field (check 6)', { timeout: 9
 
 test('chromium: the budget is said before asking - nearly spent in the head, spent on every item (check 9)', { timeout: 90_000 }, async () => {
   const browser = await chromium.launch();
-  for (const [state, check] of [
-    ['NEARLY_SPENT', async (page) => page.getByText("Today's AI budget is nearly used up.").waitFor({ timeout: 5_000 })],
-    ['SPENT', async (page) => {
-      const items = page.getByRole('menuitem');
-      for (const each of await items.all()) assert.equal(await each.getAttribute('aria-disabled'), 'true');
-    }],
-  ]) {
-    const { page, failures, close } = await openEntry(browser, { budget: { state, renews_at: '2030-01-02T00:00:00Z' } });
-    try {
-      await menu(page, 'Ask AI about this entry').click();
-      await check(page);
-      await evidence(page, `places-4-budget-${state.toLowerCase()}-1280.png`);
-      assert.deepEqual(failures, []);
-    } finally {
-      await close();
+  try {
+    for (const [state, check] of [
+      ['NEARLY_SPENT', async (page) => page.getByText("Today's AI budget is nearly used up.").waitFor({ timeout: 5_000 })],
+      ['SPENT', async (page) => {
+        const items = page.getByRole('menuitem');
+        for (const each of await items.all()) assert.equal(await each.getAttribute('aria-disabled'), 'true');
+      }],
+    ]) {
+      const { page, failures, close } = await openEntry(browser, { budget: { state, renews_at: '2030-01-02T00:00:00Z' } });
+      try {
+        await menu(page, 'Ask AI about this entry').click();
+        await check(page);
+        await evidence(page, `places-4-budget-${state.toLowerCase()}-1280.png`);
+        assert.deepEqual(failures, []);
+      } finally {
+        await close();
+      }
     }
+  } finally {
+    await browser.close();
   }
-  await browser.close();
 });
 
 test('chromium: with AI off nothing of it is drawn (UC-AI-01 check 1)', { timeout: 90_000 }, async () => {

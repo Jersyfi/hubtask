@@ -45,7 +45,17 @@ const PROPOSAL = {
  * Opens the entry with AI on, the ask answered by `onAsk` and the job by `job`. The listing holds
  * the proposal once the job says it proposed one.
  */
-async function openEntry(browser, width, { onAsk, job }) {
+async function openEntry(browser, width, options) {
+  try {
+    return await reachEntry(browser, width, options);
+  } catch (error) {
+    // A browser left open keeps the walk's process alive after its last test.
+    await browser.close();
+    throw error;
+  }
+}
+
+async function reachEntry(browser, width, { onAsk, job }) {
   const { page, context, failures } = await signedIn(browser, width, 1000);
   await page.clock.install();
   let proposed = false;
