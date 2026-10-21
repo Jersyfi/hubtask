@@ -172,6 +172,12 @@ export interface MutateOptions {
    * screen holds open. See `matchesPath`.
    */
   readonly invalidates?: readonly string[];
+  /**
+   * Lets the caller stop waiting: a person pressed *Stop* on a request they are watching. Passed
+   * to the transport, which ends the request; the server's context ends with it. A write that was
+   * queued rather than sent is not stopped by it - it is no longer this call's to stop.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -1205,6 +1211,7 @@ export class SyncEngine {
     timeoutMs?: number;
     ifMatch?: string;
     stepUpToken?: string;
+    signal?: AbortSignal;
   }): RequestOptions {
     return {
       token: this.#token(),
@@ -1212,6 +1219,7 @@ export class SyncEngine {
       ifMatch: given.ifMatch,
       stepUpToken: given.stepUpToken,
       timeoutMs: given.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      signal: given.signal,
     };
   }
 
