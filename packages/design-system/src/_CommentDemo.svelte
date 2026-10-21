@@ -5,8 +5,22 @@
   // switched on per comment, because whether this reader is the author is the caller's knowledge.
 
   import CommentThread, { type ThreadComment } from './CommentThread.svelte';
+  import InContext from './_InContext.svelte';
 
-  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' } = $props();
+  const { mode = 'thread' }: { mode?: 'thread' | 'removed' | 'empty' | 'paged' | 'table' } = $props();
+
+  /** One comment, its two affordances off for `reason` - or on, in the comparison row. */
+  const single = (reason: string | undefined): ThreadComment[] => [
+    {
+      id: 's1',
+      authorName: 'Sofia Marchetti',
+      body: 'I have attached the revised plan to the work package.',
+      when: '4 Sep 2026, 11:48',
+      at: '2026-09-04T09:48:00Z',
+      editDisabledReason: reason,
+      deleteDisabledReason: reason,
+    },
+  ];
 
   const conversation: ThreadComment[] = [
     {
@@ -62,6 +76,23 @@
   ];
 </script>
 
+{#if mode === 'table'}
+  <InContext context="table" reason="Only the author can change a comment.">
+    {#snippet subject({ reason })}
+      <CommentThread
+        label="Comments"
+        comments={single(reason)}
+        emptyLabel="Nothing has been said about this entry yet."
+        removedLabel="This comment was removed."
+        editLabel="Edit"
+        deleteLabel="Remove"
+        replyLabel="Reply"
+        onEdit={() => {}}
+        onDelete={() => {}}
+      />
+    {/snippet}
+  </InContext>
+{:else}
 <CommentThread
   label="Comments"
   comments={mode === 'empty' ? [] : mode === 'removed' ? withRemoved : conversation}
@@ -74,3 +105,4 @@
   loadMoreLabel="Older comments"
   arrivedLabel="8 older comments"
 />
+{/if}

@@ -37,3 +37,16 @@ export const recipients: Story = {
     'The picker is a slot, so the application’s arrives without this component learning what a member is. With nobody named, the sentence in its place says who is reminded anyway: the assignee and the members, resolved when it fires. "Nobody" is what an empty list looks like, and it is not what happens.',
   args: { mode: 'recipients' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A reminder that cannot be changed. It states its reason once - one bubble from the mark at its heading, whichever part is hovered, focused or tried - where it used to print it under every part. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};

@@ -2,10 +2,25 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import IconButton from './IconButton.svelte';
+  import InContext from './_InContext.svelte';
   import Inline from './Inline.svelte';
 
-  const { mode = 'toolbar' }: { mode?: 'toolbar' | 'unavailable' } = $props();
+  const { mode = 'toolbar' }: { mode?: 'toolbar' | 'unavailable' | 'row' | 'table' | 'busy' } = $props();
 </script>
+
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="This entry is already first.">
+    {#snippet subject({ reason, onclick })}
+      <IconButton icon="chevron-up" label="Move up" disabledReason={reason} {onclick} />
+    {/snippet}
+  </InContext>
+{:else if mode === 'busy'}
+  <InContext context="row" reason="This entry is already first." driverLabel="Switch busy">
+    {#snippet subject({ onclick, isOn })}
+      <IconButton icon="check" label="Save" isBusy={isOn} {onclick} />
+    {/snippet}
+  </InContext>
+{:else}
 
 {#if mode === 'unavailable'}
   <Inline gap="100" align="center">
@@ -22,4 +37,5 @@
     <IconButton icon="trash" tone="danger" label="Delete this task" />
     <IconButton icon="check" label="Saving" isBusy />
   </Inline>
+{/if}
 {/if}

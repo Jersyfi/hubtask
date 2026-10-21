@@ -12,10 +12,16 @@
   import type { HTMLInputAttributes } from 'svelte/elements';
 
   import Icon from './Icon.svelte';
-  import type { Disableable } from './control.ts';
+  import Reason from './_Reason.svelte';
+  import Spinner from './Spinner.svelte';
+  import VisuallyHidden from './VisuallyHidden.svelte';
+  import type { Busyable, Disableable } from './control.ts';
+  import { guard, sharedReason } from './reason.ts';
 
-  interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'type' | 'checked'>, Disableable {
+  interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'type' | 'checked'>, Disableable, Busyable {
     label: string;
+    /** What it is doing while busy, said to a reader: the present participle (voice-and-tone.md §2.4). */
+    busyLabel?: string;
     /** Standing help under the label. */
     hint?: string;
     /** Some but not all: `aria-checked="mixed"`, and the box shows a bar rather than a tick. */
@@ -38,6 +44,8 @@
     disabledReason,
     isIndeterminate = false,
     isLabelHidden = false,
+    isBusy = false,
+    busyLabel,
     checked = $bindable(false),
     ...rest
   }: Props = $props();
@@ -47,8 +55,25 @@
   const instanceId = $props.id();
   const uid = `checkbox-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
-  const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);
-  const describedBy = $derived([reasonId, hintId].filter(Boolean).join(' ') || undefined);
+
+  // Unavailable, it stays focusable and says why in a bubble at the box: `aria-disabled` rather
+  // than the native attribute, and the guard (reason.ts) refuses the click - on the box and on the
+  // label that forwards one to it - and `Space`. Busy, it shows progress inside the box and is
+  // refused the same way, without a reason: it is not unavailable, it is working.
+  const unavailable = $derived(disabledReason !== undefined);
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const ownReasonId = `${uid}-reason`;
+  const reasonId = $derived(disabledReason === undefined ? undefined : (groupReasonId ?? ownReasonId));
+  const busyId = $derived(isBusy && busyLabel ? `${uid}-busy` : undefined);
+  const describedBy = $derived([reasonId, busyId, hintId].filter(Boolean).join(' ') || undefined);
+  let native = $state<HTMLInputElement | null>(null);
+  let labelElement = $state<HTMLLabelElement | null>(null);
+
+  $effect(() => {
+    if (!isBusy || unavailable) return;
+    return guard([native, labelElement], () => {});
+  });
 </script>
 
 <div class="checkbox">
@@ -60,22 +85,31 @@
         class="native"
         bind:checked
         indeterminate={isIndeterminate}
-        disabled={disabledReason !== undefined}
+        aria-disabled={unavailable ? 'true' : undefined}
+        aria-busy={isBusy ? 'true' : undefined}
         aria-describedby={describedBy}
+        bind:this={native}
         {...rest}
       />
       <span class="box" aria-hidden="true">
-        {#if isIndeterminate}
+        {#if isBusy}
+          <Spinner size="sm" />
+        {:else if isIndeterminate}
           <Icon name="minus" size="sm" />
         {:else if checked}
           <Icon name="check" size="sm" />
         {/if}
       </span>
+      {#if busyId}
+        <!-- Inside the box's own span, which is positioned: a hidden sentence there is no flex
+             item of the column and adds no gap. -->
+        <span id={busyId}><VisuallyHidden>{busyLabel}</VisuallyHidden></span>
+      {/if}
     </span>
-    <label class="label" class:is-hidden={isLabelHidden} for={uid}>{label}</label>
+    <label class="label" class:is-hidden={isLabelHidden} for={uid} bind:this={labelElement}>{label}</label>
   </div>
-  {#if disabledReason}
-    <p id={reasonId} class="message">{disabledReason}</p>
+  {#if disabledReason !== undefined && !groupReasonId}
+    <Reason id={ownReasonId} text={disabledReason} control={native} forwarders={[labelElement]} />
   {/if}
   {#if hint}
     <p id={hintId} class="message">{hint}</p>
@@ -121,7 +155,7 @@
     cursor: pointer;
   }
 
-  .native:disabled { cursor: not-allowed; }
+  .native[aria-disabled='true'] { cursor: not-allowed; }
 
   /* The input above is the control; this is a picture of it, and a picture never takes the click
      (the failure is worked through in Switch.svelte, where a moved knob did). */
@@ -151,16 +185,16 @@
     outline-offset: var(--sp-025);
   }
 
-  .native:hover:not(:disabled) + .box { border-color: var(--accent-primary); }
+  .native:hover:not([aria-disabled='true']) + .box { border-color: var(--accent-primary); }
 
-  .native:disabled + .box {
+  .native[aria-disabled='true'] + .box {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     color: var(--text-subtle);
   }
 
-  .native:disabled:checked + .box,
-  .native:disabled:indeterminate + .box { background: var(--border-default); border-color: var(--border-default); }
+  .native[aria-disabled='true']:checked + .box,
+  .native[aria-disabled='true']:indeterminate + .box { background: var(--border-default); border-color: var(--border-default); }
 
   .label {
     color: var(--text-primary);
@@ -172,7 +206,7 @@
 
   /* `:has` on the row rather than a sibling combinator: the label is not a sibling of the input,
      it is a sibling of the span the input sits in. */
-  .row:has(.native:disabled) .label { color: var(--text-subtle); cursor: not-allowed; }
+  .row:has(.native[aria-disabled='true']) .label { color: var(--text-subtle); cursor: not-allowed; }
 
   .message {
     max-width: 60ch;

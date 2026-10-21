@@ -5,9 +5,11 @@
   // and nothing leaves the browser. The component moves no bytes in production either — this demo
   // is doing what a real caller does, which is why it can be a demo at all.
 
+  import InContext from './_InContext.svelte';
+  import Self from './_UploadDemo.svelte';
   import UploadField from './UploadField.svelte';
 
-  const { mode = 'idle' }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' } =
+  const { mode = 'idle', reason }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' | 'row' | 'table'; reason?: string } =
     $props();
 
   const chosen = { name: 'kitchen-plan-revision-3.pdf', size: 2_411_008 };
@@ -20,6 +22,13 @@
   });
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="This installation stores no attachments, so nothing can be uploaded here.">
+    {#snippet subject({ reason })}
+      <Self {reason} />
+    {/snippet}
+  </InContext>
+{:else}
 <UploadField
   label="Attachment"
   hint="PDF, PNG or JPEG, up to 25 MB."
@@ -34,10 +43,11 @@
     : undefined}
   progress={mode === 'uploading' ? 40 : undefined}
   progressLabel={mode === 'uploading' ? '40% uploaded' : undefined}
-  disabledReason={mode === 'unavailable'
+  disabledReason={reason ?? (mode === 'unavailable'
     ? 'This installation stores no attachments, so nothing can be uploaded here.'
-    : undefined}
+    : undefined)}
   onChoose={(next) => {
     file = { name: next.name, size: next.size };
   }}
 />
+{/if}

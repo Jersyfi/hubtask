@@ -5,15 +5,19 @@
   //
   // `label` is required and is not decoration: a control with no visible text has no accessible
   // name unless something gives it one, and `VisuallyHidden` is in wave 0 for exactly this. It is
-  // also the tooltip, so the two cannot say different things.
+  // also the native tooltip while the button works, so the two cannot say different things. While it
+  // is unavailable the bubble says why instead, and the native one is withdrawn: two tooltips at
+  // once would cover each other.
 
   import type { HTMLButtonAttributes } from 'svelte/elements';
 
+  import Reason from './_Reason.svelte';
   import Icon from './Icon.svelte';
   import Spinner from './Spinner.svelte';
   import VisuallyHidden from './VisuallyHidden.svelte';
   import type { IconName } from './icons/index.ts';
   import type { Busyable, ButtonTone, ControlSize, Disableable } from './control.ts';
+  import { sharedReason } from './reason.ts';
 
   interface Props extends Omit<HTMLButtonAttributes, 'disabled'>, Disableable, Busyable {
     icon: IconName;
@@ -38,7 +42,12 @@
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
-  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  // Inside a composite that states this same reason once, the button points at that one and
+  // draws no bubble of its own; the composite's guard stands over it (reason.ts).
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const reasonId = $derived(unavailable ? (groupReasonId ?? `reason-${instanceId}`) : undefined);
+  let button = $state<HTMLButtonElement | null>(null);
 </script>
 
 <button
@@ -46,10 +55,11 @@
   class="icon-button"
   data-tone={tone}
   data-size={size}
-  disabled={unavailable}
+  aria-disabled={unavailable ? 'true' : undefined}
   aria-busy={isBusy ? 'true' : undefined}
   aria-describedby={reasonId}
-  title={label}
+  title={unavailable ? undefined : label}
+  bind:this={button}
   {...rest}
 >
   {#if isBusy}
@@ -59,8 +69,8 @@
   {/if}
   <VisuallyHidden>{label}</VisuallyHidden>
 </button>
-{#if unavailable}
-  <span id={reasonId} class="reason">{disabledReason}</span>
+{#if unavailable && reasonId && !groupReasonId}
+  <Reason id={reasonId} text={disabledReason ?? ''} control={button} />
 {/if}
 
 <style>
@@ -95,11 +105,11 @@
     outline-offset: var(--sp-025);
   }
 
-  .icon-button:hover:not(:disabled) { background: var(--bg-surface-hover); color: var(--text-primary); }
-  .icon-button:active:not(:disabled) { background: var(--bg-surface-pressed); transform: scale(0.94); }
+  .icon-button:hover:not([aria-disabled='true']) { background: var(--bg-surface-hover); color: var(--text-primary); }
+  .icon-button:active:not([aria-disabled='true']) { background: var(--bg-surface-pressed); transform: scale(0.94); }
 
   .icon-button[data-tone='primary'] { background: var(--accent-primary); color: var(--text-inverse); }
-  .icon-button[data-tone='primary']:hover:not(:disabled) { background: var(--accent-primary-hover); color: var(--text-inverse); }
+  .icon-button[data-tone='primary']:hover:not([aria-disabled='true']) { background: var(--accent-primary-hover); color: var(--text-inverse); }
 
   .icon-button[data-tone='secondary'] {
     background: var(--bg-surface);
@@ -109,26 +119,18 @@
 
   .icon-button[data-tone='danger'] { color: var(--text-danger); }
 
-  .icon-button:disabled {
+  .icon-button[aria-disabled='true'] {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     color: var(--text-subtle);
     cursor: not-allowed;
   }
 
-  .reason {
-    display: block;
-    max-width: 40ch;
-    margin-top: var(--sp-050);
-    color: var(--text-subtle);
-    font-size: var(--fs-075);
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .icon-button { transition-duration: var(--dur-instant); }
-    .icon-button:active:not(:disabled) { transform: none; }
+    .icon-button:active:not([aria-disabled='true']) { transform: none; }
   }
 
   :global([data-motion='reduced']) .icon-button { transition-duration: var(--dur-instant); }
-  :global([data-motion='reduced']) .icon-button:active:not(:disabled) { transform: none; }
+  :global([data-motion='reduced']) .icon-button:active:not([aria-disabled='true']) { transform: none; }
 </style>

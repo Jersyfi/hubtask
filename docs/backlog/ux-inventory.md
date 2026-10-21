@@ -31,7 +31,7 @@ workbench chrome).
 | Case | Example before | Pattern |
 |---|---|---|
 | 1 The role forbids it | grey button with a sentence | not shown (P-05); where needed for orientation, a lock and the reason as in 2 |
-| 2 Not possible right now | "Already first" between the arrows | the control stays focusable (`aria-disabled`); the reason is a tooltip on hover and focus, a sheet on tap; no space in the layout |
+| 2 Not possible right now | "Already first" between the arrows | the control stays focusable (`aria-disabled`); the reason is a bubble at the control on hover, focus and tap; no space in the layout |
 | 3 Something must be filled in | "Tick at least one scope", "Name a period first" | the submit is enabled; pressing it marks the missing fields and focuses the first |
 | 4 Nothing changed | "Nothing has changed yet" | a save bar appears with changes only: "2 changes · Discard · Save" |
 | 5 A whole area is read-only | "Archived" under every row; a dimmed form with the reason at the end | one notice at the top of the area; content stays readable; controls are absent |
@@ -57,7 +57,7 @@ End-user:
 - [ ] 13 `views/NotificationsView.svelte` always-on cells → one note for the row
 - [ ] 14 `lib/entries/ReminderPanel.svelte`, `CustomFieldsDialog.svelte`, `ImportDialog.svelte` → 3
 - [ ] 15 panels gated by `CapabilityGate` (labels, cover, attachments, comments, recurrence, custom field) → 1 or 5
-- [ ] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback
+- [x] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback — UX-03: the refused part is absent (`lib/people/parts.ts`), so the gate never renders refused there, and the fallback is gone from `CapabilityGate`
 - [ ] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1
 
 Administration:
@@ -84,14 +84,14 @@ Installation:
 
 ### D.3 In the design system
 
-- [ ] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
-- [ ] `Tabs`, `ViewSwitcher`: reason at the tab; unique ids
-- [ ] `Select`: an option's reason shown (today never rendered)
-- [ ] `Checkbox`, `Switch` without label: tooltip
-- [ ] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
-- [ ] `CapabilityGate`: reason first, inline stays inline, no English fallback
-- [ ] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
-- [ ] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
+- [x] `Button`, `IconButton`: reason inside, tooltip, `aria-disabled`
+- [x] `Tabs`, `ViewSwitcher`: reason at the tab; the arrows reach an unavailable one; unique ids (`ViewSwitcher`; `Tabs` has them)
+- [x] `Select`: an option's reason shown (today never rendered)
+- [x] `Checkbox`, `Switch` without label: tooltip
+- [x] `DueDateControl`, `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`: once per group
+- [x] `CapabilityGate`: reason first, inline stays inline, no English fallback
+- [x] new `SourceChip`, `SaveBar`, `ReadOnlyNotice`
+- [x] workbench: "in a row of buttons" and "in a table row" stories; a test that a reason changes no height or position
 
 ## E1 — Frame
 

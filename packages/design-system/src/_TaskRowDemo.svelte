@@ -1,12 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import InContext from './_InContext.svelte';
   import Badge from './Badge.svelte';
   import IconButton from './IconButton.svelte';
   import Stack from './Stack.svelte';
   import TaskRow from './TaskRow.svelte';
 
-  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' | 'beside' } = $props();
+  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' | 'beside' | 'table' } = $props();
 
   // The three levels of domain-model.md §3.4, at the depths they sit at.
   const levels = [
@@ -64,6 +65,19 @@
   let done = $state<string[]>(['d']);
 </script>
 
+{#if mode === 'table'}
+  <InContext context="table" reason="This collection is archived. Restore it to tick entries off.">
+    {#snippet subject({ reason, onclick })}
+      <TaskRow
+        type="TASK"
+        title="Order the tiles"
+        completeLabel="Completed"
+        completeDisabledReason={reason}
+        onToggleComplete={onclick}
+      />
+    {/snippet}
+  </InContext>
+{:else}
 <!-- The tree is the container the indent is measured against; the pane's width is the token's. -->
 <div class="tree" data-pane={mode === 'subtree' ? '' : undefined}>
 <Stack gap="050">
@@ -90,6 +104,7 @@
   {/each}
 </Stack>
 </div>
+{/if}
 
 <style>
   .tree { container-type: inline-size; }

@@ -21,6 +21,8 @@
   import Button from './Button.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
 
   interface Props extends Disableable {
     /** What the field is called. Never hidden: a file input with no name announces as "button". */
@@ -81,7 +83,11 @@
   const instanceId = $props.id();
   const inputId = `upload-${instanceId}`;
   const unavailable = $derived(disabledReason !== undefined);
-  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${instanceId}`;
+  provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
+  let container = $state<HTMLElement | null>(null);
   const hintId = $derived(hint ? `hint-${instanceId}` : undefined);
   const isUploading = $derived(progress !== undefined);
 
@@ -92,8 +98,8 @@
   }
 </script>
 
-<div class="field">
-  <label class="label" for={inputId}>{label}</label>
+<div class="field" bind:this={container}>
+  <label class="label" for={inputId}>{label}<ReasonMark id={groupId} text={disabledReason} {container} /></label>
   {#if hint}<p class="hint" id={hintId}>{hint}</p>{/if}
 
   <!-- The drop target wraps the button and the input rather than replacing them. `dragover` has
@@ -127,8 +133,8 @@
       tabindex="-1"
       {accept}
       bind:this={input}
-      disabled={unavailable}
-      aria-describedby={[hintId, reasonId].filter(Boolean).join(' ') || undefined}
+      aria-disabled={unavailable ? 'true' : undefined}
+      aria-describedby={[hintId, unavailable ? groupId : undefined].filter(Boolean).join(' ') || undefined}
       onchange={(event) => take((event.currentTarget as HTMLInputElement).files)}
     />
     <span class="painted">
@@ -162,7 +168,6 @@
     <Button tone="subtle" onclick={() => onCancel?.()}>{cancelLabel}</Button>
   {/if}
 
-  {#if unavailable}<p class="reason" id={reasonId}>{disabledReason}</p>{/if}
 </div>
 
 <style>
@@ -218,10 +223,8 @@
 
   .size,
   .hint,
-  .reason { color: var(--text-subtle); font-size: var(--fs-075); }
 
   .hint,
-  .reason { margin: 0; }
 
   .over { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 

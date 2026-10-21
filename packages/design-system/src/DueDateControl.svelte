@@ -25,6 +25,8 @@
   import Input from './Input.svelte';
   import Switch from './Switch.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
 
   /** A due date as the model holds it: a day, optionally a time, optionally a zone of its own. */
   export interface DueDate {
@@ -74,8 +76,14 @@
   const unavailable = $derived(disabledReason !== undefined);
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
-  const instanceId = $props.id();
-  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  const groupInstance = $props.id();
+
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${groupInstance}`;
+  provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
+  let container = $state<HTMLElement | null>(null);
+
 
   const isAllDay = $derived(value !== null && value.time === undefined);
   /** Foreign means "not the reader's". An entry with no zone of its own is in theirs by definition. */
@@ -101,8 +109,8 @@
   }
 </script>
 
-<fieldset class="control" aria-describedby={reasonId}>
-  <legend>{label}</legend>
+<fieldset class="control" aria-describedby={unavailable ? groupId : undefined} bind:this={container}>
+  <legend>{label}<ReasonMark id={groupId} text={disabledReason} {container} /></legend>
 
   <div class="row">
     <!-- The wave-1 `Input` rather than a raw one: it carries the shell, the focus ring, the
@@ -152,7 +160,6 @@
     <p class="none">{noDateLabel}</p>
   {/if}
 
-  {#if unavailable}<p class="reason" id={reasonId}>{disabledReason}</p>{/if}
 </fieldset>
 
 <style>
@@ -180,9 +187,7 @@
   .zone-name { color: var(--text-primary); font-weight: var(--fw-medium); unicode-bidi: isolate; }
 
   .zone,
-  .none,
-  .reason { color: var(--text-subtle); }
+  .none { color: var(--text-subtle); }
 
-  .none,
-  .reason { margin: 0; font-size: var(--fs-075); }
+  .none { margin: 0; font-size: var(--fs-075); }
 </style>

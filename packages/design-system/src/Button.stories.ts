@@ -37,3 +37,23 @@ export const unavailable: Story = {
     'There is no `disabled` boolean. Setting `disabledReason` is what disables a button, so a control the reader cannot use cannot come apart from the reason it cannot be used — the CapabilityGate principle, one level down.',
   args: { mode: 'unavailable' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'The reason is a bubble on hover, focus and tap, and takes no space: the row with the reason and the row without it are the same height, and no button beside *Edit* moves. Trying it reaches neither its own handler nor the row around it.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether *Edit* is available or not.',
+  args: { mode: 'table' },
+};
+
+export const busyInPlace: Story = {
+  name: 'Busy, in place',
+  about:
+    'Switch busy and back: neither button changes its size. Without an icon the spinner is laid over the label, which keeps its place; with one it takes the icon’s.',
+  args: { mode: 'busy-in-place' },
+};

@@ -11,7 +11,9 @@
 
   import type { Snippet } from 'svelte';
 
+  import Reason from './_Reason.svelte';
   import Stack from './Stack.svelte';
+  import { sharedReason, type GuardOptions } from './reason.ts';
 
   interface Props {
     /** The visible label. Sentence case (voice-and-tone.md §1.1). */
@@ -20,8 +22,14 @@
     hint?: string;
     /** What is wrong now. Names the fix, not only the fault (voice-and-tone.md §3.1). */
     error?: string;
-    /** Why the control cannot be used. */
+    /**
+     * Why the control cannot be used. Said in a bubble at the control, never as a line under it: a
+     * line that appears with the reason moves everything below the field (design-system.md §4).
+     * A field locked by somebody above says so with `SourceChip` beside its label instead.
+     */
     disabledReason?: string;
+    /** How trying the control is refused, for a control that changes on more than activation. */
+    guardOptions?: GuardOptions;
     isRequired?: boolean;
     /**
      * Ids of anything else that describes this control, appended after the field's own.
@@ -46,7 +54,17 @@
     children: Snippet<[{ id: string; describedBy: string | undefined; invalid: boolean }]>;
   }
 
-  const { label, hint, error, disabledReason, isRequired = false, describedBy: extra, isInvalid = false, children }: Props = $props();
+  const {
+    label,
+    hint,
+    error,
+    disabledReason,
+    guardOptions,
+    isRequired = false,
+    describedBy: extra,
+    isInvalid = false,
+    children,
+  }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -54,7 +72,15 @@
   const uid = `field-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
   const errorId = $derived(error ? `${uid}-error` : undefined);
-  const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);
+  // Inside a composite that states this same reason once, the field points at that one and draws
+  // no bubble of its own (reason.ts).
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const reasonId = $derived(disabledReason === undefined ? undefined : (groupReasonId ?? `${uid}-reason`));
+  let control = $state<HTMLElement | null>(null);
+  $effect(() => {
+    control = document.getElementById(uid);
+  });
   // Order matters: a screen reader reads them in this order, and the error is the thing to hear
   // first when there is one.
   const describedBy = $derived([errorId, reasonId, hintId, extra].filter(Boolean).join(' ') || undefined);
@@ -71,8 +97,8 @@
     <!-- Rule 3: colour never stands alone. The message is text, and the border is only the echo. -->
     <p id={errorId} class="message error">{error}</p>
   {/if}
-  {#if disabledReason}
-    <p id={reasonId} class="message">{disabledReason}</p>
+  {#if disabledReason !== undefined && reasonId && !groupReasonId}
+    <Reason id={reasonId} text={disabledReason} {control} {guardOptions} />
   {/if}
   {#if hint}
     <p id={hintId} class="message">{hint}</p>

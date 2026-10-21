@@ -146,7 +146,8 @@ test('chromium: 1280 px — what you are told about is a grid, and every row’s
 
   // The one category nobody can switch off says why, rather than being absent or silently on.
   const invitation = table.getByRole('row').filter({ hasText: 'I am invited to the workspace' });
-  assert.equal(await invitation.locator('input[type="checkbox"]:disabled').count(), 1, 'the always-on row is switchable');
+  // Unavailable rather than natively disabled: focusable, and it says why (design-system.md §4).
+  assert.equal(await invitation.locator('input[type="checkbox"][aria-disabled="true"]').count(), 1, 'the always-on row is switchable');
 
   assert.deepEqual(failures, []);
 });

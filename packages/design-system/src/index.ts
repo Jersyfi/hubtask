@@ -63,6 +63,8 @@ export { default as Drawer } from './Drawer.svelte';
 export { default as SideNav } from './SideNav.svelte';
 export { default as Tabs, type Tab } from './Tabs.svelte';
 export { default as Toolbar } from './Toolbar.svelte';
+export { default as ReadOnlyNotice } from './ReadOnlyNotice.svelte';
+export { default as SaveBar } from './SaveBar.svelte';
 
 // ...and a list, with every state it can be in.
 export { default as EmptyState, type Emptiness } from './EmptyState.svelte';
@@ -82,6 +84,7 @@ export { default as DetailPane } from './DetailPane.svelte';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
+export { default as SourceChip } from './SourceChip.svelte';
 export { default as TaskRow, type Expansion } from './TaskRow.svelte';
 export { default as LabelChip } from './LabelChip.svelte';
 export { default as LabelPicker, type PickerLabel } from './LabelPicker.svelte';
