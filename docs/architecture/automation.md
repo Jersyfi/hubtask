@@ -164,6 +164,12 @@ the response is bounded by the client's size cap and discarded.
 `apply` is **false unless said**; an applied answer is first recorded as a suggestion with
 provenance, its acceptance audited as its own act, the change made through the owning use case as
 `run_as`. A workspace with no provider or no consent is refused before anything is queued.
+Every use case is an action, the AI reads included: `FIND_DUPLICATES_BY_TITLE` and
+`READ_AI_BUDGET_STATE` change nothing and answer a rule as they answer a person. **The AI family**
+is every action of a use case that asks or reads AI (`apps/webapp/src/lib/automation/aiactions.json`,
+held against the catalogue by `test/architecture/aifamily_test.go`): the editor draws it in the
+`ai.*` colours and offers none of it to add where the manifest announces no AI (UC-AI-01 check 1);
+a rule that already holds such a step still shows it.
 
 **Templating.** A parameter is the value written, never an expression: a title is that title, a
 due date that instant. The one template is an `HTTP_REQUEST`'s `body_template`, a CEL expression

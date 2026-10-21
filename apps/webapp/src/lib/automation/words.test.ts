@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { emptyDraft, newStep } from './model.ts';
-import { eventGroups, eventWord, eventWords, generatedName, grouped, kindWord, offeredKinds, sentence, type Catalogue, type Names } from './words.ts';
+import { AI_ACTIONS, eventGroups, eventWord, eventWords, generatedName, grouped, kindFamily, kindWord, offeredKinds, sentence, type Catalogue, type Names } from './words.ts';
 
 /** A catalogue that answers the code and its parameters, so a test reads the shape rather than the prose. */
 const words: Catalogue = {
@@ -105,4 +105,17 @@ test('without AI no AI action is offered to add', () => {
   assert.deepEqual(offeredKinds(served, { ai_suggestions: false }), ['ADD_LABEL', 'SEND_WEBHOOK']);
   assert.deepEqual(offeredKinds(served, undefined), ['ADD_LABEL', 'SEND_WEBHOOK']);
   assert.deepEqual(offeredKinds(served, { ai_suggestions: true }), served);
+});
+
+// One family for every AI kind, from the declared list: the suggestions' own (SUGGEST_*), the
+// reads, and the decisions on a suggestion - not only what happens to start with AI_.
+test('every declared AI kind is of the AI family, and nothing else is', () => {
+  assert.ok(AI_ACTIONS.size >= 15, `${AI_ACTIONS.size} kinds declared`);
+  for (const kind of AI_ACTIONS) assert.equal(kindFamily(kind), 'ai', kind);
+  for (const kind of ['SUGGEST_DUPLICATES', 'SUGGEST_DECOMPOSITION', 'FIND_DUPLICATES_BY_TITLE', 'ACCEPT_SUGGESTION']) {
+    assert.equal(kindFamily(kind), 'ai', kind);
+  }
+  assert.equal(kindFamily('ADD_LABEL'), 'entries');
+  assert.equal(kindFamily('WAIT'), 'flow');
+  assert.deepEqual(offeredKinds(['SUGGEST_DUPLICATES', 'ADD_LABEL'], { ai_suggestions: false }), ['ADD_LABEL']);
 });

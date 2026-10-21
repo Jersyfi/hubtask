@@ -358,9 +358,10 @@ test('with AI on, the screens that carry a proposal render it - so the first tes
   }
 });
 
-test('the AI tokens are consumed by AISuggestion and nothing else', () => {
+test('the AI tokens are consumed by AISuggestion and the rule editor AI marks, and nothing else', () => {
   // The mark above is what the render finds; this is what makes the mark complete. A component
-  // that used `--ai-*` without carrying `data-ai` would be residue the render could not see.
+  // that used `--ai-*` without carrying `data-ai` would be residue the render could not see. The
+  // rule editor's two carry it on every AI block (automation.md §1.3), and offer none with AI off.
   const consumers = [];
   const walk = (dir) => {
     for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -372,5 +373,12 @@ test('the AI tokens are consumed by AISuggestion and nothing else', () => {
   };
   walk(path.join(ROOT, 'src'));
   walk(path.join(ROOT, '..', '..', 'packages', 'design-system', 'src'));
-  assert.deepEqual(consumers, ['../../packages/design-system/src/AISuggestion.svelte']);
+  assert.deepEqual(consumers.sort(), [
+    '../../packages/design-system/src/AISuggestion.svelte',
+    'src/lib/automation/BlocksPanel.svelte',
+    'src/lib/automation/RuleCanvasList.svelte',
+  ]);
+  for (const consumer of consumers) {
+    assert.ok(fs.readFileSync(path.join(ROOT, consumer), 'utf8').includes('data-ai'), `${consumer} styles AI without marking it`);
+  }
 });

@@ -17,7 +17,7 @@
   import RuleCanvasList from './RuleCanvasList.svelte';
   import { DRAG_TYPE, type Drag, type Selection } from './selection.ts';
   import { countSteps, depthOf, endsAllPaths, endsRun, isRung, rungsOf, unreachableFrom, type Step } from './model.ts';
-  import { kindIcon, kindWord, type Names } from './words.ts';
+  import { kindFamily, kindIcon, kindWord, type Names } from './words.ts';
   import type { Verdict } from './probe.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
@@ -153,7 +153,7 @@
     ondragstart={(event) => liftStep(event, path)}
     ondragend={() => ondragchange(undefined)}
   >
-    <span class="mark" class:flow={isFlow} class:ai={step.kind.startsWith('AI_')}><Icon name={iconOf(step.kind)} size="sm" /></span>
+    <span class="mark" class:flow={isFlow} class:ai={kindFamily(step.kind) === 'ai'} data-ai={kindFamily(step.kind) === 'ai' ? '' : undefined}><Icon name={iconOf(step.kind)} size="sm" /></span>
     <span class="body">
       <span class="kind">{step.kind === 'BRANCH' ? t('app.flow.card_branch') : isFlow ? t('app.flow.card_flow') : t('app.flow.card_action')}</span>
       <span class="title">{kindWord(words, step.kind)}</span>
@@ -407,7 +407,7 @@
 
   .mark.flow { background: var(--label-violet-bg); color: var(--label-violet-fg); }
 
-  .mark.ai { background: var(--label-green-bg); color: var(--label-green-fg); }
+  .mark.ai { background: var(--ai-surface-strong); color: var(--ai-text); }
 
   /* The tools appear on hover, focus, or selection: a card is read more often than edited. */
   .tools { display: flex; flex-direction: column; gap: var(--sp-025); opacity: 0; transition: opacity var(--motion-state-duration) var(--motion-state-easing); }
