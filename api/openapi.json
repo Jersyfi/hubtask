@@ -23360,6 +23360,14 @@
             "minLength": 1,
             "maxLength": 500
           },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
+          },
           "notes": {
             "type": [
               "string",
@@ -23561,6 +23569,14 @@
             "minLength": 1,
             "maxLength": 500
           },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
+          },
           "notes": {
             "type": [
               "string",
@@ -23664,6 +23680,14 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 500
+          },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
           },
           "notes": {
             "type": [

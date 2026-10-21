@@ -7,10 +7,14 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
 // An entry's amount (UC-WRK-25 check 2) as the row holds it: written by the create, the update and
@@ -109,6 +113,59 @@ func TestAnAmountIsNotReadAcrossTheTenantBoundary(t *testing.T) {
 		return err
 	}); err == nil {
 		t.Error("tenant B read tenant A's entry")
+	}
+}
+
+// listCollectionFor gives a tenant a collection whose own layer is *List*'s, as choosing the preset
+// stores it.
+func listCollectionFor(ctx context.Context, t *testing.T, tenant, author shared.ID) shared.ID {
+	t.Helper()
+	collection := collectionFor(ctx, t, tenant, author)
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		stored, err := containerRepo().Find(ctx, collection)
+		if err != nil {
+			return err
+		}
+		for _, preset := range work.BuiltInPresets() {
+			if preset.Key == work.PresetList {
+				stored.Structure = work.StructureLayer{Preset: preset.Key, Values: preset.Values}
+			}
+		}
+		return postgres.NewStructureRepository().SetContainerStructure(ctx, stored, stored.Version)
+	}); err != nil {
+		t.Fatalf("choosing List: %v", err)
+	}
+	return collection
+}
+
+// UC-WRK-25 check 2 through the use case against the seeded profiles: a *List* collection takes
+// an amount, a collection on Hubtask's default refuses it, and nothing is written for the refusal.
+func TestAnAmountIsTakenInAListAndRefusedElsewhere(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	registry := itemCatalogueFor(ctx, t)
+	actor := itemWriter(tenantB, authorB)
+
+	list := listCollectionFor(ctx, t, tenantB, authorB)
+	out, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": list.String(), "title": "milk", "amount": "2",
+	})
+	if err != nil {
+		t.Fatalf("creating in a list: %v", err)
+	}
+	if got := findItem(ctx, t, tenantB, shared.MustParseID(out.String("id"))).Amount; got != "2" {
+		t.Errorf("stored amount %q", got)
+	}
+
+	plain := collectionFor(ctx, t, tenantB, authorB)
+	_, err = registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": plain.String(), "title": "milk", "amount": "2",
+	})
+	if !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("an amount in a collection on the default answered %v", err)
+	}
+	if rows := countIn(ctx, t, `SELECT count(*) FROM work_item WHERE collection_id = $1`, plain.String()); rows != 0 {
+		t.Errorf("%d entries written for a refusal", rows)
 	}
 }
 

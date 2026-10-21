@@ -11513,6 +11513,8 @@ type WebhookSubscriptionUpdateState string
 
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount     *string             `json:"amount,omitempty"`
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 
@@ -11578,6 +11580,8 @@ type WorkItem struct {
 
 // WorkItemCreate defines model for WorkItemCreate.
 type WorkItemCreate struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount       *string             `json:"amount,omitempty"`
 	AssigneeId   *openapi_types.UUID `json:"assignee_id,omitempty"`
 	AutoAssign   *bool               `json:"auto_assign,omitempty"`
 	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
@@ -11615,6 +11619,8 @@ type WorkItemPage struct {
 
 // WorkItemUpdate JSON Merge Patch; null deletes a field.
 type WorkItemUpdate struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount     *string             `json:"amount,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
 

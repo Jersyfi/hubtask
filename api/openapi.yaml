@@ -16624,6 +16624,14 @@ components:
         path: { type: string }
         depth: { type: integer }
         title: { type: string, minLength: 1, maxLength: 500 }
+        amount:
+          type: [string, "null"]
+          maxLength: 40
+          description: >
+            How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters
+            on one line, trimmed; empty or null is none. Only where the collection's structure in
+            force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere
+            `capability_not_supported`. Nothing sums it or reads a unit out of it.
         notes: { type: [string, "null"] }
         completion: { $ref: "#/components/schemas/Completion" }
         bucket_id: { type: [string, "null"], format: uuid }
@@ -16721,6 +16729,14 @@ components:
         collection_id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         title: { type: string, minLength: 1, maxLength: 500 }
+        amount:
+          type: [string, "null"]
+          maxLength: 40
+          description: >
+            How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters
+            on one line, trimmed; empty or null is none. Only where the collection's structure in
+            force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere
+            `capability_not_supported`. Nothing sums it or reads a unit out of it.
         notes: { type: [string, "null"] }
         bucket_id: { type: [string, "null"], format: uuid }
         before_item_id: { type: [string, "null"], format: uuid }
@@ -16770,6 +16786,14 @@ components:
       description: JSON Merge Patch; null deletes a field.
       properties:
         title: { type: string, minLength: 1, maxLength: 500 }
+        amount:
+          type: [string, "null"]
+          maxLength: 40
+          description: >
+            How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters
+            on one line, trimmed; empty or null is none. Only where the collection's structure in
+            force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere
+            `capability_not_supported`. Nothing sums it or reads a unit out of it.
         notes: { type: [string, "null"] }
         bucket_id: { type: [string, "null"], format: uuid }
         start_at: { type: [string, "null"], format: date-time }

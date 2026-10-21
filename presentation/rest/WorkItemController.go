@@ -42,6 +42,7 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"collection_id": optionalUUIDField(body.CollectionId),
 		"parent_id":     optionalUUIDField(body.ParentId),
 		"notes":         optionalStringField(body.Notes),
+		"amount":        optionalStringField(body.Amount),
 		"bucket_id":     optionalUUIDField(body.BucketId),
 		// Empty is not a value here but the absence of one: the use case then takes the creator's
 		// locale, which is what an unstated content language falls back to.
@@ -142,6 +143,9 @@ func (c *RestController) UpdateWorkItem(
 	}
 	if present["notes"] {
 		in["notes"] = stringOrEmpty(body.Notes)
+	}
+	if present["amount"] {
+		in["amount"] = stringOrEmpty(body.Amount)
 	}
 	if present["bucket_id"] {
 		// Null and the empty string are one instruction: take the entry off the board. That is what
@@ -342,6 +346,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	}
 	if notes := out.String("notes"); notes != "" {
 		item.Notes = &notes
+	}
+	if amount := out.String("amount"); amount != "" {
+		item.Amount = &amount
 	}
 	if bucket := out.String("bucket_id"); bucket != "" {
 		bucketID := uuidValue(bucket)

@@ -1973,6 +1973,7 @@ func run() error {
 			Covers:       coverWriter,
 			CustomFields: setCustomField,
 			Text:         forms,
+			Structure:    structures,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Items:      items,
@@ -1990,6 +1991,7 @@ func run() error {
 			HLC:        hybrid,
 			DueDates:   dueDateWriter,
 			Text:       forms,
+			Structure:  structures,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),

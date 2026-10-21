@@ -2033,6 +2033,7 @@ class WorkItem(TypedDict, total=False):
     path: str
     depth: int
     title: Required[str]
+    amount: str | None
     notes: str | None
     completion: Required["Completion"]
     bucket_id: str | None
@@ -2067,6 +2068,7 @@ class WorkItemCreate(TypedDict, total=False):
     collection_id: str
     parent_id: str | None
     title: Required[str]
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     before_item_id: str | None
@@ -2086,6 +2088,7 @@ class WorkItemCreate(TypedDict, total=False):
 class WorkItemUpdate(TypedDict, total=False):
     """JSON Merge Patch; null deletes a field."""
     title: str
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     start_at: str | None

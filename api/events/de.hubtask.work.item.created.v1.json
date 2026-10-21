@@ -159,6 +159,11 @@
         "title": {
           "type": "string"
         },
+        "amount": {
+          "type": "string",
+          "maxLength": 40,
+          "description": "How much of it (\"2\", \"1 kg\"), beside the title. Absent when unset; only on a type whose collection carries the AMOUNT capability."
+        },
         "notes": {
           "type": "string",
           "description": "Markdown, unrendered by the server. Absent when unset, and absent on a type whose profile does not carry the NOTES capability."

@@ -201,6 +201,9 @@ func itemPayload(item work.WorkItem) map[string]any {
 	if item.Notes != "" {
 		payload["notes"] = item.Notes
 	}
+	if item.Amount != "" {
+		payload["amount"] = item.Amount
+	}
 	return payload
 }
 
