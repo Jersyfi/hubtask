@@ -285,6 +285,10 @@ const (
 	// LockPlan is the plan's. Nothing writes it (plans have no writer, identity.md §18), and the
 	// origin exists so that the plan layer needs no migration through the sign-in path.
 	LockPlan LockOrigin = "PLAN"
+	// LockWorkspace is the workspace's own administrators', binding its hubs and collections - a
+	// collection's structure (domain-model.md §2). The sign-in rule has no level below the
+	// workspace, so it never answers this one.
+	LockWorkspace LockOrigin = "WORKSPACE"
 )
 
 // PolicyPatch is one level's say: a nil pointer is a switch that level did not decide.
@@ -466,6 +470,10 @@ const (
 	SourceInstance  PolicySource = "INSTANCE"
 	SourcePlan      PolicySource = "PLAN"
 	SourceWorkspace PolicySource = "WORKSPACE"
+	// SourceHub and SourceCollection are the two levels below the workspace that a collection's
+	// structure has (domain-model.md §2); no workspace-wide rule answers them.
+	SourceHub        PolicySource = "HUB"
+	SourceCollection PolicySource = "COLLECTION"
 )
 
 // LockOf answers where a switch is locked, or LockNone.
