@@ -5013,6 +5013,57 @@ func (e WorkspaceStructurePreset) Valid() bool {
 	}
 }
 
+// Defines values for WorkspaceStructureChangeDefaultPreset.
+const (
+	WorkspaceStructureChangeDefaultPresetFLOW        WorkspaceStructureChangeDefaultPreset = "FLOW"
+	WorkspaceStructureChangeDefaultPresetLIST        WorkspaceStructureChangeDefaultPreset = "LIST"
+	WorkspaceStructureChangeDefaultPresetLessThannil WorkspaceStructureChangeDefaultPreset = "<nil>"
+	WorkspaceStructureChangeDefaultPresetPROJECT     WorkspaceStructureChangeDefaultPreset = "PROJECT"
+	WorkspaceStructureChangeDefaultPresetTASKS       WorkspaceStructureChangeDefaultPreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureChangeDefaultPreset enum.
+func (e WorkspaceStructureChangeDefaultPreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureChangeDefaultPresetFLOW:
+		return true
+	case WorkspaceStructureChangeDefaultPresetLIST:
+		return true
+	case WorkspaceStructureChangeDefaultPresetLessThannil:
+		return true
+	case WorkspaceStructureChangeDefaultPresetPROJECT:
+		return true
+	case WorkspaceStructureChangeDefaultPresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for WorkspaceStructureChangePreset.
+const (
+	WorkspaceStructureChangePresetFLOW    WorkspaceStructureChangePreset = "FLOW"
+	WorkspaceStructureChangePresetLIST    WorkspaceStructureChangePreset = "LIST"
+	WorkspaceStructureChangePresetPROJECT WorkspaceStructureChangePreset = "PROJECT"
+	WorkspaceStructureChangePresetTASKS   WorkspaceStructureChangePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the WorkspaceStructureChangePreset enum.
+func (e WorkspaceStructureChangePreset) Valid() bool {
+	switch e {
+	case WorkspaceStructureChangePresetFLOW:
+		return true
+	case WorkspaceStructureChangePresetLIST:
+		return true
+	case WorkspaceStructureChangePresetPROJECT:
+		return true
+	case WorkspaceStructureChangePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ListPlatformDeliveriesParamsStatus.
 const (
 	ListPlatformDeliveriesParamsStatusDEADLETTER ListPlatformDeliveriesParamsStatus = "DEAD_LETTER"
@@ -6367,9 +6418,10 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
+	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
 	// `ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
@@ -11684,6 +11736,26 @@ type WorkspaceStructureDefaultPreset string
 // WorkspaceStructurePreset defines model for WorkspaceStructure.Preset.
 type WorkspaceStructurePreset string
 
+// WorkspaceStructureChange A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset.
+type WorkspaceStructureChange struct {
+	// DefaultPreset The preset a hub created without one starts from; null removes it.
+	DefaultPreset *WorkspaceStructureChangeDefaultPreset `json:"default_preset,omitempty"`
+
+	// Locks The whole set of locks after the change. Omitted leaves them as they are; an empty list removes them all. A lock kept keeps who set it.
+	Locks  *[]string                       `json:"locks,omitempty"`
+	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
+	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// WorkspaceStructureChangeDefaultPreset The preset a hub created without one starts from; null removes it.
+type WorkspaceStructureChangeDefaultPreset string
+
+// WorkspaceStructureChangePreset defines model for WorkspaceStructureChange.Preset.
+type WorkspaceStructureChangePreset string
+
 // WorkspaceUpdate Every field optional; an omitted one is left alone, which is what merge-patch means. An explicit `null` is read as an absent key rather than as "clear it". The one field with an absent state, `default_week_start`, is cleared with the empty string instead; the others have none - a workspace always has a name, a locale, a zone and an answer to the enforcement question.
 type WorkspaceUpdate struct {
 	// DefaultLocale A BCP-47 tag. One this installation cannot resolve is a field error.
@@ -12989,6 +13061,12 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
+type SetWorkspaceStructureParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -13498,6 +13576,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
+type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -14524,6 +14605,9 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+
+	// (PATCH /tenant/structure)
+	SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params SetWorkspaceStructureParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -26290,6 +26374,47 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// SetWorkspaceStructure operation middleware
+func (siw *ServerInterfaceWrapper) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetWorkspaceStructureParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetWorkspaceStructure(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -27082,6 +27207,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups/{groupId}", wrapper.GetGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)

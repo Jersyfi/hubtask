@@ -1516,6 +1516,14 @@ class StructureChange(TypedDict, total=False):
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
 
+class WorkspaceStructureChange(TypedDict, total=False):
+    """A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset."""
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    reset: list["StructureSettingName"]
+    locks: list[str]
+    default_preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+
 StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"]
 
 class EffectiveStructure(TypedDict, total=False):

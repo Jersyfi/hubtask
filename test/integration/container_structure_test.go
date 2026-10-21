@@ -74,6 +74,11 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
 		}.Descriptor(),
 		work.ListPresets{Profiles: resolver.Profiles, UnitOfWork: unitOfWork}.Descriptor(),
+		work.SetWorkspaceStructure{
+			Structure: resolver, Authorizer: authoriser, Changes: writer.Changes,
+			Epochs: postgres.NewEpochRepository(), Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,
+			HLC: hybrid, Text: textadapter.Forms{},
+		}.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)
@@ -294,5 +299,74 @@ func TestALevelNameReachesNoLogAndNoAuditEntryInClear(t *testing.T) {
 	}
 	if strings.Contains(captured.String(), name) {
 		t.Errorf("a log line carries the level's name: %s", captured.String())
+	}
+}
+
+// forgetWorkspaceStructure leaves no lock behind for the next test of the package to meet.
+func forgetWorkspaceStructure(ctx context.Context, t *testing.T, tenant shared.ID) {
+	t.Helper()
+	t.Cleanup(func() {
+		_, _ = adminPool(ctx, t).Exec(context.WithoutCancel(ctx),
+			`UPDATE tenant SET settings = settings - 'structure' WHERE id = $1`, tenant.String())
+	})
+}
+
+// The lock writer and its refusal on every door (UC-WRK-23 checks 7 and 8): an administrator
+// locks dates on; a collection switching them off is refused through REST as through the catalogue;
+// the workspace's answer names the lock and who set it; another workspace sees none of it.
+func TestAWorkspaceLockRefusesACollectionOnEveryDoor(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	forgetWorkspaceStructure(ctx, t, tenantA)
+	forgetWorkspaceStructure(ctx, t, tenantB)
+	registry := structureCatalogue(t)
+	actor := structureActor(tenantA, authorA)
+	actor.Scopes = append(actor.Scopes, "workspace:manage")
+	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
+
+	if _, err := registry.Invoke(ctx, "SetWorkspaceStructure", actor, usecase.Input{
+		"locks": []any{"fields.TASK.DUE_DATE"}, "default_preset": "TASKS",
+	}); err != nil {
+		t.Fatalf("locking: %v", err)
+	}
+
+	recorder := restStructure(ctx, t, registry, actor, hub,
+		`{"settings":{"fields":{"TASK":{"capabilities":["COMPLETION"]}}}}`)
+	var problem map[string]any
+	_ = json.Unmarshal(recorder.Body.Bytes(), &problem)
+	params, _ := problem["params"].(map[string]any)
+	if recorder.Code != http.StatusUnprocessableEntity || problem["detail_code"] != "structure.setting_locked" ||
+		params["origin"] != "WORKSPACE" {
+		t.Errorf("REST answered %d %v", recorder.Code, problem)
+	}
+
+	answer := work.WorkspaceStructureAnswer{
+		Resolver: work.StructureResolver{
+			Containers: containerRepo(), Structures: postgres.NewStructureRepository(),
+			Profiles: postgres.NewCapabilityProfileRepository(),
+		},
+		UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
+	}
+	ours, err := answer.WorkspaceStructure(ctx, actor)
+	if err != nil {
+		t.Fatalf("reading the workspace's structure: %v", err)
+	}
+	locks, _ := ours["locks"].(map[string]any)
+	dates, _ := locks["fields.TASK.DUE_DATE"].(map[string]any)
+	if dates["locked_by"] != authorA.String() || ours["default_preset"] != "TASKS" {
+		t.Errorf("the workspace answers %v", ours)
+	}
+	// A new hub without a preset starts from the default.
+	fresh := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
+	if structureOf(ctx, t, registry, fresh)["preset"] != "TASKS" {
+		t.Error("a new hub did not start from the workspace's default")
+	}
+
+	theirs, err := answer.WorkspaceStructure(ctx, structureActor(tenantB, authorB))
+	if err != nil {
+		t.Fatalf("reading tenant B: %v", err)
+	}
+	if locks, _ := theirs["locks"].(map[string]any); len(locks) != 0 || theirs["default_preset"] != nil {
+		t.Errorf("tenant B reads tenant A's structure: %v", theirs)
 	}
 }

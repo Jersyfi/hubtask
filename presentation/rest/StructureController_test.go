@@ -176,3 +176,61 @@ func TestAWideningAnswers422AndAnUnknownSettingNeverReachesTheCatalogue(t *testi
 		t.Error("an unknown setting reached the catalogue")
 	}
 }
+
+// The workspace's structure: a null default preset clears it, an absent one leaves it; the locks
+// travel as the whole set; the version comes from If-Match and goes back in the ETag.
+func TestAWorkspaceStructureChangeTellsNullFromAbsent(t *testing.T) {
+	answer := usecase.Output(structureAnswer())
+	answer["default_preset"] = nil
+	answer["version"] = 8
+	registry := &catalogue{out: answer}
+
+	recorder := containerRequest(t, registry, http.MethodPatch, "/tenant/structure",
+		`{"locks":["views","fields.TASK.DUE_DATE"],"default_preset":null}`, `"7"`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "SetWorkspaceStructure" || registry.in["clear_default_preset"] != true ||
+		registry.in["expected_version"] != 7 {
+		t.Errorf("in = %v", registry.in)
+	}
+	if locks, _ := registry.in["locks"].([]any); len(locks) != 2 {
+		t.Errorf("locks = %v", registry.in["locks"])
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"8"` {
+		t.Errorf("ETag = %q", tag)
+	}
+
+	recorder = containerRequest(t, registry, http.MethodPatch, "/tenant/structure", `{"preset":"TASKS"}`, "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d", recorder.Code)
+	}
+	if _, sent := registry.in["clear_default_preset"]; sent {
+		t.Errorf("an absent default preset was read as null: %v", registry.in)
+	}
+	if _, sent := registry.in["locks"]; sent {
+		t.Errorf("absent locks were read as a set: %v", registry.in)
+	}
+}
+
+// GET /tenant answers the workspace's structure beside its other settings.
+func TestTheWorkspaceReadCarriesItsStructure(t *testing.T) {
+	structure := structureAnswer()
+	structure["default_preset"] = "TASKS"
+	registry := &catalogue{out: usecase.Output{
+		"id": "0192f000-0000-7000-8000-00000000000a", "slug": "acme", "display_name": "Acme",
+		"status": "ACTIVE", "default_locale": "en", "default_time_zone": "UTC",
+		"require_admin_totp": false, "version": 3, "structure": structure,
+	}}
+
+	recorder := containerRequest(t, registry, http.MethodGet, "/tenant", "", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", recorder.Code, recorder.Body)
+	}
+	var body map[string]any
+	_ = json.Unmarshal(recorder.Body.Bytes(), &body)
+	answered, _ := body["structure"].(map[string]any)
+	if answered["default_preset"] != "TASKS" || answered["locks"] == nil {
+		t.Errorf("structure = %v", body["structure"])
+	}
+}

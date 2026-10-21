@@ -605,6 +605,11 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// sign_in_rules' reason: a client that also talks to an older server, which does not
 			// answer the key, offers no filter there instead of probing for one.
 			"search_filter": true,
+			// Whether `/presets` is served, every container read answers its structure and
+			// `GET /tenant` the workspace's, and both can be written (domain-model.md §2). A
+			// property of this version, for search_filter's reason. It does not promise that
+			// entries obey the levels and fields yet.
+			"structure": true,
 			// Whether the first start's setup is offered (UC-INS-01): true exactly while the
 			// installation has no workspace and nobody in its register, so a client draws the
 			// setup card in place of the sign-in card and never offers a setup the server refuses.

@@ -1470,6 +1470,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** PATCH /tenant/structure */
+  setWorkspaceStructure(body: NonNullable<operations["setWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The presets a hub or collection can start from */
   listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

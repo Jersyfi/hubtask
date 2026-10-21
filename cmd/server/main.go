@@ -1995,6 +1995,11 @@ func run() error {
 		work.SetContainerStructure{
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
 		}.Descriptor(),
+		work.SetWorkspaceStructure{
+			Structure: structures, Authorizer: authorizer, Changes: changes,
+			Epochs: postgres.NewEpochRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, HLC: hybrid, Text: forms,
+		}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

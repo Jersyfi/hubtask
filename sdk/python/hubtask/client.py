@@ -1167,6 +1167,10 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
+        """PATCH /tenant/structure"""
+        return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
         return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")
