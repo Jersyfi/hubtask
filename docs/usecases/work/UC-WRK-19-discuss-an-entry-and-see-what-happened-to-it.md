@@ -5,9 +5,9 @@ context: work
 actors: [PE-member, PE-guest, PE-person, PE-admin, PE-agent, PE-integrator]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-11, P-12]
-state: partial
-tasks: [B-11, C-03, F2-15, F3-08]
-checked_by: [test/integration/comment_test.go, test/integration/activity_test.go, core/domain/model/work/Comment_test.go, core/application/service/work/AddComment_test.go, core/application/service/work/ChangeComment_test.go, core/application/service/work/ReadActivity_test.go, apps/webapp/e2e/entrybyrole.test.mjs]
+state: built
+tasks: [B-11, C-03, F2-15, F3-08, UX-04]
+checked_by: [test/integration/comment_test.go, test/integration/activity_test.go, core/domain/model/work/Comment_test.go, core/application/service/work/AddComment_test.go, core/application/service/work/ChangeComment_test.go, core/application/service/work/ReadActivity_test.go, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs]
 ---
 
 # Discuss an entry and see what happened to it
@@ -53,7 +53,3 @@ to 5 May", "Notes changed".
 * A hub or a collection has no history of its own here; what changed about the workspace's shape
   is in the audit trail.
 * An AI summary of a long thread is the suggestion context's, and optional.
-
-## Today
-
-* Check 3: not met — edit and remove are drawn on every comment and disabled with "not yours" for somebody who may do neither.

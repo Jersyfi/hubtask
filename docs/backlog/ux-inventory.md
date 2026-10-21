@@ -42,23 +42,23 @@ workbench chrome).
 ### D.2 Call sites (each ticked when moved)
 
 End-user:
-- [ ] 1 `lib/entries/EntryList.svelte` — reason under every checkbox of an archived list → 5
-- [ ] 2 `views/ItemView.svelte` title-row checkbox → 2
-- [ ] 3 `views/ItemView.svelte` due and labels panels (reason up to five times) → once, 5
-- [ ] 4 `views/ItemView.svelte` save button → 4
-- [ ] 5 `lib/entries/TemplatesDialog.svelte` Use/Edit/Delete row → 2
-- [ ] 6 `lib/entries/TemplatesDialog.svelte` gated row → 1 or 2
-- [ ] 7 `views/ContainerView.svelte` page-head primary (split) and secondary → 2
-- [ ] 8 `views/ContainerView.svelte` empty-state action → 2
-- [ ] 9 `views/ContainerView.svelte` menu item reasons → kept (already inside the item)
-- [ ] 10 `lib/entries/BulkBar.svelte` Apply → 3
-- [ ] 11 `views/JumbleView.svelte` ask button → 2
-- [ ] 12 `views/SearchView.svelte` meaning switch → 2
-- [ ] 13 `views/NotificationsView.svelte` always-on cells → one note for the row
-- [ ] 14 `lib/entries/ReminderPanel.svelte`, `CustomFieldsDialog.svelte`, `ImportDialog.svelte` → 3
-- [ ] 15 panels gated by `CapabilityGate` (labels, cover, attachments, comments, recurrence, custom field) → 1 or 5
+- [x] 1 `lib/entries/EntryList.svelte` — reason under every checkbox of an archived list → 5 — UX-04: one notice at the page's head; rows silent, the completion box names the notice
+- [x] 2 `views/ItemView.svelte` title-row checkbox → 2 — UX-04: in a read-only entry the box names the page's notice; elsewhere a bubble
+- [x] 3 `views/ItemView.svelte` due and labels panels (reason up to five times) → once, 5 — UX-04: one notice; the detail rows open nothing while read-only, attachments stay readable
+- [x] 4 `views/ItemView.svelte` save button → 4 — UX-04: the language row keeps its own Save, never switched off (a one-field edit; the save bar is for page forms, Profile)
+- [x] 5 `lib/entries/TemplatesDialog.svelte` Use/Edit/Delete row → 2 — UX-04: role refusals absent (pattern 1, UC-WRK-16 check 7)
+- [x] 6 `lib/entries/TemplatesDialog.svelte` gated row → 1 or 2 — UX-04: absent for a role that may not shape
+- [x] 7 `views/ContainerView.svelte` page-head primary (split) and secondary → 2 — UX-04: a bubble with the page's reason; under an archived hub it names the hub
+- [x] 8 `views/ContainerView.svelte` empty-state action → 2 — UX-04: a bubble with the page's reason
+- [x] 9 `views/ContainerView.svelte` menu item reasons → kept (already inside the item) — UX-04: kept; the inherited case names the hub
+- [x] 10 `lib/entries/BulkBar.svelte` Apply → 3 — UX-04; an operation with nothing to choose is not offered
+- [x] 11 `views/JumbleView.svelte` ask button → 2 — UX-04: pending a bubble; absent for an arrival with nothing to ask about
+- [x] 12 `views/SearchView.svelte` meaning switch → 2 — UX-04: a bubble since UX-03, walked
+- [x] 13 `views/NotificationsView.svelte` always-on cells → one note for the row — UX-04
+- [x] 14 `lib/entries/ReminderPanel.svelte`, `CustomFieldsDialog.svelte`, `ImportDialog.svelte` → 3 — UX-04; with BucketDialog, LabelsDialog, MoveDialog, JumbleProposal, CreateContainerDialog (row 36), KeyEnrollment, TokensView
+- [x] 15 panels gated by `CapabilityGate` (labels, cover, attachments, comments, recurrence, custom field) → 1 or 5 — UX-04: the gates are gone, seven panels with the reminder's; their host draws them only where the type carries the capability
 - [x] 16 `lib/people/AssigneePanel.svelte` gate without a reason → a reason, never the English fallback — UX-03: the refused part is absent (`lib/people/parts.ts`), so the gate never renders refused there, and the fallback is gone from `CapabilityGate`
-- [ ] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1
+- [x] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1 — UX-04: Edit and Remove offered to the author and an administrator only, and to nobody while archived
 
 Administration:
 - [ ] 18 `lib/workspace/PoliciesDialog.svelte` up/down arrows → 2
@@ -179,7 +179,7 @@ Installation:
 - [ ] Language and clock: language, zone, week start, AI objection, address → kept
 - [ ] Missing: display name, avatar → new *You* page
 - [ ] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting)
-- [ ] Notifications table with always-on cells → kept; one note for always-on rows
+- [x] Notifications table with always-on cells → kept; one note for always-on rows — UX-04
 - [ ] Password and sign-in (password, passkeys, providers, second factor) → kept; sections instead of disclosures
 - [ ] Signed in · devices · apps · access tokens → kept; withdraw with undo
 

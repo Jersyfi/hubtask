@@ -216,7 +216,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-16](./work/UC-WRK-16-start-a-routine-from-a-template.md) | Start a routine from a template | work | built |
 | [UC-WRK-17](./work/UC-WRK-17-filter-sort-and-save-a-view-of-my-work.md) | Filter, sort and save a view of my work | work | partial |
 | [UC-WRK-18](./work/UC-WRK-18-find-an-entry-again.md) | Find an entry again by searching | work | built |
-| [UC-WRK-19](./work/UC-WRK-19-discuss-an-entry-and-see-what-happened-to-it.md) | Discuss an entry and see what happened to it | work | partial |
+| [UC-WRK-19](./work/UC-WRK-19-discuss-an-entry-and-see-what-happened-to-it.md) | Discuss an entry and see what happened to it | work | built |
 | [UC-WRK-20](./work/UC-WRK-20-see-what-is-on-me-when-i-arrive.md) | See what is on me when I arrive | work | partial |
 | [UC-WRK-21](./work/UC-WRK-21-share-a-hub-a-collection-or-one-entry.md) | Share a hub, a collection or one entry with somebody | work | partial |
 | [UC-WRK-22](./work/UC-WRK-22-work-within-what-my-role-allows.md) | Work within what my role allows | work | built |
