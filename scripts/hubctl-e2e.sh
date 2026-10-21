@@ -348,6 +348,30 @@ assigned="$(hubctl item assign "$TASK_ID" --account "$ACCOUNT_ID")"
 expect_contains "item assign" "$assigned" "$ACCOUNT_ID"
 hubctl item unassign "$TASK_ID" >/dev/null
 
+echo "--- a collection narrowed to List keeps what it hides, and gives it back ---"
+# UC-WRK-24 check 3 from the outside: narrowing deletes nothing, the read marks what is hidden, a
+# write of it is refused with the same answer every door gives, and widening makes it writable.
+# A collection of its own, so that nothing below depends on what this one shows.
+LIST_ID="$(hubctl container create --type COLLECTION --parent "$HUB_ID" --name 'The shopping list' | first_id)"
+[ -n "$LIST_ID" ] || { echo "FAILED: creating the list produced no identifier"; exit 1; }
+KEPT_ID="$(hubctl item create --collection "$LIST_ID" --type TASK --title 'Oat milk' | first_id)"
+hubctl item assign "$KEPT_ID" --account "$ACCOUNT_ID" >/dev/null
+hubctl container structure "$LIST_ID" --preset LIST >/dev/null
+narrowed="$(hubctl --json item ls --collection "$LIST_ID")"
+expect_contains "the narrowed read keeps the assignee" "$narrowed" "$ACCOUNT_ID"
+expect_contains "the narrowed read marks it hidden" "$narrowed" '"ASSIGNMENT"'
+set +e
+refused="$(hubctl item unassign "$KEPT_ID" 2>&1 >/dev/null)"
+refused_code=$?
+set -e
+if [ "$refused_code" -eq 0 ]; then
+	fail "taking a hidden assignee away was not refused"
+fi
+expect_contains "the hidden assignee's refusal" "$refused" "does not show assignees"
+hubctl container structure "$LIST_ID" --preset PROJECT >/dev/null
+expect_missing "the widened read" "$(hubctl --json item ls --collection "$LIST_ID")" '"ASSIGNMENT"'
+hubctl item unassign "$KEPT_ID" >/dev/null
+
 echo "--- the stream, watched ---"
 # A beat first, and it is not padding. The rate limiter's burst is a minute's budget that may be
 # spent at once (HUBTASK_RATE_LIMIT_BURST, 20 by default), and everything above spends it in about
