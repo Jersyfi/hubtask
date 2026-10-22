@@ -370,13 +370,13 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (5)
-AppBar · NavDrawer · BottomBar · PageHeader · DetailPane
+### Wave 5 — the shell (6)
+AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo
 
-The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)); how
-the product uses them is §11.
+The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
+the mark the bar carries; how the product uses them is §11.
 
-* **`AppBar`** — on every width: the navigation toggle at the start, the wordmark or the page title,
+* **`AppBar`** — on every width: the navigation toggle at the start, the mark and the wordmark or the page title,
   a slot for search in the middle, the controls at the end, and a slot for the page's folded menu.
   **No slot for a page action.** Sticky on `layer.sticky`, a `<header>` landmark, a hairline and no
   shadow; the title is a span, never a heading; the top safe-area inset goes into its padding.
@@ -391,6 +391,11 @@ the product uses them is §11.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
   `aside` landmark with its own heading; it takes no focus and is not a dialog.
+* **`Logo`** — the Hubtask mark of §9, alone or with the wordmark, in four size steps of the space
+  scale: `sm` draws the reduced form, every larger step the full one. `color` draws the `brand.*`
+  tokens, `mono` the colour of the text around it. Not an `Icon` — an icon is `currentColor` only
+  (§12). The wordmark is the caller's resolved text, lowered by the stylesheet and never
+  translated; with it the text is the accessible name, without it `label` is.
 
 ---
 

@@ -82,6 +82,8 @@ export { default as NavDrawer } from './NavDrawer.svelte';
 export { default as PageHeader, type PageAction } from './PageHeader.svelte';
 export { default as BottomBar, type Destination } from './BottomBar.svelte';
 export { default as DetailPane } from './DetailPane.svelte';
+export { default as Logo } from './Logo.svelte';
+export { type LogoSize } from './mark.ts';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';
