@@ -54,6 +54,12 @@ type Material struct {
 	// narrowing checks the answer against are the same profiles; and a breakdown's, so that a piece
 	// keeps only the fields its type carries.
 	Hierarchy *service.Hierarchy
+	// Shape is what the target's collection offers, where the question has one: a breakdown and
+	// a template draft keep to its levels and fields, so that accepting writes nothing it hides.
+	Shape *Shape
+	// Hidden are the capabilities the target entry's collection hides: no proposal fills one,
+	// and none of its values is sent to the provider.
+	Hidden map[work.Capability]bool
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
 	// asking may see.
 	//
@@ -601,7 +607,7 @@ func (h Produce) ask(
 	)
 	switch kind {
 	case domain.KindTemplate:
-		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, targetID)
+		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, material.Shape, targetID)
 	case domain.KindRule:
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
 	default:
@@ -807,9 +813,10 @@ func payloadFrom(
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
 		kept = keptChoices(kept, promptID, material.Choices)
+		kept = withoutHidden(kept, material.Hidden)
 		return keptDate(keptTitles(keptDeclared(kept, material.Declared, form))), true
 	case domain.KindDecomposition:
-		return keptTree(answered, material.Hierarchy)
+		return keptTree(answered, material.Hierarchy, material.Shape)
 	default:
 		return nil, false
 	}
@@ -1122,8 +1129,8 @@ const maxProposedNodes = 32
 // `capability_not_supported` at that piece. Dropped here rather than when the breakdown is
 // planted, for `payloadFrom`'s reason: the person reads exactly what accepting creates. Without a
 // hierarchy (a build that never wired the profiles) the notes stay, and the acceptance answers.
-func keptTree(answered map[string]any, hierarchy *service.Hierarchy) (map[string]any, bool) {
-	children, count, ok := keptChildren(answered["children"], 0, hierarchy)
+func keptTree(answered map[string]any, hierarchy *service.Hierarchy, shape *Shape) (map[string]any, bool) {
+	children, count, ok := keptChildren(answered["children"], 0, hierarchy, shape)
 	if !ok || count > maxProposedNodes {
 		return nil, false
 	}
@@ -1139,7 +1146,9 @@ func keptTree(answered map[string]any, hierarchy *service.Hierarchy) (map[string
 // task is a shape the domain refuses, and proposing one would be proposing a refusal.
 var nodeTypes = map[string]bool{"WORK_PACKAGE": true, "ACTIVITY": true}
 
-func keptChildren(value any, depth int, hierarchy *service.Hierarchy) ([]any, int, bool) {
+// A piece at a level the target's collection hides is left out with everything under it, and a
+// piece keeps its notes only where the collection offers them: accepting either would be refused.
+func keptChildren(value any, depth int, hierarchy *service.Hierarchy, shape *Shape) ([]any, int, bool) {
 	if value == nil {
 		return nil, 0, true
 	}
@@ -1164,13 +1173,16 @@ func keptChildren(value any, depth int, hierarchy *service.Hierarchy) ([]any, in
 		if !nodeTypes[kind] || strings.TrimSpace(title) == "" {
 			return nil, 0, false
 		}
+		if !shape.Offers(work.ItemType(kind)) {
+			continue
+		}
 
 		clean := map[string]any{"type": kind, "title": title}
 		if notes, held := node["notes"].(string); held && strings.TrimSpace(notes) != "" &&
-			carriesNotes(hierarchy, kind) {
+			carriesNotes(hierarchy, kind) && shape.Carries(work.ItemType(kind), work.CapabilityNotes) {
 			clean["notes"] = notes
 		}
-		grandchildren, under, ok := keptChildren(node["children"], depth+1, hierarchy)
+		grandchildren, under, ok := keptChildren(node["children"], depth+1, hierarchy, shape)
 		if !ok {
 			return nil, 0, false
 		}

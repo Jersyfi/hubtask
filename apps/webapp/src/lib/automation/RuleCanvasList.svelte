@@ -430,9 +430,9 @@
   /* A run drawn on: a lit card carries its word; a skipped or never-reached one fades. */
   .card.lit { box-shadow: 0 0 0 var(--sp-050) var(--accent-primary-subtle), var(--shadow-raised); }
 
-  .card.lit.yes { border-color: var(--success-500); }
+  .card.lit.yes { border-color: var(--status-success-border); background: var(--status-success-surface); }
 
-  .card.lit.no { border-color: var(--warning-500); }
+  .card.lit.no { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
 
   .card.faded { opacity: 0.38; }
 
@@ -558,7 +558,7 @@
 
   .rcond.selected { outline: var(--bw-ring) solid var(--accent-primary); outline-offset: var(--sp-025); }
 
-  .rcond.flagged { border-color: var(--status-warning-border); }
+  .rcond.flagged { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
 
   .rtool { flex: 0 0 auto; width: var(--sp-300); height: var(--sp-300); padding: 0; display: grid; place-items: center; border: 0; border-radius: var(--r-xs); background: transparent; color: var(--text-subtle); cursor: pointer; }
 

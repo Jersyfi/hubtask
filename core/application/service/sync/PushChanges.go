@@ -184,6 +184,10 @@ func (p PushChanges) Push(
 			// whole queue again and the operation log makes the repeat of those exact.
 			return PushResponse{}, err
 		}
+		// The answer is what the operation log keeps and a repeat answers: no hidden mark.
+		if result.ServerState != nil {
+			result.ServerState = withoutHidden(result.ServerState)
+		}
 		results = append(results, result)
 	}
 
@@ -529,6 +533,22 @@ func recordOf(deviceID shared.ID, result Result, at time.Time) repository.OpReco
 	}
 }
 
+// withoutHidden is an entry's state as the replica holds it: without the mark of what its collection
+// hides, which a client derives from the container's structure (offline-sync.md §4.2). A mark stored
+// in the replica would go stale at the next change of that structure, which reaches no entry record.
+func withoutHidden(state map[string]any) map[string]any {
+	if _, marked := state["hidden"]; !marked {
+		return state
+	}
+	copied := make(map[string]any, len(state))
+	for key, value := range state {
+		if key != "hidden" {
+			copied[key] = value
+		}
+	}
+	return copied
+}
+
 // resultOutput is the result in the contract's field names - what the operation log stores and
 // what a repeat answers, so that the two cannot differ.
 func resultOutput(result Result) map[string]any {
@@ -544,7 +564,7 @@ func resultOutput(result Result) map[string]any {
 		out["entity_id"] = result.EntityID.String()
 	}
 	if result.ServerState != nil {
-		out["server_state"] = result.ServerState
+		out["server_state"] = withoutHidden(result.ServerState)
 	}
 	if result.Conflict != nil {
 		conflict := map[string]any{

@@ -453,6 +453,16 @@ type ItemBatch interface {
 	FindMany(ctx context.Context, ids []shared.ID) ([]work.WorkItem, error)
 }
 
+// ItemTypes answers the type of each entry among ids: the levels above an entry, which decide
+// whether its collection hides it (domain-model.md §2). An identifier this tenant does not hold,
+// another tenant's included, is absent from the answer rather than an error.
+//
+// Its own interface rather than a method on Items, for ItemBatch's reason: only the hidden rule
+// needs it.
+type ItemTypes interface {
+	TypesOf(ctx context.Context, ids []shared.ID) (map[shared.ID]work.ItemType, error)
+}
+
 type Items interface {
 	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
 	// archived items come back as they are stored: whether one may take children is the domain's

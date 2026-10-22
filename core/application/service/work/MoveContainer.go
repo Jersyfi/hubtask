@@ -8,6 +8,7 @@ import (
 	"errors"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -41,6 +42,10 @@ type MoveContainer struct {
 	// Revocations tells the devices of whoever read the collection through the hub it left, and
 	// cannot read it where it now sits, that they lost it.
 	Revocations MoveRevoker
+	// Structure resolves what the collection inherits from the hub it moves into, which offline
+	// clients are told as its structure in force (offline-sync.md §4.2). A build without it records
+	// the placement alone.
+	Structure StructureResolver
 }
 
 // MoveRevoker is the slice of access.Revocations a move needs: who may have lost the collection,
@@ -171,6 +176,9 @@ func (h MoveContainer) write(
 	if err := h.Writer.recordChanges(ctx, after, actor, changes); err != nil {
 		return domain.Container{}, err
 	}
+	if err := h.recordInherited(ctx, actor, before, after); err != nil {
+		return domain.Container{}, err
+	}
 	// Whoever read the collection through the hub it left is asked whether they still read it
 	// here, and told when they do not. After the placement is written, so that the question
 	// is put to the tree as it now stands.
@@ -189,6 +197,23 @@ func (h MoveContainer) write(
 		return domain.Container{}, err
 	}
 	return after, nil
+}
+
+// recordInherited records the structure a collection has under the hub it moved into: every setting
+// it does not decide itself now comes from there. The destination hub is held while it is read, so
+// a writer of that hub's structure fanning out to its collections either sees this one among them
+// or waits until it has moved (domain-model.md §2).
+func (h MoveContainer) recordInherited(
+	ctx context.Context, actor appshared.ActorContext, before, after domain.Container,
+) error {
+	if before.ParentID == after.ParentID || !h.Structure.Wired() {
+		return nil
+	}
+	effective, err := h.Structure.within(repository.LayerShared).Of(ctx, after)
+	if err != nil {
+		return err
+	}
+	return recordStructure(ctx, h.Writer.Changes, h.Writer.HLC, after, actor, effective)
 }
 
 // rankAt works out the rank the collection takes at its destination.

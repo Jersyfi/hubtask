@@ -94,6 +94,8 @@ var Jobs = []Job{
 	{ID: "engines", Filters: []string{"webapp", "design_system", "sync_engine", "api_client", "openapi", "ci"}, Steps: []Step{
 		{Name: "the three engines", Command: "make tools-node && pnpm install --frozen-lockfile && " +
 			`pnpm --filter "@hubtask/webapp^..." build && pnpm --filter @hubtask/webapp build && ` +
+			// The workbench the layout test measures, built as the CI job builds it before the engines.
+			"pnpm --filter @hubtask/design-system workbench:build && " +
 			"pnpm --filter @hubtask/webapp test:engines"},
 	}},
 	{ID: "api-client-drift", Filters: []string{"openapi", "api_client", "ci"}, Steps: []Step{

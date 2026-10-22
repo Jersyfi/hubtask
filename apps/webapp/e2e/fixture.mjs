@@ -16,8 +16,8 @@ export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'C
 export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
 export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
 export const LABELS = [
-  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'label.teal' },
-  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'label.red' },
+  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'teal' },
+  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'red' },
 ];
 export const BUCKETS = [
   { id: '01a0e2e0-0000-7000-8000-000000000021', collection_id: COLLECTION.id, name: 'To do', order_key: 'a0', wip_limit: null, is_done_bucket: false, version: 1 },

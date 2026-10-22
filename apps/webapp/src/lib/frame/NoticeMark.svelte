@@ -179,7 +179,7 @@
 
   /* Rule 3 again: the state is the mark, the dot *and* the accessible name, never the colour
      alone - the mark turns into the warning triangle and the name becomes the report's title. */
-  .mark[data-troubled] { color: var(--text-warning); }
+  .mark[data-troubled] { border-radius: var(--r-sm); background: var(--status-warning-surface); color: var(--status-warning-text); }
 
   .dot {
     position: absolute;
@@ -195,9 +195,16 @@
 
   .line { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .notice[data-tone='danger'] .heading { color: var(--text-danger); }
+  /* A notice with a tone is a status: its surface under the heading and the line (§6 rule 3). */
+  .notice[data-tone] { padding: var(--sp-100); border-radius: var(--r-md); }
 
-  .notice[data-tone='warning'] .heading { color: var(--text-warning); }
+  .notice[data-tone='danger'] { background: var(--status-danger-surface); }
+
+  .notice[data-tone='danger'] .heading { color: var(--status-danger-text); }
+
+  .notice[data-tone='warning'] { background: var(--status-warning-surface); }
+
+  .notice[data-tone='warning'] .heading { color: var(--status-warning-text); }
 
   /* The correlation id, in the data style: it is quoted into a support thread, not read. */
   .reference { color: var(--text-subtle); font-family: var(--font-mono); }

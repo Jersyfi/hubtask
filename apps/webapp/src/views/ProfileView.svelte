@@ -190,6 +190,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }

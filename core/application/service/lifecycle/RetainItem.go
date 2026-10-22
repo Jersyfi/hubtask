@@ -51,6 +51,8 @@ type RetainItem struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	HLC        clock.HLCSource
+	// Gate marks the answer with what the entry's collection hides.
+	Gate workservice.EntryGate
 }
 
 // Execute takes the entry out and answers it as it now stands.
@@ -201,5 +203,5 @@ func (h RetainItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return workservice.ItemOutput(item), nil
+	return h.Gate.Answer(ctx, h.UnitOfWork, actor, item)
 }

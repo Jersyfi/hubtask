@@ -108,21 +108,21 @@
 
   .dot { flex: 0 0 auto; width: var(--sp-150); height: var(--sp-150); border-radius: var(--r-full); background: var(--border-default); }
 
-  .health[data-health='works'] .dot { background: var(--success-500); }
+  .health[data-health='works'] .dot { background: var(--status-success-accent); }
 
-  .health[data-health='sometimes'] .dot, .health[data-health='attention'] .dot { background: var(--warning-500); }
+  .health[data-health='sometimes'] .dot, .health[data-health='attention'] .dot { background: var(--status-warning-accent); }
 
-  .health[data-health='failing'] .dot, .health[data-health='broken'] .dot { background: var(--danger-500); }
+  .health[data-health='failing'] .dot, .health[data-health='broken'] .dot { background: var(--status-danger-accent); }
 
   .bars { display: flex; gap: var(--sp-025); align-items: flex-end; height: var(--sp-300); }
 
-  .bars i { flex: 1 1 0; height: 100%; border-radius: var(--sp-025) var(--sp-025) 0 0; background: var(--success-500); }
+  .bars i { flex: 1 1 0; height: 100%; border-radius: var(--sp-025) var(--sp-025) 0 0; background: var(--status-success-accent); }
 
   .bars i.s { height: 40%; background: var(--border-default); }
 
-  .bars i.t { background: var(--warning-500); }
+  .bars i.t { background: var(--status-warning-accent); }
 
-  .bars i.f { background: var(--danger-500); }
+  .bars i.f { background: var(--status-danger-accent); }
 
   .rows { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: var(--sp-050); }
 

@@ -1060,7 +1060,7 @@
   .chip:hover { border-color: var(--border-default); }
 
   .chip b { font-weight: var(--fw-medium); color: var(--text-primary); }
-  .chip.flagged { border-color: var(--status-warning-border); }
+  .chip.flagged { border-color: var(--status-warning-border); background: var(--status-warning-surface); }
   .chip-flag { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-warning); }
 
   .sentence-row { display: flex; align-items: flex-start; gap: var(--sp-050); }
@@ -1082,7 +1082,7 @@
 
   .dragline span { display: inline-block; max-width: 100%; padding: var(--sp-050) var(--sp-200); border-end-start-radius: var(--r-md); border-end-end-radius: var(--r-md); font-size: var(--fs-075); font-weight: var(--fw-medium); color: var(--text-inverse); background: var(--accent-primary); box-shadow: var(--shadow-raised); }
 
-  .dragline.refused span { background: var(--status-warning-text); }
+  .dragline.refused span { background: var(--status-warning-accent); }
 
   .canvas { padding: var(--sp-400) var(--sp-200) var(--sp-1000); overflow: auto; background: radial-gradient(circle at var(--sp-025) var(--sp-025), var(--border-subtle) var(--sp-025), transparent 0) 0 0 / var(--sp-250) var(--sp-250); }
 
@@ -1106,7 +1106,7 @@
     .bench { grid-template-columns: minmax(0, 1fr); }
     .canvas { padding-block-end: calc(var(--sp-1600) + var(--layout-bottombar-height)); }
     /* Above the shell's bottom bar, not behind it. */
-    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-surface); box-shadow: var(--shadow-overlay); overflow: hidden; }
+    .sheetbar { position: fixed; inset-inline: var(--sp-200); inset-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0) + var(--sp-100)); z-index: var(--z-sticky); display: flex; border: var(--bw-hairline) solid var(--border-default); border-radius: var(--r-full); background: var(--bg-raised); box-shadow: var(--shadow-overlay); overflow: hidden; }
     .sheetbar button { flex: 1 1 0; min-width: 0; display: inline-flex; flex-direction: column; align-items: center; gap: var(--sp-025); padding: var(--sp-050) var(--sp-025); border: 0; background: transparent; color: var(--text-secondary); font-size: var(--fs-050); }
     .sheetbar button[aria-selected='true'] { color: var(--accent-primary); }
     .sheetbar button:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(-1 * var(--sp-025)); }

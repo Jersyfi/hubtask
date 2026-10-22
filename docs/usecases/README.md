@@ -221,7 +221,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-21](./work/UC-WRK-21-share-a-hub-a-collection-or-one-entry.md) | Share a hub, a collection or one entry with somebody | work | partial |
 | [UC-WRK-22](./work/UC-WRK-22-work-within-what-my-role-allows.md) | Work within what my role allows | work | built |
 | [UC-WRK-23](./work/UC-WRK-23-choose-how-much-structure-a-collection-has.md) | Choose how much structure a collection has | work | partial |
-| [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | specified |
+| [UC-WRK-24](./work/UC-WRK-24-change-a-collections-level-without-losing-anything.md) | Change a collection's level without losing anything | work | partial |
 | [UC-WRK-25](./work/UC-WRK-25-keep-a-simple-list.md) | Keep a simple list | work | specified |
 | [UC-WRK-26](./work/UC-WRK-26-capture-something-from-anywhere.md) | Capture something from anywhere in one step | work | specified |
 | [UC-WRK-27](./work/UC-WRK-27-find-and-do-anything-from-one-place.md) | Find and do anything from one place | work | built |
@@ -230,7 +230,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work | specified |
 | [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work | specified |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work | specified |
-| [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work | specified |
+| [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work | partial |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work | specified |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble | built |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble | built |
