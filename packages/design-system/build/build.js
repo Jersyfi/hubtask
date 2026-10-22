@@ -14,6 +14,7 @@ import StyleDictionary from 'style-dictionary';
 
 import { cssFormat, tsFormat, goFormat } from './formats.js';
 import { buildFonts } from './fonts.js';
+import { buildMark } from './mark.js';
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repositoryRoot = path.resolve(packageRoot, '..', '..');
@@ -56,3 +57,6 @@ await dictionary.buildAllPlatforms();
 
 const fonts = buildFonts();
 console.log(`\nfonts\n✔︎ dist/fonts.css, dist/fonts-scripts.css (${fonts.faces} faces, ${fonts.files} files in dist/fonts/)`);
+
+const marks = await buildMark();
+console.log(`\nmark\n✔︎ dist/mark/: ${marks.join(', ')}`);

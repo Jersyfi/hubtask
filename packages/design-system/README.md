@@ -28,6 +28,11 @@ fonts/faces.json                          the faces that ship, design-system.md 
   │  pnpm build   (build/fonts.js)
   ├─→ dist/fonts.css + dist/fonts/        IBM Plex for Latin, Cyrillic and Greek, self-hosted
   └─→ dist/fonts-scripts.css              the faces for every other script, and their headings
+
+src/mark.ts + the brand.* values          the mark's geometry, design-system.md §9
+  │  pnpm build   (build/mark.js)
+  ├─→ dist/mark/favicon.svg               the browser tab's icon, reduced, light and dark
+  └─→ dist/mark/app-icon.svg              the source of the installed apps' icons
 ```
 
 `dist/` is ignored by git. `LabelTokens.go` is **committed**, because `go build ./...` has to work
