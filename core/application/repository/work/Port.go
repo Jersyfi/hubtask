@@ -1244,3 +1244,20 @@ type Structures interface {
 type Figures interface {
 	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
 }
+
+// Milestones records and reads the last moment a collection or hub was left with nothing open
+// (UC-WRK-29 check 4). Nothing open counts every entry neither archived nor trashed, at any level.
+type Milestones interface {
+	// LockHub is taken before asking whether a collection of the hub, or the hub, is finished, for
+	// the rest of the transaction: two completions finishing the last two entries at once must not
+	// each see the other's still open.
+	LockHub(ctx context.Context, hubID shared.ID) error
+	// RecordCollection records the moment when none of the collection's entries is open, and
+	// reports whether it did.
+	RecordCollection(ctx context.Context, collectionID shared.ID, at time.Time) (bool, error)
+	// RecordHub records the moment when no collection of the hub, neither archived nor trashed,
+	// holds an open entry, and reports whether it did.
+	RecordHub(ctx context.Context, hubID shared.ID, at time.Time) (bool, error)
+	// Of answers the milestones of the given containers; a container without one is absent.
+	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error)
+}

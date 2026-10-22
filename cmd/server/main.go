@@ -698,6 +698,7 @@ func run() error {
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
+	milestones := postgres.NewMilestoneRepository()
 	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
@@ -774,7 +775,7 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Structure: structures,
+		Structure: structures, Milestones: milestones,
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
@@ -2124,14 +2125,14 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
-			Structure: structures, Figures: figures,
+			Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork, Structure: structures, Figures: figures,
+			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.ListJumbleDestinations{
