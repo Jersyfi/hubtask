@@ -25,7 +25,7 @@ outside this repository.
   `make db-up` need it), `git`, and the GitHub CLI `gh`.
 - Node.js (the version in `.nvmrc`) only for `apps/` and `packages/`.
 - `gh auth login` once, as the GitHub account you work with; `gh` opens draft pull requests and
-  reads issues, and `make verify-pr` reads the pull request's description through it.
+  reads issues, and `make gate-numbers` asks it for the open pull requests.
 
 ```bash
 make tools          # the Go tools, pinned, into .tools
@@ -109,11 +109,11 @@ at the integration environment with `--api`.
   `.github/PULL_REQUEST_TEMPLATE.md`, its title a Conventional Commit;
   `make gate-pr BODY=<file> TITLE="<title>"` checks both.
 - Small commits, one concern each, with a Conventional Commit title in English.
-- `make verify-pr` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
+- `make check` before `gh pr ready`: a draft runs no CI; CI runs once when it is ready
   ([ci-cd.md](docs/architecture/ci-cd.md)). Most jobs skip themselves when their part of the tree
   did not change — that is normal. `CI required` is the one required check.
 
-Everything else — the rules, the loop, the Definition of Done — is in [`AGENTS.md`](AGENTS.md).
+Everything else — the rules and the loop — is in [`AGENTS.md`](AGENTS.md).
 
 ## Merging a stack of pull requests (maintainers)
 

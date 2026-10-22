@@ -19,7 +19,7 @@ import (
 // thing; that stays with review.
 
 // sectionsSince is when the rule took effect.
-var sectionsSince = readinessSince
+var sectionsSince = rulesSince
 
 var (
 	subjectDocument = regexp.MustCompile(`^docs/(?:architecture|design)/[^/]+\.md$`)

@@ -14,7 +14,7 @@ import (
 // in none (versioning-release.md §3).
 
 // titleSince is when the rule took effect.
-var titleSince = readinessSince
+var titleSince = rulesSince
 
 var (
 	conventionalTitle = regexp.MustCompile(`^(feat|fix|perf|refactor|docs|test|build|ci|chore|revert)(\([a-z0-9][a-z0-9 ,./_-]*\))?!?: \S`)

@@ -56,7 +56,7 @@ var citationExempt = map[string]bool{
 	"tools/checkdocs/usecases.go":            true,
 	"tools/checkdocs/main.go":                true,
 	"tools/checkpr/main.go":                  true,
-	"tools/checkpr/readiness.go":             true,
+	"tools/checkpr/rules.go":                 true,
 	"scripts/relaunch.sh":                    true,
 }
 

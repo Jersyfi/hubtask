@@ -1,6 +1,6 @@
 # ADR-0079 — A draft is checked locally; CI runs when a pull request is ready
 
-**Status:** accepted (its rejection of dropping "branches must be up to date" reversed by [ADR-0083](./ADR-0083-a-merge-without-catching-up.md)) · **Date:** 2026-10-04 · **Accepted:** 2026-10-06
+**Status:** accepted (its rejection of dropping "branches must be up to date" reversed by [ADR-0083](./ADR-0083-a-merge-without-catching-up.md); `make verify-pr` replaced by `make check` in [ADR-0089](./ADR-0089-check-once-where-it-is-cheap.md)) · **Date:** 2026-10-04 · **Accepted:** 2026-10-06
 
 **Rule lives in:** [ci-cd.md](../architecture/ci-cd.md) §3.4, §3.1, §3.2
 
