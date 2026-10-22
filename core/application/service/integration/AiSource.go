@@ -86,6 +86,8 @@ type AiState struct {
 	// KeepingOut is how many people's newest ai_processing record is a withdrawal: a number, never
 	// who (UC-PRV-05 check 12).
 	KeepingOut int
+	// PrepareOnArrival is the workspace's switch for proposals on arrival (UC-JUM-07 check 10).
+	PrepareOnArrival bool
 }
 
 // ChosenOffered answers the offered model the choice names, when it still exists.
@@ -138,6 +140,8 @@ func (r AiRules) Resolve(ctx context.Context, tenantID shared.ID) (AiState, erro
 		Choice:    choice,
 		Offered:   offered,
 		Narrowing: narrowing,
+
+		PrepareOnArrival: workspace.Settings.AiArrivalProposals,
 	}
 	if !state.Rule.OptOutOffered() {
 		state.OptOutContact = workspace.Settings.AiOptOutContact
@@ -447,6 +451,7 @@ func AiSourceOutput(state AiState) usecase.Output {
 		out["person_opt_out_since"] = state.OptOutSince
 	}
 	out["keeping_out_count"] = state.KeepingOut
+	out["prepare_on_arrival"] = state.PrepareOnArrival
 	return out
 }
 

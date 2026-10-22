@@ -347,6 +347,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   /* A rule rather than a second box: these belong to the panel above them, and a nested surface

@@ -512,7 +512,7 @@
     padding: var(--sp-100);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
   }
 
@@ -564,7 +564,7 @@
     padding-inline: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-full);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     color: var(--text-secondary);
     font: inherit;
     font-size: var(--fs-075);

@@ -51,9 +51,12 @@ type LifecycleWriter struct {
 	Audit      audit.Sink
 	Activity   ActivityJournal
 	UnitOfWork persistence.UnitOfWork
-	Clock      clock.Clock
-	IDs        clock.IDGenerator
-	HLC        clock.HLCSource
+	// Gate marks the answer with what the entry's collection hides; it gates nothing here, since
+	// the lifecycle is not a write of what a collection offers.
+	Gate  EntryGate
+	Clock clock.Clock
+	IDs   clock.IDGenerator
+	HLC   clock.HLCSource
 	// Queue is where a deletion asks for the tenant's cleanup to be scheduled.
 	//
 	// A deletion scheduling its own cleanup is not only convenient, it is the only shape available:
@@ -523,20 +526,20 @@ func lifecycleInput(itemDescription string) []usecase.Field {
 func (h ArchiveWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return invokeLifecycle(ctx, actor, in, h.Execute)
+	return invokeLifecycle(ctx, actor, in, h.Lifecycle, h.Execute)
 }
 
 func (h UnarchiveWorkItem) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return invokeLifecycle(ctx, actor, in, h.Execute)
+	return invokeLifecycle(ctx, actor, in, h.Lifecycle, h.Execute)
 }
 
 // invokeLifecycle is the adapter between the catalogue's untyped input and the typed command, for
 // all three channels at once. One implementation, because every lifecycle verb reads the same two
 // fields and writes back the same projection.
 func invokeLifecycle(
-	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input, writer LifecycleWriter,
 	execute func(context.Context, appshared.ActorContext, LifecycleCommand) (domain.WorkItem, error),
 ) (usecase.Output, error) {
 	itemID, err := in.ID("item_id")
@@ -549,5 +552,5 @@ func invokeLifecycle(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return writer.Gate.Answer(ctx, writer.UnitOfWork, actor, item)
 }

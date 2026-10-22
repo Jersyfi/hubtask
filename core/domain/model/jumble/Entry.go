@@ -109,6 +109,10 @@ type Entry struct {
 	// SettledAt is when the entry stopped being NEW - a conversion or a dismissal. Stored in the
 	// `processed_at` column, which predates the dismissal being a state of its own.
 	SettledAt *time.Time
+	// ArrivalJobID is a read's projection, never written: the job preparing a proposal about this
+	// undecided entry on its arrival (UC-JUM-07 check 10) while it runs or once it ended refused,
+	// so a card can follow it. Zero otherwise.
+	ArrivalJobID shared.ID
 }
 
 // NewEntryInput is what an arrival needs.

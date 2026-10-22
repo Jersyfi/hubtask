@@ -30,6 +30,8 @@ type Overrides struct {
 	// never by the operator's quota write, and stored apart from the quotas key so that write cannot
 	// drop it (SetOwnAiBudget).
 	AiOwnTokensPerDay *int64
+	// AiArrivalProposalsPerDay is how many arrivals a day may be asked about on arrival.
+	AiArrivalProposalsPerDay *int64
 }
 
 // PlanLimits is a plan's ceilings and the quotas it locks, by their contract names.

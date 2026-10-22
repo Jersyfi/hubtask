@@ -37,3 +37,17 @@ export const long: Story = {
     'Rule 4 in the row that has the least room for it: the title wraps and balances, the actions keep their width and wrap under it before anything clips, and the menu items are as long as their words. Switch the direction axis: the menu opens at the end of the line in both.',
   args: { mode: 'long' },
 };
+
+export const figure: Story = {
+  name: 'What counts, under the title',
+  about:
+    'The figure is the caller’s drawing in the head’s own place: under the title, beside the description, before the notices. A bar and a sentence here; a count, a sum or a row of marks elsewhere. It takes its line from the start, so a figure that arrives after the page moves neither the title nor the actions, and its digits are tabular so a changing number does not jitter.',
+  args: { mode: 'figure' },
+};
+
+export const figurePhone: Story = {
+  name: 'What counts, folded',
+  about:
+    'Switch the width axis to Compact. With the title in the bar the figure still has its row here — the head does not hand its line to the actions, because the figure is what a person looks at the head for.',
+  args: { mode: 'figurePhone' },
+};

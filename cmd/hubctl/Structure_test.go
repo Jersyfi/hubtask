@@ -127,3 +127,35 @@ func TestAStructureRefusalIsTheServersAndATypoNeverLeaves(t *testing.T) {
 		}
 	}
 }
+
+// UC-WRK-29 check 2 on this door: progress for a list is the server's refusal, in the catalogue's
+// words, and the command fails.
+func TestProgressForAListIsRefusedInTheCataloguesWords(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"code": "validation_failed", "status": 422, "detail_code": "structure.figure_not_offered",
+			"params": map[string]any{"setting": "counts", "figure": "PROGRESS"},
+		})
+	})
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"container", "structure", "01936f2a-7c1e-7000-8000-0000000000a1", "--settings", `{"counts":{"figure":"PROGRESS"}}`)
+	if code == exitOK || !strings.Contains(errOut, "a list never shows a percentage") {
+		t.Errorf("exit %d, standard error %q", code, errOut)
+	}
+}
+
+// A collection's figure reaches a script under --json as the server answered it; the table keeps
+// its columns, a figure being numbers a terminal does not phrase (P-12).
+func TestTheFigureTravelsInTheJSONPayload(t *testing.T) {
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"data":[{"id":"01936f2a-7c1e-7000-8000-0000000000c1","type":"COLLECTION","name":"Groceries",` +
+			`"version":1,"figure":{"kind":"OPEN","today":"2026-10-22","open":5}}],"page":{"has_more":false}}`))
+	})
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "--json", "container", "ls")
+	if code != exitOK || !strings.Contains(out, `"figure"`) || !strings.Contains(out, `"open": 5`) {
+		t.Errorf("exit %d, payload %q, standard error %q", code, out, errOut)
+	}
+}

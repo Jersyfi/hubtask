@@ -44,9 +44,12 @@ const (
 // attach to it. Staging the file needed `media:write`; putting it on an entry needs the right to
 // change the entry (security.md §5, domain-model.md §3.2).
 type ItemAttachmentWriter struct {
-	Items       repository.Items
-	Containers  repository.Containers
-	Profiles    metarepo.CapabilityProfiles
+	Items      repository.Items
+	Containers repository.Containers
+	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate        EntryGate
 	Attachments mediarepo.Attachments
 	Media       MediaReferences
 	Authorizer  Authorizer
@@ -185,7 +188,7 @@ func (w ItemAttachmentWriter) change(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-		profile, err := profileOf(ctx, w.Profiles, item.Type)
+		profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
 		if err != nil {
 			return err
 		}

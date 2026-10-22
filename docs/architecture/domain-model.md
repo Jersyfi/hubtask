@@ -94,9 +94,19 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
 * **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
-  as below. `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
-  the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
+  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `capture`, `celebration` and `automation` are applied by clients; the server
+  stores and answers them. `counts` the server applies on the collection's read: it counts the
+  figure (`figure`, in the reader's day and week, leaving out trashed and hidden entries, in a
+  read-only transaction of its own so that a figure that cannot be counted is marked
+  `unavailable` and never fails the read) and the client draws it. `automation` holds no value yet: nothing runs by itself that
   a collection may switch on.
+* **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
+  a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
+  write whose own values set `PROGRESS` where the levels in force after it are one is refused
+  (`structure.figure_not_offered`); wherever else the two meet — a preset, a reset, a narrowing on
+  any layer, the installation's bound, a lock — the structure in force says `OPEN`,
+  `counts_clipped` keeps what the layers said, and the write that caused it names `counts` in
+  `clipped_by_levels`. A lock is judged against what the layers say, before the clip.
 * **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
   `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
   touches an entry. The container's write publishes `container.policies_updated` with the settings
@@ -107,6 +117,33 @@ settings no longer offer stay stored, are returned by every read marked as hidde
 them is refused as below; widening again shows them exactly as they were. Flattening — moving every
 leaf to the top level — is a separate, explicit operation with a preview, recorded in each entry's
 history.
+
+* **What is hidden.** An entry's *level* is hidden when its type, or the type of any entry above it,
+  is not in the collection's `levels`: an activity under a work package is hidden where work
+  packages are not offered, one directly under a task is not. A *capability* is hidden when the
+  installation carries it for the type and the collection's `fields` do not. The mark depends on the
+  type and the collection, never on whether the entry holds a value.
+* **The mark.** Every read of an entry, and the answer of every write to one, carries
+  `hidden: {level, capabilities}`. It is derived, never stored; the synchronisation carries none,
+  and a client derives it from the container's structure by the same rule
+  (`api/fixtures/hidden-entries.json` holds both to one table).
+* **What is refused.** Writing a hidden capability - setting a value, taking one away - is refused
+  `capability_not_supported` with the detail `items.capability_hidden`; any write on an entry of a
+  hidden level, its creation and placing one there with `items.level_hidden`. A value the
+  installation does not carry keeps `items.capability_not_supported`. Two removals pass: a member
+  who can no longer see the collection, and an administrator's moderation of somebody else's
+  comment. The lifecycle - trash, restore, archive, retain, purge - is not a write of what a
+  collection offers, and neither is the roll-up (I-W5): a hidden child's stored completion still
+  counts. Reminders and series keep running; hidden is not inactive. The history keeps the
+  installation's form and is recorded whatever the structure says.
+* **Carried and new values.** A move or copy into a narrower collection keeps every value the
+  installation carries, marked where the destination hides it; the destination decides only the
+  level the entry lands on. A template's stamp writes new values, so what the collection hides is
+  left out and reported (I-W6's result, kinds `NOTES` and `DUE_DATE` beside the references).
+  Proposals keep to the target collection's levels and fields, and a provider is sent nothing the
+  collection hides.
+* **Calendars** have no place for the mark: the feed and the CalDAV tree leave out an entry of a
+  hidden level and a due date the collection hides. An export keeps everything.
 
 **The rule:** setting a field whose capability is not active for the type produces
 `ErrCapabilityNotSupported` (HTTP 422, code `capability_not_supported`) — never silent ignoring. A
@@ -288,7 +325,7 @@ Invariants:
 * I-W3: all references (bucket, label, assignee, member, media) live in the same tenant and — for buckets and labels — in the same collection.
 * I-W4: a trashed or archived item is not editable except through `Restore`/`Unarchive`.
 * I-W5: with `completionPolicy = ROLLUP`, a parent item is completed or reopened automatically when its children's completion changes (idempotent, event-driven).
-* I-W6: carrying an item into another collection, by move or copy, keeps only references that resolve there; the rest is removed and reported in the result (`LABEL`, `BUCKET`, `MEMBER`, `ASSIGNEE`, `ATTACHMENT`, `CUSTOM_FIELD`, each with a stable message code), never silently. A move resolves labels and the board column; a copy also members, assignee and custom field values. An account is reported when it cannot see the destination, a reference the type's profile no longer carries by its kind.
+* I-W6: carrying an item into another collection, by move or copy, keeps only references that resolve there; the rest is removed and reported in the result (`LABEL`, `BUCKET`, `MEMBER`, `ASSIGNEE`, `ATTACHMENT`, `CUSTOM_FIELD`, each with a stable message code), never silently. A move resolves labels and the board column; a copy also members, assignee and custom field values. An account is reported when it cannot see the destination, a reference the type's profile no longer carries by its kind. The profile here is the installation's: what the destination collection's structure hides is kept and marked hidden (§2), because dropping it would delete what a switch back is meant to restore.
 * I-W7: `title` and text fields are Unicode NFC normalised; length limits count code points, not bytes.
 
 The lifecycle state machine:
@@ -453,7 +490,7 @@ choice is not the obvious one:
 | Scheduling | `SetRecurrence` sets and changes a series in one `PUT`; the audit entry and the history verb say which happened. `GetRecurrence` reads it back |
 | Templates | Defining, changing and deleting ask for `STRUCTURE` at the template's scope; instantiating only for `WRITE_ITEMS` in the target collection |
 | Views & query | `QueryItems` is the query DSL. A saved query is validated against the query catalogue when written, and a shared view always runs under the **reader's** authorisation, never its owner's |
-| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out) and is refused before queueing without provider or consent |
+| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out) and is refused before queueing without provider or consent. `GetJumbleEntry` reads one entry under `READ`; `ListJumbleDestinations` asks what converting asks and answers the collections the caller may create in. Proposals prepared on arrival are no use case anybody calls: the workspace's switch (`SetAiArrivalProposals`, the AI configuration's `STRUCTURE`) has a subscriber of `jumble.entry.received` queue one job per arrival, which asks as the system for the workspace ([ai-first.md](./ai-first.md) §2) |
 | Lifecycle | Writing a retention rule asks for `DELETE_CONTAINER` (a standing instruction to destroy work), as does placing a legal hold, which overrides retention, an emptied trash and an erasure ([data-protection.md](./data-protection.md) §4.1); reading and previewing either asks for `STRUCTURE`. `:retain` is a write on the entry, narrowed like any other |
 | Privacy & compliance | Data subject requests: [data-protection.md](./data-protection.md) §4 (an `INSTALLATION` case is the one operation that legitimately crosses the tenant boundary). `ExtendDataSubjectRequest` asks for `MANAGE_MEMBERS`, and `admin:tenants` for an `INSTALLATION` case; it is not destructive, so an agent extends without `agent:destructive`, which the update - it can start an erasure - demands. `PreviewErasure` reads what the legal holds in force would keep of an erasure under the list's right (`MANAGE_MEMBERS`, `privacy:read`), and `admin:tenants` for an `INSTALLATION` case; it never carries a hold's reason. `RestrictProcessing` asks for `MANAGE_MEMBERS`; Lifting a restriction is refused while a legal hold keeps the account from an erasure. `WithdrawConsent` is self-service for one's own consent, `MANAGE_MEMBERS` for somebody else's |
 | Integration | Creating, listing and revoking a calendar feed ask only for the view's read permission: a feed grants exactly what its owner may already read, and revoking is never harder than minting |

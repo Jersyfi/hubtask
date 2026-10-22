@@ -777,6 +777,83 @@
         }
       }
     },
+    "/jumble/destinations": {
+      "get": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "listJumbleDestinations",
+        "summary": "Where an entry may become work for you",
+        "description": "The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.\nA person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Cursor"
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "description": "Collections scanned per page.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "One page of destinations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JumbleDestinationPage"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/jumble/entries/{entryId}": {
+      "parameters": [
+        {
+          "name": "entryId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      ],
+      "get": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "getJumbleEntry",
+        "summary": "One jumble entry",
+        "description": "One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.\n",
+        "responses": {
+          "200": {
+            "description": "The entry",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JumbleEntry"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/jumble/entries/{entryId}:convert": {
       "parameters": [
         {
@@ -846,7 +923,7 @@
         ],
         "operationId": "suggestFromJumbleEntry",
         "summary": "Ask AI what this entry should become",
-        "description": "Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.\nAsynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.\nA workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.\n",
+        "description": "Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.\nAsynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.\nA workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -8894,6 +8971,41 @@
         }
       }
     },
+    "/ai-arrival-proposals": {
+      "put": {
+        "tags": [
+          "ai"
+        ],
+        "operationId": "setAiArrivalProposals",
+        "summary": "Whether AI prepares a proposal for each new jumble entry",
+        "description": "`true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiArrivalProposalsChoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Set",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiSource"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/ai-budget": {
       "put": {
         "tags": [
@@ -9950,7 +10062,7 @@
           "meta"
         ],
         "operationId": "setWorkspaceStructure",
-        "description": "Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.\n",
+        "description": "Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -10263,7 +10375,7 @@
           "containers"
         ],
         "operationId": "setContainerStructure",
-        "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
+        "description": "Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -15337,7 +15449,8 @@
           "version",
           "person_opt_out",
           "person_opt_out_origin",
-          "keeping_out_count"
+          "keeping_out_count",
+          "prepare_on_arrival"
         ],
         "properties": {
           "source": {
@@ -15442,6 +15555,10 @@
             "minimum": 0,
             "description": "How many people keep their own content out now, or whose objection stops taking effect under `NOT_OFFERED`. A number, never who: the consent register names them.\n"
           },
+          "prepare_on_arrival": {
+            "type": "boolean",
+            "description": "Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.\n"
+          },
           "updated_at": {
             "type": "string",
             "format": "date-time"
@@ -15467,6 +15584,18 @@
           "LEGAL_OBLIGATION"
         ],
         "description": "The legal basis a workspace names for making AI part of everybody's work."
+      },
+      "AiArrivalProposalsChoice": {
+        "type": "object",
+        "required": [
+          "prepare"
+        ],
+        "properties": {
+          "prepare": {
+            "type": "boolean",
+            "description": "True prepares a proposal for each new jumble entry; false waits for somebody to ask."
+          }
+        }
       },
       "AiPersonOptOutChoice": {
         "type": "object",
@@ -17061,7 +17190,7 @@
       },
       "UsageMetricName": {
         "type": "string",
-        "description": "A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.\n"
+        "description": "A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.\n"
       },
       "UsageMetric": {
         "type": "object",
@@ -19084,9 +19213,10 @@
               "export_jobs",
               "ai_tokens_per_day",
               "ai_own_tokens_per_day",
+              "ai_arrival_proposals_per_day",
               "accounts"
             ],
-            "description": "The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.\n"
+            "description": "The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.\n"
           },
           "limit": {
             "type": "integer",
@@ -19205,6 +19335,15 @@
             "format": "int64",
             "minimum": 0,
             "description": "What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.\n"
+          },
+          "ai_arrival_proposals_per_day": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 0,
+            "description": "How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.\n"
           }
         }
       },
@@ -20646,6 +20785,17 @@
             "items": {
               "type": "string"
             }
+          },
+          "clipped_by_levels": {
+            "type": "array",
+            "description": "On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.\n",
+            "items": {
+              "$ref": "#/components/schemas/StructureSettingName"
+            }
+          },
+          "figure": {
+            "$ref": "#/components/schemas/CollectionFigure",
+            "description": "What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).\n"
           }
         }
       },
@@ -20911,7 +21061,7 @@
       },
       "StructureCounts": {
         "type": "object",
-        "description": "The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.\n",
+        "description": "What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.\n",
         "required": [
           "figure"
         ],
@@ -21062,6 +21212,105 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/StructureLock"
             }
+          },
+          "counts_clipped": {
+            "$ref": "#/components/schemas/StructureCountsClip"
+          }
+        }
+      },
+      "StructureCountsClip": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "description": "Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.\n",
+        "required": [
+          "from",
+          "reason"
+        ],
+        "properties": {
+          "from": {
+            "$ref": "#/components/schemas/StructureCounts"
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "ONE_LEVEL"
+            ]
+          }
+        }
+      },
+      "CollectionFigure": {
+        "type": "object",
+        "description": "What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.\n",
+        "required": [
+          "kind",
+          "today"
+        ],
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "FIELD_SUM",
+              "DUE",
+              "RHYTHM",
+              "PROGRESS"
+            ]
+          },
+          "today": {
+            "type": "string",
+            "format": "date"
+          },
+          "unavailable": {
+            "type": "boolean",
+            "description": "True where the figure could not be counted; the container is answered all the same."
+          },
+          "open": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out."
+          },
+          "sum": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double",
+            "description": "FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.\n"
+          },
+          "summed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "FIELD_SUM - how many of those entries carry a value."
+          },
+          "due": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.\n"
+          },
+          "days": {
+            "type": "array",
+            "description": "RHYTHM - the dates of the reader's week on which something was completed.",
+            "items": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          "week_start": {
+            "type": "string",
+            "format": "date",
+            "description": "RHYTHM - the first date of that week."
+          },
+          "done": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "PROGRESS - completed leaves, archived ones counted as they stand."
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "PROGRESS - all leaves."
           }
         }
       },
@@ -22406,6 +22655,14 @@
             ],
             "format": "date-time",
             "description": "When the entry stopped being NEW - a conversion or a dismissal."
+          },
+          "arrival_job_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Where the workspace prepares proposals on arrival: the job preparing one about this undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`. Absent once it proposed something (the proposal is under `GET /suggestions`), for a settled entry, and where nothing was prepared.\n"
           }
         }
       },
@@ -22533,6 +22790,55 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/JumbleEntry"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          }
+        }
+      },
+      "JumbleDestination": {
+        "type": "object",
+        "description": "One collection a jumble entry may become work in, with its hub.",
+        "required": [
+          "id",
+          "name",
+          "hub_id",
+          "hub_name",
+          "hub_private"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "hub_name": {
+            "type": "string"
+          },
+          "hub_private": {
+            "type": "boolean",
+            "description": "Whether the hub is private - reached only by its own members."
+          }
+        }
+      },
+      "JumbleDestinationPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JumbleDestination"
             }
           },
           "page": {
@@ -23614,6 +23920,30 @@
             "items": {
               "$ref": "#/components/schemas/WorkItem"
             }
+          },
+          "hidden": {
+            "$ref": "#/components/schemas/EntryHidden"
+          }
+        }
+      },
+      "EntryHidden": {
+        "type": "object",
+        "required": [
+          "level",
+          "capabilities"
+        ],
+        "description": "What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.\n\nPresent on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.\n",
+        "properties": {
+          "level": {
+            "type": "boolean",
+            "description": "True when the collection does not offer the entry's level, or the level of an entry above it - an activity under a work package is hidden in a collection that offers tasks and activities but no work packages. Every write to the entry is refused with the detail `items.level_hidden`; trashing, restoring and archiving are not.\n"
+          },
+          "capabilities": {
+            "type": "array",
+            "description": "The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.\n",
+            "items": {
+              "type": "string"
+            }
           }
         }
       },
@@ -23848,12 +24178,14 @@
               "MEMBER",
               "ASSIGNEE",
               "ATTACHMENT",
-              "CUSTOM_FIELD"
+              "CUSTOM_FIELD",
+              "NOTES",
+              "DUE_DATE"
             ]
           },
           "id": {
             "type": "string",
-            "description": "The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it.\n"
+            "description": "The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it. For `NOTES` and `DUE_DATE`, which a template's node carries as values rather than references, the identifier of the entry created without them - never the value itself.\n"
           },
           "code": {
             "type": "string",
@@ -28789,7 +29121,7 @@
           },
           "features": {
             "type": "object",
-            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
+            "description": "Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering \"send by email\" where there is no SMTP server, or \"summarise this\" where no AI provider is configured, is a dead end the manifest can prevent.\nThe keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.\n`setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.\nTwo of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.\n`structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.\n`ai_suggestions` and `semantic_search` are the same two names `degraded_features` uses in `/meta/health`, so a client reading either learns about one feature. Both are answered for the caller's workspace rather than for the installation, because an AI provider is configured per workspace; an anonymous caller, who can neither search nor ask, reads `false` for both, and so does a person who keeps their own content out of AI - no AI action is offered to them. `semantic_search` needs the store *and* a provider that embeds: a database carrying pgvector with nobody to produce vectors searches lexically, which is complete but is not the feature.\n`natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.\n",
             "additionalProperties": {
               "type": "boolean"
             }

@@ -44,6 +44,7 @@
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { figures } from '../data/figures.svelte.ts';
   import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
@@ -85,6 +86,13 @@
   $effect(() => {
     if (!session.isSignedIn) return;
     return containers.start();
+  });
+
+  // What counts in each collection, kept to the reader's day: a figure counted for yesterday is read
+  // again once the date turns over (UC-WRK-29).
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return figures.start();
   });
 
   /**

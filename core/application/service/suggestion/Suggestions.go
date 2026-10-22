@@ -13,6 +13,7 @@ package suggestion
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -103,6 +104,14 @@ type Cases struct {
 	// refused now rather than queued for nothing, and a person who keeps their own content out is
 	// told no AI action is theirs. Nil skips both, a build without the rule.
 	Material Sources
+	// Containers is how a listing checks that a proposed destination is still in the shared set.
+	// Nil answers a proposal's destination as it was stored.
+	Containers ContainerFinder
+}
+
+// ContainerFinder reads one container inside the caller's transaction, judging no permission.
+type ContainerFinder interface {
+	Find(ctx context.Context, id shared.ID) (work.Container, error)
 }
 
 // ListSuggestions answers what stands against one entry.
@@ -163,13 +172,78 @@ func (h ListSuggestions) Execute(
 			TargetType: query.TargetType, TargetID: query.TargetID,
 			Status: query.Status, Cursor: query.Cursor, Size: query.Size,
 		})
+		if err != nil {
+			return err
+		}
 		page = found
-		return err
+		return c.narrowDestinations(ctx, page.Items)
 	})
 	if err != nil {
 		return repository.Page{}, err
 	}
 	return page, nil
+}
+
+// narrowDestinations leaves a jumble proposal's destination out of the answer where it has left the
+// shared set since it was proposed - trashed, archived by its own stamp or its hub's, or its hub
+// made private. Every destination is chosen from the shared set, which every reader of the jumble
+// may read, so this is a defence rather than the rule: an identifier of a container a reader has
+// no way to see is not answered to them (security.md T-04), and a destination nobody may create in
+// any more is not offered as one.
+func (c Cases) narrowDestinations(ctx context.Context, proposals []domain.Suggestion) error {
+	if c.Containers == nil {
+		return nil
+	}
+	for i, proposal := range proposals {
+		if proposal.TargetType != domain.TargetJumbleEntry {
+			continue
+		}
+		id, named := proposal.Payload[collectionKey].(string)
+		if !named {
+			continue
+		}
+		stays, err := c.stillShared(ctx, id)
+		if err != nil {
+			return err
+		}
+		if stays {
+			continue
+		}
+		payload := make(map[string]any, len(proposal.Payload))
+		for key, value := range proposal.Payload {
+			if key != collectionKey {
+				payload[key] = value
+			}
+		}
+		proposals[i].Payload = payload
+	}
+	return nil
+}
+
+// stillShared reports whether a collection is still one everybody who may convert may write in.
+func (c Cases) stillShared(ctx context.Context, id string) (bool, error) {
+	parsed, err := shared.ParseID(id)
+	if err != nil {
+		return false, nil
+	}
+	collection, err := c.Containers.Find(ctx, parsed)
+	if errors.Is(err, shared.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if collection.Type != work.ContainerCollection || collection.IsTrashed() || collection.IsEffectivelyArchived() {
+		return false, nil
+	}
+	hub, err := c.Containers.Find(ctx, collection.ParentID)
+	if errors.Is(err, shared.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return !hub.Private, nil
 }
 
 // AcceptSuggestion applies what was proposed, as the accepting person's own write.
@@ -528,9 +602,14 @@ const (
 // Asking the profiles here would be this package deciding what the domain decides.
 //
 // An activity takes no children at all, which is why it is absent rather than mapped to itself.
-var under = map[work.ItemType]work.ItemType{
-	work.ItemTask:        work.ItemWorkPackage,
-	work.ItemWorkPackage: work.ItemActivity,
+//
+// The candidates are in order, and the first the target collection offers is taken: a collection
+// whose structure offers tasks and activities but no work packages gets the titles as activities,
+// and one that offers tasks alone gets none (domain-model.md §2) - planting them at a hidden level
+// would be refused at every one.
+var under = map[work.ItemType][]work.ItemType{
+	work.ItemTask:        {work.ItemWorkPackage, work.ItemActivity},
+	work.ItemWorkPackage: {work.ItemActivity},
 }
 
 type applierKey struct {
@@ -868,7 +947,14 @@ func (c Cases) grow(
 	if named, held := in["type"].(string); held && strings.TrimSpace(named) != "" {
 		became = work.ItemType(named)
 	}
-	childType, takesChildren := under[became]
+	shape := shapeOf(ctx, c.Catalogue, actor, in)
+	childType, takesChildren := work.ItemType(""), false
+	for _, candidate := range under[became] {
+		if shape.Offers(candidate) {
+			childType, takesChildren = candidate, true
+			break
+		}
+	}
 	if !takesChildren {
 		// An entry converted to an activity has nowhere to put them. Not an error: the conversion
 		// is what was accepted, and inventing a level for the titles would put work where nobody

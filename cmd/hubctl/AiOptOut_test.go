@@ -52,3 +52,31 @@ func TestTheOptOutNeedsAPosition(t *testing.T) {
 		t.Error("a position nobody named was sent")
 	}
 }
+
+// `hubctl ai arrival-proposals` (UC-JUM-07 check 10, P-08): the switch from the terminal, refused
+// without saying which way.
+func TestTheArrivalSwitchIsSetFromTheTerminal(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"source":"OWN","sources":"OWN","installation_sources":"OWN",
+  "sources_origin":"DEFAULT","min_jurisdiction":"ANY","min_jurisdiction_origin":"DEFAULT","version":0,
+  "offered":[],"person_opt_out":"OFFERED","person_opt_out_origin":"DEFAULT","keeping_out_count":0,
+  "prepare_on_arrival":true}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "ai", "arrival-proposals", "set", "--on")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.Method != http.MethodPut || !strings.HasSuffix(stub.request.URL.Path, "/ai-arrival-proposals") {
+		t.Errorf("asked %s %s", stub.request.Method, stub.request.URL.Path)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil || sent["prepare"] != true {
+		t.Errorf("sent %s", stub.body)
+	}
+	if !strings.Contains(out, "on") {
+		t.Errorf("the table is %q", out)
+	}
+
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "ai", "arrival-proposals", "set"); code == exitOK {
+		t.Error("a set saying neither --on nor --off was sent")
+	}
+}

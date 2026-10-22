@@ -54,15 +54,21 @@ type Material struct {
 	// narrowing checks the answer against are the same profiles; and a breakdown's, so that a piece
 	// keeps only the fields its type carries.
 	Hierarchy *service.Hierarchy
+	// Shape is what the target's collection offers, where the question has one: a breakdown and
+	// a template draft keep to its levels and fields, so that accepting writes nothing it hides.
+	Shape *Shape
+	// Hidden are the capabilities the target entry's collection hides: no proposal fills one,
+	// and none of its values is sent to the provider.
+	Hidden map[work.Capability]bool
 	// Choices are the closed sets this answer may pick from, already narrowed to what the person
 	// asking may see.
 	//
-	// They are the whole difference between a model *choosing* and a model *naming*.
-	// `collection_id` stays filtered out of every answer because a model cannot know which
-	// collections a workspace has, and one that names one is choosing a destination; a board's
-	// columns are small, closed, and already in front of the person asking, so handed over as the
-	// options and validated on the way back an answer is a choice from what it was shown. They
-	// travel as content, never as instruction - a column's name is something somebody typed.
+	// They are the whole difference between a model *choosing* and a model *naming*. A model
+	// cannot know which collections a workspace has, and one that named one would be choosing a
+	// destination; handed the shared set (a jumble proposal) or a board's columns as the options
+	// and validated on the way back, an answer is a choice from what it was shown. They travel as
+	// content, never as instruction - a collection's or a column's name is something somebody
+	// typed.
 	Choices []Choices
 	// Kept is whose content stayed out of this material, read in its transaction: what the
 	// producer applies to anything it appends, and how it learns the asker keeps their own out.
@@ -176,6 +182,10 @@ type Produce struct {
 	// Conditions compiles a drafted rule's condition once more through the engine's own compiler.
 	// Nil skips that second check; the save compiles it anyway (automation.md §2.2).
 	Conditions expression.Compiler
+	// Arrivals reads what a proposal prepared on arrival is made from, and Cap takes one of the
+	// day's. Nil in a build that prepares none; an arrival's job then fails by name.
+	Arrivals ArrivalSource
+	Cap      ArrivalCap
 }
 
 // Outcome is what one question came to: whether a proposal was recorded, and how much of the
@@ -212,14 +222,16 @@ const (
 // answered a question nobody asked.
 var promptFields = map[string]map[string]bool{
 	// No `labels`. A label is a word a collection agreed on, and a jumble entry is in no
-	// collection: the person converting names the destination, so at the moment the question is
-	// asked there is no vocabulary to choose from. Words a model invented instead would be
-	// vocabulary a model named, and a model may pick from a set it was shown but may not name one
-	// (ai-first.md §2) - the same reasoning `classify` states from the other side, where the set
-	// does exist and the answer is a choice from it. A converted entry is classified the moment it
-	// is in a collection, which is where labels live.
+	// collection: at the moment the question is asked there is no vocabulary to choose from. Words
+	// a model invented instead would be vocabulary a model named, and a model may pick from a set
+	// it was shown but may not name one (ai-first.md §2) - the same reasoning `classify` states
+	// from the other side, where the set does exist and the answer is a choice from it. A
+	// converted entry is classified the moment it is in a collection, which is where labels live.
+	//
+	// `collection_id` is the destination, chosen from the shared set the material carries and from
+	// nothing else (`choiceSets`); the person accepting may pick another.
 	"suggest-fields": {
-		"title": true, "notes": true, dueKey: true, "subtasks": true,
+		"title": true, "notes": true, dueKey: true, "subtasks": true, collectionKey: true,
 	},
 	// The same question about an entry that already exists, and its own prompt rather than a
 	// second target for the one above. `subtasks` is the difference: under a jumble entry the
@@ -274,7 +286,8 @@ func ToldKeys() map[string]map[string]bool { return toldKeys }
 // so a model that invents an identifier, or names a column from a board nobody showed it, proposes
 // nothing under that key while the rest of its answer stands.
 var choiceSets = map[string][]string{
-	"classify": {"bucket_id", "label_ids"},
+	"classify":       {"bucket_id", "label_ids"},
+	"suggest-fields": {collectionKey},
 }
 
 // promptTargets says what each prompt is asked *about*.
@@ -449,6 +462,9 @@ func (h Produce) Execute(
 func (h Produce) Ask(
 	ctx context.Context, actor appshared.ActorContext, request Request,
 ) (Outcome, error) {
+	if request.OnArrival {
+		return h.askArrival(ctx, actor, request)
+	}
 	outcome, err := h.ask(ctx, actor, request)
 	if err == nil || IsUnavailable(err) {
 		// The job is over either way - answered, answered nothing, or finished because the
@@ -591,7 +607,7 @@ func (h Produce) ask(
 	)
 	switch kind {
 	case domain.KindTemplate:
-		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, targetID)
+		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, material.Shape, targetID)
 	case domain.KindRule:
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
 	default:
@@ -644,7 +660,8 @@ func (h Produce) ask(
 // The payload is later merged into a use case's input, so a key nobody expected would be a field a
 // model chose to set. The registry would refuse an *undeclared* one - but it would accept a
 // *declared* one nobody meant to offer, and `collection_id` is exactly such a field. Filtering is
-// what keeps "a model proposes text" from becoming "a model proposes a destination".
+// what keeps "a model proposes text" from becoming "a model names a destination": the one prompt
+// that keeps it chooses it from a set it was shown (`choiceSets`).
 
 // Request is one question to a provider.
 type Request struct {
@@ -670,6 +687,14 @@ type Request struct {
 	// Scope is where a rule drafted from this question would apply, read back from the job's
 	// references. The zero value for every other question.
 	Scope automation.Scope
+	// OnArrival is a proposal the workspace prepares about a jumble arrival, asked as the system for
+	// it (UC-JUM-07 check 10): judged and read by `askArrival`, never by a person's path.
+	OnArrival bool
+	// SubmittedBy and OnBehalfOf are who made the arrival, where an account did: the submitter, and
+	// the principal an agent or a rule acted for. The entry records neither, and whose content stays
+	// out is judged against them at the run.
+	SubmittedBy shared.ID
+	OnBehalfOf  shared.ID
 }
 
 // heldWords introduces, per prompt, the words a question was asked with, where the prompt takes
@@ -788,9 +813,10 @@ func payloadFrom(
 	case domain.KindFields:
 		kept := keptFields(answered, Narrowed(promptFields[promptID], applicable))
 		kept = keptChoices(kept, promptID, material.Choices)
+		kept = withoutHidden(kept, material.Hidden)
 		return keptDate(keptTitles(keptDeclared(kept, material.Declared, form))), true
 	case domain.KindDecomposition:
-		return keptTree(answered, material.Hierarchy)
+		return keptTree(answered, material.Hierarchy, material.Shape)
 	default:
 		return nil, false
 	}
@@ -1103,8 +1129,8 @@ const maxProposedNodes = 32
 // `capability_not_supported` at that piece. Dropped here rather than when the breakdown is
 // planted, for `payloadFrom`'s reason: the person reads exactly what accepting creates. Without a
 // hierarchy (a build that never wired the profiles) the notes stay, and the acceptance answers.
-func keptTree(answered map[string]any, hierarchy *service.Hierarchy) (map[string]any, bool) {
-	children, count, ok := keptChildren(answered["children"], 0, hierarchy)
+func keptTree(answered map[string]any, hierarchy *service.Hierarchy, shape *Shape) (map[string]any, bool) {
+	children, count, ok := keptChildren(answered["children"], 0, hierarchy, shape)
 	if !ok || count > maxProposedNodes {
 		return nil, false
 	}
@@ -1120,7 +1146,9 @@ func keptTree(answered map[string]any, hierarchy *service.Hierarchy) (map[string
 // task is a shape the domain refuses, and proposing one would be proposing a refusal.
 var nodeTypes = map[string]bool{"WORK_PACKAGE": true, "ACTIVITY": true}
 
-func keptChildren(value any, depth int, hierarchy *service.Hierarchy) ([]any, int, bool) {
+// A piece at a level the target's collection hides is left out with everything under it, and a
+// piece keeps its notes only where the collection offers them: accepting either would be refused.
+func keptChildren(value any, depth int, hierarchy *service.Hierarchy, shape *Shape) ([]any, int, bool) {
 	if value == nil {
 		return nil, 0, true
 	}
@@ -1145,13 +1173,16 @@ func keptChildren(value any, depth int, hierarchy *service.Hierarchy) ([]any, in
 		if !nodeTypes[kind] || strings.TrimSpace(title) == "" {
 			return nil, 0, false
 		}
+		if !shape.Offers(work.ItemType(kind)) {
+			continue
+		}
 
 		clean := map[string]any{"type": kind, "title": title}
 		if notes, held := node["notes"].(string); held && strings.TrimSpace(notes) != "" &&
-			carriesNotes(hierarchy, kind) {
+			carriesNotes(hierarchy, kind) && shape.Carries(work.ItemType(kind), work.CapabilityNotes) {
 			clean["notes"] = notes
 		}
-		grandchildren, under, ok := keptChildren(node["children"], depth+1, hierarchy)
+		grandchildren, under, ok := keptChildren(node["children"], depth+1, hierarchy, shape)
 		if !ok {
 			return nil, 0, false
 		}

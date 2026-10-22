@@ -422,7 +422,7 @@ test('chromium: under a plan, an empty exception shows the plan\'s value where t
   assert.equal(await people.getAttribute('placeholder'), '6', 'the plan sets people');
   assert.match(await dialog.getByText('Empty uses the limit of the plan Family: 6.').innerText(), /Family/);
   assert.equal(await dialog.getByRole('spinbutton', { name: 'Requests per minute' }).getAttribute('placeholder'), '600', 'the installation locks the rate; the plan\'s 1200 is not in force');
-  assert.equal(await dialog.getByRole('spinbutton', { name: 'Entries' }).getAttribute('placeholder'), '20000', 'the plan sets no entries');
+  assert.equal(await dialog.getByRole('spinbutton', { name: 'Entries', exact: true }).getAttribute('placeholder'), '20000', 'the plan sets no entries');
 
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
   await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Limits', exact: true }).click();

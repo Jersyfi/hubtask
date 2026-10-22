@@ -62,6 +62,12 @@ func aiGroup() group {
 				summary: "whether each person may keep their own content out of AI, or AI is part of everybody's work on a named basis",
 				run:     aiOptOut,
 			},
+			{
+				name:    "arrival-proposals",
+				usage:   "[show] | set --on | set --off",
+				summary: "whether AI prepares a proposal for each new jumble entry as it arrives",
+				run:     aiArrivalProposals,
+			},
 		},
 	}
 }

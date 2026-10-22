@@ -15,11 +15,15 @@ INSERT INTO jumble_entry (
 
 -- name: FindJumbleEntry :one
 -- tenant_id for ListJumbleEntries' reason, said in full there: the projection carries it because
--- the events a settlement announces are built from the projection.
-SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
-       target_item_id, received_at, processed_at
-FROM jumble_entry
-WHERE id = sqlc.arg('id');
+-- the events a settlement announces are built from the projection. arrival_job_id as there.
+SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
+       e.target_item_id, e.received_at, e.processed_at,
+       (SELECT j.id FROM job j
+        WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
+          AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
+        ORDER BY j.created_at DESC LIMIT 1)::uuid AS arrival_job_id
+FROM jumble_entry e
+WHERE e.id = sqlc.arg('id');
 
 -- name: ListJumbleEntries :many
 -- Newest first by identifier: UUIDv7 is time-ordered, so the primary key is the arrival order.
@@ -30,13 +34,23 @@ WHERE id = sqlc.arg('id');
 -- built from the projection. Without it every conversion refused as `events.envelope_incomplete` -
 -- an entry with no tenant cannot be the subject of an event - which meant converting a jumble entry
 -- never worked at all, through a rule or through the API.
-SELECT id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status,
-       target_item_id, received_at, processed_at
-FROM jumble_entry
-WHERE (sqlc.narg('status')::text IS NULL OR status = sqlc.narg('status')::text)
-  AND (sqlc.narg('channel')::text IS NULL OR channel = sqlc.narg('channel')::text)
-  AND (sqlc.narg('after')::uuid IS NULL OR id < sqlc.narg('after')::uuid)
-ORDER BY id DESC
+--
+-- arrival_job_id is the proposal the workspace is preparing about an undecided entry (UC-JUM-07
+-- check 10): the newest such job still pending or running, or failed - a spent budget a card says
+-- once. A succeeded one is not named: what it proposed is under the suggestions. Read through the
+-- job table's two existing indexes (the pending and running dedupe key, the state of the pickup),
+-- and named in the workspace's own scope: the table has no row level security.
+SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
+       e.target_item_id, e.received_at, e.processed_at,
+       (SELECT j.id FROM job j
+        WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
+          AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
+        ORDER BY j.created_at DESC LIMIT 1)::uuid AS arrival_job_id
+FROM jumble_entry e
+WHERE (sqlc.narg('status')::text IS NULL OR e.status = sqlc.narg('status')::text)
+  AND (sqlc.narg('channel')::text IS NULL OR e.channel = sqlc.narg('channel')::text)
+  AND (sqlc.narg('after')::uuid IS NULL OR e.id < sqlc.narg('after')::uuid)
+ORDER BY e.id DESC
 LIMIT sqlc.arg('page_size');
 
 -- name: SettleJumbleEntry :execrows

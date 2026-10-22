@@ -87,7 +87,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     /* Rule 1: a card is a standalone element, so it is raised. */
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     box-shadow: var(--shadow-raised);
   }
 

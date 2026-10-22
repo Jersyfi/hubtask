@@ -126,14 +126,15 @@ func (h UpdateTenantQuotas) Execute(
 // applyChange writes one instruction into the overrides.
 func applyChange(overrides *quotarepo.Overrides, change QuotaChange) {
 	target := map[string]**int64{
-		quotaservice.APIRequestsPerMinute:  &overrides.APIRequestsPerMinute,
-		quotaservice.Items:                 &overrides.Items,
-		quotaservice.MediaBytes:            &overrides.MediaBytes,
-		quotaservice.AutomationRunsPerHour: &overrides.AutomationRunsPerHour,
-		quotaservice.WebhookTargets:        &overrides.WebhookTargets,
-		quotaservice.ExportJobs:            &overrides.ExportJobs,
-		quotaservice.Accounts:              &overrides.Accounts,
-		quotaservice.AiTokensPerDay:        &overrides.AiTokensPerDay,
+		quotaservice.APIRequestsPerMinute:     &overrides.APIRequestsPerMinute,
+		quotaservice.Items:                    &overrides.Items,
+		quotaservice.MediaBytes:               &overrides.MediaBytes,
+		quotaservice.AutomationRunsPerHour:    &overrides.AutomationRunsPerHour,
+		quotaservice.WebhookTargets:           &overrides.WebhookTargets,
+		quotaservice.ExportJobs:               &overrides.ExportJobs,
+		quotaservice.Accounts:                 &overrides.Accounts,
+		quotaservice.AiTokensPerDay:           &overrides.AiTokensPerDay,
+		quotaservice.AiArrivalProposalsPerDay: &overrides.AiArrivalProposalsPerDay,
 	}[change.Quota]
 	if target == nil {
 		return
@@ -158,14 +159,15 @@ func (h UpdateTenantQuotas) recordAudit(
 ) error {
 	changes := make([]audit.Change, 0, len(cmd.Changes))
 	beforeOf := map[string]*int64{
-		quotaservice.APIRequestsPerMinute:  before.APIRequestsPerMinute,
-		quotaservice.Items:                 before.Items,
-		quotaservice.MediaBytes:            before.MediaBytes,
-		quotaservice.AutomationRunsPerHour: before.AutomationRunsPerHour,
-		quotaservice.WebhookTargets:        before.WebhookTargets,
-		quotaservice.ExportJobs:            before.ExportJobs,
-		quotaservice.Accounts:              before.Accounts,
-		quotaservice.AiTokensPerDay:        before.AiTokensPerDay,
+		quotaservice.APIRequestsPerMinute:     before.APIRequestsPerMinute,
+		quotaservice.Items:                    before.Items,
+		quotaservice.MediaBytes:               before.MediaBytes,
+		quotaservice.AutomationRunsPerHour:    before.AutomationRunsPerHour,
+		quotaservice.WebhookTargets:           before.WebhookTargets,
+		quotaservice.ExportJobs:               before.ExportJobs,
+		quotaservice.Accounts:                 before.Accounts,
+		quotaservice.AiTokensPerDay:           before.AiTokensPerDay,
+		quotaservice.AiArrivalProposalsPerDay: before.AiArrivalProposalsPerDay,
 	}
 	for _, change := range cmd.Changes {
 		changes = append(changes, audit.Change{

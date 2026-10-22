@@ -35,6 +35,8 @@ type GetWorkItem struct {
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
+	// Gate marks what the entry's collection hides of it.
+	Gate EntryGate
 }
 
 // GetWorkItemQuery is the input, typed.
@@ -52,6 +54,9 @@ type GetWorkItemQuery struct {
 	// it is not drawing. Absent rather than empty when it was not asked for - so that a client can
 	// tell "this entry has no labels" from "I did not ask".
 	ExpandLabels bool
+	// ForCalendar answers the entry as a calendar shows it: without a due date its collection
+	// hides (ExportView.shown), so that a client's write that leaves DUE out clears nothing.
+	ForCalendar bool
 }
 
 // Execute returns the item.
@@ -110,6 +115,13 @@ func (h GetWorkItem) Execute(
 		On:         reading(item),
 	}); err != nil {
 		return domain.WorkItem{}, err
+	}
+	if query.ForCalendar {
+		marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, []domain.WorkItem{item})
+		if err != nil {
+			return domain.WorkItem{}, err
+		}
+		item = shownInCalendar(item, marks[item.ID])
 	}
 	return item, nil
 }
@@ -206,7 +218,11 @@ func (h GetWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return withLabels(ItemOutput(item), item, carried), nil
+	marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, []domain.WorkItem{item})
+	if err != nil {
+		return nil, err
+	}
+	return withHidden(withLabels(ItemOutput(item), item, carried), marks, item.ID), nil
 }
 
 // ListWorkItems reads one level of one collection.
@@ -216,6 +232,8 @@ type ListWorkItems struct {
 	Containers repository.Containers
 	Authorizer Anchored
 	UnitOfWork persistence.UnitOfWork
+	// Gate marks what the collection hides of each entry.
+	Gate EntryGate
 }
 
 // ListWorkItemsQuery is the input, typed.
@@ -380,9 +398,13 @@ func (h ListWorkItems) invoke(
 		return nil, err
 	}
 
+	marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, page.Items)
+	if err != nil {
+		return nil, err
+	}
 	data := make([]usecase.Output, 0, len(page.Items))
 	for _, item := range page.Items {
-		data = append(data, withLabels(ItemOutput(item), item, carried))
+		data = append(data, withHidden(withLabels(ItemOutput(item), item, carried), marks, item.ID))
 	}
 	return pageOutput(data, page.Info), nil
 }

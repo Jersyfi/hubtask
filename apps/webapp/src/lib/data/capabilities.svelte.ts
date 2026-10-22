@@ -34,6 +34,7 @@ import type { Capabilities, ResourceState, TransportError } from '@hubtask/sync-
 
 import type { SupportedLocale } from '../i18n/locale.ts';
 import { engine } from './engine.ts';
+import { useBound } from './replica.ts';
 
 const PATH = '/meta/capabilities';
 
@@ -157,6 +158,8 @@ class Manifest {
       else if (next.status === 'ready') {
         this.#failure = undefined;
         this.#setupOpen = next.data.features?.['setup_open'] === true;
+        // What the replica marks hidden is held to the installation's types (replica.ts).
+        useBound(next.data.item_types);
       }
     });
     this.#stop = stop;

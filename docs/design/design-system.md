@@ -63,9 +63,29 @@ stylesheets, so `style-src 'self'` holds without an exception.
 surface it may sit on — the canvas under each `ambient` gradient, the `accent.*-subtle` tints, the
 `status.*` and `ai.*` surfaces included — and a control's boundary and the focus ring 3:1
 (SC 1.4.11). Every semantic colour token carries a role there; an unclassified one fails the suite.
-At the call site: **`border.default` and `border.strong` draw controls, `border.subtle` does not.**
+A translucent surface is measured over each opaque plane it can lie on — `bg.canvas`, `bg.surface`,
+`bg.raised`, `bg.surface-sunken` — not over the canvas alone. At the call site: **`border.default`
+and `border.strong` draw controls, `border.subtle` does not.**
 A hairline that separates sections or edges a card is exempt; a border that is the only thing
 saying "this is an input" is not.
+
+**The planes and their steps.** `bg.canvas` is the page; `bg.surface` a card on it and the frame;
+`bg.raised` what stands above a surface — a menu, a popover, a dialog, a drawer, the navigation's
+flyout, a card on its column — equal to the surface in light, where white is the ceiling and
+`elevation.raised` carries the depth, and a step lighter in dark; `bg.surface-sunken` a recess in a
+card. The same test holds the steps between them, unrounded: a card on the page at least 1.18:1 in
+both modes, what is raised at least 1.36:1 from the page in dark, and a hover, a press, a recess and
+a neutral status surface at least 1.08:1 from every plane they are drawn on. Each floor carries the
+value the tokens measure beside it in the test.
+
+**The palette.** Primitive families by hue — `indigo` (primary), `raspberry` (the signature, and
+nothing else: it carries no system meaning), `danger` (its own warmer red), `mint`, `amber`, `sky`,
+`violet` (AI) and cool `neutral` — each a ramp derived in OKLCH through the values the owner chose,
+written in hex (decision #1624). Status roles: info sky, success mint, warning amber, danger
+`danger`, neutral the neutrals. The test keeps `status.danger.accent` and `accent.signature` apart
+by OKLCH hue, and each coloured label's background at an OKLab distance from `bg.surface` and
+`bg.raised` that reads as colour, never darker than `bg.raised` in dark; `slate` is the one neutral
+label.
 
 **Status is a surface, not a text colour.** `status.{info,success,warning,danger,neutral}` carries
 `surface`, `border`, `text` and `accent` per mode, in the shape `ai.*` has. `text.danger`,
@@ -407,9 +427,15 @@ below it.
    `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
    always needs an opaque fallback that does not shift layout.
-3. **Colour never stands alone.** Every status also carries text or an icon. A status has a subtle
-   and a bold form (`Badge`'s `emphasis`, subtle by default); bold is for the one status on a screen
-   that must be seen first, and a screen with several has misread it.
+3. **Colour never stands alone.** A **status** is the standing state of a thing shown beside it —
+   health, connection, over a limit, open, trashed, broken, needs attention, done, checked,
+   invalid. It is drawn as a tinted surface with text or an icon: `Badge` where it is a word, the
+   tone's `surface` (or its `accent` as a fill) under it where it is a row, a mark or a block. A
+   sentence about an act just refused is not a status; it is text in `text.danger` on `color`.
+   `build/lint-status.js` holds both, by token rather than by class name, in the design system's
+   test and in both clients' `pnpm lint`. A status has a subtle and a bold form (`Badge`'s
+   `emphasis`, subtle by default); bold is for the one status on a screen that must be seen first,
+   and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
 5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
@@ -506,7 +532,10 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance
-monitoring. The `celebrations` preference switches all of it off with the moments.
+monitoring. The `celebrations` preference switches the moments, the milestones and the kudos off
+together; the collection's figure — progress, rhythm, what is open or due — stays, because it is
+what counts in the collection, not a celebration (UC-WRK-29 check 7). The server counts a figure on
+the collection's read and the client draws it (domain-model.md §2).
 
 ### Celebration slots, not fixed animations
 

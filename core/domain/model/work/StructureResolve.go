@@ -81,6 +81,69 @@ type EffectiveStructure struct {
 	Locks   map[LockKey]StructureLock
 	// Preset is the provenance of the nearest layer that names one, empty where none does.
 	Preset PresetKey
+	// CountsClipped is set where the layers say PROGRESS and the levels in force are one: Values
+	// then says OPEN (ShowsProgress).
+	CountsClipped *CountsClip
+}
+
+// ClipReason says why a value in force differs from what the layers say.
+type ClipReason string
+
+// ClipOneLevel is PROGRESS meeting a collection of one level.
+const ClipOneLevel ClipReason = "ONE_LEVEL"
+
+// CountsClip is what the layers said about what counts, and why it is not what applies.
+type CountsClip struct {
+	From   Counts
+	Reason ClipReason
+}
+
+// ShowsProgress answers whether levels in force can carry a share of work done (UC-WRK-29 check 2):
+// only entries made of steps have an end a share can measure. A collection of one level is a list,
+// and a list never shows a percentage (UC-WRK-25 check 1 calls it "a collection whose levels are
+// one").
+func ShowsProgress(levels []Level) bool {
+	return len(levels) > 1
+}
+
+// clipCounts holds what counts to the levels in force. It runs after every layer and lock, because
+// the two settings may come from different layers - a hub's PROGRESS above a collection narrowed
+// to one level - and neither layer alone is wrong.
+func clipCounts(values StructureValues) (StructureValues, *CountsClip) {
+	if values.Counts == nil || values.Counts.Figure != FigureProgress || ShowsProgress(values.Levels) {
+		return values, nil
+	}
+	clip := &CountsClip{From: *values.Counts, Reason: ClipOneLevel}
+	values.Counts = &Counts{Figure: FigureOpen}
+	return values, clip
+}
+
+// ErrFigureNotOffered refuses a write whose own values set PROGRESS where the levels in force are
+// one. Only the value a person typed is refused; a preset, a reset or a narrowing is clipped and
+// reported instead (domain-model.md §2).
+func ErrFigureNotOffered() error {
+	return shared.ErrValidation.
+		WithDetail("structure.figure_not_offered").
+		WithParams(map[string]string{"setting": string(SettingCounts), "figure": string(FigureProgress)}).
+		WithFields(shared.FieldError{
+			Path: "/settings/" + string(SettingCounts), Code: "structure.figure_not_offered",
+		})
+}
+
+// Layered is what the layers say, before the levels clipped what counts: what a lock is judged
+// against, so that a value equal to the locked one is not refused because of a clip below it.
+func (e EffectiveStructure) Layered() StructureValues {
+	values := e.Values
+	if e.CountsClipped != nil {
+		from := e.CountsClipped.From
+		values.Counts = &from
+	}
+	return values
+}
+
+// SetsProgress answers whether these values set what counts to PROGRESS.
+func (v StructureValues) SetsProgress() bool {
+	return v.Counts != nil && v.Counts.Figure == FigureProgress
 }
 
 // SourceOf answers which level decided a setting's value in force.
@@ -143,7 +206,8 @@ func ResolveStructure(bound StructureBound, workspace WorkspaceStructure, below 
 		values.Fields = fixCapability(values.Fields, atWorkspace.Fields, itemType, capability)
 	}
 
-	return EffectiveStructure{Values: values, Sources: sources, Locks: locks, Preset: preset}
+	values, clipped := clipCounts(values)
+	return EffectiveStructure{Values: values, Sources: sources, Locks: locks, Preset: preset, CountsClipped: clipped}
 }
 
 func fixCapability(
@@ -172,10 +236,11 @@ func fixCapability(
 func LockedAgainst(bound StructureBound, above EffectiveStructure, layer StructureValues) []LockKey {
 	var broken []LockKey
 	clipped := bound.Clip(layer)
+	layered := above.Layered()
 	for key := range above.Locks {
 		itemType, capability, partial := key.capability()
 		if !partial {
-			if clipped.Has(key.Setting()) && !clipped.SameSetting(key.Setting(), above.Values) {
+			if clipped.Has(key.Setting()) && !clipped.SameSetting(key.Setting(), layered) {
 				broken = append(broken, key)
 			}
 			continue

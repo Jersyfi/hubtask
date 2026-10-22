@@ -3,14 +3,19 @@
 <script lang="ts">
   // What AI proposed an arrival should become, in the card's slot.
   //
-  // The AI half of the jumble card. `:suggest` answers `202` with no body, like every AI
-  // ask, so the proposal is followed through the listing (`suggestions.askJumble`); once it
-  // stands, this renders it as an `AISuggestion` - a title, notes, a date, and the subtasks the
-  // material implied. **Accepting is `:accept` with the collection the person
-  // chooses**: a model does not choose a destination (`Producing.go`'s filter, restated here by
-  // the picker being required), and the acceptance is what converts the entry with the proposed
-  // fields and grows the subtasks under what the conversion made - `:convert` alone would create
-  // the entry and lose the rest. Dismissing the proposal leaves the arrival `NEW`.
+  // The AI half of the jumble card. `:suggest` answers `202` with the job, like every AI ask, so
+  // the proposal is followed (`suggestions.askJumble`); once it stands, this renders it as an
+  // `AISuggestion` - a title, notes, a date, the subtasks the material implied, and the collection
+  // it fits best. **Accepting is `:accept` with the collection the person chooses**: the proposed
+  // one is preselected where the person may create in it, never sent unseen, and the acceptance is
+  // what converts the entry with the proposed fields and grows the subtasks under what the
+  // conversion made - `:convert` alone would create the entry and lose the rest. Dismissing the
+  // proposal leaves the arrival `NEW`.
+  //
+  // **A proposal nobody asked for** (UC-JUM-07 check 10): where the workspace prepares proposals on
+  // arrival, the entry names the job preparing one (`arrival_job_id`), and the card follows it as
+  // if somebody had asked - *Suggesting…*, then the proposal. Nothing counts or announces waiting
+  // proposals; a spent budget is said once for the page, by the jumble.
 
   import { untrack } from 'svelte';
 
@@ -42,6 +47,18 @@
 
   const listing = resource<SuggestionPage>(untrack(() => suggestionsPath(entry.id, 'JUMBLE_ENTRY')));
   $effect(() => () => suggestions.forget(entry.id));
+  // The proposal the workspace is preparing on arrival, where it is.
+  $effect(() => {
+    const job = entry.arrival_job_id;
+    if (job) untrack(() => suggestions.followArrivalJob(entry.id, job, entry.received_at));
+  });
+
+  /** The collection a proposal names, where the reader may create in it: what the picker starts on. */
+  function proposedDestination(suggestion: Suggestion): { value: string; label: string } | undefined {
+    const payload = suggestion.payload as Record<string, unknown> | undefined;
+    const proposed = typeof payload?.collection_id === 'string' ? payload.collection_id : undefined;
+    return proposed ? destinations.find((each) => each.value === proposed) : undefined;
+  }
 
   const open = $derived(
     listing.state.status === 'ready'
@@ -93,7 +110,7 @@
 
   function startAccepting(suggestion: Suggestion, proposedTitle: string | undefined) {
     accepting = suggestion.id;
-    destination = chosen;
+    destination = proposedDestination(suggestion)?.value ?? chosen;
     title = proposedTitle ?? entry.raw_subject?.trim() ?? '';
     failure = undefined;
   }
@@ -151,6 +168,7 @@
   {#each open as suggestion (suggestion.id)}
     {@const shape = shapeOf(suggestion, undefined)}
     {@const proposedTitle = shape.shape === 'fields' ? shape.proposals.find((p) => p.field === 'title')?.proposed : undefined}
+    {@const proposedWhere = proposedDestination(suggestion)}
     <AISuggestion
       heading={t('app.jumble.suggested')}
       provenance={provenanceOf(suggestion)}
@@ -162,6 +180,10 @@
             <dt>{t(fieldCode(proposal.field))}</dt>
             <dd>{proposal.field === 'due_date' ? formatDue(proposal.proposed, messages.locale, actor.zone, { allDay: true }) : proposal.proposed}</dd>
           {/each}
+          {#if proposedWhere}
+            <dt>{t('app.jumble.suggested_collection')}</dt>
+            <dd data-proposed-collection>{proposedWhere.label}</dd>
+          {/if}
         </dl>
         {#if shape.subtasks.length > 0}
           <p class="label">{t('app.jumble.suggested_subtasks')}</p>

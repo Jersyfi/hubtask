@@ -1,0 +1,151 @@
+{
+  "$comment": "One table, two implementations of what a collection hides of an entry (domain-model.md §2, 'Narrowing hides, it never deletes'). The Go domain (core/domain/model/work/StructureEntries.go) decides it for every read and refuses the writes it names; the web app (apps/webapp/src/lib/data/replica.ts) derives the same mark for what it answers from the replica. `bound` is what GET /meta/capabilities answers as item_types; `structure` is a container's structure in force, as `structure.settings` carries its levels and fields; `ancestors` are the types above the entry, nearest first; `hidden` is WorkItem.hidden.",
+  "bound": [
+    {
+      "type": "TASK",
+      "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"],
+      "allowed_child_types": ["WORK_PACKAGE", "ACTIVITY"],
+      "max_depth": 3
+    },
+    {
+      "type": "WORK_PACKAGE",
+      "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"],
+      "allowed_child_types": ["ACTIVITY"],
+      "max_depth": 2
+    },
+    {
+      "type": "ACTIVITY",
+      "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"],
+      "allowed_child_types": [],
+      "max_depth": 1
+    }
+  ],
+  "cases": [
+    {
+      "name": "a collection offering everything hides nothing of a task",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "WORK_PACKAGE" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "TASK",
+      "ancestors": [],
+      "hidden": { "level": false, "capabilities": [] }
+    },
+    {
+      "name": "nor of an activity two levels down",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "WORK_PACKAGE" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "ACTIVITY",
+      "ancestors": ["WORK_PACKAGE", "TASK"],
+      "hidden": { "level": false, "capabilities": [] }
+    },
+    {
+      "name": "List hides a task's dates, people, notes, labels and the rest it does not offer",
+      "structure": {
+        "levels": [{ "type": "TASK" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "TASK",
+      "ancestors": [],
+      "hidden": { "level": false, "capabilities": ["DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "RECURRENCE"] }
+    },
+    {
+      "name": "List hides a work package under a task",
+      "structure": {
+        "levels": [{ "type": "TASK" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "WORK_PACKAGE",
+      "ancestors": ["TASK"],
+      "hidden": { "level": true, "capabilities": [] }
+    },
+    {
+      "name": "Tasks offers an activity directly under a task",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "ACTIVITY",
+      "ancestors": ["TASK"],
+      "hidden": { "level": false, "capabilities": [] }
+    },
+    {
+      "name": "and hides one under a work package, because the work package is hidden",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "ACTIVITY",
+      "ancestors": ["WORK_PACKAGE", "TASK"],
+      "hidden": { "level": true, "capabilities": [] }
+    },
+    {
+      "name": "Tasks hides a task's members, column and cover",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "TASK",
+      "ancestors": [],
+      "hidden": { "level": false, "capabilities": ["MEMBERS", "BUCKET", "COVER"] }
+    },
+    {
+      "name": "dates switched off on activities alone hide an activity's due date",
+      "structure": {
+        "levels": [{ "type": "TASK" }, { "type": "WORK_PACKAGE" }, { "type": "ACTIVITY" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "CUSTOM_FIELDS"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "ACTIVITY",
+      "ancestors": ["TASK"],
+      "hidden": { "level": false, "capabilities": ["DUE_DATE", "REMINDER"] }
+    },
+    {
+      "name": "a hidden level still marks the values its type does not offer",
+      "structure": {
+        "levels": [{ "type": "TASK" }],
+        "fields": {
+          "TASK": { "capabilities": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS"] },
+          "WORK_PACKAGE": { "capabilities": ["COMPLETION", "HISTORY"] },
+          "ACTIVITY": { "capabilities": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"] }
+        }
+      },
+      "type": "WORK_PACKAGE",
+      "ancestors": ["TASK"],
+      "hidden": { "level": true, "capabilities": ["DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "CUSTOM_FIELDS"] }
+    }
+  ]
+}

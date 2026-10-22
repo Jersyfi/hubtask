@@ -231,6 +231,9 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		TargetItemID: target,
 		ReceivedAt:   timeFrom(row.ReceivedAt),
 	}
+	if entry.ArrivalJobID, err = optionalID(row.ArrivalJobID); err != nil {
+		return domain.Entry{}, err
+	}
 	if row.ProcessedAt.Valid {
 		settled := timeFrom(row.ProcessedAt)
 		entry.SettledAt = &settled
