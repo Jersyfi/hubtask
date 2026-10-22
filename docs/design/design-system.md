@@ -848,7 +848,11 @@ operators — with one anatomy:
   workspace tree is not drawn.
 * **The first row leads out**, back to the workspace.
 * **The section's own address opens its first screen** (`firstScreen` in `navigation.ts`); there is
-  no index page.
+  no index page. The administration's and the installation's first screen is an overview of what
+  needs attention, each card linked to its page (UC-ID-24, UC-INS-12) — a reading, not a list of
+  the column's rows.
+* **The administration's groups** follow `ux-inventory.md` §E0: workspace and people · sign-in ·
+  automation · data · records · AI, under the way out and the overview; every page is one row away.
 * Every screen carries `PageHeader` with the trail *the section › this screen* and takes the region
   it is given (§11.1).
 * **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
