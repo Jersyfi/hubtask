@@ -37,8 +37,8 @@
 //   - Every task of a milestone carries checks its `Delivers` line names, and a closed milestone
 //     has no Delivers check a use case still lists as unmet (see milestones.go).
 //
-// A readiness record is a snapshot of its task's start, so the link and reference checks pass it
-// by (snapshot); its template is read like any other document.
+// An archived readiness record is a snapshot of its task's start, so the link and reference checks
+// pass it by (snapshot).
 package main
 
 import (
@@ -289,13 +289,12 @@ func citesADRs(name string) bool {
 	return codeExtensions[ext] || ext == ".tpl" || filepath.Base(name) == "Makefile" || filepath.Base(name) == "Dockerfile"
 }
 
-// snapshot is a readiness record. It states what was true when its task began, so a link, an ADR
-// or a use case check it names may later be renamed, superseded or renumbered without the record
-// becoming wrong - and a gate that read it as current text would turn old records red. The
-// template is not a snapshot: every new record starts as a copy of it.
+// snapshot is an archived readiness record (ADR-0089 ended them). It states what was true when its
+// task began, so a link, an ADR or a use case check it names may later be renamed, superseded or
+// renumbered without the record becoming wrong - and a gate that read it as current text would
+// turn old records red.
 func snapshot(relative string) bool {
-	relative = filepath.ToSlash(relative)
-	return strings.HasPrefix(relative, "docs/backlog/ready/") && relative != "docs/backlog/ready/TEMPLATE.md"
+	return strings.HasPrefix(filepath.ToSlash(relative), "docs/archive/ready/")
 }
 
 // markdownFiles collects every document, repository-relative.

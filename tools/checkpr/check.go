@@ -24,11 +24,10 @@ import (
 //     backticks GitHub ignores it), or says why there is none, as `No issue: <reason>`.
 //   - Use cases names the use cases whose checks the work makes true - each one existing - or says
 //     n/a (docs/usecases/README.md).
-//   - Affected areas has at least one area ticked.
 //   - Exactly one answer to "Does this need an ADR?" is ticked, and a ticked answer that asks
 //     "Which one" names it.
-//   - Every Definition of Done item is ticked or says n/a: the template's rule is to mark, not to
-//     delete - and the items are the template's own, none deleted or reworded (dod.go).
+//   - Premises says which claims about today's code were false and what was corrected, or that
+//     none was and what was checked: the worker checks them itself (ADR-0089).
 //   - Impact's four lines no longer carry the template's placeholders.
 
 var (
@@ -42,6 +41,7 @@ var (
 	adrNamed     = regexp.MustCompile(`ADR-\d{4}|[a-z0-9-]+\.md §\s?\d+|none by (number|ADR)`)
 	placeholders = []string{
 		"UC-…: check n — met / not met — confirmed by …",
+		"none false — checked: …",
 		"yes / no — if yes: the migration path",
 		`the threats touched (T-xx), or "none"`,
 		"new processing of personal data? Purpose and retention",
@@ -153,10 +153,6 @@ func check(body string, required []string, useCases map[string]bool) []string {
 		}
 	}
 
-	if s, ok := found["Affected areas"]; ok && ticked(s.text) == 0 {
-		problems = append(problems, "Affected areas has nothing ticked")
-	}
-
 	if s, ok := found["Does this need an ADR?"]; ok {
 		answers := checkbox.FindAllStringSubmatch(s.text, -1)
 		chosen := 0
@@ -176,25 +172,7 @@ func check(body string, required []string, useCases map[string]bool) []string {
 		}
 	}
 
-	if s, ok := found["Definition of Done"]; ok {
-		for _, item := range checkbox.FindAllStringSubmatch(s.text, -1) {
-			if !isTicked(item[1]) && !notApplied.MatchString(item[2]) {
-				problems = append(problems, fmt.Sprintf("Definition of Done: %q is neither ticked nor marked n/a", strings.TrimSpace(item[2])))
-			}
-		}
-	}
-
 	return problems
-}
-
-func ticked(text string) int {
-	count := 0
-	for _, box := range checkbox.FindAllStringSubmatch(text, -1) {
-		if isTicked(box[1]) {
-			count++
-		}
-	}
-	return count
 }
 
 func isTicked(mark string) bool { return mark == "x" || mark == "X" }

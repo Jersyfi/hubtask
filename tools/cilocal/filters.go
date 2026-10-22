@@ -2,12 +2,8 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // Package cilocal is what the pull request pipeline decides, readable outside the pipeline: the
-// path filters of `ci.yml`'s `changes` job, and which of its jobs a change runs (ADR-0079).
-//
-// Two readers need it. `make verify-pr` selects the gates a branch needs locally from the same
-// filters CI selects them from, so that the two cannot drift; and `test/architecture` holds both
-// the filters and the job table below to the workflow, so that a job added to `ci.yml` without a
-// local counterpart, or a filter changed in one place only, is a red gate rather than a surprise.
+// path filters of `ci.yml`'s `changes` job. `test/architecture` reads them to hold every tracked
+// path to a filter, so that a file no job would ever check is a red gate rather than a surprise.
 package cilocal
 
 import (

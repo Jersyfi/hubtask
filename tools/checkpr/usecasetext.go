@@ -16,7 +16,7 @@ import (
 // of arriving as one more line in a large diff.
 
 // ucTextSince is when the rule took effect.
-var ucTextSince = readinessSince
+var ucTextSince = rulesSince
 
 var ucTextNamed = regexp.MustCompile(`(?i)\bcorrection\b|\bdecision #\d+`)
 

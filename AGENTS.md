@@ -68,13 +68,16 @@ The rules are the items of four lists — the table above, this list with "Steps
 target or a `ci.yml` job. A directory's `AGENTS.md` tags its rules under "What must not happen here".
 The other sections explain.
 
-- A task starts with its readiness record (`docs/backlog/ready/TEMPLATE.md`) as the branch's first
-  commit, attacked by a reviewer who did not write it; code follows only once it says `ready` or
-  `waiting on the owner`, and the pull request leaves draft only when it says `ready`.
-  `[partial: gate-pr; open: the quality of the record and of the review, a record rewritten into the
-  history before the code]`
-- A pull request starts as a draft and leaves draft only after `make verify-pr` passed for the
-  pushed `HEAD`. `[partial: ci:ci-required; open: a skipped local run — CI fails instead]`
+- A worker checks every premise its task, the use cases' *Today* and the documents state about
+  today's code against the code itself, before building on it; a false one is corrected in the same
+  pull request and named under *Premises* in its description. There is no separate record and no
+  second review of a plan (ADR-0089). `[partial: gate-pr; open: whether every premise was checked]`
+- A pull request starts as a draft and leaves draft once `make check` is green and `HEAD` is pushed;
+  CI checks the rest then. `[partial: ci:ci-required; open: a skipped make check — CI fails instead]`
+- Waiting is not polling: a long run starts in the background and its end arrives as a notification,
+  never through a `sleep` or `until` loop. A worker hands over — pushes, names the next step on the
+  draft — before its context passes about 250k tokens, because every call pays for the whole
+  context. `[unchecked: the worker's own session; make flowstats measures both]`
 - A pull request description is a copy of `.github/PULL_REQUEST_TEMPLATE.md` with every section; it
   closes its issue (`Closes #n`) or says `No issue:` and why. `[gate: gate-pr]`
 - A task of a released milestone carries only checks from the milestone's `Delivers`, and a
@@ -119,13 +122,13 @@ The other sections explain.
 
 ### Steps and commits
 
-- A step is one commit, pushed at once; the steps are the numbered list in the record's § 4. A step
-  that adds a use case lands it end to end. `[partial: gate-architecture; open: a layer split that
-  stays green, a step left unpushed]`
-- `make gate-quick` is green at every commit, `make verify-pr` at the last. More than about eight
-  files, or a title needing "and", is too big a step. No `wip`, `fixup` or `address review`
-  commits. `[unchecked: CI checks the head only]`
-- Resuming: compare `git log --oneline main..HEAD` with the record's steps, run `make verify`,
+- A step is one commit, pushed at once; the steps are a numbered list in the draft pull request's
+  description. A step that adds a use case lands it end to end. `[partial: gate-architecture; open:
+  a layer split that stays green, a step left unpushed]`
+- `make check` is green before a push; the merge is a squash, so CI holds the head, not every
+  commit. More than about eight files, or a title needing "and", is too big a step. No `wip`,
+  `fixup` or `address review` commits. `[unchecked: CI checks the head only]`
+- Resuming: compare `git log --oneline main..HEAD` with the draft's steps, run `make check`,
   continue at the first missing one (in an own worktree if the checkout is in use). Stopping: push
   everything and name the next step on the draft pull request. `[unchecked: a conversation is
   outside the repository]`
@@ -154,16 +157,16 @@ The other sections explain.
 1. **Understand and settle.** Read the task, its issue, its use cases and their principles,
    `domain-model.md`, `project-structure.md`, `api-guidelines.md` for an endpoint, the concern's
    subject document and `known-traps.md` — completely what you read; an ADR only for a rule's
-   reasoning. Write the readiness record, have it attacked, commit it first.
-2. **Plan in steps** in the record; a draft pull request that closes the issue.
+   reasoning. Check every premise against the code; correct a false one in this pull request.
+2. **Plan in steps** in a draft pull request that closes the issue.
 3. **Specification first:** `api/openapi.yaml`, a migration and sqlc queries, `make generate`.
 4. **Inside out:** domain → application → ports → adapters → presentation.
 5. **Test:** table tests for the domain; Testcontainers and a cross-tenant negative test per new
    repository method; each use case check by a test that can prove it.
 6. **Check:** every carried check met with evidence (`docs/usecases/README.md`), a review against the
-   rules no gate checks, `make verify-pr` green.
-7. **Finish:** the template complete, the use cases' `state:`, `checked_by:` and *Today* moved,
-   `gh pr ready`.
+   rules no gate checks, `make check` green.
+7. **Finish:** the template complete — *Premises* included —, the use cases' `state:`,
+   `checked_by:` and *Today* moved, `gh pr ready`; CI runs then.
 
 ## What you do not decide yourself
 
@@ -191,8 +194,9 @@ list; a follow-up needs a new fact.
 
 | Changed | Run |
 |---|---|
-| Anything, while working | `make verify` |
-| Before `gh pr ready` | `make verify-pr` — every gate CI runs for the branch, locally |
+| Anything, while working | `make check` — the changed packages' checks, about a minute |
+| Before `gh pr ready` | `make check`, and `make gate-pr BODY=<file> TITLE="<title>"`; CI runs the rest |
+| A change that reaches wide | `make verify` — every gate that runs without containers |
 | One concern | `make gate-quick`, `gate-unit`, `gate-architecture`, `gate-security`, `gate-docs` |
 | `api/openapi.yaml`, `db/queries/` | `make generate` (no diff may remain), `make api-client` |
 | `packages/design-system/tokens/tokens.json` | `make tokens`, commit the regenerated `LabelTokens.go` |
@@ -205,8 +209,9 @@ list; a follow-up needs a new fact.
 
 ## When CI runs
 
-On a ready pull request, not on a draft (`ci-cd.md` §3.4). For Claude Code, the hook in
-`.claude/settings.json` refuses a non-draft `gh pr create` and `gh pr ready` before `make verify-pr`.
+On a ready pull request; a draft starts nothing (`ci-cd.md` §3.4). For Claude Code, the hook in
+`.claude/settings.json` refuses a non-draft `gh pr create` and a `gh pr ready` before `HEAD` is
+pushed.
 
 ## Code comments
 

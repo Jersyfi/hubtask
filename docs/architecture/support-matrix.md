@@ -90,13 +90,13 @@ browsers they run in is [ADR-0044](../adr/ADR-0044-browser-support-row.md).
 | Engine | Versions | Status | Proven by |
 |---|---|---|---|
 | Chromium (Chrome, Edge) | current and previous major | `supported` | `engines` job in `ci.yml`: Playwright's Chromium at the pinned package version, the built bundle loaded and ADR-0044's feature table asserted |
-| Gecko (Firefox) | current and previous major | `supported` | `engines` job: Playwright's Firefox, the same assertions |
-| WebKit (Safari) | current and previous major | `supported` | `engines` job: Playwright's **WebKit build**, the same assertions. That is a Linux build of the engine Safari is made of, at roughly Safari's current version — not Safari's shell, settings or release cadence |
+| Gecko (Firefox) | current and previous major | `best effort` | — the client uses only standards Firefox ships; the job's assertions run here by hand with `ENGINES=firefox` ([ADR-0089](../adr/ADR-0089-check-once-where-it-is-cheap.md)) |
+| WebKit (Safari) | current and previous major | `best effort` | — the same, with `ENGINES=webkit`: Playwright's WebKit is a Linux build of the engine, not Safari, and failed in CI more often by the runner than by the client ([ADR-0089](../adr/ADR-0089-check-once-where-it-is-cheap.md)) |
 | Anything older | — | `unsupported` | — the client uses `<dialog>`, `inert` and `:has()`, and none of the three has a fallback |
 
 **What `supported` stands on here.** The `engines` job ([ADR-0048](../adr/ADR-0048-browser-job-driver.md))
-loads the bundle that ships, served the way the binary serves it, in the three engines, and asserts
-in each every fact the client is built on — `<dialog>`, `inert`, `:has()`, `popover`, logical
+loads the bundle that ships, served the way the binary serves it, in Chromium, and asserts every
+fact the client is built on — `<dialog>`, `inert`, `:has()`, `popover`, logical
 properties and CSS Anchor Positioning, none with a fallback. It is not a journey. It gates through
 `CI required` ([ci-cd.md](./ci-cd.md) §3.2). It runs the versions Playwright's pinned release
 bundles, which track the current major; the previous major is not run and stays on the row because

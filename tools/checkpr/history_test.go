@@ -87,7 +87,7 @@ func TestReadHistoryReusedUseCaseID(t *testing.T) {
 	if len(facts.reused) != 1 || facts.reused[0].id != "UC-WRK-04" || facts.reused[0].earlier != "docs/usecases/work/UC-WRK-04-the-old-one.md" {
 		t.Fatalf("want UC-WRK-04 reused and nothing else, got %+v", facts.reused)
 	}
-	problems := strings.Join(historyProblems("", facts, files(nil)), "\n")
+	problems := strings.Join(historyProblems("", facts), "\n")
 	if !strings.Contains(problems, "takes the ID UC-WRK-04, which docs/usecases/work/UC-WRK-04-the-old-one.md carried") {
 		t.Fatalf("the reused ID was not refused:\n%s", problems)
 	}
