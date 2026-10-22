@@ -94,9 +94,19 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
 * **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
-  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
-  the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
+  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `capture`, `celebration` and `automation` are applied by clients; the server
+  stores and answers them. `counts` the server applies on the collection's read: it counts the
+  figure (`figure`, in the reader's day and week, leaving out trashed and hidden entries, in a
+  read-only transaction of its own so that a figure that cannot be counted is marked
+  `unavailable` and never fails the read) and the client draws it. `automation` holds no value yet: nothing runs by itself that
   a collection may switch on.
+* **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
+  a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
+  write whose own values set `PROGRESS` where the levels in force after it are one is refused
+  (`structure.figure_not_offered`); wherever else the two meet — a preset, a reset, a narrowing on
+  any layer, the installation's bound, a lock — the structure in force says `OPEN`,
+  `counts_clipped` keeps what the layers said, and the write that caused it names `counts` in
+  `clipped_by_levels`. A lock is judged against what the layers say, before the clip.
 * **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
   `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
   touches an entry. The container's write publishes `container.policies_updated` with the settings

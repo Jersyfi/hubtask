@@ -53,6 +53,8 @@ type GetContainer struct {
 	UnitOfWork persistence.UnitOfWork
 	// Structure resolves the container's structure in force for the answer (domain-model.md §2).
 	Structure StructureResolver
+	// Figures counts what counts in a collection, after the structure (UC-WRK-29).
+	Figures FigureReader
 }
 
 // GetContainerQuery is the input, typed.
@@ -139,7 +141,8 @@ func (h GetContainer) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return withStructure(containerOutput(container), structures, container.ID), nil
+	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures)
+	return withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID), nil
 }
 
 // ListContainers reads one level of the container tree.
@@ -151,6 +154,8 @@ type ListContainers struct {
 	// Structure resolves each container's structure in force, after the page was narrowed to what
 	// the caller may see.
 	Structure StructureResolver
+	// Figures counts what counts in each collection of the page, one statement per kind on it.
+	Figures FigureReader
 }
 
 // ListContainersQuery is the input, typed.
@@ -320,9 +325,10 @@ func (h ListContainers) invoke(
 	if err != nil {
 		return nil, err
 	}
+	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures)
 	data := make([]usecase.Output, 0, len(page.Containers))
 	for _, container := range page.Containers {
-		data = append(data, withStructure(containerOutput(container), structures, container.ID))
+		data = append(data, withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID))
 	}
 	return pageOutput(data, page.Info), nil
 }

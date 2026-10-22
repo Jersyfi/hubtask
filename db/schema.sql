@@ -992,6 +992,12 @@ CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, 
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
+-- A collection's figure: its open rows directly under it (OPEN, FIELD_SUM), and its completions
+-- from a moment on (RHYTHM). Migration 0187.
+CREATE INDEX wi_figure_open_idx ON work_item (tenant_id, collection_id)
+  WHERE parent_id IS NULL AND is_completed = false AND archived_at IS NULL AND deleted_at IS NULL;
+CREATE INDEX wi_figure_done_idx ON work_item (tenant_id, collection_id, completed_at)
+  WHERE is_completed = true AND deleted_at IS NULL;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
 -- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)

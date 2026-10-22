@@ -1311,6 +1311,33 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CollectionFigureKind.
+const (
+	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
+	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
+	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
+	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the CollectionFigureKind enum.
+func (e CollectionFigureKind) Valid() bool {
+	switch e {
+	case CollectionFigureKindDUE:
+		return true
+	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindOPEN:
+		return true
+	case CollectionFigureKindPROGRESS:
+		return true
+	case CollectionFigureKindRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -4269,6 +4296,21 @@ func (e StructureCountsFigure) Valid() bool {
 	}
 }
 
+// Defines values for StructureCountsClipReason.
+const (
+	ONELEVEL StructureCountsClipReason = "ONE_LEVEL"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsClipReason enum.
+func (e StructureCountsClipReason) Valid() bool {
+	switch e {
+	case ONELEVEL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureLockOrigin.
 const (
 	StructureLockOriginINSTANCE  StructureLockOrigin = "INSTANCE"
@@ -6601,6 +6643,41 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
+type CollectionFigure struct {
+	// Days RHYTHM - the dates of the reader's week on which something was completed.
+	Days *[]openapi_types.Date `json:"days,omitempty"`
+
+	// Done PROGRESS - completed leaves, archived ones counted as they stand.
+	Done *int `json:"done,omitempty"`
+
+	// Due DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.
+	Due  *int                 `json:"due,omitempty"`
+	Kind CollectionFigureKind `json:"kind"`
+
+	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
+	Open *int `json:"open,omitempty"`
+
+	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
+	Sum *float64 `json:"sum,omitempty"`
+
+	// Summed FIELD_SUM - how many of those entries carry a value.
+	Summed *int               `json:"summed,omitempty"`
+	Today  openapi_types.Date `json:"today"`
+
+	// Total PROGRESS - all leaves.
+	Total *int `json:"total,omitempty"`
+
+	// Unavailable True where the figure could not be counted; the container is answered all the same.
+	Unavailable *bool `json:"unavailable,omitempty"`
+
+	// WeekStart RHYTHM - the first date of that week.
+	WeekStart *openapi_types.Date `json:"week_start,omitempty"`
+}
+
+// CollectionFigureKind defines model for CollectionFigure.Kind.
+type CollectionFigureKind string
+
 // Comment defines model for Comment.
 type Comment struct {
 	AuthorId openapi_types.UUID `json:"author_id"`
@@ -6717,16 +6794,22 @@ type ConsentWithdrawal struct {
 
 // Container defines model for Container.
 type Container struct {
-	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
-	ColorToken  *string    `json:"color_token,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-	Description *string    `json:"description,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
+	// ClippedByLevels On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.
+	ClippedByLevels *[]StructureSettingName `json:"clipped_by_levels,omitempty"`
+	ColorToken      *string                 `json:"color_token,omitempty"`
+	CreatedAt       *time.Time              `json:"created_at,omitempty"`
+	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
+	Description     *string                 `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
-	Icon              *string            `json:"icon,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	EffectiveArchived *bool `json:"effective_archived,omitempty"`
+
+	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
+	Figure *CollectionFigure  `json:"figure,omitempty"`
+	Icon   *string            `json:"icon,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
 	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
@@ -7117,6 +7200,9 @@ type DuplicateResult struct {
 
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
+	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+	CountsClipped *StructureCountsClip `json:"counts_clipped,omitempty"`
+
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
@@ -10742,7 +10828,7 @@ type StructureChange struct {
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
 
-// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+// StructureCounts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
 	Figure   StructureCountsFigure `json:"figure"`
@@ -10750,6 +10836,16 @@ type StructureCounts struct {
 
 // StructureCountsFigure defines model for StructureCounts.Figure.
 type StructureCountsFigure string
+
+// StructureCountsClip Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+type StructureCountsClip struct {
+	// From What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
+	From   StructureCounts           `json:"from"`
+	Reason StructureCountsClipReason `json:"reason"`
+}
+
+// StructureCountsClipReason defines model for StructureCountsClip.Reason.
+type StructureCountsClipReason string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
@@ -10793,7 +10889,7 @@ type StructureSettings struct {
 	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	Completion *CompletionPolicy `json:"completion,omitempty"`
 
-	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	// Counts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 	Counts *StructureCounts `json:"counts,omitempty"`
 
 	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.

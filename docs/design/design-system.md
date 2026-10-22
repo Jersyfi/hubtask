@@ -523,7 +523,10 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance
-monitoring. The `celebrations` preference switches all of it off with the moments.
+monitoring. The `celebrations` preference switches the moments, the milestones and the kudos off
+together; the collection's figure — progress, rhythm, what is open or due — stays, because it is
+what counts in the collection, not a celebration (UC-WRK-29 check 7). The server counts a figure on
+the collection's read and the client draws it (domain-model.md §2).
 
 ### Celebration slots, not fixed animations
 

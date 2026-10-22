@@ -106,11 +106,19 @@ func effectiveStructureOutput(effective domain.EffectiveStructure) map[string]an
 	if effective.Preset != "" {
 		preset = string(effective.Preset)
 	}
+	var clipped any
+	if clip := effective.CountsClipped; clip != nil {
+		clipped = map[string]any{
+			"from":   structureSettingOutput(domain.SettingCounts, domain.StructureValues{Counts: &clip.From}),
+			"reason": string(clip.Reason),
+		}
+	}
 	return map[string]any{
-		"preset":   preset,
-		"settings": structureValuesOutput(effective.Values),
-		"sources":  sources,
-		"locks":    locks,
+		"preset":         preset,
+		"settings":       structureValuesOutput(effective.Values),
+		"sources":        sources,
+		"locks":          locks,
+		"counts_clipped": clipped,
 	}
 }
 

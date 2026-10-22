@@ -697,6 +697,8 @@ func run() error {
 	structures := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
 	}
+	// What counts in a collection, counted on its read (UC-WRK-29).
+	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
 	entryGate := work.EntryGate{Structure: structures, Types: items}
@@ -2122,14 +2124,14 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
-			Structure: structures,
+			Structure: structures, Figures: figures,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork, Structure: structures,
+			UnitOfWork: unitOfWork, Structure: structures, Figures: figures,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.ListJumbleDestinations{
