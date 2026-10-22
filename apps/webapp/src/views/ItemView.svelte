@@ -623,12 +623,13 @@
 
   // Why nothing on this entry can be changed because of an archive, or nothing: the collection's
   // first - unarchiving the entry would be refused while the collection is archived (I-C3) - then
-  // the entry's own, worded for whether the reader may unarchive it or must ask. The entry's
-  // archive is its own: its children are not read-only with it.
+  // the entry's own, worded for whether the reader may unarchive it or must ask - so not before the
+  // role is known, as the role's own sentence (P-11); nothing is writable meanwhile, since writing
+  // needs the role. The entry's archive is its own: its children are not read-only with it.
   const frozenReason = $derived(
     isCollectionArchived
       ? t('app.entries.read_only')
-      : item?.archived_at
+      : item?.archived_at && mayChangeHere !== undefined
         ? t(isChangeable ? 'app.entries.archived' : 'app.entries.archived_ask')
         : undefined,
   );
