@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/job"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -42,6 +43,15 @@ type jobStore struct {
 	present   bool
 	cancelled bool
 	at        time.Time
+	// asker is who the payload names; the zero value is a job the system started.
+	asker repository.Asker
+}
+
+func (s *jobStore) AskerOf(context.Context, shared.ID) (repository.Asker, error) {
+	if !s.present {
+		return repository.Asker{}, shared.ErrNotFound.WithDetail("jobs.not_found")
+	}
+	return s.asker, nil
 }
 
 func (s *jobStore) Find(context.Context, shared.ID) (domain.Job, error) {
@@ -66,6 +76,16 @@ func (s *jobStore) Cancel(_ context.Context, _ shared.ID, at time.Time) (domain.
 type authorizerDouble struct {
 	err      error
 	requests []access.Request
+	// permits is what the recording-free question answers, and permitted what it was asked.
+	permits   bool
+	permitted []access.Request
+}
+
+func (a *authorizerDouble) Permits(
+	_ context.Context, _ appshared.ActorContext, request access.Request,
+) (bool, error) {
+	a.permitted = append(a.permitted, request)
+	return a.permits, nil
 }
 
 func (a *authorizerDouble) Authorize(
@@ -395,5 +415,110 @@ func TestAJobThatCanSayHowFarAlongItIsSaysSo(t *testing.T) {
 		t.Errorf("result reference %v", out["result_url"])
 	case out["error_code"] != "backup.target_slow":
 		t.Errorf("error code %v", out["error_code"])
+	}
+}
+
+// asking is the harness of a question to AI the caller asked about one entry.
+func asking(state domain.State, askedBy shared.ID, kind string) *harness {
+	h := newHarness(state)
+	h.jobs.asker = repository.Asker{
+		Kind: kind, AskedBy: askedBy, TargetType: "WORK_ITEM",
+		TargetID: shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000e1"),
+	}
+	h.authorizer.permits = true
+	return h
+}
+
+func askerWithToken() appshared.ActorContext {
+	actor := caller()
+	actor.Scopes = []string{jobsRead, jobsCancel}
+	return actor
+}
+
+// UC-AI-04 check 9: the person who asked a question to AI watches and stops it wherever their role
+// sits - asked along the entry's path with the question that records nothing, and never through
+// the workspace-scope permission, so no refusal is written for somebody let through.
+func TestThePersonWhoAskedMayWatchAndStopTheirQuestion(t *testing.T) {
+	h := asking(domain.StateRunning, actorID, "ai.suggest")
+
+	if _, err := h.get().Execute(context.Background(), askerWithToken(), Query{JobID: jobID}); err != nil {
+		t.Fatalf("reading their own question: %v", err)
+	}
+	stopped, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID})
+	if err != nil {
+		t.Fatalf("stopping their own question: %v", err)
+	}
+	if stopped.State != domain.StateCancelled || len(h.audit.entries) != 1 {
+		t.Errorf("stopped %+v with %d audit entries", stopped, len(h.audit.entries))
+	}
+	if len(h.authorizer.requests) != 0 {
+		t.Errorf("the workspace-scope permission was asked: %+v", h.authorizer.requests)
+	}
+	if len(h.authorizer.permitted) != 2 {
+		t.Fatalf("%d recording-free questions", len(h.authorizer.permitted))
+	}
+	path := h.authorizer.permitted[0].Path
+	if len(path) != 2 || path[1].ID != h.jobs.asker.TargetID {
+		t.Errorf("asked along %v, want the workspace and the entry", path)
+	}
+}
+
+// Everything that is not the asker's own question falls through to the ordinary permission, which
+// decides and records as it always did.
+func TestAnyoneElseNeedsTheOrdinaryPermission(t *testing.T) {
+	other := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000f9")
+	for name, h := range map[string]*harness{
+		"another person's question": asking(domain.StateRunning, other, "ai.suggest"),
+		"work the system started":   asking(domain.StateRunning, shared.ID(""), "ai.suggest"),
+		"a backup":                  asking(domain.StateRunning, actorID, "backup.run"),
+		"an asker who lost the read": func() *harness {
+			h := asking(domain.StateRunning, actorID, "ai.suggest")
+			h.authorizer.permits = false
+			return h
+		}(),
+	} {
+		t.Run(name, func(t *testing.T) {
+			h.authorizer.err = shared.ErrForbidden.WithDetail("access.not_permitted")
+			_, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID})
+			if !errors.Is(err, shared.ErrForbidden) {
+				t.Fatalf("answered %v, want the ordinary refusal", err)
+			}
+			if len(h.authorizer.requests) != 1 || h.authorizer.requests[0].Permission != domainservice.PermissionStructure {
+				t.Errorf("the ordinary permission was not what decided: %+v", h.authorizer.requests)
+			}
+			if h.jobs.cancelled {
+				t.Error("the job was stopped")
+			}
+		})
+	}
+}
+
+// A token without the scope is no asker either: the scope is the second bound, and it holds for
+// the asker as for anybody.
+func TestTheAskersTokenStillNeedsTheScope(t *testing.T) {
+	h := asking(domain.StateRunning, actorID, "ai.suggest")
+	h.authorizer.err = shared.ErrForbidden.WithDetail("access.insufficient_scope")
+	actor := caller()
+	actor.Scopes = []string{jobsRead}
+
+	if _, err := h.cancel().Execute(context.Background(), actor, Query{JobID: jobID}); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("answered %v", err)
+	}
+	if len(h.authorizer.permitted) != 0 {
+		t.Error("the asker's read was asked for a token that may not stop anything")
+	}
+}
+
+// A rule drafted for its asker is theirs to stop: the draft is about nobody's content but theirs, so
+// being the asker is the whole question.
+func TestTheAskerStopsTheDraftingOfTheirRule(t *testing.T) {
+	h := newHarness(domain.StateRunning)
+	h.jobs.asker = repository.Asker{Kind: "ai.draft_rule", AskedBy: actorID, TargetType: "ACCOUNT", TargetID: actorID}
+
+	if _, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID}); err != nil {
+		t.Fatalf("stopping the draft: %v", err)
+	}
+	if len(h.authorizer.requests) != 0 || len(h.authorizer.permitted) != 0 {
+		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
 	}
 }

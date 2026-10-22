@@ -73,6 +73,8 @@
   import { live } from '../lib/data/live.svelte.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import ContainerLookDialog from '../lib/workspace/ContainerLookDialog.svelte';
+  import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import ItemView from './ItemView.svelte';
@@ -432,6 +434,8 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   let isManagingLabels = $state(false);
+  /** Its colour and symbol (UC-WRK-33). */
+  let isChangingLook = $state(false);
   let isManagingFields = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
@@ -634,6 +638,7 @@
             icon: 'pencil',
             disabledReason: readOnlyReason,
           },
+          { id: 'look', label: t('app.look.menu'), icon: 'palette', disabledReason: readOnlyReason },
           {
             id: 'move',
             label: t('app.move.to_hub'),
@@ -687,6 +692,7 @@
   function choseFromMenu(id: string) {
     if (id === 'select') selection.start();
     else if (id === 'rename') startRename();
+    else if (id === 'look') isChangingLook = true;
     else if (id === 'move') isMovingHub = true;
     else if (id === 'archive') void toggleArchived();
     else if (id === 'up') void moveBy(-1);
@@ -850,6 +856,7 @@
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
+  {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
   <Stack gap="300">
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
@@ -875,6 +882,7 @@
       secondary={headSecondary}
       menu={headMenu}
       figure={(container.type === 'COLLECTION' && container.figure) || hasMilestone ? collectionFigure : undefined}
+      mark={ownMark}
     >
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
@@ -979,7 +987,10 @@
         <!-- The way to a new collection is the head's primary action now; the list is the list. -->
         <Stack gap="050">
           {#each collections as collection (collection.id)}
-            <ListRow href={`/collections/${collection.id}`}>{collection.name}</ListRow>
+            <ListRow href={`/collections/${collection.id}`}>
+              {#snippet leading()}<ContainerMark look={collection} />{/snippet}
+              {collection.name}
+            </ListRow>
           {/each}
         </Stack>
       {/if}
@@ -1080,6 +1091,10 @@
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
   <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
+{/if}
+
+{#if container && mayShape}
+  <ContainerLookDialog bind:isOpen={isChangingLook} {container} />
 {/if}
 
 <DuplicateDialog

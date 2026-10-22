@@ -33,12 +33,16 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { mayHere } from '../lib/data/capability.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let name = $state('');
+  /** What *Register* found missing when pressed, marked at the fields (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   let uris = $state('');
   let confidential = $state(false);
   let registered = $state<RegisteredApp | undefined>(undefined);
@@ -78,7 +82,11 @@
   async function register(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const list = readUris(uris);
-    if (!name.trim() || list.length === 0) return;
+    missing = marked(event, [
+      { kind: 'field', key: 'name', code: 'app.forms.required', isFilled: name.trim() !== '' },
+      { kind: 'field', key: 'uris', code: 'app.forms.required', isFilled: list.length > 0 },
+    ]);
+    if (!isComplete(missing)) return;
     await attempt(async () => {
       registered = await apps.register(name.trim(), list, confidential);
       name = '';
@@ -190,13 +198,15 @@
     <Stack gap="150">
       <h2 class="section">{t('app.apps.new_title')}</h2>
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form class="panel" onsubmit={register}>
           <Stack gap="200">
-            <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired />
+            <Input label={t('app.apps.name')} hint={t('app.apps.name_hint')} bind:value={name} isRequired error={missing.name && !name.trim() ? t(missing.name) : undefined} />
             <Textarea
               label={t('app.apps.uris')}
               hint={t('app.apps.uris_hint')}
               bind:value={uris}
+              error={missing.uris && readUris(uris).length === 0 ? t(missing.uris) : undefined}
               rows={3}
               spellcheck={false}
             />
@@ -213,6 +223,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
     </Stack>

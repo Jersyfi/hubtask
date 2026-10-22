@@ -122,6 +122,14 @@ type Embeddings interface {
 	// the pass has not reached it, it is found by nobody and finds nobody until it has, and that
 	// is the semantic search's degradation rather than a gap (ai-first.md §2).
 	Near(ctx context.Context, itemID shared.ID, floor float64, limit int) (Nearby, error)
+
+	// NearVector answers the entries closest to a vector that belongs to no entry - the words of a
+	// title somebody is typing, embedded by `model` - nearest first, at or above `floor`, at most
+	// `limit`. Only rows of the same model are compared, for Near's reason.
+	//
+	// Candidates as Near's are: what the caller may read is asked afterwards. An empty vector, or
+	// one wider than the index, answers none rather than a comparison with nothing.
+	NearVector(ctx context.Context, vector []float32, model string, floor float64, limit int) ([]Neighbour, error)
 }
 
 // Nearby is what one entry's neighbourhood looks like.

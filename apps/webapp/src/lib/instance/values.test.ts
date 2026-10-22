@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
-import { countOf, documentOf, draftEntry, lockCode, planBodyOf, rowsOf } from './values.ts';
+import { changesBetween, countOf, documentOf, draftEntry, lockCode, planBodyOf, rowsOf } from './values.ts';
 
 const count = (extra: Partial<InstanceSetting> = {}): InstanceSetting => ({
   set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, workspace_may: 'TIGHTEN', ...extra,
@@ -82,4 +82,23 @@ test("a plan's body carries its name, what it leaves out and only what it decide
     display_name: 'Family', left_out: ['WEBHOOKS'],
     sign_in: {}, legal: {}, quotas: { accounts: { set: true, value: 6, locked: true } }, ai: {},
   });
+});
+
+test('the save bar counts each value a draft changes: a value, a lock, a decision, the blocklist', () => {
+  const read: InstanceSettings = {
+    sign_in: { min_length: count({ set: true, value: 12 }), max_repeat: count() },
+    blocklist_file: '/etc/hubtask/blocklist.txt',
+  };
+  assert.equal(changesBetween(read, read), 0);
+  assert.equal(changesBetween(JSON.parse(JSON.stringify(read)), read), 0, 'a copy is no change');
+  const draft: InstanceSettings = {
+    sign_in: {
+      min_length: count({ set: true, value: 14, locked: true }),
+      max_repeat: count({ set: true, value: 3 }),
+    },
+    blocklist_file: '',
+  };
+  assert.equal(changesBetween(draft, read), 3);
+  // A key the operator stops deciding is a change too.
+  assert.equal(changesBetween({ ...read, sign_in: { max_repeat: count() } }, read), 1);
 });

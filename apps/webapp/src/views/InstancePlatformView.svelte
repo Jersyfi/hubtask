@@ -17,7 +17,7 @@
   // **Adding one needs a fresh proof**, beyond the raised hour: every workspace's reference goes to
   // that address. The secret is shown once and never again.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Badge,
@@ -44,6 +44,10 @@
   import { formatRelative } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { focusFirst } from '../lib/forms/missing.ts';
+
+  /** Whether *Add* was pressed without an address: marked at the field (UC-WRK-32 check 3). */
+  let targetMissing = $state(false);
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -109,6 +113,11 @@
   }
 
   async function add(): Promise<void> {
+    targetMissing = target.trim() === '';
+    if (targetMissing) {
+      void tick().then(() => focusFirst(document));
+      return;
+    }
     let answer: PlatformSubscriptionSecret | undefined;
     const added = await run('add', async () => {
       answer = await platformSubscriptions.subscribe(target.trim());
@@ -263,7 +272,6 @@
       tone="primary"
       isBusy={working === 'add'}
       busyLabel={t('app.instance.working')}
-      disabledReason={target.trim() === '' ? t('app.instance.platform_target_required') : undefined}
       onclick={() => void add()}
     >
       {t('app.instance.platform_add_confirm')}
@@ -283,6 +291,7 @@
       autocomplete="off"
       spellcheck={false}
       isRequired
+      error={targetMissing && !target.trim() ? t('app.instance.platform_target_required') : undefined}
     />
   </Stack>
 </Dialog>

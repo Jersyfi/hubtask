@@ -91,7 +91,7 @@ func backupArchiveResponse(out usecase.Output) openapi.BackupArchive {
 	}
 	// Nothing has been checked, and saying so is the honest answer. `:verify` is what turns this
 	// into OK or MISMATCH, and it is a separate act because it reads every byte of the archive.
-	unverified := openapi.UNVERIFIED
+	unverified := openapi.BackupArchiveChecksumStatusUNVERIFIED
 	archive.ChecksumStatus = &unverified
 
 	if scope, present := out["scope"].(map[string]any); present {

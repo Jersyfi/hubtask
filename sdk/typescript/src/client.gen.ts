@@ -1299,6 +1299,11 @@ export class HubtaskClient {
     return this.call("POST", "/items/{itemId}:duplicates", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Which entries look like a title that is not an entry yet */
+  findDuplicatesByTitle(body: NonNullable<operations["findDuplicatesByTitle"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["findDuplicatesByTitle"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/items:duplicates", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What AI has proposed, and not done */
   listSuggestions(options: CallOptions & { readonly query?: NonNullable<operations["listSuggestions"]['parameters']['query']> } = {}): Promise<operations["listSuggestions"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/suggestions", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1347,6 +1352,11 @@ export class HubtaskClient {
   /** Whether AI prepares a proposal for each new jumble entry */
   setAiArrivalProposals(body: NonNullable<operations["setAiArrivalProposals"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiArrivalProposals"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ai-arrival-proposals", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** How today's AI budget stands, for everybody here */
+  readAiBudgetState(options: CallOptions = {}): Promise<operations["readAiBudgetState"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/ai-budget-state", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** Set the daily budget of this workspace's own AI model */

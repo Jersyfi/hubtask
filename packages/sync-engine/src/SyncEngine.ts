@@ -172,6 +172,12 @@ export interface MutateOptions {
    * screen holds open. See `matchesPath`.
    */
   readonly invalidates?: readonly string[];
+  /**
+   * Lets the caller stop waiting: a person pressed *Stop* on a request they are watching. Passed
+   * to the transport, which ends the request; the server's context ends with it. A write that was
+   * queued rather than sent is not stopped by it - it is no longer this call's to stop.
+   */
+  readonly signal?: AbortSignal;
 }
 
 /**
@@ -345,13 +351,15 @@ export class SyncEngine {
    * account, the scope or the session itself - and retrying past it would be a client arguing with
    * a server that has already answered twice.
    */
-  async #attempt<T>(call: () => Promise<T>): Promise<T> {
+  async #attempt<T>(call: () => Promise<T>, signal?: AbortSignal): Promise<T> {
     try {
       const answer = await call();
       this.#reachable = true;
       return answer;
     } catch (cause) {
-      if (cause instanceof TransportError && unreachable(cause)) this.#reachable = false;
+      // A call its caller stopped says nothing about the server: it was not the server that did
+      // not answer, and taking it for an outage would queue every write after it.
+      if (cause instanceof TransportError && unreachable(cause) && !signal?.aborted) this.#reachable = false;
       if (!isRefusal(cause)) throw cause;
       if (!(await this.#renew())) {
         this.#onUnauthorized();
@@ -509,10 +517,13 @@ export class SyncEngine {
     try {
       const answer = await this.#attempt(
         () => this.#transport.send<T>(method, path, body, this.#options(options)),
+        options.signal,
       );
       this.#invalidate(options.invalidates);
       return answer.body;
     } catch (cause) {
+      // Stopped by its caller: nothing to queue - the caller no longer wants it sent.
+      if (options.signal?.aborted) throw cause;
       if (!(cause instanceof TransportError) || !unreachable(cause) || !queue || !this.#mutationFor) throw cause;
       const queued = await this.#enqueue(method, path, body, options);
       if (queued === undefined) throw cause;
@@ -1205,6 +1216,7 @@ export class SyncEngine {
     timeoutMs?: number;
     ifMatch?: string;
     stepUpToken?: string;
+    signal?: AbortSignal;
   }): RequestOptions {
     return {
       token: this.#token(),
@@ -1212,6 +1224,7 @@ export class SyncEngine {
       ifMatch: given.ifMatch,
       stepUpToken: given.stepUpToken,
       timeoutMs: given.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+      signal: given.signal,
     };
   }
 

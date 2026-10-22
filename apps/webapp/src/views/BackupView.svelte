@@ -21,7 +21,7 @@
   // **No credential is ever read back.** A target's credentials go in at creation and the contract
   // answers `config` without them; there is nothing here to show and nothing to ask for.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
 
@@ -35,6 +35,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
   import { mayHere, workspaceRefusal } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WorkspaceRefusal from '../lib/workspace/WorkspaceRefusal.svelte';
@@ -153,9 +154,17 @@
   }
 
 
+  /** What a press of the schedule's *Add* found missing, marked at the field. */
+  let scheduleMissing = $state<Missing>({});
+  let scheduleForm = $state<HTMLFormElement | undefined>(undefined);
+
   async function createSchedule(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!scheduleTarget) return;
+    scheduleMissing = check([{ kind: 'field', key: 'target', code: 'app.backup.target_needed', isFilled: scheduleTarget !== '' }]);
+    if (!isComplete(scheduleMissing)) {
+      void tick().then(() => focusFirst(scheduleForm));
+      return;
+    }
     const floor = Number.parseInt(scheduleMinKeep, 10);
     await attempt(() =>
       backup.createSchedule({
@@ -487,6 +496,7 @@
       {/if}
 
       <WorkspaceGate permission="DELETE_CONTAINER">
+        {#snippet actions()}
         <TargetForm
           heading={t('app.backup.add_target')}
           {isWorking}
@@ -499,6 +509,7 @@
             return added;
           }}
         />
+        {/snippet}
       </WorkspaceGate>
     </Stack>
 
@@ -547,17 +558,28 @@
               <!-- The write happens on the switch rather than behind a save button: `enabled`
                    is one field with two values, and a form around it would be a form with one
                    control in it. -->
-              <Switch
-                label={t('app.backup.enabled')}
-                checked={schedule.enabled !== false}
-                disabledReason={ownRefusal}
-                onchange={(event) =>
-                  void attempt(() =>
-                    backup.updateSchedule(schedule.id, {
-                      enabled: (event.currentTarget as HTMLInputElement).checked,
-                    }), t('app.backup.schedule_saved_announced')
-                  )}
-              />
+              <!-- Without the permission the switch is absent (P-05) and its state is read as a
+                   word; the page's one notice says why. -->
+              {#if mayHere('DELETE_CONTAINER').status === 'refused'}
+                <span class="state">
+                  {t('app.backup.enabled')}
+                  <Badge tone={schedule.enabled !== false ? 'success' : 'neutral'}>
+                    {schedule.enabled !== false ? t('app.backup.on') : t('app.backup.off')}
+                  </Badge>
+                </span>
+              {:else}
+                <Switch
+                  label={t('app.backup.enabled')}
+                  checked={schedule.enabled !== false}
+                  disabledReason={ownRefusal}
+                  onchange={(event) =>
+                    void attempt(() =>
+                      backup.updateSchedule(schedule.id, {
+                        enabled: (event.currentTarget as HTMLInputElement).checked,
+                      }), t('app.backup.schedule_saved_announced')
+                    )}
+                />
+              {/if}
               {#if mayOwn}
               <Button
                 size="sm"
@@ -579,7 +601,8 @@
 
       {#if targets.length > 0}
         <WorkspaceGate permission="DELETE_CONTAINER">
-          <form class="panel" onsubmit={createSchedule}>
+          {#snippet actions()}
+          <form class="panel" bind:this={scheduleForm} onsubmit={createSchedule}>
             <Stack gap="150">
               <h3 class="section">{t('app.backup.add_schedule')}</h3>
               <Select
@@ -587,6 +610,7 @@
                 bind:value={scheduleTarget}
                 placeholder={t('app.backup.choose_target')}
                 options={targets.map((target) => ({ value: target.id, label: target.name }))}
+                error={scheduleMissing.target && !scheduleTarget ? t(scheduleMissing.target) : undefined}
               />
               <Input
                 label={t('app.backup.schedule_rule')}
@@ -613,6 +637,7 @@
               </div>
             </Stack>
           </form>
+          {/snippet}
         </WorkspaceGate>
       {/if}
     </Stack>
@@ -620,6 +645,13 @@
 </Stack>
 
 <style>
+  /* A schedule's state where its switch is not offered: the name and the word, on one line. */
+  .state {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-100);
+  }
+
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure

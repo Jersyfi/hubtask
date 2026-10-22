@@ -45,7 +45,17 @@ const PROPOSAL = {
  * Opens the entry with AI on, the ask answered by `onAsk` and the job by `job`. The listing holds
  * the proposal once the job says it proposed one.
  */
-async function openEntry(browser, width, { onAsk, job }) {
+async function openEntry(browser, width, options) {
+  try {
+    return await reachEntry(browser, width, options);
+  } catch (error) {
+    // A browser left open keeps the walk's process alive after its last test.
+    await browser.close();
+    throw error;
+  }
+}
+
+async function reachEntry(browser, width, { onAsk, job }) {
   const { page, context, failures } = await signedIn(browser, width, 1000);
   await page.clock.install();
   let proposed = false;
@@ -67,20 +77,21 @@ async function openEntry(browser, width, { onAsk, job }) {
     return route.fallback();
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
-  await page.getByRole('button', { name: 'Ask AI' }).waitFor({ timeout: 15_000 });
+  await page.getByRole('button', { name: 'Ask AI about this entry' }).waitFor({ timeout: 15_000 });
   return { page, failures, close: () => context.close() };
 }
 
 const accepted = (route) => route.fulfill({ status: 202, json: { job_id: JOB, status: 'QUEUED', progress: null, result_url: null } });
 
-async function ask(page, operation) {
-  await page.getByRole('button', { name: 'Ask AI' }).click();
+/** Asks one question from the ✦ of one subject: the title's unless another menu is named. */
+async function ask(page, operation, menu = 'Ask AI about this entry') {
+  await page.getByRole('button', { name: menu }).click();
   await page.getByRole('menuitem', { name: operation }).click();
 }
 
 async function evidence(page, name) {
   if (!process.env.EVIDENCE) return;
-  await page.locator('[data-ai]').filter({ has: page.getByRole('heading', { name: 'Suggestions' }) }).first().screenshot({ path: join(process.env.EVIDENCE, name) });
+  await page.locator('main').first().screenshot({ path: join(process.env.EVIDENCE, name) });
 }
 
 const pending = (page) => page.getByText('Suggesting…', { exact: true });
@@ -111,10 +122,10 @@ for (const width of [1280, 375]) {
       job: () => ({ status: 'QUEUED' }),
     });
     try {
-      await ask(page, 'Suggest a title, notes and a due date');
+      await ask(page, 'Suggest a title');
       await page.getByRole('alert').filter({ hasText: /switched off or out of reach/ }).waitFor({ timeout: 5_000 });
       assert.equal(await pending(page).count(), 0, 'no pending card after a refusal');
-      assert.ok(await page.getByRole('button', { name: 'Ask AI' }).isEnabled(), 'asking again is possible');
+      assert.ok(await page.getByRole('button', { name: 'Ask AI about this entry' }).isEnabled(), 'asking again is possible');
       await evidence(page, `1-refused-${size}.png`);
       assert.deepEqual(failures, []);
     } finally {
@@ -131,7 +142,7 @@ for (const width of [1280, 375]) {
       job: () => (++reads < 2 ? { status: 'RUNNING' } : { status: 'SUCCEEDED', outcome_code: 'ai.proposed', finished_at: '2026-10-17T09:00:03Z' }),
     });
     try {
-      await ask(page, 'Suggest a title, notes and a due date');
+      await ask(page, 'Suggest a title');
       await pending(page).first().waitFor({ timeout: 5_000 });
       await advance(page, 5_000);
       await page.getByText('Book the tiler for Thursday').first().waitFor({ timeout: 5_000 });
@@ -151,7 +162,7 @@ for (const width of [1280, 375]) {
       job: () => ({ status: 'SUCCEEDED', outcome_code: 'ai.nothing_to_change', finished_at: '2026-10-17T09:00:02Z' }),
     });
     try {
-      await ask(page, 'Summarise this entry');
+      await ask(page, 'Summarise the entry', 'Ask AI about the notes');
       await advance(page, 2_000);
       const note = page.locator('[data-note="ai.nothing_to_change"]');
       await note.waitFor({ timeout: 5_000 });
@@ -177,7 +188,7 @@ for (const width of [1280, 375]) {
       },
     });
     try {
-      await ask(page, 'Suggest a title, notes and a due date');
+      await ask(page, 'Suggest a title');
       await advance(page, 70_000);
       const slow = page.locator('[data-note="app.suggestions.slow"]');
       await slow.waitFor({ timeout: 5_000 });

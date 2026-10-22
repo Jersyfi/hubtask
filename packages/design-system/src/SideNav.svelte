@@ -16,6 +16,7 @@
 
   import Icon from './Icon.svelte';
   import type { IconName } from './icons/index.ts';
+  import { labelTokens, type LabelToken } from '../dist/tokens.ts';
   import { focusReturn } from './focus.ts';
   import { openOverlay } from './overlay.ts';
   import Self from './SideNav.svelte';
@@ -28,6 +29,13 @@
   export interface NavNode extends StructureNode {
     /** Narrowed from the module's `string`: a component may only name an icon that exists. */
     readonly icon?: IconName;
+    /**
+     * The place's own colour, one of the ten label tokens: the mark is drawn on the label's tile,
+     * in the label's ink. A place's colour, never a level's (design-system.md §6) - and never alone:
+     * the label beside it, and the symbol on it, say which place it is. A name that is not one of
+     * the ten draws the plain mark.
+     */
+    readonly colorToken?: string;
     readonly children?: readonly NavNode[];
     /**
      * A short figure at the end of the row - what counts in the place, "5 open", "38 %". Text the
@@ -91,6 +99,12 @@
   // Folded, the tree is its roots: what the flyout shows is the rest, and a rail that listed an
   // opened hub's collections as marks would be drawing depth it has no room to distinguish.
   const rows = $derived(flattenTree(nodes, isRail ? [] : expanded));
+
+  /** The node's colour where it is one of the ten; anything else is no colour rather than a guess. */
+  function tileOf(node: NavNode): LabelToken | undefined {
+    const token = node.colorToken;
+    return token && (labelTokens as readonly string[]).includes(token) ? (token as LabelToken) : undefined;
+  }
 
   /** The branch whose flyout is open, in the rail. One at a time, like a menu. */
   let opened = $state<string | null>(null);
@@ -240,7 +254,11 @@
              survives the fold, and an indent in front of it is what would push it out of the
              rail. The indent moves the label instead. -->
         <span class="mark" aria-hidden="true">
-          {#if row.node.icon}<Icon name={row.node.icon} size="sm" />{/if}
+          {#if row.node.icon && tileOf(row.node)}
+            <span class="tile" data-token={tileOf(row.node)}><Icon name={row.node.icon} size="sm" /></span>
+          {:else if row.node.icon}
+            <Icon name={row.node.icon} size="sm" />
+          {/if}
         </span>
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
@@ -370,6 +388,31 @@
     justify-content: center;
     color: var(--text-subtle);
   }
+
+  /* A place's own colour: the label's measured pair, its ink on its tile, so the symbol keeps the
+     contrast the label test holds it to in both modes. The tile fits inside the mark's column,
+     which is why the rail and the tree align whether a row has a colour or not. */
+  .tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    inline-size: var(--sp-250);
+    block-size: var(--sp-250);
+    border-radius: var(--r-sm);
+    background: var(--tile-bg);
+    color: var(--tile-fg);
+  }
+
+  .tile[data-token='slate'] { --tile-bg: var(--label-slate-bg); --tile-fg: var(--label-slate-fg); }
+  .tile[data-token='blue'] { --tile-bg: var(--label-blue-bg); --tile-fg: var(--label-blue-fg); }
+  .tile[data-token='teal'] { --tile-bg: var(--label-teal-bg); --tile-fg: var(--label-teal-fg); }
+  .tile[data-token='green'] { --tile-bg: var(--label-green-bg); --tile-fg: var(--label-green-fg); }
+  .tile[data-token='lime'] { --tile-bg: var(--label-lime-bg); --tile-fg: var(--label-lime-fg); }
+  .tile[data-token='amber'] { --tile-bg: var(--label-amber-bg); --tile-fg: var(--label-amber-fg); }
+  .tile[data-token='orange'] { --tile-bg: var(--label-orange-bg); --tile-fg: var(--label-orange-fg); }
+  .tile[data-token='red'] { --tile-bg: var(--label-red-bg); --tile-fg: var(--label-red-fg); }
+  .tile[data-token='magenta'] { --tile-bg: var(--label-magenta-bg); --tile-fg: var(--label-magenta-fg); }
+  .tile[data-token='violet'] { --tile-bg: var(--label-violet-bg); --tile-fg: var(--label-violet-fg); }
 
   /* The twist where it is a control: no chrome of its own until it is under the pointer, so the
      row still reads as one thing. */

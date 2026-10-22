@@ -285,7 +285,12 @@ test('chromium: the personal directory is refused in the installation provider l
   const directories = dialog.getByLabel(/^Microsoft directories that may sign in/);
   await directories.fill(' 9188040D-6C67-4C5B-B112-36A304B66DAD , 72f988bf-86f1-41af-91ab-2d7cd011db47');
   await dialog.getByText(refusal).first().waitFor({ timeout: 5_000 });
-  assert.equal(await save.isDisabled(), true, 'Save is offered for a list the server refuses');
+  // Save stays offered (UC-WRK-32 check 3); pressed, focus goes to the list the field already
+  // marks, and nothing is sent.
+  assert.equal(await save.isDisabled(), false, 'Save is switched off before it is pressed');
+  await save.click();
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+  assert.equal(posted, 0, 'the refused list was sent');
 
   await admission.selectOption('INVITED_ONLY');
   assert.equal(await dialog.getByText(refusal).count(), 0, 'the sentence stands where the list only narrows');

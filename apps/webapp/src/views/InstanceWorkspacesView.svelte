@@ -27,7 +27,7 @@
   // is the installation: no *New workspace*, *Suspend* or *Delete*, which the server refuses there.
   // *Cancel deletion* stands on a row pending deletion until the removal has begun.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Dialog, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { AdminTenant, ProvisionedTenant, TenantQuotas } from '@hubtask/sync-engine';
@@ -43,6 +43,7 @@
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { focusFirst } from '../lib/forms/missing.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -430,10 +431,15 @@
     <Button tone="subtle" onclick={() => (acting = undefined)}>{t('app.instance.cancel')}</Button>
     <Button
       tone="primary"
-      disabledReason={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : undefined}
       isBusy={working === 'new'}
       busyLabel={t('app.instance.working')}
-      onclick={() =>
+      onclick={() => {
+        // A taken address is said at its field; pressed, focus goes there and nothing is sent
+        // (UC-WRK-32 check 3) - never a switched-off button repeating the field.
+        if (slugTaken) {
+          void tick().then(() => focusFirst(document));
+          return;
+        }
         void run('new', async () => {
           provisioned = await instance.provision({
             slug: slug.trim(),
@@ -442,7 +448,8 @@
             ...(ownerName.trim() === '' ? {} : { owner_display_name: ownerName.trim() }),
             ...(newPlan === '' ? {} : { plan: newPlan }),
           });
-        })}
+        });
+      }}
     >
       {t('app.instance.workspace_create')}
     </Button>

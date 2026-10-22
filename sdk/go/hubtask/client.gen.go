@@ -249,6 +249,51 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AiBudgetStateState.
+const (
+	AiBudgetStateStateNEARLYSPENT AiBudgetStateState = "NEARLY_SPENT"
+	AiBudgetStateStateOFF         AiBudgetStateState = "OFF"
+	AiBudgetStateStateOK          AiBudgetStateState = "OK"
+	AiBudgetStateStateSPENT       AiBudgetStateState = "SPENT"
+)
+
+// Valid indicates whether the value is a known member of the AiBudgetStateState enum.
+func (e AiBudgetStateState) Valid() bool {
+	switch e {
+	case AiBudgetStateStateNEARLYSPENT:
+		return true
+	case AiBudgetStateStateOFF:
+		return true
+	case AiBudgetStateStateOK:
+		return true
+	case AiBudgetStateStateSPENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiFieldsAskFields.
+const (
+	DueDate AiFieldsAskFields = "due_date"
+	Notes   AiFieldsAskFields = "notes"
+	Title   AiFieldsAskFields = "title"
+)
+
+// Valid indicates whether the value is a known member of the AiFieldsAskFields enum.
+func (e AiFieldsAskFields) Valid() bool {
+	switch e {
+	case DueDate:
+		return true
+	case Notes:
+		return true
+	case Title:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiJurisdiction.
 const (
 	AiJurisdictionADEQUACY     AiJurisdiction = "ADEQUACY"
@@ -833,19 +878,19 @@ func (e AutomationRuleUpdateOnError) Valid() bool {
 
 // Defines values for BackupArchiveChecksumStatus.
 const (
-	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
-	OK         BackupArchiveChecksumStatus = "OK"
-	UNVERIFIED BackupArchiveChecksumStatus = "UNVERIFIED"
+	BackupArchiveChecksumStatusMISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
+	BackupArchiveChecksumStatusOK         BackupArchiveChecksumStatus = "OK"
+	BackupArchiveChecksumStatusUNVERIFIED BackupArchiveChecksumStatus = "UNVERIFIED"
 )
 
 // Valid indicates whether the value is a known member of the BackupArchiveChecksumStatus enum.
 func (e BackupArchiveChecksumStatus) Valid() bool {
 	switch e {
-	case MISMATCH:
+	case BackupArchiveChecksumStatusMISMATCH:
 		return true
-	case OK:
+	case BackupArchiveChecksumStatusOK:
 		return true
-	case UNVERIFIED:
+	case BackupArchiveChecksumStatusUNVERIFIED:
 		return true
 	default:
 		return false
@@ -5652,6 +5697,28 @@ type AiAsk struct {
 	Apply *bool `json:"apply,omitempty"`
 }
 
+// AiBudgetState defines model for AiBudgetState.
+type AiBudgetState struct {
+	// RenewsAt When the day's budget has room again - the workspace's next midnight. Null for `OFF`.
+	RenewsAt *time.Time         `json:"renews_at,omitempty"`
+	State    AiBudgetStateState `json:"state"`
+}
+
+// AiBudgetStateState defines model for AiBudgetState.State.
+type AiBudgetStateState string
+
+// AiFieldsAsk How to ask for an entry's fields: propose or apply, as every ask, and which of the three fields to propose. Absent `fields` asks for all three.
+type AiFieldsAsk struct {
+	// Apply As `AiAsk.apply`.
+	Apply *bool `json:"apply,omitempty"`
+
+	// Fields The fields to propose. The answer keeps only these; one that proposes none of them ends the job with `ai.nothing_to_change`.
+	Fields *[]AiFieldsAskFields `json:"fields,omitempty"`
+}
+
+// AiFieldsAskFields defines model for AiFieldsAsk.Fields.
+type AiFieldsAskFields string
+
 // AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
 // `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 type AiJurisdiction string
@@ -7213,6 +7280,12 @@ type DuplicateResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// DuplicatesByTitleQuery defines model for DuplicatesByTitleQuery.
+type DuplicatesByTitleQuery struct {
+	// Title The words of the title being typed. Checked like a title is when an entry is created.
+	Title string `json:"title"`
+}
+
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
 	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
@@ -8486,6 +8559,23 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// Lookalike defines model for Lookalike.
+type Lookalike struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+
+	// Similarity How alike, between the threshold and 1, rounded to three places.
+	Similarity float32 `json:"similarity"`
+
+	// Title The entry's title, as the caller may read it.
+	Title string `json:"title"`
+}
+
+// LookalikePage defines model for LookalikePage.
+type LookalikePage struct {
+	Items []Lookalike `json:"items"`
 }
 
 // ManagedAccountCreate defines model for ManagedAccountCreate.
@@ -13762,7 +13852,7 @@ type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
 // AiSuggestFieldsJSONRequestBody defines body for AiSuggestFields for application/json ContentType.
-type AiSuggestFieldsJSONRequestBody = AiAsk
+type AiSuggestFieldsJSONRequestBody = AiFieldsAsk
 
 // AiSummarizeJSONRequestBody defines body for AiSummarize for application/json ContentType.
 type AiSummarizeJSONRequestBody = AiAsk
@@ -13775,6 +13865,9 @@ type AiTranslateJSONRequestBody = AiTranslateRequest
 
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
+
+// FindDuplicatesByTitleJSONRequestBody defines body for FindDuplicatesByTitle for application/json ContentType.
+type FindDuplicatesByTitleJSONRequestBody = DuplicatesByTitleQuery
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
@@ -15187,6 +15280,14 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 	SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadAiBudgetState How today's AI budget stands, for everybody here
+	//
+	// Whether the source this workspace chose - the model the installation offers, its own model, or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.
+	// Answered to every signed-in person of the workspace, whatever their role, because it is what a person reads before asking AI something; it names no number and nobody's use - those are the administrator's, under `GET /quotas`. It changes nothing and is not audited.
+	//
+	// Corresponds with GET /ai-budget-state (the `ReadAiBudgetState` operationId).
+	ReadAiBudgetState(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetAiPersonOptOutWithBody Whether each person may keep their own content out of AI
 	//
@@ -17456,7 +17557,8 @@ type ClientInterface interface {
 
 	// AiSuggestFieldsWithBody Ask AI to propose this entry's fields
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+	// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+	// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -17465,7 +17567,8 @@ type ClientInterface interface {
 
 	// AiSuggestFields Ask AI to propose this entry's fields
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+	// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+	// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -17493,7 +17596,8 @@ type ClientInterface interface {
 	// AiSummarizeThreadWithBody Ask AI to summarise this entry's discussion
 	//
 	// Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+	// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 	// A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 	//
 	// Takes any type of body and a specified content type.
@@ -17504,7 +17608,8 @@ type ClientInterface interface {
 	// AiSummarizeThread Ask AI to summarise this entry's discussion
 	//
 	// Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+	// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 	// A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 	//
 	// Takes a body of the `application/json` content type.
@@ -17514,7 +17619,7 @@ type ClientInterface interface {
 
 	// AiTranslateWithBody Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -17523,7 +17628,7 @@ type ClientInterface interface {
 
 	// AiTranslate Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -17580,6 +17685,28 @@ type ClientInterface interface {
 	// problem.
 	BulkUpdateWorkItems(ctx context.Context, params *BulkUpdateWorkItemsParams, body BulkUpdateWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// FindDuplicatesByTitleWithBody Which entries look like a title that is not an entry yet
+	//
+	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+	FindDuplicatesByTitleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// FindDuplicatesByTitle Which entries look like a title that is not an entry yet
+	//
+	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+	FindDuplicatesByTitle(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// QueryItemsWithBody The generic query - the basis for list, kanban, and timeline
 	//
 	// One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -17616,6 +17743,7 @@ type ClientInterface interface {
 	//
 	// What a `202 Accepted` handed back is polled here. The answer is the status, how far along it is where the job can say so, where the result will be, and the code of the last failure - and nothing else the queue row holds.
 	// A job belongs to the tenant that asked for it and is answered to that tenant only. A job that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and is indistinguishable from one that never existed.
+	// A question to AI is also answered to the person who asked it, as long as they may still read what it is about - wherever their role sits.
 	//
 	// Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
 	GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -17624,6 +17752,7 @@ type ClientInterface interface {
 	//
 	// Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way finds at its next write that the job is no longer its own and leaves nothing behind. What a pass already put outside the database - bytes at a backup target, a message handed to a mail server - a cancellation cannot take back.
 	// A job that has already finished, failed or been cancelled answers `409`: there is nothing left to stop, and pretending otherwise would let a client believe it had prevented something that had already happened.
+	// A question to AI may also be stopped by the person who asked it, as long as they may still read what it is about. Stopped before its proposal is recorded, it records none; stopped after, its proposal stands - the provider had already answered - and the job reads `CANCELLED` all the same.
 	//
 	// Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 	CancelJob(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -21241,6 +21370,24 @@ func (c *Client) SetOwnAiBudgetWithBody(ctx context.Context, contentType string,
 // Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 func (c *Client) SetOwnAiBudget(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetOwnAiBudgetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadAiBudgetState How today's AI budget stands, for everybody here
+//
+// Whether the source this workspace chose - the model the installation offers, its own model, or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.
+// Answered to every signed-in person of the workspace, whatever their role, because it is what a person reads before asking AI something; it names no number and nobody's use - those are the administrator's, under `GET /quotas`. It changes nothing and is not audited.
+//
+// Corresponds with GET /ai-budget-state (the `ReadAiBudgetState` operationId).
+func (c *Client) ReadAiBudgetState(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadAiBudgetStateRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -26209,7 +26356,8 @@ func (c *Client) RetainItem(ctx context.Context, itemId openapi_types.UUID, reqE
 
 // AiSuggestFieldsWithBody Ask AI to propose this entry's fields
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 //
 // Takes any type of body and a specified content type.
 //
@@ -26228,7 +26376,8 @@ func (c *Client) AiSuggestFieldsWithBody(ctx context.Context, itemId ItemId, con
 
 // AiSuggestFields Ask AI to propose this entry's fields
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -26286,7 +26435,8 @@ func (c *Client) AiSummarize(ctx context.Context, itemId ItemId, body AiSummariz
 // AiSummarizeThreadWithBody Ask AI to summarise this entry's discussion
 //
 // Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 // A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 //
 // Takes any type of body and a specified content type.
@@ -26307,7 +26457,8 @@ func (c *Client) AiSummarizeThreadWithBody(ctx context.Context, itemId ItemId, c
 // AiSummarizeThread Ask AI to summarise this entry's discussion
 //
 // Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 // A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 //
 // Takes a body of the `application/json` content type.
@@ -26327,7 +26478,7 @@ func (c *Client) AiSummarizeThread(ctx context.Context, itemId ItemId, body AiSu
 
 // AiTranslateWithBody Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes any type of body and a specified content type.
 //
@@ -26346,7 +26497,7 @@ func (c *Client) AiTranslateWithBody(ctx context.Context, itemId ItemId, content
 
 // AiTranslate Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -26453,6 +26604,48 @@ func (c *Client) BulkUpdateWorkItems(ctx context.Context, params *BulkUpdateWork
 	return c.Client.Do(req)
 }
 
+// FindDuplicatesByTitleWithBody Which entries look like a title that is not an entry yet
+//
+// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+func (c *Client) FindDuplicatesByTitleWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFindDuplicatesByTitleRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// FindDuplicatesByTitle Which entries look like a title that is not an entry yet
+//
+// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+func (c *Client) FindDuplicatesByTitle(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewFindDuplicatesByTitleRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // QueryItemsWithBody The generic query - the basis for list, kanban, and timeline
 //
 // One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -26509,6 +26702,7 @@ func (c *Client) QueryItems(ctx context.Context, body QueryItemsJSONRequestBody,
 //
 // What a `202 Accepted` handed back is polled here. The answer is the status, how far along it is where the job can say so, where the result will be, and the code of the last failure - and nothing else the queue row holds.
 // A job belongs to the tenant that asked for it and is answered to that tenant only. A job that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and is indistinguishable from one that never existed.
+// A question to AI is also answered to the person who asked it, as long as they may still read what it is about - wherever their role sits.
 //
 // Corresponds with GET /jobs/{jobId} (the `GetJob` operationId).
 func (c *Client) GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -26527,6 +26721,7 @@ func (c *Client) GetJob(ctx context.Context, jobId JobId, reqEditors ...RequestE
 //
 // Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way finds at its next write that the job is no longer its own and leaves nothing behind. What a pass already put outside the database - bytes at a backup target, a message handed to a mail server - a cancellation cannot take back.
 // A job that has already finished, failed or been cancelled answers `409`: there is nothing left to stop, and pretending otherwise would let a client believe it had prevented something that had already happened.
+// A question to AI may also be stopped by the person who asked it, as long as they may still read what it is about. Stopped before its proposal is recorded, it records none; stopped after, its proposal stands - the provider had already answered - and the job reads `CANCELLED` all the same.
 //
 // Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 func (c *Client) CancelJob(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -32442,6 +32637,33 @@ func NewSetOwnAiBudgetRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewReadAiBudgetStateRequest constructs an http.Request for the ReadAiBudgetState method
+func NewReadAiBudgetStateRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-budget-state")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -41696,6 +41918,46 @@ func NewBulkUpdateWorkItemsRequestWithBody(server string, params *BulkUpdateWork
 	return req, nil
 }
 
+// NewFindDuplicatesByTitleRequest calls the generic FindDuplicatesByTitle builder with application/json body
+func NewFindDuplicatesByTitleRequest(server string, body FindDuplicatesByTitleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewFindDuplicatesByTitleRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewFindDuplicatesByTitleRequestWithBody constructs an http.Request for the FindDuplicatesByTitle method, with any body, and a specified content type
+func NewFindDuplicatesByTitleRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items:duplicates")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewQueryItemsRequest calls the generic QueryItems builder with application/json body
 func NewQueryItemsRequest(server string, body QueryItemsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -47227,6 +47489,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /ai-budget (the `SetOwnAiBudget` operationId).
 	SetOwnAiBudgetWithResponse(ctx context.Context, body SetOwnAiBudgetJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAiBudgetResult, error)
 
+	// ReadAiBudgetStateWithResponse How today's AI budget stands, for everybody here
+	//
+	// Whether the source this workspace chose - the model the installation offers, its own model, or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.
+	// Answered to every signed-in person of the workspace, whatever their role, because it is what a person reads before asking AI something; it names no number and nobody's use - those are the administrator's, under `GET /quotas`. It changes nothing and is not audited.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /ai-budget-state (the `ReadAiBudgetState` operationId).
+	ReadAiBudgetStateWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAiBudgetStateResult, error)
+
 	// SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
 	//
 	// `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -49749,7 +50021,8 @@ type ClientWithResponsesInterface interface {
 
 	// AiSuggestFieldsWithBodyWithResponse Ask AI to propose this entry's fields
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+	// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+	// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -49758,7 +50031,8 @@ type ClientWithResponsesInterface interface {
 
 	// AiSuggestFieldsWithResponse Ask AI to propose this entry's fields
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+	// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+	// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -49786,7 +50060,8 @@ type ClientWithResponsesInterface interface {
 	// AiSummarizeThreadWithBodyWithResponse Ask AI to summarise this entry's discussion
 	//
 	// Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+	// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 	// A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -49797,7 +50072,8 @@ type ClientWithResponsesInterface interface {
 	// AiSummarizeThreadWithResponse Ask AI to summarise this entry's discussion
 	//
 	// Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+	// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+	// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 	// A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -49807,7 +50083,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiTranslateWithBodyWithResponse Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -49816,7 +50092,7 @@ type ClientWithResponsesInterface interface {
 
 	// AiTranslateWithResponse Read this entry in another language
 	//
-	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+	// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -49879,6 +50155,28 @@ type ClientWithResponsesInterface interface {
 	// problem.
 	BulkUpdateWorkItemsWithResponse(ctx context.Context, params *BulkUpdateWorkItemsParams, body BulkUpdateWorkItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*BulkUpdateWorkItemsResult, error)
 
+	// FindDuplicatesByTitleWithBodyWithResponse Which entries look like a title that is not an entry yet
+	//
+	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+	FindDuplicatesByTitleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FindDuplicatesByTitleResult, error)
+
+	// FindDuplicatesByTitleWithResponse Which entries look like a title that is not an entry yet
+	//
+	// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+	// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+	// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+	FindDuplicatesByTitleWithResponse(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*FindDuplicatesByTitleResult, error)
+
 	// QueryItemsWithBodyWithResponse The generic query - the basis for list, kanban, and timeline
 	//
 	// One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -49915,6 +50213,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// What a `202 Accepted` handed back is polled here. The answer is the status, how far along it is where the job can say so, where the result will be, and the code of the last failure - and nothing else the queue row holds.
 	// A job belongs to the tenant that asked for it and is answered to that tenant only. A job that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and is indistinguishable from one that never existed.
+	// A question to AI is also answered to the person who asked it, as long as they may still read what it is about - wherever their role sits.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -49925,6 +50224,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way finds at its next write that the job is no longer its own and leaves nothing behind. What a pass already put outside the database - bytes at a backup target, a message handed to a mail server - a cancellation cannot take back.
 	// A job that has already finished, failed or been cancelled answers `409`: there is nothing left to stop, and pretending otherwise would let a client believe it had prevented something that had already happened.
+	// A question to AI may also be stopped by the person who asked it, as long as they may still read what it is about. Stopped before its proposal is recorded, it records none; stopped after, its proposal stands - the provider had already answered - and the job reads `CANCELLED` all the same.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -54871,18 +55171,11 @@ type SetAiArrivalProposalsResult struct {
 	HTTPResponse *http.Response
 	// JSON200 the response for an HTTP 200 `application/json` response
 	JSON200 *AiSource
-	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
-	ApplicationproblemJSON4XX *Problem
 }
 
 // GetJSON200 returns the response for an HTTP 200 `application/json` response
 func (r SetAiArrivalProposalsResult) GetJSON200() *AiSource {
 	return r.JSON200
-}
-
-// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
-func (r SetAiArrivalProposalsResult) GetApplicationproblemJSON4XX() *Problem {
-	return r.ApplicationproblemJSON4XX
 }
 
 // GetBody returns the raw response body bytes
@@ -54956,6 +55249,54 @@ func (r SetOwnAiBudgetResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetOwnAiBudgetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadAiBudgetStateResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiBudgetState
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadAiBudgetStateResult) GetJSON200() *AiBudgetState {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadAiBudgetStateResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadAiBudgetStateResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadAiBudgetStateResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadAiBudgetStateResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadAiBudgetStateResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -64491,6 +64832,61 @@ func (r BulkUpdateWorkItemsResult) ContentType() string {
 	return ""
 }
 
+// FindDuplicatesByTitleResult200Headers the declared response headers of an HTTP 200 response for FindDuplicatesByTitle
+type FindDuplicatesByTitleResult200Headers struct {
+	CacheControl *string
+}
+
+type FindDuplicatesByTitleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *LookalikePage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *FindDuplicatesByTitleResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r FindDuplicatesByTitleResult) GetJSON200() *LookalikePage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r FindDuplicatesByTitleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r FindDuplicatesByTitleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r FindDuplicatesByTitleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r FindDuplicatesByTitleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r FindDuplicatesByTitleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type QueryItemsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -70782,6 +71178,22 @@ func (c *ClientWithResponses) SetOwnAiBudgetWithResponse(ctx context.Context, bo
 	return ParseSetOwnAiBudgetResult(rsp)
 }
 
+// ReadAiBudgetStateWithResponse How today's AI budget stands, for everybody here
+//
+// Whether the source this workspace chose - the model the installation offers, its own model, or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.
+// Answered to every signed-in person of the workspace, whatever their role, because it is what a person reads before asking AI something; it names no number and nobody's use - those are the administrator's, under `GET /quotas`. It changes nothing and is not audited.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /ai-budget-state (the `ReadAiBudgetState` operationId).
+func (c *ClientWithResponses) ReadAiBudgetStateWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadAiBudgetStateResult, error) {
+	rsp, err := c.ReadAiBudgetState(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadAiBudgetStateResult(rsp)
+}
+
 // SetAiPersonOptOutWithBodyWithResponse Whether each person may keep their own content out of AI
 //
 // `OFFERED`, the default, lets each person keep what they authored out of every prompt. `NOT_OFFERED` makes AI part of everybody's work: it needs a legal basis that does not rest on each person's agreement - `EMPLOYMENT_CONTRACT`, `WORKS_AGREEMENT` or `LEGAL_OBLIGATION` - and is refused without one (`ai.opt_out_basis_required`). People then see the basis and whom to ask instead of the switch; an objection recorded earlier stops taking effect, and each person it affects is told once. Where the installation or a plan holds the workspace at `OFFERED`, `NOT_OFFERED` is refused with `auth.policy_locked`. Going back to `OFFERED` is always allowed. Auditable.
@@ -74918,7 +75330,8 @@ func (c *ClientWithResponses) RetainItemWithResponse(ctx context.Context, itemId
 
 // AiSuggestFieldsWithBodyWithResponse Ask AI to propose this entry's fields
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -74933,7 +75346,8 @@ func (c *ClientWithResponses) AiSuggestFieldsWithBodyWithResponse(ctx context.Co
 
 // AiSuggestFieldsWithResponse Ask AI to propose this entry's fields
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+// Asks the workspace's AI provider to propose a title, notes and a due date for one entry - what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names. Asynchronous and answered `202`; a workspace with no provider or no consent is answered `503` with `ai.unavailable`. A field outside the three is refused with `suggestions.field_not_offered` (422) and nothing is queued.
+// Asked by whoever may change the entry: the permission is decided along the entry's own path, so a role held on its hub, its collection or the entry itself counts.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -74979,7 +75393,8 @@ func (c *ClientWithResponses) AiSummarizeWithResponse(ctx context.Context, itemI
 // AiSummarizeThreadWithBodyWithResponse Ask AI to summarise this entry's discussion
 //
 // Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 // A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -74996,7 +75411,8 @@ func (c *ClientWithResponses) AiSummarizeThreadWithBodyWithResponse(ctx context.
 // AiSummarizeThreadWithResponse Ask AI to summarise this entry's discussion
 //
 // Asks the workspace's AI provider to summarise the comments on one entry — the discussion rather than the entry. Oldest first and **bounded**: a thread of four hundred comments is a token problem rather than a summary problem, and the bound is part of the design rather than a surprise at the provider.
-// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody accepts or dismisses.
+// Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent. The answer appears under `GET /suggestions` as a proposal for the entry's notes, which somebody who may change the entry accepts or dismisses.
+// **A reading aid**: asked by everybody who may read the entry, not only by those who may change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes, so it asks what changing the entry asks. A summary is judged against the entry's title and notes, not against the thread, so a reply does not mark it stale: it says what the discussion came to when it was made, which its `produced_at` names.
 // A comment is somebody's writing and travels as content, never as instruction. Nothing about it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry; what the trail records is that somebody asked, about what, with which prompt.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -75012,7 +75428,7 @@ func (c *ClientWithResponses) AiSummarizeThreadWithResponse(ctx context.Context,
 
 // AiTranslateWithBodyWithResponse Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -75027,7 +75443,7 @@ func (c *ClientWithResponses) AiTranslateWithBodyWithResponse(ctx context.Contex
 
 // AiTranslateWithResponse Read this entry in another language
 //
-// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
+// Asks the workspace's AI provider for the entry's title and notes in a language the caller reads. **Display only, and nothing is stored**: user content is never translated in place, no suggestion is recorded, and there is nothing to accept — a person reads the answer and it is gone. Offered to everybody who may read the entry. A caller who stops waiting may close the request: the provider call ends with it. Synchronous, the way the search's meaning is, and bounded the same way: the caller is waiting, so the call has a short timeout and every way of not getting an answer — no consent, no provider, a spent budget, an open breaker, a slow model — is `503` with `ai.unavailable`; a spent budget adds the parameters `reason` (`budget_spent`) and `renews_at`, the moment it has room again. Reading the entry is the permission asked, because reading it is what this does; the workspace's consent to send its content to a provider is asked after it. The audit records that a translation was asked for an entry and into which language, never the text.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -75120,6 +75536,40 @@ func (c *ClientWithResponses) BulkUpdateWorkItemsWithResponse(ctx context.Contex
 	return ParseBulkUpdateWorkItemsResult(rsp)
 }
 
+// FindDuplicatesByTitleWithBodyWithResponse Which entries look like a title that is not an entry yet
+//
+// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+func (c *ClientWithResponses) FindDuplicatesByTitleWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*FindDuplicatesByTitleResult, error) {
+	rsp, err := c.FindDuplicatesByTitleWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFindDuplicatesByTitleResult(rsp)
+}
+
+// FindDuplicatesByTitleWithResponse Which entries look like a title that is not an entry yet
+//
+// Answers the entries whose meaning sits near the words of a title somebody is typing, before the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the same request may be repeated, so it takes no `Idempotency-Key` and answers `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is their content, and a query string travels through logs that a body does not.
+// The words are embedded by the workspace's provider the way a search's words are - the same consent, the same rule for people who keep their content out, the same short wait - and every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+// The nearest entries at or above the threshold the duplicates of an entry use, at most five, nearest first, each narrowed to what the caller may read along its own path - a role held on one hub finds that hub's entries, and an entry in a private hub the caller is outside of is never answered.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
+func (c *ClientWithResponses) FindDuplicatesByTitleWithResponse(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*FindDuplicatesByTitleResult, error) {
+	rsp, err := c.FindDuplicatesByTitle(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseFindDuplicatesByTitleResult(rsp)
+}
+
 // QueryItemsWithBodyWithResponse The generic query - the basis for list, kanban, and timeline
 //
 // One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -75168,6 +75618,7 @@ func (c *ClientWithResponses) QueryItemsWithResponse(ctx context.Context, body Q
 //
 // What a `202 Accepted` handed back is polled here. The answer is the status, how far along it is where the job can say so, where the result will be, and the code of the last failure - and nothing else the queue row holds.
 // A job belongs to the tenant that asked for it and is answered to that tenant only. A job that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and is indistinguishable from one that never existed.
+// A question to AI is also answered to the person who asked it, as long as they may still read what it is about - wherever their role sits.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -75184,6 +75635,7 @@ func (c *ClientWithResponses) GetJobWithResponse(ctx context.Context, jobId JobI
 //
 // Cooperative, not a kill: it moves the job to `CANCELLED`, and a pass that is under way finds at its next write that the job is no longer its own and leaves nothing behind. What a pass already put outside the database - bytes at a backup target, a message handed to a mail server - a cancellation cannot take back.
 // A job that has already finished, failed or been cancelled answers `409`: there is nothing left to stop, and pretending otherwise would let a client believe it had prevented something that had already happened.
+// A question to AI may also be stopped by the person who asked it, as long as they may still read what it is about. Stopped before its proposal is recorded, it records none; stopped after, its proposal stands - the provider had already answered - and the job reads `CANCELLED` all the same.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -79825,13 +80277,6 @@ func ParseSetAiArrivalProposalsResult(rsp *http.Response) (*SetAiArrivalProposal
 		}
 		response.JSON200 = &dest
 
-	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
-		var dest Problem
-		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
-		}
-		response.ApplicationproblemJSON4XX = &dest
-
 	}
 
 	return response, nil
@@ -79853,6 +80298,39 @@ func ParseSetOwnAiBudgetResult(rsp *http.Response) (*SetOwnAiBudgetResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest []QuotaStanding
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadAiBudgetStateResult parses an HTTP response from a ReadAiBudgetStateWithResponse call
+func ParseReadAiBudgetStateResult(rsp *http.Response) (*ReadAiBudgetStateResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadAiBudgetStateResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiBudgetState
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -86853,6 +87331,52 @@ func ParseBulkUpdateWorkItemsResult(rsp *http.Response) (*BulkUpdateWorkItemsRes
 		}
 		response.ApplicationproblemJSON4XX = &dest
 
+	}
+
+	return response, nil
+}
+
+// ParseFindDuplicatesByTitleResult parses an HTTP response from a FindDuplicatesByTitleWithResponse call
+func ParseFindDuplicatesByTitleResult(rsp *http.Response) (*FindDuplicatesByTitleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &FindDuplicatesByTitleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest LookalikePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers FindDuplicatesByTitleResult200Headers
+		if values := rsp.Header.Values("Cache-Control"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "Cache-Control", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.CacheControl = &value
+		}
+		response.Headers200 = &headers
 	}
 
 	return response, nil

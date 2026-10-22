@@ -761,3 +761,32 @@ func TestNothingIsClaimedWhileTheSchemaIsBehind(t *testing.T) {
 		t.Errorf("caught up: claimed %d, ran %d; want the job", claimed, ran)
 	}
 }
+
+// A job that is no longer this pass's - stopped by the person who asked it, or taken over after
+// its lease ran out - ends quietly: nothing is written over the row that says what is true, no
+// retry, no dead letter, no failure counted (UC-AI-04 check 9). Both paths.
+func TestAJobNoLongerHeldEndsQuietly(t *testing.T) {
+	lost := handlerFunc(func(context.Context, queue.Job) (queue.Result, error) {
+		return queue.Result{}, shared.ErrConflict.WithDetail("queue.lease_lost")
+	})
+	for name, handler := range map[string]queue.Handler{
+		"wrapped": lost, "detached": detachedHandler{lost},
+	} {
+		t.Run(name, func(t *testing.T) {
+			jobs := newQueue()
+			signals := &signalsDouble{}
+
+			runner(jobs, &unitOfWork{}, handler, signals).execute(t.Context(), job(3))
+
+			if len(jobs.failures) != 0 {
+				t.Errorf("a stopped job was written as failed: %+v", jobs.failures)
+			}
+			if len(jobs.completed) != 0 {
+				t.Error("a stopped job was completed")
+			}
+			if len(signals.failed) != 0 || len(signals.deadLetters) != 0 || len(signals.finished) != 0 {
+				t.Errorf("a stop was counted: %v %v %v", signals.failed, signals.deadLetters, signals.finished)
+			}
+		})
+	}
+}

@@ -79,6 +79,12 @@ type asking struct {
 	// the ordinary AI question.
 	JobKind  queue.Kind
 	Attempts int
+	// Reads marks a reading aid (UC-AI-04 check 8): asked by everybody who may read the entry,
+	// unless the answer is to be applied, which changes it.
+	Reads bool
+	// Fields are the fields of a field set the person asked about, travelling on the job; empty
+	// asks for every field the prompt keeps.
+	Fields []string
 }
 
 // queue checks and queues one question.
@@ -107,8 +113,42 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 		TargetType: suggestionTarget,
 		TargetID:   q.TargetID,
 	}
-	if q.Access != nil {
+	// A question about an entry reads the entry first and asks its permission along the entry's
+	// own path, so that a role held on its hub, its collection or the entry itself counts
+	// (domain-model.md §3.2, P-05). The read is the existence and visibility question at once: an
+	// entry the caller cannot read answers not-found exactly as reading it does, with the refusal
+	// that read records - so nothing is learned from asking first.
+	read := false
+	switch {
+	case q.Access != nil:
 		permission = *q.Access
+	case q.TargetType == domain.TargetWorkItem:
+		var subject Subject
+		if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			var err error
+			subject, err = c.Targets.Subject(ctx, actor, q.TargetType, q.TargetID)
+			return err
+		}); err != nil {
+			return shared.ID(""), err
+		}
+		read = true
+		if q.Reads && !q.Apply {
+			// A reading aid admits a token that reads entries, and one that asks for suggestions
+			// as it did before the aid was offered to readers: no token that worked stops working.
+			permission = readsEntry(subject, q.TargetID, q.Action, q.TargetID)
+			permission.TokenScope = suggestionsRead
+			if actor.HasScope(suggestionsWrite) && !actor.HasScope(suggestionsRead) {
+				permission.TokenScope = suggestionsWrite
+			}
+		} else {
+			permission = writesEntry(subject, q.TargetID, q.Action, q.TargetID)
+			permission.TokenScope = suggestionsWrite
+		}
+	case q.TargetType == domain.TargetContainer:
+		// About a collection: along its own path, so that a role on its hub counts; the
+		// authoriser fills in the hub, and answers an outsider of a private hub that there is no
+		// such collection.
+		permission.Path = collectionPath(q.TargetID)
 	}
 	permission.Action = q.Action
 	if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
@@ -139,8 +179,10 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 	// below: the target's reader records its refusal where it is asked from, and inside a
 	// read-write transaction that this refusal then rolls back, the DENIED entry went with it.
 	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		if _, err := c.Targets.Digest(ctx, actor, q.TargetType, q.TargetID); err != nil {
-			return err
+		if !read {
+			if _, err := c.Targets.Digest(ctx, actor, q.TargetType, q.TargetID); err != nil {
+				return err
+			}
 		}
 		return c.workable(ctx, actor, question)
 	}); err != nil {
@@ -166,6 +208,13 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 			// and it is written only when it is true, so a job without it is a proposal - an AI
 			// result is a suggestion unless somebody said otherwise (ai-first.md §2).
 			payload["apply"] = true
+		}
+		if len(q.Fields) > 0 {
+			named := make([]any, 0, len(q.Fields))
+			for _, field := range q.Fields {
+				named = append(named, field)
+			}
+			payload["fields"] = named
 		}
 		if q.Scope.Type != "" {
 			// References, as everything a job carries: the scope's kind and its container.

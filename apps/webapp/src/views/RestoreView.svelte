@@ -24,7 +24,7 @@
   // an absence: they cross or create a tenant, which is the installation operator's business. They
   // are not in `MODES` at all, so nothing here can compose one.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Badge,
@@ -58,6 +58,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing, type Requirement } from '../lib/forms/missing.ts';
   import { mayHere } from '../lib/data/capability.svelte.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -148,13 +149,27 @@
   const chosenMode = $derived(mode as Mode);
   const destructive = $derived(isDestructive(chosenMode));
 
-  /** Whether the three doors are all open. Read once, so the button and the hint agree. */
-  const doorsOpen = $derived(
-    (chosenMode !== 'SELECTIVE' || chosen.length > 0) &&
-      (!destructive ||
-        (typedName.trim() === name && name !== '' && costAcknowledged &&
-          (safetyBackup || safetyOffAcknowledged))),
-  );
+  /**
+   * What the rehearsal still needs, in the order the form asks it: a target, an archive, a
+   * selection, and for a destructive mode the three doors - the cost accepted, the name typed, the
+   * safety copy or its refusal. Never a switched-off button: pressed, each missing one is marked and
+   * focus goes to the first (UC-WRK-32 check 3).
+   */
+  function requirements(): Requirement[] {
+    return [
+      { kind: 'field', key: 'target', code: 'app.restore.target_needed', isFilled: targetId !== '' },
+      { kind: 'field', key: 'archive', code: 'app.restore.archive_needed', isFilled: targetId === '' || archiveId !== '' },
+      { kind: 'at-least-one', key: 'selection', code: 'app.restore.selection_needed', chosen: chosenMode === 'SELECTIVE' ? chosen.length : 1 },
+      { kind: 'field', key: 'cost', code: 'app.restore.cost_needed', isFilled: !destructive || costAcknowledged },
+      { kind: 'field', key: 'name', code: 'app.restore.name_needed', isFilled: !destructive || (typedName.trim() === name && name !== '') },
+      { kind: 'field', key: 'safety', code: 'app.restore.safety_needed', isFilled: !destructive || safetyBackup || safetyOffAcknowledged },
+    ];
+  }
+  let missing = $state<Missing>({});
+  let form = $state<HTMLFormElement | undefined>(undefined);
+  /** A field's mark while its requirement is still unmet. */
+  const markOf = (key: string): string | undefined =>
+    missing[key] && key in check(requirements()) ? t(missing[key]) : undefined;
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;
@@ -214,7 +229,11 @@
   /** The rehearsal. Writes nothing, and is the only way to reach the second button. */
   async function rehearse(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!targetId || !archiveId) return;
+    missing = check(requirements());
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(form));
+      return;
+    }
     await attempt(async () => {
       const request = compose();
       // The proof is demanded for a destructive mode on the dry run too — the server decides, and
@@ -299,7 +318,8 @@
     {/if}
 
     <WorkspaceGate permission="STRUCTURE">
-      <form class="panel" onsubmit={rehearse}>
+      {#snippet actions()}
+      <form class="panel" bind:this={form} onsubmit={rehearse}>
         <Stack gap="150">
           <h2 class="section">{t('app.restore.what_title')}</h2>
 
@@ -308,6 +328,7 @@
             bind:value={targetId}
             placeholder={t('app.restore.choose_target')}
             options={targets.map((target) => ({ value: target.id, label: target.name }))}
+            error={markOf('target')}
           />
 
           {#if targetId}
@@ -322,6 +343,7 @@
               <Select
                 label={t('app.restore.archive')}
                 bind:value={archiveId}
+                error={markOf('archive')}
                 placeholder={t('app.restore.choose_archive')}
                 options={archives.data.map((archive) => ({
                   value: archive.path,
@@ -361,8 +383,9 @@
           {/if}
 
           {#if mode === 'SELECTIVE'}
-            <fieldset class="selection">
+            <fieldset class="selection" data-invalid={markOf('selection') ? '' : undefined} aria-describedby={markOf('selection') ? 'restore-selection-error' : undefined}>
               <legend>{t('app.restore.selection')}</legend>
+              {#if markOf('selection')}<p class="failure" id="restore-selection-error">{markOf('selection')}</p>{/if}
               <!-- Composed from what is here rather than typed: an archive holds identifiers, and an
                    identifier somebody types is an identifier somebody mistypes. -->
               {#each containers.hubs as container (container.id)}
@@ -407,12 +430,14 @@
             <Checkbox
               label={t('app.restore.acknowledge_cost')}
               bind:checked={costAcknowledged}
+              error={markOf('cost')}
             />
 
             <Input
               label={t('app.restore.type_name', { name })}
               hint={t('app.restore.type_name_hint')}
               bind:value={typedName}
+              error={markOf('name')}
             />
 
             <Switch
@@ -429,6 +454,7 @@
                   <Checkbox
                     label={t('app.restore.acknowledge_no_safety')}
                     bind:checked={safetyOffAcknowledged}
+                    error={markOf('safety')}
                   />
                 </Stack>
               </Banner>
@@ -441,7 +467,6 @@
               tone="primary"
               isBusy={isWorking}
               busyLabel={t('app.restore.rehearsing')}
-              disabledReason={doorsOpen ? undefined : t('app.restore.doors_closed')}
             >
               {t('app.restore.rehearse')}
             </Button>
@@ -449,6 +474,7 @@
           <p class="quiet small">{t('app.restore.rehearse_note')}</p>
         </Stack>
       </form>
+      {/snippet}
     </WorkspaceGate>
 
     {#if watch}

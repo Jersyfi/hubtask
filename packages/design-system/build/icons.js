@@ -150,6 +150,35 @@ export const DECLARED = {
     // not share a glyph where they sit in one column.
     'lock',
   ],
+  'A hub or collection of its own': [
+    // The symbols a person chooses for a hub or a collection (UC-WRK-33): areas of a life and of
+    // work, each a noun a person would name the place by. A level never takes one of these - the
+    // marks of the two container types stay the default for a place nobody chose for.
+    'house',
+    'briefcase',
+    'heart',
+    'book-open',
+    'graduation-cap',
+    'dumbbell',
+    'stethoscope',
+    'plane',
+    'bike',
+    'shopping-cart',
+    'wallet',
+    'wrench',
+    'hammer',
+    'code',
+    'lightbulb',
+    'rocket',
+    'flag',
+    'music',
+    'camera',
+    'palette',
+    'leaf',
+    'paw-print',
+    'utensils',
+    'gift',
+  ],
   'The AI treatment': [
     // The one mark a proposal carries beside its heading. Rule 3: the surface and the border say
     // "not the reader's own" by colour, and this says it in a shape. Not a logo, not a badge -

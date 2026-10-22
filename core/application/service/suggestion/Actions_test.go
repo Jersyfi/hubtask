@@ -135,10 +135,53 @@ func TestTheThreeActionsAreNamedAsAutomationExpects(t *testing.T) {
 			for _, field := range testCase.descriptor.Input {
 				declared = append(declared, field.Name)
 			}
-			if len(declared) != 2 || declared[0] != "item_id" || declared[1] != "apply" {
+			if len(declared) < 2 || declared[0] != "item_id" || declared[1] != "apply" {
+				t.Errorf("the input is %v", declared)
+			}
+			// The field set alone may be asked for named fields (UC-AI-04 check 6).
+			if want := testCase.action == "AI_SUGGEST_FIELDS"; want != (len(declared) == 3 && declared[2] == "fields") {
 				t.Errorf("the input is %v", declared)
 			}
 		})
+	}
+}
+
+// Each field's ✦ asks for its own field: the names travel on the job, and a name the question does
+// not propose is refused before anything is asked.
+func TestAFieldSetIsAskedForTheNamedFields(t *testing.T) {
+	a := newAsker(true)
+	if _, err := (AiSuggestFields(a.ask)).invoke(context.Background(), person(),
+		usecase.Input{"item_id": targetID.String(), "fields": []any{"due_date"}}); err != nil {
+		t.Fatalf("asking for the date: %v", err)
+	}
+	if len(a.jobs.queued) != 1 {
+		t.Fatalf("%d jobs", len(a.jobs.queued))
+	}
+	if fields, _ := a.jobs.queued[0].Payload["fields"].([]any); len(fields) != 1 || fields[0] != "due_date" {
+		t.Errorf("the job carries %v", a.jobs.queued[0].Payload["fields"])
+	}
+
+	_, err := (AiSuggestFields(a.ask)).invoke(context.Background(), person(),
+		usecase.Input{"item_id": targetID.String(), "fields": []any{"subtasks"}})
+	if got := shared.AsError(err); got == nil || got.DetailCode != "suggestions.field_not_offered" {
+		t.Errorf("asking for subtasks answered %v", err)
+	}
+	if len(a.jobs.queued) != 1 {
+		t.Error("a refused field was queued")
+	}
+}
+
+// The producer keeps only the fields asked about; an answer with none of them is empty.
+func TestOnlyTheAskedFieldsAreKept(t *testing.T) {
+	answer := map[string]any{"title": "T", "notes": "N", "due_date": "2030-01-02"}
+	if kept := onlyAsked(answer, []string{"due_date"}); len(kept) != 1 || kept["due_date"] != "2030-01-02" {
+		t.Errorf("kept %v", kept)
+	}
+	if kept := onlyAsked(map[string]any{"title": "T"}, []string{"notes"}); len(kept) != 0 {
+		t.Errorf("kept %v from an answer without the asked field", kept)
+	}
+	if kept := onlyAsked(answer, nil); len(kept) != 3 {
+		t.Errorf("nothing named kept %v", kept)
 	}
 }
 

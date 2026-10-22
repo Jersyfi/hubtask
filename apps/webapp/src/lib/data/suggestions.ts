@@ -35,59 +35,6 @@ export type Operation =
   | 'summarize-thread'
   | 'duplicates';
 
-export const OPERATIONS: readonly Operation[] = [
-  'suggest-fields',
-  'summarize',
-  'classify',
-  'decompose',
-  'summarize-thread',
-  'duplicates',
-];
-
-/** What the menu needs to know to offer an operation. */
-export interface Offer {
-  readonly operation: Operation;
-  /** Why it cannot be asked right now, or nothing when it can. A message code, rendered by the caller. */
-  readonly disabledCode?: string;
-}
-
-/**
- * Which operations the installation and the entry allow, with the reason for each that does not.
- *
- * `ai_suggestions` off means no menu at all - the caller renders nothing, and this answers an
- * empty list so that a caller who forgot the rule still offers nothing (design-system.md §4,
- * CapabilityGate: absence is absence). `semantic_search` off means `duplicates` has no vectors to compare, which the contract
- * answers `204` for; it is listed with the reason rather than omitted, because a person who has
- * seen it elsewhere would otherwise look for it. An entry without comments has no discussion to
- * summarise, and an archived entry is not written to, so nothing that accepts into it is asked.
- */
-export function offersFor(
-  features: Readonly<Record<string, unknown>> | undefined,
-  item: Pick<WorkItem, 'archived_at'>,
-  hasComments: boolean,
-  choices: boolean | 'reading' = true,
-): readonly Offer[] {
-  if (features?.ai_suggestions !== true) return [];
-  const frozen = item.archived_at ? 'app.entries.archived' : undefined;
-  return OPERATIONS.map((operation) => {
-    if (operation === 'duplicates') {
-      return {
-        operation,
-        disabledCode: features.semantic_search === true ? undefined : 'app.suggestions.no_semantic_search',
-      };
-    }
-    if (operation === 'summarize-thread' && !hasComments) {
-      return { operation, disabledCode: 'app.suggestions.no_comments' };
-    }
-    if (operation === 'classify' && !frozen && choices !== true) {
-      // The server refuses a classification with nothing to choose from (`ai.nothing_to_choose_from`),
-      // reading the same three lists; until they are read, nothing is offered as possible.
-      return { operation, disabledCode: choices === 'reading' ? 'app.suggestions.choices_reading' : 'app.suggestions.no_choices' };
-    }
-    return { operation, disabledCode: frozen };
-  });
-}
-
 /** The custom field kinds a classification may choose a value for - the closed ones. */
 const CLOSED_KINDS: ReadonlySet<string> = new Set(['SELECT', 'MULTI_SELECT', 'BOOL']);
 

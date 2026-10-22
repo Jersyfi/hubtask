@@ -175,7 +175,7 @@
   const kinds = $derived<readonly DataKind[]>(manifest.value?.retention_data_kinds ?? []);
   const chosenKind = $derived(kinds.find((kind) => kind.data_kind === draftKind));
   /** What this build can do to the chosen kind. Empty means the catalogue names it and nothing removes it. */
-  const actions = $derived<readonly string[]>(chosenKind?.actions ?? []);
+  const kindActions = $derived<readonly string[]>(chosenKind?.actions ?? []);
 
   const when = (at: string | null | undefined) =>
     at ? formatDateTime(at, messages.locale) : undefined;
@@ -431,6 +431,7 @@
       {/if}
 
       <WorkspaceGate permission="DELETE_CONTAINER">
+        {#snippet actions()}
         <form class="panel" onsubmit={write}>
           <Stack gap="150">
             <h3 class="section">{t('app.retention.write_title')}</h3>
@@ -444,7 +445,7 @@
                 label: kindWord(kind.data_kind),
               }))}
             />
-            {#if draftKind && actions.length === 0}
+            {#if draftKind && kindActions.length === 0}
               <!-- Named by the catalogue and removed by nothing. Not the same as a kind that does
                    not exist, and a rule for it would be refused. -->
               <p class="warning">{t('app.retention.kind_not_swept')}</p>
@@ -452,7 +453,7 @@
               <Select
                 label={t('app.retention.action')}
                 bind:value={draftAction}
-                options={actions.map((action) => ({ value: action, label: actionWord(action) }))}
+                options={kindActions.map((action) => ({ value: action, label: actionWord(action) }))}
               />
             {/if}
             <Input
@@ -481,6 +482,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
 
@@ -580,6 +582,7 @@
       </div>
 
       <WorkspaceGate permission="DELETE_CONTAINER">
+        {#snippet actions()}
       <form
         class="panel"
         onsubmit={(event) => {
@@ -684,6 +687,7 @@
           </div>
         </Stack>
       </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
     </Stack>

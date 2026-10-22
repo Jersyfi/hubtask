@@ -308,6 +308,27 @@ class AiTranslation(TypedDict, total=False):
     prompt_version: Required[str]
     produced_at: Required[str]
 
+class AiFieldsAsk(TypedDict, total=False):
+    """How to ask for an entry's fields: propose or apply, as every ask, and which of the three fields to propose. Absent `fields` asks for all three."""
+    apply: bool
+    fields: list[Literal["title", "notes", "due_date"]]
+
+class DuplicatesByTitleQuery(TypedDict, total=False):
+    title: Required[str]
+
+class Lookalike(TypedDict, total=False):
+    item_id: Required[str]
+    title: Required[str]
+    collection_id: Required[str]
+    similarity: Required[float]
+
+class LookalikePage(TypedDict, total=False):
+    items: Required[list["Lookalike"]]
+
+class AiBudgetState(TypedDict, total=False):
+    state: Required[Literal["OK", "NEARLY_SPENT", "SPENT", "OFF"]]
+    renews_at: str | None
+
 class AiAsk(TypedDict, total=False):
     """How to ask, which is one question — propose, or apply."""
     apply: bool

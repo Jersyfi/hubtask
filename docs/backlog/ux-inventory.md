@@ -61,26 +61,44 @@ End-user:
 - [x] 17 `lib/people/CommentPanel.svelte` "not yours" on every comment → 1 — UX-04: Edit and Remove offered to the author and an administrator only, and to nobody while archived
 
 Administration:
-- [ ] 18 `lib/workspace/PoliciesDialog.svelte` up/down arrows → 2
-- [ ] 19 `lib/workspace/PoliciesDialog.svelte` Add beside a select → 3
-- [ ] 20 `views/TrashView.svelte` purge on container rows → 2
-- [ ] 21 `lib/people/MembersDialog.svelte` revoke of an inherited role → 2
-- [ ] 22 `views/RetentionView.svelte` arm before preview → 2
-- [ ] 23 `views/RuleEditorView.svelte` enable when broken → 2
-- [ ] 24 `views/AuditView.svelte` verify, anchor, export → 3
-- [ ] 25 `views/SignInSettingsView.svelte` locks and origins → 6; busy → 7
-- [ ] 26 `views/AiSettingsView.svelte` "Saving…" under every model switch → 7
-- [ ] 27 `lib/workspace/PersonOptOutSection.svelte` "unchanged" and the replaced form → 4, 6
-- [ ] 28 workspace, backup, tokens, target form, restore: "nothing changed / pick first" → 3, 4
-- [ ] 29 `WorkspaceGate` around whole forms (audit, retention, privacy, groups, webhooks, apps, sign-in, backup, workspace, runs, identity provider) → 5
-- [ ] 30 page-level banners and callouts (rules, rule editor, backup, webhooks, runs, identity provider) → 8
+- [x] 18 `lib/workspace/PoliciesDialog.svelte` up/down arrows → 2
+- [x] 19 `lib/workspace/PoliciesDialog.svelte` Add beside a select → 3
+- [x] 20 `views/TrashView.svelte` purge on container rows → 2
+- [x] 21 `lib/people/MembersDialog.svelte` revoke of an inherited role → 2
+- [x] 22 `views/RetentionView.svelte` arm before preview → 2
+- [x] 23 `views/RuleEditorView.svelte` enable when broken → 2
+- [x] 24 `views/AuditView.svelte` verify, anchor, export → 3
+- [x] 25 `views/SignInSettingsView.svelte` locks and origins → 6; busy → 7
+- [x] 26 `views/AiSettingsView.svelte` "Saving…" under every model switch → 7
+- [x] 27 `lib/workspace/PersonOptOutSection.svelte` "unchanged" and the replaced form → 4, 6
+- [x] 28 workspace, target form, restore: "nothing changed / pick first" → 3, 4 (tokens: UX-04; backup's schedule switch is a role refusal, row 46)
+- [x] 29 `WorkspaceGate` around whole forms (audit, retention, privacy, groups, webhooks, apps, sign-in, backup, workspace, runs, identity provider) → 5
+- [x] 30 page-level banners and callouts (rules, rule editor, webhooks, runs, identity provider; backup has none) → 8
 
 Installation:
-- [ ] 31 `views/InstanceProvidersView.svelte` remove before withdrawal; lock line → 2, 6
-- [ ] 32 `lib/instance/InstanceValueField.svelte` lock select (uneven columns) → 6
-- [ ] 33 `views/InstancePlanView.svelte` locked rows as text → 6
-- [ ] 34 workspaces, plans, platform: validation reasons under submit → 3
-- [ ] 35 `lib/instance/InstanceGate.svelte` → kept (a page gate), styled as 5
+- [x] 31 `views/InstanceProvidersView.svelte` remove before withdrawal → 2; the lock line keeps its words (the operator sets it)
+- [x] 32 `lib/instance/InstanceValueField.svelte` lock select (uneven columns) → one column per setting; the kind-specific lock words kept
+- [x] 33 `views/InstancePlanView.svelte` locked rows as text → 6
+- [x] 34 plans, platform: validation reasons under submit → 3; workspaces' `slug_taken` is a conflict, said at the field alone
+- [x] 35 `lib/instance/InstanceGate.svelte` → kept (a page gate), styled as 5
+
+Administration and installation, found by UX-05's sweep:
+- [ ] 36 `lib/workspace/CreateContainerDialog.svelte` create without a name → 3 (end-user: UX-04)
+- [x] 37 `lib/workspace/EmergencyAccessDialog.svelte` open without a reason → 3
+- [x] 38 `views/IdentityProviderView.svelte`, `views/InstanceProvidersView.svelte` save on a personal-directory conflict → 3, checked in the client, nothing sent
+- [x] 39 `lib/workspace/PrivateHubsAllowed.svelte` lock and origin line → 6
+- [x] 40 `views/PeopleView.svelte` the last owner's revoke replaced by a sentence → 2
+- [x] 41 `views/InstanceOperatorsView.svelte` the last operator's remove left out, a note under the table → 2
+- [x] 42 `views/IdentityProviderView.svelte` the installation's providers as badges → 6
+- [x] 43 `views/QuotasView.svelte` "Set by" column; read-only note at the end → 6, 5
+- [x] 44 `views/InstanceSettingsView.svelte` file-enforced banner (path kept); lock words kept → 5
+- [x] 45 `views/WorkspaceSettingsView.svelte` installation defaults in the hint → hint kept; 6 where the value follows the installation
+- [x] 46 `views/BackupView.svelte` role refusal on every schedule's switch → 1: absent when refused, a badge shows the state
+- [x] 47 forms that return silently on missing input (apps, groups, service accounts, runs, privacy, webhooks, people, operators, managed account, move plan, backup target and schedule, restore) → 3
+- [x] 48 `views/AiSettingsView.svelte` own model's save before provider and region → 3
+- [x] 49 `lib/instance/InstanceValueField.svelte` the lock select's reasons → 2, kept
+- [x] 50 `views/SignInSettingsView.svelte` required, not offered, switched off above, the ways' hints → 2 and 6 (UX-05 D5)
+- [x] 51 `views/AiSettingsView.svelte` own budget form → 3; confirmation as a toast
 
 ### D.3 In the design system
 
@@ -104,7 +122,7 @@ Installation:
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
 - [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
-- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
+- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24 — colour and symbol done by UX-07); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
 - [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You
 - [ ] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone
@@ -132,7 +150,7 @@ Installation:
 
 ## E4 — Hub and collection
 
-- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); collections as cards with their figure
+- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too)
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
@@ -150,7 +168,7 @@ Installation:
 - [ ] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
-- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol
+- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol done (UX-07)
 
 ## E5 — List, board, timeline, selection
 
@@ -170,7 +188,7 @@ Installation:
 - [ ] Conflict strip, celebration → kept
 - [ ] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title
 - [ ] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11)
-- [ ] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
+- [x] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
 - [x] Children: heading, count, open/close all levels, embedded list → kept; ＋ activity and ＋ work package (UX-08, the entry page)
 - [ ] Tabs: comments (edit, remove, reply, older, write), history (more) → kept
 

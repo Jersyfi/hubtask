@@ -1818,6 +1818,11 @@ func run() error {
 		integrationservice.ConfigureAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
+		// What a person reads before asking AI: the chosen source's day, never a number.
+		integrationservice.ReadAiBudgetState{
+			Choices: postgres.NewAiChoiceRepository(), Budget: quotaGuard,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.SetAiArrivalProposals{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
@@ -1875,6 +1880,19 @@ func run() error {
 			Semantic:   postgres.NewSemanticSearchRepository(),
 			Reader:     authorizer,
 			IDs:        ids,
+			Floor:      cfg.AI.DuplicateThreshold,
+		}.Descriptor(),
+		// Duplicates of a title before it is an entry: the search's own embedding of typed words,
+		// so the consent, the kept-out rule and the short wait are the search's.
+		suggestionservice.FindDuplicatesByTitle{
+			Meaning: work.SearchMeaning{
+				Providers: budgetedAi, Semantic: postgres.NewSemanticSearchRepository(),
+				UnitOfWork: unitOfWork, Kept: keptOut,
+			},
+			Neighbours: postgres.NewEmbeddingRepository(),
+			Reader:     authorizer,
+			Items:      items,
+			UnitOfWork: unitOfWork,
 			Floor:      cfg.AI.DuplicateThreshold,
 		}.Descriptor(),
 		identity.StartOidcSignIn{Writer: oidcWriter}.Descriptor(),
@@ -3539,8 +3557,8 @@ func run() error {
 		queueport.KindWayInChangedEmail:        wayInChangedMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
-		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
-		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		// Its own kind, which a process of the previous release leaves alone.
 		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{

@@ -112,12 +112,13 @@ inventory rows ticked.
 
 ## UX-05 — Administration and installation explain without breaking
 
-*Depends on: UX-03.* · issue #1637
+*Depends on: UX-03, UX-04.* · issue #1637
 
 **Use cases:** UC-WRK-32 (5, 6, 7) — 6 and 7 for administration and installation (coordinator, 2026-10-21)
 
-Every administration and installation call site in §D.2 (rows 18–35): locks and origins through
-`SourceChip` (sign-in, private hubs, limits, AI, plans, installation defaults), forms with
+Every administration and installation call site in §D.2 (rows 18–35, 37–51): locks and origins through
+`SourceChip` on the workspace's screens (sign-in, private hubs, limits, AI, plans, installation
+defaults; the operator's own lock words stay), forms with
 `SaveBar`, immediate-save switches moved out of forms, inert gated forms replaced by one notice at
 the top.
 

@@ -43,6 +43,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
@@ -178,9 +180,16 @@
       : draftTypes.filter((declared) => declared !== type);
   }
 
+  /** What *Subscribe* found missing when pressed, marked at the field, focus on it (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
+
   async function subscribe(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!draftUrl.trim() || draftTypes.length === 0) return;
+    missing = marked(event, [
+      { kind: 'field', key: 'url', code: 'app.forms.required', isFilled: draftUrl.trim() !== '' },
+      { kind: 'at-least-one', key: 'types', code: 'app.forms.at_least_one', chosen: draftTypes.length },
+    ]);
+    if (!isComplete(missing)) return;
     await attempt(async () => {
       secret = await webhooks.subscribe(
         subscriptionBody({
@@ -563,6 +572,7 @@
 
     {#if !resting}
     <WorkspaceGate permission="AUTOMATION">
+      {#snippet actions()}
       <form class="panel" onsubmit={subscribe}>
         <Stack gap="150">
           <h2 class="section">{t('app.webhooks.add_title')}</h2>
@@ -571,10 +581,16 @@
             hint={t('app.webhooks.target_url_hint')}
             bind:value={draftUrl}
             isRequired
+            error={missing.url && !draftUrl.trim() ? t(missing.url) : undefined}
           />
 
-          <fieldset class="types">
+          <fieldset
+            class="types"
+            data-invalid={missing.types && draftTypes.length === 0 ? '' : undefined}
+            aria-describedby={missing.types && draftTypes.length === 0 ? 'webhook-types-error' : undefined}
+          >
             <legend>{t('app.webhooks.event_types')}</legend>
+            {#if missing.types && draftTypes.length === 0}<p class="failure" id="webhook-types-error">{t(missing.types)}</p>{/if}
             {#if eventTypes.length === 0}
               <!-- Nothing is knowable before the manifest is read, and a guess would be a choice the
                    server refuses at the end. -->
@@ -623,6 +639,7 @@
           </div>
         </Stack>
       </form>
+      {/snippet}
     </WorkspaceGate>
     {/if}
     </Stack>

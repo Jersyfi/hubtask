@@ -17,9 +17,9 @@
   // reached by; changing it would break every link anybody has bookmarked or pasted, and the
   // contract does not offer it. Showing it without the reason would look like an oversight.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Input, PageHeader, SaveBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -28,7 +28,12 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { enterSubmits } from '../lib/forms/enter.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -38,7 +43,8 @@
   let weekStart = $state('');
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let saved = $state(false);
+  let form = $state<HTMLFormElement | undefined>(undefined);
+  let missing = $state<Missing>({});
   /** Filled from the read once, so that typing is not overwritten by the re-read that follows a save. */
   let filled = false;
 
@@ -85,7 +91,20 @@
     };
   }
 
-  const hasChanges = $derived(Object.keys(movement()).length > 0);
+  /** How many values moved: the save bar's count, and whether it is there at all. */
+  const changedCount = $derived(Object.keys(movement()).length);
+
+  /** Everything back as the workspace holds it. */
+  function discard(): void {
+    const held = current;
+    if (!held) return;
+    failure = undefined;
+    missing = {};
+    displayName = held.display_name;
+    locale = held.default_locale;
+    zone = held.default_time_zone;
+    weekStart = held.default_week_start ?? '';
+  }
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -93,13 +112,17 @@
     // A save with nothing in it would be a request that writes nothing and a version bump that
     // means nothing to whoever reads the trail.
     if (Object.keys(body).length === 0) return;
+    missing = check([{ kind: 'field', key: 'name', code: 'app.workspace.name_needed', isFilled: displayName.trim() !== '' }]);
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(form));
+      return;
+    }
 
     isWorking = true;
     failure = undefined;
-    saved = false;
     try {
       await workspace.change(body);
-      saved = true;
+      toast.show({ text: t('app.workspace.saved'), tone: 'success' });
     } catch (cause) {
       failure =
         cause instanceof TransportError
@@ -144,18 +167,16 @@
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
-      {:else if saved}
-        <Banner tone="success">{t('app.workspace.saved')}</Banner>
       {/if}
 
       <WorkspaceGate permission="STRUCTURE">
-        <form class="panel" onsubmit={save}>
+        <form class="panel" bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="200">
             <Input
               label={t('app.workspace.name')}
               hint={t('app.workspace.name_hint')}
               bind:value={displayName}
-              error={failure?.fields.get('display_name')}
+              error={(missing.name && !displayName.trim() ? t(missing.name) : undefined) ?? failure?.fields.get('display_name')}
               isRequired
             />
 
@@ -215,23 +236,29 @@
               ]}
               error={failure?.fields.get('/default_week_start')}
             />
+            {#if weekStart === '' && above.week_start}
+              <!-- Following the installation: the chip says whose day it is (UC-WRK-32 check 5). A
+                   week that follows each person's language is this workspace's own choice. -->
+              <p class="origin"><ValueSource source="INSTANCE" value={t(`app.profile.week_${above.week_start}`)} /></p>
+            {/if}
 
             <!-- No second-factor switch here: who needs one is the sign-in rule's, set on the sign-in
                  screen with its step-up, its lock and its direction. A switch here was a second place
                  for the same rule, stored apart from it, and the two disagreed (UC-ID-12 check 1). -->
 
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.workspace.saving')}
-                disabledReason={hasChanges ? undefined : t('app.workspace.nothing_changed')}
-              >
-                {t('app.workspace.save')}
-              </Button>
-            </div>
           </Stack>
+          <WriteOnly>
+            <SaveBar
+              label={t('app.save_bar.label')}
+              changesLabel={changedCount > 0 ? t('app.save_bar.changes', { count: String(changedCount) }) : undefined}
+              discardLabel={t('app.save_bar.discard')}
+              saveLabel={t('app.workspace.save')}
+              isSaving={isWorking}
+              savingLabel={t('app.workspace.saving')}
+              onDiscard={discard}
+              onSave={() => form?.requestSubmit()}
+            />
+          </WriteOnly>
         </form>
       </WorkspaceGate>
     {/if}
@@ -239,6 +266,8 @@
 </Stack>
 
 <style>
+  .origin { margin: 0; }
+
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the
      one `app.css` gives every paragraph, fields have `.fields`, and a table or a list has none
      (ADR-0065 decision 2). A 60ch column around the whole of it would be a document's measure

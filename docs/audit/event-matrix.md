@@ -55,9 +55,11 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `ai.arrival_proposals_set` | SetAiArrivalProposals | `ai_source` | NOTICE | Every time |
+| `ai.budget_state_read` | ReadAiBudgetState | `ai_budget` | INFO | When refused |
 | `ai.classification_asked` | AiClassify | `ai_suggestion` | NOTICE | Every time |
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |
+| `ai.duplicates_by_title_read` | FindDuplicatesByTitle | `ai_suggestion` | INFO | When refused |
 | `ai.fields_asked` | AiSuggestFields | `ai_suggestion` | NOTICE | Every time |
 | `ai.notice_acknowledged` | AcknowledgeAiPosition | `account` | INFO | Every time |
 | `ai.own_budget_set` | SetOwnAiBudget | `ai_budget` | NOTICE | Every time |
