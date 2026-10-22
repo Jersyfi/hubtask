@@ -36,6 +36,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import { buckets } from '../data/buckets.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
+  import { offerIn } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
@@ -97,10 +98,20 @@
    * The operations offered: one that needs a value from a list is not offered while the list is
    * empty - a label to add where the collection has none - since nothing could ever be chosen.
    */
+  /**
+   * Whether some level the collection offers carries the capability (UC-WRK-23 check 4): a list
+   * whose entries carry no labels or person is offered neither in bulk. Without a structure, the
+   * installation's answer stands, as everywhere.
+   */
+  const structureHere = $derived(containers.find(collectionId)?.structure?.settings);
+  const offer = $derived(offerIn(structureHere));
+  const carried = (capability: string): boolean =>
+    !structureHere?.levels || structureHere.levels.some((level) => offer.supports(level.type as string, capability).status === 'permitted');
   const offered = $derived(
     BULK_OPERATIONS.filter((each) => {
-      if (each === 'ADD_LABEL' || each === 'REMOVE_LABEL') return collectionLabels.length > 0;
-      if (each === 'UPDATE_ITEM') return collectionBuckets.length > 0;
+      if (each === 'ADD_LABEL' || each === 'REMOVE_LABEL') return collectionLabels.length > 0 && carried('LABELS');
+      if (each === 'ASSIGN') return carried('ASSIGNMENT');
+      if (each === 'UPDATE_ITEM') return collectionBuckets.length > 0 && carried('BUCKET');
       if (each === 'MOVE_ITEM') return collections.length > 0;
       return true;
     }),

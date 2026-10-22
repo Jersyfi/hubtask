@@ -38,7 +38,7 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
-  import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
+  import StructurePanel from '../lib/workspace/StructurePanel.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
@@ -455,7 +455,8 @@
   let isManagingViews = $state(false);
   /** The collection's policies: how it works, as opposed to what it is called. */
   let isManagingPolicies = $state(false);
-  let isChoosingWhatCounts = $state(false);
+  /** The hub's or the collection's *Structure* panel (UC-WRK-23). */
+  let isShaping = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -634,6 +635,15 @@
     return mayShape ? rows : [];
   }
 
+  /**
+   * The *Structure* panel's row (UC-WRK-23 checks 1, 9): only where the container answers its
+   * structure, and - through `shaping` - only for a reader who may change the shape. What counts
+   * is one of its settings, no longer a row of its own.
+   */
+  const structureRow = $derived(
+    container?.structure ? [{ id: 'structure', label: t('app.structure.menu'), icon: 'settings' as const, disabledReason: readOnlyReason }] : [],
+  );
+
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
@@ -671,15 +681,17 @@
                 ...shaping([
                   { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: readOnlyReason },
                   { id: 'fields', label: t('app.fields.title'), disabledReason: readOnlyReason },
-                  // What counts in it (UC-WRK-29); the Structure panel takes it when there is one.
-                  { id: 'what_counts', label: t('app.figure.menu'), disabledReason: readOnlyReason },
+                  ...structureRow,
                 ]),
                 { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
                 { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: readOnlyReason },
                 ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: readOnlyReason }]),
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
-            : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
+            : [
+                ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
+                { id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: !mayShape || structureRow.length === 0 },
+              ]),
           ...(privacyControl
             ? [
                 {
@@ -714,7 +726,7 @@
     else if (id === 'views') isManagingViews = true;
     else if (id === 'templates') isUsingTemplates = true;
     else if (id === 'policies') isManagingPolicies = true;
-    else if (id === 'what_counts') isChoosingWhatCounts = true;
+    else if (id === 'structure') isShaping = true;
     else if (id === 'people') isManagingMembers = true;
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
@@ -1107,6 +1119,10 @@
   }}
 />
 
+{#if container?.structure && mayShape}
+  <StructurePanel bind:isOpen={isShaping} {container} />
+{/if}
+
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
   <CustomFieldsDialog
@@ -1120,9 +1136,6 @@
     path={containerPath}
     role={structureRole}
   />
-  {#if container.type === 'COLLECTION' && mayShape}
-    <WhatCountsDialog bind:isOpen={isChoosingWhatCounts} {container} />
-  {/if}
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}

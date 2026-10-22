@@ -61,7 +61,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { changeRefusalCode, childTypes, declaresType, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, declaresType, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -206,7 +206,7 @@
   /**
    * What the collection offers this entry (UC-WRK-23 check 4): its structure in force narrows the
    * installation's answers - a field it does not offer has no row, a level it does not offer no
-   * "add". What is stored stays reachable: a child already there is still drawn.
+   * subtree. What it hides stays stored (domain-model.md §2).
    */
   const offer = $derived(offerIn(collection?.structure?.settings));
   /**
@@ -672,7 +672,7 @@
   // the reader to find them in the collection. The subtree is the one read the section below
   // makes, and this counts its first level; the acceptance's invalidation of the
   // lists brings them here without being asked.
-  const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
+  const takesChildren = $derived(heldTypes.length > 0);
   $effect(() => {
     if (!takesChildren) return;
     return untrack(() => items.openSubtree(id));
@@ -928,7 +928,7 @@
           <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
                not something this screen may say before it has one. -->
           {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={4} /></div>{/if}
-        {:else if takesChildren && (heldTypes.length > 0 || children.length > 0)}
+        {:else if takesChildren}
           <!-- The whole subtree (decisions 6 and 7): the same tree the expanded list draws, one
                level down, headed by what it holds and how much of it is done. -->
           <Stack gap="150">

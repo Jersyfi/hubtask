@@ -52,7 +52,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
-  import { childTypes as installedChildTypes, offerIn } from '../data/capability.svelte.ts';
+  import { offerIn } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
@@ -156,9 +156,9 @@
   provideReasonGroup(() => ({ id: readOnlyNoticeId ?? '', reason: isReadOnly && readOnlyNoticeId ? inheritedReason() : undefined }));
 
   /**
-   * What this collection offers (UC-WRK-23 check 4): adding, moving and labelling follow its
-   * structure in force. Whether a row has a twist does not - an entry of a level the collection
-   * no longer offers is still stored and still reached (domain-model.md §2).
+   * What this collection offers (UC-WRK-23 check 4): the twist, adding, moving and labelling follow
+   * its structure in force. A level it does not offer is hidden, never deleted (domain-model.md §2):
+   * a list draws no twist for children it does not hold.
    */
   const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
   const childTypes = (type: string) => offer.childTypes(type);
@@ -223,7 +223,7 @@
     const first = items.childrenOf(root.id);
     if (first.length === 0) return;
     hasDefaultExpansion = true;
-    expanded = first.filter((item) => installedChildTypes(item.type).length > 0).map((item) => item.id);
+    expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
   });
   $effect(() => {
     // Read first, so the effect follows `expanded` from its first run and not only once the
@@ -347,12 +347,12 @@
     const rows: Row[] = [];
     parents.forEach((item, index) => {
       const archival = archivalOfItem(item, isUnderArchive);
-      // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
+      // Whether it *may* hold children is the collection's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
       rows.push({
         item,
         depth,
-        takesChildren: installedChildTypes(item.type).length > 0,
+        takesChildren: childTypes(item.type).length > 0,
         siblings: parents,
         index,
         parentId,
@@ -1251,7 +1251,7 @@
                   {/if}
                 {/if}
 
-                {#if row.archival === 'active' && mayCreate && childTypes(row.item.type).length > 0}
+                {#if row.archival === 'active' && mayCreate && row.takesChildren}
                   <!-- The label names what it adds. The control at the end of the list adds to the
                        collection and this one adds inside this entry; sharing "Add an entry"
                        between them made a list of seven rows carry eight controls of that name,
