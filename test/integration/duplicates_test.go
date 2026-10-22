@@ -33,6 +33,8 @@ type neighbourhood struct {
 	// twin is the near-duplicate, cousin a distant relative below the floor, child a work package
 	// under the subject, and stranger an entry pointing somewhere else entirely.
 	twin, cousin, child, stranger shared.ID
+	// axis is the subject's direction, so a test can embed words that mean the same.
+	axis int
 }
 
 func seedNeighbourhood(ctx context.Context, t *testing.T) neighbourhood {
@@ -47,6 +49,7 @@ func seedNeighbourhood(ctx context.Context, t *testing.T) neighbourhood {
 		child: freshID(t), stranger: freshID(t),
 	}
 	axis := freshAxis()
+	built.axis = axis
 
 	seed := []struct {
 		id     shared.ID
@@ -222,5 +225,100 @@ func TestAnEntryWithNoVectorHasNoNeighbourhood(t *testing.T) {
 	}
 	if near.Embedded || len(near.Candidates) != 0 {
 		t.Errorf("an entry with no vector answered %+v", near)
+	}
+}
+
+// Words that are no entry yet - a title being typed - find the entries that mean the same, and not
+// the ones that merely share a subject (UC-AI-04 check 7). The subject and its branch are found
+// too: nothing is "its own" for words that belong to no entry.
+func TestWordsThatAreNoEntryFindTheEntriesThatMeanTheSame(t *testing.T) {
+	ctx := context.Background()
+	f := seedNeighbourhood(ctx, t)
+	embeddings := postgres.NewEmbeddingRepository()
+
+	var found []repository.Neighbour
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		found, err = embeddings.NearVector(ctx, meaningNear(f.axis, 0.98), "test-embed-1", 0.9, 10)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the neighbourhood of a vector: %v", err)
+	}
+
+	near := map[shared.ID]bool{}
+	for index, neighbour := range found {
+		near[neighbour.ItemID] = true
+		if neighbour.Similarity < 0.9 || neighbour.Similarity > 1.0001 {
+			t.Errorf("neighbour %d at %v, want it at or above the floor and no more than one",
+				index, neighbour.Similarity)
+		}
+		if index > 0 && found[index-1].Similarity < neighbour.Similarity {
+			t.Errorf("the neighbours are not nearest first: %+v", found)
+		}
+		if neighbour.CollectionID != f.collection || neighbour.HubID.IsZero() {
+			t.Errorf("a neighbour carries %s / %s, want its path", neighbour.CollectionID, neighbour.HubID)
+		}
+	}
+	for _, want := range []shared.ID{f.subject, f.twin, f.child} {
+		if !near[want] {
+			t.Errorf("%s was not found near the words: %+v", want, found)
+		}
+	}
+	for _, absent := range []shared.ID{f.cousin, f.stranger} {
+		if near[absent] {
+			t.Errorf("%s was found near the words, and is only related or unrelated", absent)
+		}
+	}
+}
+
+// Vectors are comparable only inside one model's space, and a vector of no length is no
+// comparison at all.
+func TestWordsAreComparedOnlyWithinTheirModel(t *testing.T) {
+	ctx := context.Background()
+	f := seedNeighbourhood(ctx, t)
+	embeddings := postgres.NewEmbeddingRepository()
+
+	for _, testCase := range []struct {
+		name   string
+		vector []float32
+		model  string
+	}{
+		{"another model", meaningOf(f.axis), "another-embed-2"},
+		{"an empty vector", nil, "test-embed-1"},
+		{"no model", meaningOf(f.axis), ""},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			var found []repository.Neighbour
+			if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+				var err error
+				found, err = embeddings.NearVector(ctx, testCase.vector, testCase.model, 0.5, 10)
+				return err
+			}); err != nil {
+				t.Fatalf("reading: %v", err)
+			}
+			if len(found) != 0 {
+				t.Errorf("found %+v", found)
+			}
+		})
+	}
+}
+
+// Gate SG-3 for the second neighbourhood statement: the same words, asked next door, find nothing
+// of A's.
+func TestWordsAskedNextDoorFindNothingHere(t *testing.T) {
+	ctx := context.Background()
+	f := seedNeighbourhood(ctx, t)
+	embeddings := postgres.NewEmbeddingRepository()
+
+	var found []repository.Neighbour
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		found, err = embeddings.NearVector(ctx, meaningOf(f.axis), "test-embed-1", 0.5, 20)
+		return err
+	}); err != nil {
+		t.Fatalf("B's read: %v", err)
+	}
+	if len(found) != 0 {
+		t.Errorf("B found A's entries: %+v", found)
 	}
 }

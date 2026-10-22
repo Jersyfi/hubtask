@@ -13,6 +13,14 @@
 
 import type { Draft, Step, TriggerDraft } from './model.ts';
 import { FLOW_KINDS, isGroup, nameSeed, readNode, type Node, type Sentence } from './model.ts';
+import aiActions from './aiactions.json' with { type: 'json' };
+
+/**
+ * The AI family: every action kind of a use case that asks or reads AI, declared once here and held
+ * against the server's catalogue both ways by `test/architecture/aifamily_test.go`. What the rule
+ * editor draws in the AI colours, and what it leaves out where the manifest announces no AI.
+ */
+export const AI_ACTIONS: ReadonlySet<string> = new Set(aiActions);
 
 /** How the catalogue is asked: the renderer, and whether it has an entry. */
 export interface Catalogue {
@@ -203,10 +211,21 @@ const GROUP_FAMILY: Readonly<Record<string, KindFamily>> = {
 
 export function kindFamily(kind: string): KindFamily {
   if ((FLOW_KINDS as readonly string[]).includes(kind)) return 'flow';
+  if (AI_ACTIONS.has(kind)) return 'ai';
   const group = COMMON_GROUPS.find((each) => each.kinds.includes(kind));
   if (group) return GROUP_FAMILY[group.code] ?? 'other';
-  if (kind.startsWith('AI_')) return 'ai';
   return 'other';
+}
+
+/**
+ * The action kinds a rule may be given here: what the manifest serves, less the AI family where the
+ * manifest announces no AI for this caller (UC-AI-01 check 1, ai-first.md §2 "absence is absence").
+ * A rule that already holds an AI step still shows it - a configuration is drawn as it is - but
+ * nothing offers to add one.
+ */
+export function offeredKinds(served: readonly string[], features: Readonly<Record<string, unknown>> | undefined): readonly string[] {
+  if (features?.ai_suggestions === true) return served;
+  return served.filter((kind) => kindFamily(kind) !== 'ai');
 }
 
 /**

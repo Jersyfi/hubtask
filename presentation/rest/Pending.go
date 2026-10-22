@@ -1532,3 +1532,12 @@ func (pending) SetContainerStructure(
 func (pending) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, _ openapi.SetWorkspaceStructureParams) {
 	notAvailable(w, r)
 }
+
+// AI where its subject is (UC-AI-04 checks 7 and 9).
+func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

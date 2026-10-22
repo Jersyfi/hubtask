@@ -47,6 +47,9 @@ func (s owedStore) CountMissing(context.Context, int) (int, error) { return s.ro
 func (s owedStore) Near(context.Context, shared.ID, float64, int) (repository.Nearby, error) {
 	return repository.Nearby{}, nil
 }
+func (s owedStore) NearVector(context.Context, []float32, string, float64, int) ([]repository.Neighbour, error) {
+	return nil, nil
+}
 
 func (s owedStore) Store(context.Context, repository.StoredEmbedding) error {
 	return nil

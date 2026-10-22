@@ -243,6 +243,51 @@ func (e AdminTenantStatus) Valid() bool {
 	}
 }
 
+// Defines values for AiBudgetStateState.
+const (
+	AiBudgetStateStateNEARLYSPENT AiBudgetStateState = "NEARLY_SPENT"
+	AiBudgetStateStateOFF         AiBudgetStateState = "OFF"
+	AiBudgetStateStateOK          AiBudgetStateState = "OK"
+	AiBudgetStateStateSPENT       AiBudgetStateState = "SPENT"
+)
+
+// Valid indicates whether the value is a known member of the AiBudgetStateState enum.
+func (e AiBudgetStateState) Valid() bool {
+	switch e {
+	case AiBudgetStateStateNEARLYSPENT:
+		return true
+	case AiBudgetStateStateOFF:
+		return true
+	case AiBudgetStateStateOK:
+		return true
+	case AiBudgetStateStateSPENT:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for AiFieldsAskFields.
+const (
+	DueDate AiFieldsAskFields = "due_date"
+	Notes   AiFieldsAskFields = "notes"
+	Title   AiFieldsAskFields = "title"
+)
+
+// Valid indicates whether the value is a known member of the AiFieldsAskFields enum.
+func (e AiFieldsAskFields) Valid() bool {
+	switch e {
+	case DueDate:
+		return true
+	case Notes:
+		return true
+	case Title:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AiJurisdiction.
 const (
 	AiJurisdictionADEQUACY     AiJurisdiction = "ADEQUACY"
@@ -827,19 +872,19 @@ func (e AutomationRuleUpdateOnError) Valid() bool {
 
 // Defines values for BackupArchiveChecksumStatus.
 const (
-	MISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
-	OK         BackupArchiveChecksumStatus = "OK"
-	UNVERIFIED BackupArchiveChecksumStatus = "UNVERIFIED"
+	BackupArchiveChecksumStatusMISMATCH   BackupArchiveChecksumStatus = "MISMATCH"
+	BackupArchiveChecksumStatusOK         BackupArchiveChecksumStatus = "OK"
+	BackupArchiveChecksumStatusUNVERIFIED BackupArchiveChecksumStatus = "UNVERIFIED"
 )
 
 // Valid indicates whether the value is a known member of the BackupArchiveChecksumStatus enum.
 func (e BackupArchiveChecksumStatus) Valid() bool {
 	switch e {
-	case MISMATCH:
+	case BackupArchiveChecksumStatusMISMATCH:
 		return true
-	case OK:
+	case BackupArchiveChecksumStatusOK:
 		return true
-	case UNVERIFIED:
+	case BackupArchiveChecksumStatusUNVERIFIED:
 		return true
 	default:
 		return false
@@ -5646,6 +5691,28 @@ type AiAsk struct {
 	Apply *bool `json:"apply,omitempty"`
 }
 
+// AiBudgetState defines model for AiBudgetState.
+type AiBudgetState struct {
+	// RenewsAt When the day's budget has room again - the workspace's next midnight. Null for `OFF`.
+	RenewsAt *time.Time         `json:"renews_at,omitempty"`
+	State    AiBudgetStateState `json:"state"`
+}
+
+// AiBudgetStateState defines model for AiBudgetState.State.
+type AiBudgetStateState string
+
+// AiFieldsAsk How to ask for an entry's fields: propose or apply, as every ask, and which of the three fields to propose. Absent `fields` asks for all three.
+type AiFieldsAsk struct {
+	// Apply As `AiAsk.apply`.
+	Apply *bool `json:"apply,omitempty"`
+
+	// Fields The fields to propose. The answer keeps only these; one that proposes none of them ends the job with `ai.nothing_to_change`.
+	Fields *[]AiFieldsAskFields `json:"fields,omitempty"`
+}
+
+// AiFieldsAskFields defines model for AiFieldsAsk.Fields.
+type AiFieldsAskFields string
+
 // AiJurisdiction Where the provider processes what is sent to it, as the operator declares it. It is a declaration rather than something this software can verify, and it exists so that the decision is documented rather than made by accident.
 // `SELF_HOSTED` is a model this installation runs itself - no transfer to anybody. `EEA` and `ADEQUACY` are transfers Art. 45 covers. `THIRD_COUNTRY` is everything else and needs the operator's confirmation in the installation's configuration; the adequacy decision or the standard contractual clauses, and the transfer impact assessment, remain the operator's obligation.
 type AiJurisdiction string
@@ -7198,6 +7265,12 @@ type DuplicateResult struct {
 	Item              WorkItem           `json:"item"`
 }
 
+// DuplicatesByTitleQuery defines model for DuplicatesByTitleQuery.
+type DuplicatesByTitleQuery struct {
+	// Title The words of the title being typed. Checked like a title is when an entry is created.
+	Title string `json:"title"`
+}
+
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
 	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
@@ -8455,6 +8528,23 @@ type LinkCompletion struct {
 
 	// PendingToken The `LINK` challenge's credential. It dies on use.
 	PendingToken string `json:"pending_token"`
+}
+
+// Lookalike defines model for Lookalike.
+type Lookalike struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+	ItemId       openapi_types.UUID `json:"item_id"`
+
+	// Similarity How alike, between the threshold and 1, rounded to three places.
+	Similarity float32 `json:"similarity"`
+
+	// Title The entry's title, as the caller may read it.
+	Title string `json:"title"`
+}
+
+// LookalikePage defines model for LookalikePage.
+type LookalikePage struct {
+	Items []Lookalike `json:"items"`
 }
 
 // ManagedAccountCreate defines model for ManagedAccountCreate.
@@ -13731,7 +13821,7 @@ type MoveWorkItemJSONRequestBody MoveWorkItemJSONBody
 type ReorderWorkItemJSONRequestBody ReorderWorkItemJSONBody
 
 // AiSuggestFieldsJSONRequestBody defines body for AiSuggestFields for application/json ContentType.
-type AiSuggestFieldsJSONRequestBody = AiAsk
+type AiSuggestFieldsJSONRequestBody = AiFieldsAsk
 
 // AiSummarizeJSONRequestBody defines body for AiSummarize for application/json ContentType.
 type AiSummarizeJSONRequestBody = AiAsk
@@ -13744,6 +13834,9 @@ type AiTranslateJSONRequestBody = AiTranslateRequest
 
 // BulkUpdateWorkItemsJSONRequestBody defines body for BulkUpdateWorkItems for application/json ContentType.
 type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
+
+// FindDuplicatesByTitleJSONRequestBody defines body for FindDuplicatesByTitle for application/json ContentType.
+type FindDuplicatesByTitleJSONRequestBody = DuplicatesByTitleQuery
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
@@ -14080,6 +14173,9 @@ type ServerInterface interface {
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
+	// ReadAiBudgetState How today's AI budget stands, for everybody here
+	// (GET /ai-budget-state)
+	ReadAiBudgetState(w http.ResponseWriter, r *http.Request)
 	// SetAiPersonOptOut Whether each person may keep their own content out of AI
 	// (PUT /ai-person-opt-out)
 	SetAiPersonOptOut(w http.ResponseWriter, r *http.Request)
@@ -14641,6 +14737,9 @@ type ServerInterface interface {
 
 	// (POST /items:bulk)
 	BulkUpdateWorkItems(w http.ResponseWriter, r *http.Request, params BulkUpdateWorkItemsParams)
+	// FindDuplicatesByTitle Which entries look like a title that is not an entry yet
+	// (POST /items:duplicates)
+	FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request)
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
@@ -17382,6 +17481,20 @@ func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetOwnAiBudget(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadAiBudgetState operation middleware
+func (siw *ServerInterfaceWrapper) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadAiBudgetState(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -24209,6 +24322,20 @@ func (siw *ServerInterfaceWrapper) BulkUpdateWorkItems(w http.ResponseWriter, r 
 	handler.ServeHTTP(w, r)
 }
 
+// FindDuplicatesByTitle operation middleware
+func (siw *ServerInterfaceWrapper) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.FindDuplicatesByTitle(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // QueryItems operation middleware
 func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Request) {
 
@@ -27570,6 +27697,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize-thread", wrapper.AiSummarizeThread)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:summarize", wrapper.AiSummarizeContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicates", wrapper.SuggestDuplicates)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:duplicates", wrapper.FindDuplicatesByTitle)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/suggestions", wrapper.ListSuggestions)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:accept", wrapper.AcceptSuggestion)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/suggestions/{suggestionId}:dismiss", wrapper.DismissSuggestion)
@@ -27580,6 +27708,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-person-opt-out", wrapper.SetAiPersonOptOut)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-arrival-proposals", wrapper.SetAiArrivalProposals)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-budget-state", wrapper.ReadAiBudgetState)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)

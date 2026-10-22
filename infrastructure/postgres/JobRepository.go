@@ -183,3 +183,38 @@ func jobRowOf(
 	}
 	return job, nil
 }
+
+// AskerOf answers who asked a job and about what (repository.Jobs).
+func (r JobRepository) AskerOf(ctx context.Context, id shared.ID) (repository.Asker, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return repository.Asker{}, err
+	}
+	jobID, err := uuidOf(id)
+	if err != nil {
+		return repository.Asker{}, err
+	}
+	tenantID, err := tenantOfTransaction(ctx)
+	if err != nil {
+		return repository.Asker{}, err
+	}
+	row, err := queries.FindJobAsker(ctx, sqlc.FindJobAskerParams{ID: jobID, TenantID: tenantID})
+	if err != nil {
+		if IsNoRows(err) {
+			return repository.Asker{}, notFoundJob(id)
+		}
+		return repository.Asker{}, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading who asked job %s: %w", id, err))
+	}
+	asker := repository.Asker{Kind: row.Kind, TargetType: row.TargetType}
+	// A payload is the queue's, written by this process; an identifier it cannot read is one
+	// nobody asked through, and answers as nobody.
+	if parsed, err := shared.ParseID(row.AskedBy); err == nil {
+		asker.AskedBy = parsed
+	}
+	if parsed, err := shared.ParseID(row.TargetID); err == nil {
+		asker.TargetID = parsed
+	}
+	return asker, nil
+}

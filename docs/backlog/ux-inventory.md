@@ -170,7 +170,7 @@ Installation:
 - [ ] Conflict strip, celebration → kept
 - [ ] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title
 - [ ] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11)
-- [ ] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
+- [x] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
 - [x] Children: heading, count, open/close all levels, embedded list → kept; ＋ activity and ＋ work package (UX-08, the entry page)
 - [ ] Tabs: comments (edit, remove, reply, older, write), history (more) → kept
 

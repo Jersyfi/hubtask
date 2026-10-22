@@ -34,13 +34,30 @@
      * a field with nothing set is not drawn - "add" would be an offer the server refuses.
      */
     isReadOnly?: boolean;
+    /** The ✦ of the subject this row shows, beside the row (UC-AI-04 check 6). */
+    ask?: Snippet;
+    /** What AI has to say about it, under the row. Renders nothing where nothing stands. */
+    below?: Snippet;
   }
 
-  const { label, value, id, children, isReadOnly = false }: Props = $props();
+  const { label, value, id, children, isReadOnly = false, ask, below }: Props = $props();
 
   let isOpen = $state(false);
 </script>
 
+{#if ask || below}
+  <div class="with-ai">
+    <div class="line">
+      {@render row()}
+      {#if ask}<span class="ask">{@render ask()}</span>{/if}
+    </div>
+    {#if below}{@render below()}{/if}
+  </div>
+{:else}
+  {@render row()}
+{/if}
+
+{#snippet row()}
 {#if isReadOnly}
   {#if value !== undefined}
     <div class="detail-row" data-detail={id}>{@render face()}</div>
@@ -62,6 +79,7 @@
     {@render children()}
   </Popover>
 {/if}
+{/snippet}
 
 {#snippet face()}
   <span class="key">{label}</span>
@@ -73,6 +91,11 @@
 {/snippet}
 
 <style>
+  .with-ai { display: flex; flex-direction: column; gap: var(--sp-050); }
+  .line { display: flex; align-items: center; gap: var(--sp-050); }
+  .line > :global(:first-child) { flex: 1 1 auto; min-width: 0; }
+  .ask { flex: none; }
+
   .detail-row {
     display: flex;
     align-items: baseline;

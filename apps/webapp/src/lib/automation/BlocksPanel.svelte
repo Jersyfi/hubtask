@@ -137,6 +137,7 @@
           type="button"
           draggable={onlift !== undefined}
           data-block={kind}
+          data-ai={kindFamily(kind) === 'ai' ? '' : undefined}
           title={summaries[kind] ?? kindWord(words, kind)}
           ondragstart={(event) => onlift?.(event, { src: 'action', kind })}
           ondragend={() => ondrop?.()}
@@ -198,7 +199,7 @@
 
   .outbound .mark, .other .mark { background: var(--label-slate-bg); color: var(--label-slate-fg); }
 
-  .ai .mark { background: var(--label-green-bg); color: var(--label-green-fg); }
+  .ai .mark { background: var(--ai-surface-strong); color: var(--ai-text); }
 
   .flow .mark { background: var(--label-violet-bg); color: var(--label-violet-fg); }
 

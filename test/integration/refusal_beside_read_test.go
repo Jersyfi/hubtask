@@ -216,10 +216,12 @@ func TestARefusedAnswerIsInTheTrail(t *testing.T) {
 	}
 }
 
-// audit.md §7: accepting a proposal applies it through the write use case inside the answer's
-// read-write transaction, and that use case's refusal rolls the transaction back. Its DENIED entry
-// used to go with it. A workspace member who only views the private hub may answer proposals as far
-// as the workspace goes and may read the entry, but UpdateWorkItem refuses her the change.
+// audit.md §7: a refused acceptance is in the trail. A workspace member who only views the private
+// hub may read the entry and may not change it. Answering a proposal about an entry asks what
+// changing it asks, along the entry's own path (UC-AI-04, domain-model.md §3.2), so she is refused
+// before the answer's transaction opens - once, about the proposal - where she used to pass the
+// workspace's question and be refused by UpdateWorkItem inside it, whose DENIED entry the rollback
+// once took with it.
 func TestARefusedAcceptanceIsInTheTrail(t *testing.T) {
 	ctx := context.Background()
 	w := seedPrivateWorld(ctx, t)
@@ -270,13 +272,16 @@ func TestARefusedAcceptanceIsInTheTrail(t *testing.T) {
 		t.Fatalf("recording the proposal: %v", err)
 	}
 
-	before := deniedEntries(ctx, t, w.tenant, viewer, w.item)
+	refusals := func() int {
+		return deniedEntries(ctx, t, w.tenant, viewer, w.item) + deniedEntries(ctx, t, w.tenant, viewer, proposal.ID)
+	}
+	before := refusals()
 	_, err = suggestion.AcceptSuggestion{Cases: cases}.Execute(ctx, actor, proposal.ID, nil)
 	if !errors.Is(err, shared.ErrForbidden) {
 		t.Fatalf("the hub's viewer was answered %v, want forbidden", err)
 	}
 
-	if got := deniedEntries(ctx, t, w.tenant, viewer, w.item) - before; got != 1 {
-		t.Errorf("the trail gained %d DENIED entries about the entry, want one", got)
+	if got := refusals() - before; got != 1 {
+		t.Errorf("the trail gained %d DENIED entries about the proposal or the entry, want one", got)
 	}
 }

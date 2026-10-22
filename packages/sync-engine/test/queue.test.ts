@@ -343,3 +343,20 @@ test('forgetting another device refuses its next push, and that device starts ov
   assert.notEqual(again.id, deviceB.id);
   assert.ok(!forgotten.has(again.id));
 });
+
+test('a write its caller stopped is neither queued nor taken for an outage', async () => {
+  const { transport, engine } = await synced();
+  const stop = new AbortController();
+  stop.abort();
+  transport.fail(`/items/${ITEM}:translate`, new TransportError('timeout'));
+
+  await assert.rejects(
+    engine.mutate('POST', `/items/${ITEM}:translate`, { target_locale: 'de' }, { signal: stop.signal, invalidates: [] }),
+  );
+
+  // The next write still goes straight to the server: nothing decided the server had gone.
+  transport.answer(`/items/${ITEM}`, { id: ITEM, title: 'Renamed', version: 4 });
+  const answer = await engine.mutate<{ title: string }>('PATCH', `/items/${ITEM}`, { title: 'Renamed' }, { invalidates: ['/items'] });
+  assert.equal(answer.title, 'Renamed');
+  assert.equal(engine.queueState.count, 0);
+});

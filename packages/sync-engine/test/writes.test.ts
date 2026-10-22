@@ -409,3 +409,25 @@ test('a document is a read that answers a file, and it invalidates nothing', () 
     assert.equal(transport.calls.length, readsBefore, 'an export re-read a resource it did not change');
   })();
 });
+
+// --- a write the caller stops ---------------------------------------------------------------------
+
+test('a caller that stops waiting hands its signal to the transport', async () => {
+  const transport = new FakeTransport().answer('/items/i1:translate', { title: 'Hallo' });
+  const engine = engineWith(transport);
+  const stop = new AbortController();
+
+  await engine.mutate('POST', '/items/i1:translate', { target_locale: 'de' }, { signal: stop.signal, invalidates: [] });
+
+  const sent = transport.calls.find((c) => c.method === 'POST');
+  assert.equal(sent?.options.signal, stop.signal);
+});
+
+test('a write nobody stops carries no signal of its own', async () => {
+  const transport = new FakeTransport().answer('/items/i1', { id: 'i1' });
+  const engine = engineWith(transport);
+
+  await engine.mutate('PATCH', '/items/i1', { title: 'Final' });
+
+  assert.equal(transport.calls.find((c) => c.method === 'PATCH')?.options.signal, undefined);
+});
