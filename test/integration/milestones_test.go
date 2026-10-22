@@ -222,6 +222,12 @@ func TestAnotherWorkspaceReadsAndRecordsNoMilestone(t *testing.T) {
 		}
 		return nil
 	})
+	_ = write(ctx, t, tenantA, func(ctx context.Context) error {
+		if recorded, _ := milestones.RecordHub(ctx, hub.ID, figureMoment); recorded {
+			t.Error("tenant A recorded a milestone for tenant B's hub")
+		}
+		return nil
+	})
 	if found := milestonesOf(ctx, t, tenantB, collection.ID); len(found) != 1 {
 		t.Errorf("tenant B's milestone moved: %v", found)
 	}
