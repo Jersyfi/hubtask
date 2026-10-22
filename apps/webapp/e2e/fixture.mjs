@@ -385,7 +385,9 @@ export const FIGURE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000061', type: 'H
 const today = () => new Date().toISOString().slice(0, 10);
 const structureOf = (levels, counts, extra = {}) => ({
   preset: null,
+  // All eight settings, as a server answers them: the panel refuses a save that offers no view.
   settings: {
+    ...DEFAULT_STRUCTURE.settings,
     levels: levels.map((type) => ({ type, name: null })),
     fields: Object.fromEntries(levels.map((type) => [type, { capabilities: MANIFEST.item_types.find((t) => t.type === type).capabilities }])),
     counts,
