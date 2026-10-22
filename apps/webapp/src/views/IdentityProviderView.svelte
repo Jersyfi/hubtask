@@ -31,9 +31,9 @@
   // the provider keep their rows and their live sessions; what they lose is the way back in. For an
   // account that never had a password, that is the whole way back in.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, PageHeader, ReadOnlyNotice, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderConfiguration } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -54,6 +54,8 @@
   import { renderProblem } from '../lib/problem.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
+  import { focusFirst } from '../lib/forms/missing.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -209,6 +211,14 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    // Checked here rather than switching Save off: the field already says why the server would
+    // refuse it; pressed, focus goes there and nothing is sent (UC-WRK-32 check 3).
+    if (personalDirectory) {
+      // Kept before the tick: an event's current target is gone once it has been dispatched.
+      const form = event.currentTarget as HTMLFormElement;
+      void tick().then(() => focusFirst(form));
+      return;
+    }
     isWorking = true;
     failure = undefined;
     saved = false;
@@ -326,7 +336,7 @@
         {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
       </Banner>
     {:else if unavailable}
-      <Banner tone="info">{t('app.identity_provider.not_served')}</Banner>
+      <ReadOnlyNotice icon="info" text={t('app.identity_provider.not_served')} />
     {:else}
       {#if failure}
         <!-- The server's own sentence: an issuer that could not be reached, a mark on an issuer it
@@ -363,6 +373,8 @@
                        twice before asking. -->
                   <Badge tone="warning">{t('app.identity_provider.badge_off')}</Badge>
                 {/if}
+                <!-- The installation's provider: whose it is, and whom to ask (UC-WRK-32 check 5). -->
+                <ValueSource source="INSTANCE" lock="INSTANCE" value={provider.display_name} />
               </li>
             {/each}
           </ul>
@@ -436,9 +448,11 @@
           <!-- The reason for every refused control on this screen: the rows' edit and remove are
                absent where the reader may not configure providers. -->
           <WorkspaceGate permission="MANAGE_MEMBERS">
+            {#snippet actions()}
             <div>
               <Button tone="primary" onclick={add}>{t('app.identity_provider.add')}</Button>
             </div>
+            {/snippet}
           </WorkspaceGate>
         {/if}
       </Stack>
@@ -567,7 +581,6 @@
                 type="submit"
                 tone="primary"
                 isBusy={isWorking}
-                disabledReason={personalDirectory}
                 busyLabel={t('app.identity_provider.saving')}
               >
                 {t('app.identity_provider.save')}

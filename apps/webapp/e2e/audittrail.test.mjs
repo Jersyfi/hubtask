@@ -134,3 +134,42 @@ test('chromium: the next page of the trail is announced, and its end is said', a
   assert.equal((await status.textContent()).trim(), '2 more entries arrived.');
   assert.equal(await more.count(), 0, 'the button stayed after the last page');
 });
+
+// UC-WRK-32 check 3: checking and exporting are never unavailable for an empty period or target;
+// pressed, they mark what is missing, move focus to the first, and send nothing.
+test('chromium: checking and exporting with nothing named mark the fields and send nothing', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (route.request().method() === 'POST' && path.startsWith('/audit')) sent.push(path);
+    if (path === '/audit') return route.fulfill({ json: { items: [], next_cursor: null } });
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/audit`);
+  const check = page.getByRole('button', { name: 'Check the chain' });
+  await check.waitFor({ timeout: 15_000 });
+  assert.equal(await check.getAttribute('aria-disabled'), null, 'the check is unavailable before it is pressed');
+
+  await check.click();
+  // The filter above has a From of its own; the check's is the one that is marked.
+  const from = page.getByRole('textbox', { name: 'From', description: 'Name a period first.' });
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+  assert.equal(await from.evaluate((field) => field === document.activeElement), true, 'focus is not on the first missing field');
+  assert.equal(await page.getByText('Name a period first.').count(), 2);
+
+  const exporting = page.getByRole('button', { name: 'Export the period' });
+  assert.equal(await exporting.getAttribute('aria-disabled'), null);
+  await exporting.click();
+  await page.getByText('Choose a target first.').waitFor();
+  await page.waitForTimeout(200);
+  assert.deepEqual(sent, [], 'a press with something missing sent a request');
+});

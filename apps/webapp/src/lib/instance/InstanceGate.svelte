@@ -29,7 +29,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { Banner, Button } from '@hubtask/design-system/components';
+  import { Banner, Button, ReadOnlyNotice } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
   import { instance } from '../data/instance.svelte.ts';
@@ -118,23 +118,27 @@
        `<h1>`s is a page a screen reader announces twice. -->
   <div class="door">
     <p class="lead">{t('app.instance.locked_title')}</p>
-    <p class="prose">{t('app.instance.locked_intro')}</p>
+    <!-- The whole area is closed until the proof: one notice saying why, with the one thing that
+         opens it as its action (UC-WRK-32 check 4). -->
+    <ReadOnlyNotice text={t('app.instance.locked_intro')}>
+      {#snippet action()}
+        <Button
+          tone="primary"
+          isBusy={isWorking}
+          busyLabel={t('app.instance.raising')}
+          onclick={() => void raise()}
+        >
+          {t('app.instance.raise')}
+        </Button>
+      {/snippet}
+    </ReadOnlyNotice>
     {#if failure}
-      <!-- The server's own sentence: not an operator, no proof, a proof that did not hold. -->
+      <!-- The server's own sentence: not an operator, no proof, a proof that did not hold.
+           Something that happened, so a banner, under the notice it is about. -->
       <Banner tone="danger" title={failure.message}>
         {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
       </Banner>
     {/if}
-    <div>
-      <Button
-        tone="primary"
-        isBusy={isWorking}
-        busyLabel={t('app.instance.raising')}
-        onclick={() => void raise()}
-      >
-        {t('app.instance.raise')}
-      </Button>
-    </div>
     <p class="prose quiet">{t('app.instance.locked_cost')}</p>
   </div>
 {/if}

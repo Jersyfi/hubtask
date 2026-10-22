@@ -79,6 +79,24 @@ test('chromium: the owner is offered replacing the workspace', async () => {
   }
 });
 
+// UC-WRK-32 check 3: the rehearsal is never switched off for what is missing; pressed, the target
+// is marked and focused, and nothing is sent.
+test('chromium: rehearsing with nothing chosen marks the target and sends nothing', async () => {
+  const browser = await chromium.launch();
+  try {
+    const { page, failures, close } = await open(browser, 'OWNER');
+    const rehearse = page.getByRole('button', { name: 'See what it would do' });
+    assert.equal(await rehearse.getAttribute('aria-disabled'), null, 'the rehearsal is switched off before it is pressed');
+    await rehearse.click();
+    await page.getByText('Choose the target the archive is on.').waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-invalid')), 'true', 'the target is not focused');
+    assert.deepEqual(failures, []);
+    await close();
+  } finally {
+    await browser.close();
+  }
+});
+
 test('chromium: an administrator is not offered replacing the workspace', async () => {
   const browser = await chromium.launch();
   try {

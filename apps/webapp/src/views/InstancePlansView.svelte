@@ -12,7 +12,7 @@
   // **A file that enforces the level enforces the plans.** The values show with the file's path and
   // no control: a save the server refuses would be a control that lies.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table, type PageAction } from '@hubtask/design-system/components';
   import { actionsOfHead } from '../lib/palette/actions.ts';
@@ -26,6 +26,10 @@
   import { plans } from '../lib/data/plans.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+
+  /** What *Create* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
 
@@ -75,6 +79,14 @@
   }
 
   async function create(): Promise<void> {
+    missing = check([
+      { kind: 'field', key: 'displayName', code: 'app.forms.required', isFilled: displayName.trim() !== '' },
+      { kind: 'field', key: 'name', code: 'app.forms.required', isFilled: name.trim() !== '' },
+    ]);
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(document));
+      return;
+    }
     isWorking = true;
     failure = undefined;
     try {
@@ -158,7 +170,6 @@
       tone="primary"
       isBusy={isWorking}
       busyLabel={t('app.instance.working')}
-      disabledReason={name.trim() === '' || displayName.trim() === '' ? t('app.instance.plan_create_needs') : undefined}
       onclick={() => void create()}
     >
       {t('app.instance.plan_create')}
@@ -171,14 +182,14 @@
     <Input
       label={t('app.instance.plan_display_name')}
       bind:value={displayName}
-      error={failure?.fields.get('/display_name')}
+      error={failure?.fields.get('/display_name') ?? (missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined)}
       isRequired
     />
     <Input
       label={t('app.instance.plan_short_name')}
       hint={t('app.instance.plan_short_name_hint')}
       bind:value={name}
-      error={failure?.fields.get('/name')}
+      error={failure?.fields.get('/name') ?? (missing.name && !name.trim() ? t(missing.name) : undefined)}
       isRequired
     />
   </Stack>

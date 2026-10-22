@@ -17,7 +17,7 @@
   // succeeded are named before the button, because confusing a replay with a re-trigger is how
   // somebody sends the same mail twice.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
@@ -35,6 +35,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { focusFirst } from '../lib/forms/missing.ts';
 
   // On the shell (ADR-0061): the page's head is a `PageHeader`, the title the bar's on
   // a phone. The filters stay beside the list they narrow, under its own heading and above the
@@ -170,8 +171,15 @@
     }
   }
 
+  /** Whether *Try it* was pressed without a sample type: marked at the field, nothing sent (UC-WRK-32 check 3). */
+  let typeMissing = $state(false);
+
   async function dryRun(ruleId: string): Promise<void> {
-    if (!sampleType.trim()) return;
+    typeMissing = !sampleType.trim();
+    if (typeMissing) {
+      void tick().then(() => focusFirst(document));
+      return;
+    }
     await attempt(async () => {
       tested = await runs.dryRun(ruleId, {
         type: sampleType.trim(),
@@ -208,6 +216,7 @@
       <NotInPlan body={t('app.plan.runs_body')} />
       {:else}
       <WorkspaceGate permission="AUTOMATION">
+        {#snippet actions()}
       <Select
         label={t('app.runs.which_rule')}
         bind:value={testing}
@@ -215,7 +224,7 @@
         options={rules.all.map((rule) => ({ value: rule.id, label: rule.name }))}
       />
       {#if testing}
-        <Input label={t('app.runs.sample_type')} hint={t('app.runs.sample_type_hint')} bind:value={sampleType} />
+        <Input label={t('app.runs.sample_type')} hint={t('app.runs.sample_type_hint')} bind:value={sampleType} error={typeMissing && !sampleType.trim() ? t('app.forms.required') : undefined} />
         <Input label={t('app.runs.sample_subject')} hint={t('app.runs.sample_subject_hint')} bind:value={sampleSubject} />
         <div class="row">
           <Button tone="primary" isBusy={isWorking} busyLabel={t('app.runs.trying')} onclick={() => void dryRun(testing)}>
@@ -231,6 +240,7 @@
           </Button>
         </div>
       {/if}
+        {/snippet}
       </WorkspaceGate>
       {/if}
 

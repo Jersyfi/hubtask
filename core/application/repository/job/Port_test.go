@@ -26,6 +26,10 @@ func (double) Cancel(context.Context, shared.ID, time.Time) (domain.Job, error) 
 	return domain.Job{}, shared.ErrConflict.WithDetail("jobs.already_finished")
 }
 
+func (double) AskerOf(context.Context, shared.ID) (Asker, error) {
+	return Asker{}, shared.ErrNotFound.WithDetail("jobs.not_found")
+}
+
 var _ Jobs = double{}
 
 // Two refusals the use case tells apart, so both have to be expressible: a job that is not this

@@ -97,7 +97,10 @@ label.
 **The AI treatment.** `ai.*` carries `surface`, `surface-strong`, `border`, `text` and `accent` per
 mode: surfaces at the neutrals' luminance differing by hue, the border carrying the boundary
 (rule 3), no elevation (a proposal is a child of its entry, rule 1), and the `attach` motion role.
-`AISuggestion` is their only consumer, so switching AI off leaves no value behind.
+`AISuggestion` and the rule editor's marks of the AI family (automation.md §1.3) are their only
+consumers. A proposal is drawn only where the manifest announces AI, and the editor offers no AI
+block there - only a rule that already holds an AI step still shows it - so switching AI off leaves
+no value behind.
 
 ---
 

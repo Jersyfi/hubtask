@@ -79,9 +79,26 @@ type AiSummarizeContainer struct {
 func (h AiSuggestFields) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
+	return h.ExecuteFor(ctx, actor, itemID, apply, nil)
+}
+
+// ExecuteFor asks for the named fields only, or for all three where none is named (UC-AI-04
+// check 6: each field's ✦ asks about its own field). A field the question does not propose is
+// refused before anything is asked.
+func (h AiSuggestFields) ExecuteFor(
+	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool, fields []string,
+) (shared.ID, error) {
+	for _, field := range fields {
+		if !promptFields[itemFieldsPrompt][field] {
+			return shared.ID(""), shared.ErrValidation.WithDetail("suggestions.field_not_offered").
+				WithParams(map[string]string{"field": field}).
+				WithFields(shared.FieldError{Path: "/fields", Code: "suggestions.field_not_offered"})
+		}
+	}
 	return Ask(h).queue(ctx, actor, asking{
 		TargetType: domain.TargetWorkItem, TargetID: itemID,
 		Action: FieldsAskedAction, Kind: domain.KindFields, PromptID: itemFieldsPrompt, Apply: apply,
+		Fields: fields,
 	})
 }
 
@@ -109,9 +126,12 @@ func (h AiClassify) Execute(
 func (h AiSummarizeThread) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
 ) (shared.ID, error) {
+	// A reading aid (UC-AI-04 check 8): asked by everybody who may read the entry, unless the
+	// answer is to be applied to its notes, which changes it.
 	return Ask(h).queue(ctx, actor, asking{
 		TargetType: domain.TargetWorkItem, TargetID: itemID,
 		Action: SummaryAskedAction, Kind: domain.KindFields, PromptID: threadPrompt, Apply: apply,
+		Reads: true,
 	})
 }
 
@@ -157,7 +177,11 @@ func (h AiSuggestFields) Descriptor() usecase.Descriptor {
 			"asked for it to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
 		TokenScope:  suggestionsWrite,
-		Input:       askInput("a set of fields"),
+		Input: append(askInput("a set of fields"), usecase.Field{
+			Name: "fields", Kind: usecase.KindList,
+			Description: "Which of title, notes and due_date to propose. Absent asks for all three; " +
+				"an answer that proposes none of the named ones proposes nothing.",
+		}),
 		Audit: usecase.AuditDeclaration{
 			Action: FieldsAskedAction, TargetType: suggestionTarget,
 			Severity: audit.SeverityNotice, Required: true,
@@ -172,7 +196,19 @@ func (h AiSuggestFields) Descriptor() usecase.Descriptor {
 func (h AiSuggestFields) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	return askInvoke(ctx, actor, in, h.Execute)
+	var fields []string
+	if in.Present("fields") {
+		named, err := in.StringList("fields")
+		if err != nil {
+			return nil, err
+		}
+		fields = named
+	}
+	return askInvoke(ctx, actor, in, func(
+		ctx context.Context, actor appshared.ActorContext, itemID shared.ID, apply bool,
+	) (shared.ID, error) {
+		return h.ExecuteFor(ctx, actor, itemID, apply, fields)
+	})
 }
 
 func (h AiSummarize) Descriptor() usecase.Descriptor {
@@ -233,10 +269,14 @@ func (h AiSummarizeThread) Descriptor() usecase.Descriptor {
 			"oldest first and bounded - a thread of four hundred comments is a token problem " +
 			"rather than a summary problem. The answer is a suggestion for the entry's notes, " +
 			"which somebody accepts or dismisses. An entry nobody has commented on is asked " +
-			"nothing at all.",
+			"nothing at all. A reading aid: asked by everybody who may read the entry, and asked " +
+			"with what changing it asks only when the answer is to be applied.",
 		SideEffects: "Queues one question to the provider and writes an audit entry.",
-		TokenScope:  suggestionsWrite,
-		Input:       askInput("a summary of a discussion"),
+		// Reads entries. A token minted to ask for suggestions reads entries as well - the entry's
+		// own read asks for it - so it keeps asking; a narrower scope beside this one is the control
+		// plane's alone (api-guidelines.md §7, UC-INS-06 check 6).
+		TokenScope: suggestionsRead,
+		Input:      askInput("a summary of a discussion"),
 		Audit: usecase.AuditDeclaration{
 			Action: SummaryAskedAction, TargetType: suggestionTarget,
 			Severity: audit.SeverityNotice, Required: true,

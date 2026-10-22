@@ -10,6 +10,7 @@ package job
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/job"
@@ -23,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
+	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
@@ -48,9 +50,58 @@ const (
 	JobCancelledAction audit.Action = "job.cancelled"
 )
 
-// Authorizer is the slice of the authorisation service these use cases need.
+// Authorizer is the slice of the authorisation service these use cases need. Permits is the
+// question that records nothing: whether the person who asked a question to AI may still read
+// what it is about, where an answer of no is not a refusal - the ordinary permission is asked next.
 type Authorizer interface {
 	Authorize(ctx context.Context, actor appshared.ActorContext, request access.Request) error
+	Permits(ctx context.Context, actor appshared.ActorContext, request access.Request) (bool, error)
+}
+
+// askedKinds are the kinds of background work a person starts by asking AI something: theirs to
+// watch and to stop, wherever their role sits (UC-AI-04 check 9). Work the system starts - an
+// arrival's proposal, a backup - names nobody and stays the workspace's.
+var askedKinds = map[queue.Kind]bool{queue.KindAiSuggest: true, queue.KindAiDraftRule: true}
+
+// isAsker answers whether the actor asked this job a question to AI and may still read what the
+// question is about. Asked before the ordinary permission and recording nothing, so that a person
+// let through as the asker leaves no refusal in the trail; anything else - a job of another kind,
+// another asker, a token without the scope, a person who has since lost the read - answers false,
+// and the ordinary permission decides and records as it always did.
+func isAsker(
+	ctx context.Context, jobs repository.Jobs, authorizer Authorizer, uow persistence.UnitOfWork,
+	actor appshared.ActorContext, jobID shared.ID, scope string,
+) (bool, error) {
+	if !actor.IsAuthenticated() || actor.RequireScope(scope) != nil {
+		return false, nil
+	}
+	var asker repository.Asker
+	if err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		asker, err = jobs.AskerOf(ctx, jobID)
+		return err
+	}); err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if !askedKinds[queue.Kind(asker.Kind)] || asker.AskedBy.IsZero() || asker.AskedBy != actor.AccountID {
+		return false, nil
+	}
+	if asker.TargetType == "ACCOUNT" {
+		// A rule drafted for its asker is about nobody's content but theirs: being the asker is
+		// the whole question.
+		return asker.TargetID == actor.AccountID, nil
+	}
+	path := []identity.Scope{identity.TenantScope()}
+	switch asker.TargetType {
+	case "WORK_ITEM":
+		path = append(path, identity.ItemScope(asker.TargetID))
+	case "CONTAINER":
+		path = append(path, identity.CollectionScope(asker.TargetID))
+	}
+	return authorizer.Permits(ctx, actor, access.Request{Permission: service.PermissionRead, Path: path})
 }
 
 // GetJob answers how a piece of background work is getting on.
@@ -93,21 +144,27 @@ func (h GetJob) Execute(
 		return domain.Job{}, missingJobID()
 	}
 
+	asked, err := isAsker(ctx, h.Jobs, h.Authorizer, h.UnitOfWork, actor, query.JobID, jobsRead)
+	if err != nil {
+		return domain.Job{}, err
+	}
 	// Before the transaction, deliberately: a refusal writes an audit entry, and one written
 	// inside this transaction would be rolled back together with the refusal (audit.md §7).
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionRead,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     JobReadAction,
-		TokenScope: jobsRead,
-		TargetType: jobTarget,
-		TargetID:   query.JobID,
-	}); err != nil {
-		return domain.Job{}, err
+	if !asked {
+		if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionRead,
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     JobReadAction,
+			TokenScope: jobsRead,
+			TargetType: jobTarget,
+			TargetID:   query.JobID,
+		}); err != nil {
+			return domain.Job{}, err
+		}
 	}
 
 	var job domain.Job
-	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
 		job, err = h.Jobs.Find(ctx, query.JobID)
 		return err
@@ -131,19 +188,27 @@ func (h CancelJob) Execute(
 		return domain.Job{}, missingJobID()
 	}
 
-	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
-		Permission: service.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     JobCancelledAction,
-		TokenScope: jobsCancel,
-		TargetType: jobTarget,
-		TargetID:   query.JobID,
-	}); err != nil {
+	// The person who asked a question to AI may stop it (UC-AI-04 check 9); everybody else needs
+	// what stopping the workspace's work needs.
+	asked, err := isAsker(ctx, h.Jobs, h.Authorizer, h.UnitOfWork, actor, query.JobID, jobsCancel)
+	if err != nil {
 		return domain.Job{}, err
+	}
+	if !asked {
+		if err := h.Authorizer.Authorize(ctx, actor, access.Request{
+			Permission: service.PermissionStructure,
+			Path:       []identity.Scope{identity.TenantScope()},
+			Action:     JobCancelledAction,
+			TokenScope: jobsCancel,
+			TargetType: jobTarget,
+			TargetID:   query.JobID,
+		}); err != nil {
+			return domain.Job{}, err
+		}
 	}
 
 	var cancelled domain.Job
-	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+	err = h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		job, err := h.Jobs.Find(ctx, query.JobID)
 		if err != nil {
 			return err

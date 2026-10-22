@@ -20,6 +20,8 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { isComplete, type Missing } from '../forms/missing.ts';
+  import { marked } from '../forms/press.ts';
   import StartPasswordResult from './StartPasswordResult.svelte';
 
   interface Props {
@@ -41,6 +43,8 @@
   let isWriting = $state(false);
   let failure = $state<string | undefined>(undefined);
   let nameError = $state<string | undefined>(undefined);
+  /** What *Create* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   /** The one answer that carried the start password, until the reader dismisses it. */
   let created = $state<{ signInName: string; startPassword: string } | undefined>(undefined);
 
@@ -74,7 +78,12 @@
 
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!signInName.trim() || !displayName.trim() || !role) return;
+    missing = marked(event, [
+      { kind: 'field', key: 'signInName', code: 'app.forms.required', isFilled: signInName.trim() !== '' },
+      { kind: 'field', key: 'displayName', code: 'app.forms.required', isFilled: displayName.trim() !== '' },
+      { kind: 'field', key: 'role', code: 'app.forms.choose', isFilled: Boolean(role) },
+    ]);
+    if (!isComplete(missing)) return;
     failure = undefined;
     nameError = undefined;
     isWriting = true;
@@ -127,7 +136,7 @@
         label={t('app.people.managed_name')}
         hint={t('app.people.managed_name_hint')}
         bind:value={signInName}
-        error={nameError}
+        error={nameError ?? (missing.signInName && !signInName.trim() ? t(missing.signInName) : undefined)}
         autocomplete="off"
         autocapitalize="none"
         spellcheck={false}
@@ -139,12 +148,14 @@
         bind:value={displayName}
         autocomplete="off"
         isRequired
+        error={missing.displayName && !displayName.trim() ? t(missing.displayName) : undefined}
       />
       <Select
         label={t('app.people.role_column')}
         bind:value={role}
         placeholder={t('app.people.choose_role')}
         options={roleOptions}
+        error={missing.role && !role ? t(missing.role) : undefined}
       />
       <Select
         label={t('app.people.managed_where')}

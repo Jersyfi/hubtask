@@ -247,6 +247,10 @@ func (r Runner) execute(ctx context.Context, job queue.Job) {
 		})
 	})
 	if err != nil {
+		if shared.AsError(err).DetailCode == leaseLost {
+			r.letGo(ctx, job)
+			return
+		}
 		r.fail(ctx, job, shared.AsError(err).DetailCode, err)
 		return
 	}
@@ -297,6 +301,23 @@ func (r Runner) refuse(ctx context.Context, job queue.Job, refusal queue.Refusal
 	return r.Queue.Fail(ctx, queue.Failure{
 		Job: job, Code: refusal.Code, Refused: true, Params: refusal.Params,
 	})
+}
+
+// leaseLost is the fence answering: the job is no longer this pass's - somebody stopped it, or the
+// lease ran out and another worker took it over (infrastructure/postgres Queue.leaseHeld).
+const leaseLost = "queue.lease_lost"
+
+// letGo ends a pass whose job is no longer its own, and writes nothing about the job.
+//
+// Not a failure: nothing broke. A person stopped a question they asked (UC-AI-04 check 9), or the
+// lease ran out and the job is somebody else's now - either way the row says what is true, and a
+// failure written over it would turn CANCELLED back into a retry, or count a stop as an incident
+// in the metric A-07 pages on. One info line, the code and the identifiers only (rule 10).
+func (r Runner) letGo(ctx context.Context, job queue.Job) {
+	slog.InfoContext(ctx, "job no longer held",
+		slog.String("job_kind", job.Kind.String()),
+		slog.String("job_id", job.ID.String()),
+		slog.String("error_code", leaseLost))
 }
 
 // fail writes down what happened: another attempt when the budget allows one, the dead letter when

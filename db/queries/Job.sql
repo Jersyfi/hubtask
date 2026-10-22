@@ -175,6 +175,17 @@ SELECT id, tenant_id, state, last_error, last_error_params, outcome, created_at,
 FROM job
 WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
 
+-- Who asked a job, and about what: the kind and the three references a question to AI carries in
+-- its payload. The tenant is named in the statement, as in every statement here, because the
+-- table has no policy underneath. Empty strings where a payload names none.
+-- name: FindJobAsker :one
+SELECT kind,
+       coalesce(payload->>'asked_by', '')::text AS asked_by,
+       coalesce(payload->>'target_type', '')::text AS target_type,
+       coalesce(payload->>'target_id', '')::text AS target_id
+FROM job
+WHERE id = sqlc.arg('id') AND tenant_id = sqlc.arg('tenant_id');
+
 -- Cancellation, and it is the state change alone: no lease is named, because the caller holds
 -- none. A pass that is under way is not interrupted - it finds at its next write that the row is
 -- no longer RUNNING under its lease, and rolls back rather than applying its work (test RT-3 is

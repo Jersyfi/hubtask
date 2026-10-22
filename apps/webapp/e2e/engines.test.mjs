@@ -383,3 +383,43 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     assert.deepEqual(failures, [], `${name}: the bundle threw in the palette`);
   });
 }
+
+// UC-WRK-32 check 5 in every engine: a value set above carries the chip beside it, and pressing it
+// opens the value, where it comes from and whom to ask - a popover, which each engine places itself.
+for (const [name, engine] of Object.entries(ENGINES)) {
+  test(`${name}: a limit set by the plan says so, and the chip opens its value, source and whom to ask`, async (t) => {
+    const browser = await engine.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.route('**/api/v1/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith('/api/v1/meta/capabilities')) {
+        return route.fulfill({ json: { ...EMPTY_PAGE, tenancy_mode: 'multi', workspace_permissions: ['READ', 'WRITE_ITEMS', 'STRUCTURE', 'READ_CONFIGURATION'] } });
+      }
+      if (url.pathname.endsWith('/api/v1/quotas')) {
+        return route.fulfill({ json: [
+          { quota: 'items', limit: 5000, used: 12, configured: false, locked: true, source: 'PLAN', lock: 'PLAN' },
+        ] });
+      }
+      return stub(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+
+    await page.goto(`${served.origin}/administration/quotas`);
+    const chip = page.getByRole('button', { name: 'Set by your plan, locked' });
+    await chip.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => assert.fail(`${name}: no chip beside the limit`));
+    await chip.click();
+    const opened = page.getByText('Set by your plan, and locked: it cannot be changed here.');
+    await opened.waitFor({ state: 'visible', timeout: 5_000 }).catch(() => assert.fail(`${name}: the chip opened nothing`));
+    assert.ok(await page.getByText('Ask your provider.').isVisible(), `${name}: the chip does not say whom to ask`);
+    await page.keyboard.press('Escape');
+    await opened.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => assert.fail(`${name}: Escape did not close the chip`));
+    assert.deepEqual(failures, [], `${name}: the bundle threw on the limits`);
+  });
+}
