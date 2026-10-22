@@ -662,10 +662,16 @@ test('chromium: 1280 px — the workspace screen names the installation\'s defau
   assert.match(text, /The installation's default: Europe\/Vienna\./);
   const choices = await weekStart.locator('option').allTextContents();
   assert.equal(choices[0], 'As the installation says: Sunday', choices.join(', '));
+  // Following the installation, the week start carries the chip that says whose day it is
+  // (UC-WRK-32 check 5); no save stands under the untouched form.
+  assert.equal(await page.locator('[data-source="INSTANCE"]').count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Save' }).count(), 0);
 
   await weekStart.selectOption('MONDAY');
+  await page.getByRole('region', { name: 'Unsaved changes' }).getByText('1 change').waitFor();
+  assert.equal(await page.locator('[data-source="INSTANCE"]').count(), 0);
   await page.getByRole('button', { name: 'Save' }).click();
-  await page.getByText('Saved.').waitFor({ timeout: 10_000 });
+  await page.getByText('Saved.').first().waitFor({ timeout: 10_000 });
   assert.deepEqual(sent.at(-1), { default_week_start: 'MONDAY' });
 });
 

@@ -705,6 +705,10 @@ const ARRAYS = new Set([
   // answer a bare array, and a page envelope here is what "this.all.filter is not a function" looks
   // like from the outside.
   '/identity-providers', '/identity-provider-presets',
+  // The installation's providers, read by its overview and its providers screen: a bare array too.
+  '/admin/identity-providers',
+  // The installation's backup targets, read by its workspaces screen for the export.
+  '/admin/backup-targets',
 ]);
 
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */

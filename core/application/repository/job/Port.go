@@ -36,4 +36,17 @@ type Jobs interface {
 	// first - including the narrow race where it did so between the read and this write, which is
 	// why the state condition is in the statement rather than only in the caller's check.
 	Cancel(ctx context.Context, id shared.ID, now time.Time) (domain.Job, error)
+
+	// AskerOf answers who asked a job and about what, where its payload says so: the references
+	// a question to AI carries. ErrNotFound where Find would say so.
+	AskerOf(ctx context.Context, id shared.ID) (Asker, error)
+}
+
+// Asker is who asked a job, and about what. Zero values where the payload names none: a job the
+// system started names nobody.
+type Asker struct {
+	Kind       string
+	AskedBy    shared.ID
+	TargetType string
+	TargetID   shared.ID
 }

@@ -52,6 +52,7 @@
 
   import CategoriesDialog from './CategoriesDialog.svelte';
   import LanguagePicker from './LanguagePicker.svelte';
+  import Lookalikes from './Lookalikes.svelte';
   import MoveDialog from './MoveDialog.svelte';
   import { createDrag } from './dragging.svelte.ts';
 
@@ -1776,6 +1777,8 @@
       onkeydown={onCaptureKey}
       oninput={() => (captureNote = undefined)}
     />
+    <!-- What already looks like it, while it is typed (UC-AI-04 check 7): nothing when nothing is. -->
+    <Lookalikes title={draftTitle} />
     {#if preview?.amount}
       <!-- The split the line will make, before it makes it (UC-WRK-25 check 2): pressing the chip
            keeps the number in the title for this submit. -->

@@ -135,10 +135,11 @@ test('chromium: an administrator reads the holds and is offered neither placing 
   try {
     const { page, failures, close } = await open(browser, 'ADMIN');
     await page.waitForTimeout(200);
-    // The form stays readable behind its gate, inert, with the permission it needs named.
-    const place = page.locator('form', { hasText: 'Place a hold' });
-    assert.equal(await place.evaluate((form) => form.closest('[inert]') !== null), true, 'placing a hold is offered');
+    // Placing a hold creates something: the whole form is absent (UC-AUD-05 check 5), and the page
+    // says once why, with the permission it needs named.
     await page.getByText('That needs the permission “Delete containers”.', { exact: false }).first().waitFor();
+    assert.equal(await page.locator('form', { hasText: 'Place a hold' }).count(), 0, 'placing a hold is offered');
+    assert.equal(await page.getByText('That needs the permission “Delete containers”.', { exact: false }).count(), 1);
     assert.equal(await page.getByRole('button', { name: 'Lift it' }).count(), 0);
     assert.deepEqual(failures, []);
     await close();

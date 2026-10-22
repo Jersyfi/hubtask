@@ -89,6 +89,15 @@ async function ruleText(page, label) {
   return control(page, label).evaluate((input) => input.closest('[data-rule]')?.textContent ?? '');
 }
 
+/**
+ * The source chips beside one rule (UC-WRK-32 check 5), as `ValueSource` marks them: the level, and
+ * `-locked` where that level locked it. One rule, one chip.
+ */
+async function sourcesOf(page, label) {
+  return control(page, label).evaluate((input) =>
+    [...(input.closest('[data-rule]')?.querySelectorAll('[data-source]') ?? [])].map((chip) => chip.getAttribute('data-source')).join(' '));
+}
+
 test('chromium: every rule says where it comes from, and looser choices are not offered', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -104,9 +113,8 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   assert.match(own, /Set here/, own);
   assert.match(own, /Installation: 12/, own);
 
-  // Locked above: said once, under the control, and the control is not usable.
-  const locked = await ruleText(page, 'Remember previous passwords');
-  assert.equal(locked.match(/Set by the installation/g)?.length, 1, locked);
+  // Locked above: one chip with its lock beside the rule, and the control is not usable.
+  assert.equal(await sourcesOf(page, 'Remember previous passwords'), 'INSTANCE-locked');
   assert.equal(await page.getByLabel('Remember previous passwords', { exact: true }).isDisabled(), true);
 
   // Nobody decided: Hubtask's default, and no installation column - the private installation's case.
@@ -198,7 +206,7 @@ test('chromium: a workspace on a plan names it, and what the plan set says so', 
   assert.doesNotMatch(own, /Installation/, own);
 
   const locked = await ruleText(page, 'Remember previous passwords');
-  assert.equal(locked.match(/Set by your plan/g)?.length, 1, locked);
+  assert.equal(await sourcesOf(page, 'Remember previous passwords'), 'PLAN-locked');
   assert.doesNotMatch(locked, /installation/, locked);
   assert.equal(await page.getByLabel('Remember previous passwords', { exact: true }).isDisabled(), true);
 
@@ -248,6 +256,39 @@ test('chromium: a refusal is shown at the rule it is about', async (t) => {
 
   await page.waitForFunction(() => document.querySelector('[aria-invalid="true"]') !== null);
   assert.equal(await field.getAttribute('aria-invalid'), 'true', 'the refusal is not at the rule');
+});
+
+// UC-WRK-32 checks 3 and 6: no save stands under an untouched form; a change brings the save bar
+// with its count, Discard puts the rule back, Enter in a field saves as Save does, only what moved
+// is sent, and the save confirms as a passing message.
+test('chromium: the rules save through the save bar, and Enter saves', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const patches = [];
+  const { page, close } = await open(browser, (route, path) => {
+    if (path !== '/tenant') return undefined;
+    if (route.request().method() === 'PATCH') patches.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const field = page.getByLabel('End a session after, in days', { exact: true });
+  await field.waitFor();
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  assert.equal(await bar.count(), 0, 'a save bar stands under an untouched form');
+  assert.equal(await page.getByRole('button', { name: 'Save', exact: true }).count(), 0);
+
+  await field.fill('20');
+  await bar.getByText('1 change').waitFor();
+  await bar.getByRole('button', { name: 'Discard' }).click();
+  assert.equal(await field.inputValue(), '30');
+  assert.equal(await bar.count(), 0);
+
+  await field.fill('20');
+  await field.press('Enter');
+  await page.getByText('The sign-in rules were saved.').first().waitFor();
+  assert.deepEqual(patches, [{ sign_in_policy: { session_max_days: 20 } }]);
 });
 
 // UC-ID-19: the terms' version sits beside their link, says what changing it does, travels in the
@@ -647,10 +688,10 @@ test('chromium: the sign-in rules read in German', async (t) => {
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Mindestlänge', { exact: true }).waitFor({ timeout: 15_000 });
   const text = await page.locator('main').innerText();
-  for (const german of ['Wege der Anmeldung', 'Hier festgelegt.', 'Voreinstellung von Hubtask.', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
+  for (const german of ['Wege der Anmeldung', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
     assert.ok(text.includes(german), `"${german}" is missing`);
   }
-  for (const english of ['Minimum length', 'Ways to sign in', 'Set here.', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
+  for (const english of ['Minimum length', 'Ways to sign in', 'Set here', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
     assert.ok(!text.includes(english), `"${english}" fell back to English`);
   }
   // UC-ID-12 check 1: the rule covers sign-ins with a password, in German too.
@@ -731,20 +772,19 @@ test('chromium: a link field holds the workspace\'s own, with the installation\'
   assert.match(await originOf(page, 'Imprint'), /installation.s applies: https:\/\/provider\.example\/imprint/);
   // Both set: the workspace's own in the field, the installation's beside it.
   assert.equal(await page.getByLabel('Privacy', { exact: true }).inputValue(), 'https://acme.example/privacy');
-  assert.match(await originOf(page, 'Privacy'), /Set here\. Installation: https:\/\/provider\.example\/privacy/);
+  assert.match(await originOf(page, 'Privacy'), /Set here\s+Installation: https:\/\/provider\.example\/privacy/);
   // Nobody set one: said, not left blank.
   assert.match(await originOf(page, 'Terms'), /shows none/);
   // Locked: the installation's link, the lock, and no way to change it.
   const statement = page.getByLabel('Accessibility', { exact: true });
   assert.equal(await statement.inputValue(), 'https://provider.example/a11y');
   assert.equal(await statement.isDisabled(), true);
-  const lockedLink = await ruleText(page, 'Accessibility');
-  assert.equal(lockedLink.match(/Set by the installation/g)?.length, 1, lockedLink);
+  assert.equal(await sourcesOf(page, 'Accessibility'), 'INSTANCE-locked');
 });
 
-// UC-ID-12 check 4, UC-ID-18 check 2: a rule or a link locked by the installation or by a plan says
-// so exactly once - under its control, where a screen reader hears it with the control - and is
-// not usable.
+// UC-ID-12 check 4, UC-ID-18 check 2, UC-WRK-32 check 5: a rule or a link locked by the
+// installation or by a plan carries one chip with its lock - whose value, and whom to ask - its
+// control is not usable, and the reason is the control's own description.
 test('chromium: a locked rule or link says its lock once', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -758,14 +798,16 @@ test('chromium: a locked rule or link says its lock once', async (t) => {
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
 
-  for (const [label, said] of [
-    ['Remember previous passwords', /Set by the installation/g],
-    [/^Expires after, in days/, /Set by your plan/g],
-    ['Imprint', /Set by the installation/g],
+  for (const [label, chip, reason] of [
+    ['Remember previous passwords', 'INSTANCE-locked', 'Set by the installation for every workspace.'],
+    [/^Expires after, in days/, 'PLAN-locked', 'Set by your plan.'],
+    ['Imprint', 'INSTANCE-locked', 'Set by the installation for every workspace.'],
   ]) {
-    const text = await ruleText(page, label);
-    assert.equal(text.match(said)?.length, 1, `${label}: ${text}`);
+    assert.equal(await sourcesOf(page, label), chip, String(label));
     assert.equal(await control(page, label).isDisabled(), true, String(label));
+    const described = await control(page, label).evaluate((input) =>
+      (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent?.trim()).join(' '));
+    assert.ok(described.includes(reason), `${label}: ${described}`);
   }
   // An open rule keeps its origin line.
   assert.match(await originOf(page, 'Minimum length'), /Set here/);

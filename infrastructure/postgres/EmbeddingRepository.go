@@ -107,6 +107,23 @@ const (
 		ORDER BY e.embedding <=> me.embedding, wi.id
 		LIMIT $3`
 
+	// The neighbourhood of words that are no entry yet: the same comparison against a vector the
+	// caller embedded, so there is no own branch to leave out. The tenant is named as well as
+	// bounded by row level security, because the vector is the caller's and nothing about it says
+	// whose workspace it was meant for.
+	nearVectorEmbeddings = `
+		SELECT wi.id, wi.collection_id, c.parent_id,
+		       (1 - (e.embedding <=> $1::vector))::float8 AS similarity
+		FROM item_embedding e
+		JOIN work_item wi ON wi.tenant_id = e.tenant_id AND wi.id = e.item_id
+		JOIN container c ON c.tenant_id = wi.tenant_id AND c.id = wi.collection_id
+		WHERE e.tenant_id = current_tenant_id()
+		  AND e.model = $2
+		  AND wi.deleted_at IS NULL
+		  AND (1 - (e.embedding <=> $1::vector)) >= $3
+		ORDER BY e.embedding <=> $1::vector, wi.id
+		LIMIT $4`
+
 	// What the entry's own vector was made with, which is the proposal's provenance and the answer
 	// to "has the pass reached this entry at all".
 	embeddingModelOf = `SELECT model FROM item_embedding WHERE item_id = $1`
@@ -211,9 +228,38 @@ func (EmbeddingRepository) Near(
 		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading an entry's neighbours: %w", err))
 	}
-	defer rows.Close()
+	candidates, err := neighboursOf(rows)
+	if err != nil {
+		return repository.Nearby{}, err
+	}
+	return repository.Nearby{Embedded: true, Model: model, Candidates: candidates}, nil
+}
 
-	near := repository.Nearby{Embedded: true, Model: model}
+// NearVector answers the entries closest to a vector of no entry's (repository.Embeddings).
+func (EmbeddingRepository) NearVector(
+	ctx context.Context, vector []float32, model string, floor float64, limit int,
+) ([]repository.Neighbour, error) {
+	// Empty, a vector of zeros after padding, whose cosine distance to everything is NaN; wider,
+	// one the column cannot hold. Neither is a comparison, and both are refused before the store.
+	if len(vector) == 0 || len(vector) > repository.EmbeddingWidth || model == "" {
+		return nil, nil
+	}
+	tx, err := FromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := tx.Query(ctx, nearVectorEmbeddings, vectorLiteral(vector), model, floor, limit)
+	if err != nil {
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the neighbours of a vector: %w", err))
+	}
+	return neighboursOf(rows)
+}
+
+// neighboursOf reads the rows both neighbourhood statements answer, and closes them.
+func neighboursOf(rows pgx.Rows) ([]repository.Neighbour, error) {
+	defer rows.Close()
+	var found []repository.Neighbour
 	for rows.Next() {
 		var (
 			candidate, collection string
@@ -221,28 +267,29 @@ func (EmbeddingRepository) Near(
 			similarity            float64
 		)
 		if err := rows.Scan(&candidate, &collection, &hub, &similarity); err != nil {
-			return repository.Nearby{}, shared.Internalf("reading a neighbour: %w", err)
+			return nil, shared.Internalf("reading a neighbour: %w", err)
 		}
 
 		neighbour := repository.Neighbour{Similarity: similarity}
+		var err error
 		if neighbour.ItemID, err = shared.ParseID(candidate); err != nil {
-			return repository.Nearby{}, err
+			return nil, err
 		}
 		if neighbour.CollectionID, err = shared.ParseID(collection); err != nil {
-			return repository.Nearby{}, err
+			return nil, err
 		}
 		if hub != nil {
 			if neighbour.HubID, err = shared.ParseID(*hub); err != nil {
-				return repository.Nearby{}, err
+				return nil, err
 			}
 		}
-		near.Candidates = append(near.Candidates, neighbour)
+		found = append(found, neighbour)
 	}
 	if err := rows.Err(); err != nil {
-		return repository.Nearby{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
-			WithCause(fmt.Errorf("reading an entry's neighbours: %w", err))
+		return nil, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading neighbours: %w", err))
 	}
-	return near, nil
+	return found, nil
 }
 
 // Store writes one entry's vector.

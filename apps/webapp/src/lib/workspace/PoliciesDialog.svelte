@@ -15,6 +15,8 @@
   // are: the gate is a prediction, and the server's refusal is what a reader meets when it is
   // wrong.
 
+  import { tick } from 'svelte';
+
   import {
     Button,
     CapabilityGate,
@@ -41,6 +43,7 @@
   import { groups } from '../data/groups.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
@@ -117,8 +120,16 @@
       : (accounts.nameOf(candidate.id) ?? t('app.people.unnamed'));
   }
 
+  /** Whether *Add* was pressed with nothing chosen: the choice is marked, never announced before. */
+  let addMissing = $state<Missing>({});
+  let addRow = $state<HTMLElement | undefined>(undefined);
+
   function add() {
-    if (!adding) return;
+    addMissing = check([{ kind: 'field', key: 'adding', code: 'app.policies.choose_first', isFilled: adding !== '' }]);
+    if (!isComplete(addMissing)) {
+      void tick().then(() => focusFirst(addRow));
+      return;
+    }
     candidates = [...candidates, { kind: wantedKind, id: adding }];
     adding = '';
   }
@@ -196,14 +207,15 @@
               {/each}
             </ul>
           {/if}
-          <div class="row">
+          <div class="row" bind:this={addRow}>
             <Select
               label={t(wantedKind === 'GROUP' ? 'app.policies.add_group' : 'app.policies.add_person')}
               bind:value={adding}
               placeholder={t(wantedKind === 'GROUP' ? 'app.policies.choose_group' : 'app.policies.choose_person')}
               options={choices}
+              error={addMissing.adding && !adding ? t(addMissing.adding) : undefined}
             />
-            <Button size="sm" tone="secondary" onclick={add} disabledReason={adding ? undefined : t('app.policies.choose_first')}>
+            <Button size="sm" tone="secondary" onclick={add}>
               {t('app.policies.add')}
             </Button>
           </div>

@@ -296,7 +296,11 @@ test('chromium: the personal directory is refused in the list before the save, e
   await form.getByLabel(/^Client secret/).fill('s3cr3t');
   await directories.fill('72f988bf-86f1-41af-91ab-2d7cd011db47\n  9188040D-6C67-4C5B-B112-36A304B66DAD ');
   await form.getByText(refusal).first().waitFor({ timeout: 5_000 });
-  assert.equal(await save.isDisabled(), true, 'Save is offered for a list the server refuses');
+  // Save stays offered (UC-WRK-32 check 3); pressed, focus goes to the list the field already
+  // marks, and nothing is sent.
+  assert.equal(await save.isDisabled(), false, 'Save is switched off before it is pressed');
+  await save.click();
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
   await directories.press('Enter');
   assert.equal(sent.length, 0, 'the refused list was sent');
 

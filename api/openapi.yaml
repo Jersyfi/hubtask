@@ -2305,6 +2305,9 @@ paths:
         A job belongs to the tenant that asked for it and is answered to that tenant only. A job
         that belongs to no tenant - the queue's own housekeeping - is answered to nobody here, and
         is indistinguishable from one that never existed.
+
+        A question to AI is also answered to the person who asked it, as long as they may still
+        read what it is about - wherever their role sits.
       responses:
         "200":
           description: The job
@@ -2330,6 +2333,11 @@ paths:
         A job that has already finished, failed or been cancelled answers `409`: there is nothing
         left to stop, and pretending otherwise would let a client believe it had prevented
         something that had already happened.
+
+        A question to AI may also be stopped by the person who asked it, as long as they may still
+        read what it is about. Stopped before its proposal is recorded, it records none; stopped
+        after, its proposal stands - the provider had already answered - and the job reads
+        `CANCELLED` all the same.
       parameters:
         - $ref: "#/components/parameters/IdempotencyKey"
       responses:
@@ -6679,15 +6687,20 @@ paths:
       operationId: aiSuggestFields
       summary: Ask AI to propose this entry's fields
       description: >
-        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry - what the automation action `AI_SUGGEST_FIELDS` does. Asynchronous and answered `202`;
-        a workspace with no provider or no consent is answered `503` with `ai.unavailable`.
+        Asks the workspace's AI provider to propose a title, notes and a due date for one entry -
+        what the automation action `AI_SUGGEST_FIELDS` does - or only the fields `fields` names.
+        Asynchronous and answered `202`; a workspace with no provider or no consent is answered
+        `503` with `ai.unavailable`. A field outside the three is refused with
+        `suggestions.field_not_offered` (422) and nothing is queued.
+
+        Asked by whoever may change the entry: the permission is decided along the entry's own
+        path, so a role held on its hub, its collection or the entry itself counts.
       requestBody:
         required: false
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AiAsk"
+              $ref: "#/components/schemas/AiFieldsAsk"
       responses:
         "202":
           description: The provider will be asked by the job named here; a refusal the job meets is its error_code
@@ -6739,6 +6752,8 @@ paths:
         reads. **Display only, and nothing is stored**: user content is never translated in
         place, no suggestion
         is recorded, and there is nothing to accept — a person reads the answer and it is gone.
+        Offered to everybody who may read the entry. A caller who stops waiting may close the
+        request: the provider call ends with it.
         Synchronous, the way the search's meaning is, and bounded the same way: the caller is
         waiting, so the call has a short timeout and every way of not getting an answer — no
         consent, no provider, a spent budget, an open breaker, a slow model — is `503` with
@@ -6812,7 +6827,13 @@ paths:
         Asynchronous and answered `202`, like every AI call here; a workspace with no provider or no
         consent is answered `503` with `ai.unavailable`, and nothing is queued and nothing is sent.
         The answer appears under `GET /suggestions` as a proposal for the entry's notes, which
-        somebody accepts or dismisses.
+        somebody who may change the entry accepts or dismisses.
+
+        **A reading aid**: asked by everybody who may read the entry, not only by those who may
+        change it, and readable by them under `GET /suggestions`. `apply: true` writes the notes,
+        so it asks what changing the entry asks. A summary is judged against the entry's title and
+        notes, not against the thread, so a reply does not mark it stale: it says what the
+        discussion came to when it was made, which its `produced_at` names.
 
         A comment is somebody's writing and travels as content, never as instruction. Nothing about
         it — no comment, no author, no title — reaches a log, a metric, a trace or an audit entry;
@@ -6903,6 +6924,47 @@ paths:
                 $ref: "#/components/schemas/Suggestion"
         "204":
           description: Nothing near this entry, or nothing that could look
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items:duplicates:
+    post:
+      tags: [suggestions]
+      operationId: findDuplicatesByTitle
+      summary: Which entries look like a title that is not an entry yet
+      description: >
+        Answers the entries whose meaning sits near the words of a title somebody is typing, before
+        the entry exists - so that a person creating "Book the tiler" learns that "Call the tiler
+        about Thursday" is already there. A read: nothing is stored, nothing is recorded, and the
+        same request may be repeated, so it takes no `Idempotency-Key` and answers
+        `Cache-Control: no-store`. A `POST` for the reason `/search` is one: what somebody types is
+        their content, and a query string travels through logs that a body does not.
+
+        The words are embedded by the workspace's provider the way a search's words are - the same
+        consent, the same rule for people who keep their content out, the same short wait - and
+        every way of not getting a vector is an **empty answer, not an error**: no `pgvector`, no
+        provider that embeds, no consent, a kept-out caller, a provider slower than the wait.
+
+        The nearest entries at or above the threshold the duplicates of an entry use, at most five,
+        nearest first, each narrowed to what the caller may read along its own path - a role held
+        on one hub finds that hub's entries, and an entry in a private hub the caller is outside of
+        is never answered.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DuplicatesByTitleQuery"
+      responses:
+        "200":
+          description: The entries near the words, nearest first; empty where nothing is near or nothing could look
+          headers:
+            Cache-Control:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LookalikePage"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -7185,6 +7247,27 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/AiSource"
+  /ai-budget-state:
+    get:
+      tags: [ai]
+      operationId: readAiBudgetState
+      summary: How today's AI budget stands, for everybody here
+      description: >
+        Whether the source this workspace chose - the model the installation offers, its own model,
+        or none - can still be asked today: `OK`, `NEARLY_SPENT` (more than nine tenths of the
+        day's budget used), `SPENT` (none left until `renews_at`, the workspace's next midnight), or
+        `OFF` (the workspace chose no source). A budget without a ceiling is `OK`.
+
+        Answered to every signed-in person of the workspace, whatever their role, because it is
+        what a person reads before asking AI something; it names no number and nobody's use - those
+        are the administrator's, under `GET /quotas`. It changes nothing and is not audited.
+      responses:
+        "200":
+          description: The state of the day's AI budget
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiBudgetState"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -11416,6 +11499,73 @@ components:
         prompt_id: { type: string }
         prompt_version: { type: string }
         produced_at: { type: string, format: date-time }
+
+    AiFieldsAsk:
+      type: object
+      description: >
+        How to ask for an entry's fields: propose or apply, as every ask, and which of the three
+        fields to propose. Absent `fields` asks for all three.
+      properties:
+        apply:
+          type: boolean
+          default: false
+          description: As `AiAsk.apply`.
+        fields:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum: [title, notes, due_date]
+          description: >
+            The fields to propose. The answer keeps only these; one that proposes none of them ends
+            the job with `ai.nothing_to_change`.
+
+    DuplicatesByTitleQuery:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 500
+          description: The words of the title being typed. Checked like a title is when an entry is created.
+
+    Lookalike:
+      type: object
+      required: [item_id, title, collection_id, similarity]
+      properties:
+        item_id: { type: string, format: uuid }
+        title:
+          type: string
+          description: The entry's title, as the caller may read it.
+        collection_id: { type: string, format: uuid }
+        similarity:
+          type: number
+          description: How alike, between the threshold and 1, rounded to three places.
+
+    LookalikePage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 5
+          items:
+            $ref: "#/components/schemas/Lookalike"
+
+    AiBudgetState:
+      type: object
+      required: [state]
+      properties:
+        state:
+          type: string
+          enum: [OK, NEARLY_SPENT, SPENT, OFF]
+        renews_at:
+          type: [string, "null"]
+          format: date-time
+          description: When the day's budget has room again - the workspace's next midnight. Null for `OFF`.
 
     AiAsk:
       type: object

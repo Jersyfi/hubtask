@@ -117,35 +117,32 @@ func (h SuggestDuplicates) Execute(
 	ctx context.Context, actor appshared.ActorContext, itemID shared.ID,
 ) (domain.Suggestion, bool, error) {
 	c := h.Cases
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
-		// Asking records a suggestion against the workspace, so it asks for what writing asks
-		// for - the same question the other four ask, arrived at without spending anything.
-		Permission: service.PermissionWriteItems,
-		Path:       []identity.Scope{identity.TenantScope()},
-		Action:     DuplicatesAskedAction,
-		TokenScope: suggestionsWrite,
-		TargetType: suggestionTarget,
-		TargetID:   itemID,
+	// The entry is read through its own use case, which is the existence and visibility question
+	// at once - and it is the fingerprint the suggestion is judged stale against. Then the question
+	// asking asks: it records a suggestion about the entry, so what changing it asks, along the
+	// entry's own path - the same question the other asks ask, arrived at without spending anything.
+	var subject Subject
+	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		subject, err = c.Targets.Subject(ctx, actor, domain.TargetWorkItem, itemID)
+		return err
 	}); err != nil {
 		return domain.Suggestion{}, false, err
 	}
+	request := writesEntry(subject, itemID, DuplicatesAskedAction, itemID)
+	request.TokenScope = suggestionsWrite
+	if err := c.Authorizer.Authorize(ctx, actor, request); err != nil {
+		return domain.Suggestion{}, false, err
+	}
+	digest := subject.Digest
 
-	var (
-		digest []byte
-		near   workrepo.Nearby
-	)
+	var near workrepo.Nearby
 	if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(),
 		func(ctx context.Context) error {
 			// The cheapest question first, and the one that decides whether the statement below
 			// can be run at all: an installation with no pgvector has no store to read.
 			available, err := h.Semantic.Available(ctx)
 			if err != nil || !available {
-				return err
-			}
-			// The entry is read through its own use case, which is the permission check and the
-			// existence check at once - and it is the fingerprint the suggestion is judged stale
-			// against.
-			if digest, err = c.Targets.Digest(ctx, actor, domain.TargetWorkItem, itemID); err != nil {
 				return err
 			}
 			near, err = h.Neighbours.Near(ctx, itemID, h.floor(), h.limit())

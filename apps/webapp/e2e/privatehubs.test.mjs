@@ -206,9 +206,12 @@ test('chromium: with several people and no private hub the page stays, with *Pri
   const toggle = page.getByRole('switch', { name: 'People here may make private hubs' });
   await toggle.waitFor({ timeout: 10_000 });
   assert.equal(await toggle.isChecked(), true);
-  await page.getByText("Hubtask's default.").waitFor();
+  // The chip beside the switch says whose value it is (UC-WRK-32 check 5), and that it is this
+  // workspace's own once it was switched here; the save confirms as a passing message.
+  await page.getByRole('button', { name: "Hubtask's default" }).waitFor();
   await toggle.uncheck();
-  await page.getByText('Set here.').waitFor({ timeout: 10_000 });
+  await page.getByRole('button', { name: 'Set here' }).waitFor({ timeout: 10_000 });
+  await page.getByText('Saved: who may make private hubs.').first().waitFor();
   assert.deepEqual(patched, { sign_in_policy: { private_hubs: false } });
   assert.deepEqual(failures, []);
 });
@@ -226,6 +229,7 @@ test('chromium: an installation lock shows the switch with who set it, and offer
   assert.equal(await toggle.isChecked(), false);
   assert.equal(await toggle.isDisabled(), true);
   assert.ok((await page.textContent('[data-private-hubs-allowed]')).includes('Set by the installation for every workspace.'));
+  assert.equal(await page.locator('[data-private-hubs-allowed] [data-source]').getAttribute('data-source'), 'INSTANCE-locked');
   assert.deepEqual(failures, []);
 });
 
@@ -245,6 +249,7 @@ test('chromium: a plan lock shows the switch with your plan as who set it', asyn
   const said = await page.textContent('[data-private-hubs-allowed]');
   assert.ok(said.includes('Set by your plan.'), said);
   assert.ok(!said.includes('installation'), said);
+  assert.equal(await page.locator('[data-private-hubs-allowed] [data-source]').getAttribute('data-source'), 'PLAN-locked');
   assert.deepEqual(failures, []);
 });
 

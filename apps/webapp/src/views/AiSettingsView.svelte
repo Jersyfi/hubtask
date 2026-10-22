@@ -25,7 +25,7 @@
   // processor and where - and the own model's form only where the workspace may use its own. With
   // nothing offered and nothing decided this is the screen it always was (P-10).
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
@@ -38,7 +38,11 @@
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import WriteOnly from '../lib/workspace/WriteOnly.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
@@ -52,7 +56,9 @@
   let confirmingRemoval = $state(false);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let saved = $state(false);
+  /** What a press of the own model's save found missing, marked at its fields. */
+  let missing = $state<Missing>({});
+  let ownForm = $state<HTMLFormElement | undefined>(undefined);
   /** Whether the fields have been filled from the last read. Once only, so typing is not overwritten. */
   let filled = false;
 
@@ -76,7 +82,6 @@
   const ownBudget = $derived(quotas.standings.find((each) => each.quota === 'ai_own_tokens_per_day'));
   let ownBudgetDraft = $state('');
   let ownBudgetWorking = $state(false);
-  let ownBudgetSaved = $state(false);
   /** The draft follows the stored budget until somebody types. */
   let ownBudgetTouched = false;
   $effect(() => {
@@ -89,13 +94,12 @@
   async function saveOwnBudget(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     ownBudgetWorking = true;
-    ownBudgetSaved = false;
     failure = undefined;
     const typed = ownBudgetDraft.trim();
     try {
       await aiProvider.setOwnBudget({ own_tokens_per_day: typed === '' ? null : Number(typed) });
       ownBudgetTouched = false;
-      ownBudgetSaved = true;
+      toast.show({ text: t('app.ai.budget_own_saved'), tone: 'success' });
     } catch (cause) {
       failure = problemOf(cause);
     } finally {
@@ -178,7 +182,6 @@
   async function choose(id: string, body: AiSourceChoice): Promise<void> {
     choosingWorking = id;
     failure = undefined;
-    saved = false;
     try {
       await aiProvider.choose(body);
     } catch (cause) {
@@ -237,13 +240,21 @@
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!kind || !jurisdiction) return;
+    // Never switched off for an empty choice: pressed, the missing choice is marked and focused
+    // (UC-WRK-32 check 3).
+    missing = check([
+      { kind: 'field', key: 'kind', code: 'app.ai.kind_needed', isFilled: kind !== '' },
+      { kind: 'field', key: 'jurisdiction', code: 'app.ai.jurisdiction_needed', isFilled: jurisdiction !== '' },
+    ]);
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(ownForm));
+      return;
+    }
     isWorking = true;
     failure = undefined;
-    saved = false;
     try {
       await aiProvider.configure({
-        kind,
+        kind: kind as AiProviderKind,
         ...(baseUrl.trim() ? { base_url: baseUrl.trim() } : {}),
         ...(completionModel.trim() ? { completion_model: completionModel.trim() } : {}),
         ...(embeddingModel.trim() ? { embedding_model: embeddingModel.trim() } : {}),
@@ -251,13 +262,13 @@
         // here, because "clear the key" is a different intent from "I typed nothing" and this
         // screen offers the first as the removal below.
         ...(apiKey ? { api_key: apiKey } : {}),
-        jurisdiction,
+        jurisdiction: jurisdiction as AiJurisdiction,
         processing_allowed: processingAllowed,
       });
       // Out of the component's state at once: a key kept for a second submission is a key sitting
       // in a form for as long as the tab is open.
       apiKey = '';
-      saved = true;
+      toast.show({ text: t('app.ai.saved'), tone: 'success' });
     } catch (cause) {
       failure = problemOf(cause);
     } finally {
@@ -268,7 +279,6 @@
   async function remove(): Promise<void> {
     isWorking = true;
     failure = undefined;
-    saved = false;
     try {
       await aiProvider.remove();
       confirmingRemoval = false;
@@ -347,7 +357,8 @@
                 <Switch
                   label={t('app.ai.offered_use', { name: model.display_name })}
                   checked={isChosen}
-                  disabledReason={choosingWorking ? t('app.ai.saving') : undefined}
+                  isBusy={choosingWorking === model.id}
+                  busyLabel={t('app.ai.saving')}
                   onchange={(event) =>
                     void choose(model.id, (event.currentTarget as HTMLInputElement).checked
                       ? { source: 'OFFERED', offered_model_id: model.id }
@@ -364,7 +375,8 @@
           label={t('app.ai.use_own')}
           hint={t('app.ai.use_own_hint')}
           checked={source?.source === 'OWN'}
-          disabledReason={choosingWorking ? t('app.ai.saving') : undefined}
+          isBusy={choosingWorking === 'own'}
+          busyLabel={t('app.ai.saving')}
           onchange={(event) => void choose('own', { source: (event.currentTarget as HTMLInputElement).checked ? 'OWN' : 'NONE' })}
         />
       {/if}
@@ -381,15 +393,13 @@
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
-      {:else if saved}
-        <Banner tone="success">{t('app.ai.saved')}</Banner>
       {/if}
 
       {#if allowsOwn}
       {#if choosing}<h2 class="section">{t('app.ai.own_title')}</h2>{/if}
-      <form class="panel" onsubmit={save}>
+      <form class="panel" bind:this={ownForm} onsubmit={save}>
         <Stack gap="200">
-          <Select label={t('app.ai.kind_label')} hint={t('app.ai.kind_hint')} bind:value={kind} placeholder={t('app.ai.kind_choose')} options={kinds} />
+          <Select label={t('app.ai.kind_label')} hint={t('app.ai.kind_hint')} bind:value={kind} placeholder={t('app.ai.kind_choose')} options={kinds} error={missing.kind && !kind ? t(missing.kind) : undefined} />
           <Input
             label={t('app.ai.base_url_label')}
             hint={t('app.ai.base_url_hint')}
@@ -408,23 +418,27 @@
             autocomplete="off"
             spellcheck={false}
           />
-          <Select label={t('app.ai.jurisdiction_label')} hint={t('app.ai.jurisdiction_hint')} bind:value={jurisdiction} placeholder={t('app.ai.jurisdiction_choose')} options={jurisdictions} />
+          <Select label={t('app.ai.jurisdiction_label')} hint={t('app.ai.jurisdiction_hint')} bind:value={jurisdiction} placeholder={t('app.ai.jurisdiction_choose')} options={jurisdictions} error={missing.jurisdiction && !jurisdiction ? t(missing.jurisdiction) : undefined} />
           {#if source && source.min_jurisdiction !== 'ANY'}
-            <p class="quiet">{t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}</p>
+            <p class="quiet">
+              {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
+              <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
+            </p>
           {/if}
           <!-- The consent, as its own switch, naming who receives the content and where. -->
           <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWorking}
-              busyLabel={t('app.ai.saving')}
-              disabledReason={!kind ? t('app.ai.kind_choose') : !jurisdiction ? t('app.ai.jurisdiction_choose') : undefined}
-            >
-              {t('app.ai.save')}
-            </Button>
-          </div>
+          <WriteOnly>
+            <div>
+              <Button
+                type="submit"
+                tone="primary"
+                isBusy={isWorking}
+                busyLabel={t('app.ai.saving')}
+              >
+                {t('app.ai.save')}
+              </Button>
+            </div>
+          </WriteOnly>
         </Stack>
       </form>
 
@@ -439,7 +453,10 @@
           onchange={(event) => narrow((event.currentTarget as HTMLSelectElement).value)}
         />
       {:else if source?.sources_lock && offered.length > 0}
-        <p class="quiet">{t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}</p>
+        <p class="quiet">
+          {t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}
+          <ValueSource source={source.sources_origin} lock={source.sources_lock} value={t(`app.ai.narrow_${source.sources.toLowerCase()}`)} />
+        </p>
       {/if}
 
       {#if source}
@@ -488,16 +505,16 @@
                 value={ownBudgetDraft}
                 oninput={(event) => {
                   ownBudgetTouched = true;
-                  ownBudgetSaved = false;
                   ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
                 }}
               />
-              <div>
-                <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
-                  {t('app.ai.budget_own_save')}
-                </Button>
-              </div>
-              {#if ownBudgetSaved}<p class="quiet" role="status">{t('app.ai.budget_own_saved')}</p>{/if}
+              <WriteOnly>
+                <div>
+                  <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
+                    {t('app.ai.budget_own_save')}
+                  </Button>
+                </div>
+              </WriteOnly>
             </Stack>
           </form>
         {/if}
@@ -507,6 +524,7 @@
         {/if}
       </Stack>
 
+      <WriteOnly>
       {#if provider && allowsOwn}
         <Stack gap="150">
           <h2 class="section">{t('app.ai.remove_title')}</h2>
@@ -526,6 +544,7 @@
           {/if}
         </Stack>
       {/if}
+      </WriteOnly>
       </WorkspaceGate>
     {/if}
     </Stack>

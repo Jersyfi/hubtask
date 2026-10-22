@@ -368,6 +368,42 @@ func (q *Queries) FindJob(ctx context.Context, arg FindJobParams) (FindJobRow, e
 	return i, err
 }
 
+const findJobAsker = `-- name: FindJobAsker :one
+SELECT kind,
+       coalesce(payload->>'asked_by', '')::text AS asked_by,
+       coalesce(payload->>'target_type', '')::text AS target_type,
+       coalesce(payload->>'target_id', '')::text AS target_id
+FROM job
+WHERE id = $1 AND tenant_id = $2
+`
+
+type FindJobAskerParams struct {
+	ID       pgtype.UUID
+	TenantID pgtype.UUID
+}
+
+type FindJobAskerRow struct {
+	Kind       string
+	AskedBy    string
+	TargetType string
+	TargetID   string
+}
+
+// Who asked a job, and about what: the kind and the three references a question to AI carries in
+// its payload. The tenant is named in the statement, as in every statement here, because the
+// table has no policy underneath. Empty strings where a payload names none.
+func (q *Queries) FindJobAsker(ctx context.Context, arg FindJobAskerParams) (FindJobAskerRow, error) {
+	row := q.db.QueryRow(ctx, findJobAsker, arg.ID, arg.TenantID)
+	var i FindJobAskerRow
+	err := row.Scan(
+		&i.Kind,
+		&i.AskedBy,
+		&i.TargetType,
+		&i.TargetID,
+	)
+	return i, err
+}
+
 const findJobByDedupeKey = `-- name: FindJobByDedupeKey :one
 SELECT id FROM job
 WHERE kind = $1::text

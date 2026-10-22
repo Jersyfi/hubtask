@@ -52,6 +52,11 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
+
+  /** What *Invite* or *Grant* found missing when pressed, marked at the field (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
@@ -286,7 +291,11 @@
   async function invite(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const address = inviteEmail.trim();
-    if (!address || !inviteRole) return;
+    missing = marked(event, [
+      { kind: 'field', key: 'email', code: 'app.forms.required', isFilled: address !== '' },
+      { kind: 'field', key: 'inviteRole', code: 'app.forms.choose', isFilled: inviteRole !== '' },
+    ]);
+    if (!isComplete(missing)) return;
     invited = undefined;
     handedOver = undefined;
     inviteRefusal = undefined;
@@ -354,7 +363,14 @@
   }
 
   async function grant(): Promise<void> {
-    if (!chosenSubject || !chosenRole) return;
+    missing = check([
+      { kind: 'field', key: 'subject', code: 'app.forms.choose', isFilled: chosenSubject !== '' },
+      { kind: 'field', key: 'grantRole', code: 'app.forms.choose', isFilled: chosenRole !== '' },
+    ]);
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(document));
+      return;
+    }
     await attempt(() =>
       people.grant({ accountId: chosenSubject }, chosenRole as MembershipRole, TENANT), t('app.people.granted_announced')
     );
@@ -474,16 +490,16 @@
                 {/if}
                 <!-- Asks first: a single keystroke on a focused control must not end
                      somebody's access. Absent for a role above the reader's own: taking it away
-                     is refused as handing it out is. Absent, and said why, on the workspace's last
-                     owner, which the server keeps. -->
-                {#if endsTheLastOwner(holders, holder.membershipId, people.isCompleteAt(TENANT), canAct)}
-                  <span class="quiet small">{t('app.people.last_owner')}</span>
-                {:else if mayRevoke(holder.role, people.grantableAt(TENANT))}
+                     is refused as handing it out is. On the workspace's last owner, which the
+                     server keeps, it stays in its place, unavailable, and says why on hover,
+                     focus and tap (UC-WRK-32 check 1) - not a sentence in the row. -->
+                {#if mayRevoke(holder.role, people.grantableAt(TENANT))}
                 <Button
                   size="sm"
                   tone="danger"
                   isBusy={isWriting}
                   busyLabel={t('app.people.working')}
+                  disabledReason={endsTheLastOwner(holders, holder.membershipId, people.isCompleteAt(TENANT), canAct) ? t('app.people.last_owner') : undefined}
                   onclick={() => (revoking = holder)}
                 >
                   {t('app.people.revoke')}
@@ -560,7 +576,7 @@
               autocomplete="off"
               spellcheck={false}
               isRequired
-              error={inviteRefusal}
+              error={inviteRefusal ?? (missing.email && !inviteEmail.trim() ? t(missing.email) : undefined)}
               oninput={() => (inviteRefusal = undefined)}
             />
           </div>
@@ -582,6 +598,7 @@
             bind:value={inviteRole}
             placeholder={t('app.people.choose_role')}
             options={inviteRoleOptions}
+            error={missing.inviteRole && !inviteRole ? t(missing.inviteRole) : undefined}
           />
           {#if grantRefusal}
             <Banner tone="warning">{grantRefusal}</Banner>
@@ -615,12 +632,14 @@
         bind:value={chosenSubject}
         placeholder={t('app.people.choose_person')}
         options={candidates}
+        error={missing.subject && !chosenSubject ? t(missing.subject) : undefined}
       />
       <Select
         label={t('app.people.role_column')}
         bind:value={chosenRole}
         placeholder={t('app.people.choose_role')}
         options={roleOptions}
+        error={missing.grantRole && !chosenRole ? t(missing.grantRole) : undefined}
       />
       <div>
         <Button

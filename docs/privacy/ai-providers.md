@@ -73,11 +73,15 @@ switched on *Prepare proposals for new jumble entries*, when something arrives i
 | Decomposition | An entry's title and notes | A suggested tree of work packages and activities |
 | Rule drafting | The person's sentence; the names of the people, collections, hubs and labels it names that they may see; the rule vocabulary | A suggested rule, switched off until somebody saves and switches it on |
 | Automation AI actions | The fields the rule names | A suggestion, or a value the rule applies |
-| Semantic search | Titles and notes, as text to embed | A vector |
+| Semantic search | Titles and notes, as text to embed; the words somebody searches for | A vector |
+| Duplicates of a title being typed | The words of the title, as text to embed | A vector, compared with the stored ones |
 
 Every one of them is `PERSONAL_CONTENT`. None of it is sent by a background process nobody decided
 on: an embedding follows a write somebody made, a suggestion follows a person's or a rule's ask, or
-an arrival in a workspace that switched proposals on arrival on.
+an arrival in a workspace that switched proposals on arrival on. The words of a search and of a
+title being typed are sent for their vector and stored nowhere; like a search, looking for a
+title's duplicates writes no audit entry - nothing was recorded or changed - and every other
+feature in the table records that it was asked.
 
 **Except what a person keeps out.** Where the workspace lets each person keep their own content out
 of AI (the default), what a person who did so created, commented or mailed in is sent nowhere, and
