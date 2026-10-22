@@ -901,6 +901,12 @@ gate-docs:
 gate-numbers:
 	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
 
+## flowstats: How work flowed over a window - pull requests, CI, sessions (SINCE=, UNTIL=; needs gh)
+# Not a gate: a report, so that a review compares two windows by the same code (ADR-0089).
+.PHONY: flowstats
+flowstats:
+	$(GO) run ./tools/flowstats -since $(SINCE) -until $(UNTIL)
+
 ## gate-main-green: main's newest run is green, or this pull request is its fix (needs gh; PR=<n>)
 # The last step of `CI required` (ADR-0083), which runs the script directly; this target is the
 # same check from a laptop.
