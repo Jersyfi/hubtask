@@ -20,8 +20,8 @@
   //
   // **The acknowledgement is the caller's decision.** Ten recovery codes scrolled past are ten
   // codes nobody wrote down, so a caller may require a tick before the value can be dismissed. The
-  // dismissal is then switched off *with its reason* rather than hidden, which is this package's
-  // rule everywhere: `disabledReason` is what disables.
+  // dismissal is never switched off for it (design-system.md §4, case 3): pressed before the tick,
+  // it marks the box with the reason and moves focus there, which is where the reader acts.
   //
   // **Nothing here outlives the panel.** The value is a prop and belongs to the caller; this
   // component copies it into no storage, no history entry and no module-level variable, and drops
@@ -47,7 +47,7 @@
     copiedLabel?: string;
     /** Present means the reader must tick it before the value may be dismissed. */
     acknowledgementLabel?: string;
-    /** Why the dismissal is switched off until they do. Required with an acknowledgement. */
+    /** What the box says when the dismissal is pressed before it is ticked. Required with an acknowledgement. */
     notAcknowledgedReason?: string;
     /** Absent means this panel is not dismissible from inside it. */
     dismissLabel?: string;
@@ -71,6 +71,9 @@
   let isRevealed = $state(false);
   let hasAcknowledged = $state(false);
   let hasCopied = $state(false);
+  /** Whether the dismissal was pressed before the tick: the box then says why, until it is ticked. */
+  let isMarked = $state(false);
+  let acknowledgement = $state<HTMLElement | null>(null);
 
   // The browser capability is asked once, at construction: whether a clipboard exists does not
   // change while a panel is open, and re-reading it on every keystroke would be treating a browser
@@ -89,7 +92,17 @@
     isRevealed = false;
     hasAcknowledged = false;
     hasCopied = false;
+    isMarked = false;
   });
+
+  function dismiss(): void {
+    if (dismissible) {
+      onDismiss?.();
+      return;
+    }
+    isMarked = true;
+    queueMicrotask(() => acknowledgement?.querySelector<HTMLInputElement>('input')?.focus());
+  }
 
   async function copy(): Promise<void> {
     try {
@@ -131,16 +144,18 @@
   <span class="announcement" aria-live="polite">{hasCopied ? (copiedLabel ?? '') : ''}</span>
 
   {#if acknowledgementLabel}
-    <Checkbox label={acknowledgementLabel} bind:checked={hasAcknowledged} />
+    <div bind:this={acknowledgement}>
+      <Checkbox
+        label={acknowledgementLabel}
+        error={isMarked && !hasAcknowledged ? notAcknowledgedReason : undefined}
+        bind:checked={hasAcknowledged}
+      />
+    </div>
   {/if}
 
   {#if dismissLabel}
     <div>
-      <Button
-        tone="primary"
-        disabledReason={dismissible ? undefined : notAcknowledgedReason}
-        onclick={() => onDismiss?.()}
-      >
+      <Button tone="primary" onclick={dismiss}>
         {dismissLabel}
       </Button>
     </div>

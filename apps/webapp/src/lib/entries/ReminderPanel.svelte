@@ -24,7 +24,6 @@
     AssigneeControl,
     Badge,
     Button,
-    CapabilityGate,
     focusFirst,
     ReminderEditor,
     Stack,
@@ -33,7 +32,6 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
   import { reminders } from '../data/reminders.svelte.ts';
   import {
@@ -47,10 +45,10 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst as focusFirstMissing } from '../forms/missing.ts';
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
 
-  const capability = $derived(supports(item.type, 'REMINDER'));
   const limit = $derived(reminderLimitOf(manifest.value?.limits as Record<string, unknown> | undefined));
 
   $effect(() => {
@@ -140,8 +138,20 @@
     }
   }
 
+  /**
+   * *Save* was pressed with a reminder counted from a due date the entry does not have. Said at
+   * the editor's first question; the editor stays usable, because the way out - a fixed time - is
+   * one of its own choices (design-system.md §4, case 3). It used to be switched off whole.
+   */
+  let isWhenMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
+
   function save() {
-    if (refusal) return;
+    if (refusal) {
+      isWhenMissing = true;
+      queueMicrotask(() => focusFirstMissing(form));
+      return;
+    }
     const current = editing;
     void attempt(async () => {
       const body = {
@@ -166,11 +176,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.reminders.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if held.length === 0}
       <p class="quiet">{t('app.reminders.none')}</p>
@@ -209,7 +217,7 @@
 
     {#if isComposing}
       <!-- The editor appears under the control that opened it; the focus goes in with it (2.4.3). -->
-      <div class="opened" {@attach focusFirst({ returnTo: '[data-opener="reminder"]' })}>
+      <div class="opened" bind:this={form} {@attach focusFirst({ returnTo: '[data-opener="reminder"]' })}>
       <ReminderEditor
         label={t('app.reminders.editor')}
         value={spec}
@@ -233,8 +241,11 @@
         unknownChannelLabel={t('app.reminders.channel_unknown')}
         recipientsLabel={t('app.reminders.recipients')}
         defaultRecipientsLabel={t('app.reminders.default_recipients')}
-        disabledReason={refusal ? t(refusal) : undefined}
-        onChange={(next) => (spec = next)}
+        error={isWhenMissing && refusal ? t(refusal) : undefined}
+        onChange={(next) => {
+          spec = next;
+          isWhenMissing = false;
+        }}
         onChannelsChange={(next) => (chosenChannels = next)}
       >
         {#snippet recipients()}
@@ -264,7 +275,6 @@
         <Button
           isBusy={isSaving}
           busyLabel={t('app.workspace.saving')}
-          disabledReason={refusal ? t(refusal) : undefined}
           onclick={save}
         >
           {t('app.reminders.save')}
@@ -288,7 +298,6 @@
       {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
     {/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   /* A focus scope and nothing else: the editor keeps the layout it had. */

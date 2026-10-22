@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
 
   interface Props {
-    mode?: 'states' | 'unavailable' | 'row' | 'table' | 'busy';
+    mode?: 'states' | 'unavailable' | 'row' | 'table' | 'busy' | 'invalid';
     isLong?: boolean;
   }
 
@@ -47,6 +47,12 @@
     <Checkbox
       label="Notify me about this work package"
       disabledReason="Reminders need an email address. Add one in your account."
+    />
+  {:else if mode === 'invalid'}
+    <Checkbox
+      bind:checked={off}
+      label="I have stored these codes somewhere safe"
+      error={off ? undefined : 'Tick this once the codes are stored. They are not shown again.'}
     />
   {:else}
     <Checkbox bind:checked={on} label={label} />

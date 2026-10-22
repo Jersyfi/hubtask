@@ -15,6 +15,13 @@ export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'C
 /** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
 export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
 export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
+/**
+ * A hub archived in its own right and a collection under it that is not: read-only from above, the
+ * case where nothing on the collection's page can be unarchived and every reason names the hub.
+ * Neither is in the tree, as the archive leaves them out of it.
+ */
+export const ARCHIVED_HUB = { id: '01a0e2e0-0000-7000-8000-000000000006', type: 'HUB', parent_id: null, name: 'Old flat', order_key: 'a2', version: 1, archived_at: '2026-07-01T09:00:00Z', effective_archived: true };
+export const UNDER_ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000007', type: 'COLLECTION', parent_id: ARCHIVED_HUB.id, name: 'Moving boxes', order_key: 'a0', version: 1, effective_archived: true };
 export const LABELS = [
   { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'teal' },
   { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'red' },
@@ -59,7 +66,16 @@ export const CHILDREN = {
   ],
   '01a0e2e0-0000-7000-8000-000000000042': [],
 };
-export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat()];
+/**
+ * An entry archived in its own right with an activity under it that is not - the server's model:
+ * archiving freezes the entry alone (ArchiveWorkItem.go) - and an entry in the archived collection.
+ * Neither is in `ITEMS`, so no list walk counts them; their pages are reached by address.
+ */
+export const ARCHIVED_ENTRY = item('61', 'Old shelving plan', { archived_at: '2026-08-15T09:00:00Z' });
+export const UNDER_ARCHIVED_ENTRY = item('62', 'Measure the alcove', { type: 'ACTIVITY', parent_id: ARCHIVED_ENTRY.id, depth: 1 });
+CHILDREN[ARCHIVED_ENTRY.id] = [UNDER_ARCHIVED_ENTRY];
+export const IN_ARCHIVED = item('63', 'Insulate the loft', { collection_id: ARCHIVED.id });
+export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat(), ARCHIVED_ENTRY, IN_ARCHIVED];
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 export const ROLES = [
@@ -451,6 +467,8 @@ export function stub(route) {
   }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
   if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
+  if (path.endsWith(`/api/v1/containers/${ARCHIVED_HUB.id}`)) return route.fulfill({ json: ARCHIVED_HUB });
+  if (path.endsWith(`/api/v1/containers/${UNDER_ARCHIVED.id}`)) return route.fulfill({ json: UNDER_ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${HUB.id}`)) return route.fulfill({ json: HUB });
   if (path.endsWith(`/api/v1/containers/${HUB.id}/privacy`) && request.method() === 'PUT') {
     return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });

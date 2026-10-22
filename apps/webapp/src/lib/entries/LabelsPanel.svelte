@@ -9,11 +9,10 @@
 
   import { untrack } from 'svelte';
 
-  import { CapabilityGate, Inline, LabelChip, LabelPicker, Stack } from '@hubtask/design-system/components';
+  import { Inline, LabelChip, LabelPicker, Stack } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -31,7 +30,6 @@
     return untrack(() => labels.open(wanted));
   });
 
-  const capability = $derived(supports(item.type, 'LABELS'));
   const available = $derived(
     labels.of(item.collection_id).map((entry) => ({ id: entry.id, name: entry.name, colorToken: entry.color_token, description: entry.description })),
   );
@@ -51,11 +49,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.fields.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if carried.length > 0}
       <Inline gap="050">
@@ -86,7 +82,6 @@
     {/if}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }

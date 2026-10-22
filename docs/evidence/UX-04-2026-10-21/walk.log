@@ -1,0 +1,17 @@
+archived-collection 375 light: House |  | Add an entry | Last winter |  | This is archived, so nothing in it can be changed. Unarchive it to work in it again.
+archived-collection 375 dark: House |  | Add an entry | Last winter |  | This is archived, so nothing in it can be changed. Unarchive it to work in it again.
+archived-collection 768 light: House | Last winter | Last winter | Add an entry | More ways to add an entry | Filter and sort
+archived-collection 768 dark: House | Last winter | Last winter | Add an entry | More ways to add an entry | Filter and sort
+archived-collection 1280 light: House | Last winter | Last winter | Add an entry | More ways to add an entry | Filter and sort
+archived-collection 1280 dark: House | Last winter | Last winter | Add an entry | More ways to add an entry | Filter and sort
+under-archived-hub 1280 light: Old flat | Moving boxes | Moving boxes | Add an entry | The hub above this one is archived, so nothing here can be changed. Unarchive Old flat to work in it again. | More ways to add an entry
+archived-entry 1280 light: House | Kitchen | Old shelving plan | Actions for Old shelving plan | Old shelving plan | Mark Old shelving plan as done
+archived-entry 1280 dark: House | Kitchen | Old shelving plan | Actions for Old shelving plan | Old shelving plan | Mark Old shelving plan as done
+archived-entry 375 light: Kitchen |  | Old shelving plan | Mark Old shelving plan as done | Task | Archived
+profile-save-bar 375 light: Your settings |  | How the product speaks to you | Language | Use the workspace's | English
+profile-save-bar 1280 light: Your settings | How the product speaks to you | How the product speaks to you | Language | Use the workspace's | English
+profile-saved-toast 375 dark: Your settings |  | How the product speaks to you | Language | Use the workspace's | English
+notifications-always-on 768 light: Your settings | What you are told about | What you are told about |  | One row for each thing this workspace tells people about. | 
+notifications-always-on 768 dark: Your settings | What you are told about | What you are told about |  | One row for each thing this workspace tells people about. | 
+create-collection-marked 768 light: House | House | Create collection | Import… | Actions for House | ML
+tokens-marked 1280 dark: Your settings | Access tokens | Access tokens |  | A token lets a script or a tool act as you, bounded by what you may do and by the scopes you give it. Nobody else can see this list, not even an administrator. | 

@@ -283,7 +283,7 @@ test('chromium: the step-up prompt proves the caller with a security key', async
   await panel.getByRole('listitem').filter({ hasText: 'Old laptop' }).getByRole('button', { name: 'Remove' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Use a passkey or security key' }).click();
-  await panel.getByText('Old laptop was removed. It no longer works.').waitFor();
+  await page.locator('[data-tone="success"]', { hasText: 'Old laptop was removed. It no longer works.' }).waitFor();
 
   assert.equal(sent.options, 1);
   assert.equal(sent.proofs.length, 1);

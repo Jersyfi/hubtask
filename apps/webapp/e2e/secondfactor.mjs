@@ -43,7 +43,14 @@ export async function walkSetup(page, sent, { atSecret, atCodes } = {}) {
   const proceed = page.getByRole('button', { name: 'Continue' });
   await proceed.waitFor();
   assert.deepEqual(sent.confirm?.code, '123456');
-  assert.equal(await proceed.isDisabled(), true, 'Continue is available before the codes were stored');
+  // *Continue* is never switched off for the tick (design-system.md §4, case 3): pressed before it,
+  // the box says why and takes focus, and nothing moves on.
+  assert.equal(await proceed.isDisabled(), false, 'Continue is switched off before the codes were stored');
+  await proceed.click();
+  const stored = page.getByLabel('I have stored these codes. They will not be shown again.');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+  assert.equal(await stored.getAttribute('aria-invalid'), 'true', 'the unticked box is not marked');
+  assert.ok(await proceed.isVisible(), 'Continue moved on before the codes were stored');
   await atCodes?.();
   await page.getByRole('button', { name: 'Show the codes' }).click();
   assert.ok(await page.getByRole('button', { name: 'Hide the codes' }).isVisible(), 'the control says what it hides');
@@ -52,7 +59,7 @@ export async function walkSetup(page, sent, { atSecret, atCodes } = {}) {
   const lines = (await page.getByText(ENROLLMENT.recovery_codes[0]).innerText()).split('\n');
   assert.deepEqual(lines, ENROLLMENT.recovery_codes, 'the codes are not one per line');
   assert.ok(await page.getByRole('button', { name: 'Copy all ten' }).isVisible(), 'the ten are copyable as one block');
-  await page.getByLabel('I have stored these codes. They will not be shown again.').check();
-  assert.equal(await proceed.isDisabled(), false, 'ticking did not make Continue available');
+  await stored.check();
+  assert.equal(await stored.getAttribute('aria-invalid'), null, 'the mark stayed after the tick');
   await proceed.click();
 }

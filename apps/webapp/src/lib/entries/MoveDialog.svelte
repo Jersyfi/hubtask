@@ -16,6 +16,8 @@
 
   import { Button, Dialog, Select } from '@hubtask/design-system/components';
 
+  import { focusFirst } from '../forms/missing.ts';
+
   interface Props {
     isOpen?: boolean;
     /** What is being moved, as the dialog's name. */
@@ -54,27 +56,42 @@
   }: Props = $props();
 
   let chosen = $state('');
+  /** *Move* was pressed with nothing chosen: the list says so (design-system.md §4, case 3). */
+  let isChoiceMissing = $state(false);
+  let body = $state<HTMLElement | null>(null);
+
+  function move() {
+    if (chosen === '') {
+      isChoiceMissing = true;
+      queueMicrotask(() => focusFirst(body));
+      return;
+    }
+    onmove(chosen);
+  }
 </script>
 
 <Dialog bind:isOpen {title} dismissLabel={cancelLabel}>
   {#if options.length === 0}
     <p class="none">{emptyLabel}</p>
   {:else}
-    <Select {label} {placeholder} {options} bind:value={chosen} />
+    <div bind:this={body}>
+      <Select
+        {label}
+        {placeholder}
+        {options}
+        bind:value={chosen}
+        error={isChoiceMissing && chosen === '' ? chooseFirstLabel : undefined}
+        onchange={() => (isChoiceMissing = false)}
+      />
+    </div>
     {#if warning}<p class="warning">{warning}</p>{/if}
   {/if}
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{cancelLabel}</Button>
-    <!-- Off with a reason rather than silently doing nothing: there is no `disabled` boolean in
-         this system, and a button that answers a press with nothing is the silent ignoring the
-         whole project has a rule against. -->
-    <Button
-      {isBusy}
-      {busyLabel}
-      disabledReason={chosen === '' ? chooseFirstLabel : undefined}
-      onclick={() => onmove(chosen)}
-    >
+    <!-- Never off for want of a choice, and never silent: pressed with nothing chosen, the list
+         says so and takes focus. -->
+    <Button {isBusy} {busyLabel} onclick={move}>
       {confirmLabel}
     </Button>
   {/snippet}

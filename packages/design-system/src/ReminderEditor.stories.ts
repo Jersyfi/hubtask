@@ -50,3 +50,10 @@ export const inTableRow: Story = {
   about: 'The same in a table row: the row keeps its height whether the control is available or not.',
   args: { mode: 'table' },
 };
+
+export const missing: Story = {
+  name: 'Counted from a due date the entry does not have',
+  about:
+    'Saved before the entry has a due date (design-system.md §4, case 3): the first question says why, the editor is `data-invalid`, and every part stays usable - the way out is one of them. Choose *Something else*, then *At a fixed time*, and the sentence goes.',
+  args: { mode: 'missing' },
+};

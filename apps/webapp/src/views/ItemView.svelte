@@ -39,6 +39,8 @@
     LoadMore,
     Menu,
     PageHeader,
+    provideReasonGroup,
+    ReadOnlyNotice,
     Skeleton,
     Stack,
     Tabs,
@@ -61,6 +63,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { changeRefusalCode, childTypes, declaresType, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { definitionsFor } from '../lib/data/customfields.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
@@ -205,6 +208,11 @@
     return untrack(() => containers.openSingle(wanted));
   });
   const collection = $derived(item ? containers.find(item.collection_id) : undefined);
+  /**
+   * Whether the collection, or the hub above it, is archived: then nothing in it can be changed
+   * (I-C3). The entry's own archive freezes the entry alone, never its children.
+   */
+  const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
   const trail = $derived([
     ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
@@ -337,9 +345,19 @@
   let isSubtreeOpen = $state(true);
 
   /** The entry's own menu. What the head and the details rows do is not repeated in it. */
-  const entryMenu = $derived<MenuItem[]>([
-    { id: 'share', label: t('app.people.share'), icon: 'users' },
+  const entryMenu = $derived.by((): MenuItem[] => [
+    // *Share* where the reader may grant a role here; otherwise the same dialog, to read who has
+    // access - the offer to grant is absent rather than refused inside it (UC-WRK-21 check 7).
+    { id: 'share', label: t(mayShare() ? 'app.people.share' : 'app.people.title'), icon: 'users' },
   ]);
+  /**
+   * Whether the reader may grant a role on this entry: the server's own answer of what they may
+   * give there (`grantable_roles`), the one the members dialog offers from. Unknown reads as no.
+   */
+  function mayShare(): boolean {
+    if (!item) return false;
+    return (people.grantableAt({ scopeType: 'ITEM', scopeId: item.id })?.length ?? 0) > 0;
+  }
 
   let activeTab = $state('comments');
   /** The tab that is actually shown: the history, where this type has no conversation to open. */
@@ -608,14 +626,39 @@
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isTitleFailure = $state(false);
 
-  // An archived entry is not editable, and the control says so rather than disappearing - the same
-  // sentence the list uses for the same state.
-  //
-  // Only the entry's own archival is read here. An entry under an archived collection carries no
-  // mark of its own, so that refusal comes from the server and lands in the sentence above the
-  // buttons; the alternative would be this screen reading the whole trail to predict an answer it
-  // is about to be given.
-  const frozenReason = $derived(item?.archived_at ? t('app.entries.archived') : undefined);
+  // Why nothing on this entry can be changed because of an archive, or nothing: the collection's
+  // first - unarchiving the entry would be refused while the collection is archived (I-C3) - then
+  // the entry's own, worded for whether the reader may unarchive it or must ask - so not before the
+  // role is known, as the role's own sentence (P-11); nothing is writable meanwhile, since writing
+  // needs the role. The entry's archive is its own: its children are not read-only with it.
+  const frozenReason = $derived(
+    isCollectionArchived
+      ? t('app.entries.read_only')
+      : item?.archived_at && mayChangeHere !== undefined
+        ? t(isChangeable ? 'app.entries.archived' : 'app.entries.archived_ask')
+        : undefined,
+  );
+  /**
+   * The page's one notice (design-system.md §4, case 5): the role's sentence where the role reads
+   * only - it outlasts any unarchive - else the archive's. The controls that stay, the completion
+   * box, name it as their description rather than repeating it.
+   */
+  const readOnlyReason = $derived(roleReason ?? frozenReason);
+  /** Whether anything on this entry may be written: the role allows it and nothing is archived. */
+  const isWritable = $derived(isChangeable && frozenReason === undefined);
+  const instanceId = $props.id();
+  const readOnlyNoticeId = `item-${instanceId}-read-only`;
+  provideReasonGroup(() => ({ id: readOnlyNoticeId, reason: readOnlyReason }));
+
+  async function unarchive() {
+    if (!item) return;
+    try {
+      await items.setArchived(item.id, false, crypto.randomUUID());
+      announcer.say(t('app.entries.unarchived_announced', { title: item.title }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
 
   // AI where its subject is (UC-AI-04 check 6): a ✦ beside each subject and what stands about it
   // under it - and nothing at all when the manifest announces no AI for this workspace, not
@@ -818,21 +861,20 @@
           aria-invalid={isTitleFailure ? 'true' : undefined}
           rows="1"
           bind:value={inlineTitle}
-          readonly={frozenReason !== undefined || !isChangeable}
-          title={frozenReason ?? roleReason}
+          readonly={!isWritable}
           oninput={() => (isInlineDirty = true)}
           onblur={() => void commitInline()}
           onkeydown={onTitleKey}
         ></textarea>
         {#if hasAi}
-          <AiAsk {item} place="title" mayChange={isChangeable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
+          <AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
         {/if}
       </div>
       {#if writeFailure && isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
       {/if}
       {#if hasAi}
-        <AiPlace {item} place="title" proposals={proposalsAt('title')} mayChange={isChangeable} onclose={closeProposal} />
+        <AiPlace {item} place="title" proposals={proposalsAt('title')} mayChange={isWritable} onclose={closeProposal} />
         {#if isTranslating}
           <TranslatePanel {item} {languages} onclose={() => (isTranslating = false)} />
         {/if}
@@ -858,7 +900,7 @@
            nothing yet, so the field is pending rather than absent. -->
       {#if !isTypeKnown}
         {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
-      {:else if carries('NOTES') && (isChangeable || inlineNotes.trim() !== '')}
+      {:else if carries('NOTES') && (isWritable || inlineNotes.trim() !== '')}
       <textarea
         class="notes-field"
         lang={entryLang}
@@ -866,7 +908,7 @@
         placeholder={t('app.item.notes_placeholder')}
         rows="3"
         bind:value={inlineNotes}
-        readonly={frozenReason !== undefined || !isChangeable}
+        readonly={!isWritable}
         oninput={() => (isInlineDirty = true)}
         onblur={() => void commitInline()}
         onkeydown={onNotesKey}
@@ -874,9 +916,9 @@
       {/if}
       {#if hasAi && isTypeKnown && carries('NOTES')}
         {#if isChangeable}
-          <div class="field-ai"><AiAsk {item} place="notes" mayChange={isChangeable} standing={standingAt('notes')} /></div>
+          <div class="field-ai"><AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} /></div>
         {/if}
-        <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isChangeable} onclose={closeProposal} />
+        <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
       {/if}
       {#if writeFailure && !isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
@@ -884,9 +926,17 @@
       {#if completionFailure}
         <p class="failure" role="alert">{completionFailure.message}</p>
       {/if}
-      {#if roleReason}
-        <!-- Why there is nothing to press: said once, not on every control (UC-WRK-22 check 2). -->
-        <p class="role-reason">{roleReason}</p>
+      {#if readOnlyReason}
+        <!-- Why there is nothing to press: said once, not on every control (UC-WRK-22 check 2,
+             UC-WRK-32 check 4). An entry archived in its own right offers the way back to whoever
+             may take it. -->
+        <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId} icon={roleReason ? 'eye' : 'lock'}>
+          {#snippet action()}
+            {#if !roleReason && !isCollectionArchived && item.archived_at && isChangeable}
+              <Button size="sm" tone="secondary" onclick={() => void unarchive()}>{t('app.entries.unarchive')}</Button>
+            {/if}
+          {/snippet}
+        </ReadOnlyNotice>
       {/if}
     </div>
 
@@ -944,13 +994,13 @@
                 </Button>
               {/if}
               {#if hasAi}
-                <AiAsk {item} place="steps" mayChange={isChangeable} standing={standingAt('steps')} />
+                <AiAsk {item} place="steps" mayChange={isChangeable && !isCollectionArchived} standing={standingAt('steps')} />
               {/if}
             </div>
             {#if hasAi}
-              <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable} onclose={closeProposal} />
+              <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
             {/if}
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={frozenReason !== undefined} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
 
@@ -971,10 +1021,10 @@
             {#if hasAi}
               <!-- What the discussion came to: a reading aid, asked and read by everybody who may
                    read the entry (UC-AI-04 check 8). -->
-              <div class="field-ai"><AiAsk {item} place="comments" mayChange={isChangeable} {hasComments} standing={standingAt('comments')} /></div>
-              <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isChangeable} onclose={closeProposal} />
+              <div class="field-ai"><AiAsk {item} place="comments" mayChange={isWritable} {hasComments} standing={standingAt('comments')} /></div>
+              <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
             {/if}
-            <CommentPanel {item} path={peoplePath} mayComment={mayCommentHere} />
+            <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined} />
           {:else}
             <Stack gap="150">
               {#if historyFailure}
@@ -1019,22 +1069,22 @@
 {/if}
 
 {#snippet dueAsk()}
-  {#if item}<AiAsk {item} place="due" mayChange={isChangeable} standing={standingAt('due')} />{/if}
+  {#if item}<AiAsk {item} place="due" mayChange={isWritable} standing={standingAt('due')} />{/if}
 {/snippet}
 {#snippet dueBelow()}
-  {#if item}<AiPlace {item} place="due" proposals={proposalsAt('due')} mayChange={isChangeable} onclose={closeProposal} />{/if}
+  {#if item}<AiPlace {item} place="due" proposals={proposalsAt('due')} mayChange={isWritable} onclose={closeProposal} />{/if}
 {/snippet}
 {#snippet labelsAsk()}
-  {#if item}<AiAsk {item} place="labels" mayChange={isChangeable} choices={aiChoices} standing={standingAt('labels')} />{/if}
+  {#if item}<AiAsk {item} place="labels" mayChange={isWritable} choices={aiChoices} standing={standingAt('labels')} />{/if}
 {/snippet}
 {#snippet labelsBelow()}
-  {#if item}<AiPlace {item} place="labels" proposals={proposalsAt('labels')} mayChange={isChangeable} onclose={closeProposal} />{/if}
+  {#if item}<AiPlace {item} place="labels" proposals={proposalsAt('labels')} mayChange={isWritable} onclose={closeProposal} />{/if}
 {/snippet}
 
 {#snippet detailRows()}
   {#if item}
             {#if carries('ASSIGNMENT') || carries('MEMBERS')}
-              <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined} isReadOnly={!isChangeable}>
+              <DetailRow id="assignee" label={t('app.people.assignee')} value={item.assignee_id ? (accounts.nameOf(item.assignee_id) ?? t('app.people.unnamed')) : undefined} isReadOnly={!isWritable}>
                 <AssigneePanel {item} path={peoplePath} />
               </DetailRow>
             {/if}
@@ -1042,26 +1092,26 @@
               <!-- One row, because `DuePanel` is one editor: it writes the start and the due
                    together, and two rows opening it showed the reader the other date wherever
                    they pressed. -->
-              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isChangeable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
-                <DuePanel {item} disabledReason={frozenReason} />
+              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isWritable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
+                <DuePanel {item} />
               </DetailRow>
             {/if}
             {#if carries('LABELS')}
-              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isChangeable} ask={hasAi ? labelsAsk : undefined} below={hasAi ? labelsBelow : undefined}>
-                <LabelsPanel {item} disabledReason={frozenReason} />
+              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isWritable} ask={hasAi ? labelsAsk : undefined} below={hasAi ? labelsBelow : undefined}>
+                <LabelsPanel {item} />
               </DetailRow>
             {/if}
             {#if carries('REMINDER')}
-              <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isChangeable}>
+              <DetailRow id="reminders" label={t('app.reminders.title')} value={reminderCount > 0 ? t('app.item.reminders_count', { count: String(reminderCount) }) : undefined} isReadOnly={!isWritable}>
                 <ReminderPanel {item} path={peoplePath} />
               </DetailRow>
             {/if}
             {#if carries('RECURRENCE')}
-              <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isChangeable}>
+              <DetailRow id="recurrence" label={t('app.recurrence.title')} value={repeatValue} isReadOnly={!isWritable}>
                 <RecurrencePanel {item} />
               </DetailRow>
             {/if}
-            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isChangeable}>
+            <DetailRow id="language" label={t('app.entries.language')} value={item.content_language ? languageName(item.content_language, messages.locale) : undefined} isReadOnly={!isWritable}>
               <Stack gap="150">
                 <LanguagePicker
                   {languages}
@@ -1073,24 +1123,26 @@
                   tagHint={t('app.entries.language_tag_hint')}
                 />
                 <div>
-                  <Button size="sm" onclick={() => void saveLanguage()} disabledReason={frozenReason}>{t('app.workspace.save')}</Button>
+                  <Button size="sm" onclick={() => void saveLanguage()}>{t('app.workspace.save')}</Button>
                 </div>
               </Stack>
             </DetailRow>
             {#if carries('COVER')}
-              <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isChangeable}>
+              <DetailRow id="cover" label={t('app.media.cover')} value={item.cover ? t(`app.item.cover_${item.cover.kind}`) : undefined} isReadOnly={!isWritable}>
                 <CoverPanel {item} />
               </DetailRow>
             {/if}
-            {#if carries('ATTACHMENTS') && (isChangeable || attachmentCount)}
+            {#if carries('ATTACHMENTS') && (isWritable || attachmentCount)}
               <DetailRow id="attachments" label={t('app.media.attachments')} value={attachmentCount ? t('app.item.attachments_count', { count: String(attachmentCount) }) : undefined}>
-                <AttachmentPanel {item} {isChangeable} />
+                <!-- Readable and downloadable by whoever reads the entry, archived or not; attaching and
+                     detaching only where it may be written. -->
+                <AttachmentPanel {item} isChangeable={isWritable} />
               </DetailRow>
             {/if}
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)} isReadOnly={!isChangeable}>
+                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)} isReadOnly={!isWritable}>
                   <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
                 </DetailRow>
               {/each}
@@ -1132,7 +1184,6 @@
 
   .head { display: flex; flex-direction: column; gap: var(--sp-150); position: relative; }
 
-  .role-reason { margin: 0; color: var(--text-secondary); font-size: var(--fs-100); }
 
   .title-row { display: flex; align-items: center; gap: var(--sp-150); }
 

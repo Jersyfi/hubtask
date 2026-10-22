@@ -6,8 +6,8 @@ actors: [PE-admin, PE-member, PE-person, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12, P-14]
 state: built
-tasks: [D-06, F3-14, P-11, F6-10]
-checked_by: [test/integration/template_test.go, test/integration/template_acceptance_test.go, core/domain/model/work/Template_test.go, core/application/service/work/Template_test.go]
+tasks: [D-06, F3-14, P-11, F6-10, UX-04]
+checked_by: [test/integration/template_test.go, test/integration/template_acceptance_test.go, core/domain/model/work/Template_test.go, core/application/service/work/Template_test.go, apps/webapp/e2e/explain.test.mjs]
 ---
 
 # Start a routine from a template

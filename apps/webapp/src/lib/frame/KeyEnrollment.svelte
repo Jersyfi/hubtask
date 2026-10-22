@@ -14,6 +14,7 @@
   import { passkeys } from '../data/passkeys.svelte.ts';
   import { nameFits, suggestedName } from '../data/passkeys.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   interface Props {
     /** The ENROLL step's credential. */
@@ -38,9 +39,18 @@
     onarmed?.(pair, owedChange);
   }
 
+  /** Set up was pressed without a usable name: the field says so (design-system.md §4, case 3). */
+  let isNameMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
+
   async function add(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!pendingToken || !nameFits(name)) return;
+    if (!nameFits(name)) {
+      isNameMissing = true;
+      queueMicrotask(() => focusFirst(form));
+      return;
+    }
+    if (!pendingToken) return;
     waiting = true;
     const result = await passkeys.enroll(pendingToken, name, (options) => navigator.credentials.create(options));
     waiting = false;
@@ -80,7 +90,7 @@
     />
   </Stack>
 {:else}
-  <form onsubmit={add}>
+  <form onsubmit={add} bind:this={form} novalidate>
     <Stack gap="150">
       <p class="quiet">{t('app.mfa.key_setup_hint')}</p>
       {#if passkeys.failure}
@@ -94,6 +104,8 @@
         maxlength={64}
         isRequired
         autocomplete="off"
+        oninput={() => (isNameMissing = false)}
+        error={isNameMissing && !nameFits(name) ? t('app.passkeys.name_needed') : undefined}
       />
       <div class="key" bind:this={button}>
         <Button
@@ -101,7 +113,6 @@
           tone="primary"
           isBusy={waiting || passkeys.isWorking}
           busyLabel={t('app.sign_in.passkey_waiting')}
-          disabledReason={nameFits(name) ? undefined : t('app.passkeys.name_needed')}
         >
           {t('app.mfa.key_setup')}
         </Button>

@@ -177,7 +177,7 @@ test('chromium: a passkey is added with a fresh proof, then the device, named, a
   await dialog.getByLabel('Your password').fill('the one in force');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
 
-  await panel.getByText('Laptop at work was added.').waitFor();
+  await page.locator('[data-tone="success"]', { hasText: 'Laptop at work was added.' }).waitFor();
   assert.deepEqual(sent.starts, [null, GRANT], 'the start was asked without a proof, then with the one given');
   assert.deepEqual(sent.proofs, [{ password: 'the one in force' }]);
   assert.equal(sent.completes.length, 1);
@@ -296,7 +296,7 @@ test('chromium: a passkey is renamed with the session alone, and another removed
   assert.equal(await field.inputValue(), 'Laptop');
   await field.fill('Old laptop, at home');
   await panel.getByRole('button', { name: 'Save name' }).click();
-  await panel.getByText('Renamed to Old laptop, at home.').waitFor();
+  await page.locator('[data-tone="success"]', { hasText: 'Renamed to Old laptop, at home.' }).waitFor();
   assert.deepEqual(sent.renames, [{ id: LAPTOP.id, name: 'Old laptop, at home' }]);
   assert.deepEqual(sent.proofs, [], 'renaming asked for a fresh proof');
   await panel.getByText('Old laptop, at home', { exact: true }).waitFor();
@@ -309,7 +309,7 @@ test('chromium: a passkey is renamed with the session alone, and another removed
   assert.ok(waiting <= 1, `${waiting} controls show they are working`);
   assert.equal(await panel.getByRole('button', { name: 'Add a passkey' }).getAttribute('aria-busy'), null);
   await proveWithPassword(page);
-  await panel.getByText('Key in the drawer was removed. It no longer works.').waitFor();
+  await page.locator('[data-tone="success"]', { hasText: 'Key in the drawer was removed. It no longer works.' }).waitFor();
   assert.deepEqual(sent.removals, [{ id: DRAWER.id, proof: null }, { id: DRAWER.id, proof: GRANT }]);
   // The confirmation is said before the list is drawn again; wait for the row to go, then count.
   await drawer.waitFor({ state: 'detached' });
@@ -333,7 +333,9 @@ test('chromium: the last factor the workspace requires is not offered for remova
   t.after(() => context.close());
   const panel = page.getByTestId('passkeys');
   const laptop = panel.getByRole('listitem').filter({ hasText: 'Laptop' });
-  await laptop.getByText('Your workspace requires a second factor, and this is the last one', { exact: false }).waitFor();
+  // Said once for the list, under it - not under the key it holds for.
+  await panel.getByText('Your workspace requires a second factor, and this is the last one', { exact: false }).waitFor();
+  assert.equal(await panel.getByText('Your workspace requires a second factor, and this is the last one', { exact: false }).count(), 1);
   assert.equal(await laptop.getByRole('button', { name: 'Remove' }).count(), 0);
   assert.equal(await laptop.getByRole('button', { name: 'Rename' }).count(), 1, 'renaming is not the rule\'s business');
   const old = panel.getByRole('listitem').filter({ hasText: 'Key in the drawer' });

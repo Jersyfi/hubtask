@@ -6,7 +6,7 @@
   import Stack from './Stack.svelte';
   import Toast from './Toast.svelte';
 
-  const { mode = 'tones' }: { mode?: 'tones' | 'focus' } = $props();
+  const { mode = 'tones' }: { mode?: 'tones' | 'focus' | 'quiet' } = $props();
 
   let shown = $state<number[]>([]);
   let next = $state(1);
@@ -30,6 +30,9 @@
       {/each}
     </Stack>
   </Stack>
+{:else if mode === 'quiet'}
+  <!-- Drawn by a frame that has already said the same words through its own live region. -->
+  <Toast tone="success" isAnnounced={false} dismissLabel="Dismiss">Settings saved.</Toast>
 {:else}
   <Stack gap="150">
     <Toast>Two people are editing this task.</Toast>

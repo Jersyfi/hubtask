@@ -21,8 +21,16 @@
   // of its own.
   //
   // **Nothing is compiled in.** The languages are the manifest's.
+  //
+  // **A change shows the save bar, and only a change** (design-system.md §4, case 4; UC-WRK-32
+  // check 3): "2 changes · Discard · Save" appears with the first change, saving is busy in place
+  // and confirms as a toast. The write is a merge-patch without a version, so it sends only what
+  // changed - a second device's change to another field survives - and the form is not re-seeded
+  // from the account while it holds a change, which would wipe the count from under the reader.
 
-  import { Button, EmptyState, Input, Select, Stack } from '@hubtask/design-system/components';
+  import { untrack } from 'svelte';
+
+  import { EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
@@ -32,7 +40,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import { WEEK_STARTS, clearedOr, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
-  import { announcer } from '../lib/announce.svelte.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
@@ -55,32 +63,59 @@
   let weekStart = $state('');
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let notice = $state<string | undefined>(undefined);
+  /** What the form was last seeded with - the account's values - which a change is counted against. */
+  let seeded = $state({ locale: '', zone: '', weekStart: '' });
+  /** The fields that differ from what was seeded, by the name the write takes. */
+  const changed = $derived(
+    [
+      locale !== seeded.locale ? 'locale' : undefined,
+      zone !== seeded.zone ? 'time_zone' : undefined,
+      weekStart !== seeded.weekStart ? 'week_start' : undefined,
+    ].filter((each): each is string => each !== undefined),
+  );
 
-  // Seeded from the account, and re-seeded when it arrives or changes. In an effect rather than a
-  // `$derived`, because these are what somebody is typing into.
+  // Seeded from the account, and re-seeded when it arrives or changes - but only while the reader
+  // holds no change of their own: an account re-read in the middle of an edit would otherwise
+  // throw the edit away. In an effect rather than a `$derived`, because these are what somebody is
+  // typing into.
   $effect(() => {
-    locale = account?.locale ?? '';
-    zone = account?.time_zone ?? '';
-    weekStart = account?.week_start ?? '';
+    const next = { locale: account?.locale ?? '', zone: account?.time_zone ?? '', weekStart: account?.week_start ?? '' };
+    untrack(() => {
+      if (changed.length > 0) return;
+      seed(next);
+    });
   });
+
+  function seed(values: { locale: string; zone: string; weekStart: string }) {
+    seeded = values;
+    locale = values.locale;
+    zone = values.zone;
+    weekStart = values.weekStart;
+  }
+
+  function discard() {
+    failure = undefined;
+    seed({ locale: account?.locale ?? '', zone: account?.time_zone ?? '', weekStart: account?.week_start ?? '' });
+  }
 
   async function save() {
     if (!accountId) return;
+    if (changed.length === 0) return;
     isSaving = true;
     failure = undefined;
-    notice = undefined;
+    const sent = { locale, zone, weekStart };
     try {
+      // Only what changed: the write merges, and a field sent unchanged would overwrite another
+      // device's change to it. The empty string, not null: it is what every server version clears
+      // on, where a null was read as "not sent" before 0.9.0.
       await preferences.setAccount(accountId, {
-        // The empty string, not null: it is what every server version clears on, where a null
-        // was read as "not sent" before 0.9.0.
-        locale: clearedOr(locale),
-        time_zone: clearedOr(zone),
-        week_start: clearedOr(weekStart) as never,
+        ...(changed.includes('locale') ? { locale: clearedOr(sent.locale) } : {}),
+        ...(changed.includes('time_zone') ? { time_zone: clearedOr(sent.zone) } : {}),
+        ...(changed.includes('week_start') ? { week_start: clearedOr(sent.weekStart) as never } : {}),
       });
-      notice = t('app.profile.saved');
+      seeded = sent;
       // The frame applies the language itself once the account re-reads; this only says it landed.
-      announcer.say(t('app.profile.saved'));
+      toast.show({ text: t('app.profile.saved'), tone: 'success' });
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -145,14 +180,17 @@
         />
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
-        {#if notice}<p class="quiet">{notice}</p>{/if}
-
-        <div>
-          <Button type="submit" isBusy={isSaving} busyLabel={t('app.workspace.saving')}>
-            {t('app.profile.save')}
-          </Button>
-        </div>
       </Stack>
+      <SaveBar
+        label={t('app.save_bar.label')}
+        changesLabel={changed.length > 0 ? t('app.save_bar.changes', { count: String(changed.length) }) : undefined}
+        discardLabel={t('app.save_bar.discard')}
+        saveLabel={t('app.profile.save')}
+        isSaving={isSaving}
+        savingLabel={t('app.workspace.saving')}
+        onDiscard={discard}
+        onSave={() => void save()}
+      />
     </form>
 
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent

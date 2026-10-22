@@ -6,8 +6,8 @@ actors: [PE-owner, PE-admin, PE-member, PE-guest, PE-child, PE-scripter]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-01, P-05, P-07, P-08, P-10]
 state: partial
-tasks: [B-02, F3-01, F3-07, F4-09]
-checked_by: [test/integration/membership_test.go, test/integration/membership_list_test.go, core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, apps/webapp/e2e/invitescope.test.mjs]
+tasks: [B-02, F3-01, F3-07, F4-09, UX-04]
+checked_by: [test/integration/membership_test.go, test/integration/membership_list_test.go, core/domain/service/Authorization_test.go, core/domain/service/ItemAccess_test.go, apps/webapp/e2e/invitescope.test.mjs, apps/webapp/e2e/explain.test.mjs]
 ---
 
 # Share a hub, a collection or one entry with somebody
@@ -58,4 +58,3 @@ hub or the workspace, which can only be revoked where they were granted. Revokin
 ## Today
 
 * Check 1: not met for groups — a group holding a role is listed as "a group", without its name.
-* Check 7: not met — *Share* is on every entry's menu for every reader; the members dialog's grant form and revoke buttons follow what the server says the reader may grant there.

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-11, P-13]
 state: specified
 tasks: [UX-03, UX-04, UX-05]
-checked_by: [apps/webapp/e2e/workbench-layout.test.mjs]
+checked_by: [apps/webapp/e2e/workbench-layout.test.mjs, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/explain-settings.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs, docs/evidence/UX-04-2026-10-21.md]
 ---
 
 # Understand why I cannot do something
@@ -18,7 +18,7 @@ When something cannot be done right now, the person finds out why at the place t
 
 ## Story
 
-In the template dialog, *Edit* is unavailable on a workspace template. Hovering or focusing it shows "Only this collection's templates are changed here"; the buttons beside it do not move.
+In a collection whose hub is archived, *Add an entry* is unavailable. Hovering or focusing it shows "The hub above this one is archived, so nothing here can be changed. Unarchive Old flat to work in it again."; the buttons beside it do not move.
 
 ## How to check
 
@@ -37,9 +37,9 @@ In the template dialog, *Edit* is unavailable on a workspace template. Hovering 
 ## Today
 
 * Check 1: met by the design system's components — every control with a reason stays focusable and shows it as a bubble on hover, focus and tap without moving a box, measured in three engines (`apps/webapp/e2e/workbench-layout.test.mjs`); the screens use them through UX-04 and UX-05 (check 7).
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
+* Check 2: met on the end-user screens and Your settings (`apps/webapp/e2e/explain.test.mjs`); not met on administration and installation, tracked in UX-05.
+* Check 3: met on the end-user screens and Your settings (`explain.test.mjs`, `explain-settings.test.mjs`); not met on administration and installation, tracked in UX-05.
+* Check 4: met on the end-user screens and Your settings (`explain.test.mjs`, `explain-settings.test.mjs`); not met on administration and installation, tracked in UX-05.
 * Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: met by the design system's components — `Button`, `IconButton`, `Checkbox` and `Switch` show progress in place without changing size (`apps/webapp/e2e/workbench-layout.test.mjs`), and the workbench's *Saving a setting* confirms with a `Toast` and *Undo*; the screens' "Saving…" lines move in UX-05 (check 7).
-* Check 7: not met — not built yet, tracked in milestone UX.
+* Check 6: met by the design system's components — `Button`, `IconButton`, `Checkbox` and `Switch` show progress in place without changing size (`apps/webapp/e2e/workbench-layout.test.mjs`), and the workbench's *Saving a setting* confirms with a `Toast` and *Undo*; Your settings show it in place and confirm with a toast (`explain-settings.test.mjs`); administration and installation are tracked in UX-05.
+* Check 7: met for the end-user screens and Your settings at three widths (`explain.test.mjs`, `explain-settings.test.mjs`); not met for administration and installation, tracked in UX-05.
