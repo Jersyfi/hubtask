@@ -193,3 +193,10 @@ func TestTheActionsAllowlistCheckRefusesWhatItShould(t *testing.T) {
 		})
 	}
 }
+
+// sorted is a sorted copy, so that a comparison does not depend on the order things were found in.
+func sorted(values []string) []string {
+	out := slices.Clone(values)
+	sort.Strings(out)
+	return out
+}

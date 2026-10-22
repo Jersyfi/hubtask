@@ -66,8 +66,6 @@ func TestTheGuardRefusesWhatADraftMayNotSkip(t *testing.T) {
 	gitIn(t, work, "-c", "user.email=t@example.invalid", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "one")
 	gitIn(t, work, "remote", "add", "origin", remote)
 	gitIn(t, work, "push", "-q", "-u", "origin", "main")
-	head := gitIn(t, work, "rev-parse", "HEAD")
-	stamp := filepath.Join(work, ".git", "hubtask-verify-pr")
 
 	cases := []struct {
 		name, command string
@@ -78,15 +76,12 @@ func TestTheGuardRefusesWhatADraftMayNotSkip(t *testing.T) {
 		{"a pull request opened ready", "gh pr create --title x --body-file b.md", nil, true},
 		{"a pull request opened as a draft", "gh pr create --draft --title x", nil, false},
 		{"a pull request opened as a draft, short flag", "gh pr create -d --title x", nil, false},
-		{"ready without a stamp", "gh pr ready 12", nil, true},
+		{"ready with HEAD pushed", "gh pr ready 12", nil, false},
 		{"ready back to draft", "gh pr ready --undo 12", nil, false},
 		{"text that only mentions the command", `echo "gh pr readyness"`, nil, false},
-		{"ready with a stamp for HEAD, pushed", "gh pr ready", func() { writeStamp(t, stamp, head) }, false},
-		{"ready inside a compound command", "make verify-pr && gh pr ready", nil, false},
-		{"ready with a stamp for another commit", "gh pr ready", func() { writeStamp(t, stamp, strings.Repeat("0", 40)) }, true},
+		{"ready inside a compound command", "make check && gh pr ready", nil, false},
 		{"ready with HEAD not pushed", "gh pr ready", func() {
 			gitIn(t, work, "-c", "user.email=t@example.invalid", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "two")
-			writeStamp(t, stamp, gitIn(t, work, "rev-parse", "HEAD"))
 		}, true},
 	}
 	for _, c := range cases {
@@ -107,7 +102,7 @@ func runGuard(t *testing.T, script, dir, command string) (bool, string) {
 	t.Helper()
 
 	// The hook is started elsewhere and told the worker's directory, as Claude Code does for a
-	// session in its own worktree: the stamp and HEAD it judges are the named checkout's.
+	// session in its own worktree: the HEAD it judges is the named checkout's.
 	payload, err := json.Marshal(map[string]any{"tool_name": "Bash", "cwd": dir, "tool_input": map[string]string{"command": command}})
 	if err != nil {
 		t.Fatal(err)
@@ -147,13 +142,6 @@ func gitIn(t *testing.T, dir string, args ...string) string {
 		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, out)
 	}
 	return strings.TrimSpace(string(out))
-}
-
-func writeStamp(t *testing.T, path, commit string) {
-	t.Helper()
-	if err := os.WriteFile(path, []byte(commit+"\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
 }
 
 // withoutGitVariables is the caller's environment without GIT_*: under a git hook or `git rebase

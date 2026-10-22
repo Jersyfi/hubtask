@@ -347,23 +347,19 @@ run:
 
 # ---------------------------------------------------------------------- Gates
 
-## verify: The fast gates, without containers - the first half of make verify-pr
+## check: The changed packages' checks, in minutes and without a lock - while working (ADR-0089)
+# What the branch changed against where it left main, committed or not (scripts/check.sh). CI runs
+# the rest once the pull request is ready.
+.PHONY: check
+check:
+	@scripts/check.sh
+
+## verify: Every gate that runs without containers - when a change reaches wide
 # gate-contract is here although CI runs it after the integration tests: it needs no database - the
-# router and the handlers run in-process against the specification - and a contract that drifted
-# is the kind of defect that is cheapest found while working.
+# router and the handlers run in-process against the specification.
 .PHONY: verify
 verify: gate-quick gate-unit gate-architecture gate-security gate-privacy gate-chart gate-licenses gate-docs gate-observability gate-sdk gate-contract
 	@echo "All locally runnable gates are green."
-
-## verify-pr: The pull request check, locally - make verify, then every gate CI runs for this branch (ADR-0079)
-# A draft is checked in the session that writes it, and CI runs when the pull request is ready. This
-# selects the gates by the same filters ci.yml does (tools/cilocal), runs the container gates one
-# session at a time, checks the description (BODY=<file>, or read with gh) and the title (TITLE,
-# or read with gh when there is a pull request), and on success leaves
-# the stamp the Claude Code hook asks for before `gh pr ready`.
-.PHONY: verify-pr
-verify-pr:
-	$(GO) run ./tools/verifypr $(if $(BODY),-body $(BODY),)
 
 ## gate-quick: Format, lint, generation without a diff
 # gofmt is taken from the toolchain go.mod selects, not from PATH: `go` follows the `toolchain`
@@ -407,7 +403,7 @@ gate-quick:
 # a pull request red rather than pass a nightly quietly. The runs themselves are behind the `load`
 # tag and stay in gate-load.
 #
-# tools is here because its programs are gates themselves (checkdocs, checkpr, verifypr): a gate
+# tools is here because its programs are gates themselves (checkdocs, checkpr, numbers): a gate
 # whose own tests run nowhere stops biting without anybody noticing, and its tests are what show it
 # still turns red on the violation it exists for.
 .PHONY: gate-unit
@@ -507,7 +503,7 @@ gate-security:
 
 ## gate-api-compat: The contract against the last release tag - a breaking change fails unless marked (API_BASE=<commit> judges only the branch's own)
 # Not in `make verify`: it needs the history back to the tag, which a shallow checkout lacks, and
-# verify-pr runs it as CI does, through its own job (tools/cilocal). API_SINCE replaces the tag;
+# CI runs it through its own job. API_SINCE replaces the tag;
 # API_TEXT names a file with the pull request's title and description, which may mark the break.
 .PHONY: gate-api-compat
 gate-api-compat:
@@ -896,7 +892,7 @@ gate-docs:
 
 ## gate-numbers: One file per migration and ADR number, none another open pull request adds (needs gh)
 # Not in `make verify`: it asks GitHub for the open pull requests, and the local gates run offline.
-# verify-pr runs it, and CI. BASE is where the branch left main; OPEN=0 holds only the tree (main).
+# CI runs it. BASE is where the branch left main; OPEN=0 holds only the tree (main).
 .PHONY: gate-numbers
 gate-numbers:
 	$(GO) run ./tools/numbers $(if $(BASE),-base $(BASE),) $(if $(PR),-pr $(PR),) $(if $(filter 0,$(OPEN)),-open=false,)
