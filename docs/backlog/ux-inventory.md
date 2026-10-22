@@ -203,7 +203,7 @@ Administration and installation, found by UX-05's sweep:
 
 ## E8 — Administration and installation
 
-- [ ] `/administration` redirect → the overview (UX-18)
+- [x] `/administration` redirect → the overview (UX-18) — *Administration → Overview*
 - [ ] Workspace (name, address, language, zone, week start, save) → kept; save bar
 - [ ] People (table, renew invitation, start password, address, revoke, invite, without address, grant) → kept; one primary action with the three ways
 - [ ] Groups (rename without a permission check, take out, add, delete, new), permissions matrix → tabs of *People*; rename checked
@@ -220,7 +220,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked
 - [ ] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget
 - [ ] New: *Presets* (UX-27)
-- [ ] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed
+- [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
 - [ ] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu
 - [ ] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display
 - [ ] Providers, AI, backup targets, platform, keyring, operators, journal → kept; shared forms; journal filtered and paged; breadcrumbs
