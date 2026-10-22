@@ -147,10 +147,15 @@ test('chromium: a workspace on a plan names it, and each limit says who set it',
 
   assert.equal((await page.getByTestId('limits-plan').textContent())?.trim(), 'Plan: Family');
   assert.match(await row('Entries').textContent() ?? '', /Set by your plan/);
-  assert.match(await row('Export jobs').textContent() ?? '', /Your plan/);
+  assert.match(await row('Export jobs').textContent() ?? '', /Set by your plan/);
   assert.match(await row('Webhook').textContent() ?? '', /Set by the installation/);
+  // One chip per limit, with its lock where a level locked it (UC-WRK-32 check 5).
+  assert.equal(await row('Entries').locator('[data-source]').getAttribute('data-source'), 'PLAN-locked');
+  assert.equal(await row('Export jobs').locator('[data-source]').getAttribute('data-source'), 'PLAN');
   const storage = await page.getByRole('row').filter({ hasText: /storage/i }).textContent() ?? '';
-  assert.match(storage, /operator's exception for this workspace/, storage);
+  assert.match(storage, /Set by the operator/, storage);
+  // The page is read here and changed by the operator: said once, at the top.
+  assert.equal(await page.getByRole('note').filter({ hasText: /operator/ }).count(), 1);
   const runs = await page.getByRole('row').filter({ hasText: /Automation/i }).textContent() ?? '';
   assert.match(runs, /Hubtask's default/, runs);
 });

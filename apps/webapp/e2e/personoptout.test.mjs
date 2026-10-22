@@ -60,9 +60,16 @@ test('chromium: AI for everybody needs its basis, and says how many people it to
   await section.getByLabel("AI is part of everybody's work").check();
   assert.match((await section.textContent()) ?? '', /2 people keep their content out of AI now/);
 
+  // The change is in the save bar; pressed without a basis, the basis is marked and focused, and
+  // nothing is sent (UC-WRK-32 check 3).
   const save = section.getByRole('button', { name: 'Save' });
-  assert.equal(await save.isDisabled() || (await save.getAttribute('aria-disabled')) === 'true', true, 'saved without a basis');
-  await section.getByLabel('Legal basis').selectOption('WORKS_AGREEMENT');
+  assert.equal(await save.getAttribute('aria-disabled'), null, 'the save is switched off before it is pressed');
+  await save.click();
+  const basis = section.getByLabel('Legal basis');
+  await page.waitForFunction(() => document.activeElement?.getAttribute('aria-invalid') === 'true');
+  assert.equal(await basis.evaluate((field) => field === document.activeElement), true, 'the basis is not focused');
+  assert.equal(sent.length, 0, 'saved without a basis');
+  await basis.selectOption('WORKS_AGREEMENT');
   await section.getByLabel('Whom people may ask').fill('the works council');
   await save.click();
   await waitFor(() => sent.length === 1);
@@ -80,6 +87,8 @@ test('chromium: under the installation\'s lock the screen says who decided and o
   await section.waitFor({ timeout: 15_000 });
   assert.match((await section.textContent()) ?? '', /set for every workspace on this installation/);
   assert.equal(await section.getByRole('radio').count(), 0, 'a control the server would refuse');
+  // The position in force, with whose it is (UC-WRK-32 check 5).
+  assert.equal(await section.locator('[data-source]').getAttribute('data-source'), 'INSTANCE-locked');
 });
 
 test('chromium: the consent register names who keeps their content out', async (t) => {

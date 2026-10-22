@@ -20,7 +20,7 @@
   // look for the filters they just used: an export narrowed before it was signed would be evidence
   // about somebody's selection rather than about an interval.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Badge, Banner, Button, Checkbox, Input, LoadMore, PageHeader, ProgressBar, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
@@ -32,6 +32,7 @@
   import { isTerminal } from '../lib/data/jobs.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
+  import { check, focusFirst, isComplete, type Missing, type Requirement } from '../lib/forms/missing.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
@@ -101,6 +102,31 @@
   let exportFormat = $state('JSONL');
   let exportTarget = $state('');
   let exportJob = $state('');
+
+  /**
+   * What a press of *Check the chain*, *Anchor here* or *Export the period* found missing: marked
+   * at the fields, focus on the first (UC-WRK-32 check 3). The export reads the period of the
+   * check above it, so its marks can land there.
+   */
+  let missing = $state<Missing>({});
+
+  function period(): Requirement[] {
+    return [
+      { kind: 'field', key: 'from', code: 'app.audit.period_first', isFilled: verifyFrom !== '' },
+      { kind: 'field', key: 'to', code: 'app.audit.period_first', isFilled: verifyTo !== '' },
+    ];
+  }
+
+  /** Marks what `requirements` lack and answers whether the press may go on. */
+  function ready(requirements: Requirement[]): boolean {
+    missing = check(requirements);
+    if (isComplete(missing)) return true;
+    void tick().then(() => focusFirst(document));
+    return false;
+  }
+
+  /** A field's mark while it still lacks its value. */
+  const markOf = (key: string, value: string): string | undefined => (missing[key] && !value ? t(missing[key]) : undefined);
   let exportedTo = $state<{ target: string; from: string; to: string } | undefined>(undefined);
 
   $effect(() => {
@@ -354,8 +380,8 @@
       <h2 class="section">{t('app.audit.verify_title')}</h2>
       <p class="quiet small">{t('app.audit.verify_intro')}</p>
       <div class="fields">
-        <Input label={t('app.audit.from')} type="datetime-local" bind:value={verifyFrom} />
-        <Input label={t('app.audit.to')} type="datetime-local" bind:value={verifyTo} />
+        <Input label={t('app.audit.from')} type="datetime-local" bind:value={verifyFrom} error={markOf('from', verifyFrom)} />
+        <Input label={t('app.audit.to')} type="datetime-local" bind:value={verifyTo} error={markOf('to', verifyTo)} />
       </div>
       {#if anchorTargetId}
         <!-- Asked for rather than always done: a read of somebody else's machine. -->
@@ -366,11 +392,12 @@
           tone="secondary"
           isBusy={isWorking}
           busyLabel={t('app.audit.verifying')}
-          disabledReason={verifyFrom && verifyTo ? undefined : t('app.audit.period_first')}
-          onclick={() =>
+          onclick={() => {
+            if (!ready(period())) return;
             void attempt(() =>
               audit.verify(new Date(verifyFrom).toISOString(), new Date(verifyTo).toISOString(), verifyAnchors && anchorTargetId !== null),
-            )}
+            );
+          }}
         >
           {t('app.audit.verify')}
         </Button>
@@ -434,21 +461,28 @@
       {/if}
       <p class="quiet small">{t('app.audit.anchoring_target_hint')}</p>
       <WorkspaceGate permission="STRUCTURE">
+        {#snippet actions()}
       <div class="fields">
         <Select
           label={t('app.audit.anchoring_target')}
           bind:value={anchorChoice}
           placeholder={t('app.audit.choose_target')}
           options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
+          error={markOf('anchor', anchorChoice)}
         />
       </div>
       <div class="row">
+        <!-- Unavailable only where there is nothing to do - the chain is anchored there already;
+             an empty choice is marked when pressed. -->
         <Button
           tone="primary"
           isBusy={isWorking}
           busyLabel={t('app.audit.anchoring_saving')}
-          disabledReason={anchorChoice && anchorChoice !== anchorTargetId ? undefined : t('app.audit.anchoring_choose_first')}
-          onclick={() => void attempt(() => audit.configureAnchoring(anchorChoice), t('app.audit.anchoring_on_announced'))}
+          disabledReason={anchorChoice !== '' && anchorChoice === anchorTargetId ? t('app.audit.anchoring_choose_first') : undefined}
+          onclick={() => {
+            if (!ready([{ kind: 'field', key: 'anchor', code: 'app.audit.target_first', isFilled: anchorChoice !== '' }])) return;
+            void attempt(() => audit.configureAnchoring(anchorChoice), t('app.audit.anchoring_on_announced'));
+          }}
         >
           {t('app.audit.anchor_here')}
         </Button>
@@ -463,6 +497,7 @@
           </Button>
         {/if}
       </div>
+        {/snippet}
       </WorkspaceGate>
       <p class="quiet small">{t('app.audit.anchoring_is_audited')}</p>
     </Stack>
@@ -487,6 +522,7 @@
           bind:value={exportTarget}
           placeholder={t('app.audit.choose_target')}
           options={backup.all.map((target) => ({ value: target.id, label: target.name }))}
+          error={markOf('target', exportTarget)}
         />
       </div>
 
@@ -495,10 +531,8 @@
           tone="primary"
           isBusy={isWorking}
           busyLabel={t('app.audit.exporting')}
-          disabledReason={exportTarget && verifyFrom && verifyTo
-            ? undefined
-            : t('app.audit.export_needs')}
-          onclick={() =>
+          onclick={() => {
+            if (!ready([...period(), { kind: 'field', key: 'target', code: 'app.audit.target_first', isFilled: exportTarget !== '' }])) return;
             void attempt(async () => {
               exportedTo = undefined;
               const accepted = await audit.export({
@@ -508,7 +542,8 @@
                 target_id: exportTarget,
               });
               exportJob = accepted.job_id;
-            }, t('app.audit.export_started_announced'))}
+            }, t('app.audit.export_started_announced'));
+          }}
         >
           {t('app.audit.export')}
         </Button>

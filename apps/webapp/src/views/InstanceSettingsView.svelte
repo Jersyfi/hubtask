@@ -26,13 +26,15 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
-  import { AREAS, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { AREAS, changesBetween, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
+  import { enterSubmits } from '../lib/forms/enter.ts';
+  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -53,7 +55,7 @@
   let draft = $state<InstanceSettings | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  let saved = $state(false);
+  let form = $state<HTMLFormElement | undefined>(undefined);
 
   $effect(() => {
     const stop = untrack(() => instance.openSettings());
@@ -62,6 +64,8 @@
 
   const reading = $derived(instance.settings);
   const settings = $derived(reading.status === 'ready' ? reading.data : undefined);
+  /** How many values the editor changes against what is in force: the save bar's count. */
+  const draftChanges = $derived(draft && settings ? changesBetween(draft, settings) : 0);
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
@@ -127,7 +131,6 @@
     if (!settings) return;
     draft = JSON.parse(JSON.stringify(settings)) as InstanceSettings;
     failure = undefined;
-    saved = false;
   }
 
   /** Reads one key out of the draft. */
@@ -149,13 +152,13 @@
 
   async function save(): Promise<void> {
     if (!draft) return;
+    if (settings && changesBetween(draft, settings) === 0) return;
     isWorking = true;
     failure = undefined;
-    saved = false;
     try {
       await instance.writeSettings(documentOf(draft));
       draft = undefined;
-      saved = true;
+      toast.show({ text: t('app.instance.settings_saved'), tone: 'success' });
     } catch (cause) {
       failure =
         cause instanceof TransportError
@@ -180,8 +183,6 @@
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
-      {:else if saved}
-        <Banner tone="success">{t('app.instance.settings_saved')}</Banner>
       {/if}
 
       {#if reading.status === 'loading' || reading.status === 'idle'}
@@ -197,9 +198,7 @@
         {#if enforced}
           <!-- The file is the source, so nothing here is writable and no control is drawn. A form
                that offered a save which the server refuses would be a form that lies. -->
-          <Banner tone="info" title={t('app.instance.source_file_enforced')}>
-            {settings?.source ?? ''}
-          </Banner>
+          <ReadOnlyNotice text={`${t('app.instance.source_file_enforced')} ${settings?.source ?? ''}`} />
         {/if}
         <p class="quiet-line">{t('app.instance.settings_decided', { decided, total: rows.length })}</p>
         {#if settings?.blocklist_file}
@@ -210,6 +209,8 @@
           {@const editing = draft}
           <form
             class="panel"
+            bind:this={form}
+            use:enterSubmits
             onsubmit={(event) => {
               event.preventDefault();
               void save();
@@ -256,15 +257,23 @@
                 spellcheck={false}
               />
 
+              <!-- Cancel closes the editor; the changes and their save are the bar's. -->
               <div class="row">
-                <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.instance.working')}>
-                  {t('app.instance.settings_save')}
-                </Button>
                 <Button tone="subtle" onclick={() => (draft = undefined)}>
                   {t('app.instance.cancel')}
                 </Button>
               </div>
             </Stack>
+            <SaveBar
+              label={t('app.save_bar.label')}
+              changesLabel={draftChanges > 0 ? t('app.save_bar.changes', { count: String(draftChanges) }) : undefined}
+              discardLabel={t('app.save_bar.discard')}
+              saveLabel={t('app.instance.settings_save')}
+              isSaving={isWorking}
+              savingLabel={t('app.instance.working')}
+              onDiscard={edit}
+              onSave={() => form?.requestSubmit()}
+            />
           </form>
         {:else if rows.length === 0}
           <Banner tone="info">{t('app.instance.settings_none')}</Banner>

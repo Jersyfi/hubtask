@@ -26,6 +26,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -33,6 +35,8 @@
   const TENANT = { scopeType: 'TENANT' } as const;
 
   let newName = $state('');
+  /** What *Create* found missing when pressed (UC-WRK-32 check 3). */
+  let missing = $state<Missing>({});
   let opened = $state<string | undefined>(undefined);
   let failure = $state<string | undefined>(undefined);
   let isWorking = $state(false);
@@ -59,7 +63,8 @@
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const name = newName.trim();
-    if (!name) return;
+    missing = marked(event, [{ kind: 'field', key: 'name', code: 'app.forms.required', isFilled: name !== '' }]);
+    if (!isComplete(missing)) return;
     failure = undefined;
     isWorking = true;
     try {
@@ -150,6 +155,7 @@
     <Stack gap="150">
       <h2 class="section">{t('app.service_accounts.new_title')}</h2>
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form class="panel" onsubmit={create}>
           <Stack gap="150">
             <Input
@@ -157,6 +163,7 @@
               hint={t('app.service_accounts.name_hint')}
               bind:value={newName}
               isRequired
+              error={missing.name && !newName.trim() ? t(missing.name) : undefined}
             />
             <div>
               <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.service_accounts.creating')}>
@@ -165,6 +172,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
       <p class="quiet small">{t('app.service_accounts.then_grant')}</p>
     </Stack>

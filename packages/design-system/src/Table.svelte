@@ -257,6 +257,10 @@
      it was written. `100%` resolves only against a parent with a definite height: give the table's
      container one and the head sticks inside it, leave it alone and this is `none`. */
   .scroll {
+    /* The containing block of whatever a cell positions absolutely - a visually hidden label - so
+       the scroll box clips it. Without it such an element is placed against the page, past the
+       table's last column, and widens the page on a phone though the table itself scrolls. */
+    position: relative;
     overflow-x: auto;
     max-inline-size: 100%;
     max-block-size: 100%;

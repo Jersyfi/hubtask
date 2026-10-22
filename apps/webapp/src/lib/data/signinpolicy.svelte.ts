@@ -240,6 +240,28 @@ class SignInPolicyStore {
   }
 
   /**
+   * A switch saved at once, outside the rules' form: the ways in, private hubs.
+   *
+   * Its own call beside `save`, because a way's switch saves the moment it moves while the rules
+   * wait for their save bar: it keeps no shared busy, problem or "saved" state of its own here, so
+   * a way being switched never shows on the rules' save, and the rules' refusal never on a way. The
+   * caller holds what is working and what was refused, at the switch it is about (UC-ID-12 check 8).
+   * Answers the refusal, or nothing where it was saved.
+   */
+  async saveAtOnce(changes: Record<string, unknown>): Promise<RenderedProblem | undefined> {
+    try {
+      this.#workspace = await stepUp.around((stepUpToken) =>
+        engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes }, { stepUpToken }),
+      );
+      return undefined;
+    } catch (cause) {
+      return cause instanceof TransportError
+        ? renderProblem(cause, messages)
+        : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+    }
+  }
+
+  /**
    * Asks everybody for a new password, from now.
    *
    * Its own call rather than a field, because it is an event rather than a setting: it sets a

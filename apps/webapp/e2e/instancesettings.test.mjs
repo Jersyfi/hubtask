@@ -132,7 +132,7 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   assert.equal(await form.locator('[data-value="localisation.week_start"]').getByRole('combobox', { name: 'Workspaces may' }).count(), 0);
 
   await form.getByRole('button', { name: 'Save' }).click();
-  await page.getByText('Saved.').waitFor({ timeout: 10_000 });
+  await page.getByText('Saved.').first().waitFor({ timeout: 10_000 });
 
   const body = sent.at(-1);
   assert.deepEqual(body.sign_in.min_digits, { set: true, value: 2, locked: false });
@@ -193,8 +193,14 @@ test('chromium: a refusal lands at the value it is about', async (t) => {
   t.after(close);
 
   await page.getByRole('button', { name: 'Change these values' }).click();
-  await page.locator('form').getByRole('button', { name: 'Save' }).click();
+  // No save stands under an untouched editor: the bar comes with the first change (UC-WRK-32
+  // check 3).
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  assert.equal(await bar.count(), 0);
   const field = page.locator('[data-value="quotas.items"]');
+  await field.getByRole('spinbutton').first().fill('123');
+  await bar.getByText('1 change').waitFor();
+  await bar.getByRole('button', { name: /Save/ }).click();
   await field.getByRole('alert').or(field.locator('[aria-invalid="true"]')).first().waitFor({ timeout: 10_000 });
 });
 

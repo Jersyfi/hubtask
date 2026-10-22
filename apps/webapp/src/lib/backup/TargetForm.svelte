@@ -7,10 +7,13 @@
   // **The credentials are write-only by construction**: typed here, handed to the owner of the form
   // once, and never read back into it.
 
+  import { tick } from 'svelte';
+
   import { Banner, Button, Checkbox, Input, Select, Stack, Textarea } from '@hubtask/design-system/components';
 
   import type { Target, TargetDraft } from '../data/backup.svelte.ts';
   import { insecureReasons, sftpTarget, webdavTarget } from '../data/backup.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -80,9 +83,21 @@
     return undefined;
   }
 
+  /** What a press of *Add* found missing - a name, the acceptance of a risk - marked at the fields. */
+  let missing = $state<Missing>({});
+  let form = $state<HTMLFormElement | undefined>(undefined);
+
   async function createTarget(event: SubmitEvent): Promise<void> {
     event.preventDefault();
-    if (!draftName.trim()) return;
+    // Never switched off for what is missing: pressed, it is marked and focused (UC-WRK-32 check 3).
+    missing = check([
+      { kind: 'field', key: 'name', code: 'app.backup.name_needed', isFilled: draftName.trim() !== '' },
+      { kind: 'field', key: 'accepted', code: 'app.backup.insecure_first', isFilled: insecure.length === 0 || draftAccepted },
+    ]);
+    if (!isComplete(missing)) {
+      void tick().then(() => focusFirst(form));
+      return;
+    }
     const added = await onadd({
       name: draftName.trim(),
       kind: draftKind as Target['kind'],
@@ -112,10 +127,10 @@
   }
 </script>
 
-    <form class="panel" onsubmit={createTarget}>
+    <form class="panel" bind:this={form} onsubmit={createTarget}>
       <Stack gap="150">
         <h3 class="section">{heading}</h3>
-        <Input label={t('app.backup.target_name')} bind:value={draftName} isRequired />
+        <Input label={t('app.backup.target_name')} bind:value={draftName} isRequired error={missing.name && !draftName.trim() ? t(missing.name) : undefined} />
         <Select
           label={t('app.backup.target_kind')}
           bind:value={draftKind}
@@ -194,7 +209,7 @@
               {#each insecure as reason (reason)}<li>{t(reason)}</li>{/each}
             </ul>
           </Banner>
-          <Checkbox label={t('app.backup.insecure_accept')} bind:checked={draftAccepted} />
+          <Checkbox label={t('app.backup.insecure_accept')} bind:checked={draftAccepted} error={missing.accepted && !draftAccepted ? t(missing.accepted) : undefined} />
         {/if}
         <!-- Said where the credentials are typed: they go in and the contract answers `config`
              without them, so there is nothing to come back and check later. -->
@@ -205,7 +220,6 @@
             tone="primary"
             isBusy={isWorking}
             busyLabel={t('app.backup.adding')}
-            disabledReason={insecure.length > 0 && !draftAccepted ? t('app.backup.insecure_first') : undefined}
           >
             {t('app.backup.add')}
           </Button>

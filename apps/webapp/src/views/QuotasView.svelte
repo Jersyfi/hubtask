@@ -22,7 +22,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Callout, PageHeader, ProgressBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Callout, PageHeader, ProgressBar, ReadOnlyNotice, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { quotas, type Standing } from '../lib/data/quotas.svelte.ts';
@@ -34,6 +34,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
   import AccountLink from '../lib/workspace/AccountLink.svelte';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
 
   $effect(() => untrack(() => quotas.open()));
   // The plan's name rides on the workspace read the sign-in rule already answers (UC-INS-10
@@ -91,7 +92,14 @@
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
   /**
-   * Who set a limit, in words (UC-INS-10 check 1): a lock says who locked it unless the operator's
+   * The level a limit's chip names (UC-WRK-32 check 5): the server's source, except that a single
+   * installation names no operator (deployments.md D1) - its exception is the workspace's own.
+   */
+  const chipSource = (standing: Standing): string | undefined =>
+    standing.source === 'EXCEPTION' && manifest.isSingleTenant ? 'WORKSPACE' : standing.source;
+
+  /**
+   * Who set a limit, in words, for a server that answers no source (UC-INS-10 check 1): a lock says who locked it unless the operator's
    * exception decides anyway; otherwise the level that set the value in force. A server that
    * answers no source is read as before.
    */
@@ -173,6 +181,9 @@
         {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
       </Banner>
     {:else}
+      <!-- The whole page is read here and changed elsewhere: said once, at the top, with whom to ask
+           (UC-WRK-32 check 4). -->
+      <ReadOnlyNotice text={t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')} />
       {#if peopleReached}
         <Banner tone="warning" title={t('app.quotas.people_reached')}>{t('app.quotas.people_reached_body')} <AccountLink /></Banner>
       {/if}
@@ -222,14 +233,21 @@
               {/if}
             </td>
             <td>
-              {setBy(standing)}
+              {#if standing.source === undefined}
+                {setBy(standing)}
+              {:else}
+                <ValueSource
+                  source={chipSource(standing)}
+                  lock={standing.lock}
+                  value={standing.limit === 0 ? t('app.quotas.unlimited') : amount(standing.quota, standing.limit)}
+                />
+              {/if}
             </td>
           </tr>
         {/each}
       </Table>
 
       {#if people}<p class="quiet">{t('app.quotas.people_counted')}</p>{/if}
-      <p class="quiet">{t(manifest.isSingleTenant ? 'app.quotas.raising_single' : 'app.quotas.raising')}</p>
     {/if}
     </Stack>
 </Stack>

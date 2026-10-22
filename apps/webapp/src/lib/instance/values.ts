@@ -106,6 +106,23 @@ export function documentOf(draft: InstanceSettings): InstanceSettings {
   return document;
 }
 
+/**
+ * How many values a draft changes against what is in force: each key whose decision, value or
+ * lock differs, and the blocklist's path - the save bar's count (UC-WRK-32 check 3).
+ */
+export function changesBetween(draft: InstanceSettings, read: InstanceSettings): number {
+  const after = documentOf(draft);
+  const before = documentOf(read);
+  let changes = (after.blocklist_file ?? '') === (before.blocklist_file ?? '') ? 0 : 1;
+  for (const area of AREAS) {
+    const keys = new Set([...Object.keys(after[area] ?? {}), ...Object.keys(before[area] ?? {})]);
+    for (const key of keys) {
+      if (JSON.stringify(after[area]?.[key] ?? null) !== JSON.stringify(before[area]?.[key] ?? null)) changes += 1;
+    }
+  }
+  return changes;
+}
+
 /** A refusal's field, as the server names it: the area and the key. */
 export const fieldOf = (area: Area, key: string): string => `/${area}/${key}`;
 
