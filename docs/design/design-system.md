@@ -727,6 +727,15 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
+**A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
+under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
+`build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
+its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
+in a list that mixes collections (the overview, search). It is the place's, never a level's (§6),
+and never says anything alone: the name stands beside it. A place nobody chose for keeps its type's
+mark and no tile; a private hub with a symbol of its own says *Private* at the end of its row
+instead of wearing the lock. A value the client does not offer is read as none chosen.
+
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
 on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
 settings*; *Workspace administration*, only where the manifest's `workspace_permissions` carry
@@ -1015,6 +1024,8 @@ week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
 * **The stroke scales with the box**: 1.5 at 24 px, 2.25 at 16 px.
 * Every icon carries an accessible name or is marked decorative (§10, 1.1.1). A directional mark is
   in the mirrored set and turns under `[dir='rtl']` (§3).
+* **A place's own symbols are a group of their own** in `build/icons.js`: nouns a person names an
+  area of life or work by, never the mark of a level or of a container type (§11.3).
 * **A mark joins the list when it names a concept the product repeats**, not to decorate one row;
   otherwise the row takes the nearest existing mark. It is added by naming it in `build/icons.js`
   under the group that asks for it and running `make icons`; an upstream rename stops the build
