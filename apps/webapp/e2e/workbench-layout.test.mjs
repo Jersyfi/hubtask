@@ -26,7 +26,7 @@
 // the workbench's zoom axis, which scales a pane inside a scroller, is the only place that builds
 // one; the product zooms the page instead.
 
-import { test } from 'node:test';
+import { describe, test } from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -439,39 +439,43 @@ const CHECKS = {
   refused: (page, what, engine) => checkAnswer(page, what, engine, { isSizeOnly: true }),
   group: checkGroup, reason: checkReason, busy: checkBusy, roving: checkRoving, range: checkRange, shape: checkShape };
 
-for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
-  test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
-    assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
-    const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
-    const browser = await engine.launch();
-    try {
-      const context = await browser.newContext({ viewport: { width: 1800, height: 1100 }, hasTouch: true });
-      const page = await context.newPage();
-      await page.addInitScript(() => {
-        window.__violations = [];
-        document.addEventListener('securitypolicyviolation', (event) => {
-          const inside = event.target instanceof Element && event.target.closest('.host') !== null;
-          window.__violations.push({ inside, directive: event.violatedDirective, sample: event.sample });
+// The engines run side by side: each has its own server, browser and page, and run one after
+// another the Chromium matrix alone took most of the CI job's time limit.
+describe('a reason never moves the page', { concurrency: true }, () => {
+  for (const [name, engine, axes] of ENGINES.filter(([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name))) {
+    test(`a reason never moves the page, in ${name}`, { timeout: 15 * 60_000 }, async () => {
+      assert.ok(existsSync(join(WORKBENCH, 'index.html')), 'no built workbench: run `make workbench-build` first');
+      const server = await serve(WORKBENCH, { headers: { 'content-security-policy': "style-src 'self'" } });
+      const browser = await engine.launch();
+      try {
+        const context = await browser.newContext({ viewport: { width: 1800, height: 1100 }, hasTouch: true });
+        const page = await context.newPage();
+        await page.addInitScript(() => {
+          window.__violations = [];
+          document.addEventListener('securitypolicyviolation', (event) => {
+            const inside = event.target instanceof Element && event.target.closest('.host') !== null;
+            window.__violations.push({ inside, directive: event.violatedDirective, sample: event.sample });
+          });
         });
-      });
-      for (const story of STORIES.filter((each) => !process.env.STORIES || each.id.includes(process.env.STORIES))) {
-        for (const each of axes) {
-          // The +40 % axis rewrites the text once, as the story renders; content an answer renders
-          // anew arrives in English and would be measured against its rewritten self.
-          if (each.text === 'long' && (story.kind === 'permitted' || story.kind === 'refused')) continue;
-          const what = `${story.id} ${label(each)} in ${name}`;
-          await page.goto(`${server.origin}/${query(story.id, each)}`);
-          await page.waitForSelector('.host :is(.contexts, [data-scroll-area])');
-          await page.mouse.move(1, 1);
-          await CHECKS[story.kind](page, what, name);
-          const violations = await page.evaluate(() => window.__violations.filter((each) => each.inside));
-          assert.deepEqual(violations, [], `${what}: a component broke style-src 'self'`);
+        for (const story of STORIES.filter((each) => !process.env.STORIES || each.id.includes(process.env.STORIES))) {
+          for (const each of axes) {
+            // The +40 % axis rewrites the text once, as the story renders; content an answer renders
+            // anew arrives in English and would be measured against its rewritten self.
+            if (each.text === 'long' && (story.kind === 'permitted' || story.kind === 'refused')) continue;
+            const what = `${story.id} ${label(each)} in ${name}`;
+            await page.goto(`${server.origin}/${query(story.id, each)}`);
+            await page.waitForSelector('.host :is(.contexts, [data-scroll-area])');
+            await page.mouse.move(1, 1);
+            await CHECKS[story.kind](page, what, name);
+            const violations = await page.evaluate(() => window.__violations.filter((each) => each.inside));
+            assert.deepEqual(violations, [], `${what}: a component broke style-src 'self'`);
+          }
         }
+        await context.close();
+      } finally {
+        await browser.close();
+        await server.close();
       }
-      await context.close();
-    } finally {
-      await browser.close();
-      await server.close();
-    }
-  });
-}
+    });
+  }
+});
