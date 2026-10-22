@@ -24,6 +24,11 @@
     busyLabel?: string;
     /** Standing help under the label. */
     hint?: string;
+    /**
+     * What is wrong now - a box the form needs ticked and that is not. Said under the label, the
+     * box `aria-invalid`, so a form finds the first thing to fix (design-system.md §4, case 3).
+     */
+    error?: string;
     /** Some but not all: `aria-checked="mixed"`, and the box shows a bar rather than a tick. */
     isIndeterminate?: boolean;
     /**
@@ -41,6 +46,7 @@
   let {
     label,
     hint,
+    error,
     disabledReason,
     isIndeterminate = false,
     isLabelHidden = false,
@@ -55,6 +61,7 @@
   const instanceId = $props.id();
   const uid = `checkbox-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
+  const errorId = $derived(error ? `${uid}-error` : undefined);
 
   // Unavailable, it stays focusable and says why in a bubble at the box: `aria-disabled` rather
   // than the native attribute, and the guard (reason.ts) refuses the click - on the box and on the
@@ -66,12 +73,21 @@
   const ownReasonId = `${uid}-reason`;
   const reasonId = $derived(disabledReason === undefined ? undefined : (groupReasonId ?? ownReasonId));
   const busyId = $derived(isBusy && busyLabel ? `${uid}-busy` : undefined);
-  const describedBy = $derived([reasonId, busyId, hintId].filter(Boolean).join(' ') || undefined);
+  const describedBy = $derived([errorId, reasonId, busyId, hintId].filter(Boolean).join(' ') || undefined);
   let native = $state<HTMLInputElement | null>(null);
   let labelElement = $state<HTMLLabelElement | null>(null);
 
   $effect(() => {
     if (!isBusy || unavailable) return;
+    return guard([native, labelElement], () => {});
+  });
+
+  // Off for a reason a group states once - a composite's mark, or a notice the caller drew over a
+  // whole area - the box draws no bubble of its own, but it is still refused here: an area's notice
+  // has no guard of its own, and a box that flipped while it said it was unavailable would be the
+  // one lie this rule exists to prevent. Under a composite's mark the mark's guard runs first.
+  $effect(() => {
+    if (!unavailable || !groupReasonId) return;
     return guard([native, labelElement], () => {});
   });
 </script>
@@ -87,6 +103,7 @@
         indeterminate={isIndeterminate}
         aria-disabled={unavailable ? 'true' : undefined}
         aria-busy={isBusy ? 'true' : undefined}
+        aria-invalid={error ? 'true' : undefined}
         aria-describedby={describedBy}
         bind:this={native}
         {...rest}
@@ -110,6 +127,9 @@
   </div>
   {#if disabledReason !== undefined && !groupReasonId}
     <Reason id={ownReasonId} text={disabledReason} control={native} forwarders={[labelElement]} />
+  {/if}
+  {#if error}
+    <p id={errorId} class="message error">{error}</p>
   {/if}
   {#if hint}
     <p id={hintId} class="message">{hint}</p>
@@ -217,6 +237,10 @@
     font-size: var(--fs-075);
     text-align: start;
   }
+
+  .message.error { color: var(--text-danger); }
+
+  .native[aria-invalid='true'] + .box { border-color: var(--status-danger-border); background: var(--status-danger-surface); }
 
   @media (prefers-reduced-motion: reduce) {
     .box { transition-duration: var(--dur-instant); }

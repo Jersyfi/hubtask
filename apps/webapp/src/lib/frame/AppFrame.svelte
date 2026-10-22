@@ -32,6 +32,7 @@
   import HelpDialog from './HelpDialog.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
+  import ToastStack from './ToastStack.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
   import TourGuide from './TourGuide.svelte';
   import SyncLine from './SyncLine.svelte';
@@ -97,9 +98,9 @@
   /**
    * The administration area, offered only where the manifest says this reader reaches it.
    *
-   * **The one place in this client where hiding beats a `CapabilityGate`.** The gate exists so
-   * that a control somebody might want carries its reason (`domain-model.md` §2); a whole area
-   * they will never hold is not a control they want, it is navigation noise on every screen.
+   * **Absent, not gated** (P-05, design-system.md §4 case 1): a whole area the reader will never
+   * hold is not something they could change or wait out, so it carries no reason - on every screen
+   * it would be navigation noise.
    *
    * The condition is the server's own - `STRUCTURE`, or the auditor's `READ_CONFIGURATION`, on the
    * workspace - read from what the manifest says this reader holds there (`workspace_permissions`).
@@ -542,6 +543,10 @@
        before it has anything to say, which is the other half — a region created at the moment it
        has something to announce is a region nothing was watching. -->
   <p class="announcement" role="status" aria-live="polite">{announcer.message}</p>
+
+  <!-- Passing messages - "Saved", "Moved to the trash · Undo" - at the block end, above the
+       bottom bar where there is one. They speak through the region above, never their own. -->
+  <ToastStack isAboveBottomBar={session.isSignedIn && viewport.isCompact} />
 </div>
 
 <style>

@@ -467,11 +467,8 @@ test('chromium: 1280 px — the password is changed with one proof, the rules ti
   await dialog.getByLabel('Your password').fill('the old one');
   await dialog.getByRole('button', { name: 'Prove it' }).click();
 
-  await page.getByText('The password was changed. Every other session was signed out.').first().waitFor({ timeout: 15_000 });
-  // Said in the panel where the change was made, not in the second factor's below it.
-  const said = await page.getByText('The password was changed.').first()
-    .evaluate((node) => node.closest('[class*="panel"]')?.querySelector('h2')?.textContent?.trim());
-  assert.equal(said, 'Password', 'the confirmation is drawn in another panel');
+  // Confirmed as a passing message of the frame, which moves nothing in either panel.
+  await page.locator('[data-tone="success"]', { hasText: 'The password was changed.' }).waitFor({ timeout: 15_000 });
   assert.deepEqual(proofs, [{ password: 'the old one' }], 'the proof was asked more than once, or not at all');
   assert.deepEqual(changes.map((each) => each.proof), [null, 'hbt_sup_pw']);
   assert.deepEqual(Object.keys(changes[1].body), ['password'], 'the change carries more than the new password');

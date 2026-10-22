@@ -44,6 +44,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   interface Props {
     isOpen: boolean;
@@ -73,13 +74,14 @@
   const structure = $derived(holds(role, 'STRUCTURE'));
   const held = $derived(views.of(collectionId));
 
-  const structureReason = $derived(
-    structure.status === 'permitted'
-      ? undefined
-      : structure.status === 'refused'
-        ? t(structure.code, structure.params)
-        : t('app.views.deciding'),
-  );
+  /**
+   * Whether the reader may share a view here - `STRUCTURE` at the collection. Without it the
+   * sharing is not offered at all rather than refused with a sentence (P-05, UC-WRK-22 check 4).
+   */
+  const mayShare = $derived(structure.status === 'permitted');
+  /** The name was asked for and is empty: said at the field when the save is pressed. */
+  let isNameMissing = $state(false);
+  let saveForm = $state<HTMLElement | null>(null);
 
   let name = $state('');
   let scope = $state<ViewScope>('ACCOUNT');
@@ -95,6 +97,7 @@
   });
 
   function reset() {
+    isNameMissing = false;
     name = '';
     scope = 'ACCOUNT';
     editing = undefined;
@@ -103,8 +106,6 @@
     failure = undefined;
   }
 
-  /** Saving anywhere but privately shapes the workspace, so it takes `STRUCTURE`. */
-  const scopeReason = $derived(needsStructure(scope) ? structureReason : undefined);
   const shareRefusal = $derived(
     editing ? sharingRefusal(sharing, editing.scope_type as string) : undefined,
   );
@@ -125,6 +126,12 @@
   }
 
   function save() {
+    // Never switched off for an empty name (design-system.md §4, case 3).
+    if (name.trim() === '') {
+      isNameMissing = true;
+      queueMicrotask(() => focusFirst(saveForm));
+      return;
+    }
     const scopeId = scopeIdOf(scope, { collectionId, hubId });
     void attempt(async () => {
       await views.create(
@@ -246,14 +253,18 @@
              the server would refuse. -->
         <p class="quiet">{t('app.views.scope_fixed')}</p>
 
-        <Select
-          label={t('app.views.sharing')}
-          bind:value={sharing}
-          options={SHARING.map((each) => ({ value: each, label: t(`app.views.sharing_${each}`) }))}
-        />
-        {#if shareRefusal}
-          <!-- Shown and refused, with the server's own sentence. -->
-          <p class="quiet">{t(shareRefusal)}</p>
+        {#if mayShare}
+          <!-- A way of sharing this view cannot take is an option that says why, in the list
+               itself; nothing is printed under the field. -->
+          <Select
+            label={t('app.views.sharing')}
+            bind:value={sharing}
+            options={SHARING.map((each) => {
+              const refusal = sharingRefusal(each, current.scope_type as string);
+              return { value: each, label: t(`app.views.sharing_${each}`), disabledReason: refusal ? t(refusal) : undefined };
+            })}
+            describeUnavailable={(label, reason) => t('app.select.unavailable_option', { label, reason })}
+          />
         {/if}
 
         {#if failure && !failure.fields.get('/name')}<p class="failure" role="alert">{failure.message}</p>{/if}
@@ -265,19 +276,23 @@
           <Button tone="secondary" onclick={() => replaceQuery(current)}>
             {t('app.views.update_query')}
           </Button>
-          <Button
-            tone="secondary"
-            disabledReason={shareRefusal ? t(shareRefusal) : structureReason}
-            onclick={() => decideSharing(current)}
-          >
-            {t('app.views.share')}
-          </Button>
+          {#if mayShare}
+            <Button tone="secondary" disabledReason={shareRefusal ? t(shareRefusal) : undefined} onclick={() => decideSharing(current)}>
+              {t('app.views.share')}
+            </Button>
+          {/if}
           <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
         </Inline>
       </Stack>
     {:else}
+      <div bind:this={saveForm}>
       <Stack gap="150">
-        <Input label={t('app.views.name')} bind:value={name} error={failure?.fields.get('/name')} />
+        <Input
+          label={t('app.views.name')}
+          bind:value={name}
+          oninput={() => (isNameMissing = false)}
+          error={isNameMissing ? t('views.name_empty') : failure?.fields.get('/name')}
+        />
         <Select
           label={t('app.views.scope')}
           bind:value={scope}
@@ -288,13 +303,13 @@
           <Button
             isBusy={isSaving}
             busyLabel={t('app.workspace.saving')}
-            disabledReason={name.trim() === '' ? t('app.views.name') : scopeReason}
             onclick={save}
           >
             {t('app.views.save_current')}
           </Button>
         </div>
       </Stack>
+      </div>
     {/if}
   </Stack>
 </Dialog>

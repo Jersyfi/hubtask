@@ -28,11 +28,10 @@
   // measured against both themes rather than picked off a wheel.
 
   import { labelTokens } from '@hubtask/design-system';
-  import { Button, CapabilityGate, Icon, Stack, UploadField } from '@hubtask/design-system/components';
+  import { Button, Icon, Stack, UploadField } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { media } from '../data/media.svelte.ts';
   import { acceptFor, colourCover, coverImageIdOf, imageCover, isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
   import { formatBytes } from '../i18n/bytes.ts';
@@ -42,7 +41,6 @@
 
   const { item }: { item: WorkItem } = $props();
 
-  const capability = $derived(supports(item.type, 'COVER'));
   const limit = $derived(uploadLimitOf(manifest.value));
 
   const imageId = $derived(coverImageIdOf(item.cover));
@@ -128,11 +126,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.media.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     <!-- What the row is for, in one sentence: where a cover is drawn. Unset, that is the whole of
          what this panel has to say before it offers the two kinds (ADR-0063 decision 9). -->
@@ -191,7 +187,6 @@
       </div>
     {/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   .cover {

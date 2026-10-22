@@ -9,7 +9,7 @@
   import Self from './_UploadDemo.svelte';
   import UploadField from './UploadField.svelte';
 
-  const { mode = 'idle', reason }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' | 'row' | 'table'; reason?: string } =
+  const { mode = 'idle', reason }: { mode?: 'idle' | 'chosen' | 'uploading' | 'over' | 'unavailable' | 'row' | 'table' | 'missing'; reason?: string } =
     $props();
 
   const chosen = { name: 'kitchen-plan-revision-3.pdf', size: 2_411_008 };
@@ -41,6 +41,7 @@
   overLimitLabel={mode === 'over'
     ? 'This file is larger than this installation accepts. Choose one under 25 MB.'
     : undefined}
+  error={mode === 'missing' && !file ? 'Choose the file to import first.' : undefined}
   progress={mode === 'uploading' ? 40 : undefined}
   progressLabel={mode === 'uploading' ? '40% uploaded' : undefined}
   disabledReason={reason ?? (mode === 'unavailable'

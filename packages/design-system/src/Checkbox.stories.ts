@@ -48,3 +48,10 @@ export const busy: Story = {
   about: 'Switch busy and back: the spinner turns inside the box, the box keeps its size, and pressing it does nothing while it works.',
   args: { mode: 'busy' },
 };
+
+export const invalid: Story = {
+  name: 'A box the form needs ticked',
+  about:
+    'The form was pressed before the box was ticked (design-system.md §4, case 3): the box is `aria-invalid` and described by the sentence under its label, so focus moved there hears what to do. Tick it and the sentence goes.',
+  args: { mode: 'invalid' },
+};

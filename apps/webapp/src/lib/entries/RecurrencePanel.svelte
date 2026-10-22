@@ -22,7 +22,6 @@
 
   import {
     Button,
-    CapabilityGate,
     Dialog,
     focusFirst,
     Inline,
@@ -35,7 +34,6 @@
   import { actor } from '../data/account.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { series } from '../data/reminders.svelte.ts';
   import { belongsToSeries, occurrenceSourceOf, splitEnd, withEnd } from '../data/reminders.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -45,7 +43,6 @@
 
   const { item }: { item: WorkItem } = $props();
 
-  const capability = $derived(supports(item.type, 'RECURRENCE'));
 
   // Followed by id and by rule id: the store asks the server only for a row that says it has a
   // series, and a series set from this panel changes the row a moment after the write.
@@ -166,11 +163,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.reminders.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if isReading}
       <div aria-busy="true"><Skeleton lines={2} /></div>
@@ -271,7 +266,6 @@
     {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if failure && !failure.fields.get('/rrule')}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
-</CapabilityGate>
 
 <Dialog
   bind:isOpen={isRemoving}

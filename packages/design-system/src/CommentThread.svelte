@@ -15,8 +15,9 @@
   // never sent.
   //
   // **Edit and delete are the caller's knowledge.** Whether *this* reader is the author, or an
-  // administrator, is not something a component can work out — so each affordance is switched on
-  // per comment, and switched off with a reason (§4, `CapabilityGate`).
+  // administrator, is not something a component can work out — so the caller says per comment
+  // whether the two are offered at all (`isChangeable`; absent where a role never may, P-05), and
+  // switches one off with a reason only for something the reader could wait out (§4).
   //
   // Oldest first, because a conversation read from the bottom is a conversation read backwards.
 
@@ -40,7 +41,13 @@
     readonly isRemoved?: boolean;
     /** That it was changed after it was written. The model keeps `editedAt`; this is its sentence. */
     readonly editedLabel?: string;
-    /** Why this reader cannot edit it — absent means they can, present means they cannot and why. */
+    /**
+     * Whether this reader may edit and remove it at all. False draws neither control and says
+     * nothing: a person who may never change somebody else's comment is not shown the offer (P-05).
+     * Absent means they may.
+     */
+    readonly isChangeable?: boolean;
+    /** Why this reader cannot edit it now — absent means they can, present means they cannot and why. */
     readonly editDisabledReason?: string;
     /** The same, for removing it. */
     readonly deleteDisabledReason?: string;
@@ -138,23 +145,25 @@
         <p class="text">{comment.body}</p>
       {/if}
 
-      {#if !comment.isRemoved}
+      {#if !comment.isRemoved && (canReply || comment.isChangeable !== false)}
         <p class="actions">
           {#if canReply}
             <Button size="sm" tone="subtle" onclick={() => onReply?.(comment.id)}>{replyLabel}</Button>
           {/if}
-          <Button
-            size="sm"
-            tone="subtle"
-            disabledReason={comment.editDisabledReason}
-            onclick={() => onEdit?.(comment.id)}
-          >{editLabel}</Button>
-          <Button
-            size="sm"
-            tone="subtle"
-            disabledReason={comment.deleteDisabledReason}
-            onclick={() => onDelete?.(comment.id)}
-          >{deleteLabel}</Button>
+          {#if comment.isChangeable !== false}
+            <Button
+              size="sm"
+              tone="subtle"
+              disabledReason={comment.editDisabledReason}
+              onclick={() => onEdit?.(comment.id)}
+            >{editLabel}</Button>
+            <Button
+              size="sm"
+              tone="subtle"
+              disabledReason={comment.deleteDisabledReason}
+              onclick={() => onDelete?.(comment.id)}
+            >{deleteLabel}</Button>
+          {/if}
         </p>
       {/if}
     </div>

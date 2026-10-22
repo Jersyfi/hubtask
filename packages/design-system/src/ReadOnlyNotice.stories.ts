@@ -28,3 +28,10 @@ export const plan: Story = {
   about: 'A feature the plan does not carry, where the area still shows what it holds.',
   args: { mode: 'plan' },
 };
+
+export const rows: Story = {
+  name: 'Rows that still show what is done',
+  about:
+    'An archived collection whose rows keep their completion box - it is how a row says done to a screen reader. The boxes share the area’s reason (`provideReasonGroup`): each is `aria-disabled` and described by the notice’s sentence (`textId`), draws no bubble of its own, and a press on it changes nothing.',
+  args: { mode: 'rows' },
+};

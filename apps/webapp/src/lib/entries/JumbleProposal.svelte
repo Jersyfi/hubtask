@@ -31,6 +31,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem, renderRefusal } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   interface Props {
     entry: JumbleEntry;
@@ -86,6 +87,9 @@
   );
 
   let destination = $state('');
+  /** *Make it* was pressed with no destination: the list says so and takes focus. */
+  let isDestinationMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
   let title = $state('');
   let accepting = $state<string | undefined>(undefined);
   let isWorking = $state(false);
@@ -194,10 +198,12 @@
       {/if}
 
       {#if accepting === suggestion.id}
-        <div class="form">
+        <div class="form" bind:this={form}>
           <Select
             label={t('app.jumble.destination')}
             hint={t('app.jumble.destination_hint')}
+            error={isDestinationMissing && !destination ? t('app.jumble.choose_destination') : undefined}
+            onchange={() => (isDestinationMissing = false)}
             bind:value={destination}
             placeholder={t('app.jumble.choose_destination')}
             options={destinations}
@@ -215,8 +221,15 @@
             tone="primary"
             isBusy={isWorking}
             busyLabel={t('app.jumble.converting')}
-            disabledReason={destination ? undefined : t('app.jumble.choose_destination')}
-            onclick={() => void accept(suggestion)}
+            onclick={() => {
+              // Never off for want of a destination (design-system.md §4, case 3).
+              if (!destination) {
+                isDestinationMissing = true;
+                queueMicrotask(() => focusFirst(form));
+                return;
+              }
+              void accept(suggestion);
+            }}
           >
             {t('app.jumble.make_it')}
           </Button>

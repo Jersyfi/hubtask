@@ -38,10 +38,11 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
   of actor, never once per page. A type or role the manifest does not declare is refused, never
   permitted, and before the manifest arrives nothing is shown as available.
   `[partial: ci:node, ci:engines; open: types, roles and features beyond AI]`
-* **No control drawn for a capability that is refused outright.** It is absent, not disabled. A
-  refusal the reader might otherwise have had — a permission, a setting, a degraded feature — is
-  drawn through `CapabilityGate` with its reason, never hidden silently.
-  `[partial: ci:node; open: capabilities other than AI, the reason CapabilityGate gives]`
+* **No control drawn for what the reader may never do.** A capability refused outright and a
+  control the reader's role forbids are absent, not disabled (P-05). What the reader could change
+  or wait out — a setting, an archived area, a degraded feature, a pending answer — is drawn with
+  its reason, never hidden silently (design-system.md §4, the eight cases).
+  `[partial: ci:node; open: capabilities other than AI, a role refusal drawn with a reason]`
 * **No page numbers.** The API answers a page and an opaque cursor; a longer list arrives through
   `LoadMore`. No client-side pager either, not even over a list that arrived whole — a long list is
   sorted or narrowed. `[owner]`

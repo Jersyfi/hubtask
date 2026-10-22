@@ -57,3 +57,10 @@ export const inTableRow: Story = {
   about: 'The same in a table row: the row keeps its height whether the control is available or not.',
   args: { mode: 'table' },
 };
+
+export const missing: Story = {
+  name: 'No file, and the form needs one',
+  about:
+    'The form was submitted without a file (design-system.md §4, case 3): the field says so under the target, the field is `data-invalid` and the button is described by the sentence, so focus moved there hears what to do. The submit was never switched off for it. Choose a file and the sentence goes.',
+  args: { mode: 'missing' },
+};

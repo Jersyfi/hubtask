@@ -70,9 +70,9 @@ function level(
       scope: { ...scope, include_descendants: descendants },
       // **Archived is read-only, not hidden** (I-W4). The query defaults to leaving archived
       // entries out, and taking that default would make "archived" mean "gone" — which is the
-      // failure this prevents: the row stays, says so, and has every control off with
-      // the reason. A reader who wants them out filters them out; `archived_at` is a field the
-      // manifest reports.
+      // failure this prevents: the row stays and stays readable, and the screen says once why it
+      // cannot be changed. A reader who wants them out filters them out; `archived_at` is a field
+      // the manifest reports.
       //
       // `include_trashed` stays at its default. The trash is a different screen, and an entry
       // mixed into the list it was deleted from would be a deletion that did nothing.
@@ -391,8 +391,9 @@ class Items {
   /**
    * Archives an entry, or brings it back.
    *
-   * Archived is **read-only, not hidden** (I-W4): the entry stays where it is, stays readable, and
-   * every control on it is off with the reason. That is the screen's half; this is the write.
+   * Archived is **read-only, not hidden** (I-W4): the entry stays where it is and stays readable,
+   * and the screen says once why it cannot be changed. That is the screen's half; this is the write.
+   * Its children are not archived with it (ArchiveWorkItem.go).
    */
   async setArchived(id: string, isArchived: boolean, idempotencyKey: string): Promise<WorkItem> {
     return engine.mutate<WorkItem>(

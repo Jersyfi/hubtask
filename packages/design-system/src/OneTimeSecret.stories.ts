@@ -20,7 +20,7 @@ export const token: Story = {
 export const acknowledge: Story = {
   name: 'With something to confirm first',
   about:
-    'Ten codes scrolled past are ten codes nobody wrote down, so a caller may require a tick before the value can be dismissed. The dismissal is switched off with its reason rather than hidden — `disabledReason` is what disables in this package, so a control the reader cannot use cannot come apart from the why.',
+    'Ten codes scrolled past are ten codes nobody wrote down, so a caller may require a tick before the value can be dismissed. The dismissal is never switched off for it (design-system.md §4, case 3): press *Done* before ticking, and the box says why and takes focus — the place the reader acts.',
   args: { mode: 'acknowledge' },
 };
 
