@@ -599,6 +599,14 @@ screenshots.
   completion); the wordmark is IBM Plex Sans Condensed 700 in lower case. A trademark search and a
   graphic refinement precede its final release. The mark is never a symbol of a level: levels are
   presets a collection changes, and a fixed symbol would claim what the settings may no longer be.
+  **Built provisionally** as `Logo` (§4, wave 5): the geometry lives in
+  `packages/design-system/src/mark.ts`, the reduced form below 24 pixels (`sm`) has a heavier
+  outline, no core and a larger spark. Each part draws a semantic token — outline `brand.outline`
+  (indigo), plane `brand.plane` (raspberry), core `brand.core` and spark `brand.spark` (amber);
+  the outline holds 3:1 against every surface. The build generates the tab icon
+  (`dist/mark/favicon.svg`, the reduced mark, light and dark by the system's scheme) and the
+  installed apps' icon source (`dist/mark/app-icon.svg`, the full mark at 72 % on a `brand.tile`
+  square with a white outline, one form for light and dark launchers).
 - **The system conventions of the installed clients** — the back gesture and swipe as history, the
   share sheet, the keyboard's accessory row, the status bar's colour, and the administration row as
   [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
@@ -710,8 +718,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
 * **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
