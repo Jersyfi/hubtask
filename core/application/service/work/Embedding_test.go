@@ -115,6 +115,13 @@ func (w *embeddingWorld) Near(
 	return repository.Nearby{}, nil
 }
 
+// NearVector is Near's twin for words that are no entry, carried for the same reason.
+func (w *embeddingWorld) NearVector(
+	context.Context, []float32, string, float64, int,
+) ([]repository.Neighbour, error) {
+	return nil, nil
+}
+
 func (w *embeddingWorld) Store(_ context.Context, embedding repository.StoredEmbedding) error {
 	if w.storeErr != nil {
 		return w.storeErr

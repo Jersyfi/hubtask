@@ -47,7 +47,7 @@
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
-  import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, WorkItem } from '@hubtask/sync-engine';
+  import type { ActivityEntry, ActivityPage, CommentPage, MediaPage, ResourceState, Suggestion, SuggestionPage, WorkItem } from '@hubtask/sync-engine';
 
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
@@ -91,8 +91,13 @@
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
   import ConflictStrip from '../lib/entries/ConflictStrip.svelte';
-  import SuggestionStrip from '../lib/entries/SuggestionStrip.svelte';
+  import AiAsk from '../lib/entries/AiAsk.svelte';
+  import AiPlace from '../lib/entries/AiPlace.svelte';
   import TranslatePanel from '../lib/entries/TranslatePanel.svelte';
+  import { askOf, placeOf, type Ask, type Place } from '../lib/data/aiplaces.ts';
+  import { buckets } from '../lib/data/buckets.svelte.ts';
+  import { entryAsks } from '../lib/data/entryasks.svelte.ts';
+  import { hasChoices, suggestionsPath } from '../lib/data/suggestions.ts';
   import ReminderPanel from '../lib/entries/ReminderPanel.svelte';
   import AttachmentPanel from '../lib/media/AttachmentPanel.svelte';
   import CoverPanel from '../lib/media/CoverPanel.svelte';
@@ -654,11 +659,52 @@
     }
   }
 
-  // The strip exists exactly when the manifest says AI is configured for this workspace, and not
-  // otherwise - not disabled with a reason, not rendered empty. An installation with AI switched
-  // off has a product that never mentions it (design-system.md §4, CapabilityGate), and the tokens the
-  // strip is the only consumer of leave with it.
+  // AI where its subject is (UC-AI-04 check 6): a ✦ beside each subject and what stands about it
+  // under it - and nothing at all when the manifest announces no AI for this workspace, not
+  // disabled with a reason, not rendered empty (ai-first.md §2, absence is absence).
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+
+  // What stands about this entry, read once - the view is keyed on the id. A reader reads it too:
+  // a summary of the discussion is a reading aid (check 8).
+  // Read only where the manifest announces AI: an installation without it reads nothing of it.
+  let listingState = $state<ResourceState<SuggestionPage>>({ status: 'idle' });
+  $effect(() => {
+    if (!hasAi) return;
+    return untrack(() => engine.subscribe<SuggestionPage>({ path: suggestionsPath(id) }, (next) => (listingState = next)));
+  });
+  const listing = { get state() { return listingState; } };
+  /** Proposals a reader closed on this page: hidden here, unchanged for everybody else. */
+  let closed = $state<ReadonlySet<string>>(new Set());
+  const standing = $derived(
+    hasAi && listing.state.status === 'ready'
+      ? (listing.state.data.items ?? []).filter((suggestion) => suggestion.status === 'PROPOSED' && !closed.has(suggestion.id))
+      : [],
+  );
+  const proposalsAt = (place: Place): readonly Suggestion[] => standing.filter((suggestion) => placeOf(suggestion) === place);
+  /** The questions whose answer already stands at a place, so its ✦ shows it rather than asking again. */
+  const standingAt = (place: Place): Readonly<Partial<Record<Ask, string>>> => {
+    const found: Partial<Record<Ask, string>> = {};
+    for (const suggestion of proposalsAt(place)) {
+      const ask = askOf(suggestion);
+      if (ask && !found[ask]) found[ask] = suggestion.id;
+    }
+    return found;
+  };
+  const closeProposal = (suggestionId: string) => (closed = new Set([...closed, suggestionId]));
+  /** The translation, open under the head once *Read in another language* was chosen. */
+  let isTranslating = $state(false);
+  $effect(() => () => untrack(() => entryAsks.forget(id)));
+  $effect(() => {
+    if (item?.collection_id) untrack(() => buckets.open(item.collection_id));
+  });
+  // What a classification could choose from: the same three lists the server reads before it
+  // queues one, so the ✦ offers it exactly where it can succeed (P-05).
+  const aiChoices = $derived(
+    item
+      ? hasChoices(item, labels.stateOf(item.collection_id), buckets.stateOf(item.collection_id), customFields.stateOf(item.collection_id))
+      : 'reading',
+  );
+  const hasComments = $derived((commentCount ?? 0) > 0);
 
   // What sits under this entry, for the kinds that hold anything: an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
@@ -819,9 +865,18 @@
           onblur={() => void commitInline()}
           onkeydown={onTitleKey}
         ></textarea>
+        {#if hasAi}
+          <AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
+        {/if}
       </div>
       {#if writeFailure && isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
+      {/if}
+      {#if hasAi}
+        <AiPlace {item} place="title" proposals={proposalsAt('title')} mayChange={isWritable} onclose={closeProposal} />
+        {#if isTranslating}
+          <TranslatePanel {item} {languages} onclose={() => (isTranslating = false)} />
+        {/if}
       {/if}
       <!-- What is set, as chips (design-system.md §11.8: set before empty). Each is also a row below. -->
       <div class="marks">
@@ -858,6 +913,12 @@
         onkeydown={onNotesKey}
       ></textarea>
       {/if}
+      {#if hasAi && isTypeKnown && carries('NOTES')}
+        {#if isChangeable}
+          <div class="field-ai"><AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} /></div>
+        {/if}
+        <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
+      {/if}
       {#if writeFailure && !isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
       {/if}
@@ -883,7 +944,8 @@
            is, so the reading order and the tab order meet them there on every width; from
            `expanded` they are drawn beside the text, at the end of the line. -->
       <aside class="details" aria-label={t('app.item.details')}>
-        <details class="details-fold" open={!viewport.isCompact}>
+        <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
+        <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
           <summary class="details-summary">{t('app.item.details')}</summary>
           <div class="rows">
             {#if isTypeKnown && isTypeOffered}
@@ -909,13 +971,6 @@
       </aside>
 
       <div class="main-column">
-        {#if hasAi && isChangeable}
-          <Stack gap="150" data-ai>
-            <h2 class="section">{t('app.suggestions.title')}</h2>
-            <SuggestionStrip {item} />
-            <TranslatePanel {item} {languages} />
-          </Stack>
-        {/if}
 
         {#if !isTypeKnown}
           <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
@@ -937,7 +992,13 @@
                   {isSubtreeOpen ? t('app.item.collapse_all') : t('app.item.expand_all')}
                 </Button>
               {/if}
+              {#if hasAi}
+                <AiAsk {item} place="steps" mayChange={isChangeable && !isCollectionArchived} standing={standingAt('steps')} />
+              {/if}
             </div>
+            {#if hasAi}
+              <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
+            {/if}
             <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
@@ -956,6 +1017,12 @@
           onselect={(chosen) => (activeTab = chosen)}
         >
           {#if shownTab === 'comments'}
+            {#if hasAi}
+              <!-- What the discussion came to: a reading aid, asked and read by everybody who may
+                   read the entry (UC-AI-04 check 8). -->
+              <div class="field-ai"><AiAsk {item} place="comments" mayChange={isWritable} {hasComments} standing={standingAt('comments')} /></div>
+              <AiPlace {item} place="comments" proposals={proposalsAt('comments')} mayChange={isWritable} onclose={closeProposal} />
+            {/if}
             <CommentPanel {item} path={peoplePath} mayComment={frozenReason === undefined ? mayCommentHere : false} isClosed={frozenReason !== undefined} />
           {:else}
             <Stack gap="150">
@@ -1000,6 +1067,19 @@
   </Stack>
 {/if}
 
+{#snippet dueAsk()}
+  {#if item}<AiAsk {item} place="due" mayChange={isWritable} standing={standingAt('due')} />{/if}
+{/snippet}
+{#snippet dueBelow()}
+  {#if item}<AiPlace {item} place="due" proposals={proposalsAt('due')} mayChange={isWritable} onclose={closeProposal} />{/if}
+{/snippet}
+{#snippet labelsAsk()}
+  {#if item}<AiAsk {item} place="labels" mayChange={isWritable} choices={aiChoices} standing={standingAt('labels')} />{/if}
+{/snippet}
+{#snippet labelsBelow()}
+  {#if item}<AiPlace {item} place="labels" proposals={proposalsAt('labels')} mayChange={isWritable} onclose={closeProposal} />{/if}
+{/snippet}
+
 {#snippet detailRows()}
   {#if item}
             {#if carries('ASSIGNMENT') || carries('MEMBERS')}
@@ -1011,12 +1091,12 @@
               <!-- One row, because `DuePanel` is one editor: it writes the start and the due
                    together, and two rows opening it showed the reader the other date wherever
                    they pressed. -->
-              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isWritable}>
+              <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isWritable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
                 <DuePanel {item} />
               </DetailRow>
             {/if}
             {#if carries('LABELS')}
-              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isWritable}>
+              <DetailRow id="labels" label={t('app.labels.choose')} value={carriedLabels.length > 0 ? carriedLabels.map((label) => label.name).join(', ') : undefined} isReadOnly={!isWritable} ask={hasAi ? labelsAsk : undefined} below={hasAi ? labelsBelow : undefined}>
                 <LabelsPanel {item} />
               </DetailRow>
             {/if}
@@ -1131,6 +1211,9 @@
 
   /* Rule 3: a completed entry is struck as well as ticked. */
   .title-field.done { color: var(--text-subtle); text-decoration: line-through; }
+
+  /* A ✦ that has no field row of its own sits at the end of the line under its subject. */
+  .field-ai { display: flex; justify-content: flex-end; }
 
   .notes-field {
     inline-size: 100%;

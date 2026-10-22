@@ -191,9 +191,11 @@ test('chromium: the plan editor draws the installation\'s levels, and a save nam
   await page.getByRole('heading', { name: 'Family', level: 1 }).waitFor({ timeout: 10_000 });
   assert.match(await page.locator('main').innerText(), /412 workspaces/);
 
-  // The installation locks the request rate: its value, no control - and the plan's own, overtaken.
+  // The installation locks the request rate: its value with the chip that says whose it is
+  // (UC-WRK-32 check 5), no control - and the plan's own, overtaken.
   const locked = page.locator('[data-value="quotas.api_requests_per_minute"]');
-  assert.match(await locked.innerText(), /Set by the installation: 600/);
+  assert.match(await locked.innerText(), /600\s+Set by the installation, locked/);
+  assert.equal(await locked.locator('[data-source]').getAttribute('data-source'), 'INSTANCE-locked');
   assert.match(await locked.innerText(), /1200, is not in force/);
   await locked.getByRole('button', { name: 'Remove the plan\'s value' }).click();
 

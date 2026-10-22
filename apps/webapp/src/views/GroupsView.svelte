@@ -22,7 +22,7 @@
   // discloses is a name and identifiers that resolve through the same minimal read as everywhere
   // else.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
@@ -32,6 +32,8 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
+  import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -39,6 +41,20 @@
   const TENANT = { scopeType: 'TENANT' } as const;
 
   let newName = $state('');
+  /**
+   * What a press found missing - a new group's name, a renamed one's, the person to add - marked at
+   * its field, focus on it, nothing sent (UC-WRK-32 check 3). Keyed by the field, so one group's
+   * mark is not another's.
+   */
+  let missing = $state<Missing>({});
+
+  /** For the presses outside a form: marks one field and moves focus to it. */
+  function markOne(key: string, isFilled: boolean): boolean {
+    missing = check([{ kind: 'field', key, code: key.startsWith('add:') ? 'app.forms.choose' : 'app.forms.required', isFilled }]);
+    if (isComplete(missing)) return true;
+    void tick().then(() => focusFirst(document));
+    return false;
+  }
   let renaming = $state<string | undefined>(undefined);
   let renamed = $state('');
   let removing = $state<string | undefined>(undefined);
@@ -104,14 +120,15 @@
   async function create(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     const name = newName.trim();
-    if (!name) return;
+    missing = marked(event, [{ kind: 'field', key: 'new', code: 'app.forms.required', isFilled: name !== '' }]);
+    if (!isComplete(missing)) return;
     await attempt(() => groups.create(name), t('app.groups.created_announced'));
     newName = '';
   }
 
   async function rename(groupId: string): Promise<void> {
     const name = renamed.trim();
-    if (!name) return;
+    if (!markOne('rename', name !== '')) return;
     await attempt(() => groups.update(groupId, { name }), t('app.groups.renamed_announced'));
     renaming = undefined;
     renamed = '';
@@ -153,7 +170,7 @@
           <Stack gap="150">
             <div class="head">
               {#if renaming === group.id}
-                <Input label={t('app.groups.name')} bind:value={renamed} isRequired />
+                <Input label={t('app.groups.name')} bind:value={renamed} isRequired error={missing.rename && !renamed.trim() ? t(missing.rename) : undefined} />
                 <Button
                   tone="primary"
                   isBusy={isWriting}
@@ -218,13 +235,14 @@
                 }
                 placeholder={t('app.people.choose_person')}
                 options={choicesFor(group.id)}
+                error={missing[`add:${group.id}`] && !adding[group.id] ? t(missing[`add:${group.id}`] ?? '') : undefined}
               />
               <Button
                 isBusy={isWriting}
                 busyLabel={t('app.groups.working')}
                 onclick={() => {
                   const chosen = adding[group.id];
-                  if (!chosen) return;
+                  if (!markOne(`add:${group.id}`, Boolean(chosen)) || !chosen) return;
                   void setMembers(group.id, [...membersOf(group.id), chosen]);
                   adding = { ...adding, [group.id]: '' };
                 }}
@@ -269,9 +287,10 @@
     <Stack gap="150">
       <h2 class="section">{t('app.groups.new_title')}</h2>
       <WorkspaceGate permission="MANAGE_MEMBERS">
+        {#snippet actions()}
         <form class="panel" onsubmit={create}>
           <Stack gap="150">
-            <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired />
+            <Input label={t('app.groups.name')} hint={t('app.groups.name_hint')} bind:value={newName} isRequired error={missing.new && !newName.trim() ? t(missing.new) : undefined} />
             <div>
               <Button type="submit" tone="primary" isBusy={isWriting} busyLabel={t('app.groups.working')}>
                 {t('app.groups.create')}
@@ -279,6 +298,7 @@
             </div>
           </Stack>
         </form>
+        {/snippet}
       </WorkspaceGate>
     </Stack>
     </Stack>

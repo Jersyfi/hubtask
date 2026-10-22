@@ -1003,7 +1003,7 @@ class Client:
         """Ask AI what work sits under this entry"""
         return self._call("POST", "/items/{itemId}:decompose", {"itemId": item_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
-    def ai_suggest_fields(self, item_id: str, body: "AiAsk") -> "JobRef":
+    def ai_suggest_fields(self, item_id: str, body: "AiFieldsAsk") -> "JobRef":
         """Ask AI to propose this entry's fields"""
         return self._call("POST", "/items/{itemId}:suggest-fields", {"itemId": item_id}, None, {}, body, "json", "application/json", "json")
 
@@ -1030,6 +1030,10 @@ class Client:
     def suggest_duplicates(self, item_id: str) -> "Suggestion":
         """Which entries look like this one"""
         return self._call("POST", "/items/{itemId}:duplicates", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def find_duplicates_by_title(self, body: "DuplicatesByTitleQuery") -> "LookalikePage":
+        """Which entries look like a title that is not an entry yet"""
+        return self._call("POST", "/items:duplicates", {}, None, {}, body, "json", "application/json", "json")
 
     def list_suggestions(self, *, query: dict[str, Any] | None = None) -> "SuggestionPage":
         """What AI has proposed, and not done"""
@@ -1070,6 +1074,10 @@ class Client:
     def set_ai_arrival_proposals(self, body: "AiArrivalProposalsChoice") -> "AiSource":
         """Whether AI prepares a proposal for each new jumble entry"""
         return self._call("PUT", "/ai-arrival-proposals", {}, None, {}, body, "json", "application/json", "json")
+
+    def read_ai_budget_state(self) -> "AiBudgetState":
+        """How today's AI budget stands, for everybody here"""
+        return self._call("GET", "/ai-budget-state", {}, None, {}, None, "none", None, "json")
 
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""

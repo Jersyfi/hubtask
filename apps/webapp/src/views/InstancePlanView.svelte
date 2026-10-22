@@ -21,6 +21,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
+  import ValueSource from '../lib/workspace/ValueSource.svelte';
   import { PLAN_AREAS, choiceCode, fieldOf, isBytes, lockCode, nameCode, planBodyOf, rowsOf, type Area, type PlanAreas } from '../lib/instance/values.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -298,10 +299,12 @@
                     {#each group.rows as row (row.key)}
                       {@const installation = above(row.area, row.key)}
                       {#if lockedAbove(row.area, row.key)}
-                        <!-- The installation's lock binds the plan: its value, and no control. -->
+                        <!-- The installation's lock binds the plan: its value, the chip that says
+                             whose it is (UC-WRK-32 check 5), and no control. -->
+                        {@const inForce = installation?.set ? said(row.area, row.key, installation) : t('app.instance.value_undecided')}
                         <div class="locked" data-value={`${row.area}.${row.key}`}>
                           <span class="label">{t(nameCode(row.area, row.key))}</span>
-                          <span>{t('app.instance.plan_set_by_installation', { value: installation?.set ? said(row.area, row.key, installation) : t('app.instance.value_undecided') })}</span>
+                          <span class="in-force">{inForce} <ValueSource source="INSTANCE" lock="INSTANCE" value={inForce} /></span>
                           {#if current(row.area, row.key)}
                             <p class="overtaken">
                               {t('app.instance.plan_value_overtaken', { value: said(row.area, row.key, current(row.area, row.key) as InstanceSetting) })}

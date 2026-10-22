@@ -812,3 +812,48 @@ func TestARenewalAddsAPersonOnlyWhereItsLinkRanOut(t *testing.T) {
 		t.Errorf("the people lock was taken %d times, want once", lapsed.locks)
 	}
 }
+
+// Where a source's budget stands, read before somebody asks (UC-AI-04 check 9): the day's spend
+// against the ceiling of that source, and an unlimited one as unbounded - with no ratio reported,
+// because reading is not enforcing.
+func TestTheAiStandingIsTheDaysSpendAgainstTheSourcesCeiling(t *testing.T) {
+	offered, own := int64(1000), int64(50)
+	for name, c := range map[string]struct {
+		own          bool
+		overrides    repository.Overrides
+		wantLimit    int64
+		wantBounded  bool
+		wantMetric   string
+		wantNoLedger bool
+	}{
+		"the offered model's budget": {false, repository.Overrides{AiTokensPerDay: &offered}, 1000, true, AiTokensPerDay, false},
+		"the own model's budget":     {true, repository.Overrides{AiOwnTokensPerDay: &own}, 50, true, AiOwnTokensPerDay, false},
+		"an own model without one":   {true, repository.Overrides{}, 0, false, "", true},
+	} {
+		t.Run(name, func(t *testing.T) {
+			usage := &usageFake{metered: 7}
+			signals := &signalsFake{}
+			guard := Guard{Store: &storeFake{overrides: c.overrides}, Usage: usage, Signals: signals, Tenancy: env.TenancySingle}
+
+			spent, limit, bounded, err := guard.AiStanding(t.Context(), c.own, time.Date(2026, 9, 9, 11, 0, 0, 0, time.UTC))
+			if err != nil {
+				t.Fatalf("reading the standing: %v", err)
+			}
+			if bounded != c.wantBounded || limit != c.wantLimit {
+				t.Errorf("limit %d bounded %v, want %d %v", limit, bounded, c.wantLimit, c.wantBounded)
+			}
+			if c.wantNoLedger {
+				if usage.meteredCalls != 0 {
+					t.Error("an unbounded budget read the ledger")
+				}
+				return
+			}
+			if spent != 7 || usage.meteredMetric != c.wantMetric {
+				t.Errorf("spent %d of %q, want 7 of %q", spent, usage.meteredMetric, c.wantMetric)
+			}
+			if len(signals.ratios) != 0 {
+				t.Errorf("reading reported a ratio: %v", signals.ratios)
+			}
+		})
+	}
+}

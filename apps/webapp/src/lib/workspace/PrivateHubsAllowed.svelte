@@ -9,23 +9,28 @@
   // the one place a person looks for whether private hubs may be made is the page that lists them.
   //
   // **It acts at once, behind the step-up**, as every switch of the rule does: one row is not a
-  // form. Off stops new private hubs only; the sentence under the switch says so, because the
-  // question a person has before switching is whether the hubs already there open up. They do not.
+  // form. It shows its work in place and says it landed as a passing message. Off stops new private
+  // hubs only; the sentence under the switch says so, because the question a person has before
+  // switching is whether the hubs already there open up. They do not.
   //
   // **What a level above decided is not offered.** A lock keeps the switch's value and switches the
-  // control off with who locked it; an "off" above cannot be switched on here.
+  // control off with the reason; the chip beside it says whose value it is and whom to ask
+  // (UC-WRK-32 check 5); an "off" above cannot be switched on here.
 
   import { untrack } from 'svelte';
 
   import { Stack, Switch } from '@hubtask/design-system/components';
 
   import { signInPolicy, type LockOrigin } from '../data/signinpolicy.svelte.ts';
+  import { toast } from '../frame/toasts.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
+  import ValueSource from './ValueSource.svelte';
 
   $effect(() => untrack(() => signInPolicy.open()));
 
   const setting = $derived(signInPolicy.policy?.private_hubs);
   let refusal = $state<string | undefined>(undefined);
+  let isSaving = $state(false);
 
   function lockedBecause(lock: LockOrigin): string | undefined {
     if (lock === 'INSTANCE') return t('app.signin_settings.locked_installation');
@@ -39,28 +44,21 @@
       ?? (setting.installation ? undefined : t('app.private_hubs.allowed_off_above'));
   });
 
-  /** Where the value came from, in a sentence (P-06); a lock is said once, by the switch. */
-  const origin = $derived.by(() => {
-    if (!setting) return '';
-    if (setting.lock !== null) return '';
-    switch (setting.source) {
-      case 'WORKSPACE': return t('app.signin_settings.source_workspace');
-      case 'INSTANCE': return t('app.signin_settings.source_installation');
-      case 'PLAN': return t('app.signin_settings.source_plan');
-      default: return t('app.signin_settings.source_default');
-    }
-  });
-
   async function change(event: Event) {
     // Kept before the await: the event's target is gone once the save has answered.
     const control = event.currentTarget as HTMLInputElement;
     const next = control.checked;
     refusal = undefined;
-    if (!(await signInPolicy.save({ private_hubs: next }))) {
-      refusal = signInPolicy.problem?.fields.get('/sign_in_policy/private_hubs') ?? signInPolicy.problem?.message;
+    isSaving = true;
+    const problem = await signInPolicy.saveAtOnce({ private_hubs: next });
+    isSaving = false;
+    if (problem) {
+      refusal = problem.fields.get('/sign_in_policy/private_hubs') ?? problem.message;
       // The read is what is in force; the control goes back to it.
       control.checked = !next;
+      return;
     }
+    toast.show({ text: t('app.private_hubs.allowed_saved'), tone: 'success' });
   }
 </script>
 
@@ -73,10 +71,18 @@
         hint={t('app.private_hubs.allowed_hint')}
         checked={setting.value}
         onchange={change}
+        isBusy={isSaving}
+        busyLabel={t('app.workspace.saving')}
         {disabledReason}
       />
       {#if refusal}<p class="refusal" role="alert">{refusal}</p>{/if}
-      {#if origin}<p class="origin">{origin}</p>{/if}
+      <p class="origin">
+        <ValueSource
+          source={setting.source}
+          lock={setting.lock}
+          value={setting.value ? t('app.signin_settings.on') : t('app.signin_settings.off')}
+        />
+      </p>
     </Stack>
   </section>
 {/if}
@@ -98,7 +104,7 @@
     line-height: var(--lh-tight);
   }
 
-  .origin { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
+  .origin { margin: 0; }
 
   .refusal { margin: 0; color: var(--text-danger); }
 </style>

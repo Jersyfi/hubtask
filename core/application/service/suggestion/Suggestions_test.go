@@ -15,8 +15,10 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
+	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 )
@@ -280,7 +282,8 @@ func TestListingRefusesAValueOutsideAClosedSet(t *testing.T) {
 	}
 }
 
-// Nothing reaches the store or the catalogue unless the actor may act (rule 2).
+// Nothing is written unless the actor may act (rule 2). About an entry, the entry is read first -
+// its path is what the question is asked along - and that read is all a refused caller reaches.
 func TestAnUnauthorisedActorReachesNothing(t *testing.T) {
 	cases, world := newWorld()
 	cases.Authorizer = refuse{}
@@ -290,9 +293,57 @@ func TestAnUnauthorisedActorReachesNothing(t *testing.T) {
 		Execute(context.Background(), person(), proposalID, nil); err == nil {
 		t.Fatal("an unauthorised actor accepted a suggestion")
 	}
-	if len(world.performed) != 0 || len(world.entries) != 0 {
-		t.Error("a refused caller reached the catalogue or the trail")
+	for _, call := range world.performed {
+		if call.name != "GetWorkItem" {
+			t.Errorf("a refused caller reached %s", call.name)
+		}
 	}
+	if len(world.entries) != 0 || world.store.proposals[proposalID].Status != domain.StatusProposed {
+		t.Error("a refused caller reached the trail or the record")
+	}
+}
+
+// An AI request about an entry asks along the entry's own path, with what it does to the entry and
+// whose it is - so that a role on its hub counts and "assigned only" is measured (UC-AI-04 check 8,
+// domain-model.md §3.2).
+func TestARequestAboutAnEntryIsAskedAlongItsPath(t *testing.T) {
+	assignee := shared.MustParseID("0192f000-0000-7000-8000-0000000000aa")
+	cases, world := newWorld()
+	world.assignee = assignee
+	recorder := &recordingAuthorizer{}
+	cases.Authorizer = recorder
+	world.store.proposals[proposalID] = proposal()
+
+	if _, err := (DismissSuggestion{Cases: cases}).Execute(context.Background(), person(), proposalID); err != nil {
+		t.Fatalf("dismissing: %v", err)
+	}
+	if _, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), person(),
+		ListQuery{TargetType: domain.TargetWorkItem, TargetID: targetID}); err != nil {
+		t.Fatalf("listing: %v", err)
+	}
+	if len(recorder.requests) != 2 {
+		t.Fatalf("%d questions asked", len(recorder.requests))
+	}
+	for index, want := range []struct {
+		permission service.Permission
+		does       service.ItemAction
+	}{{service.PermissionWriteItems, service.ItemChange}, {service.PermissionRead, service.ItemRead}} {
+		request := recorder.requests[index]
+		if request.Permission != want.permission || request.On.Does != want.does ||
+			request.On.ID != targetID || request.On.Assignee != assignee {
+			t.Errorf("question %d was %+v", index, request)
+		}
+		if len(request.Path) != 1 || request.Path[0] != identity.TenantScope() {
+			t.Errorf("question %d starts at %v, want the workspace and the entry it names", index, request.Path)
+		}
+	}
+}
+
+type recordingAuthorizer struct{ requests []access.Request }
+
+func (r *recordingAuthorizer) Authorize(_ context.Context, _ appshared.ActorContext, request access.Request) error {
+	r.requests = append(r.requests, request)
+	return nil
 }
 
 // The fixtures.
@@ -366,6 +417,8 @@ type world struct {
 	// SetCustomField.
 	labelFails error
 	fieldFails error
+	// assignee is whose the entry is, as its read answers it.
+	assignee shared.ID
 }
 
 type performed struct {
@@ -397,7 +450,11 @@ func (w *world) Invoke(
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
-		return usecase.Output{"title": w.title, "notes": ""}, nil
+		out := usecase.Output{"title": w.title, "notes": ""}
+		if !w.assignee.IsZero() {
+			out["assignee_id"] = w.assignee.String()
+		}
+		return out, nil
 	case "ConvertJumbleEntry":
 		if w.performFails != nil {
 			return nil, w.performFails

@@ -21,7 +21,7 @@
  * **No payload leaves in a URL.** The listing is by identifier; an override travels in a body.
  */
 
-import type { AcceptedSuggestion, AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
+import type { AcceptedSuggestion, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import {
@@ -62,8 +62,6 @@ const wait = waitWhileVisible(typeof document === 'undefined' ? undefined : docu
 
 /** How long an ask may take to be accepted. It queues and returns; it does not wait for the model. */
 const ASK_TIMEOUT_MS = 15_000;
-/** How long a translation may take: a person is waiting, and the server bounds it the same way. */
-const TRANSLATE_TIMEOUT_MS = 30_000;
 
 const touches = (targetId: string, target: Target = 'WORK_ITEM') => [suggestionsPath(targetId, target)];
 
@@ -231,19 +229,6 @@ class Suggestions {
         }),
     );
     void this.#follow(accountId, 'rule', askedAt, 'ACCOUNT', accepted?.job_id);
-  }
-
-  /**
-   * Reads the entry in another language. Synchronous and stored nowhere: the answer is
-   * handed back and held by nothing here - it is the caller's to show and to drop.
-   */
-  async translate(itemId: string, targetLocale: string): Promise<AiTranslation> {
-    return engine.mutate<AiTranslation>('POST', `/items/${itemId}:translate`, { target_locale: targetLocale }, {
-      idempotencyKey: crypto.randomUUID(),
-      timeoutMs: TRANSLATE_TIMEOUT_MS,
-      // A read: nothing it answers makes anything the client holds stale.
-      invalidates: [],
-    });
   }
 
   /**
