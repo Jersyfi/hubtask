@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -145,6 +146,9 @@ type CreateWorkItem struct {
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Ownership  Ownership
 	Events     outbox.Events
@@ -304,7 +308,7 @@ func (h CreateWorkItem) Execute(
 			// whose profile does not carry DUE_DATE refuses here, and the refusal takes the
 			// whole creation with it: a merge of one request half-applied is a state nobody
 			// asked for.
-			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, created)
 			if err != nil {
 				return err
 			}
@@ -324,7 +328,7 @@ func (h CreateWorkItem) Execute(
 		// carries no COVER, a malformed token or an image the media context will not stand
 		// behind refuses here and takes the creation with it.
 		if cmd.Cover != nil {
-			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, created)
 			if err != nil {
 				return err
 			}
@@ -341,7 +345,7 @@ func (h CreateWorkItem) Execute(
 		// order the request's map was read in - two runs of one request would otherwise announce
 		// the same facts in different sequences.
 		if len(cmd.CustomFields) > 0 {
-			profile, err := profileOf(ctx, h.Profiles, created.Type)
+			profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, created)
 			if err != nil {
 				return err
 			}
@@ -386,6 +390,8 @@ type createAssignment struct {
 	h        CreateWorkItem
 	assignee shared.ID
 	pool     *eligiblePool
+	// asked is a policy the caller asked for rather than one that applies itself.
+	asked bool
 }
 
 // assignToCreator makes the new entry the creator's, where the role they hold requires it.
@@ -461,7 +467,7 @@ func (h CreateWorkItem) assignmentPlan(
 	if err != nil {
 		return nil, err
 	}
-	return &createAssignment{h: h, pool: &pool}, nil
+	return &createAssignment{h: h, pool: &pool, asked: cmd.AutoAssign}, nil
 }
 
 // apply runs inside the create's transaction, on the row the create just wrote.
@@ -469,6 +475,19 @@ func (p *createAssignment) apply(
 	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, now time.Time,
 ) (domain.WorkItem, *AutoAssignOutcome, error) {
 	if p.pool != nil {
+		// A policy that applies itself does not apply in a collection that hides assignees: the
+		// entry is created on nobody and the outcome says why. Asked for, it is refused like any
+		// write of a hidden value.
+		if !p.asked {
+			profile, err := p.h.AutoAssign.Assignment.Gate.gatedProfileFor(
+				ctx, p.h.AutoAssign.Assignment.Profiles, item)
+			if err != nil {
+				return domain.WorkItem{}, nil, err
+			}
+			if slices.Contains(profile.Hidden, domain.CapabilityAssignment) {
+				return item, &AutoAssignOutcome{Strategy: p.pool.strategy, Code: "items.capability_hidden"}, nil
+			}
+		}
 		written, outcome, err := p.h.AutoAssign.apply(
 			ctx, actor, AssignmentCommand{ItemID: item.ID}, *p.pool)
 		if err != nil {
@@ -478,7 +497,7 @@ func (p *createAssignment) apply(
 	}
 
 	w := p.h.AutoAssign.Assignment
-	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	profile, err := w.Gate.gatedProfileFor(ctx, w.Profiles, item)
 	if err != nil {
 		return domain.WorkItem{}, nil, err
 	}
@@ -576,6 +595,17 @@ func (h CreateWorkItem) build(
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
+	// The installation's hierarchy says where the type may sit at all; the collection's structure
+	// says whether it offers that level here, and which of the type's fields (domain-model.md §2).
+	// Asked after placement, so that an impossible place is answered as one rather than as hidden.
+	offer, err := h.Gate.placing(ctx, collection, parent)
+	if err != nil {
+		return domain.WorkItem{}, err
+	}
+	if err := offer.requireLevel(cmd.Type, "/type"); err != nil {
+		return domain.WorkItem{}, err
+	}
+	profile = offer.narrow(profile)
 
 	if strings.TrimSpace(cmd.Amount) != "" {
 		if err := ensureAmountOffered(ctx, h.Structure, collection, cmd.Type); err != nil {
@@ -1198,7 +1228,10 @@ func (h CreateWorkItem) invoke(
 		return nil, err
 	}
 
-	out := ItemOutput(item)
+	out, err := h.Gate.Answer(ctx, h.UnitOfWork, actor, item)
+	if err != nil {
+		return nil, err
+	}
 	if outcome != nil {
 		out = outcome.output(out)
 	}

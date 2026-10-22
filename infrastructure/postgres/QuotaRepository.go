@@ -33,14 +33,15 @@ var (
 // quotasDocument is the settings key's shape - the adapter's knowledge, never the application
 // layer's (TenantPolicy's discipline). Pointers, because absence and 0 mean different things.
 type quotasDocument struct {
-	APIRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
-	Items                 *int64 `json:"items,omitempty"`
-	MediaBytes            *int64 `json:"media_bytes,omitempty"`
-	AutomationRunsPerHour *int64 `json:"automation_runs_per_hour,omitempty"`
-	WebhookTargets        *int64 `json:"webhook_targets,omitempty"`
-	ExportJobs            *int64 `json:"export_jobs,omitempty"`
-	Accounts              *int64 `json:"accounts,omitempty"`
-	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
+	APIRequestsPerMinute     *int64 `json:"api_requests_per_minute,omitempty"`
+	Items                    *int64 `json:"items,omitempty"`
+	MediaBytes               *int64 `json:"media_bytes,omitempty"`
+	AutomationRunsPerHour    *int64 `json:"automation_runs_per_hour,omitempty"`
+	WebhookTargets           *int64 `json:"webhook_targets,omitempty"`
+	ExportJobs               *int64 `json:"export_jobs,omitempty"`
+	Accounts                 *int64 `json:"accounts,omitempty"`
+	AiTokensPerDay           *int64 `json:"ai_tokens_per_day,omitempty"`
+	AiArrivalProposalsPerDay *int64 `json:"ai_arrival_proposals_per_day,omitempty"`
 }
 
 // quotaSettingPrefix is where a quota's default lives in the instance level's key space. The
@@ -221,27 +222,29 @@ func (QuotaRepository) TimeZone(ctx context.Context) (string, error) {
 // failing. `TestEveryQuotaOverrideSurvivesTheDocument` walks every field through both.
 func fromDocument(document quotasDocument) repository.Overrides {
 	return repository.Overrides{
-		APIRequestsPerMinute:  document.APIRequestsPerMinute,
-		Items:                 document.Items,
-		MediaBytes:            document.MediaBytes,
-		AutomationRunsPerHour: document.AutomationRunsPerHour,
-		WebhookTargets:        document.WebhookTargets,
-		ExportJobs:            document.ExportJobs,
-		Accounts:              document.Accounts,
-		AiTokensPerDay:        document.AiTokensPerDay,
+		APIRequestsPerMinute:     document.APIRequestsPerMinute,
+		Items:                    document.Items,
+		MediaBytes:               document.MediaBytes,
+		AutomationRunsPerHour:    document.AutomationRunsPerHour,
+		WebhookTargets:           document.WebhookTargets,
+		ExportJobs:               document.ExportJobs,
+		Accounts:                 document.Accounts,
+		AiTokensPerDay:           document.AiTokensPerDay,
+		AiArrivalProposalsPerDay: document.AiArrivalProposalsPerDay,
 	}
 }
 
 func toDocument(overrides repository.Overrides) quotasDocument {
 	return quotasDocument{
-		APIRequestsPerMinute:  overrides.APIRequestsPerMinute,
-		Items:                 overrides.Items,
-		MediaBytes:            overrides.MediaBytes,
-		AutomationRunsPerHour: overrides.AutomationRunsPerHour,
-		WebhookTargets:        overrides.WebhookTargets,
-		ExportJobs:            overrides.ExportJobs,
-		Accounts:              overrides.Accounts,
-		AiTokensPerDay:        overrides.AiTokensPerDay,
+		APIRequestsPerMinute:     overrides.APIRequestsPerMinute,
+		Items:                    overrides.Items,
+		MediaBytes:               overrides.MediaBytes,
+		AutomationRunsPerHour:    overrides.AutomationRunsPerHour,
+		WebhookTargets:           overrides.WebhookTargets,
+		ExportJobs:               overrides.ExportJobs,
+		Accounts:                 overrides.Accounts,
+		AiTokensPerDay:           overrides.AiTokensPerDay,
+		AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay,
 	}
 }
 

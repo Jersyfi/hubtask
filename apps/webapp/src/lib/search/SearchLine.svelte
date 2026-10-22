@@ -230,7 +230,7 @@
     margin-block-start: var(--sp-050);
     border: var(--bw-hairline) solid var(--border-default);
     border-radius: var(--r-md);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     box-shadow: var(--shadow-overlay);
   }
 

@@ -25,6 +25,8 @@ import (
 const (
 	submitJumbleEntryUseCase      = "SubmitJumbleEntry"
 	listJumbleEntriesUseCase      = "ListJumbleEntries"
+	getJumbleEntryUseCase         = "GetJumbleEntry"
+	listJumbleDestinationsUseCase = "ListJumbleDestinations"
 	convertJumbleEntryUseCase     = "ConvertJumbleEntry"
 	suggestFromJumbleEntryUseCase = "SuggestFromJumbleEntry"
 	dismissJumbleEntryUseCase     = "DismissJumbleEntry"
@@ -155,6 +157,46 @@ func (c *RestController) ListJumbleEntries(
 	})
 }
 
+// GetJumbleEntry answers GET /jumble/entries/{entryId}.
+func (c *RestController) GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryID openapi_types.UUID) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		return c.UseCases.Invoke(r.Context(), getJumbleEntryUseCase, actor, usecase.Input{
+			"entry_id": entryID.String(),
+		})
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, jumbleEntryResponse(out))
+	})
+}
+
+// ListJumbleDestinations answers GET /jumble/destinations.
+func (c *RestController) ListJumbleDestinations(
+	w http.ResponseWriter, r *http.Request, params openapi.ListJumbleDestinationsParams,
+) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{}
+		if params.Cursor != nil {
+			input["cursor"] = *params.Cursor
+		}
+		if params.Size != nil {
+			input["size"] = *params.Size
+		}
+		return c.UseCases.Invoke(r.Context(), listJumbleDestinationsUseCase, actor, input)
+	}, func(out usecase.Output) {
+		rows, _ := out["data"].([]usecase.Output)
+		destinations := make([]openapi.JumbleDestination, 0, len(rows))
+		for _, row := range rows {
+			destinations = append(destinations, openapi.JumbleDestination{
+				Id: uuidValue(row.String("id")), Name: row.String("name"),
+				HubId: uuidValue(row.String("hub_id")), HubName: row.String("hub_name"),
+				HubPrivate: row["hub_private"] == true,
+			})
+		}
+		writeJSON(w, r, http.StatusOK, openapi.JumbleDestinationPage{
+			Data: destinations, Page: pageResponse(out),
+		})
+	})
+}
+
 // SubmitJumbleEntry answers POST /jumble/entries.
 func (c *RestController) SubmitJumbleEntry(
 	w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams,
@@ -223,6 +265,10 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 	}
 	if settled, ok := out["settled_at"].(time.Time); ok {
 		entry.SettledAt = &settled
+	}
+	if id := out.String("arrival_job_id"); id != "" {
+		job := uuidValue(id)
+		entry.ArrivalJobId = &job
 	}
 	return entry
 }

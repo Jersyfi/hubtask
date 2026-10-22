@@ -50,8 +50,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 	for id, want := range map[string][]string{
 		// No `labels`: a jumble entry is in no collection, so there is no vocabulary to choose
 		// from, and words a model invented would be vocabulary it invented. Labels are the
-		// classifier's, chosen from the set it was shown.
-		"suggest-fields": {"title", "notes", "due_date", "subtasks"},
+		// classifier's, chosen from the set it was shown. The destination is chosen from the
+		// collections the material lists.
+		"suggest-fields": {"title", "notes", "due_date", "subtasks", "collection_id"},
 		// All three chosen from what the material carried: the collection's
 		// vocabulary, the columns of the entry's board, and the values of the fields it declared.
 		// The keys inside `custom_fields` are the workspace's own and belong to no shape.
@@ -62,6 +63,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// The nodes' own keys belong to a node, not to the answer: only `children` is at the
 		// answer's level, and what a node may carry is `keptTree`'s business.
 		"decompose": {"children"},
+		// A rule drafted from a sentence: the sentences, steps and trigger inside are the
+		// draft's own shape, read by `ruleFrom`.
+		"draft-rule": {"scope", "trigger", "conditions", "actions", "not_drafted"},
 		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,

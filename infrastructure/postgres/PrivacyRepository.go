@@ -653,6 +653,23 @@ func (r PrivacyRepository) DiscardNotifications(
 	return int(rows), nil
 }
 
+// DiscardAiDrafts removes what AI drafted for the person alone, and the words they asked with.
+func (r PrivacyRepository) DiscardAiDrafts(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	drafts, err := queries.DeleteAiDraftsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the AI drafts of an account", err)
+	}
+	asked, err := queries.DeleteAiRequestsOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the held AI requests of an account", err)
+	}
+	return int(drafts + asked), nil
+}
+
 // DiscardIntake removes what the person sent in by mail.
 func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)

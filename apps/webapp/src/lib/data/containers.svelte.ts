@@ -206,6 +206,31 @@ class Containers {
     await engine.refresh<ContainerPage>({ path: collectionsPath(hubId) });
   }
 
+  /**
+   * What a collection's figure was counted from moved: its own read and its hub's level are read
+   * again, where somebody has them open - a level nobody opened is not fetched for a figure.
+   */
+  async refreshFigures(targets: { readonly collections: readonly string[]; readonly hubs: readonly string[] }): Promise<void> {
+    const reads: Promise<unknown>[] = [];
+    for (const hubId of targets.hubs) {
+      if (this.#levels[hubId] !== undefined) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
+    }
+    for (const id of targets.collections) {
+      if (this.#single[id] !== undefined) reads.push(engine.refresh<Container>({ path: `/containers/${id}` }));
+    }
+    await Promise.allSettled(reads);
+  }
+
+  /** Every collection this client holds, with its figure where it has one: what a new day re-reads. */
+  get loadedCollections(): readonly Container[] {
+    const seen = new Map<string, Container>();
+    for (const state of Object.values(this.#levels)) for (const container of rowsOf(state)) seen.set(container.id, container);
+    for (const state of Object.values(this.#single)) {
+      if (state.status === 'ready' && state.data.type === 'COLLECTION') seen.set(state.data.id, state.data);
+    }
+    return [...seen.values()];
+  }
+
   /** The `Idempotency-Key` is the caller's: pressing "create" twice is one intent, not two hubs. */
   async create(
     body: {
@@ -248,20 +273,22 @@ class Containers {
    * 773). A PUT: the whole document travels, and a key that is not sent falls back to its
    * default. `ifMatch` is the version the reader had when the form opened (ADR-0025).
    */
-  /**
-   * Changes a hub's or a collection's own structure (domain-model.md §2): the settings sent
-   * replace the layer's own value of each, whole. Online only - a structure is resolved by the
-   * server, and offline the engine refuses it with `sync.needs_connection`.
-   */
-  async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
-    return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
+  async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
+    return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
       ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });
   }
 
-  async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
-    return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
+  /**
+   * Changes settings of a hub's or a collection's own structure (`PATCH …/structure`, domain-model.md
+   * §2), one by one: each setting sent replaces the layer's own value of it, whole. The answer is the
+   * container with its structure in force, its figure read again with the level. Online only - a
+   * structure is resolved by the server, and offline the engine refuses it with
+   * `sync.needs_connection`.
+   */
+  async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
+    return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
       ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });

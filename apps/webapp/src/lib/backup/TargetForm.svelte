@@ -234,6 +234,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .reasons { margin: 0; padding-inline-start: var(--sp-200); }

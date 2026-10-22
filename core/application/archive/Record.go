@@ -651,11 +651,12 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// about a position taken after the archive was made.
 	"ai_objection_notice": "a read receipt of a notice; without it a restored workspace tells a person once more, which harms nobody",
 	// A working note rather than a record. What an accepted suggestion did is in the
-	// entry's own history, which the archive carries; what a proposal was about is a state of an
-	// entry that a restore months later has anyway replaced. Restoring one would offer somebody a
-	// proposal about text that no longer says what it said - and it ages out in thirty days in the
-	// live system for that same reason.
-	"ai_suggestion": "a proposal about a state of an entry, which a restore has already replaced; the entry's own history carries what was accepted",
+	// entry's own history - or is the template or rule it created - which the archive carries; what
+	// a proposal was about is a state of an entry, or a sentence somebody typed into an editor, that
+	// a restore months later has anyway left behind. Restoring one would offer somebody a proposal
+	// about something that no longer says what it said - and it ages out in thirty days in the live
+	// system for that same reason.
+	"ai_suggestion": "a proposal about a state of an entry or a draft somebody asked for, which a restore has already left behind; what was accepted is in the workspace itself",
 	// The material of one job, held for minutes: the job that reads it deletes it, and a
 	// restore that brought one back would revive a question nobody is waiting on the answer to.
 	"ai_request": "a job's material with minutes of life, deleted by the job that reads it; a restored one would be a question nobody asked twice",

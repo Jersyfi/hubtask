@@ -14,7 +14,11 @@ import type { Response, Suggestion, Transport, WorkItem } from '@hubtask/sync-en
 import {
   FOLLOW_ATTEMPTS,
   acceptCodeOf,
+  arrivalEndedAs,
   arrivedSince,
+  ruleDraftSince,
+  targetOf,
+  budgetSpentOf,
   endedAs,
   followArrival,
   hasChoices,
@@ -580,4 +584,41 @@ test('a stale acceptance is the server’s refusal, carried as the code the cata
     (error: unknown) => error instanceof TransportError && error.detailCode === 'suggestions.stale',
   );
   assert.equal(transport.sends[0]?.path, '/suggestions/s1:accept');
+});
+
+// The draft an ask produced is the newest proposed rule draft made after the ask - not an older one
+// of the person's own, and not another kind (UC-AUT-10).
+test('a rule ask takes the draft it produced', () => {
+  const at = (id: string, kind: string, status: string, created: string) => ({ id, kind, status, created_at: created }) as unknown as Suggestion;
+  const listing = [
+    at('older', 'RULE', 'PROPOSED', '2030-01-01T00:00:00Z'),
+    at('dismissed', 'RULE', 'DISMISSED', '2030-01-01T00:02:00Z'),
+    at('mine', 'RULE', 'PROPOSED', '2030-01-01T00:01:30Z'),
+    at('template', 'TEMPLATE', 'PROPOSED', '2030-01-01T00:03:00Z'),
+  ];
+  assert.equal(ruleDraftSince(listing, '2030-01-01T00:01:00Z')?.id, 'mine');
+  assert.equal(ruleDraftSince(listing, '2030-01-01T00:04:00Z'), undefined);
+  assert.equal(targetOf({ target_type: 'ACCOUNT' }), 'ACCOUNT');
+  assert.equal(targetOf({ target_type: 'WORK_ITEM' }), 'WORK_ITEM');
+});
+
+// A proposal prepared on arrival is said by its card only when it stands: every other ending leaves
+// the arrival waiting, quietly - nobody asked - and a spent budget is said once for the page.
+test('a proposal prepared on arrival says only the proposal, and a spent budget once for the page', () => {
+  assert.deepEqual(arrivalEndedAs('arrived'), { outcome: 'arrived' });
+  for (const ending of [
+    { ended: { code: 'ai.arrival_proposals_off' } },
+    { ended: { code: 'ai.arrival_cap_reached' } },
+    { ended: undefined },
+    { refused: { code: 'ai.unavailable' } },
+    { refused: { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: '2026-10-22T00:00:00Z' } } },
+  ] as const) {
+    const recorded = arrivalEndedAs(ending);
+    assert.deepEqual(recorded, { outcome: 'ended' });
+    assert.equal(noteOf(recorded), undefined, 'a card said an ending nobody asked about');
+  }
+  const spent = { code: 'ai.unavailable', params: { reason: 'budget_spent', renews_at: '2026-10-22T00:00:00Z' } };
+  assert.deepEqual(budgetSpentOf({ refused: spent }), spent);
+  assert.equal(budgetSpentOf({ refused: { code: 'ai.unavailable' } }), undefined);
+  assert.equal(budgetSpentOf('arrived'), undefined);
 });

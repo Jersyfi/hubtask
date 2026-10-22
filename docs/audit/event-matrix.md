@@ -54,6 +54,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `ai.arrival_proposals_set` | SetAiArrivalProposals | `ai_source` | NOTICE | Every time |
 | `ai.classification_asked` | AiClassify | `ai_suggestion` | NOTICE | Every time |
 | `ai.decomposition_asked` | SuggestDecomposition | `ai_suggestion` | NOTICE | Every time |
 | `ai.duplicates_asked` | SuggestDuplicates | `ai_suggestion` | NOTICE | Every time |
@@ -65,6 +66,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `ai.provider_configured` | ConfigureAiProvider | `ai_provider` | NOTICE | Every time |
 | `ai.provider_read` | ReadAiProvider | `ai_provider` | INFO | When refused |
 | `ai.provider_removed` | RemoveAiProvider | `ai_provider` | NOTICE | Every time |
+| `ai.rule_asked` | DescribeRule | `automation_rule` | NOTICE | Every time |
 | `ai.source_chosen` | ChooseAiSource | `ai_source` | NOTICE | Every time |
 | `ai.source_read` | ReadAiSource | `ai_source` | INFO | When refused |
 | `ai.suggestion_accepted` | AcceptSuggestion | `ai_suggestion` | INFO | Every time |
@@ -227,6 +229,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `container.privacy_changed` | SetHubPrivacy | `container` | NOTICE | Every time |
 | `container.read` | GetContainer | `container` | INFO | When refused |
 | `container.read` | ListContainers | `container` | INFO | When refused |
+| `container.read` | ListJumbleDestinations | `container` | INFO | When refused |
 | `container.renamed` | RenameContainer | `container` | INFO | Every time |
 | `container.restored` | RestoreContainer | `container` | NOTICE | Every time |
 | `container.structure_updated` | SetContainerStructure | `container` | INFO | Every time |
@@ -343,6 +346,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `jumble.entry_converted` | ConvertJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.entry_dismissed` | DismissJumbleEntry | `jumble_entry` | INFO | Every time |
+| `jumble.entry_read` | GetJumbleEntry | `jumble_entry` | INFO | When refused |
 | `jumble.entry_read` | ListJumbleEntries | `jumble_entry` | INFO | When refused |
 | `jumble.entry_submitted` | SubmitJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |

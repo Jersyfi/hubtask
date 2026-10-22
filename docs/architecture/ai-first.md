@@ -141,7 +141,7 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
 
 | Feature | Rule | Result form |
 |---|---|---|
-| Jumble processing | Email/note → suggested title, notes, due date and implied subtasks; the material carries the current date. Accepting converts the entry, writes notes (`UpdateWorkItem`), the date as all-day in the accepter's zone (`SetDueDate`) and one child per subtask (`CreateWorkItem`); a refusal partway leaves what stands. **No labels** (no collection vocabulary yet) and **no collection** (`Producing.go` filters `collection_id`; the converter chooses) | Suggestion, confirmed by the user |
+| Jumble processing | Email/note → suggested title, notes, due date, implied subtasks and the collection it fits best; the material carries the current date and the shared set of collections (the guardrail below). Accepting converts the entry into the proposed collection unless the person picks another, writes notes (`UpdateWorkItem`), the date as all-day in the accepter's zone (`SetDueDate`) and one child per subtask (`CreateWorkItem`); a refusal partway leaves what stands. **No labels** (no collection vocabulary yet). **On arrival** (UC-JUM-07 check 10): where the workspace switched it on (`PUT /ai-arrival-proposals`, its own, off by default, set by no level above it), a subscriber of `jumble.entry.received` queues one `ai.suggest_arrival` job per arrival and nothing else; the job asks as the system for the workspace - the embedding pass's actor, the switch being the authorisation - and judges at its run, each with its outcome: the switch (`ai.arrival_proposals_off`), the settlement, whose content stays out (the sender address, the submitting account, the principal an agent or a rule acted for), the source and its consent, `ai_arrival_proposals_per_day` (`ai.arrival_cap_reached`) and the token budget. Nothing counts or announces waiting proposals | Suggestion, confirmed by the user |
 | Field suggestions | An existing entry → a better title, notes, a due date, with its own prompt | Suggestion |
 | Decomposition | Task → work packages/activities as a tree; accepting is one `CreateWorkItem` per node in order, and a refusal leaves the nodes before it standing | Suggestion |
 | Classification | Labels and bucket, chosen from the options shown (the collection's labels, the entry's board columns with its own marked); anything else is dropped. Accepting is `AddLabel` per label and `MoveWorkItem`. Custom field values only for closed kinds (`SELECT`, `MULTI_SELECT`, `BOOL`), checked by `ValidateValue` and written one key per call; open kinds and `USER` never. No built-in priority: the classifier fills declared fields, and a workspace with none makes no extra call | Suggestion |
@@ -149,6 +149,7 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
 | Summarisation | One entry's title and notes; its comment thread (oldest first, at most 100, fingerprinted against the entry so a reply does not make it stale); a collection's status (open, moved, overdue; one level, at most 100 entries). Nothing summarised reaches a log, metric, trace or audit entry. The weekly review is an MCP prompt | Suggestion accepted into the entry or dismissed; a collection's summary is only read and dismissed |
 | Semantic search | Embeddings of titles/notes in `pgvector`, hybrid with `tsvector`: one ranked page, one cursor, words winning over meaning, pgvector detected rather than demanded ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)). The index holds 1536 dimensions: narrower is zero-padded (cosine unchanged), wider is refused with `ai.embedding_too_wide` — before the first text where the provider states its width, else at the first batch — the job finishing, search staying lexical, `/meta/capabilities` and `/meta/health` saying so ([ADR-0054](../adr/ADR-0054-embedding-width.md)). A job seeded by the entry's write maintains its embedding | Search result |
 | Template generation | The caller's description and target collection → a template in the contract's shape. The material states which types may sit where (the profiles `CreateTemplate` checks); a refused node is dropped with its subtree and counted (`dropped_nodes`, `nodes_dropped`), a refused offset left off. The words are held under row level security (`ai_request`) for the job and deleted when it ends. Accepting is `CreateTemplate` as the accepter, scope from the target, never from the answer | `TEMPLATE` suggestion |
+| Rule drafting | `DescribeRule` takes a sentence and the scope the editor holds, and asks what writing a rule asks: `AUTOMATION` at the scope, `automation:manage`, a plan with rules (automation.md §2.1). The material is the vocabulary a draft may use - an allowlist of entry-level action kinds, each field classified (`draftableActions`, held to the catalogue by a test), the trigger kinds but `SCHEDULE`, the composer's condition subjects but board columns and custom fields - and the people, collections, labels and places the sentence names that the asker may see, at most twenty each; whoever keeps their content out is never named. The answer is narrowed to that: what was not shown is dropped and named in `not_drafted` (a message code, or the person's own words quoted - a quote that is not in their sentence is dropped). The words are held in `ai_request` for the job, which runs as `ai.draft_rule`. The draft is about the asker's own `ACCOUNT`: only they read, accept or dismiss it. Accepting is `CreateRule` as the asker with `name` and `run_as` in the overrides, so the rule is stored switched off; a draft is never applied without a person | `RULE` suggestion |
 | Translation | `AiTranslate` reads one entry's title and notes in a named language (default: the caller's). A *read*: the entry's read is the permission, consent and budget are asked after, the call is bounded because a person waits, every failure is `ai.unavailable`. Nothing is stored; the audit records entry and language, never text ([i18n-l10n.md](./i18n-l10n.md) §7) | Display only, not persisted |
 
 **Guardrails:**
@@ -169,16 +170,26 @@ audit entries; dismissing is a state on the record ([domain-model.md](./domain-m
   product's shortest timeout). Any failure to get that embedding is a **lexical search, not an
   error**.
 * **A model may pick from a set it was shown, never name a destination.** `collection_id` is
-  filtered from every answer, except where the collections the asking person may write in were
-  passed as the set — a jumble proposal's destination (decision #1629) — and then it is validated
-  against that set like any other closed set. A closed set (board columns, labels) is read through the ordinary
-  listing as the asking person, passed as options — content, never instruction — and validated on
-  return; anything else is dropped and the rest stands. Where the set has its own validation (a
-  custom field's declaration), the check is that code, not a copy.
+  filtered from every answer, except a jumble proposal's destination (decision #1629): there the
+  set passed is the **shared set** — the collections everybody who may convert an arrival may
+  write in: not trashed, not archived by their own stamp or their hub's, outside private hubs, the
+  first hundred in the tree's order — whoever asks, so that no proposal another reader sees names
+  a private hub's collection, and the answer is validated against it like any other closed set. A
+  listing answers a proposed destination only while it is still in that set. Every other closed
+  set (board columns, labels) is read through the ordinary listing as the asking person, passed as
+  options — content, never instruction — and validated on return; anything else is dropped and the
+  rest stands. Where the set has its own validation (a custom field's declaration), the check is
+  that code, not a copy.
+* **A model writes no expression.** A condition a model drafts is answered as the rule editor's
+  sentences and compiled by the server's twin of the composer (`core/domain/model/automation`), so
+  no byte of an answer becomes expression text except as a literal the compiler escaped - rule 9's
+  reasoning, applied to the rules' language. Branch conditions, a dedupe key and an outbound body
+  are never drafted, and no draft names an address.
 * **A prompt asks for exactly what the code keeps.** `test/architecture/promptanswers_test.go`
   compares a prompt's fenced answer shape with the allow list in `Producing.go` both ways; the allow
   list stays the authority.
-* **Every key an allow list keeps is one the acceptance can apply.** A proposal is narrowed by the
+* **Every key an allow list keeps is one the acceptance can apply** - or one it only tells the
+  person (`toldKeys`: what a rule draft could not draft). A proposal is narrowed by the
   allow list and by what the applying use case declares; `test/architecture/applicablekeys_test.go`
   holds registry, allow lists, (prompt, target) declarations and acceptance table together. A
   payload built in code (duplicates) is never merged into a use case's input.

@@ -15,6 +15,21 @@ import (
 	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
+// Defines values for AcceptedSuggestionSource.
+const (
+	AcceptedSuggestionSourceAI AcceptedSuggestionSource = "AI"
+)
+
+// Valid indicates whether the value is a known member of the AcceptedSuggestionSource enum.
+func (e AcceptedSuggestionSource) Valid() bool {
+	switch e {
+	case AcceptedSuggestionSourceAI:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AccountKind.
 const (
 	AccountKindSERVICEACCOUNT AccountKind = "SERVICE_ACCOUNT"
@@ -1296,6 +1311,33 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CollectionFigureKind.
+const (
+	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
+	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
+	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
+	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the CollectionFigureKind enum.
+func (e CollectionFigureKind) Valid() bool {
+	switch e {
+	case CollectionFigureKindDUE:
+		return true
+	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindOPEN:
+		return true
+	case CollectionFigureKindPROGRESS:
+		return true
+	case CollectionFigureKindRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -1629,8 +1671,10 @@ const (
 	DroppedReferenceKindATTACHMENT  DroppedReferenceKind = "ATTACHMENT"
 	DroppedReferenceKindBUCKET      DroppedReferenceKind = "BUCKET"
 	DroppedReferenceKindCUSTOMFIELD DroppedReferenceKind = "CUSTOM_FIELD"
+	DroppedReferenceKindDUEDATE     DroppedReferenceKind = "DUE_DATE"
 	DroppedReferenceKindLABEL       DroppedReferenceKind = "LABEL"
 	DroppedReferenceKindMEMBER      DroppedReferenceKind = "MEMBER"
+	DroppedReferenceKindNOTES       DroppedReferenceKind = "NOTES"
 )
 
 // Valid indicates whether the value is a known member of the DroppedReferenceKind enum.
@@ -1644,9 +1688,13 @@ func (e DroppedReferenceKind) Valid() bool {
 		return true
 	case DroppedReferenceKindCUSTOMFIELD:
 		return true
+	case DroppedReferenceKindDUEDATE:
+		return true
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	case DroppedReferenceKindNOTES:
 		return true
 	default:
 		return false
@@ -3248,21 +3296,24 @@ func (e QuotaSource) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
-	Accounts              QuotaStandingQuota = "accounts"
-	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
-	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
-	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
-	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
-	ExportJobs            QuotaStandingQuota = "export_jobs"
-	Items                 QuotaStandingQuota = "items"
-	MediaBytes            QuotaStandingQuota = "media_bytes"
-	WebhookTargets        QuotaStandingQuota = "webhook_targets"
+	Accounts                 QuotaStandingQuota = "accounts"
+	AiArrivalProposalsPerDay QuotaStandingQuota = "ai_arrival_proposals_per_day"
+	AiOwnTokensPerDay        QuotaStandingQuota = "ai_own_tokens_per_day"
+	AiTokensPerDay           QuotaStandingQuota = "ai_tokens_per_day"
+	ApiRequestsPerMinute     QuotaStandingQuota = "api_requests_per_minute"
+	AutomationRunsPerHour    QuotaStandingQuota = "automation_runs_per_hour"
+	ExportJobs               QuotaStandingQuota = "export_jobs"
+	Items                    QuotaStandingQuota = "items"
+	MediaBytes               QuotaStandingQuota = "media_bytes"
+	WebhookTargets           QuotaStandingQuota = "webhook_targets"
 )
 
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
 	case Accounts:
+		return true
+	case AiArrivalProposalsPerDay:
 		return true
 	case AiOwnTokensPerDay:
 		return true
@@ -3839,16 +3890,16 @@ func (e RuleScopeType) Valid() bool {
 
 // Defines values for RuleTriggerAnchor.
 const (
-	CREATEDAT RuleTriggerAnchor = "CREATED_AT"
-	DUEDATE   RuleTriggerAnchor = "DUE_DATE"
+	RuleTriggerAnchorCREATEDAT RuleTriggerAnchor = "CREATED_AT"
+	RuleTriggerAnchorDUEDATE   RuleTriggerAnchor = "DUE_DATE"
 )
 
 // Valid indicates whether the value is a known member of the RuleTriggerAnchor enum.
 func (e RuleTriggerAnchor) Valid() bool {
 	switch e {
-	case CREATEDAT:
+	case RuleTriggerAnchorCREATEDAT:
 		return true
-	case DUEDATE:
+	case RuleTriggerAnchorDUEDATE:
 		return true
 	default:
 		return false
@@ -4245,6 +4296,21 @@ func (e StructureCountsFigure) Valid() bool {
 	}
 }
 
+// Defines values for StructureCountsClipReason.
+const (
+	ONELEVEL StructureCountsClipReason = "ONE_LEVEL"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsClipReason enum.
+func (e StructureCountsClipReason) Valid() bool {
+	switch e {
+	case ONELEVEL:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureLockOrigin.
 const (
 	StructureLockOriginINSTANCE  StructureLockOrigin = "INSTANCE"
@@ -4415,6 +4481,7 @@ const (
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	FIELDS        SuggestionKind = "FIELDS"
+	RULE          SuggestionKind = "RULE"
 	TEMPLATE      SuggestionKind = "TEMPLATE"
 )
 
@@ -4426,6 +4493,8 @@ func (e SuggestionKind) Valid() bool {
 	case DUPLICATES:
 		return true
 	case FIELDS:
+		return true
+	case RULE:
 		return true
 	case TEMPLATE:
 		return true
@@ -4457,6 +4526,7 @@ func (e SuggestionStatus) Valid() bool {
 
 // Defines values for SuggestionTargetType.
 const (
+	SuggestionTargetTypeACCOUNT     SuggestionTargetType = "ACCOUNT"
 	SuggestionTargetTypeCONTAINER   SuggestionTargetType = "CONTAINER"
 	SuggestionTargetTypeJUMBLEENTRY SuggestionTargetType = "JUMBLE_ENTRY"
 	SuggestionTargetTypeWORKITEM    SuggestionTargetType = "WORK_ITEM"
@@ -4465,6 +4535,8 @@ const (
 // Valid indicates whether the value is a known member of the SuggestionTargetType enum.
 func (e SuggestionTargetType) Valid() bool {
 	switch e {
+	case SuggestionTargetTypeACCOUNT:
+		return true
 	case SuggestionTargetTypeCONTAINER:
 		return true
 	case SuggestionTargetTypeJUMBLEENTRY:
@@ -5244,6 +5316,59 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
+// AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
+type AcceptedSuggestion struct {
+	CreatedAt time.Time `json:"created_at"`
+
+	// CreatedId What accepting created, where it created one thing; absent where it changed an entry or created several.
+	CreatedId *openapi_types.UUID `json:"created_id,omitempty"`
+
+	// DecidedAt When it was accepted or dismissed.
+	DecidedAt *time.Time `json:"decided_at,omitempty"`
+
+	// DecidedBy Who accepted or dismissed it. A suggestion is decided by a person.
+	DecidedBy *openapi_types.UUID `json:"decided_by,omitempty"`
+
+	// DroppedNodes How many parts of the provider's answer the narrowing dropped before the payload was stored, so that a client can say the draft is not the whole answer. For `TEMPLATE` it is the nodes the collection's profile refused under their parent, each counted with its subtree; zero for every other kind, whose narrowing drops what it drops without a count. Absent on a row written before the count existed, which reads as zero.
+	DroppedNodes *int               `json:"dropped_nodes,omitempty"`
+	Id           openapi_types.UUID `json:"id"`
+
+	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
+	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
+	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
+	Kind SuggestionKind `json:"kind"`
+
+	// Model The model that answered, as the provider named it — not as it was configured.
+	Model string `json:"model"`
+
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). It is data, never an instruction, and nothing acts on it until somebody accepts.
+	Payload map[string]interface{} `json:"payload"`
+
+	// ProducedAt When the provider answered, which is not when the record was written.
+	ProducedAt time.Time `json:"produced_at"`
+	PromptId   string    `json:"prompt_id"`
+
+	// PromptVersion Which version of the prompt produced this. Prompt files are versioned in their names and the old ones stay, so this resolves to the actual words a year later.
+	PromptVersion string `json:"prompt_version"`
+
+	// Source Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+	Source AcceptedSuggestionSource `json:"source"`
+
+	// Status `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
+	Status   SuggestionStatus   `json:"status"`
+	TargetId openapi_types.UUID `json:"target_id"`
+
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
+	TargetType SuggestionTargetType `json:"target_type"`
+
+	// Version The optimistic lock, as everywhere else.
+	Version int `json:"version"`
+}
+
+// AcceptedSuggestionSource Where the proposal came from. One value today, and a field rather than an assumption: a suggestion whose origin is not recorded is one nobody can tell from a person's own draft.
+type AcceptedSuggestionSource string
+
 // AccessToken A minted credential as it is listed afterwards. The token itself is not a member: it exists in the answer to the call that minted it and nowhere else.
 type AccessToken struct {
 	// AccountId Whose credential it is, and therefore whose rights bound it.
@@ -5508,6 +5633,12 @@ type AdminTenantPage struct {
 	Page PageInfo      `json:"page"`
 }
 
+// AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
+type AiArrivalProposalsChoice struct {
+	// Prepare True prepares a proposal for each new jumble entry; false waits for somebody to ask.
+	Prepare bool `json:"prepare"`
+}
+
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
 	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.
@@ -5631,6 +5762,9 @@ type AiSource struct {
 
 	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
 	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
+
+	// PrepareOnArrival Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.
+	PrepareOnArrival bool `json:"prepare_on_arrival"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -6418,7 +6552,7 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
@@ -6508,6 +6642,41 @@ type CapabilitiesTenancyMode string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
+
+// CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
+type CollectionFigure struct {
+	// Days RHYTHM - the dates of the reader's week on which something was completed.
+	Days *[]openapi_types.Date `json:"days,omitempty"`
+
+	// Done PROGRESS - completed leaves, archived ones counted as they stand.
+	Done *int `json:"done,omitempty"`
+
+	// Due DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.
+	Due  *int                 `json:"due,omitempty"`
+	Kind CollectionFigureKind `json:"kind"`
+
+	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
+	Open *int `json:"open,omitempty"`
+
+	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
+	Sum *float64 `json:"sum,omitempty"`
+
+	// Summed FIELD_SUM - how many of those entries carry a value.
+	Summed *int               `json:"summed,omitempty"`
+	Today  openapi_types.Date `json:"today"`
+
+	// Total PROGRESS - all leaves.
+	Total *int `json:"total,omitempty"`
+
+	// Unavailable True where the figure could not be counted; the container is answered all the same.
+	Unavailable *bool `json:"unavailable,omitempty"`
+
+	// WeekStart RHYTHM - the first date of that week.
+	WeekStart *openapi_types.Date `json:"week_start,omitempty"`
+}
+
+// CollectionFigureKind defines model for CollectionFigure.Kind.
+type CollectionFigureKind string
 
 // Comment defines model for Comment.
 type Comment struct {
@@ -6625,16 +6794,22 @@ type ConsentWithdrawal struct {
 
 // Container defines model for Container.
 type Container struct {
-	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
-	ColorToken  *string    `json:"color_token,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-	Description *string    `json:"description,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
+	// ClippedByLevels On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.
+	ClippedByLevels *[]StructureSettingName `json:"clipped_by_levels,omitempty"`
+	ColorToken      *string                 `json:"color_token,omitempty"`
+	CreatedAt       *time.Time              `json:"created_at,omitempty"`
+	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
+	Description     *string                 `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
-	Icon              *string            `json:"icon,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	EffectiveArchived *bool `json:"effective_archived,omitempty"`
+
+	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
+	Figure *CollectionFigure  `json:"figure,omitempty"`
+	Icon   *string            `json:"icon,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
 	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
@@ -6993,7 +7168,7 @@ type DroppedReference struct {
 	// Code A stable message code saying why.
 	Code string `json:"code"`
 
-	// Id The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it.
+	// Id The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it. For `NOTES` and `DUE_DATE`, which a template's node carries as values rather than references, the identifier of the entry created without them - never the value itself.
 	Id string `json:"id"`
 
 	// ItemId The entry that lost it. A move carries a whole subtree, so one operation can drop references from several entries at once.
@@ -7025,6 +7200,9 @@ type DuplicateResult struct {
 
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
+	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+	CountsClipped *StructureCountsClip `json:"counts_clipped,omitempty"`
+
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
@@ -7074,6 +7252,17 @@ type EncryptionStoreCount struct {
 
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
+
+// EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
+//
+// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
+type EntryHidden struct {
+	// Capabilities The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.
+	Capabilities []string `json:"capabilities"`
+
+	// Level True when the collection does not offer the entry's level, or the level of an entry above it - an activity under a work package is hidden in a collection that offers tasks and activities but no work packages. Every write to the entry is refused with the detail `items.level_hidden`; trashing, restoring and archiving are not.
+	Level bool `json:"level"`
+}
 
 // ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
 type ErasureCaseRecord struct {
@@ -7974,8 +8163,28 @@ type JobRef struct {
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
 
+// JumbleDestination One collection a jumble entry may become work in, with its hub.
+type JumbleDestination struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	HubName string             `json:"hub_name"`
+
+	// HubPrivate Whether the hub is private - reached only by its own members.
+	HubPrivate bool               `json:"hub_private"`
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+}
+
+// JumbleDestinationPage defines model for JumbleDestinationPage.
+type JumbleDestinationPage struct {
+	Data []JumbleDestination `json:"data"`
+	Page PageInfo            `json:"page"`
+}
+
 // JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
 type JumbleEntry struct {
+	// ArrivalJobId Where the workspace prepares proposals on arrival: the job preparing one about this undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`. Absent once it proposed something (the proposal is under `GET /suggestions`), for a settled entry, and where nothing was prepared.
+	ArrivalJobId *openapi_types.UUID `json:"arrival_job_id,omitempty"`
+
 	// Attachments Media objects, stored through the media pipeline.
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`
@@ -9588,7 +9797,7 @@ type QuotaStanding struct {
 	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
 	Locked *bool `json:"locked,omitempty"`
 
-	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+	// Quota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -9601,7 +9810,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+// QuotaStandingQuota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -10008,6 +10217,15 @@ type RuleConditionResult struct {
 	ErrorCode *string `json:"error_code,omitempty"`
 	Index     int     `json:"index"`
 	Matched   bool    `json:"matched"`
+}
+
+// RuleDescription What to ask for, and where the rule would apply.
+type RuleDescription struct {
+	// Description What the rule should do, in the caller's own words. It travels to the provider as content, never as instruction.
+	Description string `json:"description"`
+
+	// Scope Where the rule applies: the whole workspace, one hub, or one collection. Descendants are included by the ordinary rule rather than by a flag: a permission held at a hub applies downwards, and a rule scoped to a hub sees what happens in its collections.
+	Scope RuleScope `json:"scope"`
 }
 
 // RuleFinding One thing the check found about a rule. `path` is a JSON pointer into the rule's own document - `/trigger/event_type`, `/run_as`, `/conditions/1/expr`, `/actions/2/params/then/0/kind` - the same paths a write-time refusal's field errors carry, so an editor that points at a refused field points at a finding with the same code. `code` is a message code and `params` its parameters.
@@ -10610,7 +10828,7 @@ type StructureChange struct {
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
 
-// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+// StructureCounts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
 	Figure   StructureCountsFigure `json:"figure"`
@@ -10618,6 +10836,16 @@ type StructureCounts struct {
 
 // StructureCountsFigure defines model for StructureCounts.Figure.
 type StructureCountsFigure string
+
+// StructureCountsClip Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+type StructureCountsClip struct {
+	// From What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
+	From   StructureCounts           `json:"from"`
+	Reason StructureCountsClipReason `json:"reason"`
+}
+
+// StructureCountsClipReason defines model for StructureCountsClip.Reason.
+type StructureCountsClipReason string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
@@ -10667,7 +10895,7 @@ type StructureSettings struct {
 	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	Completion *CompletionPolicy `json:"completion,omitempty"`
 
-	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	// Counts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 	Counts *StructureCounts `json:"counts,omitempty"`
 
 	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
@@ -10714,13 +10942,14 @@ type Suggestion struct {
 
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -10737,7 +10966,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -10749,12 +10978,13 @@ type SuggestionSource string
 
 // SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
 type SuggestionAcceptance struct {
-	// Overrides Fields of the proposal to replace or add. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has.
+	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`.
 	Overrides *map[string]interface{} `json:"overrides,omitempty"`
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 // `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
 // `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -10768,7 +10998,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -11154,6 +11384,9 @@ type TenantQuotas struct {
 	// Accounts The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.
 	Accounts *int64 `json:"accounts,omitempty"`
 
+	// AiArrivalProposalsPerDay How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.
+	AiArrivalProposalsPerDay *int64 `json:"ai_arrival_proposals_per_day,omitempty"`
+
 	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
@@ -11314,7 +11547,7 @@ type UsageMetric struct {
 	// Day Which day a value counts by - UTC, or the workspace's own zone.
 	Day UsageMetricDay `json:"day"`
 
-	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 	Name UsageMetricName `json:"name"`
 }
 
@@ -11324,7 +11557,7 @@ type UsageMetricAggregate string
 // UsageMetricDay Which day a value counts by - UTC, or the workspace's own zone.
 type UsageMetricDay string
 
-// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 type UsageMetricName = string
 
 // UsagePage defines model for UsagePage.
@@ -11548,6 +11781,11 @@ type WorkItem struct {
 
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
+
+	// Hidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
+	//
+	// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
+	Hidden *EntryHidden `json:"hidden,omitempty"`
 
 	// Hlc The hybrid logical clock of the last change; the basis of offline merging.
 	Hlc       *string               `json:"hlc,omitempty"`
@@ -12250,6 +12488,12 @@ type TriggerRuleManuallyParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// DescribeRuleParams defines parameters for DescribeRule.
+type DescribeRuleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListRuleRunsParams defines parameters for ListRuleRuns.
 type ListRuleRunsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -12850,6 +13094,14 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleDestinationsParams defines parameters for ListJumbleDestinations.
+type ListJumbleDestinationsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Size Collections scanned per page.
+	Size *int `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListJumbleEntriesParams defines parameters for ListJumbleEntries.
 type ListJumbleEntriesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -13229,6 +13481,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
 
+// SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
+type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
+
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
 
@@ -13339,6 +13594,9 @@ type CreateRuleJSONRequestBody = AutomationRuleCreate
 
 // UpdateRuleApplicationMergePatchPlusJSONRequestBody defines body for UpdateRule for application/merge-patch+json ContentType.
 type UpdateRuleApplicationMergePatchPlusJSONRequestBody = AutomationRuleUpdate
+
+// DescribeRuleJSONRequestBody defines body for DescribeRule for application/json ContentType.
+type DescribeRuleJSONRequestBody = RuleDescription
 
 // TestRuleJSONRequestBody defines body for TestRule for application/json ContentType.
 type TestRuleJSONRequestBody = RuleTest
@@ -13831,6 +14089,9 @@ type ServerInterface interface {
 	// ReadUsage The use per workspace, metric and day, for billing
 	// (GET /admin/usage)
 	ReadUsage(w http.ResponseWriter, r *http.Request, params ReadUsageParams)
+	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+	// (PUT /ai-arrival-proposals)
+	SetAiArrivalProposals(w http.ResponseWriter, r *http.Request)
 	// SetOwnAiBudget Set the daily budget of this workspace's own AI model
 	// (PUT /ai-budget)
 	SetOwnAiBudget(w http.ResponseWriter, r *http.Request)
@@ -14020,6 +14281,9 @@ type ServerInterface interface {
 	// CheckRules Check every rule of the workspace against what exists now
 	// (POST /automation/rules:check)
 	CheckRules(w http.ResponseWriter, r *http.Request)
+	// DescribeRule Ask AI to draft a rule from a sentence
+	// (POST /automation/rules:describe)
+	DescribeRule(w http.ResponseWriter, r *http.Request, params DescribeRuleParams)
 	// TestRule Dry-run a rule against a sample event
 	// (POST /automation/rules:test)
 	TestRule(w http.ResponseWriter, r *http.Request)
@@ -14401,12 +14665,18 @@ type ServerInterface interface {
 	// CancelJob Stop a piece of background work
 	// (POST /jobs/{jobId}:cancel)
 	CancelJob(w http.ResponseWriter, r *http.Request, jobId JobId, params CancelJobParams)
+	// ListJumbleDestinations Where an entry may become work for you
+	// (GET /jumble/destinations)
+	ListJumbleDestinations(w http.ResponseWriter, r *http.Request, params ListJumbleDestinationsParams)
 	// ListJumbleEntries The jumble, newest first
 	// (GET /jumble/entries)
 	ListJumbleEntries(w http.ResponseWriter, r *http.Request, params ListJumbleEntriesParams)
 	// SubmitJumbleEntry Put something in the jumble
 	// (POST /jumble/entries)
 	SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, params SubmitJumbleEntryParams)
+	// GetJumbleEntry One jumble entry
+	// (GET /jumble/entries/{entryId})
+	GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID)
 	// ConvertJumbleEntry Turn an entry into work
 	// (POST /jumble/entries/{entryId}:convert)
 	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
@@ -17108,6 +17378,20 @@ func (siw *ServerInterfaceWrapper) ReadUsage(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// SetAiArrivalProposals operation middleware
+func (siw *ServerInterfaceWrapper) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetAiArrivalProposals(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetOwnAiBudget operation middleware
 func (siw *ServerInterfaceWrapper) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
 
@@ -18646,6 +18930,47 @@ func (siw *ServerInterfaceWrapper) CheckRules(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CheckRules(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DescribeRule operation middleware
+func (siw *ServerInterfaceWrapper) DescribeRule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DescribeRuleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DescribeRule(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -23989,6 +24314,52 @@ func (siw *ServerInterfaceWrapper) CancelJob(w http.ResponseWriter, r *http.Requ
 	handler.ServeHTTP(w, r)
 }
 
+// ListJumbleDestinations operation middleware
+func (siw *ServerInterfaceWrapper) ListJumbleDestinations(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListJumbleDestinationsParams
+
+	// ------------- Optional query parameter "cursor" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "cursor"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "cursor", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "size" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "size", r.URL.Query(), &params.Size, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListJumbleDestinations(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListJumbleEntries operation middleware
 func (siw *ServerInterfaceWrapper) ListJumbleEntries(w http.ResponseWriter, r *http.Request) {
 
@@ -24093,6 +24464,32 @@ func (siw *ServerInterfaceWrapper) SubmitJumbleEntry(w http.ResponseWriter, r *h
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SubmitJumbleEntry(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) GetJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetJumbleEntry(w, r, entryId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -26972,6 +27369,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/views/{viewId}:export", wrapper.ExportView)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries", wrapper.ListJumbleEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries", wrapper.SubmitJumbleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/destinations", wrapper.ListJumbleDestinations)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/jumble/entries/{entryId}", wrapper.GetJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
@@ -26983,6 +27382,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:enable", wrapper.EnableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:disable", wrapper.DisableRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:check", wrapper.CheckRules)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:describe", wrapper.DescribeRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules:test", wrapper.TestRule)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:trigger", wrapper.TriggerRuleManually)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules/{ruleId}:rotate-inbound-token", wrapper.RotateInboundTrigger)
@@ -27194,6 +27594,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/ai-source", wrapper.ReadAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-source", wrapper.ChooseAiSource)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-person-opt-out", wrapper.SetAiPersonOptOut)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-arrival-proposals", wrapper.SetAiArrivalProposals)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/ai-budget", wrapper.SetOwnAiBudget)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/oauth/clients", wrapper.ListOauthClients)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/oauth/clients", wrapper.RegisterOauthClient)

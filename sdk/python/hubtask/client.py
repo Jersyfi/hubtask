@@ -167,6 +167,14 @@ class Client:
         """Put something in the jumble"""
         return self._call("POST", "/jumble/entries", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def list_jumble_destinations(self, *, query: dict[str, Any] | None = None) -> "JumbleDestinationPage":
+        """Where an entry may become work for you"""
+        return self._call("GET", "/jumble/destinations", {}, query, {}, None, "none", None, "json")
+
+    def get_jumble_entry(self, entry_id: str) -> "JumbleEntry":
+        """One jumble entry"""
+        return self._call("GET", "/jumble/entries/{entryId}", {"entryId": entry_id}, None, {}, None, "none", None, "json")
+
     def convert_jumble_entry(self, entry_id: str, body: "JumbleEntryConvert", *, idempotency_key: str | None = None) -> "JumbleEntry":
         """Turn an entry into work"""
         return self._call("POST", "/jumble/entries/{entryId}:convert", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
@@ -210,6 +218,10 @@ class Client:
     def check_rules(self) -> dict[str, Any]:
         """Check every rule of the workspace against what exists now"""
         return self._call("POST", "/automation/rules:check", {}, None, {}, None, "none", None, "json")
+
+    def describe_rule(self, body: "RuleDescription", *, idempotency_key: str | None = None) -> "JobRef":
+        """Ask AI to draft a rule from a sentence"""
+        return self._call("POST", "/automation/rules:describe", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def test_rule(self, body: "RuleTest") -> "RuleTestResult":
         """Dry-run a rule against a sample event"""
@@ -1023,7 +1035,7 @@ class Client:
         """What AI has proposed, and not done"""
         return self._call("GET", "/suggestions", {}, query, {}, None, "none", None, "json")
 
-    def accept_suggestion(self, suggestion_id: str, body: "SuggestionAcceptance") -> "Suggestion":
+    def accept_suggestion(self, suggestion_id: str, body: "SuggestionAcceptance") -> "AcceptedSuggestion":
         """Accept a suggestion"""
         return self._call("POST", "/suggestions/{suggestionId}:accept", {"suggestionId": suggestion_id}, None, {}, body, "json", "application/json", "json")
 
@@ -1054,6 +1066,10 @@ class Client:
     def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
         """Whether each person may keep their own content out of AI"""
         return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
+    def set_ai_arrival_proposals(self, body: "AiArrivalProposalsChoice") -> "AiSource":
+        """Whether AI prepares a proposal for each new jumble entry"""
+        return self._call("PUT", "/ai-arrival-proposals", {}, None, {}, body, "json", "application/json", "json")
 
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""

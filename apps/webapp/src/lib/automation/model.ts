@@ -116,6 +116,67 @@ export function fromRule(rule: Rule): Draft {
   };
 }
 
+/**
+ * A rule drafted from a sentence (UC-AUT-10), opened on the canvas as an unsaved new rule. The
+ * draft carries part of a rule's input - where it applies, what starts it, its condition and its
+ * steps - and never a name or the account it runs as: those stay what the editor holds, the person's
+ * own. A part the draft does not carry keeps what the editor had.
+ */
+export function fromDraft(payload: Readonly<Record<string, unknown>>, base: Draft): Draft {
+  const scope = payload.scope as Rule['scope'] | undefined;
+  const trigger = payload.trigger as RuleTrigger | undefined;
+  const opened = fromRule({
+    id: '',
+    enabled: false,
+    failure_count: 0,
+    version: 0,
+    name: base.name,
+    scope: scope ?? base.scope,
+    run_as: base.runAs,
+    trigger: trigger ?? { kind: base.trigger.kind },
+    conditions: Array.isArray(payload.conditions) ? (payload.conditions as Rule['conditions']) : [],
+    actions: Array.isArray(payload.actions) ? (payload.actions as RuleAction[]) : [],
+    on_error: base.onError,
+  });
+  return { ...opened, trigger: trigger ? opened.trigger : base.trigger, throttle: base.throttle };
+}
+
+/** One part a draft could not draft: words quoted from the sentence, or a message code. */
+export type NotDrafted = { readonly part: string } | { readonly code: string; readonly params?: Readonly<Record<string, string>> };
+
+/** What a draft says it could not draft, read defensively: anything else in the list is dropped. */
+export function notDraftedOf(payload: Readonly<Record<string, unknown>>): NotDrafted[] {
+  const entries = Array.isArray(payload.not_drafted) ? (payload.not_drafted as unknown[]) : [];
+  return entries.flatMap((entry): NotDrafted[] => {
+    if (!entry || typeof entry !== 'object') return [];
+    const { part, code, params } = entry as { part?: unknown; code?: unknown; params?: unknown };
+    if (typeof part === 'string' && part.trim() !== '') return [{ part }];
+    if (typeof code === 'string' && code.startsWith('automation.draft.')) {
+      const said = params && typeof params === 'object' ? Object.fromEntries(Object.entries(params).map(([key, value]) => [key, String(value)])) : undefined;
+      return [said ? { code, params: said } : { code }];
+    }
+    return [];
+  });
+}
+
+/**
+ * Whether the editor offers *Describe it* (UC-AUT-10 check 1): only for a new rule, only where AI is
+ * available to this person (absence is absence, ai-first.md §2), and only where the editor may save
+ * - the plan includes rules and the person may write them here. Each is a refusal the asking would
+ * answer, so nothing offered is refused (P-05).
+ */
+export function offersDescribing(at: { isNew: boolean; aiAvailable: boolean; mayAutomate: boolean; rulesIncluded: boolean }): boolean {
+  return at.isNew && at.aiAvailable && at.mayAutomate && at.rulesIncluded;
+}
+
+/**
+ * The action kinds a block may be: every kind the manifest serves but the one that asks AI to draft
+ * a rule - a step that drafts rules is a question for the editor, not something a rule does.
+ */
+export function offeredBlocks(kinds: readonly string[]): string[] {
+  return kinds.filter((kind) => kind !== 'DESCRIBE_RULE');
+}
+
 function actionsFrom(steps: readonly Step[]): RuleAction[] {
   return steps.map((step) => {
     const params: Record<string, unknown> = Object.fromEntries(
@@ -548,7 +609,7 @@ const QUOTED = "'((?:[^'\\\\]|\\\\.)*)'";
 
 const SHAPES: readonly { pattern: RegExp; read: (m: RegExpExecArray) => Sentence }[] = [
   { pattern: new RegExp(`^item\\.type (==|!=) ${QUOTED}$`), read: (m) => ({ subject: 'type', op: m[1] === '==' ? 'is' : 'is_not', a: unquote(m[2]) }) },
-  { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)\\^((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unescapeRegex(unquote(m[2])) }) },
+  { pattern: new RegExp(`^item\\.title\\.matches\\('\\(\\?i\\)\\^((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: 'starts_with', a: unescapeRegex(unquote(m[1])) }) },
   { pattern: new RegExp(`^(!?)item\\.title\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'title', op: m[1] ? 'not_contains' : 'contains', a: unescapeRegex(unquote(m[2])) }) },
   { pattern: new RegExp(`^item\\.notes\\.matches\\('\\(\\?i\\)((?:[^'\\\\]|\\\\.)*)'\\)$`), read: (m) => ({ subject: 'notes', op: 'contains', a: unescapeRegex(unquote(m[1])) }) },
   { pattern: /^item\.notes (==|!=) ''$/, read: (m) => ({ subject: 'notes', op: m[1] === '==' ? 'empty' : 'not_empty' }) },
@@ -573,7 +634,12 @@ export function readSentence(expr: string): Sentence | undefined {
   const trimmed = expr.trim();
   for (const shape of SHAPES) {
     const match = shape.pattern.exec(trimmed);
-    if (match) return shape.read(match);
+    if (!match) continue;
+    // A pattern is wider than what the composer writes - a leading `!` it does not use, a
+    // metacharacter it would have escaped - so a reading stands only where compiling it gives the
+    // expression back. Anything else would draw a sentence that means something different.
+    const sentence = shape.read(match);
+    return compileSentence(sentence) === trimmed ? sentence : undefined;
   }
   return undefined;
 }

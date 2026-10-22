@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -281,5 +282,73 @@ func TestRepeatingAMoveWritesNothingTheSecondTime(t *testing.T) {
 	if len(h.containers.written) != 1 || len(h.events.appended) != 1 {
 		t.Errorf("the repeat wrote again: %d rows, %d events",
 			len(h.containers.written), len(h.events.appended))
+	}
+}
+
+// A collection that inherits takes its new hub's structure with it, and an offline client is told
+// so: the move is the change of every inherited setting at once (offline-sync.md §4.2).
+func TestACollectionMovedToAnotherHubRecordsTheStructureItNowHas(t *testing.T) {
+	h := moving(t)
+	store := newStructureStore(h.containers)
+	bound := domain.NewStructureBound(seededProfiles(), seededProfiles())
+	list, err := domain.FindPreset(domain.PresetList, bound)
+	if err != nil {
+		t.Fatalf("the preset: %v", err)
+	}
+	target := h.containers.stored[otherHubID]
+	target.Structure = domain.StructureLayer{Preset: domain.PresetList, Values: list.Values}
+	h.containers.stored[otherHubID] = target
+
+	use := h.move()
+	use.Structure = StructureResolver{
+		Containers: h.containers, Structures: store, Profiles: &profiles{rows: seededProfiles()},
+	}
+	if _, err := use.Execute(t.Context(), actor(), MoveContainerCommand{
+		ContainerID: shoppingID, TargetParentID: otherHubID,
+	}); err != nil {
+		t.Fatalf("the move was refused: %v", err)
+	}
+
+	var structure map[string]any
+	for _, change := range h.changes.recorded {
+		if change.Field == structureField && change.EntityID == shoppingID {
+			structure, _ = change.Payload[structureField].(map[string]any)
+		}
+	}
+	if structure == nil {
+		t.Fatalf("no structure recorded for the moved collection: %+v", h.changes.recorded)
+	}
+	if sourceOf(structure, "levels") != "HUB" {
+		t.Errorf("levels come from %q, want the new hub", sourceOf(structure, "levels"))
+	}
+	settings, _ := structure["settings"].(map[string]any)
+	levels, _ := settings["levels"].([]any)
+	if len(levels) != 1 {
+		t.Errorf("levels %v, want List's one level", levels)
+	}
+	// The destination hub was held while the collection's structure was read from it, so a hub
+	// writer fanning out sees the collection or waits for it.
+	if !slices.Contains(store.held, otherHubID) {
+		t.Errorf("held %v, want the destination hub", store.held)
+	}
+}
+
+func TestReorderingInTheSameHubRecordsNoStructure(t *testing.T) {
+	h := moving(t)
+	use := h.move()
+	use.Structure = StructureResolver{
+		Containers: h.containers, Structures: newStructureStore(h.containers),
+		Profiles: &profiles{rows: seededProfiles()},
+	}
+	h.sibling(booksID, hubID, "Books", "a5")
+	if _, err := use.Execute(t.Context(), actor(), MoveContainerCommand{
+		ContainerID: shoppingID, TargetParentID: hubID, BeforeContainerID: booksID,
+	}); err != nil {
+		t.Fatalf("the reorder was refused: %v", err)
+	}
+	for _, change := range h.changes.recorded {
+		if change.Field == structureField {
+			t.Errorf("a reorder recorded the structure: %+v", change)
+		}
 	}
 }

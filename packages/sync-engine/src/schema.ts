@@ -207,6 +207,12 @@ export type StructureSettings = components['schemas']['StructureSettings'];
 export type StructureChange = components['schemas']['StructureChange'];
 export type WorkspaceStructure = components['schemas']['WorkspaceStructure'];
 export type WorkspaceStructureChange = components['schemas']['WorkspaceStructureChange'];
+/**
+ * What counts in a collection, counted by the server on the collection's read for the reader
+ * (domain-model.md §2): numbers and dates, which the client phrases. Never in a change record, so a
+ * read the replica answers carries none.
+ */
+export type CollectionFigure = components['schemas']['CollectionFigure'];
 /** A starting point for a hub or collection: Hubtask's four, as this installation offers them. */
 export type Preset = components['schemas']['Preset'];
 
@@ -248,6 +254,7 @@ export type CommentPage = components['schemas']['CommentPage'];
  * shape the kind fixes and never an instruction - the client renders it and acts on none of it.
  */
 export type Suggestion = components['schemas']['Suggestion'];
+export type AcceptedSuggestion = components['schemas']['AcceptedSuggestion'];
 export type SuggestionPage = components['schemas']['SuggestionPage'];
 export type SuggestionKind = components['schemas']['SuggestionKind'];
 export type SuggestionStatus = components['schemas']['SuggestionStatus'];

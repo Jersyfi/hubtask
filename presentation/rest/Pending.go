@@ -452,8 +452,20 @@ func (pending) TestRule(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 
+func (pending) DescribeRule(w http.ResponseWriter, r *http.Request, _ openapi.DescribeRuleParams) {
+	notAvailable(w, r)
+}
+
 // The jumble. RestController overrides them as the steps land.
 func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListJumbleDestinations(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleDestinationsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
 	notAvailable(w, r)
 }
 
@@ -1393,6 +1405,10 @@ func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 

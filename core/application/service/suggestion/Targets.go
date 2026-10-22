@@ -5,6 +5,7 @@ package suggestion
 
 import (
 	"context"
+	"errors"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -34,11 +35,9 @@ var _ Targets = EntryTargets{}
 // `acceptance`'s reason: what this package can read is exactly what it can name.
 var readers = map[domain.TargetType]string{
 	domain.TargetWorkItem: "GetWorkItem",
-	// There is no GetJumbleEntry: the inbox is read as a list. The list is filtered to the
-	// one entry here rather than a read being added to the contract for this, because a use case
-	// existing only so that another package can fingerprint something is a use case nobody asked
-	// for - and the list already carries the permission check this needs.
-	domain.TargetJumbleEntry: "ListJumbleEntries",
+	// One entry by its identifier, whatever its state. A page of the listing searched for it found
+	// nothing behind fifty newer arrivals.
+	domain.TargetJumbleEntry: "GetJumbleEntry",
 	// A collection, for the summary of how it stands.
 	domain.TargetContainer: "GetContainer",
 }
@@ -53,6 +52,14 @@ func (t EntryTargets) Digest(
 	ctx context.Context, actor appshared.ActorContext,
 	targetType domain.TargetType, targetID shared.ID,
 ) ([]byte, error) {
+	if targetType == domain.TargetAccount {
+		// A draft for the person who asked: theirs alone, and nothing to read - the digest is the
+		// account, and a draft is never stale, since the save checks everything again.
+		if err := ownDraft(actor, targetID); err != nil {
+			return nil, err
+		}
+		return domain.Digest(targetID.String(), ""), nil
+	}
 	name, served := readers[targetType]
 	if !served {
 		// A target kind this build does not produce suggestions for. Not-found rather than an
@@ -97,37 +104,23 @@ func (t EntryTargets) containerDigest(
 	return domain.Digest(out.String("name"), ""), nil
 }
 
-// entryDigest fingerprints one jumble entry, found in the inbox listing.
+// entryDigest fingerprints one jumble entry: its subject and its body, which is what a proposal
+// about it is made from. What changes about an entry between the asking and the accepting is its
+// *settlement*, not its text, so a settled entry is refused by the conversion rather than by the
+// fingerprint - and the read answers an entry in every state, so that settling it does not hide
+// the record of what AI had proposed.
 //
-// The subject and the body, which is what a proposal about an entry is made from - and what
-// changes about an entry between the asking and the accepting is its *settlement*, not its text,
-// so a settled entry is refused by the conversion rather than by the fingerprint.
-//
-// The listing is **unfiltered**. Narrowed to `status: NEW` it would do the opposite of the
-// sentence above: a converted or dismissed entry leaves the NEW list, so this would answer
-// not-found, so every suggestion *about* that entry would become unreadable - `ListSuggestions`
-// runs this first as its visibility check. Settlement would hide the record of what AI had
-// proposed, which is the one thing a suggestion being a record rather than a change exists to
-// prevent.
+// Settled, gone, or in a workspace the actor cannot see answer one not-found, which is what the
+// inbox itself would say.
 func (t EntryTargets) entryDigest(
 	ctx context.Context, actor appshared.ActorContext, name string, entryID shared.ID,
 ) ([]byte, error) {
-	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{})
+	out, err := t.Catalogue.Invoke(ctx, name, actor, usecase.Input{"entry_id": entryID.String()})
 	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return nil, shared.ErrNotFound.WithDetail("suggestions.not_found")
+		}
 		return nil, err
 	}
-	// `data`, which is what a page answers under (api-guidelines.md §4). Any other key makes the
-	// loop below see an empty list and refuses every suggestion about a jumble entry
-	// `suggestions.not_found` - and a test fake that invents the same wrong key agrees with the
-	// defect, so only a real registry can tell.
-	entries, _ := out["data"].([]usecase.Output)
-	for _, entry := range entries {
-		if entry.String("id") != entryID.String() {
-			continue
-		}
-		return domain.Digest(entry.String("raw_subject"), entry.String("raw_body")), nil
-	}
-	// Settled, gone, or in a workspace the actor cannot see - one answer for all three, which is
-	// what the inbox itself would say.
-	return nil, shared.ErrNotFound.WithDetail("suggestions.not_found")
+	return domain.Digest(out.String("raw_subject"), out.String("raw_body")), nil
 }

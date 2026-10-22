@@ -29,8 +29,8 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 		Summary: "Writes an automation rule, switched off. Enabling it is a separate call, so " +
 			"that what a rule would do can be read back before it acts. Writing one needs the " +
 			"automation permission at its scope and the rights its own actions need: a rule may " +
-			"not do through a service account what its writer may not do directly. A non-empty " +
-			"condition is refused until the expression language arrives, and an action naming a " +
+			"not do through a service account what its writer may not do directly. A condition " +
+			"that does not compile is refused with its line and column, and an action naming a " +
 			"kind no release serves yet is refused by name.",
 		SideEffects: "Writes the rule and an audit entry. The rule does nothing until it is enabled.",
 		TokenScope:  automationScope,
@@ -50,7 +50,7 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "conditions", Kind: usecase.KindList,
-				Description: "Refused while non-empty: the expression language arrives with the engine.",
+				Description: "[{expr}]: CEL expressions that must all hold, compiled at the write.",
 			},
 			{
 				Name: "actions", Kind: usecase.KindList, Required: true,
@@ -58,7 +58,7 @@ func (h CreateRule) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "throttle", Kind: usecase.KindObject,
-				Description: "{max_runs_per_hour}. A dedupe expression is refused with the conditions.",
+				Description: "{max_runs_per_hour, dedupe_key_expr}: the hourly bound, and an expression whose value collapses a burst.",
 			},
 			{
 				Name: "on_error", Kind: usecase.KindString, Enum: []string{"STOP", "CONTINUE", "RETRY"},
@@ -134,7 +134,7 @@ func (h UpdateRule) Descriptor() usecase.Descriptor {
 			{Name: "scope", Kind: usecase.KindObject, Description: "The new scope. Omitted leaves it."},
 			{Name: "run_as", Kind: usecase.KindID, Description: "The new account. Omitted leaves it."},
 			{Name: "trigger", Kind: usecase.KindObject, Description: "The new trigger, whole. Omitted leaves it."},
-			{Name: "conditions", Kind: usecase.KindList, Description: "Refused while non-empty."},
+			{Name: "conditions", Kind: usecase.KindList, Description: "The new conditions, whole. Omitted leaves them."},
 			{Name: "actions", Kind: usecase.KindList, Description: "The new steps. Omitted leaves them."},
 			{Name: "throttle", Kind: usecase.KindObject, Description: "The new bounds. Omitted leaves them."},
 			{

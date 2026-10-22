@@ -394,6 +394,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
   .locked { display: grid; gap: var(--sp-050); }

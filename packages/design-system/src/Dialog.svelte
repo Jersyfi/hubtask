@@ -142,7 +142,7 @@
     padding: 0;
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-xl);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     color: var(--text-primary);
     /* Rule 4: it grows with its content and with the text inside it, and never past the viewport. */
     width: min(60ch, 100% - var(--sp-400));

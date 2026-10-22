@@ -241,6 +241,11 @@ type Erasure interface {
 	// DiscardNotifications removes what was sent to them and what was about to be.
 	DiscardNotifications(ctx context.Context, accountID shared.ID) (int, error)
 
+	// DiscardAiDrafts removes what AI drafted for the person alone - a rule drafted from their
+	// sentence, a suggestion about their own account - and the words they asked with that a job
+	// still holds.
+	DiscardAiDrafts(ctx context.Context, accountID shared.ID) (int, error)
+
 	// CountIntake answers how much of the intake carries the person's address.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
 

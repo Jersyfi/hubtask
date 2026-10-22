@@ -131,6 +131,11 @@ func (h SetWorkspaceStructure) write(
 	}
 	before := domain.ResolveStructure(bound, current)
 	after := domain.ResolveStructure(bound, next)
+	// A PROGRESS typed here where the workspace's own levels are one is refused; one a preset or a
+	// reset brings about is clipped and answered in counts_clipped (domain-model.md §2).
+	if cmd.Settings.SetsProgress() && after.CountsClipped != nil {
+		return WorkspaceStructureResult{}, domain.ErrFigureNotOffered()
+	}
 	moved := current.Layer.Values.Moved(next.Layer.Values)
 	locksMoved := !sameLocks(current.Locks, next.Locks)
 	if len(moved) == 0 && !locksMoved && current.Layer.Preset == next.Layer.Preset &&

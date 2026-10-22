@@ -52,6 +52,9 @@ type UpdateWorkItem struct {
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -134,7 +137,7 @@ func (h UpdateWorkItem) Execute(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-		profile, err := profileOf(ctx, h.Profiles, item.Type)
+		profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, item)
 		if err != nil {
 			return err
 		}
@@ -522,5 +525,5 @@ func (h UpdateWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Gate.Answer(ctx, h.UnitOfWork, actor, item)
 }

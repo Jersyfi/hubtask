@@ -389,6 +389,27 @@ export function operationOf(suggestion: Pick<Suggestion, 'prompt_id'>, shape: Sh
  * have asked in the meantime and their answer is as good as ours - the strip shows what stands,
  * not what this tab caused.
  */
+/**
+ * The rule draft an ask produced: the newest proposed `RULE` the person's own listing holds that
+ * was made after they asked (UC-AUT-10). Only the asker's drafts are listed at all, so a colleague's
+ * cannot be taken for theirs; an older draft of their own stays where it was.
+ */
+export function ruleDraftSince<T extends Pick<Suggestion, 'kind' | 'status' | 'created_at'>>(
+  suggestions: readonly T[],
+  askedAt: string,
+): T | undefined {
+  const asked = Date.parse(askedAt);
+  return suggestions
+    .filter((each) => each.kind === 'RULE' && each.status === 'PROPOSED' && Date.parse(each.created_at) >= asked)
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))[0];
+}
+
+/** Which listing a suggestion stands in. */
+export const targetOf = (suggestion: Pick<Suggestion, 'target_type'>): Target =>
+  suggestion.target_type === 'JUMBLE_ENTRY' || suggestion.target_type === 'CONTAINER' || suggestion.target_type === 'ACCOUNT'
+    ? suggestion.target_type
+    : 'WORK_ITEM';
+
 export function arrivedSince(suggestions: readonly Pick<Suggestion, 'created_at' | 'status'>[], askedAt: string): boolean {
   const asked = Date.parse(askedAt);
   return suggestions.some(
@@ -413,8 +434,8 @@ export async function whilePending<T>(begin: () => void, withdraw: () => void, s
   }
 }
 
-/** What a suggestion is about, as the listing filters it. */
-export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER';
+/** What a suggestion is about, as the listing filters it. `ACCOUNT` is a draft for the person who asked. */
+export type Target = 'WORK_ITEM' | 'JUMBLE_ENTRY' | 'CONTAINER' | 'ACCOUNT';
 
 /** Where one target's standing proposals are listed. One path, so two readers share one read. */
 export const suggestionsPath = (targetId: string, target: Target = 'WORK_ITEM') =>
@@ -647,6 +668,24 @@ export function noteOf(asking: AskingState | undefined): AskingNote | undefined 
     default:
       return undefined;
   }
+}
+
+/**
+ * How a proposal prepared on arrival ended, as its card records it (UC-JUM-07 check 10). Nobody
+ * asked, so nothing is said on the card but the proposal itself: a spent budget is said once for
+ * the page (`budgetSpentOf`), and every other ending - switched off, the day's number reached,
+ * nothing to send, AI off - leaves the arrival waiting for somebody to ask, quietly.
+ */
+export function arrivalEndedAs(outcome: Exclude<FollowOutcome, 'left'>): AskingState {
+  return outcome === 'arrived' ? { outcome: 'arrived' } : { outcome: 'ended' };
+}
+
+/** The spent budget a follow ended on, where it did: what the jumble says once for the page. */
+export function budgetSpentOf(outcome: FollowOutcome): Said | undefined {
+  if (typeof outcome === 'object' && 'refused' in outcome && outcome.refused.params?.reason === 'budget_spent') {
+    return outcome.refused;
+  }
+  return undefined;
 }
 
 /** What an ask that ended records, from what its follow came to. */

@@ -65,3 +65,16 @@ export const branch: Story = {
     'A hub is a screen before it is a container — its settings, its collections, the control that makes another one — so pressing its row goes there and opens it, and the twist at the end of the row is what closes it again. The twist is a control with a name and no tab stop of its own: the tree keeps one stop, the arrows keep expanding, and `aria-expanded` on the row stays the one statement about the state. A caller that names no twist keeps the old behaviour, where the row folds and nothing navigates.',
   args: { mode: 'tree' },
 };
+
+export const figures: Story = {
+  name: 'What counts, at the end of each row',
+  about:
+    'A collection’s figure sits at the end of its row, before the twist: one line, its own width, the digits tabular so a column of figures reads as one. A long label wraps beside it rather than pushing it out, and a row with no figure draws nothing in its place — the rows stay one height. The figure is part of the row’s name, so it is heard with the label; folded to the rail it is not drawn at all.',
+  args: { mode: 'figures' },
+};
+
+export const figuresOnRail: Story = {
+  name: 'What counts, folded',
+  about: 'The rail is a column of marks: no label, so no figure either. The row’s name stays the label alone.',
+  args: { mode: 'figures', isRail: true },
+};

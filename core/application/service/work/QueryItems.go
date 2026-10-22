@@ -40,6 +40,8 @@ type QueryItems struct {
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
+	// Gate marks what each entry's collection hides of it.
+	Gate EntryGate
 }
 
 // Execute answers the query.
@@ -332,7 +334,11 @@ func (h QueryItems) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return queryOutput(result, spec, carried), nil
+	marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, everyItem(result))
+	if err != nil {
+		return nil, err
+	}
+	return queryOutput(result, spec, carried, marks), nil
 }
 
 // specOf turns what a channel sent into the specification the domain validated.
@@ -412,9 +418,10 @@ func everyItem(result repository.ItemQueryResult) []domain.WorkItem {
 // rather than leaving the field out.
 func queryOutput(
 	result repository.ItemQueryResult, spec view.Spec, carried map[shared.ID][]shared.ID,
+	marks map[shared.ID]domain.EntryHidden,
 ) usecase.Output {
-	out := pageOutput(rowsOf(result.Items, carried), result.Info)
-	out["groups"] = groupsOf(result, spec, carried)
+	out := pageOutput(rowsOf(result.Items, carried, marks), result.Info)
+	out["groups"] = groupsOf(result, spec, carried, marks)
 	out["total"] = nil
 	if spec.Count == view.CountExact {
 		out["total"] = result.Total
@@ -424,11 +431,12 @@ func queryOutput(
 
 func groupsOf(
 	result repository.ItemQueryResult, spec view.Spec, carried map[shared.ID][]shared.ID,
+	marks map[shared.ID]domain.EntryHidden,
 ) []usecase.Output {
 	groups := make([]usecase.Output, 0, len(result.Groups))
 
 	for _, group := range result.Groups {
-		out := pageOutput(rowsOf(group.Items, carried), group.Info)
+		out := pageOutput(rowsOf(group.Items, carried, marks), group.Info)
 		out["key"] = nil
 		if !group.Absent {
 			out["key"] = group.Key
@@ -442,10 +450,14 @@ func groupsOf(
 	return groups
 }
 
-func rowsOf(items []domain.WorkItem, carried map[shared.ID][]shared.ID) []usecase.Output {
+// rowsOf is a page of entries as a read answers them, each with its labels where they were asked for
+// and its mark where one was answered.
+func rowsOf(
+	items []domain.WorkItem, carried map[shared.ID][]shared.ID, marks map[shared.ID]domain.EntryHidden,
+) []usecase.Output {
 	rows := make([]usecase.Output, 0, len(items))
 	for _, item := range items {
-		rows = append(rows, withLabels(ItemOutput(item), item, carried))
+		rows = append(rows, withHidden(withLabels(ItemOutput(item), item, carried), marks, item.ID))
 	}
 	return rows
 }

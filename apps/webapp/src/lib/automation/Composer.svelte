@@ -172,7 +172,7 @@
     overflow-wrap: anywhere;
   }
 
-  .compiled.refused { outline: var(--bw-hairline) solid var(--danger-500); }
+  .compiled.refused { outline: var(--bw-hairline) solid var(--status-danger-border); background: var(--status-danger-surface); }
 
   .error { display: block; margin-block-start: var(--sp-050); font-size: var(--fs-075); color: var(--text-danger); }
 

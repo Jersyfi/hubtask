@@ -7,6 +7,7 @@ import (
 	"context"
 	"net/url"
 	"strconv"
+	"strings"
 
 	openapitypes "github.com/oapi-codegen/runtime/types"
 
@@ -385,7 +386,22 @@ func itemTable(items []openapi.WorkItem) Table {
 			yesNo(item.Completion.IsCompleted),
 			id(item.AssigneeId),
 			strconv.Itoa(item.Version),
+			hiddenCell(item.Hidden),
 		})
 	}
-	return Table{Columns: []string{"id", "type", "title", "done", "assignee", "version"}, Rows: rows}
+	return Table{Columns: []string{"id", "type", "title", "done", "assignee", "version", "hidden"}, Rows: rows}
+}
+
+// hiddenCell says what the entry's collection hides of it: the whole entry where its level is
+// hidden, otherwise the fields - kept as they are, answered as stored, and refused on write until
+// the collection offers them again. Empty where nothing is hidden, or the installation did not say.
+func hiddenCell(hidden *openapi.EntryHidden) string {
+	switch {
+	case hidden == nil:
+		return ""
+	case hidden.Level:
+		return "level"
+	default:
+		return strings.Join(hidden.Capabilities, ",")
+	}
 }

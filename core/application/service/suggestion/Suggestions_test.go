@@ -351,8 +351,11 @@ type world struct {
 	// The material a summary is made from: a collection's name, the discussion on an entry,
 	// and the entries directly in a collection.
 	containerName string
-	comments      []usecase.Output
-	level         []usecase.Output
+	// structure is what GetContainer answers as the collection's structure in force; nil answers
+	// none, as a build without the resolver does.
+	structure map[string]any
+	comments  []usecase.Output
+	level     []usecase.Output
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
@@ -413,23 +416,30 @@ func (w *world) Invoke(
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
-		return usecase.Output{"id": containerTargetID.String(), "name": w.containerName}, nil
+		out := usecase.Output{"id": containerTargetID.String(), "name": w.containerName}
+		if w.structure != nil {
+			out["structure"] = w.structure
+		}
+		return out, nil
+	case createRuleName:
+		if w.performFails != nil {
+			return nil, w.performFails
+		}
+		return usecase.Output{"id": createdRuleID.String(), "enabled": false}, nil
 	case "ListComments":
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
 		return usecase.Output{"data": w.level}, nil
-	case "ListJumbleEntries":
+	case "GetJumbleEntry":
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
+		if in.String("entry_id") != targetID.String() {
+			return nil, shared.ErrNotFound.WithDetail("jumble.entry_not_found")
+		}
 		// The same two words the work item answers, so a proposal about an entry is fresh against
 		// it and a test about the *applier* is not stopped by the fingerprint.
-		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
-		// `items` is how the wrong key survived until an end-to-end session asked for a
-		// suggestion.
-		return usecase.Output{"data": []usecase.Output{{
-			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
-		}}}, nil
+		return usecase.Output{"id": targetID.String(), "raw_subject": w.title, "raw_body": ""}, nil
 	}
 	if name == "MoveWorkItem" && w.moveFails != nil {
 		return nil, w.moveFails
@@ -655,9 +665,9 @@ func TestAMalformedIdentifierIsRefusedBeforeAnythingIsRead(t *testing.T) {
 	}
 }
 
-// An entry the inbox does not list - settled, gone, or in a workspace the actor cannot see - is one
-// answer and not three, which is what the inbox itself would say.
-func TestAnEntryTheInboxDoesNotListIsNotFound(t *testing.T) {
+// An entry the jumble does not answer - gone, or in a workspace the actor cannot see - is one answer
+// and not two, which is what the jumble itself would say.
+func TestAnEntryTheJumbleDoesNotAnswerIsNotFound(t *testing.T) {
 	cases, _ := newWorld()
 
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
@@ -927,7 +937,8 @@ func TestASubtaskTitleThatIssuesInstructionsIsATitle(t *testing.T) {
 
 	for _, call := range world.performed {
 		switch call.name {
-		case "ConvertJumbleEntry", "CreateWorkItem", "ListJumbleEntries", "GetWorkItem":
+		// GetContainer is the destination's structure, read to choose the level the titles land at.
+		case "ConvertJumbleEntry", "CreateWorkItem", "GetJumbleEntry", "GetWorkItem", "GetContainer":
 		default:
 			t.Errorf("a title caused %q to run", call.name)
 		}
@@ -1394,7 +1405,7 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
 		createWorkItemName: true, moveWorkItemName: true,
 		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
-		createTemplateName: true,
+		createTemplateName: true, createRuleName: true,
 	}
 	for key, how := range acceptance {
 		switch {

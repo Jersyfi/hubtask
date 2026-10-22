@@ -103,6 +103,9 @@ func (h ReadCalendarFeed) Execute(
 	}
 
 	exported, err := h.Export.rows(ctx, owner, saved)
+	if err == nil {
+		exported, err = h.Export.shown(ctx, owner, exported)
+	}
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) || errors.Is(err, shared.ErrForbidden) {
 			// The owner may no longer see their own view - shared into a scope they have since

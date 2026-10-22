@@ -1189,6 +1189,134 @@ func (q *Queries) LastWorkItemOrderKey(ctx context.Context, arg LastWorkItemOrde
 	return order_key, err
 }
 
+const listCollectionsInOrder = `-- name: ListCollectionsInOrder :many
+SELECT
+  c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
+  coalesce(c.policies->>'completion_policy', '')::text AS completion_policy,
+  aap.strategy AS auto_assign_strategy,
+  aap.candidates AS auto_assign_candidates,
+  aap.enabled AS auto_assign_enabled,
+  c.archived_at, hub.archived_at AS parent_archived_at,
+  c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
+  c.private,
+  hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
+FROM container c
+JOIN container hub ON hub.id = c.parent_id
+LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
+WHERE c.type = 'COLLECTION'
+  AND c.deleted_at IS NULL AND hub.deleted_at IS NULL
+  AND c.archived_at IS NULL AND hub.archived_at IS NULL
+  AND ($1::boolean OR NOT hub.private)
+  AND (
+    $2::text IS NULL
+    OR (hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id)
+       > ($2::text COLLATE "C", $3::uuid,
+          $4::text COLLATE "C", $5::uuid)
+  )
+ORDER BY hub.order_key COLLATE "C", hub.id, c.order_key COLLATE "C", c.id
+LIMIT $6
+`
+
+type ListCollectionsInOrderParams struct {
+	IncludePrivate    bool
+	CursorHubOrderKey *string
+	CursorHubID       pgtype.UUID
+	CursorOrderKey    *string
+	CursorID          pgtype.UUID
+	PageSize          int32
+}
+
+type ListCollectionsInOrderRow struct {
+	ID                   pgtype.UUID
+	TenantID             pgtype.UUID
+	Type                 ContainerType
+	ParentID             pgtype.UUID
+	Name                 string
+	Description          *string
+	Icon                 *string
+	ColorToken           *string
+	OrderKey             string
+	CompletionPolicy     string
+	AutoAssignStrategy   *string
+	AutoAssignCandidates []byte
+	AutoAssignEnabled    *bool
+	ArchivedAt           pgtype.Timestamptz
+	ParentArchivedAt     pgtype.Timestamptz
+	DeletedAt            pgtype.Timestamptz
+	TrashBatchID         pgtype.UUID
+	CreatedBy            pgtype.UUID
+	CreatedAt            pgtype.Timestamptz
+	UpdatedAt            pgtype.Timestamptz
+	Version              int32
+	Private              bool
+	HubName              string
+	HubOrderKey          string
+	HubPrivate           bool
+}
+
+// Every collection a conversion could land in, across the hubs, in the order a person reads the
+// tree: the hubs' manual order, then each hub's collections in theirs. Trashed and archived ones are
+// never here, and neither is a collection under an archived hub - it is archived too (I-C3), and a
+// create there is refused. A private hub's collections only when the caller asks for them: the
+// shared set a model chooses from leaves them out, a person's own picker keeps them and has them
+// narrowed to what that person may create in.
+//
+// The keyset is the whole sort, (hub's rank, hub, rank, id), in byte order for the reason
+// ListContainers gives. It is a filter, not a permission: who may create where is the application
+// layer's to decide.
+func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollectionsInOrderParams) ([]ListCollectionsInOrderRow, error) {
+	rows, err := q.db.Query(ctx, listCollectionsInOrder,
+		arg.IncludePrivate,
+		arg.CursorHubOrderKey,
+		arg.CursorHubID,
+		arg.CursorOrderKey,
+		arg.CursorID,
+		arg.PageSize,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListCollectionsInOrderRow{}
+	for rows.Next() {
+		var i ListCollectionsInOrderRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.Type,
+			&i.ParentID,
+			&i.Name,
+			&i.Description,
+			&i.Icon,
+			&i.ColorToken,
+			&i.OrderKey,
+			&i.CompletionPolicy,
+			&i.AutoAssignStrategy,
+			&i.AutoAssignCandidates,
+			&i.AutoAssignEnabled,
+			&i.ArchivedAt,
+			&i.ParentArchivedAt,
+			&i.DeletedAt,
+			&i.TrashBatchID,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Version,
+			&i.Private,
+			&i.HubName,
+			&i.HubOrderKey,
+			&i.HubPrivate,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listContainers = `-- name: ListContainers :many
 SELECT
   c.id, c.tenant_id, c.type, c.parent_id, c.name, c.description, c.icon, c.color_token, c.order_key,
@@ -2726,6 +2854,42 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const workItemTypes = `-- name: WorkItemTypes :many
+SELECT wi.id, wi.type
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.id = ANY($1::uuid[])
+`
+
+type WorkItemTypesRow struct {
+	ID   pgtype.UUID
+	Type ItemType
+}
+
+// The type of each entry among ids, and nothing else: what a collection hides of an entry depends on
+// the levels above it (domain-model.md §2), and a page of entries asks for every ancestor on it in
+// this one statement rather than reading whole rows. An identifier of another tenant is absent, by
+// the predicate and by row level security.
+func (q *Queries) WorkItemTypes(ctx context.Context, ids []pgtype.UUID) ([]WorkItemTypesRow, error) {
+	rows, err := q.db.Query(ctx, workItemTypes, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkItemTypesRow{}
+	for rows.Next() {
+		var i WorkItemTypesRow
+		if err := rows.Scan(&i.ID, &i.Type); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

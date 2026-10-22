@@ -13,6 +13,7 @@ package suggestion
 
 import (
 	"context"
+	"errors"
 	"sort"
 	"strings"
 	"time"
@@ -103,6 +104,14 @@ type Cases struct {
 	// refused now rather than queued for nothing, and a person who keeps their own content out is
 	// told no AI action is theirs. Nil skips both, a build without the rule.
 	Material Sources
+	// Containers is how a listing checks that a proposed destination is still in the shared set.
+	// Nil answers a proposal's destination as it was stored.
+	Containers ContainerFinder
+}
+
+// ContainerFinder reads one container inside the caller's transaction, judging no permission.
+type ContainerFinder interface {
+	Find(ctx context.Context, id shared.ID) (work.Container, error)
 }
 
 // ListSuggestions answers what stands against one entry.
@@ -122,7 +131,14 @@ func (h ListSuggestions) Execute(
 	ctx context.Context, actor appshared.ActorContext, query ListQuery,
 ) (repository.Page, error) {
 	c := h.Cases
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+	if query.TargetType == domain.TargetAccount {
+		// A draft for the person who asked is theirs alone, wherever they hold their role: the
+		// check is that they are the account (`ownDraft`, read below as the target's digest), not a
+		// permission at the workspace a hub's administrator may not hold.
+		if err := ownDraft(actor, query.TargetID); err != nil {
+			return repository.Page{}, err
+		}
+	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: service.PermissionRead,
 		Path:       []identity.Scope{identity.TenantScope()},
 		Action:     SuggestionsReadAction,
@@ -156,13 +172,78 @@ func (h ListSuggestions) Execute(
 			TargetType: query.TargetType, TargetID: query.TargetID,
 			Status: query.Status, Cursor: query.Cursor, Size: query.Size,
 		})
+		if err != nil {
+			return err
+		}
 		page = found
-		return err
+		return c.narrowDestinations(ctx, page.Items)
 	})
 	if err != nil {
 		return repository.Page{}, err
 	}
 	return page, nil
+}
+
+// narrowDestinations leaves a jumble proposal's destination out of the answer where it has left the
+// shared set since it was proposed - trashed, archived by its own stamp or its hub's, or its hub
+// made private. Every destination is chosen from the shared set, which every reader of the jumble
+// may read, so this is a defence rather than the rule: an identifier of a container a reader has
+// no way to see is not answered to them (security.md T-04), and a destination nobody may create in
+// any more is not offered as one.
+func (c Cases) narrowDestinations(ctx context.Context, proposals []domain.Suggestion) error {
+	if c.Containers == nil {
+		return nil
+	}
+	for i, proposal := range proposals {
+		if proposal.TargetType != domain.TargetJumbleEntry {
+			continue
+		}
+		id, named := proposal.Payload[collectionKey].(string)
+		if !named {
+			continue
+		}
+		stays, err := c.stillShared(ctx, id)
+		if err != nil {
+			return err
+		}
+		if stays {
+			continue
+		}
+		payload := make(map[string]any, len(proposal.Payload))
+		for key, value := range proposal.Payload {
+			if key != collectionKey {
+				payload[key] = value
+			}
+		}
+		proposals[i].Payload = payload
+	}
+	return nil
+}
+
+// stillShared reports whether a collection is still one everybody who may convert may write in.
+func (c Cases) stillShared(ctx context.Context, id string) (bool, error) {
+	parsed, err := shared.ParseID(id)
+	if err != nil {
+		return false, nil
+	}
+	collection, err := c.Containers.Find(ctx, parsed)
+	if errors.Is(err, shared.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if collection.Type != work.ContainerCollection || collection.IsTrashed() || collection.IsEffectivelyArchived() {
+		return false, nil
+	}
+	hub, err := c.Containers.Find(ctx, collection.ParentID)
+	if errors.Is(err, shared.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return !hub.Private, nil
 }
 
 // AcceptSuggestion applies what was proposed, as the accepting person's own write.
@@ -172,7 +253,18 @@ type AcceptSuggestion struct{ Cases Cases }
 func (h AcceptSuggestion) Execute(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
 ) (domain.Suggestion, error) {
-	return h.Cases.decide(ctx, actor, id, domain.StatusAccepted, overrides)
+	accepted, _, err := h.Accept(ctx, actor, id, overrides)
+	return accepted, err
+}
+
+// Accept is Execute with what accepting created, where it created one thing - a template, a rule -
+// so that a client lands on it as it would after creating it by hand.
+func (h AcceptSuggestion) Accept(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
+) (domain.Suggestion, shared.ID, error) {
+	var created shared.ID
+	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &created)
+	return accepted, created, err
 }
 
 // DismissSuggestion turns one down.
@@ -191,11 +283,49 @@ func (c Cases) decide(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
 	overrides map[string]any,
 ) (domain.Suggestion, error) {
+	return c.decideAs(ctx, actor, id, status, overrides, nil)
+}
+
+// ownDraft is the one question about a draft made for the person who asked: are you that person,
+// holding the token scope drafting a rule needs. Anybody else - an owner, an auditor, another
+// workspace's account - is answered that there is no such suggestion, as for an entry they cannot
+// see.
+func ownDraft(actor appshared.ActorContext, accountID shared.ID) error {
+	if accountID.IsZero() || accountID != actor.AccountID {
+		return shared.ErrNotFound.WithDetail("suggestions.not_found")
+	}
+	return actor.RequireScope(automationScope)
+}
+
+// draftOf answers the target of a suggestion that is a draft for its asker, and nothing for any
+// other: which question decides who may answer it depends on that, so it is read first.
+func (c Cases) draftOf(ctx context.Context, actor appshared.ActorContext, id shared.ID) (shared.ID, bool) {
+	var target shared.ID
+	var draft bool
+	_ = c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		proposal, err := c.Suggestions.Find(ctx, id)
+		if err != nil {
+			return err
+		}
+		target, draft = proposal.TargetID, proposal.TargetType == domain.TargetAccount
+		return nil
+	})
+	return target, draft
+}
+
+func (c Cases) decideAs(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
+	overrides map[string]any, created *shared.ID,
+) (domain.Suggestion, error) {
 	action := SuggestionAcceptedAction
 	if status == domain.StatusDismissed {
 		action = SuggestionDismissedAction
 	}
-	if err := c.Authorizer.Authorize(ctx, actor, access.Request{
+	if target, draft := c.draftOf(ctx, actor, id); draft {
+		if err := ownDraft(actor, target); err != nil {
+			return domain.Suggestion{}, err
+		}
+	} else if err := c.Authorizer.Authorize(ctx, actor, access.Request{
 		// Answering a proposal about an entry needs what changing the entry needs. Dismissing
 		// asks the same, deliberately: a workspace where anybody who can read can clear somebody
 		// else's inbox of proposals is one where the inbox is not theirs.
@@ -263,7 +393,7 @@ func (c Cases) decide(
 			// The whole design, in one call. The ordinary use case, the accepting person as the
 			// actor, and therefore the ordinary permission check - somebody who could not make
 			// this change by hand cannot make it by accepting.
-			if err := c.apply(ctx, actor, proposal, overrides); err != nil {
+			if err := c.apply(ctx, actor, proposal, overrides, created); err != nil {
 				return err
 			}
 		}
@@ -304,6 +434,11 @@ type accepted struct {
 	// one: a template's collection is its `scope_id`, not a `container_id` CreateTemplate would
 	// refuse. Empty takes `targetKeys`.
 	TargetKey string
+	// NoTarget marks an applier the target is never handed to: a rule drafted for the person who
+	// asked is about them, and their account is no input of CreateRule's.
+	NoTarget bool
+	// Creates marks an applier that creates one thing, whose identifier the acceptance answers.
+	Creates bool
 }
 
 // acceptance says, for every shape of proposal this build can produce, what accepting it does.
@@ -335,12 +470,107 @@ var acceptance = map[applierKey]accepted{
 	// A template drafted for a collection is defined by CreateTemplate as the accepting person: the
 	// payload is the template's input, the scope is the target, and the rights asked are the ones
 	// defining a template asks for - STRUCTURE at the collection.
-	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id"},
+	{domain.TargetContainer, domain.KindTemplate}: {Applier: createTemplateName, TargetKey: "scope_id", Creates: true},
+	// A rule drafted from the asker's sentence is written by CreateRule as the accepting person -
+	// who is the asker, since nobody else reads the draft - and so it is stored switched off. The
+	// draft carries no name and no `run_as`: the overrides do, as the person sets them.
+	{domain.TargetAccount, domain.KindRule}: {Applier: createRuleName, NoTarget: true, Creates: true},
 	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
 	// owns it.
 	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
+}
+
+// draftableActions is what a rule drafted from a sentence may do (UC-AUT-10 check 2): entry-level
+// kinds, each field classified. An allowlist rather than everything served less a list of
+// exceptions, because a use case added to the catalogue tomorrow is one nobody has asked whether
+// a model may configure - and the answer to a question nobody asked is no.
+//
+// A field of an allowed kind that a draft may set picks from a set the model was shown (a person, a
+// collection, a label), from a closed enum (an entry type), or is bounded text. Every other field
+// the kind declares for a rule is in Never; `item_id` and `entry_id` are the run's (automation.md
+// §2.2). `test/architecture/draftableactions_test.go` holds the table to the catalogue: every kind
+// served, none destructive, every field classified.
+//
+// What is deliberately absent: telling people (no notification kind is built, UC-AUT-09), anything
+// that names an address (an outbound request or a webhook), anything destructive, asking AI, and a
+// branch.
+var draftableActions = map[string]draftable{
+	"ADD_LABEL":          {Fields: map[string]fieldUse{"label_id": useLabel}},
+	"REMOVE_LABEL":       {Fields: map[string]fieldUse{"label_id": useLabel}},
+	"ASSIGN_WORK_ITEM":   {Fields: map[string]fieldUse{"account_id": usePerson}},
+	"UNASSIGN_WORK_ITEM": {},
+	"COMPLETE_WORK_ITEM": {},
+	"REOPEN_WORK_ITEM":   {},
+	"CLEAR_DUE_DATE":     {},
+	"MOVE_WORK_ITEM": {
+		Fields: map[string]fieldUse{"target_collection_id": useCollection},
+		Never:  []string{"target_parent_id", "target_bucket_id", "before_item_id", "order_key"},
+	},
+	"CREATE_WORK_ITEM": {
+		Fields: map[string]fieldUse{
+			"collection_id": useCollection, "assignee_id": usePerson, "type": useItemType,
+			"title": useText, "notes": useText,
+		},
+		Never: []string{
+			"parent_id", "bucket_id", "content_language", "auto_assign", "start_at", "due_at",
+			"due_date_only", "due_time_zone", "calendar_uid", "label_ids", "custom_fields", "cover",
+			"before_item_id", "member_ids",
+		},
+	},
+	"ADD_COMMENT": {
+		Fields: map[string]fieldUse{"body": useText},
+		Never:  []string{"parent_comment_id"},
+	},
+	"CONVERT_JUMBLE_ENTRY": {
+		Fields: map[string]fieldUse{"collection_id": useCollection, "type": useItemType, "title": useText},
+		Never:  []string{"bucket_id"},
+	},
+}
+
+// runSupplied are the fields a run fills in itself (automation.md §2.2), never drafted.
+var runSupplied = []string{"item_id", "entry_id", "event_id"}
+
+// draftable is one kind a draft may use, and how each of its fields is drafted.
+type draftable struct {
+	Fields map[string]fieldUse
+	Never  []string
+}
+
+func (d draftable) fieldNames() []string {
+	names := make([]string, 0, len(d.Fields))
+	for name := range d.Fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// fieldUse is how one field of a draftable kind is drafted.
+type fieldUse string
+
+const (
+	usePerson     fieldUse = "a person shown"
+	useCollection fieldUse = "a collection shown"
+	useLabel      fieldUse = "a label shown"
+	useItemType   fieldUse = "an entry type"
+	useText       fieldUse = "text"
+)
+
+func (u fieldUse) describe() string { return string(u) }
+
+// DraftableActions is the table, for the gate that holds it to the catalogue: per kind, the fields
+// a draft sets, the fields it never sets, and the fields the run supplies.
+func DraftableActions() map[string]struct{ Drafted, Never []string } {
+	table := make(map[string]struct{ Drafted, Never []string }, len(draftableActions))
+	for kind, how := range draftableActions {
+		table[kind] = struct{ Drafted, Never []string }{
+			Drafted: how.fieldNames(),
+			Never:   append(append([]string(nil), how.Never...), runSupplied...),
+		}
+	}
+	return table
 }
 
 // The use cases this package calls for something other than applying a payload: the breakdown's
@@ -357,6 +587,7 @@ const (
 	setDueDateName     = "SetDueDate"
 	updateWorkItemName = "UpdateWorkItem"
 	createTemplateName = "CreateTemplate"
+	createRuleName     = "CreateRule"
 )
 
 // under is the level a jumble entry's subtasks land at, under what the conversion made: the first
@@ -371,9 +602,14 @@ const (
 // Asking the profiles here would be this package deciding what the domain decides.
 //
 // An activity takes no children at all, which is why it is absent rather than mapped to itself.
-var under = map[work.ItemType]work.ItemType{
-	work.ItemTask:        work.ItemWorkPackage,
-	work.ItemWorkPackage: work.ItemActivity,
+//
+// The candidates are in order, and the first the target collection offers is taken: a collection
+// whose structure offers tasks and activities but no work packages gets the titles as activities,
+// and one that offers tasks alone gets none (domain-model.md §2) - planting them at a hidden level
+// would be refused at every one.
+var under = map[work.ItemType][]work.ItemType{
+	work.ItemTask:        {work.ItemWorkPackage, work.ItemActivity},
+	work.ItemWorkPackage: {work.ItemActivity},
 }
 
 type applierKey struct {
@@ -384,7 +620,7 @@ type applierKey struct {
 // apply performs the acceptance, and does nothing else.
 func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
-	overrides map[string]any,
+	overrides map[string]any, created *shared.ID,
 ) error {
 	how, served := acceptance[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
@@ -409,8 +645,9 @@ func (c Cases) apply(
 	grows := grown[applierKey{proposal.TargetType, proposal.Kind}]
 
 	in := usecase.Input{}
+	told := toldKeys[proposal.PromptID]
 	for field, value := range proposal.Payload {
-		if grows[field] {
+		if grows[field] || told[field] {
 			continue
 		}
 		in[field] = value
@@ -426,11 +663,13 @@ func (c Cases) apply(
 	// the overrides can move it. A proposal about one entry able to change another would be a
 	// stored capability, and the registry would refuse nothing about it: `item_id` is a field
 	// UpdateWorkItem declares, and `entry_id` one ConvertJumbleEntry does.
-	targetKey := how.TargetKey
-	if targetKey == "" {
-		targetKey = targetKeys[proposal.TargetType]
+	if !how.NoTarget {
+		targetKey := how.TargetKey
+		if targetKey == "" {
+			targetKey = targetKeys[proposal.TargetType]
+		}
+		in[targetKey] = proposal.TargetID.String()
 	}
-	in[targetKey] = proposal.TargetID.String()
 
 	// An applier that would be handed nothing but the target is not called. Every key a
 	// classification proposes about a work item is grown - the labels, the column, the custom
@@ -444,6 +683,9 @@ func (c Cases) apply(
 		out, err = c.Catalogue.Invoke(ctx, name, actor, in)
 		if err != nil {
 			return err
+		}
+		if how.Creates && created != nil {
+			*created, _ = shared.ParseID(out.String("id"))
 		}
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
@@ -705,7 +947,14 @@ func (c Cases) grow(
 	if named, held := in["type"].(string); held && strings.TrimSpace(named) != "" {
 		became = work.ItemType(named)
 	}
-	childType, takesChildren := under[became]
+	shape := shapeOf(ctx, c.Catalogue, actor, in)
+	childType, takesChildren := work.ItemType(""), false
+	for _, candidate := range under[became] {
+		if shape.Offers(candidate) {
+			childType, takesChildren = candidate, true
+			break
+		}
+	}
 	if !takesChildren {
 		// An entry converted to an activity has nowhere to put them. Not an error: the conversion
 		// is what was accepted, and inventing a level for the titles would put work where nobody
@@ -940,8 +1189,9 @@ func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 				Description: "The proposal to accept."},
 			{Name: "overrides", Kind: usecase.KindObject,
 				Description: "What the person changed or added before accepting, laid over the " +
-					"proposal. A jumble proposal needs the destination collection here, because " +
-					"a model cannot know which collections a workspace has."},
+					"proposal key by key. A jumble proposal needs the destination collection here, " +
+					"because a model cannot know which collections a workspace has; a RULE draft " +
+					"needs name and run_as, and any other key it carries replaces the draft's whole."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SuggestionAcceptedAction, TargetType: suggestionTarget,
@@ -966,11 +1216,15 @@ func (h AcceptSuggestion) invoke(
 	// what is *in* it is the target use case's judgement, exactly as a query's filter tree is the
 	// grammar's (usecase.KindObject).
 	overrides, _ := in["overrides"].(map[string]any)
-	accepted, err := h.Execute(ctx, actor, id, overrides)
+	accepted, created, err := h.Accept(ctx, actor, id, overrides)
 	if err != nil {
 		return nil, err
 	}
-	return suggestionOutput(accepted), nil
+	out := suggestionOutput(accepted)
+	if !created.IsZero() {
+		out["created_id"] = created.String()
+	}
+	return out, nil
 }
 
 func (h DismissSuggestion) Descriptor() usecase.Descriptor {

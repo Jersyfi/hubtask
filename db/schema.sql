@@ -996,6 +996,12 @@ CREATE INDEX wi_board_idx    ON work_item (tenant_id, collection_id, bucket_id, 
   WHERE deleted_at IS NULL AND archived_at IS NULL;
 CREATE INDEX wi_due_idx      ON work_item (tenant_id, collection_id, due_at)
   WHERE deleted_at IS NULL AND archived_at IS NULL AND is_completed = false;
+-- A collection's figure: its open rows directly under it (OPEN, FIELD_SUM), and its completions
+-- from a moment on (RHYTHM). Migration 0187.
+CREATE INDEX wi_figure_open_idx ON work_item (tenant_id, collection_id)
+  WHERE parent_id IS NULL AND is_completed = false AND archived_at IS NULL AND deleted_at IS NULL;
+CREATE INDEX wi_figure_done_idx ON work_item (tenant_id, collection_id, completed_at)
+  WHERE is_completed = true AND deleted_at IS NULL;
 -- The occurrences of one series: what an ON_COMPLETION series is waiting for, and when it was
 -- last done.
 CREATE INDEX wi_recurrence_idx ON work_item (recurrence_rule_id)
@@ -2432,9 +2438,9 @@ CREATE TABLE ai_suggestion (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   -- No foreign key: the two target kinds live in two tables, and a polymorphic reference cannot
   -- be one. The application checks the target, which it must do anyway to authorise the read.
-  target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY', 'CONTAINER')),
+  target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY', 'CONTAINER', 'ACCOUNT')),
   target_id     uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES', 'TEMPLATE')),
+  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES', 'TEMPLATE', 'RULE')),
   status        text NOT NULL DEFAULT 'PROPOSED'
                   CHECK (status IN ('PROPOSED', 'ACCEPTED', 'DISMISSED')),
   payload       jsonb NOT NULL,

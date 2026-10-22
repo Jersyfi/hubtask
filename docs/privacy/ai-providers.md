@@ -63,18 +63,21 @@ the switch ([data-protection.md §4.1](../architecture/data-protection.md#41-thr
 
 ## 2. What is sent
 
-Only what a feature needs, and only when a person or a rule asked for it. `data-catalog.md` records
-the fields; what leaves the installation is:
+Only what a feature needs, and only when a person or a rule asked for it - or, where the workspace
+switched on *Prepare proposals for new jumble entries*, when something arrives in the jumble.
+`data-catalog.md` records the fields; what leaves the installation is:
 
 | Feature | What is sent | What comes back |
 |---|---|---|
-| Jumble suggestion | The entry's subject and body | A suggested title, date, destination, labels |
+| Jumble suggestion | The entry's subject and body, today's date, and the names of the collections everybody who may convert may write in | A suggested title, notes, due date, steps, and one of those collections |
 | Decomposition | An entry's title and notes | A suggested tree of work packages and activities |
+| Rule drafting | The person's sentence; the names of the people, collections, hubs and labels it names that they may see; the rule vocabulary | A suggested rule, switched off until somebody saves and switches it on |
 | Automation AI actions | The fields the rule names | A suggestion, or a value the rule applies |
 | Semantic search | Titles and notes, as text to embed | A vector |
 
-Every one of them is `PERSONAL_CONTENT`. None of it is sent by a background process nobody asked
-for: an embedding follows a write somebody made, a suggestion follows an entry somebody submitted.
+Every one of them is `PERSONAL_CONTENT`. None of it is sent by a background process nobody decided
+on: an embedding follows a write somebody made, a suggestion follows a person's or a rule's ask, or
+an arrival in a workspace that switched proposals on arrival on.
 
 **Except what a person keeps out.** Where the workspace lets each person keep their own content out
 of AI (the default), what a person who did so created, commented or mailed in is sent nowhere, and

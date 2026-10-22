@@ -24,6 +24,9 @@ import { engine } from './engine.ts';
 import { ENTRY_LISTS } from './touches.ts';
 
 const ENTRIES = '/jumble/entries';
+const DESTINATIONS = '/jumble/destinations';
+/** How many pages of destinations a picker reads: a hundred collections each, far beyond a workspace's tree. */
+const DESTINATION_PAGES = 10;
 const ROTATE = '/jumble/intake:rotate-token';
 /** A conversion creates an entry, so the containers a board reads are stale afterwards. */
 const TOUCHES = [ENTRIES, ENTRY_LISTS, '/containers'];
@@ -40,11 +43,33 @@ export interface JumbleEntry {
   readonly target_item_id?: string | null;
   readonly received_at: string;
   readonly settled_at?: string | null;
+  /** The job preparing a proposal about it on arrival, while it runs or once it ended refused. */
+  readonly arrival_job_id?: string | null;
 }
 
 interface EntryPage {
   readonly data?: readonly JumbleEntry[];
-  readonly next_cursor?: string | null;
+  /** Where the contract answers the walk's state (`JumbleEntryPage.page`). */
+  readonly page?: { readonly next_cursor?: string | null };
+}
+
+/** The cursor of the next page, as the contract places it. */
+function nextOf(page: EntryPage): string | undefined {
+  return page.page?.next_cursor ?? undefined;
+}
+
+/** A collection an arrival may become work in for the reader, with its hub. */
+export interface JumbleDestination {
+  readonly id: string;
+  readonly name: string;
+  readonly hub_id: string;
+  readonly hub_name: string;
+  readonly hub_private: boolean;
+}
+
+interface DestinationPage {
+  readonly data?: readonly JumbleDestination[];
+  readonly page?: { readonly next_cursor?: string | null };
 }
 
 /** What a conversion needs: where it lands, and what it is called. */
@@ -71,6 +96,7 @@ export function entriesPath(status?: string, cursor?: string): string {
 }
 
 class Jumble {
+  #destinations = $state<readonly JumbleDestination[] | undefined>(undefined);
   #pages = $state<Record<string, ResourceState<EntryPage>>>({});
   /** Everything read so far for one filter, in arrival order, across the pages that have landed. */
   #held = $state<Record<string, readonly JumbleEntry[]>>({});
@@ -96,7 +122,7 @@ class Jumble {
       this.#pages = { ...this.#pages, [key]: next };
       if (next.status === 'ready') {
         this.#held = { ...this.#held, [key]: next.data.data ?? [] };
-        this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+        this.#cursors = { ...this.#cursors, [key]: nextOf(next.data) };
       }
     });
   }
@@ -118,7 +144,30 @@ class Jumble {
     if (next.status === 'failed') throw next.error;
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.data ?? [])] };
-    this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+    this.#cursors = { ...this.#cursors, [key]: nextOf(next.data) };
+  }
+
+  /**
+   * Where the reader may turn an arrival into work: the server's answer, so the picker offers no
+   * collection a conversion would refuse (P-05). `undefined` until read.
+   */
+  get destinations(): readonly JumbleDestination[] | undefined {
+    return this.#destinations;
+  }
+
+  /** Reads the destinations, every page up to a bound; a page that fails ends the walk with what came. */
+  async loadDestinations(): Promise<void> {
+    const all: JumbleDestination[] = [];
+    let cursor: string | undefined;
+    for (let round = 0; round < DESTINATION_PAGES; round += 1) {
+      const path = cursor ? `${DESTINATIONS}?cursor=${encodeURIComponent(cursor)}` : DESTINATIONS;
+      const read = await engine.refresh<DestinationPage>({ path });
+      if (read.status !== 'ready') break;
+      all.push(...(read.data.data ?? []));
+      cursor = read.data.page?.next_cursor ?? undefined;
+      if (!cursor) break;
+    }
+    this.#destinations = all;
   }
 
   /** Quick capture from inside the product. */
@@ -141,14 +190,13 @@ class Jumble {
   }
 
   /**
-   * What one arrival became, read from the processed listing - there is no single-entry read in
-   * the contract. What a screen asks after an acceptance converted an entry, so that it can go
-   * to what was made rather than leave the reader to find it.
+   * What one arrival became, read by its identifier. What a screen asks after an acceptance
+   * converted an entry, so that it can go to what was made rather than leave the reader to find
+   * it - and an entry behind the first page of the processed listing is found as well.
    */
   async whatBecameOf(entryId: string): Promise<JumbleEntry | undefined> {
-    const page = await engine.refresh<EntryPage>({ path: entriesPath('PROCESSED') });
-    if (page.status !== 'ready') return undefined;
-    return (page.data.data ?? []).find((entry) => entry.id === entryId);
+    const read = await engine.refresh<JumbleEntry>({ path: `${ENTRIES}/${entryId}` });
+    return read.status === 'ready' ? read.data : undefined;
   }
 
   /** Decides against one. It stays readable and ages out by retention rule. */

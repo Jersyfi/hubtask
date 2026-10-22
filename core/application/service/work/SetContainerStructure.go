@@ -74,6 +74,15 @@ type StructureResult struct {
 	KeptByLock []domain.LockKey
 }
 
+// clippedByLevels names the settings whose value in force differs from what the layers say because
+// of the levels in force: what counts, where PROGRESS meets one level (domain-model.md §2).
+func clippedByLevels(effective domain.EffectiveStructure) []domain.StructureSetting {
+	if effective.CountsClipped == nil {
+		return nil
+	}
+	return []domain.StructureSetting{domain.SettingCounts}
+}
+
 // Execute changes the container's own layer and returns it with the structure in force.
 func (h SetContainerStructure) Execute(
 	ctx context.Context, actor appshared.ActorContext, cmd SetContainerStructureCommand,
@@ -229,6 +238,18 @@ func (h SetContainerStructure) decide(
 	}
 	for _, setting := range cmd.Reset {
 		layer.Values = layer.Values.Without(setting)
+	}
+	// Only a PROGRESS typed here is refused; one a preset, a reset or a narrowing brings together
+	// with a single level is clipped to OPEN and reported (clipped_by_levels). Judged against the
+	// levels in force after this write, under the reading that holds the layers above.
+	if cmd.Settings.SetsProgress() {
+		effective, err := reading.with(ctx, container, layer)
+		if err != nil {
+			return domain.StructureLayer{}, nil, err
+		}
+		if effective.CountsClipped != nil {
+			return domain.StructureLayer{}, nil, domain.ErrFigureNotOffered()
+		}
 	}
 	return layer, kept, nil
 }
@@ -437,5 +458,10 @@ func structureResultOutput(result StructureResult) usecase.Output {
 		kept = append(kept, string(key))
 	}
 	out["kept_by_lock"] = kept
+	clipped := make([]any, 0, 1)
+	for _, setting := range clippedByLevels(result.Structure) {
+		clipped = append(clipped, string(setting))
+	}
+	out["clipped_by_levels"] = clipped
 	return out
 }

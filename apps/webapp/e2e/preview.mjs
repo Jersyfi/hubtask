@@ -12,7 +12,11 @@ import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { stub } from './fixture.mjs';
+import { AI_MANIFEST, SERVICE_ACCOUNT, stub } from './fixture.mjs';
+
+// `AI=1` opens the workspace with AI available and a service account to run rules as - what a look
+// at the rule editor's *Describe it* needs. Everything else is the shared fixture.
+const withAi = process.env.AI === '1';
 
 const dist = fileURLToPath(new URL('../dist/', import.meta.url));
 const port = Number(process.env.PORT ?? 5180);
@@ -52,7 +56,10 @@ createServer((request, response) => {
         response.end(JSON.stringify({ access_token: 'preview-bearer', refresh_token: 'preview-refresh', token_type: 'Bearer', expires_in: 3600 }));
         return;
       }
-      stub(route(request, response, url, body));
+      const routed = route(request, response, url, body);
+      if (withAi && url.pathname === '/api/v1/meta/capabilities') return routed.fulfill({ json: AI_MANIFEST });
+      if (withAi && url.pathname === '/api/v1/auth/service-accounts') return routed.fulfill({ json: [SERVICE_ACCOUNT] });
+      stub(routed);
     });
     return;
   }

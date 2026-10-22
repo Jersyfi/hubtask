@@ -374,6 +374,16 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		sourceID := uuidValue(source)
 		item.RecurrenceSourceId = &sourceID
 	}
+	// What the entry's collection hides of it, where the read answered it - every read of an
+	// entry does on a wired server (domain-model.md §2).
+	if mark, marked := out["hidden"].(map[string]any); marked {
+		level, _ := mark["level"].(bool)
+		capabilities, _ := mark["capabilities"].([]string)
+		if capabilities == nil {
+			capabilities = []string{}
+		}
+		item.Hidden = &openapi.EntryHidden{Level: level, Capabilities: capabilities}
+	}
 	// Present exactly when automatic assignment ran: the outcome of an :auto-assign call,
 	// or of a create a policy applied to. Absent means it did not run, which is a different
 	// answer from "it ran and assigned nobody".

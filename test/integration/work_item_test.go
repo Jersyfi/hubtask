@@ -538,3 +538,37 @@ func TestFindManyAnswersOnlyTheCallersEntries(t *testing.T) {
 		t.Errorf("the entry came back as %q of tenant %s", found[0].Title, found[0].TenantID)
 	}
 }
+
+// The cross-tenant negative test for TypesOf: the types of the levels above an entry, read for the
+// hidden rule. Asked about one entry of each workspace, tenant B learns the type of its own and
+// nothing about A's.
+func TestTypesOfAnswersOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	collectionA := collectionFor(ctx, t, tenantA, authorA)
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+
+	inA, inB := freshID(t), freshID(t)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0"))
+	}); err != nil {
+		t.Fatalf("writing A's task: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0"))
+	}); err != nil {
+		t.Fatalf("writing B's task: %v", err)
+	}
+
+	var types map[shared.ID]work.ItemType
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		types, err = repo.TypesOf(ctx, []shared.ID{inA, inB})
+		return err
+	}); err != nil {
+		t.Fatalf("B reading both: %v", err)
+	}
+	if len(types) != 1 || types[inB] != work.ItemTask {
+		t.Fatalf("tenant B read %v, want only its own task %s", types, inB)
+	}
+}

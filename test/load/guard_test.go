@@ -179,6 +179,10 @@ func guardTraffic(ctx context.Context, stack *stack, recorder *harness.Recorder,
 						as.collection, worker, n))
 				call(ctx, client, recorder, pacer, stack.baseURL, as, harness.ClassInteractive,
 					http.MethodGet, "/api/v1/containers", "")
+				// The navigation's open hub: its collections, each with the figure it counts
+				// (UC-WRK-29) - the read SLO-2 holds the figure to.
+				call(ctx, client, recorder, pacer, stack.baseURL, as, harness.ClassInteractive,
+					http.MethodGet, "/api/v1/containers?parent_id="+as.hub, "")
 			}
 		}(worker)
 	}

@@ -8,6 +8,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/port/queue"
@@ -84,6 +85,18 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		PromptID: payloadString(job, "prompt"),
 		Apply:    payloadBool(job, "apply"),
 	}
+	// The scope a rule would apply at, where the question is about one: a kind and a container,
+	// both references (automation.md §1).
+	if scopeType := payloadString(job, "scope_type"); scopeType != "" {
+		request.Scope.Type = automation.ScopeType(scopeType)
+		if _, named := job.Payload["scope_id"]; named {
+			scopeID, err := payloadID(job, "scope_id")
+			if err != nil {
+				return queue.Result{}, err
+			}
+			request.Scope.ID = scopeID
+		}
+	}
 	// The words the question was asked with, where the payload names them: a reference
 	// to a row the workspace holds, never the words themselves.
 	if _, named := job.Payload["request_id"]; named {
@@ -113,7 +126,13 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 	// the fact is written down.
 	result := queue.Result{Outcome: outcome.Code}
 	if outcome.Dropped > 0 {
-		result.Counts = map[string]int{"nodes_dropped": outcome.Dropped}
+		// A count, never what was dropped: the parts of a person's sentence are their content
+		// (rule 10).
+		counted := "nodes_dropped"
+		if kind == domain.KindRule {
+			counted = "parts_not_drafted"
+		}
+		result.Counts = map[string]int{counted: outcome.Dropped}
 	}
 	return result, nil
 }

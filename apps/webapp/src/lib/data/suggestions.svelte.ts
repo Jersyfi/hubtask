@@ -21,17 +21,21 @@
  * **No payload leaves in a URL.** The listing is by identifier; an override travels in a body.
  */
 
-import type { AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
+import type { AcceptedSuggestion, AiTranslation, Suggestion, SuggestionPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import {
+  arrivalEndedAs,
+  budgetSpentOf,
   endedAs,
   followArrival,
   suggestionsPath,
+  targetOf,
   waitWhileVisible,
   whilePending,
   type AskingState,
   type Operation,
+  type Said,
   type Target,
 } from './suggestions.ts';
 import { ANY_ENTRY_DOCUMENT, ENTRY_LISTS } from './touches.ts';
@@ -44,7 +48,7 @@ export type { SuggestionPage };
  * after about a minute without an end, or how it ended (`noteOf` says it).
  */
 export interface Asking extends AskingState {
-  readonly operation: Operation | 'jumble' | 'container' | 'template';
+  readonly operation: Operation | 'jumble' | 'container' | 'template' | 'rule';
   readonly askedAt: string;
 }
 
@@ -65,8 +69,36 @@ const touches = (targetId: string, target: Target = 'WORK_ITEM') => [suggestions
 
 class Suggestions {
   #asking = $state<Record<string, Asking>>({});
+  /** A spent budget a proposal prepared on arrival ended on: said once for the jumble, not per card. */
+  #arrivalBudget = $state<Said | undefined>(undefined);
   /** Which follow is current per entry, outside `$state`: a token, not something a template reads. */
   readonly #follows = new Map<string, symbol>();
+
+  /** The spent budget proposals prepared on arrival met, where one did. */
+  get arrivalBudgetSpent(): Said | undefined {
+    return this.#arrivalBudget;
+  }
+
+  /**
+   * Follows the proposal the workspace prepares about a jumble entry on its arrival (UC-JUM-07
+   * check 10), which nobody here asked for: the card says *Suggesting…* while the job runs and
+   * shows the proposal when it stands. Not while the entry is already followed - an ask a person
+   * made says itself - and never said as slow: nobody is waiting for it.
+   */
+  followArrivalJob(entryId: string, jobId: string, receivedAt: string): void {
+    if (this.#asking[entryId]) return;
+    this.#put(entryId, { operation: 'jumble', askedAt: receivedAt, outcome: 'following' });
+    const token = Symbol('arrival');
+    this.#follows.set(entryId, token);
+    const isLive = () => this.#follows.get(entryId) === token;
+    void followArrival(engine, entryId, receivedAt, wait, isLive, 'JUMBLE_ENTRY', jobId).then((outcome) => {
+      if (outcome === 'left' || !isLive()) return;
+      this.#follows.delete(entryId);
+      const spent = budgetSpentOf(outcome);
+      if (spent) this.#arrivalBudget = spent;
+      this.#put(entryId, { operation: 'jumble', askedAt: receivedAt, ...arrivalEndedAs(outcome) });
+    });
+  }
 
   /** What is being asked about one entry, or nothing. */
   askingOf(itemId: string): Asking | undefined {
@@ -115,6 +147,20 @@ class Suggestions {
    * would be as work - a title, notes, a date, and the subtasks the material implies.
    */
   async askJumble(entryId: string): Promise<void> {
+    await (await this.#askJumble(entryId))();
+  }
+
+  /**
+   * The same ask, answered once it is accepted rather than once it ended: the follow goes on in
+   * the background, on the entry's card. What asking about a selection waits for, so its next ask
+   * is not held up by a model's answer to the last one.
+   */
+  async queueJumble(entryId: string): Promise<void> {
+    void (await this.#askJumble(entryId))();
+  }
+
+  /** Sends the ask, and answers the follow that is left to run. */
+  async #askJumble(entryId: string): Promise<() => Promise<void>> {
     const askedAt = new Date().toISOString();
     const accepted = await whilePending(
       () => this.#put(entryId, { operation: 'jumble', askedAt, outcome: 'following' }),
@@ -126,7 +172,7 @@ class Suggestions {
           invalidates: [],
         }),
     );
-    await this.#follow(entryId, 'jumble', askedAt, 'JUMBLE_ENTRY', accepted?.job_id);
+    return () => this.#follow(entryId, 'jumble', askedAt, 'JUMBLE_ENTRY', accepted?.job_id);
   }
 
   /**
@@ -168,6 +214,26 @@ class Suggestions {
   }
 
   /**
+   * Asks for a rule drafted from a sentence (UC-AUT-10), and follows the person's own listing: the
+   * draft appears there as a `RULE` suggestion about their account, which only they read. The
+   * follow is keyed on the account, so the editor that asked reads `askingOf(accountId)`.
+   */
+  async describeRule(accountId: string, scope: { type: string; id?: string }, description: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    const accepted = await whilePending(
+      () => this.#put(accountId, { operation: 'rule', askedAt, outcome: 'following' }),
+      () => this.#withdraw(accountId, askedAt),
+      () =>
+        engine.mutate<Accepted | undefined>('POST', '/automation/rules:describe', { scope, description }, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: [],
+        }),
+    );
+    void this.#follow(accountId, 'rule', askedAt, 'ACCOUNT', accepted?.job_id);
+  }
+
+  /**
    * Reads the entry in another language. Synchronous and stored nowhere: the answer is
    * handed back and held by nothing here - it is the caller's to show and to drop.
    */
@@ -185,10 +251,9 @@ class Suggestions {
    * laid over the proposal by the server (`SuggestionAcceptance`) - for a jumble entry the
    * destination collection, which a model never chooses.
    */
-  async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<Suggestion> {
-    const target: Target =
-      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
-    return engine.mutate<Suggestion>(
+  async accept(suggestion: Suggestion, overrides?: Readonly<Record<string, unknown>>): Promise<AcceptedSuggestion> {
+    const target = targetOf(suggestion);
+    return engine.mutate<AcceptedSuggestion>(
       'POST',
       `/suggestions/${suggestion.id}:accept`,
       overrides ? { overrides } : {},
@@ -198,21 +263,23 @@ class Suggestions {
         // and the engine matches by prefix: `/items/{id}`, its activity, its children. A jumble
         // acceptance is a conversion, so the inbox and the containers a board reads are stale too.
         // A container's suggestion is a template: accepting it is `CreateTemplate`, so the
-        // templates that apply here are what changed.
+        // templates that apply here are what changed. A draft for its asker is a rule: the rules
+        // are what changed.
         invalidates:
           target === 'JUMBLE_ENTRY'
             ? [...touches(suggestion.target_id, target), '/jumble/entries', ENTRY_LISTS, '/containers']
             : target === 'CONTAINER'
               ? [...touches(suggestion.target_id, target), '/templates']
-              : [...touches(suggestion.target_id), ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
+              : target === 'ACCOUNT'
+                ? [...touches(suggestion.target_id, target), '/automation/rules']
+                : [...touches(suggestion.target_id), ENTRY_LISTS, ANY_ENTRY_DOCUMENT],
       },
     );
   }
 
   /** Dismisses. A state, not a deletion; the listing narrows to what still stands. */
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
-    const target: Target =
-      suggestion.target_type === 'JUMBLE_ENTRY' ? 'JUMBLE_ENTRY' : suggestion.target_type === 'CONTAINER' ? 'CONTAINER' : 'WORK_ITEM';
+    const target = targetOf(suggestion);
     return engine.mutate<Suggestion>('POST', `/suggestions/${suggestion.id}:dismiss`, {}, {
       idempotencyKey: crypto.randomUUID(),
       invalidates: touches(suggestion.target_id, target),
