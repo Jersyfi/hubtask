@@ -5,9 +5,9 @@ context: jumble
 actors: [PE-person, PE-member, PE-agent]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12, P-14]
-state: partial
+state: built
 tasks: [J-06, F5-03, K-01, UX-21]
-checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go]
+checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go, core/application/service/jumble/ArrivalProposals_test.go, core/application/service/suggestion/Arrival_test.go, core/application/service/suggestion/Destinations_test.go, core/application/service/integration/AiArrivalProposals_test.go, core/application/service/quota/Quota_test.go, presentation/worker/AiSuggestionArrival_test.go, test/integration/arrival_proposals_test.go, test/integration/arrival_proposals_flow_test.go, test/integration/jumble_destinations_test.go, test/integration/jumble_suggestion_test.go, apps/webapp/src/lib/data/askEach.test.ts, apps/webapp/src/lib/data/suggestions.test.ts, apps/webapp/e2e/arrivalproposals.test.mjs, apps/webapp/e2e/jumbleselection.test.mjs, docs/evidence/UX-21-2026-10-21.md]
 ---
 
 # Ask AI what a jumble entry should become
@@ -55,9 +55,3 @@ dismiss the proposal and convert by hand.
 * No labels from the jumble: a label belongs to a collection, and an arrival is in none yet.
 * Configuring a provider and giving consent are the AI context's use cases, not this one's
   ([NG-ai-consent-by-default](../../vision/non-goals.md)).
-
-## Today
-
-* Check 10: not met — not built yet, tracked in milestone UX (decision #1629).
-* Check 11: not met — not built yet, tracked in milestone UX (decision #1629).
-* Check 12: not met — not built yet, tracked in milestone UX (decision #1629).

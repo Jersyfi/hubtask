@@ -167,6 +167,14 @@ class Client:
         """Put something in the jumble"""
         return self._call("POST", "/jumble/entries", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def list_jumble_destinations(self, *, query: dict[str, Any] | None = None) -> "JumbleDestinationPage":
+        """Where an entry may become work for you"""
+        return self._call("GET", "/jumble/destinations", {}, query, {}, None, "none", None, "json")
+
+    def get_jumble_entry(self, entry_id: str) -> "JumbleEntry":
+        """One jumble entry"""
+        return self._call("GET", "/jumble/entries/{entryId}", {"entryId": entry_id}, None, {}, None, "none", None, "json")
+
     def convert_jumble_entry(self, entry_id: str, body: "JumbleEntryConvert", *, idempotency_key: str | None = None) -> "JumbleEntry":
         """Turn an entry into work"""
         return self._call("POST", "/jumble/entries/{entryId}:convert", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
@@ -1058,6 +1066,10 @@ class Client:
     def set_ai_person_opt_out(self, body: "AiPersonOptOutChoice") -> "AiSource":
         """Whether each person may keep their own content out of AI"""
         return self._call("PUT", "/ai-person-opt-out", {}, None, {}, body, "json", "application/json", "json")
+
+    def set_ai_arrival_proposals(self, body: "AiArrivalProposalsChoice") -> "AiSource":
+        """Whether AI prepares a proposal for each new jumble entry"""
+        return self._call("PUT", "/ai-arrival-proposals", {}, None, {}, body, "json", "application/json", "json")
 
     def set_own_ai_budget(self, body: "OwnAiBudget") -> dict[str, Any]:
         """Set the daily budget of this workspace's own AI model"""

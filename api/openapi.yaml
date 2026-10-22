@@ -528,6 +528,60 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/destinations:
+    get:
+      tags: [jumble]
+      operationId: listJumbleDestinations
+      summary: Where an entry may become work for you
+      description: >
+        The collections a jumble entry may be converted into by the caller: neither trashed nor
+        archived - by their own stamp or their hub's - and where the caller may create an entry,
+        private hubs the caller is in included. Each names its hub, and they come in the order of
+        the tree: the hubs' manual order, then each hub's collections in theirs.
+
+        A person who may not convert anything is refused rather than answered an empty list. A
+        page can be shorter than the size asked for, because the collections the caller may not
+        create in are left out of what was scanned; follow `next_cursor` until there is none.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - name: size
+          in: query
+          description: Collections scanned per page.
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: One page of destinations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleDestinationPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [jumble]
+      operationId: getJumbleEntry
+      summary: One jumble entry
+      description: >
+        One entry, whatever its state: what arrived and what became of it. The raw content is
+        answered here - to a credential that may read the workspace's entries - and nowhere that
+        travels. An entry of another workspace is answered `404`, as a missing one is.
+      responses:
+        "200":
+          description: The entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /jumble/entries/{entryId}:convert:
     parameters:
       - name: entryId
@@ -576,10 +630,11 @@ paths:
       operationId: suggestFromJumbleEntry
       summary: Ask AI what this entry should become
       description: >
-        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry. It **proposes** and changes nothing: what comes back is a
-        suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody
-        converts the entry.
+        Asks the workspace's AI provider to propose a title, notes, a due date, the steps the
+        material implies and the collection it fits best for one entry - the collection chosen from
+        those everybody who may convert may write in. It **proposes** and changes nothing: what
+        comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only
+        when somebody accepts it or converts the entry.
 
         Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never
         sits in a request — the suggestion appears when the provider has answered. Asking twice
@@ -7104,6 +7159,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /ai-arrival-proposals:
+    put:
+      tags: [ai]
+      operationId: setAiArrivalProposals
+      summary: Whether AI prepares a proposal for each new jumble entry
+      description: >
+        `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without
+        anybody asking; `false`, the default, waits for somebody to ask. The workspace's own
+        decision: no installation or plan value sets or locks it. Content is still sent only where
+        the workspace consented and its AI answers; nothing a person who keeps their content out
+        wrote or sent travels; each arrival counts against the AI budget and against
+        `ai_arrival_proposals_per_day`. Two writes at once answer the second `409`
+        (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiArrivalProposalsChoice"
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /ai-budget:
     put:
       tags: [ai]
@@ -11594,7 +11678,7 @@ components:
       type: object
       required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
         min_jurisdiction_origin, offered, version, person_opt_out, person_opt_out_origin,
-        keeping_out_count]
+        keeping_out_count, prepare_on_arrival]
       properties:
         source:
           $ref: "#/components/schemas/AiSourceKind"
@@ -11667,6 +11751,11 @@ components:
           description: >
             How many people keep their own content out now, or whose objection stops taking
             effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+        prepare_on_arrival:
+          type: boolean
+          description: >
+            Whether AI prepares a proposal for each new jumble entry as it arrives
+            (`PUT /ai-arrival-proposals`). Off by default.
         updated_at: { type: string, format: date-time }
         version: { type: integer }
 
@@ -11681,6 +11770,14 @@ components:
       type: string
       enum: [EMPLOYMENT_CONTRACT, WORKS_AGREEMENT, LEGAL_OBLIGATION]
       description: The legal basis a workspace names for making AI part of everybody's work.
+
+    AiArrivalProposalsChoice:
+      type: object
+      required: [prepare]
+      properties:
+        prepare:
+          type: boolean
+          description: True prepares a proposal for each new jumble entry; false waits for somebody to ask.
 
     AiPersonOptOutChoice:
       type: object
@@ -12799,7 +12896,8 @@ components:
       type: string
       description: >
         A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`,
-        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted
+        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`,
+        `automation_runs_per_hour` - the last counted
         per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client
         tolerates a name it does not know, as a later release may add one.
 
@@ -14147,11 +14245,13 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, accounts]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, ai_arrival_proposals_per_day, accounts]
           description: >
-            The two AI rows are counted per source and per day in the workspace's time zone:
-            `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
-            workspace's own model's, set by the workspace itself and unlimited unless it does.
+            The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is
+            the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by
+            the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day`
+            how many jumble arrivals may be asked about on arrival - a number of entries, 200 by
+            default.
         limit:
           type: integer
           format: int64
@@ -14221,6 +14321,16 @@ components:
             `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
             degrade.
+        ai_arrival_proposals_per_day:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            How many jumble arrivals a day of the workspace's own time zone may be asked about on
+            arrival, where the workspace prepares proposals on arrival - a number of entries, 200
+            by default in both modes. Whoever holds the workspace's intake address decides what
+            arrives, so this bounds what they can make the workspace spend beside the token
+            budget. Past it an arrival waits for somebody to ask; nothing else changes.
 
     TenantDeletionScheduled:
       type: object
@@ -16059,6 +16169,14 @@ components:
           type: [string, "null"]
           format: date-time
           description: When the entry stopped being NEW - a conversion or a dismissal.
+        arrival_job_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Where the workspace prepares proposals on arrival: the job preparing one about this
+            undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`.
+            Absent once it proposed something (the proposal is under `GET /suggestions`), for a
+            settled entry, and where nothing was prepared.
 
     JumbleEntrySubmit:
       type: object
@@ -16142,6 +16260,28 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/JumbleEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    JumbleDestination:
+      type: object
+      description: One collection a jumble entry may become work in, with its hub.
+      required: [id, name, hub_id, hub_name, hub_private]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        hub_id: { type: string, format: uuid }
+        hub_name: { type: string }
+        hub_private:
+          type: boolean
+          description: Whether the hub is private - reached only by its own members.
+
+    JumbleDestinationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/JumbleDestination" }
         page: { $ref: "#/components/schemas/PageInfo" }
 
     RuleTest:

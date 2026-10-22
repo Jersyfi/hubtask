@@ -164,6 +164,18 @@ const (
 	// AiDraftRuleAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	AiDraftRuleAttempts = 20
 
+	// KindAiSuggestArrival asks for a proposal the workspace prepares about one jumble arrival
+	// (UC-JUM-07 check 10): the system acting for the workspace, not a person who asked. A kind of
+	// its own rather than a flag on KindAiSuggest, for KindEmergencyAccessEmail's reason: a process
+	// of the previous release would claim an `ai.suggest` job it cannot read as an arrival's and
+	// refuse it for the person it names none of, while a kind it has no handler for goes back to
+	// the queue for a process that has one. One job per arrival, deduplicated on the entry.
+	KindAiSuggestArrival Kind = "ai.suggest_arrival"
+
+	// AiSuggestArrivalAttempts is that job's attempt budget, EmergencyAccessAttempts' for its
+	// reason: a rollout's old processes may claim and return it a few times first.
+	AiSuggestArrivalAttempts = 20
+
 	// KindAiEmbed brings one workspace's embeddings up to date with its entries.
 	//
 	// One job per tenant that reschedules itself, the retention sweep's shape rather than the

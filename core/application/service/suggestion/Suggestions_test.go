@@ -430,18 +430,16 @@ func (w *world) Invoke(
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
 		return usecase.Output{"data": w.level}, nil
-	case "ListJumbleEntries":
+	case "GetJumbleEntry":
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
+		if in.String("entry_id") != targetID.String() {
+			return nil, shared.ErrNotFound.WithDetail("jumble.entry_not_found")
+		}
 		// The same two words the work item answers, so a proposal about an entry is fresh against
 		// it and a test about the *applier* is not stopped by the fingerprint.
-		// `data`, which is the key ListJumbleEntries actually answers under. A fake that invented
-		// `items` is how the wrong key survived until an end-to-end session asked for a
-		// suggestion.
-		return usecase.Output{"data": []usecase.Output{{
-			"id": targetID.String(), "raw_subject": w.title, "raw_body": "",
-		}}}, nil
+		return usecase.Output{"id": targetID.String(), "raw_subject": w.title, "raw_body": ""}, nil
 	}
 	if name == "MoveWorkItem" && w.moveFails != nil {
 		return nil, w.moveFails
@@ -667,9 +665,9 @@ func TestAMalformedIdentifierIsRefusedBeforeAnythingIsRead(t *testing.T) {
 	}
 }
 
-// An entry the inbox does not list - settled, gone, or in a workspace the actor cannot see - is one
-// answer and not three, which is what the inbox itself would say.
-func TestAnEntryTheInboxDoesNotListIsNotFound(t *testing.T) {
+// An entry the jumble does not answer - gone, or in a workspace the actor cannot see - is one answer
+// and not two, which is what the jumble itself would say.
+func TestAnEntryTheJumbleDoesNotAnswerIsNotFound(t *testing.T) {
 	cases, _ := newWorld()
 
 	elsewhere := shared.MustParseID("0192f000-0000-7000-8000-0000000000fe")
@@ -940,7 +938,7 @@ func TestASubtaskTitleThatIssuesInstructionsIsATitle(t *testing.T) {
 	for _, call := range world.performed {
 		switch call.name {
 		// GetContainer is the destination's structure, read to choose the level the titles land at.
-		case "ConvertJumbleEntry", "CreateWorkItem", "ListJumbleEntries", "GetWorkItem", "GetContainer":
+		case "ConvertJumbleEntry", "CreateWorkItem", "GetJumbleEntry", "GetWorkItem", "GetContainer":
 		default:
 			t.Errorf("a title caused %q to run", call.name)
 		}

@@ -94,6 +94,41 @@ func (h ListJumbleEntries) Descriptor() usecase.Descriptor {
 	}
 }
 
+// Descriptor is the catalogue entry.
+func (h GetJumbleEntry) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: GetJumbleEntryName,
+		Summary: "One jumble entry, whatever its state: what arrived and what became of it. The " +
+			"raw content is answered here - to a credential that may read the workspace's " +
+			"entries - and nowhere that travels.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  itemsReadScope,
+		ReadOnly:    true,
+		Input: []usecase.Field{
+			{Name: "entry_id", Kind: usecase.KindID, Required: true, Description: "Which entry."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: EntryReadAction, TargetType: entryTarget,
+			Severity: audit.SeverityInfo, Required: false,
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h GetJumbleEntry) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	entryID, err := in.ID("entry_id")
+	if err != nil {
+		return nil, err
+	}
+	entry, err := h.Execute(ctx, actor, entryID)
+	if err != nil {
+		return nil, err
+	}
+	return entryOutput(entry), nil
+}
+
 func (h SubmitJumbleEntry) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {

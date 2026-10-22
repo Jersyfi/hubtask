@@ -1100,6 +1100,8 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		// The words a template is drafted from, held for the job.
 		Requests: suggestionStore, IDs: ids,
+		// A proposed destination is answered while it is still in the shared set.
+		Containers: containers,
 	}
 
 	// The cases the privacy use cases share.
@@ -1272,7 +1274,7 @@ func run() error {
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
 		Sources: suggestionservice.CatalogueSources{
-			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut,
+			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut, Collections: containers,
 			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
 		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
@@ -1284,6 +1286,13 @@ func run() error {
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 		Conditions: celexpression.New(),
+		// A proposal the workspace prepares about an arrival (UC-JUM-07 check 10): read as the
+		// system for it, through the repositories, and counted against the day's cap.
+		Arrivals: suggestionservice.ArrivalSources{
+			Entries: postgres.NewJumbleRepository(cursors), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Collections: containers, Kept: keptOut,
+		},
+		Cap: quotaGuard,
 	}
 
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
@@ -1800,6 +1809,7 @@ func run() error {
 		integrationservice.ReadAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ChooseAiSource{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.SetAiPersonOptOut{Writer: aiSourceWriter}.Descriptor(),
+		integrationservice.SetAiArrivalProposals{Writer: aiSourceWriter}.Descriptor(),
 		integrationservice.ReadAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		integrationservice.RemoveAiProvider{Writer: aiProviderWriter}.Descriptor(),
 		suggestionservice.ListSuggestions{Cases: suggestionCases}.Descriptor(),
@@ -1939,6 +1949,7 @@ func run() error {
 		}.Descriptor(),
 		jumbleservice.SubmitJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.ListJumbleEntries{Writer: jumbleWriter}.Descriptor(),
+		jumbleservice.GetJumbleEntry{Writer: jumbleWriter}.Descriptor(),
 		jumbleservice.ConvertJumbleEntry{
 			Writer: jumbleWriter, Catalogue: ruleCatalogue, Origins: items,
 		}.Descriptor(),
@@ -2121,6 +2132,10 @@ func run() error {
 			UnitOfWork: unitOfWork, Structure: structures,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListJumbleDestinations{
+			Collections: containers, Authorizer: authorizer, Reader: authorizer,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.GetWorkItem{
 			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Containers: containers,
@@ -3071,6 +3086,12 @@ func run() error {
 			work.SeedEmbedding{
 				Jobs: jobs, Delay: 30 * time.Second, Clock: clockadapter.System{},
 			},
+			// What asks for a proposal about each new jumble entry where the workspace switched
+			// that on: a seed, one job per arrival, judged when it runs (UC-JUM-07 check 10).
+			jumbleservice.ArrivalProposals{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(), Jobs: jobs,
+				Audit: auditSink, Clock: clockadapter.System{},
+			},
 		},
 			busFanOut...),
 		Clock:       clockadapter.System{},
@@ -3507,6 +3528,8 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
+		// Its own kind, which a process of the previous release leaves alone.
+		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

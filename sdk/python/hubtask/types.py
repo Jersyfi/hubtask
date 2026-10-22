@@ -427,12 +427,16 @@ class AiSource(TypedDict, total=False):
     person_opt_out_contact: str
     person_opt_out_since: str
     keeping_out_count: Required[int]
+    prepare_on_arrival: Required[bool]
     updated_at: str
     version: Required[int]
 
 AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
 
 AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiArrivalProposalsChoice(TypedDict, total=False):
+    prepare: Required[bool]
 
 class AiPersonOptOutChoice(TypedDict, total=False):
     person_opt_out: Required["AiPersonOptOut"]
@@ -1189,7 +1193,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "accounts"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "ai_arrival_proposals_per_day", "accounts"]]
     limit: Required[int]
     used: int | None
     ratio: float | None
@@ -1210,6 +1214,7 @@ class TenantQuotas(TypedDict, total=False):
     export_jobs: int | None
     accounts: int | None
     ai_tokens_per_day: int | None
+    ai_arrival_proposals_per_day: int | None
 
 class TenantDeletionScheduled(TypedDict, total=False):
     tenant_id: Required[str]
@@ -1828,6 +1833,7 @@ class JumbleEntry(TypedDict, total=False):
     target_item_id: str | None
     received_at: Required[str]
     settled_at: str | None
+    arrival_job_id: str | None
 
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""
@@ -1860,6 +1866,18 @@ class JumbleEntryConvert(TypedDict, total=False):
 
 class JumbleEntryPage(TypedDict, total=False):
     data: Required[list["JumbleEntry"]]
+    page: Required["PageInfo"]
+
+class JumbleDestination(TypedDict, total=False):
+    """One collection a jumble entry may become work in, with its hub."""
+    id: Required[str]
+    name: Required[str]
+    hub_id: Required[str]
+    hub_name: Required[str]
+    hub_private: Required[bool]
+
+class JumbleDestinationPage(TypedDict, total=False):
+    data: Required[list["JumbleDestination"]]
     page: Required["PageInfo"]
 
 class RuleTest(TypedDict, total=False):

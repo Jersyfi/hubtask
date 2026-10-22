@@ -45,13 +45,18 @@ const (
 	//
 	//nolint:gosec // G101: a quota's name, not a credential
 	AiOwnTokensPerDay = "ai_own_tokens_per_day"
+	// AiArrivalProposalsPerDay is how many jumble arrivals a workspace that prepares proposals on
+	// arrival has asked about in a day (UC-JUM-07 check 10). Beside the token budget rather than
+	// inside it: whoever holds the workspace's intake address can make things arrive, and the day's
+	// arrivals are what this counts (security.md T-27).
+	AiArrivalProposalsPerDay = "ai_arrival_proposals_per_day"
 )
 
 // Names is the vocabulary in the contract's order.
 func Names() []string {
 	return []string{
 		APIRequestsPerMinute, Items, MediaBytes, AutomationRunsPerHour, WebhookTargets, ExportJobs,
-		AiTokensPerDay, AiOwnTokensPerDay, Accounts,
+		AiTokensPerDay, AiOwnTokensPerDay, AiArrivalProposalsPerDay, Accounts,
 	}
 }
 
@@ -90,6 +95,8 @@ type Limits struct {
 	Accounts              int64
 	AiTokensPerDay        int64
 	AiOwnTokensPerDay     int64
+	// AiArrivalProposalsPerDay is a number of arrivals, not of tokens.
+	AiArrivalProposalsPerDay int64
 }
 
 // Defaults answers §4's two columns. Single mode's defaults stay effectively unlimited - the
@@ -110,6 +117,9 @@ func Defaults(mode env.TenancyMode) Limits {
 			// in minutes - which is the shape a budget wants, since what it protects against is a
 			// mistake rather than use.
 			AiTokensPerDay: 200_000,
+			// A busy workspace's day of arrivals, and a wall a flood of deliveries to the intake
+			// address reaches long before the token budget would.
+			AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
 		}
 	}
 	return Limits{
@@ -123,8 +133,14 @@ func Defaults(mode env.TenancyMode) Limits {
 		// electricity - or paying their own provider directly. A default ceiling there would be
 		// this project deciding how much of somebody's own machine they may use.
 		AiTokensPerDay: Unlimited,
+		// Not unlimited here, unlike the tokens: the tokens are a self-hoster's own to spend, but
+		// what arrives is not theirs to choose - anybody holding the intake address decides it.
+		AiArrivalProposalsPerDay: DefaultArrivalProposalsPerDay,
 	}
 }
+
+// DefaultArrivalProposalsPerDay is both modes' default for the proposals prepared on arrival.
+const DefaultArrivalProposalsPerDay = 200
 
 // The levels a limit resolves through and the words a standing says it with: which level set the
 // value in force, and which locked it.
@@ -253,6 +269,8 @@ func valueOf(overrides repository.Overrides, name string) *int64 {
 		return overrides.AiTokensPerDay
 	case AiOwnTokensPerDay:
 		return overrides.AiOwnTokensPerDay
+	case AiArrivalProposalsPerDay:
+		return overrides.AiArrivalProposalsPerDay
 	default:
 		return nil
 	}
@@ -279,6 +297,8 @@ func (l *Limits) set(name string, value int64) {
 		l.AiTokensPerDay = value
 	case AiOwnTokensPerDay:
 		l.AiOwnTokensPerDay = value
+	case AiArrivalProposalsPerDay:
+		l.AiArrivalProposalsPerDay = value
 	}
 }
 
@@ -303,6 +323,8 @@ func (l Limits) Of(quota string) int64 {
 		return l.AiTokensPerDay
 	case AiOwnTokensPerDay:
 		return l.AiOwnTokensPerDay
+	case AiArrivalProposalsPerDay:
+		return l.AiArrivalProposalsPerDay
 	default:
 		return Unlimited
 	}

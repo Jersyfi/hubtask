@@ -238,7 +238,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-JUM-04](./jumble/UC-JUM-04-let-another-system-post-into-the-jumble.md) | Let another system post into the jumble | jumble | built |
 | [UC-JUM-05](./jumble/UC-JUM-05-turn-a-jumble-entry-into-work.md) | Turn a jumble entry into work | jumble | built |
 | [UC-JUM-06](./jumble/UC-JUM-06-dismiss-what-does-not-need-doing.md) | Dismiss what does not need doing | jumble | built |
-| [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble | partial |
+| [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble | built |
 | [UC-JUM-08](./jumble/UC-JUM-08-sort-arrivals-automatically-with-a-rule.md) | Sort arrivals automatically with a rule | jumble | built |
 | [UC-AUT-01](./automation/UC-AUT-01-write-a-rule-and-switch-it-on.md) | Write a rule and switch it on | automation | built |
 | [UC-AUT-02](./automation/UC-AUT-02-try-a-rule-before-it-acts.md) | Try a rule before it acts | automation | built |

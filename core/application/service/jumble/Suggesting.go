@@ -196,8 +196,9 @@ func (h SuggestFromJumbleEntry) record(
 func (h SuggestFromJumbleEntry) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: SuggestFromJumbleEntryName,
-		Summary: "Asks the workspace's AI provider to propose a title, notes, a due date and " +
-			"the subtasks the material implies, for one jumble entry. Not labels: a label is a " +
+		Summary: "Asks the workspace's AI provider to propose a title, notes, a due date, " +
+			"the subtasks the material implies and the collection it fits best - chosen from " +
+			"those everybody who may convert may write in - for one jumble entry. Not labels: a label is a " +
 			"word a collection agreed on, and an entry in the inbox is in no collection yet - " +
 			"the entry is classified once it has been converted. It proposes and changes " +
 			"nothing: the proposal is read through the suggestions, and the entry becomes work " +
