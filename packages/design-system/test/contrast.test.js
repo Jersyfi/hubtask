@@ -104,6 +104,16 @@ const ROLES = {
   'ambient.primary': 'canvas-tint',
   'ambient.signature': 'canvas-tint',
 
+  // The mark (design-system.md §9). Its outline carries the mark's shape, so it is held to the
+  // floor of a graphic object against everything the mark may sit on (1.4.11); the inner parts
+  // are a logotype's, which 1.4.11 does not cover, and the outline already makes the mark found.
+  'brand.outline': 'indicator',
+  'brand.plane': ['decorative', 'a part of the logotype inside the outline, which already carries the mark at the graphic floor'],
+  'brand.core': ['decorative', 'a part of the logotype inside the plane; a logotype is exempt from 1.4.11'],
+  'brand.spark': ['decorative', 'a part of the logotype beside the outline; a logotype is exempt from 1.4.11'],
+  'brand.tile': ['decorative', 'the square of the installed app icon, drawn on a launcher, never on a product surface'],
+  'brand.tile-outline': ['decorative', 'the outline drawn on the app icon square, never on a product surface'],
+
   'rim.highlight': ['decorative', 'a one-pixel highlight along a raised edge; it carries no information'],
   'rim.primary': ['decorative', 'as rim.highlight, tinted with the primary hue'],
   'rim.signature': ['decorative', 'as rim.highlight, tinted with the signature hue'],
