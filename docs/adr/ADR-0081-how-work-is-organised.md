@@ -1,6 +1,6 @@
 # ADR-0081 — How work on Hubtask is organised
 
-**Status:** accepted · **Date:** 2026-10-07 · **Decided:** 2026-10-07, by the owner
+**Status:** accepted (the readiness record ended by [ADR-0089](./ADR-0089-check-once-where-it-is-cheap.md)) · **Date:** 2026-10-07 · **Decided:** 2026-10-07, by the owner
 
 **Rule lives in:** [AGENTS.md](../../AGENTS.md), [docs/backlog/README.md](../backlog/README.md),
 [known-traps.md](../architecture/known-traps.md)

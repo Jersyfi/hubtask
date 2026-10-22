@@ -144,8 +144,7 @@ and [`../vision/principles.md`](../vision/principles.md) first.
 5. **Report** a table — use case, check, outcome (met, not met, not proven), evidence or what the
    person sees instead — then anything beyond the goal, principles broken, use cases whose
    `state:`, `checked_by:` or *Today* no longer match, and the outcome: ready or not, and what
-   decides it. (A readiness record's `**Verdict:**` is a different thing: whether a task may be
-   built.)
+   decides it.
 
 Never edit a *Goal*, *How to check* or *Where it ends* so that an outcome comes out right. An
 unattended run reports its findings as a `finding` issue and changes nothing.

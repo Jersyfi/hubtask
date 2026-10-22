@@ -1,8 +1,8 @@
 # Known traps
 
 Mistakes that pass every gate once and are found later — by a walk, a real database, a second run.
-Each is a class, not an incident: it happens again wherever the same shape is built. A readiness
-record names the ones that apply to its task (section 2(d) of `docs/backlog/ready/TEMPLATE.md`).
+Each is a class, not an incident: it happens again wherever the same shape is built. A worker reads
+the ones that apply to the task before building (AGENTS.md, "The loop for every task").
 
 A trap belongs here only while nothing better holds it. The day a gate, a test or a comment where it
 bites can hold it, it moves there and leaves this list. So every entry says why no gate holds it; a
@@ -85,7 +85,7 @@ that fixes its first instance.
 | **A red CodeQL check shows no detail**, and `make verify` cannot see it (gosec carries other queries). The alert belongs to `refs/pull/<n>/merge` and may sit in a file the pull request only touched — or one alert open on `main` already. CodeQL is not a required check. | read it with `gh api "repos/<owner>/<repo>/code-scanning/alerts?ref=refs/pull/<n>/merge"`, and the flow behind it from the analysis (`…/code-scanning/analyses?ref=…`, fetched with `Accept: application/sarif+json`) before renaming anything — an identifier containing "password" is sensitive to CodeQL by its name alone; bind a bound to one variable, guard it, allocate from it, and drop the now unneeded `//nolint:gosec` | CodeQL is GitHub's check, outside `make` |
 | **`Closes #n` closes one issue per bare line**; inside a code span it closes nothing, and `gate-pr` checks only that one bare line exists. | one bare `Closes #n` line per issue; confirm each issue's state after the merge | GitHub's parser decides what closes; `gate-pr` checks one bare line |
 | **A decomposed fixture typed as text arrives composed**: editors normalise what they write, so a normalisation test proves nothing. | write decomposed fixtures as escapes and assert they differ from their composed twin | the editor normalises before any tool reads the file |
-| **A premise in a task can be wrong** — "nothing does X" while the code has done it for months. | check every claim against the code (readiness record §1) | a claim in prose is checked against the code by reading |
+| **A premise in a task can be wrong** — "nothing does X" while the code has done it for months. | check every claim against the code, and name a false one under *Premises* in the description | a claim in prose is checked against the code by reading |
 | **A proposal can promise a lever that does not exist.** | check every capability a proposal names against the code before it reaches the owner | a claim in prose is checked against the code by reading |
 
 ## Flaky tests

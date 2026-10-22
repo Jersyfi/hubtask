@@ -776,7 +776,7 @@ jobs:
     # Pull requests only, and never Dependabot's: it writes its own description, nobody reviews it
     # against this template, and a version bump settles nothing. Named by login, not by account
     # type: any other bot - a tool that steers the work under a GitHub App identity - is held to
-    # the readiness record, the migration and use case rules like a person. The description is read from the API rather than from the
+    # the premises, the migration and use case rules like a person. The description is read from the API rather than from the
     # event, so re-running this job - which `pr-description-rerun.yml` does when the description
     # is edited - judges the description as it stands now, not as it was when the run began.
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft && github.event.pull_request.user.login != 'dependabot[bot]'
@@ -786,8 +786,8 @@ jobs:
       contents: read
       pull-requests: read
     steps:
-      # The whole history: the readiness rule reads the branch's own commits - the tasks they carry,
-      # and whether each record was ready before the first code commit (tools/checkpr/readiness.go).
+      # The whole history: the history rules read the branch's changes against its merge base
+      # (tools/checkpr/rules.go).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0

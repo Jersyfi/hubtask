@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-// What the branch's history says, for the rules that need it (readiness.go). Read with git, so the CI
+// What the branch's history says, for the rules that need it (rules.go). Read with git, so the CI
 // job checks out the whole history (`fetch-depth: 0`) and names the pull request's base.
 
 // gitTimeout bounds every git call: a gate that hangs is a gate somebody turns off.

@@ -1,7 +1,8 @@
 # CI/CD with GitHub Actions
 
 The platform decision is [ADR-0022](../adr/ADR-0022-github-platform.md); when CI runs on a pull
-request is [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md). The release gates the
+request is [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md), and what a pull request runs
+is [ADR-0089](../adr/ADR-0089-check-once-where-it-is-cheap.md). The release gates the
 pipeline serves are [versioning-release.md](./versioning-release.md) §6.
 
 ---
@@ -9,8 +10,9 @@ pipeline serves are [versioning-release.md](./versioning-release.md) §6.
 ## 1. The principle: the pipeline calls nothing but `make`
 
 Every step of a workflow is a `make` target; the workflow holds orchestration, not logic. So every
-gate is reproducible locally — `make verify-pr` runs what the pull request pipeline runs for the
-branch, `make verify` is its fast half (§3.4) — and switching platform touches only
+gate is reproducible locally — `make check` runs the checks of what a branch changed, `make verify`
+every gate without containers, and each gate has its own target (§3.4) — and switching platform
+touches only
 `.github/workflows/`. The product (application, Helm chart, Compose files) depends on nothing
 GitHub-specific; the pipeline may.
 
@@ -84,8 +86,8 @@ to those already on its base are judged — on a push to `main`, those of the pu
 each one fails unless the change is marked: `!` in a commit's or the pull request's title, or a
 `BREAKING CHANGE:` footer in a commit message or the description. A break already on the base was
 judged when it landed. The job checks out the whole history; with no tag behind the commit it
-skips with a notice. `make verify-pr` runs it against the merge base with `origin/main`, reading
-only the commits; `make gate-api-compat` without `API_BASE` judges every break since the tag
+skips with a notice. `make gate-api-compat API_BASE=<merge base>` judges only the branch's own
+commits; without `API_BASE` it judges every break since the tag
 against every commit since it.
 
 **The hubctl session spends the rate limit.** `scripts/hubctl-e2e.sh` runs as one client against
@@ -135,18 +137,15 @@ served use case, none for an unserved one, and no "nobody built it" without an i
 **`pr-description` reads the description, not the tree.** On every pull request that is not Dependabot's,
 `tools/checkpr` holds the description to `.github/PULL_REQUEST_TEMPLATE.md`: every section present,
 in order, filled or marked n/a; `Closes #n` at the start of a line or `No issue: <why>`; use cases
-that exist; one ADR answer ticked and named; the template's Definition of Done items, none deleted
-or reworded, each ticked or n/a; no placeholder left in Impact; and the title a Conventional
-Commit. With the branch's history it also holds: a readiness record ready before the first commit
-outside `docs/` and at the head, with something under each of its five sections, for a branch that carries a task, names a use case or changes the
-contract, a migration, a query, a dependency, an ADR or what a use case promises (otherwise
-`Readiness: n/a — <why>`); no merged migration changed; no use case deleted and no ID reused; a
+that exist; *Premises* filled — what was found false and corrected, or what was checked; one ADR
+answer ticked and named; no placeholder left; and the title a Conventional Commit. With the
+branch's history it also holds: no merged migration changed; no use case deleted and no ID reused; a
 change to a use case's Goal, How to check or Where it ends named `correction` or `decision #<n>`;
 no settled ADR changed beyond its status line, its `Rule lives in` line and link targets; and
 no numbered section of a subject document (`docs/architecture/`, `docs/design/`) dropped or
 renumbered, nor left as a bare heading where it had text — a retired section keeps its heading
 with one sentence saying where its content went. The
-rules added after the readiness rule hold pull requests opened from 2026-10-08 on, as it does. It
+history rules hold pull requests opened from 2026-10-08 on. It
 reads the description and the title from the API, so a re-run judges them as they stand.
 `make gate-pr BODY=<file> TITLE="<title>"` runs it locally, `BASE=origin/main` with the history. `gh pr create --body` never shows the template;
 start from a copy of it.
@@ -193,33 +192,33 @@ match is thrown away. `release.yml` compiles its own set from the tag's pins, wi
 The project's Go build and module caches are not shared across jobs beyond `setup-go`'s cache.
 Whether to share them is open, against the repository's 10 GB cache limit.
 
-### 3.4 A draft is checked locally; CI runs when it is ready
+### 3.4 A draft runs nothing; the branch is checked once, where it is cheap
 
-The rule of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md):
+The rules of [ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md) and
+[ADR-0089](../adr/ADR-0089-check-once-where-it-is-cheap.md):
 
 * **`ci.yml` and `codeql.yml` also trigger on `ready_for_review`.** Every job that needs no other
-  job carries the draft condition; the others depend on one of them and are skipped with it. An
-  edited draft's description re-runs nothing.
-* **`make verify-pr` is the check before leaving draft.** It runs `make verify`, then every gate the
-  pipeline would run for the branch's diff against `origin/main`, selected through `tools/cilocal`
-  (the `changes` filters and a table of the jobs, which `test/architecture` holds to `ci.yml`).
-  Three jobs are CI only: `secrets`, `dependencies`, and the description, which `verify-pr` checks
-  with `make gate-pr` itself. `numbers` asks GitHub through `gh`, as the description check does.
-* **The container gates take turns** under a lock in the common git directory, because their
-  projects and host ports are fixed and every worktree shares one Docker daemon. When Docker does
-  not answer, they are reported as not run, and CI runs them after *Ready*.
-* **A stamp and a hook.** On success `make verify-pr` writes the checked commit into the checkout's
-  git directory. The hook in `.claude/settings.json` refuses `gh pr ready` unless that commit is
-  `HEAD` and pushed, and refuses `gh pr create` without `--draft`.
+  job carries the draft condition, and so does `ci-required`; the others depend on one of them and
+  are skipped with it. A draft's run starts no runner, and After CI ignores it. An edited draft's
+  description re-runs nothing.
+* **`make check` is the check while working and before leaving draft.** It runs what the branch
+  changed against `origin/main`: format, vet, lint and tests of the changed Go packages and the
+  architecture tests, `make generate` without a diff when the contract or a query changed, the
+  changed workspace packages, the documentation gate when a document changed. No lock, about a
+  minute. Everything else — containers, integration, security, the other packages — is CI's.
+* **CI checks a pull request once it is ready**, in parallel jobs, about ten minutes; a red job is
+  fixed by a push to the ready pull request. The hook in `.claude/settings.json` refuses
+  `gh pr create` without `--draft`, and `gh pr ready` while `HEAD` is not pushed.
+* **A pull request runs what it can break.** `selftest` proves the gates and runs when one changes
+  (the `gates` filter); the connectors (`n8n-nodes-hubtask`, `zapier-app`) run when they change;
+  the browser job runs Chromium, with Firefox and WebKit best effort (support-matrix.md §5). `main`
+  runs everything on every commit.
 
-For a change that touches everything, `make verify-pr` takes about fifteen minutes on a laptop.
-
-**Once per pull request.** `make verify-pr` passes, the commit is pushed, `gh pr ready`, and the pull
+**Once per pull request.** `make check` passes, the commit is pushed, `gh pr ready`, and the pull
 request merges when `CI required` is green — on the owner's word, by hand or by auto-merge (§3.5).
 It is not brought up to date with `main` to merge. Only a conflict GitHub reports, or a base that
 was squash-merged, needs `main` merged in; that stays on the ready pull request (AGENTS.md), runs
-`make generate` and `make gate-quick` for what the merge touched, and leaves the rest to its CI run —
-`make verify-pr` is not run again for it.
+`make generate` and `make check` for what the merge touched, and leaves the rest to its CI run.
 
 ### 3.5 Merging without catching up
 
@@ -333,7 +332,7 @@ gate), and treats an unavailable provider as no failure (`continue-on-error: tru
 ### 5.1 No workflow reviews or works on its own
 
 No workflow reviews a pull request or starts work by itself, and none offers a trigger that would.
-The author reviews a change against the rules no gate checks (Definition of Done item 19); a
+The author reviews a change against the rules no gate checks (engineering-guidelines.md §3); a
 person or an AI agent of any make works on a task. A tool that steers coding agents later works
 through the same issues, labels and pull requests ([backlog README](../backlog/README.md)
 § "For tools that steer the work"), under its own GitHub App identity, without the right to merge.

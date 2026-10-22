@@ -8,9 +8,9 @@ agents reads the same thing. Whoever does the work, a person or an agent, is a w
 ## The stages
 
 ```text
-concept ──cut──▶ milestone (Delivers) ──release──▶ tasks + issues ──▶ readiness ──▶ build ──▶ merged
-                                                                                                │
-                                         milestone closed ◀── every Delivers check met ◀────────┘
+concept ──cut──▶ milestone (Delivers) ──release──▶ tasks + issues ──▶ build ──▶ merged
+                                                                                   │
+                            milestone closed ◀── every Delivers check met ◀────────┘
 ```
 
 | Stage | Recorded in | Who moves it |
@@ -18,7 +18,6 @@ concept ──cut──▶ milestone (Delivers) ──release──▶ tasks + i
 | Concept | a conversation with the owner; drafts in a branch | the owner, with a worker |
 | Cut | `docs/backlog/milestone-<X>.md` with `Delivers:` and tasks | a worker, in a pull request |
 | Released | `**Released:** <date>` in the milestone header; GitHub milestone and one issue per task | the owner's word; a worker writes it |
-| Ready | `docs/backlog/ready/<TASK>.md`, `**Verdict:** ready` | a worker, first commit of the task's branch |
 | Built | the merged pull request (`Closes #n`); the use cases' `state:` and `checked_by:` | the owner merges |
 | Closed | `**Closed:** <date>` in the header; the file moves to `docs/archive/backlog/` | a worker, once every `Delivers` check is met |
 
@@ -96,13 +95,12 @@ What a milestone delivers is fixed at release; its tasks are not.
 
 ## Tasks
 
-The task text in the milestone file is the source; the issue (label `task`) is its copy. Before the
-first line of code a worker writes the readiness record from `ready/TEMPLATE.md` against the code
-as it is that day, has it attacked by a reviewer who did not write it, and commits it as the
-branch's first commit. Its verdict is `ready`, or `waiting on the owner` naming the open `decision`
-issues — code that does not depend on them may start, but the pull request leaves draft only when
-the verdict is `ready`. After the merge the record is a snapshot: nobody updates it. No other pull
-request is stacked on a task that waits on the owner; other tasks go on.
+The task text in the milestone file is the source; the issue (label `task`) is its copy. The worker
+checks what the task says about today's code against the code before building on it, corrects a
+false premise in the same pull request and names it in the description (*Premises*); a question on
+the owner's list becomes a `decision` issue, and the pull request waits on it in draft. No other
+pull request is stacked on a task that waits on the owner; other tasks go on. The readiness records
+of the tasks up to 2026-10-22 are snapshots in `docs/archive/ready/` (ADR-0089).
 
 After creating a milestone's issues, compare each issue body with its task in the milestone file —
 the issue is only a copy, and copies have been created shifted by one.
@@ -132,9 +130,8 @@ once (§ "While a milestone runs").
 
 ## Contributions from outside
 
-- **A bug fix** is a pull request that closes the bug's issue or says `No issue:`; it has no
-  readiness record. Where it touches the contract, a migration or a query, a dependency, an ADR or
-  what a use case promises, it says `Readiness: n/a — <why>` instead (`make gate-pr`).
+- **A bug fix** is a pull request that closes the bug's issue or says `No issue:`, with its
+  description held to the template (`make gate-pr`).
 - **A feature** starts as an issue (feature form). It enters the product through a cut, like every
   other piece of work.
 - **People working closely on a part of Hubtask** with their own tools take a milestone of their
@@ -148,7 +145,6 @@ Everything a tool needs is readable without asking a worker:
 |---|---|
 | Which milestones run, what they deliver | `docs/backlog/milestone-*.md` headers (`Delivers`, `Released`, `Closed`) |
 | Which tasks exist, which are open | GitHub issues labelled `task`, by milestone |
-| Is a task ready | `docs/backlog/ready/<TASK>.md`, `**Verdict:**` |
 | Is it being built, is it done | the pull request: draft, ready, merged |
 | What waits on the owner | open issues labelled `decision` |
 | What was found and not yet placed | open issues labelled `finding` |
