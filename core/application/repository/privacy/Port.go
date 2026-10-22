@@ -246,6 +246,10 @@ type Erasure interface {
 	// still holds.
 	DiscardAiDrafts(ctx context.Context, accountID shared.ID) (int, error)
 
+	// DiscardKudos removes the kudos the person gave and received: an acknowledgement between two
+	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
+	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
+
 	// CountIntake answers how much of the intake carries the person's address.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
 

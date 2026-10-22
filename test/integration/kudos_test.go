@@ -161,3 +161,47 @@ func TestAnotherWorkspaceReadsAndWritesNoKudos(t *testing.T) {
 		t.Errorf("tenant B's kudos moved: %v %v", out, err)
 	}
 }
+
+// An erasure that keeps the account (ANONYMIZE) takes the person's kudos on both sides, and leaves
+// the kudos between two other people; a full deletion takes them with the account (PG-2).
+func TestAnErasureTakesThePersonsKudosOnBothSides(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	subject, colleague, other := seedAccount(ctx, t, tenantB), seedAccount(ctx, t, tenantB), seedAccount(ctx, t, tenantB)
+	_, collection := seedHubWithCollection(ctx, t, tenantB, authorB)
+	entry := seedEntry(ctx, t, tenantB, collection.ID, entryRow{})
+	kudos := postgres.NewKudosRepository()
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		for _, pair := range [][2]shared.ID{{subject, colleague}, {colleague, subject}, {colleague, other}} {
+			if _, err := kudos.Give(ctx, domain.Kudos{
+				ItemID: entry.id, GivenBy: pair[0], GivenTo: pair[1], GivenAt: figureMoment,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("seeding kudos: %v", err)
+	}
+
+	var removed int
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		removed, err = postgres.NewPrivacyRepository(pageCursors()).DiscardKudos(ctx, subject)
+		return err
+	}); err != nil {
+		t.Fatalf("discarding: %v", err)
+	}
+	if removed != 2 {
+		t.Errorf("%d kudos removed, want the one given and the one received", removed)
+	}
+	_ = read(ctx, t, tenantB, func(ctx context.Context) error {
+		if received, err := kudos.Received(ctx, entry.id, other); err != nil || len(received) != 1 {
+			t.Errorf("kudos between two other people went too: %v %v", received, err)
+		}
+		if received, err := kudos.Received(ctx, entry.id, subject); err != nil || len(received) != 0 {
+			t.Errorf("the person's kudos are still there: %v %v", received, err)
+		}
+		return nil
+	})
+}

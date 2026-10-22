@@ -281,6 +281,10 @@ func seedErasableSubject(
 			[]any{freshID().String(), tenant.String(), item.String(), subject.String()}},
 		{`INSERT INTO item_member (tenant_id, item_id, account_id) VALUES ($1, $2, $3)`,
 			[]any{tenant.String(), item.String(), subject.String()}},
+		// Kudos on both sides: given by the person, and given to them.
+		{`INSERT INTO kudos (tenant_id, item_id, given_by, given_to, given_at) VALUES ($1, $2, $3, $4, now()),
+		    ($1, $2, $4, $3, now())`,
+			[]any{tenant.String(), item.String(), subject.String(), robot.String()}},
 		{`INSERT INTO notification (id, tenant_id, recipient_id, category, channel, state)
 		  VALUES ($1, $2, $3, 'ASSIGNMENT', 'EMAIL', 'SENT')`,
 			[]any{freshID().String(), tenant.String(), subject.String()}},

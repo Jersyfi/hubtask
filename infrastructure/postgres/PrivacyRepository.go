@@ -670,6 +670,19 @@ func (r PrivacyRepository) DiscardAiDrafts(ctx context.Context, accountID shared
 	return int(drafts + asked), nil
 }
 
+// DiscardKudos removes the kudos the person gave and received.
+func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := queries.DeleteKudosOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the kudos of an account", err)
+	}
+	return int(rows), nil
+}
+
 // DiscardIntake removes what the person sent in by mail.
 func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
