@@ -21,7 +21,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
+  import { Badge, Banner, Breadcrumb, Button, Dialog, Drawer, Icon, OneTimeSecret, Spinner, Tabs, VisuallyHidden } from '@hubtask/design-system/components';
 
   import type { Suggestion } from '@hubtask/sync-engine';
 
@@ -739,7 +739,16 @@
   {:else}
     <header class="head">
       <div class="row">
-        <a class="back" href="/administration/rules"><Icon name="arrow-left" size="sm" />{t('app.flow.back')}</a>
+        <!-- The trail is the way back: *Administration › Automation › this rule* (design-system.md §11.5). -->
+        <Breadcrumb
+          label={t('app.admin.trail')}
+          expandLabel={t('app.admin.expand_trail')}
+          trail={[
+            { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+            { id: 'rules', label: t('app.rules.title'), href: '/administration/rules' },
+            { id: 'rule', label: isNew ? t('app.flow.new_title') : shownName || t('app.flow.new_title') },
+          ]}
+        />
         <div class="spacer"></div>
         {#if stored}
           <Badge tone={stored.enabled ? 'success' : 'neutral'}>{stored.enabled ? t('app.flow.state_on') : t('app.flow.state_off')}</Badge>
@@ -1039,9 +1048,6 @@
 
   .spacer { flex: 1 1 auto; }
 
-  .back { display: inline-flex; align-items: center; gap: var(--sp-050); color: var(--text-subtle); font-size: var(--fs-075); text-decoration: none; }
-
-  .back:hover { color: var(--text-primary); }
 
   .name { display: flex; align-items: center; gap: var(--sp-100); flex: 1 1 24ch; min-width: 0; padding: 0; border: 0; background: none; color: var(--text-primary); text-align: start; cursor: text; }
 

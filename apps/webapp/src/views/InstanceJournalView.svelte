@@ -24,6 +24,7 @@
   import { instance } from '../lib/data/instance.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -89,7 +90,7 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.instance.journal')} isTitleInBar={viewport.isCompact} />
+  <PageHeader title={t('app.instance.journal')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.journal') })} />
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="200">

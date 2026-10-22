@@ -186,3 +186,52 @@ test('chromium: the overview does not promise backup targets as later', async (t
   assert.match(text, /What this level will hold/);
   assert.doesNotMatch(text, /Backup targets the installation offers/);
 });
+
+/** The installation's screens, and the word each puts at the end of its trail. */
+const INSTALLATION_SECTION = [
+  ['/instance', 'Installation'],
+  ['/instance/workspaces', 'Workspaces'],
+  ['/instance/plans', 'Plans'],
+  ['/instance/settings', 'Defaults'],
+  ['/instance/providers', 'Sign-in providers'],
+  ['/instance/ai', 'AI'],
+  ['/instance/backup-targets', 'Backup targets'],
+  ['/instance/platform', 'Events to the platform'],
+  ['/instance/encryption', 'Keyring'],
+  ['/instance/operators', 'Operators'],
+  ['/instance/journal', 'Journal'],
+];
+
+// ux-inventory.md §E8, §E10: breadcrumbs everywhere, the installation included.
+test('chromium: every screen of the installation says where it is and leads back', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 812 } });
+  t.after(() => context.close());
+  await context.route('**/api/v1/**', (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, tenancy_mode: 'multi' } });
+    if (path === '/auth/sessions:elevate') {
+      return route.fulfill({ json: { elevated_until: new Date(Date.now() + 3_600_000).toISOString() } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  const untrailed = [];
+  for (const [route, word] of INSTALLATION_SECTION) {
+    await page.goto(`${served.origin}${route}`);
+    const trail = page.getByRole('navigation', { name: 'Where you are in the installation' });
+    const shown = await trail.textContent({ timeout: 4_000 }).catch(() => undefined);
+    if (!shown || !shown.includes('Installation') || !shown.includes(word)) untrailed.push(`${route} (${shown})`);
+  }
+  assert.deepEqual(untrailed, [], `these screens do not say where they are: ${untrailed.join(', ')}`);
+
+  await page.goto(`${served.origin}/instance/journal`);
+  await page.getByRole('navigation', { name: 'Where you are in the installation' }).getByRole('link', { name: 'Installation' }).click();
+  await page.waitForFunction(() => location.pathname === '/instance', null, { timeout: 5_000 });
+});

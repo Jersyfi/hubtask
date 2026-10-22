@@ -165,12 +165,16 @@ test('chromium: the administration is a section, and the tree is not in it', asy
 
 /** The section's screens, and the word each puts at the end of its trail. */
 const SECTION = [
+  ['/administration', 'Administration'],
   ['/administration/workspace', 'Workspace'],
   ['/administration/people', 'People'],
   ['/administration/groups', 'Groups'],
   ['/administration/permissions', 'What each role means'],
   ['/administration/service-accounts', 'Service accounts'],
   ['/administration/apps', 'Third-party apps'],
+  ['/administration/rules', 'Automation'],
+  ['/administration/rules/new', 'New rule'],
+  ['/administration/runs', 'What the rules did'],
   ['/administration/webhooks', 'Webhooks'],
   ['/administration/quotas', 'Limits'],
   ['/administration/private-hubs', 'Private hubs'],
@@ -179,6 +183,7 @@ const SECTION = [
   ['/administration/restore', 'Restore'],
   ['/administration/audit', 'The trail'],
   ['/administration/privacy', "People's requests"],
+  ['/administration/sign-in', 'Sign-in'],
   ['/administration/identity-provider', 'Sign-in provider'],
   ['/administration/ai', 'AI'],
 ];
