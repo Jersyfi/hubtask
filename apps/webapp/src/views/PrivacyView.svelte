@@ -61,6 +61,7 @@
   import { formatDateTime, formatDue, formatRelative } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import PersonPicker from '../lib/people/PersonPicker.svelte';
   import { renderProblem } from '../lib/problem.ts';
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
@@ -614,9 +615,10 @@
             bind:value={draftEmail}
             error={missing.subject && !draftEmail.trim() && !draftAccount.trim() ? t(missing.subject) : undefined}
           />
-          <Input
+          <PersonPicker
             label={t('app.privacy.subject_account')}
             hint={t('app.privacy.subject_account_hint')}
+            noneLabel={t('app.person_picker.choose')}
             bind:value={draftAccount}
           />
           {#if producesArchive(draftKind as Kind)}
@@ -689,7 +691,12 @@
             <h3 class="section">{t('app.privacy.restrict_title')}</h3>
             <!-- What it means for the person's sessions and for the workspace's automations. -->
             <p class="quiet small">{t('app.privacy.restrict_note')}</p>
-            <Input label={t('app.privacy.restrict_account')} bind:value={restrictAccount} error={missing.restrict && !restrictAccount.trim() ? t(missing.restrict) : undefined} />
+            <PersonPicker
+              label={t('app.privacy.restrict_account')}
+              noneLabel={t('app.person_picker.choose')}
+              bind:value={restrictAccount}
+              error={missing.restrict && !restrictAccount.trim() ? t(missing.restrict) : undefined}
+            />
             <Input label={t('app.privacy.restrict_reason')} bind:value={restrictReason} />
             <div>
               <Button
@@ -730,9 +737,10 @@
               bind:value={withdrawPurpose}
               error={missing.purpose && !withdrawPurpose.trim() ? t(missing.purpose) : undefined}
             />
-            <Input
+            <PersonPicker
               label={t('app.privacy.withdraw_account')}
               hint={t('app.privacy.withdraw_account_hint')}
+              noneLabel={t('app.person_picker.yourself')}
               bind:value={withdrawAccount}
             />
             <div>
