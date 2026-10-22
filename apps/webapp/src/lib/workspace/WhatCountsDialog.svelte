@@ -145,5 +145,5 @@
 
 <style>
   .hint, .locked { margin: 0; color: var(--text-secondary); }
-  .failure { margin: 0; color: var(--status-danger-text); }
+  .failure { margin: 0; color: var(--text-danger); }
 </style>
