@@ -1,0 +1,40 @@
+{
+  "description": "Hubtask's four presets as build data: the levels, each level's fields and what capture recognises. Read by core/application/service/work/PresetsFixture_test.go against BuiltInPresets and by the web app's capture tests, so a preset changed on one side turns both red.",
+  "presets": [
+    {
+      "key": "LIST",
+      "levels": ["TASK"],
+      "fields": {
+        "TASK": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS"]
+      },
+      "capture": ["LINES", "AMOUNT"]
+    },
+    {
+      "key": "TASKS",
+      "levels": ["TASK", "ACTIVITY"],
+      "fields": {
+        "TASK": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"],
+        "ACTIVITY": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "HISTORY"]
+      },
+      "capture": ["DATE", "PERSON", "LABEL"]
+    },
+    {
+      "key": "PROJECT",
+      "levels": ["TASK", "WORK_PACKAGE", "ACTIVITY"],
+      "fields": {
+        "TASK": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"],
+        "WORK_PACKAGE": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"],
+        "ACTIVITY": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"]
+      },
+      "capture": ["DATE", "PERSON", "LABEL"]
+    },
+    {
+      "key": "FLOW",
+      "levels": ["TASK"],
+      "fields": {
+        "TASK": ["COMPLETION", "DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "BUCKET", "NOTES", "LABELS", "COMMENTS", "COVER", "ATTACHMENTS", "HISTORY", "RECURRENCE", "CUSTOM_FIELDS"]
+      },
+      "capture": ["DATE", "PERSON", "LABEL"]
+    }
+  ]
+}
