@@ -4,17 +4,16 @@
 // Command checkpr holds a pull request description to the template (the job `Pull request
 // description` in ci.yml, part of `CI required`; `make gate-pr BODY=<file>` locally).
 //
-// A description is where the review, the use cases' checks and the Definition of Done are recorded,
-// and the template is how AGENTS.md asks for them. It was skipped anyway, by a session that wrote
+// A description is where the use cases' checks and the premises found false are recorded, and the
+// template is how AGENTS.md asks for them. It was skipped anyway, by a session that wrote
 // descriptions from scratch with `gh pr create --body`: GitHub shows the template only to somebody
 // who opens the form. This reads the description the way a reviewer would and names what is missing.
 //
 // Usage: checkpr -body <file> [-title <title>] [-opened <RFC 3339>] [-base <ref> [-head <ref>]]
-// (or the description on stdin). The Definition of Done is compared with the template's (dod.go),
-// and the title is a Conventional Commit (title.go).
-// With -base it also reads the branch's history: the readiness record of every task it carries,
-// merged migrations it changes, use cases it deletes, settled ADRs it rewrites, section numbers of
-// subject documents it drops (readiness.go). A rule added after a pull
+// (or the description on stdin). The title is a Conventional Commit (title.go).
+// With -base it also reads the branch's history: merged migrations it changes, use cases it
+// deletes, settled ADRs it rewrites, section numbers of subject documents it drops (rules.go).
+// A rule added after a pull
 // request was opened (-opened) does not apply to it.
 package main
 
@@ -61,11 +60,6 @@ func main() {
 		fail(err)
 	}
 
-	dod, err := templateDoD(root)
-	if err != nil {
-		fail(err)
-	}
-
 	var opened time.Time
 	if *openedAt != "" {
 		if opened, err = time.Parse(time.RFC3339, *openedAt); err != nil {
@@ -80,15 +74,10 @@ func main() {
 	}
 
 	problems := check(string(raw), required, useCases)
-	if heldTo(opened, dodSince) {
-		problems = append(problems, dodProblems(string(raw), dod)...)
-	}
 	if titleGiven && heldTo(opened, titleSince) {
 		problems = append(problems, titleProblems(*title)...)
 	}
-	problems = append(problems, historyProblems(string(raw), facts, func(path string) ([]byte, error) {
-		return os.ReadFile(filepath.Join(root, filepath.FromSlash(path))) //nolint:gosec // G304: docs/backlog/ready/<TASK>.md, the task taken from the branch's own trailers
-	})...)
+	problems = append(problems, historyProblems(string(raw), facts)...)
 	if len(problems) == 0 {
 		fmt.Println("pull request description: every section of the template is there and filled")
 		return

@@ -32,6 +32,9 @@ concurrency:
 jobs:
   after:
     name: Re-run once, file a red main, release what waited
+    # A draft's run checks nothing and ends skipped (ADR-0089): there is nothing to act on, and no
+    # runner is started for it.
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion != 'skipped'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

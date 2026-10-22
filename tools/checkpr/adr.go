@@ -17,7 +17,7 @@ import (
 // before the rule keep them; this reads only what a pull request changes.
 
 // adrSince is when the rule took effect.
-var adrSince = readinessSince
+var adrSince = rulesSince
 
 var (
 	adrFile      = regexp.MustCompile(`^docs/adr/ADR-\d{4}-[a-z0-9-]+\.md$`)
