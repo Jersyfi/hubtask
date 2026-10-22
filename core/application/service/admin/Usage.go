@@ -43,6 +43,7 @@ func UsageMetrics() []UsageMetric {
 		{"accounts", "HIGHEST", "UTC"},
 		{"ai_tokens_per_day", "SUM", "WORKSPACE"},
 		{"ai_own_tokens_per_day", "SUM", "WORKSPACE"},
+		{"ai_arrival_proposals_per_day", "SUM", "WORKSPACE"},
 		{"automation_runs_per_hour", "SUM", "UTC"},
 	}
 }

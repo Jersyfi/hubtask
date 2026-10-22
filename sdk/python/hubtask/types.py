@@ -427,12 +427,16 @@ class AiSource(TypedDict, total=False):
     person_opt_out_contact: str
     person_opt_out_since: str
     keeping_out_count: Required[int]
+    prepare_on_arrival: Required[bool]
     updated_at: str
     version: Required[int]
 
 AiPersonOptOut = Literal["OFFERED", "NOT_OFFERED"]
 
 AiOptOutBasis = Literal["EMPLOYMENT_CONTRACT", "WORKS_AGREEMENT", "LEGAL_OBLIGATION"]
+
+class AiArrivalProposalsChoice(TypedDict, total=False):
+    prepare: Required[bool]
 
 class AiPersonOptOutChoice(TypedDict, total=False):
     person_opt_out: Required["AiPersonOptOut"]
@@ -1189,7 +1193,7 @@ class TenantExportRequest(TypedDict, total=False):
     target_id: Required[str]
 
 class QuotaStanding(TypedDict, total=False):
-    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "accounts"]]
+    quota: Required[Literal["api_requests_per_minute", "items", "media_bytes", "automation_runs_per_hour", "webhook_targets", "export_jobs", "ai_tokens_per_day", "ai_own_tokens_per_day", "ai_arrival_proposals_per_day", "accounts"]]
     limit: Required[int]
     used: int | None
     ratio: float | None
@@ -1210,6 +1214,7 @@ class TenantQuotas(TypedDict, total=False):
     export_jobs: int | None
     accounts: int | None
     ai_tokens_per_day: int | None
+    ai_arrival_proposals_per_day: int | None
 
 class TenantDeletionScheduled(TypedDict, total=False):
     tenant_id: Required[str]
@@ -1480,6 +1485,8 @@ class Container(TypedDict, total=False):
     private: bool
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
+    clipped_by_levels: list["StructureSettingName"]
+    figure: "CollectionFigure"
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1531,7 +1538,7 @@ class StructureViews(TypedDict, total=False):
     default: Required[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]
 
 class StructureCounts(TypedDict, total=False):
-    """The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients."""
+    """What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why."""
     figure: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW", "NONE"]]
     field_key: str | None
 
@@ -1557,6 +1564,26 @@ class EffectiveStructure(TypedDict, total=False):
     settings: Required["StructureSettings"]
     sources: Required[dict[str, Any]]
     locks: Required[dict[str, Any]]
+    counts_clipped: "StructureCountsClip"
+
+StructureCountsClip = TypedDict("StructureCountsClip", {
+    "from": Required["StructureCounts"],
+    "reason": Required[Literal["ONE_LEVEL"]],
+}, total=False)
+
+class CollectionFigure(TypedDict, total=False):
+    """What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
+    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS"]]
+    today: Required[str]
+    unavailable: bool
+    open: int
+    sum: float | None
+    summed: int
+    due: int
+    days: list[str]
+    week_start: str
+    done: int
+    total: int
 
 class StructureLock(TypedDict, total=False):
     origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]
@@ -1828,6 +1855,7 @@ class JumbleEntry(TypedDict, total=False):
     target_item_id: str | None
     received_at: Required[str]
     settled_at: str | None
+    arrival_job_id: str | None
 
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""
@@ -1860,6 +1888,18 @@ class JumbleEntryConvert(TypedDict, total=False):
 
 class JumbleEntryPage(TypedDict, total=False):
     data: Required[list["JumbleEntry"]]
+    page: Required["PageInfo"]
+
+class JumbleDestination(TypedDict, total=False):
+    """One collection a jumble entry may become work in, with its hub."""
+    id: Required[str]
+    name: Required[str]
+    hub_id: Required[str]
+    hub_name: Required[str]
+    hub_private: Required[bool]
+
+class JumbleDestinationPage(TypedDict, total=False):
+    data: Required[list["JumbleDestination"]]
     page: Required["PageInfo"]
 
 class RuleTest(TypedDict, total=False):

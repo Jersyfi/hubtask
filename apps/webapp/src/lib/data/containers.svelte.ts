@@ -19,7 +19,7 @@
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
-import type { Container, ContainerPage, ResourceState } from '@hubtask/sync-engine';
+import type { Container, ContainerPage, ResourceState, StructureChange } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -206,6 +206,31 @@ class Containers {
     await engine.refresh<ContainerPage>({ path: collectionsPath(hubId) });
   }
 
+  /**
+   * What a collection's figure was counted from moved: its own read and its hub's level are read
+   * again, where somebody has them open - a level nobody opened is not fetched for a figure.
+   */
+  async refreshFigures(targets: { readonly collections: readonly string[]; readonly hubs: readonly string[] }): Promise<void> {
+    const reads: Promise<unknown>[] = [];
+    for (const hubId of targets.hubs) {
+      if (this.#levels[hubId] !== undefined) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
+    }
+    for (const id of targets.collections) {
+      if (this.#single[id] !== undefined) reads.push(engine.refresh<Container>({ path: `/containers/${id}` }));
+    }
+    await Promise.allSettled(reads);
+  }
+
+  /** Every collection this client holds, with its figure where it has one: what a new day re-reads. */
+  get loadedCollections(): readonly Container[] {
+    const seen = new Map<string, Container>();
+    for (const state of Object.values(this.#levels)) for (const container of rowsOf(state)) seen.set(container.id, container);
+    for (const state of Object.values(this.#single)) {
+      if (state.status === 'ready' && state.data.type === 'COLLECTION') seen.set(state.data.id, state.data);
+    }
+    return [...seen.values()];
+  }
+
   /** The `Idempotency-Key` is the caller's: pressing "create" twice is one intent, not two hubs. */
   async create(
     body: {
@@ -250,6 +275,17 @@ class Containers {
    */
   async setPolicies(id: string, policies: Container['policies'], version: number): Promise<Container> {
     return engine.mutate<Container>('PUT', `/containers/${id}/policies`, policies, {
+      ifMatch: etagFor(version),
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Changes settings of a hub's or a collection's own structure (`PATCH …/structure`), one by one;
+   * the answer is the container with its structure in force, its figure read again with the level.
+   */
+  async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
+    return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
       ifMatch: etagFor(version),
       invalidates: TOUCHES,
     });

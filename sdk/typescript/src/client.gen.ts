@@ -191,6 +191,16 @@ export class HubtaskClient {
     return this.call("POST", "/jumble/entries", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Where an entry may become work for you */
+  listJumbleDestinations(options: CallOptions & { readonly query?: NonNullable<operations["listJumbleDestinations"]['parameters']['query']> } = {}): Promise<operations["listJumbleDestinations"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/jumble/destinations", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** One jumble entry */
+  getJumbleEntry(entryId: string, options: CallOptions = {}): Promise<operations["getJumbleEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/jumble/entries/{entryId}", { "entryId": entryId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** Turn an entry into work */
   convertJumbleEntry(entryId: string, body: NonNullable<operations["convertJumbleEntry"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["convertJumbleEntry"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/jumble/entries/{entryId}:convert", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
@@ -1332,6 +1342,11 @@ export class HubtaskClient {
   /** Whether each person may keep their own content out of AI */
   setAiPersonOptOut(body: NonNullable<operations["setAiPersonOptOut"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiPersonOptOut"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/ai-person-opt-out", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Whether AI prepares a proposal for each new jumble entry */
+  setAiArrivalProposals(body: NonNullable<operations["setAiArrivalProposals"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setAiArrivalProposals"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/ai-arrival-proposals", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
   /** Set the daily budget of this workspace's own AI model */

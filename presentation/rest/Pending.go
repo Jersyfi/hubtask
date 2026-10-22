@@ -461,6 +461,14 @@ func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ opena
 	notAvailable(w, r)
 }
 
+func (pending) ListJumbleDestinations(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleDestinationsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) GetJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
 func (pending) SubmitJumbleEntry(w http.ResponseWriter, r *http.Request, _ openapi.SubmitJumbleEntryParams) {
 	notAvailable(w, r)
 }
@@ -1397,6 +1405,10 @@ func (pending) ChooseAiSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func (pending) SetOwnAiBudget(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
 

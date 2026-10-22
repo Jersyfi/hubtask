@@ -147,3 +147,45 @@ func TestALevelRefusalNamesTheTypeAndTheField(t *testing.T) {
 		t.Errorf("an unknown type answered %v", err)
 	}
 }
+
+// Counted asks Hidden's level question the way a statement over an entry's path does: an entry is
+// shown exactly where its type and every type above it are counted. Every combination of levels,
+// under the full bound and under one that no longer holds the activity, over every chain the
+// matrix allows.
+func TestCountedTypesAnswerWhatHiddenAnswers(t *testing.T) {
+	full := testBound()
+	profiles := []CapabilityProfile{}
+	for _, itemType := range []ItemType{ItemTask, ItemWorkPackage} {
+		profile, _ := full.Profile(itemType)
+		profile.AllowedChildTypes = slices.DeleteFunc(slices.Clone(profile.AllowedChildTypes),
+			func(child ItemType) bool { return child == ItemActivity })
+		profiles = append(profiles, profile)
+	}
+	withoutActivities := NewStructureBound(profiles, profiles)
+
+	chains := [][]ItemType{
+		{ItemTask}, {ItemWorkPackage, ItemTask}, {ItemActivity, ItemTask},
+		{ItemActivity, ItemWorkPackage, ItemTask},
+	}
+	for _, bound := range []StructureBound{full, withoutActivities} {
+		for mask := 1; mask < 8; mask++ {
+			var levels []Level
+			for i, itemType := range ItemTypes() {
+				if mask&(1<<i) != 0 {
+					levels = append(levels, Level{Type: itemType})
+				}
+			}
+			offered := NewOffered(bound, EffectiveStructure{Values: StructureValues{Levels: levels}})
+			counted := offered.Counted()
+			for _, chain := range chains {
+				shown := true
+				for _, itemType := range chain {
+					shown = shown && slices.Contains(counted, itemType)
+				}
+				if hidden := offered.Hidden(chain[0], chain[1:]).Level; hidden == shown {
+					t.Errorf("levels %v, chain %v: Hidden says %v, Counted shows %v", levels, chain, hidden, shown)
+				}
+			}
+		}
+	}
+}

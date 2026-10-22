@@ -97,6 +97,8 @@ type tenant struct {
 	id         string
 	token      string
 	collection string
+	// hub is the tenant's one hub, whose level of collections is read with their figures.
+	hub string
 }
 
 var (
@@ -247,7 +249,7 @@ func seed(ctx context.Context, container *tcpostgres.PostgresContainer, tenants,
 		{"tenant", "id, slug, display_name"},
 		{"account", "id, tenant_id, kind, display_name, status"},
 		{"membership", "id, tenant_id, account_id, scope_type, role"},
-		{"container", "id, tenant_id, type, parent_id, name, order_key, created_by"},
+		{"container", "id, tenant_id, type, parent_id, name, order_key, created_by, policies"},
 		{"work_item", "id, tenant_id, collection_id, type, parent_id, path, depth, title, " +
 			"is_completed, completed_at, order_key, due_at, created_by, created_at"},
 	}
@@ -329,6 +331,7 @@ func mintTokens(ctx context.Context, container *tcpostgres.PostgresContainer, te
 			id:         tenantID,
 			token:      token.Secret(),
 			collection: derived(ctx, "collection", rank, 0),
+			hub:        derived(ctx, "hub", rank),
 		})
 	}
 	return minted, nil

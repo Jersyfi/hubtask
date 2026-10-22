@@ -670,6 +670,24 @@ export function noteOf(asking: AskingState | undefined): AskingNote | undefined 
   }
 }
 
+/**
+ * How a proposal prepared on arrival ended, as its card records it (UC-JUM-07 check 10). Nobody
+ * asked, so nothing is said on the card but the proposal itself: a spent budget is said once for
+ * the page (`budgetSpentOf`), and every other ending - switched off, the day's number reached,
+ * nothing to send, AI off - leaves the arrival waiting for somebody to ask, quietly.
+ */
+export function arrivalEndedAs(outcome: Exclude<FollowOutcome, 'left'>): AskingState {
+  return outcome === 'arrived' ? { outcome: 'arrived' } : { outcome: 'ended' };
+}
+
+/** The spent budget a follow ended on, where it did: what the jumble says once for the page. */
+export function budgetSpentOf(outcome: FollowOutcome): Said | undefined {
+  if (typeof outcome === 'object' && 'refused' in outcome && outcome.refused.params?.reason === 'budget_spent') {
+    return outcome.refused;
+  }
+  return undefined;
+}
+
 /** What an ask that ended records, from what its follow came to. */
 export function endedAs(outcome: Exclude<FollowOutcome, 'left'>): AskingState {
   if (outcome === 'arrived') return { outcome: 'arrived' };

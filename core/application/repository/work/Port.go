@@ -63,6 +63,34 @@ type ContainerPage struct {
 	Info       PageInfo
 }
 
+// CollectionQuery asks for the collections across every hub, in the tree's order.
+type CollectionQuery struct {
+	// IncludePrivate keeps the collections of private hubs. Without it the answer is the shared
+	// set: the collections everybody who may convert an arrival may write in.
+	IncludePrivate bool
+	Page           Page
+}
+
+// CollectionInHub is one collection with the hub it sits in, as a picker names it.
+type CollectionInHub struct {
+	Collection work.Container
+	HubName    string
+	HubPrivate bool
+}
+
+// CollectionPage is one page of collections across the hubs.
+type CollectionPage struct {
+	Collections []CollectionInHub
+	Info        PageInfo
+}
+
+// Collections reads the collections across the hubs.
+type Collections interface {
+	// InOrder answers the collections that are neither trashed nor archived - their own stamp or
+	// their hub's - in the hubs' manual order and then each hub's. It judges no permission.
+	InOrder(ctx context.Context, query CollectionQuery) (CollectionPage, error)
+}
+
 // ItemQuery names one level of one collection.
 //
 // CollectionID is required even when ParentID decides the level on its own: it is what the index the
@@ -1208,4 +1236,11 @@ type Structures interface {
 	// SetWorkspace writes the workspace's layer under the tenant row's version, or reports a version
 	// conflict.
 	SetWorkspace(ctx context.Context, workspace work.WorkspaceStructure, expectedVersion int, at time.Time) error
+}
+
+// Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
+// kind needs, over the entries that are neither trashed nor hidden. A collection with nothing to
+// count is answered with zeros, or not at all.
+type Figures interface {
+	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
 }

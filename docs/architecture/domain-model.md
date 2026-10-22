@@ -94,9 +94,19 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
 * **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
-  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients;
-  the server stores and answers them. `automation` holds no value yet: nothing runs by itself that
+  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `capture`, `celebration` and `automation` are applied by clients; the server
+  stores and answers them. `counts` the server applies on the collection's read: it counts the
+  figure (`figure`, in the reader's day and week, leaving out trashed and hidden entries, in a
+  read-only transaction of its own so that a figure that cannot be counted is marked
+  `unavailable` and never fails the read) and the client draws it. `automation` holds no value yet: nothing runs by itself that
   a collection may switch on.
+* **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
+  a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
+  write whose own values set `PROGRESS` where the levels in force after it are one is refused
+  (`structure.figure_not_offered`); wherever else the two meet — a preset, a reset, a narrowing on
+  any layer, the installation's bound, a lock — the structure in force says `OPEN`,
+  `counts_clipped` keeps what the layers said, and the write that caused it names `counts` in
+  `clipped_by_levels`. A lock is judged against what the layers say, before the clip.
 * **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
   `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
   touches an entry. The container's write publishes `container.policies_updated` with the settings
@@ -480,7 +490,7 @@ choice is not the obvious one:
 | Scheduling | `SetRecurrence` sets and changes a series in one `PUT`; the audit entry and the history verb say which happened. `GetRecurrence` reads it back |
 | Templates | Defining, changing and deleting ask for `STRUCTURE` at the template's scope; instantiating only for `WRITE_ITEMS` in the target collection |
 | Views & query | `QueryItems` is the query DSL. A saved query is validated against the query catalogue when written, and a shared view always runs under the **reader's** authorisation, never its owner's |
-| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out) and is refused before queueing without provider or consent |
+| Jumble | Submitting, converting and dismissing ask for `WRITE_ITEMS` at the tenant, reading for `READ` — an entry sits in no collection yet; the converted item goes through `CreateWorkItem`, which checks the destination. Rotating the intake address asks for `AUTOMATION`; the address is shown once. `SuggestFromJumbleEntry` asks for `WRITE_ITEMS` (it spends budget and sends content out) and is refused before queueing without provider or consent. `GetJumbleEntry` reads one entry under `READ`; `ListJumbleDestinations` asks what converting asks and answers the collections the caller may create in. Proposals prepared on arrival are no use case anybody calls: the workspace's switch (`SetAiArrivalProposals`, the AI configuration's `STRUCTURE`) has a subscriber of `jumble.entry.received` queue one job per arrival, which asks as the system for the workspace ([ai-first.md](./ai-first.md) §2) |
 | Lifecycle | Writing a retention rule asks for `DELETE_CONTAINER` (a standing instruction to destroy work), as does placing a legal hold, which overrides retention, an emptied trash and an erasure ([data-protection.md](./data-protection.md) §4.1); reading and previewing either asks for `STRUCTURE`. `:retain` is a write on the entry, narrowed like any other |
 | Privacy & compliance | Data subject requests: [data-protection.md](./data-protection.md) §4 (an `INSTALLATION` case is the one operation that legitimately crosses the tenant boundary). `ExtendDataSubjectRequest` asks for `MANAGE_MEMBERS`, and `admin:tenants` for an `INSTALLATION` case; it is not destructive, so an agent extends without `agent:destructive`, which the update - it can start an erasure - demands. `PreviewErasure` reads what the legal holds in force would keep of an erasure under the list's right (`MANAGE_MEMBERS`, `privacy:read`), and `admin:tenants` for an `INSTALLATION` case; it never carries a hold's reason. `RestrictProcessing` asks for `MANAGE_MEMBERS`; Lifting a restriction is refused while a legal hold keeps the account from an erasure. `WithdrawConsent` is self-service for one's own consent, `MANAGE_MEMBERS` for somebody else's |
 | Integration | Creating, listing and revoking a calendar feed ask only for the view's read permission: a feed grants exactly what its owner may already read, and revoking is never harder than minting |

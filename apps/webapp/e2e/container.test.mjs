@@ -28,7 +28,7 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 // "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
-const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
+const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'What counts', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -66,7 +66,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
     .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
 
   // Every dialog the toolbar opened opens from the menu, and Escape brings focus back.
-  for (const [item, title] of [['Labels', 'Labels'], ['Custom fields', 'Custom fields'], ['Saved views', 'Saved views'], ['Templates', 'Templates'], ['Policies', 'Policies'], ['People', 'People'], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
+  for (const [item, title] of [['Labels', 'Labels'], ['Custom fields', 'Custom fields'], ['What counts', 'What counts'], ['Saved views', 'Saved views'], ['Templates', 'Templates'], ['Policies', 'Policies'], ['People', 'People'], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
     await trigger.focus();
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: item }).click();

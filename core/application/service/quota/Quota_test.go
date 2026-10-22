@@ -503,6 +503,41 @@ func TestAZoneChangedMidDayTakesEffectFromTheNextCall(t *testing.T) {
 	}
 }
 
+// T-27: the proposals prepared on arrival are a number of arrivals a day, 200 by default in both
+// modes, taken one at a time on the workspace's day before anything is sent; at the cap nothing is
+// taken and nothing counted.
+func TestTheProposalsOnArrivalHaveADailyCap(t *testing.T) {
+	for _, mode := range []env.TenancyMode{env.TenancySingle, env.TenancyMulti} {
+		if Defaults(mode).AiArrivalProposalsPerDay != 200 {
+			t.Errorf("%s defaults the cap to %d", mode, Defaults(mode).AiArrivalProposalsPerDay)
+		}
+	}
+	ceiling := int64(2)
+	store := &storeFake{zone: "Europe/Berlin", overrides: repository.Overrides{AiArrivalProposalsPerDay: &ceiling}}
+	usage := &usageFake{metered: 1}
+	meter := &meterFake{}
+	guard := Guard{Store: store, Usage: usage, Meter: meter, Tenancy: env.TenancyMulti}
+	at := time.Date(2026, 10, 1, 23, 30, 0, 0, time.UTC)
+
+	if room, err := guard.ArrivalProposal(t.Context(), "a-tenant", at); err != nil || !room {
+		t.Fatalf("below the cap: room %v (%v)", room, err)
+	}
+	if usage.meteredMetric != AiArrivalProposalsPerDay || meter.added[AiArrivalProposalsPerDay] != 1 {
+		t.Errorf("counted %q, took %v", usage.meteredMetric, meter.added)
+	}
+	if day := meter.days[0]; day.Format("2006-01-02") != "2026-10-02" {
+		t.Errorf("taken on %s, want the workspace's day", day)
+	}
+
+	usage.metered = 2
+	if room, err := guard.ArrivalProposal(t.Context(), "a-tenant", at); err != nil || room {
+		t.Errorf("at the cap: room %v (%v)", room, err)
+	}
+	if meter.added[AiArrivalProposalsPerDay] != 1 {
+		t.Errorf("an arrival past the cap was counted: %v", meter.added)
+	}
+}
+
 // UC-AI-06 check 6 and UC-AI-07 check 2: the offered model's budget and the workspace's own one are
 // two, counted apart. The installation's budget never reaches the own model, which is limited only
 // by the workspace's own optional budget.

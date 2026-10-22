@@ -528,6 +528,60 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /jumble/destinations:
+    get:
+      tags: [jumble]
+      operationId: listJumbleDestinations
+      summary: Where an entry may become work for you
+      description: >
+        The collections a jumble entry may be converted into by the caller: neither trashed nor
+        archived - by their own stamp or their hub's - and where the caller may create an entry,
+        private hubs the caller is in included. Each names its hub, and they come in the order of
+        the tree: the hubs' manual order, then each hub's collections in theirs.
+
+        A person who may not convert anything is refused rather than answered an empty list. A
+        page can be shorter than the size asked for, because the collections the caller may not
+        create in are left out of what was scanned; follow `next_cursor` until there is none.
+      parameters:
+        - $ref: "#/components/parameters/Cursor"
+        - name: size
+          in: query
+          description: Collections scanned per page.
+          schema: { type: integer, minimum: 1, maximum: 200, default: 100 }
+      responses:
+        "200":
+          description: One page of destinations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleDestinationPage"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /jumble/entries/{entryId}:
+    parameters:
+      - name: entryId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      tags: [jumble]
+      operationId: getJumbleEntry
+      summary: One jumble entry
+      description: >
+        One entry, whatever its state: what arrived and what became of it. The raw content is
+        answered here - to a credential that may read the workspace's entries - and nowhere that
+        travels. An entry of another workspace is answered `404`, as a missing one is.
+      responses:
+        "200":
+          description: The entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/JumbleEntry"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /jumble/entries/{entryId}:convert:
     parameters:
       - name: entryId
@@ -576,10 +630,11 @@ paths:
       operationId: suggestFromJumbleEntry
       summary: Ask AI what this entry should become
       description: >
-        Asks the workspace's AI provider to propose a title, notes, a due date and labels for one
-        entry. It **proposes** and changes nothing: what comes back is a
-        suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody
-        converts the entry.
+        Asks the workspace's AI provider to propose a title, notes, a due date, the steps the
+        material implies and the collection it fits best for one entry - the collection chosen from
+        those everybody who may convert may write in. It **proposes** and changes nothing: what
+        comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only
+        when somebody accepts it or converts the entry.
 
         Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never
         sits in a request — the suggestion appears when the provider has answered. Asking twice
@@ -7104,6 +7159,35 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /ai-arrival-proposals:
+    put:
+      tags: [ai]
+      operationId: setAiArrivalProposals
+      summary: Whether AI prepares a proposal for each new jumble entry
+      description: >
+        `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without
+        anybody asking; `false`, the default, waits for somebody to ask. The workspace's own
+        decision: no installation or plan value sets or locks it. Content is still sent only where
+        the workspace consented and its AI answers; nothing a person who keeps their content out
+        wrote or sent travels; each arrival counts against the AI budget and against
+        `ai_arrival_proposals_per_day`. Two writes at once answer the second `409`
+        (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiArrivalProposalsChoice"
+      responses:
+        "200":
+          description: Set
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSource"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /ai-budget:
     put:
       tags: [ai]
@@ -7877,7 +7961,9 @@ paths:
         every hub and collection - the whole set, keyed by a setting or by one capability of one
         type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes
         it). A value beyond what the installation offers is refused with
-        `capability_not_supported`. Needs the right to change the workspace's shape. The answer is
+        `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are
+        one is refused with `structure.figure_not_offered`. Needs the right to change the
+        workspace's shape. The answer is
         the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -8074,8 +8160,11 @@ paths:
         installation offers is refused with `capability_not_supported` (`structure.widens`); a
         setting the workspace locked is refused with `structure.setting_locked` - except that a
         preset chosen under a lock is accepted with the locked setting kept, named in
-        `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the
-        workspace's shape where the container sits. Writing what is stored changes nothing.
+        `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change
+        are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing
+        that brings the two together is accepted, `counts` shown as `OPEN` and named in
+        `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change
+        the workspace's shape where the container sits. Writing what is stored changes nothing.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
       requestBody:
@@ -11594,7 +11683,7 @@ components:
       type: object
       required: [source, sources, installation_sources, sources_origin, min_jurisdiction,
         min_jurisdiction_origin, offered, version, person_opt_out, person_opt_out_origin,
-        keeping_out_count]
+        keeping_out_count, prepare_on_arrival]
       properties:
         source:
           $ref: "#/components/schemas/AiSourceKind"
@@ -11667,6 +11756,11 @@ components:
           description: >
             How many people keep their own content out now, or whose objection stops taking
             effect under `NOT_OFFERED`. A number, never who: the consent register names them.
+        prepare_on_arrival:
+          type: boolean
+          description: >
+            Whether AI prepares a proposal for each new jumble entry as it arrives
+            (`PUT /ai-arrival-proposals`). Off by default.
         updated_at: { type: string, format: date-time }
         version: { type: integer }
 
@@ -11681,6 +11775,14 @@ components:
       type: string
       enum: [EMPLOYMENT_CONTRACT, WORKS_AGREEMENT, LEGAL_OBLIGATION]
       description: The legal basis a workspace names for making AI part of everybody's work.
+
+    AiArrivalProposalsChoice:
+      type: object
+      required: [prepare]
+      properties:
+        prepare:
+          type: boolean
+          description: True prepares a proposal for each new jumble entry; false waits for somebody to ask.
 
     AiPersonOptOutChoice:
       type: object
@@ -12799,7 +12901,8 @@ components:
       type: string
       description: >
         A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`,
-        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted
+        `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`,
+        `automation_runs_per_hour` - the last counted
         per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client
         tolerates a name it does not know, as a later release may add one.
 
@@ -14147,11 +14250,13 @@ components:
       properties:
         quota:
           type: string
-          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, accounts]
+          enum: [api_requests_per_minute, items, media_bytes, automation_runs_per_hour, webhook_targets, export_jobs, ai_tokens_per_day, ai_own_tokens_per_day, ai_arrival_proposals_per_day, accounts]
           description: >
-            The two AI rows are counted per source and per day in the workspace's time zone:
-            `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the
-            workspace's own model's, set by the workspace itself and unlimited unless it does.
+            The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is
+            the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by
+            the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day`
+            how many jumble arrivals may be asked about on arrival - a number of entries, 200 by
+            default.
         limit:
           type: integer
           format: int64
@@ -14221,6 +14326,16 @@ components:
             `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent
             provider and an open circuit answer, so nothing that calls AI needs a second way to
             degrade.
+        ai_arrival_proposals_per_day:
+          type: [integer, "null"]
+          format: int64
+          minimum: 0
+          description: >
+            How many jumble arrivals a day of the workspace's own time zone may be asked about on
+            arrival, where the workspace prepares proposals on arrival - a number of entries, 200
+            by default in both modes. Whoever holds the workspace's intake address decides what
+            arrives, so this bounds what they can make the workspace spend beside the token
+            budget. Past it an arrival waits for somebody to ask; nothing else changes.
 
     TenantDeletionScheduled:
       type: object
@@ -14960,6 +15075,19 @@ components:
             On the answer to a change of the structure only: the locks that kept a value the chosen
             preset would have changed. Empty where none did.
           items: { type: string }
+        clipped_by_levels:
+          type: array
+          description: >
+            On the answer to a change of the structure only: the settings whose value in force
+            differs from what the layers say because of the levels in force - `counts`, when
+            `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.
+          items: { $ref: "#/components/schemas/StructureSettingName" }
+        figure:
+          $ref: "#/components/schemas/CollectionFigure"
+          description: >
+            What counts in this collection, counted at the read for the reader (their day and week).
+            On a collection's read only; absent on a hub, on a trashed collection, and where what
+            counts is `NONE` or not yet counted by this server (`FLOW`).
 
     ContainerCreate:
       type: object
@@ -15118,9 +15246,12 @@ components:
     StructureCounts:
       type: object
       description: >
-        The figure a client shows for the collection: open entries, the sum of a number field
-        (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing.
-        Applied by clients.
+        What counts in the collection: open entries, the sum of a number field (named by
+        `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts
+        the figure and answers it on the collection's read (`figure`); a client draws it.
+        `PROGRESS` is offered only where more than one level is in force: a write that sets it
+        where one is answers `structure.figure_not_offered`, and where layers bring the two
+        together the structure in force says `OPEN` and `counts_clipped` says why.
       required: [figure]
       properties:
         figure:
@@ -15199,6 +15330,72 @@ components:
             The locks in force, keyed by a setting (`views`) or by one capability of one type
             (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
           additionalProperties: { $ref: "#/components/schemas/StructureLock" }
+        counts_clipped:
+          $ref: "#/components/schemas/StructureCountsClip"
+
+    StructureCountsClip:
+      type: [object, "null"]
+      description: >
+        Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then
+        `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts`
+        still names where it was set.
+      required: [from, reason]
+      properties:
+        from: { $ref: "#/components/schemas/StructureCounts" }
+        reason:
+          type: string
+          enum: [ONE_LEVEL]
+
+    CollectionFigure:
+      type: object
+      description: >
+        What counts in a collection, as numbers and dates: the client phrases them. Every figure
+        counts the collection's entries - never a person's - leaving out trashed ones and those
+        its structure hides. `today` is the reader's date the figure was counted for. Where the
+        count could not be made, `unavailable` is true and nothing else is answered.
+      required: [kind, today]
+      properties:
+        kind:
+          type: string
+          enum: [OPEN, FIELD_SUM, DUE, RHYTHM, PROGRESS]
+        today: { type: string, format: date }
+        unavailable:
+          type: boolean
+          description: True where the figure could not be counted; the container is answered all the same.
+        open:
+          type: integer
+          minimum: 0
+          description: OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
+        sum:
+          type: [number, "null"]
+          format: double
+          description: >
+            FIELD_SUM - the sum of the number field over those entries; absent or null where the
+            field is not a live number field the entries carry.
+        summed:
+          type: integer
+          minimum: 0
+          description: FIELD_SUM - how many of those entries carry a value.
+        due:
+          type: integer
+          minimum: 0
+          description: >
+            DUE - open entries, at any level whose fields carry a due date, due by the end of the
+            reader's day: a timed date before the day ends, an all-day date on or before the
+            reader's date.
+        days:
+          type: array
+          description: RHYTHM - the dates of the reader's week on which something was completed.
+          items: { type: string, format: date }
+        week_start: { type: string, format: date, description: RHYTHM - the first date of that week. }
+        done:
+          type: integer
+          minimum: 0
+          description: PROGRESS - completed leaves, archived ones counted as they stand.
+        total:
+          type: integer
+          minimum: 0
+          description: PROGRESS - all leaves.
 
     StructureLock:
       type: object
@@ -16059,6 +16256,14 @@ components:
           type: [string, "null"]
           format: date-time
           description: When the entry stopped being NEW - a conversion or a dismissal.
+        arrival_job_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            Where the workspace prepares proposals on arrival: the job preparing one about this
+            undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`.
+            Absent once it proposed something (the proposal is under `GET /suggestions`), for a
+            settled entry, and where nothing was prepared.
 
     JumbleEntrySubmit:
       type: object
@@ -16142,6 +16347,28 @@ components:
         data:
           type: array
           items: { $ref: "#/components/schemas/JumbleEntry" }
+        page: { $ref: "#/components/schemas/PageInfo" }
+
+    JumbleDestination:
+      type: object
+      description: One collection a jumble entry may become work in, with its hub.
+      required: [id, name, hub_id, hub_name, hub_private]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        hub_id: { type: string, format: uuid }
+        hub_name: { type: string }
+        hub_private:
+          type: boolean
+          description: Whether the hub is private - reached only by its own members.
+
+    JumbleDestinationPage:
+      type: object
+      required: [data, page]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/JumbleDestination" }
         page: { $ref: "#/components/schemas/PageInfo" }
 
     RuleTest:

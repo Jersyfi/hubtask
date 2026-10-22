@@ -1317,6 +1317,33 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 	}
 }
 
+// Defines values for CollectionFigureKind.
+const (
+	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
+	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
+	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
+	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
+)
+
+// Valid indicates whether the value is a known member of the CollectionFigureKind enum.
+func (e CollectionFigureKind) Valid() bool {
+	switch e {
+	case CollectionFigureKindDUE:
+		return true
+	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindOPEN:
+		return true
+	case CollectionFigureKindPROGRESS:
+		return true
+	case CollectionFigureKindRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CommentKind.
 const (
 	CommentKindSYSTEM CommentKind = "SYSTEM"
@@ -3275,21 +3302,24 @@ func (e QuotaSource) Valid() bool {
 
 // Defines values for QuotaStandingQuota.
 const (
-	Accounts              QuotaStandingQuota = "accounts"
-	AiOwnTokensPerDay     QuotaStandingQuota = "ai_own_tokens_per_day"
-	AiTokensPerDay        QuotaStandingQuota = "ai_tokens_per_day"
-	ApiRequestsPerMinute  QuotaStandingQuota = "api_requests_per_minute"
-	AutomationRunsPerHour QuotaStandingQuota = "automation_runs_per_hour"
-	ExportJobs            QuotaStandingQuota = "export_jobs"
-	Items                 QuotaStandingQuota = "items"
-	MediaBytes            QuotaStandingQuota = "media_bytes"
-	WebhookTargets        QuotaStandingQuota = "webhook_targets"
+	Accounts                 QuotaStandingQuota = "accounts"
+	AiArrivalProposalsPerDay QuotaStandingQuota = "ai_arrival_proposals_per_day"
+	AiOwnTokensPerDay        QuotaStandingQuota = "ai_own_tokens_per_day"
+	AiTokensPerDay           QuotaStandingQuota = "ai_tokens_per_day"
+	ApiRequestsPerMinute     QuotaStandingQuota = "api_requests_per_minute"
+	AutomationRunsPerHour    QuotaStandingQuota = "automation_runs_per_hour"
+	ExportJobs               QuotaStandingQuota = "export_jobs"
+	Items                    QuotaStandingQuota = "items"
+	MediaBytes               QuotaStandingQuota = "media_bytes"
+	WebhookTargets           QuotaStandingQuota = "webhook_targets"
 )
 
 // Valid indicates whether the value is a known member of the QuotaStandingQuota enum.
 func (e QuotaStandingQuota) Valid() bool {
 	switch e {
 	case Accounts:
+		return true
+	case AiArrivalProposalsPerDay:
 		return true
 	case AiOwnTokensPerDay:
 		return true
@@ -4266,6 +4296,21 @@ func (e StructureCountsFigure) Valid() bool {
 	case StructureCountsFigurePROGRESS:
 		return true
 	case StructureCountsFigureRHYTHM:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructureCountsClipReason.
+const (
+	ONELEVEL StructureCountsClipReason = "ONE_LEVEL"
+)
+
+// Valid indicates whether the value is a known member of the StructureCountsClipReason enum.
+func (e StructureCountsClipReason) Valid() bool {
+	switch e {
+	case ONELEVEL:
 		return true
 	default:
 		return false
@@ -5594,6 +5639,12 @@ type AdminTenantPage struct {
 	Page PageInfo      `json:"page"`
 }
 
+// AiArrivalProposalsChoice defines model for AiArrivalProposalsChoice.
+type AiArrivalProposalsChoice struct {
+	// Prepare True prepares a proposal for each new jumble entry; false waits for somebody to ask.
+	Prepare bool `json:"prepare"`
+}
+
 // AiAsk How to ask, which is one question — propose, or apply.
 type AiAsk struct {
 	// Apply Apply the answer as soon as it arrives instead of proposing it. **False unless it is said**, and deliberately: a result is a suggestion, and applying one without a person reading it is a decision somebody configures rather than one that happens by not thinking about it.
@@ -5717,6 +5768,9 @@ type AiSource struct {
 
 	// PersonOptOutSince When the workspace made AI part of everybody's work. Absent with `OFFERED`.
 	PersonOptOutSince *time.Time `json:"person_opt_out_since,omitempty"`
+
+	// PrepareOnArrival Whether AI prepares a proposal for each new jumble entry as it arrives (`PUT /ai-arrival-proposals`). Off by default.
+	PrepareOnArrival bool `json:"prepare_on_arrival"`
 
 	// SearchRebuilding True while search by meaning is being rebuilt for the model now in use. Search by words keeps working meanwhile.
 	SearchRebuilding *bool `json:"search_rebuilding,omitempty"`
@@ -6595,6 +6649,41 @@ type CapabilitiesTenancyMode string
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
 
+// CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
+type CollectionFigure struct {
+	// Days RHYTHM - the dates of the reader's week on which something was completed.
+	Days *[]openapi_types.Date `json:"days,omitempty"`
+
+	// Done PROGRESS - completed leaves, archived ones counted as they stand.
+	Done *int `json:"done,omitempty"`
+
+	// Due DUE - open entries, at any level whose fields carry a due date, due by the end of the reader's day: a timed date before the day ends, an all-day date on or before the reader's date.
+	Due  *int                 `json:"due,omitempty"`
+	Kind CollectionFigureKind `json:"kind"`
+
+	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
+	Open *int `json:"open,omitempty"`
+
+	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
+	Sum *float64 `json:"sum,omitempty"`
+
+	// Summed FIELD_SUM - how many of those entries carry a value.
+	Summed *int               `json:"summed,omitempty"`
+	Today  openapi_types.Date `json:"today"`
+
+	// Total PROGRESS - all leaves.
+	Total *int `json:"total,omitempty"`
+
+	// Unavailable True where the figure could not be counted; the container is answered all the same.
+	Unavailable *bool `json:"unavailable,omitempty"`
+
+	// WeekStart RHYTHM - the first date of that week.
+	WeekStart *openapi_types.Date `json:"week_start,omitempty"`
+}
+
+// CollectionFigureKind defines model for CollectionFigure.Kind.
+type CollectionFigureKind string
+
 // Comment defines model for Comment.
 type Comment struct {
 	AuthorId openapi_types.UUID `json:"author_id"`
@@ -6711,16 +6800,22 @@ type ConsentWithdrawal struct {
 
 // Container defines model for Container.
 type Container struct {
-	ArchivedAt  *time.Time `json:"archived_at,omitempty"`
-	ColorToken  *string    `json:"color_token,omitempty"`
-	CreatedAt   *time.Time `json:"created_at,omitempty"`
-	DeletedAt   *time.Time `json:"deleted_at,omitempty"`
-	Description *string    `json:"description,omitempty"`
+	ArchivedAt *time.Time `json:"archived_at,omitempty"`
+
+	// ClippedByLevels On the answer to a change of the structure only: the settings whose value in force differs from what the layers say because of the levels in force - `counts`, when `PROGRESS` meets a collection of one level and is shown as `OPEN`. Empty where none.
+	ClippedByLevels *[]StructureSettingName `json:"clipped_by_levels,omitempty"`
+	ColorToken      *string                 `json:"color_token,omitempty"`
+	CreatedAt       *time.Time              `json:"created_at,omitempty"`
+	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
+	Description     *string                 `json:"description,omitempty"`
 
 	// EffectiveArchived Whether this container is read-only: archived itself, or sitting in an archived hub (I-C3). archived_at says which of the two - it is null for a collection that only inherits it.
-	EffectiveArchived *bool              `json:"effective_archived,omitempty"`
-	Icon              *string            `json:"icon,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	EffectiveArchived *bool `json:"effective_archived,omitempty"`
+
+	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
+	Figure *CollectionFigure  `json:"figure,omitempty"`
+	Icon   *string            `json:"icon,omitempty"`
+	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
 	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
@@ -7111,6 +7206,9 @@ type DuplicateResult struct {
 
 // EffectiveStructure The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only.
 type EffectiveStructure struct {
+	// CountsClipped Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+	CountsClipped *StructureCountsClip `json:"counts_clipped,omitempty"`
+
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
@@ -8071,8 +8169,28 @@ type JobRef struct {
 // JobStatus What a caller sees of a job's life. Five states rather than the queue's six: a job the queue gave up on is `FAILED`, because "it did not work and will not be tried again" is the whole of what a caller can act on, and the dead letter is an operator's word for where the row went.
 type JobStatus string
 
+// JumbleDestination One collection a jumble entry may become work in, with its hub.
+type JumbleDestination struct {
+	HubId   openapi_types.UUID `json:"hub_id"`
+	HubName string             `json:"hub_name"`
+
+	// HubPrivate Whether the hub is private - reached only by its own members.
+	HubPrivate bool               `json:"hub_private"`
+	Id         openapi_types.UUID `json:"id"`
+	Name       string             `json:"name"`
+}
+
+// JumbleDestinationPage defines model for JumbleDestinationPage.
+type JumbleDestinationPage struct {
+	Data []JumbleDestination `json:"data"`
+	Page PageInfo            `json:"page"`
+}
+
 // JumbleEntry One arrival, as it came in. The raw content is data that arrived from outside: it is shown to a person and matched by rules as data, and it travels in no event, no log and no audit entry.
 type JumbleEntry struct {
+	// ArrivalJobId Where the workspace prepares proposals on arrival: the job preparing one about this undecided entry while it runs, or that ended refused - follow it under `/jobs/{jobId}`. Absent once it proposed something (the proposal is under `GET /suggestions`), for a settled entry, and where nothing was prepared.
+	ArrivalJobId *openapi_types.UUID `json:"arrival_job_id,omitempty"`
+
 	// Attachments Media objects, stored through the media pipeline.
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`
@@ -9685,7 +9803,7 @@ type QuotaStanding struct {
 	// Locked True when the installation locked this ceiling for every workspace, so it is set by the installation rather than offered as its default.
 	Locked *bool `json:"locked,omitempty"`
 
-	// Quota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+	// Quota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 	Quota QuotaStandingQuota `json:"quota"`
 
 	// Ratio used / limit, null while either half is missing. The same number hubtask_tenant_quota_usage_ratio reports.
@@ -9698,7 +9816,7 @@ type QuotaStanding struct {
 	Used *int64 `json:"used,omitempty"`
 }
 
-// QuotaStandingQuota The two AI rows are counted per source and per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does.
+// QuotaStandingQuota The AI rows are counted per day in the workspace's time zone: `ai_tokens_per_day` is the offered model's budget, `ai_own_tokens_per_day` the workspace's own model's, set by the workspace itself and unlimited unless it does, and `ai_arrival_proposals_per_day` how many jumble arrivals may be asked about on arrival - a number of entries, 200 by default.
 type QuotaStandingQuota string
 
 // RecoveryCodes The ten codes, shown once and stored only as hashes.
@@ -10716,7 +10834,7 @@ type StructureChange struct {
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
 
-// StructureCounts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+// StructureCounts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 type StructureCounts struct {
 	FieldKey *string               `json:"field_key,omitempty"`
 	Figure   StructureCountsFigure `json:"figure"`
@@ -10724,6 +10842,16 @@ type StructureCounts struct {
 
 // StructureCountsFigure defines model for StructureCounts.Figure.
 type StructureCountsFigure string
+
+// StructureCountsClip Present where the layers say `PROGRESS` and the levels in force are one: `counts` is then `OPEN`, a list never showing a percentage. `from` is what the layers say; `sources.counts` still names where it was set.
+type StructureCountsClip struct {
+	// From What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
+	From   StructureCounts           `json:"from"`
+	Reason StructureCountsClipReason `json:"reason"`
+}
+
+// StructureCountsClipReason defines model for StructureCountsClip.Reason.
+type StructureCountsClipReason string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
@@ -10767,7 +10895,7 @@ type StructureSettings struct {
 	// Completion Whether a child's completion propagates upwards. MANUAL leaves the parent alone; ROLLUP completes it when its last open child is completed and reopens it when any child is reopened. /meta/capabilities returns the valid values.
 	Completion *CompletionPolicy `json:"completion,omitempty"`
 
-	// Counts The figure a client shows for the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. Applied by clients.
+	// Counts What counts in the collection: open entries, the sum of a number field (named by `field_key`), what is due, the week's rhythm, progress, flow, or nothing. The server counts the figure and answers it on the collection's read (`figure`); a client draws it. `PROGRESS` is offered only where more than one level is in force: a write that sets it where one is answers `structure.figure_not_offered`, and where layers bring the two together the structure in force says `OPEN` and `counts_clipped` says why.
 	Counts *StructureCounts `json:"counts,omitempty"`
 
 	// Fields What each item type carries, keyed by type. A type left out carries everything this installation offers it. Completion cannot be left out.
@@ -11256,6 +11384,9 @@ type TenantQuotas struct {
 	// Accounts The people the workspace may hold: active, restricted and managed accounts and open invitations - never service accounts, nor an invitation whose link ran out. Nobody here is disabled below it; the next is refused.
 	Accounts *int64 `json:"accounts,omitempty"`
 
+	// AiArrivalProposalsPerDay How many jumble arrivals a day of the workspace's own time zone may be asked about on arrival, where the workspace prepares proposals on arrival - a number of entries, 200 by default in both modes. Whoever holds the workspace's intake address decides what arrives, so this bounds what they can make the workspace spend beside the token budget. Past it an arrival waits for somebody to ask; nothing else changes.
+	AiArrivalProposalsPerDay *int64 `json:"ai_arrival_proposals_per_day,omitempty"`
+
 	// AiTokensPerDay What the workspace may spend on the AI models the installation offers in a day of its own time zone, counted in the tokens every provider reports. A workspace's own model is not bounded by it, only by the workspace's own optional budget. Unlimited in single mode by default and a real number in multi, like every other quota. A workspace over its budget stops making suggestions and keeps working: the refusal is `ai.unavailable` with the parameters `reason` (`budget_spent`) and `renews_at` (the workspace's next midnight), the same one an absent provider and an open circuit answer, so nothing that calls AI needs a second way to degrade.
 	AiTokensPerDay        *int64 `json:"ai_tokens_per_day,omitempty"`
 	ApiRequestsPerMinute  *int64 `json:"api_requests_per_minute,omitempty"`
@@ -11416,7 +11547,7 @@ type UsageMetric struct {
 	// Day Which day a value counts by - UTC, or the workspace's own zone.
 	Day UsageMetricDay `json:"day"`
 
-	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+	// Name A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 	Name UsageMetricName `json:"name"`
 }
 
@@ -11426,7 +11557,7 @@ type UsageMetricAggregate string
 // UsageMetricDay Which day a value counts by - UTC, or the workspace's own zone.
 type UsageMetricDay string
 
-// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
+// UsageMetricName A metric's stable name, the quota's own: `items`, `media_bytes`, `accounts`, `ai_tokens_per_day`, `ai_own_tokens_per_day`, `ai_arrival_proposals_per_day`, `automation_runs_per_hour` - the last counted per day, the runs metered that day. Any other is `422 admin.usage_metric_unknown`; a client tolerates a name it does not know, as a later release may add one.
 type UsageMetricName = string
 
 // UsagePage defines model for UsagePage.
@@ -12954,6 +13085,14 @@ type CancelJobParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ListJumbleDestinationsParams defines parameters for ListJumbleDestinations.
+type ListJumbleDestinationsParams struct {
+	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
+
+	// Size Collections scanned per page.
+	Size *int `form:"size,omitempty" json:"size,omitempty"`
+}
+
 // ListJumbleEntriesParams defines parameters for ListJumbleEntries.
 type ListJumbleEntriesParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -13332,6 +13471,9 @@ type ReplaceLegalHoldsJSONRequestBody = LegalHoldReplaceRequest
 
 // QueryTenantsJSONRequestBody defines body for QueryTenants for application/json ContentType.
 type QueryTenantsJSONRequestBody = TenantQuery
+
+// SetAiArrivalProposalsJSONRequestBody defines body for SetAiArrivalProposals for application/json ContentType.
+type SetAiArrivalProposalsJSONRequestBody = AiArrivalProposalsChoice
 
 // SetOwnAiBudgetJSONRequestBody defines body for SetOwnAiBudget for application/json ContentType.
 type SetOwnAiBudgetJSONRequestBody = OwnAiBudget
@@ -14985,6 +15127,24 @@ type ClientInterface interface {
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposals(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// SetOwnAiBudgetWithBody Set the daily budget of this workspace's own AI model
 	//
 	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -16392,13 +16552,13 @@ type ClientInterface interface {
 	// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
@@ -17428,6 +17588,14 @@ type ClientInterface interface {
 	// Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 	CancelJob(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListJumbleDestinations Where an entry may become work for you
+	//
+	// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+	// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+	//
+	// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+	ListJumbleDestinations(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListJumbleEntries The jumble, newest first
 	//
 	// Everything that arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels: it appears in no event payload, no log and no audit entry.
@@ -17454,6 +17622,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 	SubmitJumbleEntry(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GetJumbleEntry One jumble entry
+	//
+	// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+	//
+	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+	GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConvertJumbleEntryWithBody Turn an entry into work
 	//
@@ -17484,7 +17659,7 @@ type ClientInterface interface {
 
 	// SuggestFromJumbleEntry Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -18608,13 +18783,13 @@ type ClientInterface interface {
 	// SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListTrash What is in the trash
@@ -20950,6 +21125,44 @@ func (c *Client) QueryTenants(ctx context.Context, body QueryTenantsJSONRequestB
 // Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 func (c *Client) ReadUsage(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadUsageRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiArrivalProposalsWithBody Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *Client) SetAiArrivalProposalsWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiArrivalProposalsRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetAiArrivalProposals Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *Client) SetAiArrivalProposals(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetAiArrivalProposalsRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -23857,7 +24070,7 @@ func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, par
 // SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequestWithBody(c.Server, containerId, params, contentType, body)
 	if err != nil {
@@ -23873,7 +24086,7 @@ func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId 
 // SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
 	if err != nil {
@@ -26243,6 +26456,24 @@ func (c *Client) CancelJob(ctx context.Context, jobId JobId, params *CancelJobPa
 	return c.Client.Do(req)
 }
 
+// ListJumbleDestinations Where an entry may become work for you
+//
+// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+//
+// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+func (c *Client) ListJumbleDestinations(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListJumbleDestinationsRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListJumbleEntries The jumble, newest first
 //
 // Everything that arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels: it appears in no event payload, no log and no audit entry.
@@ -26290,6 +26521,23 @@ func (c *Client) SubmitJumbleEntryWithBody(ctx context.Context, params *SubmitJu
 // Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 func (c *Client) SubmitJumbleEntry(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSubmitJumbleEntryRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GetJumbleEntry One jumble entry
+//
+// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+//
+// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+func (c *Client) GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGetJumbleEntryRequest(c.Server, entryId)
 	if err != nil {
 		return nil, err
 	}
@@ -26359,7 +26607,7 @@ func (c *Client) DismissJumbleEntry(ctx context.Context, entryId openapi_types.U
 
 // SuggestFromJumbleEntry Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //
@@ -28443,7 +28691,7 @@ func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ..
 // SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
@@ -28459,7 +28707,7 @@ func (c *Client) SetWorkspaceStructureWithBody(ctx context.Context, params *SetW
 // SetWorkspaceStructure performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *Client) SetWorkspaceStructure(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetWorkspaceStructureRequest(c.Server, params, body)
 	if err != nil {
@@ -32029,6 +32277,46 @@ func NewReadUsageRequest(server string, params *ReadUsageParams) (*http.Request,
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewSetAiArrivalProposalsRequest calls the generic SetAiArrivalProposals builder with application/json body
+func NewSetAiArrivalProposalsRequest(server string, body SetAiArrivalProposalsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetAiArrivalProposalsRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetAiArrivalProposalsRequestWithBody constructs an http.Request for the SetAiArrivalProposals method, with any body, and a specified content type
+func NewSetAiArrivalProposalsRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ai-arrival-proposals")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -41344,6 +41632,72 @@ func NewCancelJobRequest(server string, jobId JobId, params *CancelJobParams) (*
 	return req, nil
 }
 
+// NewListJumbleDestinationsRequest constructs an http.Request for the ListJumbleDestinations method
+func NewListJumbleDestinationsRequest(server string, params *ListJumbleDestinationsParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jumble/destinations")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Cursor != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "cursor", *params.Cursor, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Size != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewListJumbleEntriesRequest constructs an http.Request for the ListJumbleEntries method
 func NewListJumbleEntriesRequest(server string, params *ListJumbleEntriesParams) (*http.Request, error) {
 	var err error
@@ -41484,6 +41838,40 @@ func NewSubmitJumbleEntryRequestWithBody(server string, params *SubmitJumbleEntr
 			req.Header.Set("Idempotency-Key", headerParam0)
 		}
 
+	}
+
+	return req, nil
+}
+
+// NewGetJumbleEntryRequest constructs an http.Request for the GetJumbleEntry method
+func NewGetJumbleEntryRequest(server string, entryId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "entryId", entryId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jumble/entries/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
 	}
 
 	return req, nil
@@ -46616,6 +47004,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /admin/usage (the `ReadUsage` operationId).
 	ReadUsageWithResponse(ctx context.Context, params *ReadUsageParams, reqEditors ...RequestEditorFn) (*ReadUsageResult, error)
 
+	// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error)
+
+	// SetAiArrivalProposalsWithResponse Whether AI prepares a proposal for each new jumble entry
+	//
+	// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+	SetAiArrivalProposalsWithResponse(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error)
+
 	// SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 	//
 	// How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -48131,7 +48537,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
@@ -48139,7 +48545,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
 
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
@@ -49317,6 +49723,16 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /jobs/{jobId}:cancel (the `CancelJob` operationId).
 	CancelJobWithResponse(ctx context.Context, jobId JobId, params *CancelJobParams, reqEditors ...RequestEditorFn) (*CancelJobResult, error)
 
+	// ListJumbleDestinationsWithResponse Where an entry may become work for you
+	//
+	// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+	// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+	ListJumbleDestinationsWithResponse(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*ListJumbleDestinationsResult, error)
+
 	// ListJumbleEntriesWithResponse The jumble, newest first
 	//
 	// Everything that arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels: it appears in no event payload, no log and no audit entry.
@@ -49345,6 +49761,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /jumble/entries (the `SubmitJumbleEntry` operationId).
 	SubmitJumbleEntryWithResponse(ctx context.Context, params *SubmitJumbleEntryParams, body SubmitJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*SubmitJumbleEntryResult, error)
+
+	// GetJumbleEntryWithResponse One jumble entry
+	//
+	// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+	GetJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetJumbleEntryResult, error)
 
 	// ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
 	//
@@ -49377,7 +49802,7 @@ type ClientWithResponsesInterface interface {
 
 	// SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 	//
-	// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+	// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 	// Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 	// A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 	//
@@ -50591,7 +51016,7 @@ type ClientWithResponsesInterface interface {
 	// SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
@@ -50599,7 +51024,7 @@ type ClientWithResponsesInterface interface {
 	// SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+	// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 	SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error)
 
 	// ListTrashWithResponse What is in the trash
@@ -54227,6 +54652,54 @@ func (r ReadUsageResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadUsageResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetAiArrivalProposalsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AiSource
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetAiArrivalProposalsResult) GetJSON200() *AiSource {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetAiArrivalProposalsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetAiArrivalProposalsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetAiArrivalProposalsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetAiArrivalProposalsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetAiArrivalProposalsResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -63817,6 +64290,54 @@ func (r CancelJobResult) ContentType() string {
 	return ""
 }
 
+type ListJumbleDestinationsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *JumbleDestinationPage
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListJumbleDestinationsResult) GetJSON200() *JumbleDestinationPage {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListJumbleDestinationsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListJumbleDestinationsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListJumbleDestinationsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListJumbleDestinationsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListJumbleDestinationsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListJumbleEntriesResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -63907,6 +64428,54 @@ func (r SubmitJumbleEntryResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SubmitJumbleEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GetJumbleEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *JumbleEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GetJumbleEntryResult) GetJSON200() *JumbleEntry {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GetJumbleEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GetJumbleEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GetJumbleEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GetJumbleEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GetJumbleEntryResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -69801,6 +70370,36 @@ func (c *ClientWithResponses) ReadUsageWithResponse(ctx context.Context, params 
 	return ParseReadUsageResult(rsp)
 }
 
+// SetAiArrivalProposalsWithBodyWithResponse Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *ClientWithResponses) SetAiArrivalProposalsWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error) {
+	rsp, err := c.SetAiArrivalProposalsWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiArrivalProposalsResult(rsp)
+}
+
+// SetAiArrivalProposalsWithResponse Whether AI prepares a proposal for each new jumble entry
+//
+// `true` has AI read each new jumble entry as it arrives and leave a proposal on it, without anybody asking; `false`, the default, waits for somebody to ask. The workspace's own decision: no installation or plan value sets or locks it. Content is still sent only where the workspace consented and its AI answers; nothing a person who keeps their content out wrote or sent travels; each arrival counts against the AI budget and against `ai_arrival_proposals_per_day`. Two writes at once answer the second `409` (`workspace.version_conflict`). Answers the AI state with `prepare_on_arrival`. Auditable.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /ai-arrival-proposals (the `SetAiArrivalProposals` operationId).
+func (c *ClientWithResponses) SetAiArrivalProposalsWithResponse(ctx context.Context, body SetAiArrivalProposalsJSONRequestBody, reqEditors ...RequestEditorFn) (*SetAiArrivalProposalsResult, error) {
+	rsp, err := c.SetAiArrivalProposals(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetAiArrivalProposalsResult(rsp)
+}
+
 // SetOwnAiBudgetWithBodyWithResponse Set the daily budget of this workspace's own AI model
 //
 // How many tokens a day this workspace's own model may spend, counted in the workspace's own time zone; `null` lets it spend without a budget, the default. The installation's budget (`ai_tokens_per_day`) bounds only the models the installation offers - this one is the workspace's alone. A number below 1 is refused with `422`, `ai.budget_invalid`. Answers the two AI rows of the workspace's quota standing, offered and own. Auditable.
@@ -72210,7 +72809,7 @@ func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, con
 // SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
@@ -72224,7 +72823,7 @@ func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx cont
 // SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
 	rsp, err := c.SetContainerStructure(ctx, containerId, params, body, reqEditors...)
 	if err != nil {
@@ -74206,6 +74805,22 @@ func (c *ClientWithResponses) CancelJobWithResponse(ctx context.Context, jobId J
 	return ParseCancelJobResult(rsp)
 }
 
+// ListJumbleDestinationsWithResponse Where an entry may become work for you
+//
+// The collections a jumble entry may be converted into by the caller: neither trashed nor archived - by their own stamp or their hub's - and where the caller may create an entry, private hubs the caller is in included. Each names its hub, and they come in the order of the tree: the hubs' manual order, then each hub's collections in theirs.
+// A person who may not convert anything is refused rather than answered an empty list. A page can be shorter than the size asked for, because the collections the caller may not create in are left out of what was scanned; follow `next_cursor` until there is none.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /jumble/destinations (the `ListJumbleDestinations` operationId).
+func (c *ClientWithResponses) ListJumbleDestinationsWithResponse(ctx context.Context, params *ListJumbleDestinationsParams, reqEditors ...RequestEditorFn) (*ListJumbleDestinationsResult, error) {
+	rsp, err := c.ListJumbleDestinations(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListJumbleDestinationsResult(rsp)
+}
+
 // ListJumbleEntriesWithResponse The jumble, newest first
 //
 // Everything that arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels: it appears in no event payload, no log and no audit entry.
@@ -74251,6 +74866,21 @@ func (c *ClientWithResponses) SubmitJumbleEntryWithResponse(ctx context.Context,
 		return nil, err
 	}
 	return ParseSubmitJumbleEntryResult(rsp)
+}
+
+// GetJumbleEntryWithResponse One jumble entry
+//
+// One entry, whatever its state: what arrived and what became of it. The raw content is answered here - to a credential that may read the workspace's entries - and nowhere that travels. An entry of another workspace is answered `404`, as a missing one is.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
+func (c *ClientWithResponses) GetJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetJumbleEntryResult, error) {
+	rsp, err := c.GetJumbleEntry(ctx, entryId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGetJumbleEntryResult(rsp)
 }
 
 // ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
@@ -74302,7 +74932,7 @@ func (c *ClientWithResponses) DismissJumbleEntryWithResponse(ctx context.Context
 
 // SuggestFromJumbleEntryWithResponse Ask AI what this entry should become
 //
-// Asks the workspace's AI provider to propose a title, notes, a due date and labels for one entry. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody converts the entry.
+// Asks the workspace's AI provider to propose a title, notes, a due date, the steps the material implies and the collection it fits best for one entry - the collection chosen from those everybody who may convert may write in. It **proposes** and changes nothing: what comes back is a suggestion, read through `GET /suggestions`, and it becomes a work item only when somebody accepts it or converts the entry.
 // Asynchronous, and answered `202`. An AI call reaches somebody else's machine, so it never sits in a request — the suggestion appears when the provider has answered. Asking twice produces two proposals rather than one refusal: a duplicate suggestion is something somebody dismisses, which is the whole safety of a suggestion being a record.
 // A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`: nothing is queued and nothing is sent.
 //
@@ -76092,7 +76722,7 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 // SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SetWorkspaceStructureWithBodyWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
@@ -76106,7 +76736,7 @@ func (c *ClientWithResponses) SetWorkspaceStructureWithBodyWithResponse(ctx cont
 // SetWorkspaceStructureWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
+// Changes the workspace's own structure: the values every hub and collection inherits unless it has its own (`preset` copied, `settings` set, `reset` by name), the `locks` that bind every hub and collection - the whole set, keyed by a setting or by one capability of one type (`fields.TASK.DUE_DATE`) - and the `default_preset` a new hub starts from (null removes it). A value beyond what the installation offers is refused with `capability_not_supported`. Setting `counts` to `PROGRESS` where the workspace's levels are one is refused with `structure.figure_not_offered`. Needs the right to change the workspace's shape. The answer is the workspace's structure, its version in the ETag. Writing what is stored changes nothing.
 func (c *ClientWithResponses) SetWorkspaceStructureWithResponse(ctx context.Context, params *SetWorkspaceStructureParams, body SetWorkspaceStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetWorkspaceStructureResult, error) {
 	rsp, err := c.SetWorkspaceStructure(ctx, params, body, reqEditors...)
 	if err != nil {
@@ -78766,6 +79396,39 @@ func ParseReadUsageResult(rsp *http.Response) (*ReadUsageResult, error) {
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest UsagePage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetAiArrivalProposalsResult parses an HTTP response from a SetAiArrivalProposalsWithResponse call
+func ParseSetAiArrivalProposalsResult(rsp *http.Response) (*SetAiArrivalProposalsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetAiArrivalProposalsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AiSource
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -85811,6 +86474,39 @@ func ParseCancelJobResult(rsp *http.Response) (*CancelJobResult, error) {
 	return response, nil
 }
 
+// ParseListJumbleDestinationsResult parses an HTTP response from a ListJumbleDestinationsWithResponse call
+func ParseListJumbleDestinationsResult(rsp *http.Response) (*ListJumbleDestinationsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListJumbleDestinationsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JumbleDestinationPage
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListJumbleEntriesResult parses an HTTP response from a ListJumbleEntriesWithResponse call
 func ParseListJumbleEntriesResult(rsp *http.Response) (*ListJumbleEntriesResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -85864,6 +86560,39 @@ func ParseSubmitJumbleEntryResult(rsp *http.Response) (*SubmitJumbleEntryResult,
 			return nil, err
 		}
 		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGetJumbleEntryResult parses an HTTP response from a GetJumbleEntryWithResponse call
+func ParseGetJumbleEntryResult(rsp *http.Response) (*GetJumbleEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GetJumbleEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JumbleEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
