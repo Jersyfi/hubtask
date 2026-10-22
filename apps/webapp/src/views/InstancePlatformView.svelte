@@ -328,6 +328,7 @@
     display: grid; gap: var(--sp-100); padding: var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
   .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 </style>

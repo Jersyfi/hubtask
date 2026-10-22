@@ -230,7 +230,7 @@ The index lists every use case; the gate refuses one that is missing or one that
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work | specified |
 | [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work | specified |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work | specified |
-| [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work | specified |
+| [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work | partial |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work | specified |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble | built |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble | built |

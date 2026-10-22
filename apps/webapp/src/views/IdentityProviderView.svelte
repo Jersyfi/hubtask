@@ -609,6 +609,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .about { display: grid; gap: var(--sp-025); flex: 1 1 20ch; min-inline-size: 0; }
@@ -629,6 +630,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }

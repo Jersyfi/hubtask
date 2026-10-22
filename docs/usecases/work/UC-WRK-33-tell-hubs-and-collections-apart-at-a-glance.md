@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-13]
-state: specified
+state: partial
 tasks: [UX-01, UX-06, UX-07]
-checked_by: []
+checked_by: [packages/design-system/test/contrast.test.js, packages/design-system/test/status.test.js, packages/design-system/build/lint-status.js]
 ---
 
 # Tell Hubtask, my hubs and my collections apart at a glance
@@ -36,7 +36,5 @@ The person gives "House" raspberry and a house symbol, "Agency" indigo and a bri
 ## Today
 
 * Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
 * Check 4: not met — not built yet, tracked in milestone UX.
 * Check 5: not met — no installed app exists before milestone F7, which carries it (decision #1671).

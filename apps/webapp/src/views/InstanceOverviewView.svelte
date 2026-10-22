@@ -284,6 +284,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .count dt { color: var(--text-secondary); font-size: var(--fs-100); }
@@ -303,6 +304,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .entry dt { color: var(--text-secondary); font-size: var(--fs-100); }

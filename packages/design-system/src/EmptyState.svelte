@@ -78,7 +78,8 @@
 
   /* Rule 3: the three kinds are not told apart by colour. They differ in their mark, their words
      and whether they offer anything, and the mark is what carries it in greyscale. */
-  .empty[data-kind='settled'] .mark { color: var(--text-success); }
+  /* Nothing left is a status: the mark on the success surface, the words beside it (§6 rule 3). */
+  .empty[data-kind='settled'] .mark { padding: var(--sp-100); border-radius: var(--r-full); background: var(--status-success-surface); color: var(--status-success-text); }
 
   .title {
     margin: 0;

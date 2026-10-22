@@ -63,8 +63,8 @@ html:has(#mode-dark:checked) body[data-theme] {
   --shadow-raised: inherit;
   --shadow-overlay: inherit;
   --shadow-nested: inherit;
-  --rim-ember: inherit;
-  --rim-blue: inherit;
+  --rim-signature: inherit;
+  --rim-primary: inherit;
   --ambient-primary: inherit;
   --ambient-signature: inherit;
   --label-slate-bg: inherit;
@@ -132,8 +132,8 @@ html:has(#mode-dark:checked) body[data-theme] {
     --shadow-raised: inherit;
     --shadow-overlay: inherit;
     --shadow-nested: inherit;
-    --rim-ember: inherit;
-    --rim-blue: inherit;
+    --rim-signature: inherit;
+    --rim-primary: inherit;
     --ambient-primary: inherit;
     --ambient-signature: inherit;
     --label-slate-bg: inherit;
@@ -721,7 +721,7 @@ main {
   gap: var(--sp-050);
   margin-block-start: var(--sp-200);
   padding: var(--sp-025) var(--sp-150);
-  border: var(--bw-hairline) solid var(--rim-ember);
+  border: var(--bw-hairline) solid var(--rim-signature);
   border-radius: var(--r-full);
   background: var(--accent-signature-subtle);
   color: var(--text-secondary);
@@ -829,7 +829,7 @@ main {
 
 /* The signature rim: the cards of the section the product cares most about. */
 .site-cards-signature .site-card {
-  border-color: var(--rim-ember);
+  border-color: var(--rim-signature);
 }
 
 .site-card-index {

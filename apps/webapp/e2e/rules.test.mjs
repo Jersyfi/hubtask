@@ -24,8 +24,8 @@ const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id
 const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Q4 campaign', order_key: 'a0', version: 1 };
 const SERVICE_ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000004', display_name: 'Automation', kind: 'SERVICE' };
 const LABELS = [
-  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Approval', color_token: 'label.blue' },
-  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Escalated', color_token: 'label.red' },
+  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Approval', color_token: 'blue' },
+  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Escalated', color_token: 'red' },
 ];
 const RULE = {
   id: '01a0e2e0-0000-7000-8000-000000000010',

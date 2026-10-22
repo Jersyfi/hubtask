@@ -79,7 +79,7 @@
     border-color: var(--border-strong);
   }
 
-  .textarea[data-invalid] { border-color: var(--text-danger); border-width: var(--bw-thick); }
+  .textarea[data-invalid] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }
 
   .textarea::placeholder { color: var(--text-subtle); }
 

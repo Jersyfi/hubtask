@@ -130,7 +130,7 @@
     border-color: var(--border-strong);
   }
 
-  .shell[data-invalid] { border-color: var(--text-danger); border-width: var(--bw-thick); }
+  .shell[data-invalid] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }
 
   .shell:has(.input[aria-disabled='true']) {
     background: var(--bg-surface-sunken);

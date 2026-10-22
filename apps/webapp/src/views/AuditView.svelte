@@ -579,6 +579,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
@@ -601,6 +602,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .mono { font-family: var(--font-mono); font-size: var(--fs-075); overflow-wrap: anywhere; }
