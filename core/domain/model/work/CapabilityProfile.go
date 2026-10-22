@@ -55,6 +55,10 @@ type CapabilityProfile struct {
 	AllowedChildTypes []ItemType
 	// MaxDepth is relative to the collection: how deep a subtree of this type may go.
 	MaxDepth int
+	// Hidden are capabilities the installation carries and the entry's collection does not offer
+	// (Offered.Narrow): absent from Capabilities, so a write is refused, and refused as hidden
+	// rather than unsupported, because widening the collection brings them back.
+	Hidden []Capability
 }
 
 // Allows reports whether the capability is active for this type. Setting a field whose capability
@@ -83,6 +87,15 @@ func (p CapabilityProfile) Require(capability Capability, field string) error {
 	if p.Allows(capability) {
 		return nil
 	}
+	if slices.Contains(p.Hidden, capability) {
+		return shared.ErrCapabilityNotSupported.
+			WithDetail("items.capability_hidden").
+			WithParams(map[string]string{
+				"item_type":  string(p.Type),
+				"capability": string(capability),
+			}).
+			WithFields(shared.FieldError{Path: field, Code: "items.capability_hidden"})
+	}
 	return shared.ErrCapabilityNotSupported.
 		WithDetail("items.capability_not_supported").
 		WithParams(map[string]string{
@@ -102,11 +115,15 @@ func (p CapabilityProfile) Require(capability Capability, field string) error {
 // custom fields - has, apart from its title, only state a client reads off the entry: done or open,
 // a date, an assignee. Recording a per-field diff of those would repeat what the reader already
 // has in front of them.
+//
+// A capability the collection hides still counts: the form is the installation's, and a history
+// whose shape changed with every switch of a collection's structure would be one nobody could read
+// back across the switch.
 func (p CapabilityProfile) HistoryIsCompact() bool {
 	for _, capability := range []Capability{
 		CapabilityNotes, CapabilityLabels, CapabilityComments, CapabilityCustomFields,
 	} {
-		if p.Allows(capability) {
+		if p.Allows(capability) || slices.Contains(p.Hidden, capability) {
 			return false
 		}
 	}

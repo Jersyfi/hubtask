@@ -409,3 +409,17 @@ func TestAStoredResultRoundTripsThroughTheRecord(t *testing.T) {
 		t.Errorf("came back as %+v", back)
 	}
 }
+
+// The replica holds an entry without the mark of what its collection hides: the client derives it
+// from the container's structure, and a stored one would go stale at the next change of it.
+func TestAPushAnswerCarriesNoHiddenMark(t *testing.T) {
+	state := map[string]any{"id": "x", "hidden": map[string]any{"level": true}}
+	out := resultOutput(Result{ServerState: state})
+	answered, _ := out["server_state"].(map[string]any)
+	if _, marked := answered["hidden"]; marked {
+		t.Errorf("the push answered %v with the mark", answered)
+	}
+	if _, marked := state["hidden"]; !marked {
+		t.Error("the use case's own answer was changed in place")
+	}
+}

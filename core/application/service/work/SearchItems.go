@@ -57,6 +57,8 @@ type SearchItems struct {
 	// Clock is what `@today` is resolved against, as it is for the query (rule 4, arc42 §8.13).
 	// A filter arrives here since ADR-0064, and a filter may carry a placeholder.
 	Clock clock.Clock
+	// Gate marks what each entry's collection hides of it.
+	Gate EntryGate
 }
 
 // QueryMeaning turns what somebody typed into a vector, or says it cannot.
@@ -430,9 +432,17 @@ func (h SearchItems) invoke(
 		return nil, err
 	}
 
+	items := make([]domain.WorkItem, 0, len(page.Hits))
+	for _, hit := range page.Hits {
+		items = append(items, hit.Item)
+	}
+	marks, err := h.Gate.marksOf(ctx, h.UnitOfWork, actor, items)
+	if err != nil {
+		return nil, err
+	}
 	rows := make([]usecase.Output, 0, len(page.Hits))
 	for _, hit := range page.Hits {
-		rows = append(rows, ItemOutput(hit.Item))
+		rows = append(rows, withHidden(ItemOutput(hit.Item), marks, hit.Item.ID))
 	}
 	return pageOutput(rows, page.Info), nil
 }

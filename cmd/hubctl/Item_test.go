@@ -241,3 +241,20 @@ func TestACommandThatTakesOneIdentifierSaysSoWhenGivenNone(t *testing.T) {
 		})
 	}
 }
+
+// UC-WRK-24 check 3 from the command line: a listing says what the collection hides of each entry,
+// beside what is stored.
+func TestAnItemListingShowsWhatTheCollectionHides(t *testing.T) {
+	hidden := `{"id":"` + itemID + `","type":"TASK","title":"Buy milk","version":2,
+  "collection_id":"` + collectionID + `","completion":{"is_completed":false},
+  "hidden":{"level":false,"capabilities":["DUE_DATE","ASSIGNMENT"]}}`
+	stub := serveJSON(t, http.StatusOK, `{"data":[`+hidden+`],"page":{"has_more":false,"next_cursor":null}}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "item", "ls", "--collection", collectionID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(out, "HIDDEN") || !strings.Contains(out, "DUE_DATE,ASSIGNMENT") {
+		t.Errorf("output %q does not say what is hidden", out)
+	}
+}

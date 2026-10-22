@@ -29,6 +29,11 @@ const (
 	// takes one away, since a media object belongs to the tenant rather than to a collection and
 	// therefore resolves wherever an entry lands.
 	ReferenceAttachment ReferenceKind = "ATTACHMENT"
+	// ReferenceNotes and ReferenceDueDate are values a template's node carries rather than
+	// references: a stamp leaves them out where the collection does not offer them, and the
+	// identifier reported is the new entry's - never the value, which is the person's content.
+	ReferenceNotes   ReferenceKind = "NOTES"
+	ReferenceDueDate ReferenceKind = "DUE_DATE"
 )
 
 // DroppedReference is one thing a move took away from an entry, and why (invariant I-W6).

@@ -2698,6 +2698,42 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 	return items, nil
 }
 
+const workItemTypes = `-- name: WorkItemTypes :many
+SELECT wi.id, wi.type
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.id = ANY($1::uuid[])
+`
+
+type WorkItemTypesRow struct {
+	ID   pgtype.UUID
+	Type ItemType
+}
+
+// The type of each entry among ids, and nothing else: what a collection hides of an entry depends on
+// the levels above it (domain-model.md §2), and a page of entries asks for every ancestor on it in
+// this one statement rather than reading whole rows. An identifier of another tenant is absent, by
+// the predicate and by row level security.
+func (q *Queries) WorkItemTypes(ctx context.Context, ids []pgtype.UUID) ([]WorkItemTypesRow, error) {
+	rows, err := q.db.Query(ctx, workItemTypes, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []WorkItemTypesRow{}
+	for rows.Next() {
+		var i WorkItemTypesRow
+		if err := rows.Scan(&i.ID, &i.Type); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const workspaceOwners = `-- name: WorkspaceOwners :many
 SELECT a.id
 FROM account a

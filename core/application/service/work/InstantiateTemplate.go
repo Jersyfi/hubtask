@@ -6,6 +6,7 @@ package work
 import (
 	"context"
 	"errors"
+	"slices"
 	"strconv"
 	"time"
 
@@ -190,6 +191,13 @@ func (h InstantiateTemplate) stamp(
 	if err != nil {
 		return InstantiationResult{}, err
 	}
+	// The collection's structure decides which levels and values the stamp may write: a node of a
+	// level it hides refuses the whole stamp, a value it hides is left out and reported
+	// (domain-model.md §2).
+	offer, err := w.Gate.placing(ctx, destination, parent)
+	if err != nil {
+		return InstantiationResult{}, err
+	}
 
 	// The cap again, at the moment it is being written rather than only when it was defined: the
 	// profiles may have been narrowed since, and this is the transaction that would be large.
@@ -214,6 +222,7 @@ func (h InstantiateTemplate) stamp(
 		zone:        actor.TimeZone,
 		lastRank:    map[shared.ID]string{spot.ParentID: previous},
 		dropped:     []domain.DroppedReference{},
+		offer:       offer,
 	}
 
 	root, err := h.write(ctx, actor, stamp, hierarchy, spot, template.Root, cmd.Title, now)
@@ -251,6 +260,9 @@ type instantiation struct {
 	lastRank map[shared.ID]string
 	dropped  []domain.DroppedReference
 	created  int
+	// offer is what the destination offers the top of the stamp; a node further down adds the
+	// levels above it.
+	offer entryOffer
 }
 
 // write produces one entry and everything under it, parents first so that a child always finds the
@@ -258,13 +270,23 @@ type instantiation struct {
 func (h InstantiateTemplate) write(
 	ctx context.Context, actor appshared.ActorContext, stamp *instantiation,
 	hierarchy service.Hierarchy, spot service.Placement, node domain.TemplateNode,
-	titleOverride string, now time.Time,
+	titleOverride string, now time.Time, above ...domain.ItemType,
 ) (domain.WorkItem, error) {
 	w := h.Writer
 
-	profile, err := hierarchy.Profile(node.Type)
+	installed, err := hierarchy.Profile(node.Type)
 	if err != nil {
 		return domain.WorkItem{}, err
+	}
+	offer := stamp.offer
+	offer.ancestors = append(slices.Clone(above), offer.ancestors...)
+	if err := offer.requireLevel(node.Type, "/template_id"); err != nil {
+		return domain.WorkItem{}, err
+	}
+	profile := offer.narrow(installed)
+	notes := node.Notes
+	if notes != "" && slices.Contains(profile.Hidden, domain.CapabilityNotes) {
+		notes = ""
 	}
 
 	rank, err := service.OrderKeyBetween(stamp.lastRank[spot.ParentID], "")
@@ -286,7 +308,7 @@ func (h InstantiateTemplate) write(
 		Type:         node.Type,
 		ParentID:     spot.ParentID,
 		Title:        title,
-		Notes:        node.Notes,
+		Notes:        notes,
 		// The creator's locale where the template says nothing, exactly as a create decides it
 		// (i18n-l10n.md §5): a template is a shape rather than a language.
 		ContentLanguage: actor.Locale,
@@ -306,8 +328,16 @@ func (h InstantiateTemplate) write(
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
-	if due != nil && profile.Allows(domain.CapabilityDueDate) {
+	switch {
+	case due == nil:
+	case profile.Allows(domain.CapabilityDueDate):
 		item.Due = due
+	default:
+		// Left out, never silently: hidden by the collection, or not carried by the type at all.
+		stamp.dropped = append(stamp.dropped, valueLeftOut(item.ID, domain.ReferenceDueDate, profile, domain.CapabilityDueDate))
+	}
+	if notes != node.Notes {
+		stamp.dropped = append(stamp.dropped, valueLeftOut(item.ID, domain.ReferenceNotes, profile, domain.CapabilityNotes))
 	}
 	item.AssigneeID, err = h.assigneeFor(ctx, actor, stamp, node, item, profile)
 	if err != nil {
@@ -334,6 +364,7 @@ func (h InstantiateTemplate) write(
 		}
 		if _, err := h.write(
 			ctx, actor, stamp, hierarchy, childSpot, child, "", now,
+			append([]domain.ItemType{item.Type}, above...)...,
 		); err != nil {
 			return domain.WorkItem{}, err
 		}
@@ -355,10 +386,9 @@ func (h InstantiateTemplate) assigneeFor(
 		return noID, nil
 	}
 	if !profile.Allows(domain.CapabilityAssignment) {
-		stamp.dropped = append(stamp.dropped, domain.DroppedReference{
-			ItemID: item.ID, Kind: domain.ReferenceAssignee, ID: node.AssigneeID.String(),
-			Code: "items.capability_not_supported",
-		})
+		dropped := valueLeftOut(item.ID, domain.ReferenceAssignee, profile, domain.CapabilityAssignment)
+		dropped.ID = node.AssigneeID.String()
+		stamp.dropped = append(stamp.dropped, dropped)
 		return noID, nil
 	}
 
@@ -599,4 +629,16 @@ func (h InstantiateTemplate) invoke(
 		"created":            result.Created,
 		"dropped_references": dropped,
 	}, nil
+}
+
+// valueLeftOut reports a node's value the stamp did not write: hidden by the collection's structure,
+// which widening would offer again, or not carried by the type in this installation at all.
+func valueLeftOut(
+	itemID shared.ID, kind domain.ReferenceKind, profile domain.CapabilityProfile, capability domain.Capability,
+) domain.DroppedReference {
+	code := "items.capability_not_supported"
+	if slices.Contains(profile.Hidden, capability) {
+		code = "items.capability_hidden"
+	}
+	return domain.DroppedReference{ItemID: itemID, Kind: kind, ID: itemID.String(), Code: code}
 }

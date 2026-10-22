@@ -613,6 +613,11 @@ func TestTheManifestSaysTheSearchTakesAFilter(t *testing.T) {
 			if got, present := capabilities.Features["search_filter"]; !present || !got {
 				t.Errorf("search_filter = %v (present %v), want true", got, present)
 			}
+			// That entries obey their collection's structure is proven by the refusals themselves
+			// (test/integration/hidden_entries_test.go); this says the manifest promises it.
+			if got, present := capabilities.Features["structure_enforced"]; !present || !got {
+				t.Errorf("structure_enforced = %v (present %v), want true", got, present)
+			}
 		})
 	}
 }

@@ -1650,8 +1650,10 @@ const (
 	DroppedReferenceKindATTACHMENT  DroppedReferenceKind = "ATTACHMENT"
 	DroppedReferenceKindBUCKET      DroppedReferenceKind = "BUCKET"
 	DroppedReferenceKindCUSTOMFIELD DroppedReferenceKind = "CUSTOM_FIELD"
+	DroppedReferenceKindDUEDATE     DroppedReferenceKind = "DUE_DATE"
 	DroppedReferenceKindLABEL       DroppedReferenceKind = "LABEL"
 	DroppedReferenceKindMEMBER      DroppedReferenceKind = "MEMBER"
+	DroppedReferenceKindNOTES       DroppedReferenceKind = "NOTES"
 )
 
 // Valid indicates whether the value is a known member of the DroppedReferenceKind enum.
@@ -1665,9 +1667,13 @@ func (e DroppedReferenceKind) Valid() bool {
 		return true
 	case DroppedReferenceKindCUSTOMFIELD:
 		return true
+	case DroppedReferenceKindDUEDATE:
+		return true
 	case DroppedReferenceKindLABEL:
 		return true
 	case DroppedReferenceKindMEMBER:
+		return true
+	case DroppedReferenceKindNOTES:
 		return true
 	default:
 		return false
@@ -3860,16 +3866,16 @@ func (e RuleScopeType) Valid() bool {
 
 // Defines values for RuleTriggerAnchor.
 const (
-	CREATEDAT RuleTriggerAnchor = "CREATED_AT"
-	DUEDATE   RuleTriggerAnchor = "DUE_DATE"
+	RuleTriggerAnchorCREATEDAT RuleTriggerAnchor = "CREATED_AT"
+	RuleTriggerAnchorDUEDATE   RuleTriggerAnchor = "DUE_DATE"
 )
 
 // Valid indicates whether the value is a known member of the RuleTriggerAnchor enum.
 func (e RuleTriggerAnchor) Valid() bool {
 	switch e {
-	case CREATEDAT:
+	case RuleTriggerAnchorCREATEDAT:
 		return true
-	case DUEDATE:
+	case RuleTriggerAnchorDUEDATE:
 		return true
 	default:
 		return false
@@ -6498,7 +6504,7 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
@@ -7073,7 +7079,7 @@ type DroppedReference struct {
 	// Code A stable message code saying why.
 	Code string `json:"code"`
 
-	// Id The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it.
+	// Id The reference that could not be carried over: an identifier for a label, a column or an account, and the key itself for a custom field, which has no identifier in a collection that does not define it. For `NOTES` and `DUE_DATE`, which a template's node carries as values rather than references, the identifier of the entry created without them - never the value itself.
 	Id string `json:"id"`
 
 	// ItemId The entry that lost it. A move carries a whole subtree, so one operation can drop references from several entries at once.
@@ -7154,6 +7160,17 @@ type EncryptionStoreCount struct {
 
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
+
+// EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
+//
+// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
+type EntryHidden struct {
+	// Capabilities The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.
+	Capabilities []string `json:"capabilities"`
+
+	// Level True when the collection does not offer the entry's level, or the level of an entry above it - an activity under a work package is hidden in a collection that offers tasks and activities but no work packages. Every write to the entry is refused with the detail `items.level_hidden`; trashing, restoring and archiving are not.
+	Level bool `json:"level"`
+}
 
 // ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
 type ErasureCaseRecord struct {
@@ -11628,6 +11645,11 @@ type WorkItem struct {
 
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
+
+	// Hidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
+	//
+	// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
+	Hidden *EntryHidden `json:"hidden,omitempty"`
 
 	// Hlc The hybrid logical clock of the last change; the basis of offline merging.
 	Hlc       *string               `json:"hlc,omitempty"`
