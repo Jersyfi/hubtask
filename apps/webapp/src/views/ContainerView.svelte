@@ -59,7 +59,7 @@
   import { actor } from '../lib/data/account.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { changeRefusalCode, holds, mayDo, roleOrder, rootTypes } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -81,7 +81,7 @@
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
-  import { layoutsOffered } from '../lib/entries/layouts.ts';
+  import { isListLayout, layoutsOffered, openingLayout } from '../lib/entries/layouts.ts';
   import { actionsOfHead, type Act } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
   import { mayCreateIn } from '../lib/palette/sources.ts';
@@ -158,8 +158,29 @@
 
   const container = $derived(containers.find(id));
 
+  /** What this collection offers: the installation's answers, narrowed to its structure in force. */
+  const offer = $derived(offerIn(container?.structure?.settings));
+
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+  /** The list layout this collection offers, where the add form lives. */
+  const listLayout = $derived(offeredLayouts.find(isListLayout) ?? 'LIST_COLLAPSED');
+
+  // A collection opens in the layout its structure names (`views.default`), once per collection;
+  // a layout its structure stops offering while it is open gives way to that one too. A wish the
+  // palette left wins over the opening: it runs after this.
+  let openedId: string | undefined;
+  $effect(() => {
+    if (!container || container.type !== 'COLLECTION' || offeredLayouts.length === 0) return;
+    const offered = offeredLayouts;
+    const opened = container;
+    untrack(() => {
+      const isOffered = offered.includes(layout) || offer.layouts.includes(layout);
+      if (openedId === opened.id && isOffered) return;
+      openedId = opened.id;
+      layout = openingLayout(opened, offered);
+    });
+  });
 
   /**
    * The path this container sits on, and the role this reader holds along it.
@@ -580,7 +601,7 @@
   const addDisabledReason = $derived(
     isReadOnly
       ? readOnlyReason
-      : rootTypes().length === 0
+      : offer.rootTypes().length === 0
         ? t('app.entries.no_root_type')
         : undefined,
   );
@@ -588,7 +609,7 @@
   /** Creating from the head: on a board or the timeline, the list is where the form lives. */
   function addFromHead() {
     if (!container || addDisabledReason) return;
-    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
     // After the layout switch the list is mounted on the next tick.
     queueMicrotask(() => list?.addEntry());
   }
@@ -782,7 +803,7 @@
     untrack(() => {
       if (wish.layout && offeredLayouts.includes(wish.layout)) layout = wish.layout;
       if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
-        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
         isAddWished = true;
       }
     });
@@ -895,7 +916,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={(id) => (layout = id)} />
+          <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={(id) => (layout = id)} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}

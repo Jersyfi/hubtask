@@ -52,7 +52,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
-  import { acceptsChild, childTypes, placementOf, rootTypes, supports } from '../data/capability.svelte.ts';
+  import { childTypes as installedChildTypes, offerIn } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
@@ -155,6 +155,18 @@
 
   provideReasonGroup(() => ({ id: readOnlyNoticeId ?? '', reason: isReadOnly && readOnlyNoticeId ? inheritedReason() : undefined }));
 
+  /**
+   * What this collection offers (UC-WRK-23 check 4): adding, moving and labelling follow its
+   * structure in force. Whether a row has a twist does not - an entry of a level the collection
+   * no longer offers is still stored and still reached (domain-model.md §2).
+   */
+  const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
+  const childTypes = (type: string) => offer.childTypes(type);
+  const rootTypes = () => offer.rootTypes();
+  const supports = (type: string, capability: string) => offer.supports(type, capability);
+  const acceptsChild = (parentType: string, childType: string, parentDepth = 0) => offer.acceptsChild(parentType, childType, parentDepth);
+  const placementOf: typeof offer.placementOf = (type, destination) => offer.placementOf(type, destination);
+
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
   const topTypes = () => (root ? childTypes(root.type) : rootTypes());
 
@@ -211,7 +223,7 @@
     const first = items.childrenOf(root.id);
     if (first.length === 0) return;
     hasDefaultExpansion = true;
-    expanded = first.filter((item) => childTypes(item.type).length > 0).map((item) => item.id);
+    expanded = first.filter((item) => installedChildTypes(item.type).length > 0).map((item) => item.id);
   });
   $effect(() => {
     // Read first, so the effect follows `expanded` from its first run and not only once the
@@ -340,7 +352,7 @@
       rows.push({
         item,
         depth,
-        takesChildren: childTypes(item.type).length > 0,
+        takesChildren: installedChildTypes(item.type).length > 0,
         siblings: parents,
         index,
         parentId,
@@ -1239,7 +1251,7 @@
                   {/if}
                 {/if}
 
-                {#if row.archival === 'active' && mayCreate && row.takesChildren}
+                {#if row.archival === 'active' && mayCreate && childTypes(row.item.type).length > 0}
                   <!-- The label names what it adds. The control at the end of the list adds to the
                        collection and this one adds inside this entry; sharing "Add an entry"
                        between them made a list of seven rows carry eight controls of that name,
