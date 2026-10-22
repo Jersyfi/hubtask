@@ -28,7 +28,7 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 // "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
-const MENU = ['Select entries', 'Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'What counts', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
+const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'What counts', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -212,7 +212,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.equal(await page.getByRole('button', { name: 'Create collection' }).count(), 1);
   assert.equal(await page.getByRole('button', { name: /Import/ }).count(), 1);
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'People', 'Make private', 'Move to the trash']);
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'People', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Create collection' }).click();
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });

@@ -478,10 +478,72 @@ function figureRoute(route, request, url, path) {
   return undefined;
 }
 
+/**
+ * Places in their own colour and symbol (UC-WRK-33): a hub with a colour and a symbol, a private
+ * one with both, and under the first a collection with both and one with neither - plus two dated
+ * entries from different collections, so the overview and search mix places. Shown where a walk
+ * asks for it (`showLooks`) or the preview is started with `HUBTASK_FIXTURE_LOOKS=1`.
+ *
+ * It answers writes: a hub or collection created or changed here is read back as written, so the
+ * walk proves the dialog sent what the navigation then draws.
+ */
+export const LOOK_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Agency', icon: 'briefcase', color_token: 'violet', order_key: 'a3', version: 1 };
+export const LOOK_PRIVATE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000082', type: 'HUB', parent_id: null, name: 'Family', icon: 'heart', color_token: 'magenta', order_key: 'a4', version: 1, private: true };
+export const LOOK_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Clients', icon: 'rocket', color_token: 'amber', order_key: 'a0', version: 1 };
+export const PLAIN_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000084', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Invoices', order_key: 'a1', version: 1 };
+export const LOOK_ITEMS = [
+  item('85', 'Send the offer to the bakery', { collection_id: LOOK_COLLECTION.id, due_at: `${inDays(-1)}T09:00:00Z` }),
+  item('86', 'Pay the tiler', { collection_id: PLAIN_COLLECTION.id, due_at: `${inDays(3)}T09:00:00Z` }),
+  { ...ITEMS[1] },
+];
+
+let looksShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_LOOKS === '1';
+/** Adds the places of their own to the tree, for this process. */
+export function showLooks() {
+  looksShown = true;
+}
+/** The look records as written so far; reset by `forgetUnstubbed`. */
+let looked = [];
+const freshLooks = () => [LOOK_HUB, LOOK_PRIVATE_HUB, LOOK_COLLECTION, PLAIN_COLLECTION].map((each) => ({ ...each }));
+
+/** The look records' reads and writes; `undefined` where the general stub answers. */
+function lookRoute(route, request, url, path) {
+  if (!looksShown) return undefined;
+  if (looked.length === 0) looked = freshLooks();
+  const method = request.method();
+  if (path.endsWith('/api/v1/containers') && method === 'POST') {
+    const body = request.postDataJSON();
+    const made = { id: `01a0e2e0-0000-7000-8000-0000000000${87 + looked.length - 4}`, parent_id: null, order_key: `a${looked.length + 5}`, version: 1, ...body };
+    looked.push(made);
+    return route.fulfill({ status: 201, json: made });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, ...looked.filter((c) => c.type === 'HUB')] } });
+  }
+  const parent = url.searchParams.get('parent_id');
+  if (path.endsWith('/api/v1/containers') && looked.some((c) => c.id === parent)) {
+    return route.fulfill({ json: { ...PAGE, data: looked.filter((c) => c.parent_id === parent) } });
+  }
+  const index = looked.findIndex((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (index >= 0 && method === 'PATCH') {
+    looked[index] = { ...looked[index], ...request.postDataJSON(), version: looked[index].version + 1 };
+    return route.fulfill({ json: looked[index] });
+  }
+  if (index >= 0) return route.fulfill({ json: looked[index] });
+  if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { ...PAGE, data: LOOK_ITEMS } });
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const records = [HUB, COLLECTION, ...looked].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  return undefined;
+}
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
+  const looks = lookRoute(route, request, url, path);
+  if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
   if (figured) return figured;
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
@@ -718,6 +780,7 @@ let unstubbed = [];
 export function forgetUnstubbed() {
   unstubbed = [];
   pushed.length = 0;
+  looked = [];
   draftSaved = false;
 }
 
