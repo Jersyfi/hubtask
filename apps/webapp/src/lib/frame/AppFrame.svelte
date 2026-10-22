@@ -9,7 +9,8 @@
   // `SideNav` in a `NavDrawer` behind ☰ below it, and as a `BottomBar` on `compact`, where the
   // drawer then holds the `tree` and `keeping` bands only (design-system.md §11.3). The account
   // group is behind the avatar from `medium` (with the name from `large`) and behind "You" in the
-  // bottom bar below it. The bar carries no page action. It does
+  // bottom bar below it. The bar carries no page action. It does carry *Capture* from `medium` up
+  // (on `compact` the bottom bar's ＋), which is no page's action but the product's, and it does
   // carry the entry to search from `medium` up (ADR-0063 decision 4), and that is why `primary()`
   // is asked for the list *without* Search there: one visible entry to it on every width - the
   // field up here, or the destination in the bottom bar on `compact`, never both.
@@ -28,6 +29,9 @@
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { palette } from '../palette/palette.svelte.ts';
+  import CaptureDialog from '../capture/CaptureDialog.svelte';
+  import { capture } from '../capture/capture.svelte.ts';
+  import { jumbleWritable, liveCollections, mayCaptureHere, openLevels, openRoles } from '../capture/places.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
   import HelpDialog from './HelpDialog.svelte';
   import NoticeMark from './NoticeMark.svelte';
@@ -152,7 +156,36 @@
   // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
   $effect(() => {
     if (!session.isSignedIn) return;
-    return listenForShortcuts(() => palette.isOpen, { palette: () => palette.summon(), help: () => (isHelpOpen = true) });
+    return listenForShortcuts(() => palette.isOpen, {
+      palette: () => palette.summon(),
+      help: () => (isHelpOpen = true),
+      // `Q`, where the reader may capture at all; elsewhere it is no shortcut (P-05).
+      capture: () => {
+        if (mayCaptureHere()) capture.summon();
+      },
+    });
+  });
+
+  // Whether capture is drawn at all (UC-WRK-26 check 1, record D13). A reader who may write in the
+  // jumble needs no read for it; one who may not - a child with one hub - is asked about the
+  // collections they see, once, the reads shared with the tree and the people screens.
+  const needsRoles = $derived(session.isSignedIn && jumbleWritable() === false);
+  const hubsKey = $derived(needsRoles ? containers.hubs.map((hub) => hub.id).join(',') : '');
+  $effect(() => {
+    if (hubsKey === '') return;
+    return openLevels();
+  });
+  $effect(() => {
+    if (!needsRoles) return;
+    openRoles(liveCollections());
+  });
+  const isCaptureOffered = $derived(session.isSignedIn && mayCaptureHere());
+
+  /** Where the reader stands, for the capture field's own collection. */
+  const captureHere = $derived({
+    collection: route.name === 'collection' ? route.params.id : undefined,
+    item: route.name === 'item' ? route.params.id : undefined,
+    hub: route.name === 'hub' ? route.params.id : undefined,
   });
 
   // The palette's state belongs to one drawing at a time: a width change closes it rather than
@@ -217,12 +250,11 @@
   );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
   const bottomDestinations = $derived([
-    ...primary({ hasJumble: holdsHere('READ') === true }).map((each) => ({
-      id: each.id,
-      label: t(each.code),
-      icon: each.icon,
-      href: each.target.kind === 'route' ? each.target.path : '/',
-    })),
+    ...primary({ hasJumble: holdsHere('READ') === true, hasCapture: isCaptureOffered }).map((each) =>
+      each.target.kind === 'capture'
+        ? { id: each.id, label: t(each.code), icon: each.icon, isAction: true }
+        : { id: each.id, label: t(each.code), icon: each.icon, href: each.target.kind === 'route' ? each.target.path : '/' },
+    ),
     { id: 'you', label: t(YOU_CODE), icon: 'user' as const, href: '/profile' },
   ]);
   const bottomCurrent = $derived(
@@ -267,7 +299,7 @@
     const chosen = DESTINATIONS.find((each) => each.id === id);
     if (!chosen) return;
     if (chosen.target.kind === 'route') go(chosen.target.path);
-    else accountVerb(chosen.target.action);
+    else if (chosen.target.kind === 'action') accountVerb(chosen.target.action);
   }
 
   /** *Help and shortcuts*, open: from the account group, the palette, or `?`. */
@@ -369,6 +401,11 @@
     {#snippet brand()}
       <!-- A name rather than a message: the product is called Hubtask in every language. -->
       <a class="wordmark" href="/">Hubtask</a>
+      <!-- On `medium` *Capture* is a mark at the start: the row is too narrow for one more control
+           at the end and the palette's field still centred between the two sides (§11.2). -->
+      {#if isCaptureOffered && !viewport.isCompact && viewport.isBelowExpanded}
+        <IconButton icon="plus" label={t('app.capture.open_field')} aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+      {/if}
     {/snippet}
     {#snippet search()}
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
@@ -399,6 +436,11 @@
            the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
            banners above the head of every page; now it is a mark that says nothing until it is
            pressed, and nothing at all when there is nothing to say. -->
+      <!-- Capture, from every page (UC-WRK-26 check 1): the product's act rather than a page's,
+           here from `medium` up and the bottom bar's ＋ below it. -->
+      {#if isCaptureOffered && !viewport.isBelowExpanded}
+        <Button size="sm" tone="primary" icon="plus" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+      {/if}
       <NoticeMark />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
@@ -517,6 +559,8 @@
         // Search opens the palette here, the bar having no field to type in: its *All results*
         // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
         else if (id === 'search') palette.summon();
+        // The ＋ is an act, not a place: it opens the capture field where the reader is.
+        else if (id === 'capture') capture.summon();
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
@@ -525,6 +569,10 @@
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
+  {/if}
+  <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
+  {#if isCaptureOffered && capture.isOpen}
+    <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} />
   {/if}
   {#if isHelpOpen}
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />

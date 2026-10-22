@@ -259,6 +259,12 @@ class Items {
       notes?: string | null;
       /** BCP-47, the language the title and the notes are in. Omitted takes the creator's locale. */
       content_language?: string | null;
+      /** The three due fields, together or not at all (`due.ts`, `dueInputFor`). */
+      due_at?: string;
+      due_date_only?: boolean;
+      due_time_zone?: string;
+      assignee_id?: string;
+      label_ids?: readonly string[];
     },
     idempotencyKey: string,
   ): Promise<WorkItem> {
