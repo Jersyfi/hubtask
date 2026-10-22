@@ -3,7 +3,7 @@
 -- Every statement names the reader's own side: whether they gave kudos, or what they received. No
 -- statement counts kudos per person, and none answers who gave kudos to somebody else.
 
--- name: GiveKudos :exec
+-- name: GiveKudos :execrows
 -- Idempotent: kudos already given keep their moment.
 INSERT INTO kudos (tenant_id, item_id, given_by, given_to, given_at)
 VALUES (current_tenant_id(), sqlc.arg('item_id'), sqlc.arg('given_by'), sqlc.arg('given_to'),

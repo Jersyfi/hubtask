@@ -778,6 +778,13 @@ func run() error {
 		Structure: structures, Milestones: milestones,
 	}
 
+	// The three kudos use cases share one desk: the same entry read, the same permission question
+	// (work.KudosDesk).
+	kudosDesk := work.KudosDesk{
+		Kudos: postgres.NewKudosRepository(), Items: items, Containers: containers,
+		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Audit: auditSink,
+	}
+
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
@@ -2198,6 +2205,9 @@ func run() error {
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
+		work.ReadKudos{Desk: kudosDesk}.Descriptor(),
+		work.GiveKudos{Desk: kudosDesk}.Descriptor(),
+		work.TakeBackKudos{Desk: kudosDesk}.Descriptor(),
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.BulkUpdateWorkItems{

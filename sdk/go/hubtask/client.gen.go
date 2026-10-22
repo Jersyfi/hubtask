@@ -17234,7 +17234,7 @@ type ClientInterface interface {
 
 	// GiveKudos performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
 	//
-	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event, audit entry or change record is written.
+	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
 	GiveKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveLabel performs a DELETE /items/{itemId}/labels/{labelId} (the `RemoveLabel` operationId) request.
@@ -25627,7 +25627,7 @@ func (c *Client) ReadKudos(ctx context.Context, itemId ItemId, reqEditors ...Req
 
 // GiveKudos performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
 //
-// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event, audit entry or change record is written.
+// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
 func (c *Client) GiveKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGiveKudosRequest(c.Server, itemId)
 	if err != nil {
@@ -49475,7 +49475,7 @@ type ClientWithResponsesInterface interface {
 
 	// GiveKudosWithResponse performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
 	//
-	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event, audit entry or change record is written.
+	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GiveKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*GiveKudosResult, error)
@@ -74428,7 +74428,7 @@ func (c *ClientWithResponses) ReadKudosWithResponse(ctx context.Context, itemId 
 
 // GiveKudosWithResponse performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
 //
-// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event, audit entry or change record is written.
+// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GiveKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*GiveKudosResult, error) {

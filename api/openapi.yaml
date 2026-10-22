@@ -9219,8 +9219,9 @@ paths:
         Acknowledges the entry's completion to the person who completed it. Idempotent: kudos
         already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on
         one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry:
-        kudos change nothing of it, so the entry keeps its version and its history, and no event,
-        audit entry or change record is written.
+        kudos change nothing of it, so the entry keeps its version and its history, and no event or
+        change record is written. The audit trail records the act and the entry, never whom the
+        kudos went to.
       responses:
         "200":
           description: The reader's view of the entry's kudos

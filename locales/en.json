@@ -517,6 +517,8 @@
   "comments.comment_id_required": "Say which comment.",
   "comments.comment_deleted": "That comment was deleted. Its text cannot be changed.",
   "comments.version_conflict": "Someone else changed that comment in the meantime. Read it again and reapply.",
+  "kudos.not_completed": "Kudos are for finished work. This entry is still open.",
+  "kudos.own_completion": "Kudos are for what somebody else finished.",
   "media.type_mismatch": "The file does not look like {claimed}. Send it as what it is, or without a content type.",
   "media.too_large": "The file is larger than this installation accepts ({limit_bytes} bytes).",
   "media.content_required": "The upload carries no content.",

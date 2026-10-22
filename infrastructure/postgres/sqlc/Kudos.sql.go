@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const giveKudos = `-- name: GiveKudos :exec
+const giveKudos = `-- name: GiveKudos :execrows
 
 INSERT INTO kudos (tenant_id, item_id, given_by, given_to, given_at)
 VALUES (current_tenant_id(), $1, $2, $3,
@@ -31,14 +31,17 @@ type GiveKudosParams struct {
 // Every statement names the reader's own side: whether they gave kudos, or what they received. No
 // statement counts kudos per person, and none answers who gave kudos to somebody else.
 // Idempotent: kudos already given keep their moment.
-func (q *Queries) GiveKudos(ctx context.Context, arg GiveKudosParams) error {
-	_, err := q.db.Exec(ctx, giveKudos,
+func (q *Queries) GiveKudos(ctx context.Context, arg GiveKudosParams) (int64, error) {
+	result, err := q.db.Exec(ctx, giveKudos,
 		arg.ItemID,
 		arg.GivenBy,
 		arg.GivenTo,
 		arg.GivenAt,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const kudosGiven = `-- name: KudosGiven :one

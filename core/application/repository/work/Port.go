@@ -1261,3 +1261,17 @@ type Milestones interface {
 	// Of answers the milestones of the given containers; a container without one is absent.
 	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error)
 }
+
+// Kudos keeps one person's acknowledgement of another's completion (UC-WRK-29 checks 5 and 6).
+// Every read is one person's own side: what they gave, what they received - never a count.
+type Kudos interface {
+	// Give records the kudos and reports whether it did; kudos already given keep their moment.
+	Give(ctx context.Context, kudos work.Kudos) (bool, error)
+	// TakeBack removes the kudos the giver gave to this person's completion of the entry, and
+	// reports whether there were any.
+	TakeBack(ctx context.Context, itemID, givenBy, givenTo shared.ID) (bool, error)
+	// Given reports whether the giver gave kudos to this person's completion of the entry.
+	Given(ctx context.Context, itemID, givenBy, givenTo shared.ID) (bool, error)
+	// Received answers the kudos the person received on the entry, oldest first.
+	Received(ctx context.Context, itemID, givenTo shared.ID) ([]work.Kudos, error)
+}

@@ -27,7 +27,8 @@ import (
 
 // Milestones against PostgreSQL as the application role (UC-WRK-29 check 4): a completion that
 // leaves nothing open records the collection's milestone and, when the whole hub is finished, the
-// hub's. Tenant B, whose installation profile no other suite narrows.
+// hub's. Tenant B, whose installation profile no other suite narrows. The catalogue carries the
+// kudos doors too (kudos_test.go): both celebrate a completion.
 
 func celebrationCatalogue(ctx context.Context, t *testing.T) *usecase.Registry {
 	t.Helper()
@@ -50,6 +51,10 @@ func celebrationCatalogue(ctx context.Context, t *testing.T) *usecase.Registry {
 		Audit: sink, Activity: work.ActivityJournal{Entries: historyRepo(), IDs: ids},
 		UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid, Milestones: milestones,
 	}
+	desk := work.KudosDesk{
+		Kudos: postgres.NewKudosRepository(), Items: itemRepo(), Containers: containers,
+		Authorizer: authoriser, UnitOfWork: unitOfWork, Clock: fixed, Audit: sink,
+	}
 	registry, err := usecase.NewRegistry(nil,
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
@@ -60,6 +65,9 @@ func celebrationCatalogue(ctx context.Context, t *testing.T) *usecase.Registry {
 			Containers: containers, Authorizer: authoriser, Reader: authoriser, UnitOfWork: unitOfWork,
 			Milestones: milestones,
 		}.Descriptor(),
+		work.ReadKudos{Desk: desk}.Descriptor(),
+		work.GiveKudos{Desk: desk}.Descriptor(),
+		work.TakeBackKudos{Desk: desk}.Descriptor(),
 	)
 	if err != nil {
 		t.Fatalf("building the catalogue: %v", err)
