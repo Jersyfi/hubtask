@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
 state: partial
 tasks: [UX-24, UX-25, UX-26]
-checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs]
+checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs]
 ---
 
 # See what counts in a hub or collection
@@ -38,7 +38,3 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 ## Today
 
 * Check 1: not met — the flow figure is counted once a flow's columns are its states; the setting offers it and nothing is shown until then, tracked in #1658.
-* Check 4: not met — not built yet, tracked in #1657.
-* Check 5: not met — not built yet, tracked in #1657.
-* Check 6: not met — not built yet, tracked in #1657.
-* Check 7: not met — not built yet, tracked in #1657.
