@@ -30,6 +30,7 @@
     LabelPicker,
     Menu,
     Popover,
+    provideReasonGroup,
     rankIntent,
     rankTarget,
     Select,
@@ -61,7 +62,7 @@
   import ReplicaMark from '../frame/ReplicaMark.svelte';
   import DuePanel from './DuePanel.svelte';
   import { outcomeOf } from '../data/bulk.ts';
-  import { archivalOfItem } from '../data/lifecycle.ts';
+  import { archivalOfItem, isBelowArchived } from '../data/lifecycle.ts';
   import { anchorFor } from '../data/rank.ts';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
@@ -84,6 +85,13 @@
     root?: Pick<WorkItem, 'id' | 'type' | 'parent_id' | 'depth'>;
     /** Whether the collection is archived — the entries in it are then read-only too (I-C3). */
     isReadOnly?: boolean;
+    /**
+     * While read-only, the sentence the page's one notice says and that notice's id: the rows say
+     * nothing of their own, and the completion box each keeps - it is how a row says done - names
+     * the notice as its description rather than repeating it (design-system.md §4, case 5).
+     */
+    readOnlyReason?: string;
+    readOnlyNoticeId?: string;
     /** What the reader has asked of this level: a filter, an order. Built from the manifest. */
     query?: ItemsQuery;
     /**
@@ -133,6 +141,8 @@
     collectionId,
     root,
     isReadOnly = false,
+    readOnlyReason,
+    readOnlyNoticeId,
     query,
     isExpanded = false,
     lastResults,
@@ -142,6 +152,8 @@
     changeRefusal,
     mayCreate,
   }: Props = $props();
+
+  provideReasonGroup(() => ({ id: readOnlyNoticeId ?? '', reason: isReadOnly && readOnlyNoticeId ? inheritedReason() : undefined }));
 
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
   const topTypes = () => (root ? childTypes(root.type) : rootTypes());
@@ -299,13 +311,18 @@
 
   /** Why it may not, in the reader's words. There is no `disabled` boolean anywhere. */
   function frozenReason(row: Row): string | undefined {
+    // A read-only list is one area with one reason, the page's notice: it outlasts any row's own
+    // archive or the reader's role, since nothing in it can be changed until it is lifted (I-C3).
+    if (isReadOnly) return inheritedReason();
     const refusal = changeRefusal(row.item);
     if (refusal) return refusal;
     if (row.archival === 'archived') return t('app.entries.archived');
-    if (row.archival === 'inherited') {
-      return isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above');
-    }
     return undefined;
+  }
+
+  /** Why a row of a read-only list cannot be changed: the page's notice, said in its words. */
+  function inheritedReason(): string {
+    return readOnlyReason ?? t('app.entries.read_only');
   }
 
   /** The visible rows, in the order the eye walks them. */
@@ -313,11 +330,11 @@
     parents: readonly WorkItem[],
     depth: number,
     parentId: string | null,
-    isBelowArchived: boolean,
+    isUnderArchive: boolean,
   ): Row[] {
     const rows: Row[] = [];
     parents.forEach((item, index) => {
-      const archival = archivalOfItem(item, isBelowArchived);
+      const archival = archivalOfItem(item, isUnderArchive);
       // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
       rows.push({
@@ -330,10 +347,10 @@
         archival,
       });
       if (expanded.includes(item.id)) {
-        // An archived entry makes everything under it read-only (I-W4), and so does an archived
-        // collection above the whole list — which is what `isReadOnly` is at the top level.
+        // Only an archived collection reaches the rows under an entry - `isReadOnly` here. An
+        // archived entry freezes itself, not its children (lifecycle.ts, `isBelowArchived`).
         rows.push(
-          ...flatten(items.childrenOf(item.id), depth + 1, item.id, archival !== 'active'),
+          ...flatten(items.childrenOf(item.id), depth + 1, item.id, isBelowArchived(archival, isReadOnly)),
         );
       }
     });
@@ -795,16 +812,12 @@
         label: t('app.move.elsewhere'),
         disabledReason: frozenReason(row),
       },
-      // Archived is read-only, **not hidden**: the entry stays where it is and every control on it
-      // is off with the reason (I-W4). So this one is offered on an archived row — it is the way
-      // back — and refused on a row that is read-only because something above it is.
+      // Archived is read-only, **not hidden**: the entry stays where it is, and its writing items
+      // say why they are off (I-W4). This one is offered on an archived row — it is the way back.
+      // A row of a read-only list has no menu at all; the page's notice speaks for it.
       {
         id: 'archive',
         label: t(row.archival === 'archived' ? 'app.entries.unarchive' : 'app.entries.archive'),
-        disabledReason:
-          row.archival === 'inherited'
-            ? (isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above'))
-            : undefined,
         hasSeparatorBefore: true,
       },
       {
@@ -826,16 +839,11 @@
         id: 'trash',
         label: t('app.entries.trash'),
         // **Archived is not frozen against this one.** §3.4's state machine reads "active *or
-        // archived* → trashed", so an archived entry may still be deleted; what stops it is
-        // something above it being archived, because that thing is read-only and everything in it
-        // with it (I-C3).
+        // archived* → trashed", so an archived entry may still be deleted; what stops it is an
+        // archived collection (I-C3), and a row of one has no menu.
         //
         // Offered without a confirmation because it is reversible: the subtree goes in under one
         // deletion and comes back as one act. Destroying is what asks first, on the trash screen.
-        disabledReason:
-          row.archival === 'inherited'
-            ? (isReadOnly ? t('app.entries.read_only') : t('app.entries.archived_above'))
-            : undefined,
         isDestructive: true,
       },
     ];
@@ -1128,7 +1136,7 @@
                  menu at the end of the row, and it is a real one — so a second focusable element
                  that does nothing for the keyboard would be noise in the tab order rather than
                  access. -->
-            {#if !isRoleRefused(row)}
+            {#if !isRoleRefused(row) && !isReadOnly}
               <span class="grip" data-grip aria-hidden="true">
                 <Icon name="grip-vertical" size="sm" />
               </span>
@@ -1183,10 +1191,10 @@
                 <!-- When it is wanted, with the word as well as the tone (rule 3). -->
                 <DueMark item={row.item} />
 
-                <!-- Rule 3: an archived row is not told apart by being dimmer. It says the word, so
-                     the state reads in greyscale and to a screen reader — which matters more here
-                     than anywhere, because "archived" is why every control beside it is off. -->
-                {#if row.archival !== 'active'}
+                <!-- Rule 3: an entry archived in its own right is not told apart by being dimmer. It
+                     says the word, so the state reads in greyscale and to a screen reader. In a
+                     read-only list the page's notice says it once instead, and no row repeats it. -->
+                {#if row.archival === 'archived' && !isReadOnly}
                   <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
                 {/if}
 
@@ -1250,7 +1258,7 @@
                 <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
                      first: every position a drag can reach is an item here, each with the reason it
                      cannot be used rather than a control that goes grey for no stated cause. -->
-                {#if menuItems(row).length > 0}
+                {#if !isReadOnly && menuItems(row).length > 0}
                   <Menu
                     label={t('app.rank.actions', { title: row.item.title })}
                     items={menuItems(row)}

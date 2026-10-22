@@ -20,7 +20,6 @@
 
   import {
     Button,
-    CapabilityGate,
     ListRow,
     LoadMore,
     Stack,
@@ -29,7 +28,6 @@
   import type { MediaObject, MediaPage, WorkItem } from '@hubtask/sync-engine';
 
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { supports } from '../data/capability.svelte.ts';
   import { attachmentsPath, media } from '../data/media.svelte.ts';
   import { acceptFor, isReady, isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
   import { resource } from '../data/resource.svelte.ts';
@@ -44,7 +42,6 @@
    */
   const { item, isChangeable }: { item: WorkItem; isChangeable: boolean } = $props();
 
-  const capability = $derived(supports(item.type, 'ATTACHMENTS'));
   const limit = $derived(uploadLimitOf(manifest.value));
 
   // The path is taken once, as every other subscription here takes one: the view is rebuilt per
@@ -153,11 +150,9 @@
   }
 </script>
 
-<CapabilityGate
-  status={capability.status}
-  reason={capability.status === 'refused' ? t(capability.code, capability.params) : undefined}
-  pendingLabel={t('app.media.deciding')}
->
+<!-- No gate here: the entry page draws this panel only where the type carries the capability
+     (`carries`, ItemView), so a refusal could never reach it - a refused capability is an absent
+     row, not a dead one (design-system.md §11.8). -->
   <Stack gap="150">
     {#if readFailure}<p class="failure" role="alert">{readFailure.message}</p>{/if}
 
@@ -218,7 +213,6 @@
     {#if notice}<p class="quiet">{notice}</p>{/if}
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
-</CapabilityGate>
 
 <style>
   .files { margin: 0; padding: 0; list-style: none; }

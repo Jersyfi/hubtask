@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { WorkItem } from '@hubtask/sync-engine';
 
-import { archivalOfItem, daysUntil, isContainer, remainingDays } from './lifecycle.ts';
+import { archivalOfItem, daysUntil, isBelowArchived, isContainer, remainingDays } from './lifecycle.ts';
 
 const entry = (extra: Partial<WorkItem> = {}): WorkItem =>
   ({ id: 'i', type: 'TASK', title: 'Buy milk', version: 1, ...extra }) as WorkItem;
@@ -26,6 +26,21 @@ test('an entry archived in its own right stays archived inside an archived colle
     archivalOfItem(entry({ archived_at: '2026-09-01T00:00:00Z' }), true),
     'archived',
   );
+});
+
+test('the children of an archived entry are not archived with it', () => {
+  // The server's model: archiving an entry freezes that entry alone, and a work package under an
+  // archived task stays writable (ArchiveWorkItem.go). A client that froze the children refused
+  // what the server allows - copying one included.
+  assert.equal(isBelowArchived('archived', false), false);
+  assert.equal(isBelowArchived('active', false), false);
+});
+
+test('everything in an archived collection is below something archived', () => {
+  // I-C3: the collection's archive reaches every entry in it, whatever the entry's own state.
+  assert.equal(isBelowArchived('active', true), true);
+  assert.equal(isBelowArchived('archived', true), true);
+  assert.equal(isBelowArchived('inherited', true), true);
 });
 
 const now = Date.parse('2026-09-10T12:00:00Z');

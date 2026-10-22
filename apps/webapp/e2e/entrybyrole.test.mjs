@@ -78,8 +78,8 @@ async function offered(page) {
     addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
     childMenu: (await count(page.getByRole('button', { name: `Move ${CHILD.title}` }))) === 1,
     assigneeEditor: (await count(page.locator('button[data-detail="assignee"]'))) === 1,
-    notYours: (await count(page.locator('.role-reason', { hasText: 'Your role changes only the entries assigned to you.' }))) > 0,
-    readsOnly: (await count(page.locator('.role-reason', { hasText: 'Your role can read entries here but not change them.' }))) > 0,
+    notYours: (await count(page.locator('main [role="note"]', { hasText: 'Your role changes only the entries assigned to you.' }))) > 0,
+    readsOnly: (await count(page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }))) > 0,
   };
 }
 

@@ -47,6 +47,7 @@
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
   import RestoreReport from '../restore/RestoreReport.svelte';
 
   interface Props {
@@ -74,6 +75,24 @@
   let jobId = $state<string | undefined>(undefined);
   let importId = $state<string | undefined>(undefined);
   let isStarting = $state(false);
+  /**
+   * What *Next* or *Import* found missing when it was pressed - the file, or the column that
+   * carries the title - said at that field (design-system.md §4, case 3). A file still on its way
+   * is not missing: the button is busy until it has landed.
+   */
+  let missing = $state<'file' | 'title' | undefined>(undefined);
+  let stepBody = $state<HTMLElement | null>(null);
+
+  /** Moves on only with what the step needs; otherwise marks it and takes focus there. */
+  function needs(what: 'file' | 'title', isThere: boolean, then: () => void) {
+    if (isThere) {
+      missing = undefined;
+      then();
+      return;
+    }
+    missing = what;
+    queueMicrotask(() => focusFirst(stepBody));
+  }
   /** The hub's collections before the run, so that what landed can be told from what was there. */
   let before = $state<ReadonlySet<string>>(new Set());
 
@@ -221,6 +240,7 @@
 </script>
 
 <Dialog bind:isOpen title={t('app.import.title')} dismissLabel={t('app.workspace.cancel')}>
+  <div bind:this={stepBody}>
   <Stack gap="150">
     <h3 class="step" aria-live="polite">{heading}</h3>
 
@@ -250,7 +270,11 @@
         progress={isUploading ? percent : undefined}
         progressLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : undefined}
         accept={acceptFor(kind)}
-        onChoose={(file) => void choose(file)}
+        error={missing === 'file' && !chosen ? t('app.import.file_first') : undefined}
+        onChoose={(file) => {
+          missing = undefined;
+          void choose(file);
+        }}
         onCancel={cancelUpload}
       />
       {#if mediaId}
@@ -261,17 +285,17 @@
         <Button tone="secondary" onclick={() => go('kind')}>{t('app.import.back')}</Button>
         {#if kind === 'CSV'}
           <Button
-            disabledReason={mediaId ? undefined : t('app.import.file_first')}
-            onclick={() => go('mapping')}
+            isBusy={isUploading}
+            busyLabel={t('app.media.uploading', { percent: String(percent) })}
+            onclick={() => needs('file', mediaId !== undefined, () => go('mapping'))}
           >
             {t('app.import.next')}
           </Button>
         {:else}
           <Button
-            isBusy={isStarting}
-            busyLabel={t('app.import.starting')}
-            disabledReason={mediaId ? undefined : t('app.import.file_first')}
-            onclick={() => void start()}
+            isBusy={isStarting || isUploading}
+            busyLabel={isUploading ? t('app.media.uploading', { percent: String(percent) }) : t('app.import.starting')}
+            onclick={() => needs('file', mediaId !== undefined, () => void start())}
           >
             {t('app.import.go')}
           </Button>
@@ -286,6 +310,7 @@
           label={t(`app.import.field_${field}`)}
           hint={t(`app.import.field_${field}_hint`)}
           bind:value={mapping[field]}
+          error={field === 'title' && missing === 'title' && mapping.title === '' ? t('app.import.title_needed') : undefined}
           options={columnOptions}
         />
       {/each}
@@ -295,8 +320,7 @@
         <Button
           isBusy={isStarting}
           busyLabel={t('app.import.starting')}
-          disabledReason={mapping.title === '' ? t('app.import.title_needed') : undefined}
-          onclick={() => void start()}
+          onclick={() => needs('title', mapping.title !== '', () => void start())}
         >
           {t('app.import.go')}
         </Button>
@@ -362,6 +386,7 @@
       </Inline>
     {/if}
   </Stack>
+  </div>
 </Dialog>
 
 <style>

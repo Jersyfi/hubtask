@@ -24,6 +24,7 @@ export { default as Callout } from './Callout.svelte';
 export { default as CodeBlock, type LineKind } from './CodeBlock.svelte';
 export { default as Button } from './Button.svelte';
 export { default as Checkbox } from './Checkbox.svelte';
+export { default as CheckboxGroup, type CheckboxOption } from './CheckboxGroup.svelte';
 export { default as CodeField } from './CodeField.svelte';
 export { default as Dialog } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
@@ -175,3 +176,7 @@ export {
   type LayerEntry,
   type LayerHandle,
 } from './layers.ts';
+
+// The one reason a group of controls shares - a composite's, or an area's notice the caller draws
+// (design-system.md §4): the parts point at it and draw no bubble of their own.
+export { provideReasonGroup, sharedReason, type ReasonGroup } from './reason.ts';

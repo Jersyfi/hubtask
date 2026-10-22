@@ -23,3 +23,10 @@ export const focus: Story = {
     'Put the caret in the field, press Save, and watch it stay there. `role="status"` is announced at the next pause; a toast that took focus would throw a keyboard user out of the field they were typing in — which is exactly when a save confirmation arrives.',
   args: { mode: 'focus' },
 };
+
+export const quiet: Story = {
+  name: 'Drawn, not announced',
+  about:
+    'A frame that already says the text through the application’s one live region draws its toasts with `isAnnounced={false}`: no `role="status"` of its own, so a reader hears the sentence once rather than twice.',
+  args: { mode: 'quiet' },
+};

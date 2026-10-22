@@ -17,6 +17,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   import type { Bucket } from '@hubtask/sync-engine';
 
@@ -62,8 +63,19 @@
 
   const limitProblem = $derived(parsedLimit === undefined ? t('app.board.limit_invalid') : undefined);
 
+  /** The save was pressed without a name: the field says so (design-system.md §4, case 3). */
+  let isNameMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
+
   async function save() {
-    if (name.trim() === '' || parsedLimit === undefined || isSaving) return;
+    if (isSaving) return;
+    // A limit that cannot be read is already said at its field; the name is said when it is
+    // missing and the save is pressed - never by switching the save off.
+    if (name.trim() === '' || parsedLimit === undefined) {
+      isNameMissing = name.trim() === '';
+      queueMicrotask(() => focusFirst(form));
+      return;
+    }
     isSaving = true;
     failure = undefined;
     try {
@@ -98,8 +110,15 @@
   title={t(bucket ? 'app.board.edit_column' : 'app.board.create_column')}
   dismissLabel={t('app.workspace.cancel')}
 >
+  <div bind:this={form}>
   <Stack gap="150">
-    <Input label={t('app.board.column_name')} bind:value={name} isRequired />
+    <Input
+      label={t('app.board.column_name')}
+      bind:value={name}
+      isRequired
+      oninput={() => (isNameMissing = false)}
+      error={isNameMissing ? t('app.board.column_name_required') : undefined}
+    />
     <Input
       label={t('app.board.wip_limit')}
       hint={t('app.board.wip_limit_hint')}
@@ -109,15 +128,13 @@
     <Switch label={t('app.board.is_done_column')} hint={t('app.board.done_bucket')} bind:checked={isDone} />
     {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
   </Stack>
+  </div>
 
   {#snippet actions()}
     <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
     <Button
       isBusy={isSaving}
       busyLabel={t('app.workspace.saving')}
-      disabledReason={name.trim() === ''
-        ? t('app.board.column_name_required')
-        : (limitProblem ?? undefined)}
       onclick={save}
     >
       {t('app.workspace.save')}

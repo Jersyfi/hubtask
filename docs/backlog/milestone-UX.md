@@ -101,7 +101,7 @@ design-system.md §4 gets the patterns (Decision 12).
 
 *Depends on: UX-03.* · issue #1636
 
-**Use cases:** UC-WRK-32 (2, 3, 4)
+**Use cases:** UC-WRK-32 (2, 3, 4, 6, 7) — for the end-user screens and the eight screens of *Your settings* (coordinator, 2026-10-21)
 
 Every end-user call site in `ux-inventory.md` §D.2 (rows 1–17) moved to its pattern: archived
 lists get one notice instead of a reason per row, comments stop repeating "not yours", forms submit
@@ -114,7 +114,7 @@ inventory rows ticked.
 
 *Depends on: UX-03.* · issue #1637
 
-**Use cases:** UC-WRK-32 (5, 7)
+**Use cases:** UC-WRK-32 (5, 6, 7) — 6 and 7 for administration and installation (coordinator, 2026-10-21)
 
 Every administration and installation call site in §D.2 (rows 18–35): locks and origins through
 `SourceChip` (sign-in, private hubs, limits, AI, plans, installation defaults), forms with

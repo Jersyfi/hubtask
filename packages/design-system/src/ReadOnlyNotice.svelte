@@ -28,14 +28,20 @@
     icon?: IconName;
     /** The one action that changes the state, drawn by the caller - a `Button`. */
     action?: Snippet;
+    /**
+     * An id for the sentence, so the controls of the area that stay drawn - a completion box that
+     * still shows done - can name it as their description rather than repeating it (reason.ts,
+     * `provideReasonGroup`).
+     */
+    textId?: string;
   }
 
-  const { text, icon = 'lock', action }: Props = $props();
+  const { text, icon = 'lock', action, textId }: Props = $props();
 </script>
 
 <div class="notice" role="note">
   <span class="mark" aria-hidden="true"><Icon name={icon} size="sm" /></span>
-  <p class="text">{text}</p>
+  <p class="text" id={textId}>{text}</p>
   {#if action}<div class="action">{@render action()}</div>{/if}
 </div>
 

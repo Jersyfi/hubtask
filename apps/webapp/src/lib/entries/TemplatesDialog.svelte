@@ -5,8 +5,9 @@
   //
   // **Two permissions, and they are not the same control.** Defining a template is shaping the
   // workspace and asks `STRUCTURE` at its scope; using one is ordinary work and asks `WRITE_ITEMS`
-  // in the collection it lands in. A viewer sees every template and can define none, with the
-  // reason — which is the normal case rather than an edge one.
+  // in the collection it lands in. A viewer sees every template and is offered none of the
+  // controls - absent rather than off with a reason, because a role is not something the reader can
+  // change here (P-05, UC-WRK-16 check 7). Until the role is known, nothing that writes is drawn.
   //
   // **The list is one read of three scopes**, and each row says which it came from. Without the
   // mark it is three lists that look like one, and "delete" on a workspace-wide template from a
@@ -18,7 +19,6 @@
 
   import {
     Button,
-    CapabilityGate,
     Dialog,
     Inline,
     Input,
@@ -41,6 +41,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
   import TemplateEditor from './TemplateEditor.svelte';
 
   interface Props {
@@ -58,20 +59,12 @@
   const writeItems = $derived(holds(role, 'WRITE_ITEMS'));
   const held = $derived(templates.of(collectionId));
 
-  const structureReason = $derived(
-    structure.status === 'permitted'
-      ? undefined
-      : structure.status === 'refused'
-        ? t(structure.code, structure.params)
-        : t('app.templates.deciding'),
-  );
-  const useReason = $derived(
-    writeItems.status === 'permitted'
-      ? undefined
-      : writeItems.status === 'refused'
-        ? t(writeItems.code, writeItems.params)
-        : t('app.templates.deciding'),
-  );
+  /** Whether the reader may shape templates here, and use one: drawn only where they may. */
+  const mayShape = $derived(structure.status === 'permitted');
+  const mayUse = $derived(writeItems.status === 'permitted');
+  /** The description was asked for and is empty: said at the field when *Generate* is pressed. */
+  let isWantedMissing = $state(false);
+  let dialogBody = $state<HTMLElement | null>(null);
 
   // Defining.
   let isDefining = $state(false);
@@ -135,6 +128,13 @@
 
   function generate() {
     const description = wanted.trim();
+    // Never switched off for an empty description (design-system.md §4, case 3): pressed, the
+    // field says what it needs and takes focus.
+    if (description === '') {
+      isWantedMissing = true;
+      queueMicrotask(() => focusFirst(dialogBody));
+      return;
+    }
     void attempt(async () => {
       // The ask is answered `202` at once and the store follows the listing on its own; the
       // dialog closes so that the strip, where the draft lands, is what the person sees. Only
@@ -276,7 +276,6 @@
             <Button
               isBusy={isSaving}
               busyLabel={t('app.workspace.saving')}
-              disabledReason={useReason}
               onclick={instantiate}
             >
               {t('app.templates.go')}
@@ -286,13 +285,15 @@
         </Inline>
       </Stack>
     {:else if isGenerating}
+      <div bind:this={dialogBody}>
       <Stack gap="150">
         <Textarea
           label={t('app.templates.generate_description')}
           hint={t('app.templates.generate_hint')}
           bind:value={wanted}
+          oninput={() => (isWantedMissing = false)}
           rows={4}
-          error={failure?.fields.get('/description')}
+          error={isWantedMissing ? t('app.templates.generate_empty') : failure?.fields.get('/description')}
         />
         <p class="quiet">{t('app.templates.generate_note')}</p>
         {#if failure && !failure.fields.get('/description')}<p class="failure" role="alert">{failure.message}</p>{/if}
@@ -301,7 +302,6 @@
             icon="sparkles"
             isBusy={isSaving}
             busyLabel={t('app.templates.generating')}
-            disabledReason={wanted.trim() === '' ? t('app.templates.generate_empty') : structureReason}
             onclick={generate}
           >
             {t('app.templates.generate')}
@@ -309,6 +309,7 @@
           <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
         </Inline>
       </Stack>
+      </div>
     {:else if isDefining}
       <Stack gap="150">
         <Input label={t('app.templates.name')} bind:value={name} error={failure?.fields.get('/name')} />
@@ -337,7 +338,6 @@
           <Button
             isBusy={isSaving}
             busyLabel={t('app.workspace.saving')}
-            disabledReason={structureReason}
             onclick={save}
           >
             {t('app.templates.save')}
@@ -360,16 +360,19 @@
                   </span>
                 </div>
                 <Inline gap="050">
-                  <Button size="sm" disabledReason={useReason} onclick={() => startUsing(template)}>
-                    {t('app.templates.use')}
-                  </Button>
+                  {#if mayUse}
+                    <Button size="sm" onclick={() => startUsing(template)}>
+                      {t('app.templates.use')}
+                    </Button>
+                  {/if}
                   <!-- Changed and deleted where it was defined. A workspace-wide one is listed here
-                       because it applies here, and its controls belong to its own scope. -->
-                  {#if template.scope_type === 'COLLECTION'}
-                    <Button size="sm" tone="secondary" disabledReason={structureReason} onclick={() => startEditing(template)}>
+                       because it applies here, and its controls belong to its own scope - which
+                       no screen of a collection offers, so they are absent rather than off. -->
+                  {#if template.scope_type === 'COLLECTION' && mayShape}
+                    <Button size="sm" tone="secondary" onclick={() => startEditing(template)}>
                       {t('app.entries.edit')}
                     </Button>
-                    <Button size="sm" tone="secondary" disabledReason={structureReason} onclick={() => (deleting = template)}>
+                    <Button size="sm" tone="secondary" onclick={() => (deleting = template)}>
                       {t('app.templates.delete')}
                     </Button>
                   {/if}
@@ -382,11 +385,7 @@
 
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
-      <CapabilityGate
-        status={structure.status}
-        reason={structure.status === 'refused' ? t(structure.code, structure.params) : undefined}
-        pendingLabel={t('app.templates.deciding')}
-      >
+      {#if mayShape}
         <Inline gap="100">
           <Button size="sm" tone="secondary" onclick={startDefining}>
             {t('app.templates.define')}
@@ -403,7 +402,7 @@
             </Button>
           {/if}
         </Inline>
-      </CapabilityGate>
+      {/if}
     {/if}
   </Stack>
 </Dialog>

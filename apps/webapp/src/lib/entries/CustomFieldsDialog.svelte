@@ -21,8 +21,8 @@
 
   import {
     Button,
-    CapabilityGate,
     Checkbox,
+    CheckboxGroup,
     Dialog,
     Inline,
     Input,
@@ -38,6 +38,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { check, focusFirst, isComplete, without, type Missing } from '../forms/missing.ts';
 
   interface Props {
     isOpen: boolean;
@@ -67,9 +68,11 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   const keyIsWrong = $derived(key !== '' && !isValidKey(key));
-  const canSave = $derived(
-    (editing !== undefined || (key !== '' && !keyIsWrong)) && chosen.length > 0 && !isSaving,
-  );
+  /** Whether the reader may shape fields here: the controls that do are drawn only then (P-05). */
+  const mayShape = $derived(structure.status === 'permitted');
+  /** What *Define* found missing when it was pressed; each mark goes when its field changes. */
+  let missing = $state<Missing>({});
+  let form = $state<HTMLElement | null>(null);
 
   // Opening starts from nothing. Closing leaves the fields alone: they are re-read on the next
   // open, and clearing them here would blank the dialog while it is still fading out.
@@ -88,6 +91,7 @@
     editing = undefined;
     deleting = undefined;
     failure = undefined;
+    missing = {};
   }
 
   function startEdit(definition: CustomFieldDefinition) {
@@ -124,7 +128,18 @@
   }
 
   function save() {
-    if (!canSave) return;
+    if (isSaving) return;
+    // Never switched off for what is missing (design-system.md §4, case 3): pressed, it marks the
+    // key and the types it still needs and moves focus to the first.
+    missing = check([
+      { kind: 'field', key: 'key', code: 'fields.key_required', isFilled: editing !== undefined || key !== '' },
+      { kind: 'at-least-one', key: 'types', code: 'app.fields.applies_to_empty', chosen: chosen.length },
+    ]);
+    if (!isComplete(missing)) {
+      queueMicrotask(() => focusFirst(form));
+      return;
+    }
+    if (keyIsWrong && editing === undefined) return;
     const current = editing;
     void attempt(async () => {
       if (current) {
@@ -188,30 +203,12 @@
               </div>
               <!-- A definition is changed where it was defined. The workspace-wide ones are listed
                    here because they apply here, and their controls are not. -->
-              {#if !isWorkspaceWide(definition)}
+              {#if !isWorkspaceWide(definition) && mayShape}
                 <Inline gap="050">
-                  <Button
-                    size="sm"
-                    tone="secondary"
-                    disabledReason={structure.status === 'permitted'
-                      ? undefined
-                      : structure.status === 'refused'
-                        ? t(structure.code, structure.params)
-                        : t('app.fields.deciding')}
-                    onclick={() => startEdit(definition)}
-                  >
+                  <Button size="sm" tone="secondary" onclick={() => startEdit(definition)}>
                     {t('app.fields.edit')}
                   </Button>
-                  <Button
-                    size="sm"
-                    tone="secondary"
-                    disabledReason={structure.status === 'permitted'
-                      ? undefined
-                      : structure.status === 'refused'
-                        ? t(structure.code, structure.params)
-                        : t('app.fields.deciding')}
-                    onclick={() => (deleting = definition)}
-                  >
+                  <Button size="sm" tone="secondary" onclick={() => (deleting = definition)}>
                     {t('app.fields.delete')}
                   </Button>
                 </Inline>
@@ -222,17 +219,17 @@
       </ul>
     {/if}
 
-    <CapabilityGate
-      status={structure.status}
-      reason={structure.status === 'refused' ? t(structure.code, structure.params) : undefined}
-      pendingLabel={t('app.fields.deciding')}
-    >
+    <!-- Defining and changing are the shape of the workspace: drawn for a role that may, absent for
+         any other and while the role is still being read (P-05, UC-WRK-22 check 4). -->
+    {#if mayShape}
+      <div bind:this={form}>
       <Stack gap="150">
         <Input
           label={t('app.fields.key')}
           hint={t('app.fields.key_hint')}
           bind:value={key}
-          error={keyIsWrong ? t('app.fields.key_invalid') : undefined}
+          oninput={() => (missing = without(missing, 'key'))}
+          error={missing.key ? t(missing.key) : keyIsWrong ? t('app.fields.key_invalid') : undefined}
           disabledReason={editing ? t('app.fields.immutable') : undefined}
         />
         <Select
@@ -253,32 +250,25 @@
 
         <Checkbox label={t('app.fields.required')} bind:checked={isRequired} />
 
-        <fieldset class="types">
-          <legend>{t('app.fields.applies_to')}</legend>
-          <p class="hint">{t('app.fields.applies_to_hint')}</p>
-          {#if carriers.length === 0}
+        {#if carriers.length === 0}
+          <fieldset class="types">
+            <legend>{t('app.fields.applies_to')}</legend>
             <p class="hint">{t('app.fields.applies_to_none')}</p>
-          {:else}
-            <Inline gap="100">
-              {#each carriers as type (type)}
-                <!-- A function binding rather than a handler: `checked` is `$bindable` and the
-                     spread props are a native input's, so an `onchange` here would be handed an
-                     Event rather than the answer. -->
-                <Checkbox
-                  label={type}
-                  bind:checked={
-                    () => chosen.includes(type),
-                    (next: boolean) =>
-                      (chosen = next ? [...chosen, type] : chosen.filter((held) => held !== type))
-                  }
-                />
-              {/each}
-            </Inline>
-          {/if}
-          {#if chosen.length === 0}
-            <p class="failure" role="alert">{t('app.fields.applies_to_empty')}</p>
-          {/if}
-        </fieldset>
+          </fieldset>
+        {:else}
+          <!-- Nothing said in advance when none is ticked: *Define* says it if it is pressed so. -->
+          <CheckboxGroup
+            label={t('app.fields.applies_to')}
+            hint={t('app.fields.applies_to_hint')}
+            options={carriers.map((type) => ({ value: type, label: type }))}
+            selected={chosen}
+            error={missing.types ? t(missing.types) : undefined}
+            onChange={(next) => {
+              chosen = [...next];
+              missing = without(missing, 'types');
+            }}
+          />
+        {/if}
 
         {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
 
@@ -291,7 +281,8 @@
           {/if}
         </Inline>
       </Stack>
-    </CapabilityGate>
+      </div>
+    {/if}
   </Stack>
 </Dialog>
 

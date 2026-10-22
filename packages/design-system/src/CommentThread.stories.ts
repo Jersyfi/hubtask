@@ -14,7 +14,7 @@ export default {
 export const thread: Story = {
   name: 'A conversation, oldest first',
   about:
-    'One level of replies and no more. A tree of arbitrary depth is one nobody can indent on a phone and nobody can navigate by keyboard without a treeview; one level is what the conversation actually has. Edit and remove are switched on **per comment** — whether this reader is the author or an administrator is the caller’s knowledge, and a control that is off says why.',
+    'One level of replies and no more. A tree of arbitrary depth is one nobody can indent on a phone and nobody can navigate by keyboard without a treeview; one level is what the conversation actually has. Edit and remove are offered **per comment**: on the reader’s own, and on every one for an administrator. On somebody else’s comment they are not drawn at all (`isChangeable: false`) - a person who may never change it is not shown the offer (P-05). Whether this reader is the author is the caller’s knowledge.',
 };
 
 export const removed: Story = {
@@ -43,4 +43,11 @@ export const inTableRow: Story = {
   about:
     'A comment whose edit and remove are off, beside the same comment with both on: the reasons are bubbles at the buttons, so the two rows are the same height.',
   args: { mode: 'table' },
+};
+
+export const notOffered: Story = {
+  name: 'Somebody else’s comment offers nothing',
+  about:
+    'The first comment is the reader’s own, with *Edit* and *Remove*; the second is somebody else’s and this reader is no administrator, so neither control is drawn and no sentence explains their absence (`isChangeable: false`, UC-WRK-19 check 3). A reason is for something the reader could change or wait out; a role that never may is not one.',
+  args: { mode: 'others' },
 };

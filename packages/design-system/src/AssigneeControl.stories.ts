@@ -50,3 +50,10 @@ export const inTableRow: Story = {
   about: 'The same in a table row: the row keeps its height whether the control is available or not.',
   args: { mode: 'table' },
 };
+
+export const missing: Story = {
+  name: 'Nobody chosen, and the form needs somebody',
+  about:
+    'Pressed without a person (design-system.md §4, case 3): the list is `aria-invalid` and described by the sentence under it, so focus moved into it hears what to do. Choose someone and the sentence goes.',
+  args: { mode: 'missing' },
+};

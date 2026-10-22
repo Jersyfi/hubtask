@@ -25,6 +25,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { focusFirst } from '../forms/missing.ts';
 
   import type { Label } from '@hubtask/sync-engine';
 
@@ -64,8 +65,17 @@
     failure = undefined;
   }
 
+  /** The save was pressed without a name: the field says so (design-system.md §4, case 3). */
+  let isNameMissing = $state(false);
+  let form = $state<HTMLElement | null>(null);
+
   async function save() {
-    if (name.trim() === '' || isSaving) return;
+    if (isSaving) return;
+    if (name.trim() === '') {
+      isNameMissing = true;
+      queueMicrotask(() => focusFirst(form));
+      return;
+    }
     isSaving = true;
     failure = undefined;
     try {
@@ -131,8 +141,15 @@
       </Stack>
     {/if}
 
+    <div bind:this={form}>
     <Stack gap="150">
-      <Input label={t('app.labels.name')} bind:value={name} isRequired />
+      <Input
+        label={t('app.labels.name')}
+        bind:value={name}
+        isRequired
+        oninput={() => (isNameMissing = false)}
+        error={isNameMissing ? t('app.labels.name_required') : undefined}
+      />
 
       <!-- A radio group by hand rather than ten `Radio`s: what a reader is choosing between is the
            chips themselves, and a list of ten labelled radios would name the colours in words the
@@ -153,7 +170,6 @@
         <Button
           isBusy={isSaving}
           busyLabel={t('app.workspace.saving')}
-          disabledReason={name.trim() === '' ? t('app.labels.name_required') : undefined}
           onclick={save}
         >
           {t(editing ? 'app.workspace.save' : 'app.labels.create')}
@@ -163,6 +179,7 @@
         {/if}
       </Inline>
     </Stack>
+    </div>
   </Stack>
 </Dialog>
 

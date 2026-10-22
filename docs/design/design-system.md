@@ -210,10 +210,14 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 21)
-Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · Radio · Switch ·
+### Wave 1 — nothing works without these (≈ 22)
+Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
 ProgressBar
+
+`CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
+is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
+which is where a form moves focus (case 3 below).
 
 `CodeField` is **one** native input drawn as its places — never one box per digit, which breaks
 pasting and `Backspace` and makes a screen reader announce six fields. Six places or eight, the group
@@ -256,11 +260,16 @@ no reason moves a box. The eight cases, and the pattern each takes:
 2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
    hover, focus and tap; no space in the layout.
 3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
-   missing fields and moves focus to the first.
+   missing fields and moves focus to the first. Every field marks itself one way: an `error` that
+   is its description, on the control `aria-invalid` where the role takes it, and `data-invalid` on
+   the field's root where it does not (a fieldset, an upload's button) — the two selectors a form
+   looks for, in document order.
 4. *Nothing changed* — no unavailable save: `SaveBar` appears with the first change, "2 changes ·
    Discard · Save".
 5. *A whole area is read-only* — one `ReadOnlyNotice` at the top of the area; the content stays
-   readable, its controls absent, its rows silent.
+   readable, its controls absent, its rows silent. A control that stays because it shows state — a
+   completion box — shares the area's reason through `provideReasonGroup`: it is refused, it is
+   described by the notice's sentence (`textId`), and it draws no bubble of its own.
 6. *Set above (a lock, a default)* — `SourceChip` beside the name: value, source, whom to ask.
 7. *Working* — progress inside the control (`isBusy` on `Button`, `IconButton`, `Checkbox`,
    `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
