@@ -71,7 +71,7 @@ var Jobs = []Job{
 	}},
 	// It edits the working tree while it runs, so nothing else may run beside it - which verify-pr
 	// never does, and a session must not do either (gate-selftest.sh).
-	{ID: "selftest", Filters: goPipeline, Steps: []Step{
+	{ID: "selftest", Filters: []string{"gates", "ci"}, Steps: []Step{
 		{Name: "gate-selftest", Command: "make gate-selftest"},
 	}},
 	{ID: "tokens-drift", Filters: []string{"design_system", "go", "ci"}, Steps: []Step{
@@ -84,8 +84,8 @@ var Jobs = []Job{
 		pnpmPackage("design-system", "design_system", "ci"),
 		pnpmPackage("api-client", "api_client", "openapi", "ci"),
 		pnpmPackage("sync-engine", "sync_engine", "api_client", "openapi", "ci"),
-		pnpmPackage("n8n-nodes-hubtask", "n8n_node", "api_client", "openapi", "ci"),
-		pnpmPackage("zapier-app", "zapier_app", "api_client", "openapi", "ci"),
+		pnpmPackage("n8n-nodes-hubtask", "n8n_node", "ci"),
+		pnpmPackage("zapier-app", "zapier_app", "ci"),
 		pnpmPackage("sdk-typescript", "sdk_typescript", "openapi", "ci"),
 		pnpmPackage("webapp", "webapp", "design_system", "sync_engine", "api_client", "openapi", "ci"),
 		{Name: "make website", Filters: websiteFilters, Command: "make website"},

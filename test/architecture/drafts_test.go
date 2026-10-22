@@ -12,11 +12,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// A draft is checked in the session that writes it, and the pipeline runs when the pull request is
-// ready (ADR-0079). Three things in the workflows make that true, and each one fails quietly when
-// it goes missing: without `ready_for_review` leaving draft starts nothing, without the draft
-// condition a draft runs everything again, and without the second name for `ci-required` a draft's
-// commit carries a green `CI required` that no gate earned. These tests are what notices.
+// A draft runs nothing, and the pipeline runs when the pull request is ready (ADR-0079, ADR-0089).
+// Three things in the workflows make that true, and each one fails quietly when it goes missing:
+// without `ready_for_review` leaving draft starts nothing, without the draft condition a draft runs
+// everything again, and without the second name for `ci-required` a draft's commit carries a green
+// `CI required` that no gate earned - a skipped job reports success under its name, so the skip
+// keeps the draft's name. These tests are what notices.
 
 const (
 	draftCondition = "!github.event.pull_request.draft"
@@ -25,6 +26,9 @@ const (
 	// branch protection asks for a check called `CI required`, and only a run that is not a draft's
 	// may produce one (ci-cd.md §3.2).
 	ciRequiredName = "${{ (github.event_name == 'pull_request' && github.event.pull_request.draft) && 'CI not run (draft)' || 'CI required' }}"
+
+	// Always, except on a draft: there it is skipped, so a draft's run starts no runner at all.
+	ciRequiredIf = "always() && (github.event_name != 'pull_request' || !github.event.pull_request.draft)"
 )
 
 type workflowFile struct {
@@ -83,8 +87,8 @@ func TestLeavingDraftStartsThePipeline(t *testing.T) {
 }
 
 // Every job that needs no other job carries the draft condition; every other job depends on one of
-// them and is skipped with it (ci-cd.md §3.4). `ci-required` is the one exception: it always runs
-// and is renamed instead.
+// them and is skipped with it (ci-cd.md §3.4). `ci-required` is the one exception: it runs after
+// every other job whatever they ended as, and carries its own draft condition.
 func TestADraftRunsNothing(t *testing.T) {
 	ci := loadWorkflow(t, "ci.yml")
 
@@ -121,8 +125,8 @@ func TestADraftNeverCarriesCIRequired(t *testing.T) {
 		t.Errorf("ci.yml: `ci-required` is named %q; it must be\n  %s\nso that a draft's commit carries "+
 			"no check called `CI required` (ci-cd.md §3.2)", summary.Name, ciRequiredName)
 	}
-	if summary.If != "always()" {
-		t.Errorf("ci.yml: `ci-required` must run `if: always()`, it says %q - a skipped required "+
-			"check reports success", summary.If)
+	if summary.If != ciRequiredIf {
+		t.Errorf("ci.yml: `ci-required` must run `if: %s`, it says %q - without always() a failed "+
+			"job skips it, and a skipped required check reports success", ciRequiredIf, summary.If)
 	}
 }
