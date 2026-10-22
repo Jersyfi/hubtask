@@ -705,16 +705,22 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
 
-* **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
+* **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
+  [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
+  folded menu on `compact`. *Capture* is no page's action but the product's: it opens the capture
+  field wherever the reader is (UC-WRK-26), from `medium` up here and on `compact` as the bottom
+  bar's ＋ (§11.3). On `medium` it is its mark alone, beside the wordmark: the end has no room for
+  one more control with the palette's field still centred between the two sides. It is drawn only where the reader may create somewhere — in the jumble or in a
+  collection they see — and absent otherwise (P-05).
 * **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
   bar's *Search* opens the palette in a dialog.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
   `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
   `compact` the account group is *You* in the bottom bar.
-* The two marks are §11.6. Nothing else moves into the bar.
+* The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
 
 ### 11.3 One navigation list
 
@@ -746,7 +752,7 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: the `places` destinations and *You*. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
+| `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
 | `medium` | `NavDrawer`: one `SideNav` with all three bands |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10) |
 
@@ -789,7 +795,8 @@ proxies and history ([`security.md`](../architecture/security.md) §9):
 * **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
 **One palette for everything** (UC-WRK-27, `apps/webapp/src/lib/palette/`). `⌘K` and `Ctrl K`
-open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*. One palette, two
+open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*; `Q` opens the capture
+field (UC-WRK-26), where the reader may capture at all. One palette, two
 drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
 in the field; below `medium` the same field and list open in a dialog.
 

@@ -124,7 +124,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
 - [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
-- [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You
+- [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You — ＋: UX-14 (a button opening the capture field); *Today*: UX-15
 - [ ] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone
 - [ ] Step-up dialog (authenticator, recovery, password, passkey, provider, Not now, Prove it) → kept
 - [ ] Tour: seven steps, next/back/skip/count, ends with "Make one" → kept; steps for capture, levels and the palette; still ends with the first completion
@@ -144,7 +144,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] "In the jumble" (three + open) → Today's jumble tile
 - [ ] "What you had open" → Today's recently opened
 - [ ] Search page: field, meaning switch, filter chips (status, kind, due, assigned, collection, label), More (last changed, created, starts, on it, created by, archive, trash), text mode with tokens, show the request, edit as text/controls, copy link, clear, result notes → kept; results gain the entry menu and selection; meaning hits marked
-- [ ] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target
+- [ ] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target — the capture field puts a line without a collection into the jumble (UX-14); the jumble's own "Jot something down" still names the same act, renamed with UX-17 (P-12)
 - [ ] Archive: hubs and collections, bring back → kept; archived entries listed with a filter
 - [ ] Trash: restore, delete for good, empty, summary → kept; *Empty* gated by permission (§E8)
 
@@ -152,7 +152,7 @@ Administration and installation, found by UX-05's sweep:
 
 - [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); collections as cards with their figure
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
-- [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too)
+- [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
 - [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16)
 - [ ] Star "Saved views" and menu "Saved views" → one *Views* menu with open, save, edit, share, delete, export, calendar subscription (§E9)
@@ -177,7 +177,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo
 - [ ] "Left some things behind" notice → kept
 - [ ] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more*
-- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?`
+- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16, which ticks the row
 - [ ] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press
 - [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile
 - [ ] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3)
