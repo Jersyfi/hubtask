@@ -67,3 +67,32 @@ test('the mono variant names no colour but the text’s', () => {
   assert.ok(mono.length > 0, 'no mono rule found in Logo.svelte');
   for (const value of mono.matchAll(/(?:fill|stroke):\s*([^;]+);/g)) assert.equal(value[1].trim(), 'currentColor');
 });
+
+// The generated files (build/mark.js), rendered here from the same functions the build calls.
+
+const { appIcon, favicon } = await import('../build/mark.js');
+const { values } = await import('../dist/tokens.ts');
+
+const colours = (svg) => [...svg.matchAll(/#[0-9a-fA-F]{3,8}\b/g)].map((m) => m[0].toLowerCase());
+const brandValues = (mode) => new Set(Object.values(values[mode].brand).map((v) => String(v).toLowerCase()));
+
+test('the tab icon is the reduced mark, light by attributes and dark by one media rule', () => {
+  const svg = favicon(values.light.brand, values.dark.brand);
+  assert.ok(svg.includes(`d="${REDUCED_MARK.outline.d}"`), 'the tab icon does not draw the reduced outline');
+  assert.ok(!svg.includes(squarePath(FULL_MARK.core)), 'the tab icon draws a core');
+  const [rule] = svg.match(/<style>[\s\S]*<\/style>/) ?? [''];
+  assert.match(rule, /^<style>@media \(prefers-color-scheme: dark\)\{[^@]*\}<\/style>$/, 'the style holds more than the dark rule');
+  for (const colour of colours(rule)) assert.ok(brandValues('dark').has(colour), `${colour} is not a dark brand value`);
+  for (const colour of colours(svg.replace(rule, ''))) assert.ok(brandValues('light').has(colour), `${colour} is not a light brand value`);
+  assert.equal(svg.match(/stroke="([^"]+)"/)[1], values.light.brand.outline);
+});
+
+test('the app icon source is the full mark on the tile, in brand colours only', () => {
+  const svg = appIcon(values.light.brand);
+  assert.ok(svg.includes(`d="${FULL_MARK.outline.d}"`));
+  assert.ok(svg.includes(squarePath(FULL_MARK.core)));
+  assert.ok(svg.includes(`fill="${values.light.brand.tile}"`));
+  assert.ok(svg.includes(`stroke="${values.light.brand.tileOutline}"`));
+  for (const colour of colours(svg)) assert.ok(brandValues('light').has(colour), `${colour} is not a brand value`);
+  assert.ok(!svg.includes('<style'), 'the app icon has one form and needs no style');
+});
