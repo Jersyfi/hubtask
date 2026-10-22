@@ -56,15 +56,37 @@ if [ -n "$go_files" ]; then
 	fi
 fi
 
+# A package whose every file carries a build tag - the integration, contract, resilience, load and
+# evidence suites - builds only with its tag: it is vetted and linted with them, and its tests are
+# CI's like the containers they need.
+suite_tags="integration,contract,resilience,load,evidence"
+plain_pkgs=""
+suite_pkgs=""
+for p in $go_pkgs; do
+	if go list "$p" >/dev/null 2>&1; then
+		plain_pkgs="$plain_pkgs $p"
+	else
+		suite_pkgs="$suite_pkgs $p"
+	fi
+done
+
 if [ -n "$go_pkgs" ]; then
 	step "vet, lint and test: $(wc -l <<<"$go_pkgs" | tr -d ' ') package(s)"
-	# shellcheck disable=SC2086 # one package per word
-	go vet $go_pkgs
-	# Another worktree's run holds golangci-lint's lock; wait for it rather than fail.
-	# shellcheck disable=SC2086
-	"$lint" run --allow-serial-runners $go_pkgs
-	# shellcheck disable=SC2086
-	go test $go_pkgs
+	if [ -n "$plain_pkgs" ]; then
+		# shellcheck disable=SC2086 # one package per word
+		go vet $plain_pkgs
+		# Another worktree's run holds golangci-lint's lock; wait for it rather than fail.
+		# shellcheck disable=SC2086
+		"$lint" run --allow-serial-runners $plain_pkgs
+		# shellcheck disable=SC2086
+		go test $plain_pkgs
+	fi
+	if [ -n "$suite_pkgs" ]; then
+		# shellcheck disable=SC2086
+		go vet -tags "$suite_tags" $suite_pkgs
+		# shellcheck disable=SC2086
+		"$lint" run --allow-serial-runners --build-tags "$suite_tags" $suite_pkgs
+	fi
 	step "architecture"
 	go test ./test/architecture/...
 fi
