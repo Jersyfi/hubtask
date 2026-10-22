@@ -740,6 +740,20 @@ func (pending) RemoveLabel(w http.ResponseWriter, r *http.Request, _ openapi.Ite
 	notAvailable(w, r)
 }
 
+// ReadKudos, GiveKudos and TakeBackKudos are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ReadKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) GiveKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) TakeBackKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
 // AssignWorkItem and UnassignWorkItem are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) AssignWorkItem(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.AssignWorkItemParams) {

@@ -11897,6 +11897,79 @@
         }
       }
     },
+    "/items/{itemId}/kudos": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "readKudos",
+        "description": "What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "giveKudos",
+        "description": "Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event, audit entry or change record is written.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "takeBackKudos",
+        "description": "Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}/buckets": {
       "parameters": [
         {
@@ -20796,6 +20869,65 @@
           "figure": {
             "$ref": "#/components/schemas/CollectionFigure",
             "description": "What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).\n"
+          },
+          "milestone": {
+            "$ref": "#/components/schemas/ContainerMilestone",
+            "description": "The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.\n"
+          }
+        }
+      },
+      "ContainerMilestone": {
+        "type": "object",
+        "required": [
+          "reached_at"
+        ],
+        "properties": {
+          "reached_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the completion that left nothing open reached the server."
+          }
+        }
+      },
+      "Kudos": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "given",
+          "from"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "given": {
+            "type": "boolean",
+            "description": "Whether the reader gave kudos to the entry's current completion. False on an open entry.\n"
+          },
+          "from": {
+            "type": "array",
+            "description": "The kudos the reader received on this entry, oldest first. Empty for everybody but the person they were given to.\n",
+            "items": {
+              "$ref": "#/components/schemas/KudosFrom"
+            }
+          }
+        }
+      },
+      "KudosFrom": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "given_at"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

@@ -1487,6 +1487,20 @@ class Container(TypedDict, total=False):
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
     figure: "CollectionFigure"
+    milestone: "ContainerMilestone"
+
+class ContainerMilestone(TypedDict, total=False):
+    reached_at: Required[str]
+
+Kudos = TypedDict("Kudos", {
+    "item_id": Required[str],
+    "given": Required[bool],
+    "from": Required[list["KudosFrom"]],
+}, total=False)
+
+class KudosFrom(TypedDict, total=False):
+    account_id: Required[str]
+    given_at: Required[str]
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
