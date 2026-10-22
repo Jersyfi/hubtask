@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"time"
 
+	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -24,13 +25,17 @@ const figureDeadline = 300 * time.Millisecond
 // server counts, the client draws - domain-model.md §2). Called after the permission question and
 // after the structures were resolved, so it counts only collections the reader may read, and every
 // entry it counts is one the reader may read too (a role on a container reaches all of it).
+//
+// Which entries count is the entry gate's question (EntryGate, Offered): the installation's bound is
+// read in the figure's own transaction, so that a figure leaves out exactly what a read marks hidden.
 type FigureReader struct {
-	Figures repository.Figures
-	Clock   clock.Clock
+	Figures  repository.Figures
+	Clock    clock.Clock
+	Profiles metarepo.CapabilityProfiles
 }
 
 // Wired reports whether the reader can count. A read built without one answers no figure.
-func (r FigureReader) Wired() bool { return r.Figures != nil && r.Clock != nil }
+func (r FigureReader) Wired() bool { return r.Figures != nil && r.Clock != nil && r.Profiles != nil }
 
 // Count answers the figures of the page, keyed by collection, in a read-only transaction of its
 // own: a statement that fails aborts its transaction, and the container read must not fail with
@@ -73,7 +78,15 @@ func (r FigureReader) Count(
 	var counted map[shared.ID]domain.FigureCounts
 	err := uow.WithinReadOnly(bounded, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		counted, err = r.Figures.Count(ctx, requests, window)
+		bound, err := structureBound(ctx, r.Profiles)
+		if err != nil {
+			return err
+		}
+		offered := make([]domain.FigureRequest, len(requests))
+		for i, request := range requests {
+			offered[i] = request.Offer(domain.NewOffered(bound, structures[request.CollectionID]))
+		}
+		counted, err = r.Figures.Count(ctx, offered, window)
 		return err
 	})
 	for _, request := range requests {

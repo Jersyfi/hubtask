@@ -60,7 +60,10 @@ func TestOnlyCollectionsThatCountSomethingAreCounted(t *testing.T) {
 	hub := domain.Container{ID: hubID, TenantID: tenantID, Type: domain.ContainerHub, Name: "H", Version: 1}
 
 	store := &figureStore{counts: map[shared.ID]domain.FigureCounts{due.ID: {Due: 3}}}
-	reader := FigureReader{Figures: store, Clock: clock.Fixed(time.Date(2026, 10, 18, 23, 30, 0, 0, time.UTC))}
+	reader := FigureReader{
+		Figures: store, Clock: clock.Fixed(time.Date(2026, 10, 18, 23, 30, 0, 0, time.UTC)),
+		Profiles: &profiles{rows: seededProfiles()},
+	}
 	caller := actor()
 	caller.TimeZone, caller.WeekStart = "Europe/Berlin", "MONDAY"
 
@@ -90,7 +93,10 @@ func TestAFigureThatCannotBeCountedIsMarkedAndTheReadGoesOn(t *testing.T) {
 	collection := countedCollection(collectionID)
 	structures := map[shared.ID]domain.EffectiveStructure{collection.ID: structureCounting(domain.FigureOpen, domain.ItemTask)}
 
-	failing := FigureReader{Figures: &figureStore{err: errors.New("statement timeout")}, Clock: clock.Fixed(now)}
+	failing := FigureReader{
+		Figures: &figureStore{err: errors.New("statement timeout")}, Clock: clock.Fixed(now),
+		Profiles: &profiles{rows: seededProfiles()},
+	}
 	figures := failing.Count(context.Background(), actor(), &unitOfWork{}, []domain.Container{collection}, structures)
 	out := figureOutput(figures[collection.ID])
 	if out["unavailable"] != true || out["kind"] != "OPEN" || out["open"] != nil {
@@ -139,7 +145,7 @@ func TestAContainerReadAnswersTheFigure(t *testing.T) {
 	store := &figureStore{counts: map[shared.ID]domain.FigureCounts{collectionID: {Open: 4}}}
 	get := GetContainer{
 		Containers: h.containers, Authorizer: h.authorizer, UnitOfWork: h.uow,
-		Structure: h.set.Structure, Figures: FigureReader{Figures: store, Clock: clock.Fixed(now)},
+		Structure: h.set.Structure, Figures: FigureReader{Figures: store, Clock: clock.Fixed(now), Profiles: &profiles{rows: seededProfiles()}},
 	}
 	registry, err := usecase.NewRegistry(nil, get.Descriptor())
 	if err != nil {

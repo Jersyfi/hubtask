@@ -80,6 +80,20 @@ func (o Offered) levelHidden(itemType ItemType, ancestors []ItemType) bool {
 	return false
 }
 
+// Counted answers the types whose entries their own level does not hide: every offered level and
+// every type the bound does not hold. An entry is shown exactly where its type and the type of
+// every entry above it are among them, which is how a statement over an entry's path asks Hidden's
+// level question (a collection's figure, domain-model.md §2).
+func (o Offered) Counted() []ItemType {
+	counted := []ItemType{}
+	for _, itemType := range ItemTypes() {
+		if !o.levelHidden(itemType, nil) {
+			counted = append(counted, itemType)
+		}
+	}
+	return counted
+}
+
 // Hidden answers the mark of an entry of this type under these ancestors.
 func (o Offered) Hidden(itemType ItemType, ancestors []ItemType) EntryHidden {
 	return EntryHidden{

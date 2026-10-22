@@ -698,7 +698,7 @@ func run() error {
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
-	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}}
+	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
 	entryGate := work.EntryGate{Structure: structures, Types: items}

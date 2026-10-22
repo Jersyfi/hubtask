@@ -99,7 +99,9 @@ func TestTheFigureRequestFollowsTheStructureInForce(t *testing.T) {
 		ItemWorkPackage: {Capabilities: []Capability{CapabilityCompletion, CapabilityDueDate}},
 		ItemActivity:    {Capabilities: []Capability{CapabilityCompletion}},
 	}
-	due, _ := FigureRequestFor(id, resolve(StructureValues{Counts: counting(FigureDue), Fields: activityUndated}))
+	dueStructure := resolve(StructureValues{Counts: counting(FigureDue), Fields: activityUndated})
+	due, _ := FigureRequestFor(id, dueStructure)
+	due = due.Offer(NewOffered(bound, dueStructure))
 	if !slices.Equal(due.Offered, []ItemType{ItemTask, ItemWorkPackage, ItemActivity}) ||
 		!slices.Equal(due.Dated, []ItemType{ItemTask, ItemWorkPackage}) {
 		t.Errorf("due counts %v of %v", due.Dated, due.Offered)

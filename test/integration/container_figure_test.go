@@ -56,7 +56,9 @@ func figureCatalogue(t *testing.T) *usecase.Registry {
 		Containers: containers, Structures: postgres.NewStructureRepository(),
 		Profiles: postgres.NewCapabilityProfileRepository(),
 	}
-	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: fixed}
+	figures := work.FigureReader{
+		Figures: postgres.NewFigureRepository(), Clock: fixed, Profiles: postgres.NewCapabilityProfileRepository(),
+	}
 	writer := work.ContainerWriter{
 		Containers: containers, Authorizer: authoriser, Events: postgres.NewOutbox(jobQueue(t)),
 		Changes: postgres.NewChangeLog(), Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,

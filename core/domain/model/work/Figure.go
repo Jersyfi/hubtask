@@ -68,8 +68,9 @@ func NewFigureWindow(now time.Time, location *time.Location, weekStart string) F
 type FigureRequest struct {
 	CollectionID shared.ID
 	Kind         Figure
-	// Offered are the visible levels' types. An entry of another type, or under an entry of
-	// another type, is hidden and counts nowhere (domain-model.md §2, "Narrowing hides").
+	// Offered are the types whose entries are not hidden (Offered.Counted, set by Offer). An
+	// entry of another type, or under an entry of another type, is hidden and counts nowhere
+	// (domain-model.md §2, "Narrowing hides").
 	Offered []ItemType
 	// Dated are the offered types whose fields carry a due date: only their due dates count.
 	Dated []ItemType
@@ -92,7 +93,6 @@ func FigureRequestFor(collectionID shared.ID, effective EffectiveStructure) (Fig
 	}
 	request := FigureRequest{CollectionID: collectionID, Kind: counts.Figure}
 	for _, level := range effective.Values.Levels {
-		request.Offered = append(request.Offered, level.Type)
 		if slices.Contains(effective.Values.Fields[level.Type].Capabilities, CapabilityDueDate) {
 			request.Dated = append(request.Dated, level.Type)
 		}
@@ -103,6 +103,13 @@ func FigureRequestFor(collectionID shared.ID, effective EffectiveStructure) (Fig
 		request.FieldKey = counts.FieldKey
 	}
 	return request, true
+}
+
+// Offer sets the types the request counts from what the collection offers: the shared predicate,
+// so that a figure leaves out exactly the entries a read marks hidden.
+func (r FigureRequest) Offer(offered Offered) FigureRequest {
+	r.Offered = offered.Counted()
+	return r
 }
 
 // FigureCounts is what the store counted for one collection; every number is over the visible,

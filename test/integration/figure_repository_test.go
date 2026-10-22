@@ -311,3 +311,79 @@ func TestAnotherWorkspacesCollectionCountsNothing(t *testing.T) {
 		t.Errorf("tenant B counted %+v in tenant A's collection", got)
 	}
 }
+
+// The statement leaves out exactly the entries the entry gate marks hidden: for every combination
+// of levels, under the installation's bound and under one that no longer holds the activity, the
+// due count over every chain the matrix allows equals the entries Offered.Hidden shows.
+func TestTheFigureLeavesOutWhatTheEntryGateHides(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := seedHubWithCollection(ctx, t, tenantA, authorA)
+	due := "2026-10-22T08:00:00Z"
+	in := func(itemType work.ItemType, parent *seededEntry) *seededEntry {
+		return seedEntry(ctx, t, tenantA, collection.ID, entryRow{itemType: itemType, parent: parent, dueAt: due})
+	}
+	type seeded struct {
+		itemType  work.ItemType
+		ancestors []work.ItemType
+	}
+	var entries []seeded
+	add := func(itemType work.ItemType, parent *seededEntry, ancestors ...work.ItemType) *seededEntry {
+		entries = append(entries, seeded{itemType, ancestors})
+		return in(itemType, parent)
+	}
+	task := add(work.ItemTask, nil)
+	pack := add(work.ItemWorkPackage, task, work.ItemTask)
+	add(work.ItemActivity, pack, work.ItemWorkPackage, work.ItemTask)
+	add(work.ItemActivity, task, work.ItemTask)
+
+	var inForce, system []work.CapabilityProfile
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		profiles := postgres.NewCapabilityProfileRepository()
+		var err error
+		if inForce, err = profiles.List(ctx); err != nil {
+			return err
+		}
+		system, err = profiles.ListSystem(ctx)
+		return err
+	}); err != nil {
+		t.Fatalf("reading the bound: %v", err)
+	}
+	var withoutActivities []work.CapabilityProfile
+	for _, profile := range inForce {
+		if profile.Type == work.ItemActivity {
+			continue
+		}
+		profile.AllowedChildTypes = slices.DeleteFunc(slices.Clone(profile.AllowedChildTypes),
+			func(child work.ItemType) bool { return child == work.ItemActivity })
+		withoutActivities = append(withoutActivities, profile)
+	}
+	bounds := map[string]work.StructureBound{
+		"the installation's bound":     work.NewStructureBound(inForce, system),
+		"a bound without the activity": work.NewStructureBound(withoutActivities, system),
+	}
+
+	window := berlinWindow(t)
+	for name, bound := range bounds {
+		for mask := 1; mask < 8; mask++ {
+			var levels []work.Level
+			for i, itemType := range work.ItemTypes() {
+				if mask&(1<<i) != 0 {
+					levels = append(levels, work.Level{Type: itemType})
+				}
+			}
+			offered := work.NewOffered(bound, work.EffectiveStructure{Values: work.StructureValues{Levels: levels}})
+			want := 0
+			for _, entry := range entries {
+				if !offered.Hidden(entry.itemType, entry.ancestors).Level {
+					want++
+				}
+			}
+			request := work.FigureRequest{CollectionID: collection.ID, Kind: work.FigureDue, Dated: work.ItemTypes()}
+			counted := countFigures(ctx, t, tenantA, window, request.Offer(offered))
+			if got := counted[collection.ID].Due; got != want {
+				t.Errorf("%s, levels %v: the statement counts %d, the entry gate shows %d", name, levels, got, want)
+			}
+		}
+	}
+}
