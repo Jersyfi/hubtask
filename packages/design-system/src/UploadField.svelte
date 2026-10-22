@@ -202,7 +202,7 @@
 
   .target[data-over] { background: var(--bg-surface-hover); border-color: var(--accent-primary); }
 
-  .field[data-invalid] .target { border-color: var(--text-danger); }
+  .field[data-invalid] .target { border-color: var(--status-danger-border); background: var(--status-danger-surface); }
 
   .error { margin: 0; color: var(--text-danger); font-size: var(--fs-075); text-align: start; }
 

@@ -240,7 +240,7 @@
 
   .message.error { color: var(--text-danger); }
 
-  .native[aria-invalid='true'] + .box { border-color: var(--text-danger); }
+  .native[aria-invalid='true'] + .box { border-color: var(--status-danger-border); background: var(--status-danger-surface); }
 
   @media (prefers-reduced-motion: reduce) {
     .box { transition-duration: var(--dur-instant); }
