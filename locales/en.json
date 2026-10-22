@@ -2521,7 +2521,6 @@
   "app.instance.later_title": "What this level will hold",
   "app.instance.later_badge": "Later",
   "app.instance.later_retention": "Default retention rules with a lock, and how long the audit trail is kept.",
-  "app.instance.later_backup": "Backup targets the installation offers, and whether a workspace may name its own.",
   "app.instance.action.tenant_provisioned": "Workspace provisioned",
   "app.instance.action.tenant_suspended": "Workspace suspended",
   "app.instance.action.tenant_resumed": "Workspace resumed",

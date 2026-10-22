@@ -90,11 +90,11 @@
    * The areas this level will hold and does not yet.
    *
    * Held open rather than left out: a reader who cannot see that a thing is coming cannot tell it
-   * apart from a thing nobody thought of (P-11).
+   * apart from a thing nobody thought of (P-11). Only what is not built: a line for a screen that
+   * exists tells an operator something untrue.
    */
   const later = [
     { id: 'retention', code: 'app.instance.later_retention' },
-    { id: 'backup', code: 'app.instance.later_backup' },
   ];
 
   const reading = $derived(instance.overview);

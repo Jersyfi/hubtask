@@ -175,3 +175,14 @@ test('chromium: only an installation of many counts suspended and deleted worksp
   assert.match(multi, /Suspended/);
   assert.match(multi, /Being deleted/);
 });
+
+// The places this level holds open name only what is not built yet: the installation's backup
+// targets have their own screen, so the overview must not promise them as "later".
+test('chromium: the overview does not promise backup targets as later', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const text = await overview(browser, 0);
+  assert.match(text, /What this level will hold/);
+  assert.doesNotMatch(text, /Backup targets the installation offers/);
+});
