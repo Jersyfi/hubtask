@@ -122,7 +122,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
 - [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
-- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
+- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24 — colour and symbol done by UX-07); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
 - [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You
 - [ ] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone
@@ -150,7 +150,7 @@ Administration and installation, found by UX-05's sweep:
 
 ## E4 — Hub and collection
 
-- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); collections as cards with their figure
+- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too)
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
@@ -168,7 +168,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
-- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol
+- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol done (UX-07)
 
 ## E5 — List, board, timeline, selection
 

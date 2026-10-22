@@ -89,6 +89,12 @@
      * arriving later moves neither the title nor the actions.
      */
     figure?: Snippet;
+    /**
+     * A sign drawn before the title: the place's own symbol in its own colour (UC-WRK-33). The
+     * caller's drawing and decorative - the title is the name. Not drawn where the bar carries the
+     * title, which has room for the words alone.
+     */
+    mark?: Snippet;
     /** Lines under the title: an archived notice, a refusal. The caller's `role="alert"` travels with them. */
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
@@ -106,6 +112,7 @@
     isMenuInBar = false,
     onmenu,
     figure,
+    mark,
     notices,
     views,
   }: Props = $props();
@@ -249,6 +256,11 @@
     <div class="titles">
       {#if isTitleInBar}
         <VisuallyHidden as="h1">{title}</VisuallyHidden>
+      {:else if mark}
+        <div class="title-line">
+          <span class="title-mark" aria-hidden="true">{@render mark()}</span>
+          <h1 class="title">{title}</h1>
+        </div>
       {:else}
         <h1 class="title">{title}</h1>
       {/if}
@@ -312,6 +324,15 @@
     overflow-wrap: anywhere;
     text-wrap: balance;
   }
+
+  .title-line {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    min-width: 0;
+  }
+
+  .title-mark { display: inline-flex; flex: none; }
 
   .subtitle {
     margin: 0;

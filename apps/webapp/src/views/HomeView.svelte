@@ -38,6 +38,7 @@
   import { recents } from '../lib/recents.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import EntryPlace from '../lib/workspace/EntryPlace.svelte';
 
   interface Props {
     onnavigate?: (path: string) => void;
@@ -151,7 +152,7 @@
                     href={`/items/${item.id}`}
                     completeLabel={t('app.entries.complete', { title: item.title })}
                   >
-                    {#snippet trailing()}<DueMark {item} />{/snippet}
+                    {#snippet trailing()}<EntryPlace collectionId={item.collection_id} /><DueMark {item} />{/snippet}
                   </TaskRow>
                 {/each}
               </Stack>
@@ -166,7 +167,7 @@
                     href={`/items/${item.id}`}
                     completeLabel={t('app.entries.complete', { title: item.title })}
                   >
-                    {#snippet trailing()}<DueMark {item} />{/snippet}
+                    {#snippet trailing()}<EntryPlace collectionId={item.collection_id} /><DueMark {item} />{/snippet}
                   </TaskRow>
                 {/each}
               </Stack>
