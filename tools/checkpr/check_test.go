@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func rootForTest(t *testing.T) string {
@@ -32,21 +33,15 @@ Closes #246
 
 - UC-PRV-08: check 5 — met — the data job runs PG-7
 
-## Affected areas
+## Premises
 
-- [ ] ` + "`area:core`" + ` — the domain, the application layer, the ports
-- [x] ` + "`area:ci`" + ` — workflows, gates, release
+- The task said the gate ran on drafts; it never did - corrected in ci-cd.md §3.4.
 
 ## Does this need an ADR?
 
 - [x] No — this implements a decision that is already recorded. Which one: ADR-0015.
 - [ ] Yes, and it is in this pull request or already merged: ADR-….
 - [ ] It deviates from an existing ADR
-
-## Definition of Done
-
-- [x] Tests at every relevant level green, coverage thresholds held
-- [ ] Event schema added under ` + "`api/events/`" + ` — n/a
 
 ## Impact
 
@@ -86,7 +81,7 @@ func TestTheUnfilledTemplateIsRefused(t *testing.T) {
 		t.Fatal("the unfilled template passed")
 	}
 	joined := strings.Join(problems, "\n")
-	for _, want := range []string{"no issue is closed", "Affected areas has nothing ticked", "answers ticked", "placeholder"} {
+	for _, want := range []string{"no issue is closed", "answers ticked", "placeholder"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("the unfilled template was not refused for %q:\n%s", want, joined)
 		}
@@ -108,7 +103,7 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 	}{
 		{"a section dropped", func(s string) string {
 			i := strings.Index(s, "## Does this need an ADR?")
-			j := strings.Index(s, "## Definition of Done")
+			j := strings.Index(s, "## Impact")
 			return s[:i] + s[j:]
 		}, `"Does this need an ADR?" from the template is missing`},
 		{"the issue in backticks", func(s string) string {
@@ -121,9 +116,12 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 		{"no use case and no n/a", func(s string) string {
 			return strings.Replace(s, "- UC-PRV-08: check 5 — met — the data job runs PG-7", "- something", 1)
 		}, "names no use case"},
-		{"no area", func(s string) string {
-			return strings.Replace(s, "- [x] `area:ci`", "- [ ] `area:ci`", 1)
-		}, "Affected areas has nothing ticked"},
+		{"no premises", func(s string) string {
+			return strings.Replace(s, "- The task said the gate ran on drafts; it never did - corrected in ci-cd.md §3.4.", "", 1)
+		}, `the section "Premises" is empty`},
+		{"the premises' placeholder left", func(s string) string {
+			return strings.Replace(s, "- The task said the gate ran on drafts; it never did - corrected in ci-cd.md §3.4.", "- none false — checked: …", 1)
+		}, "placeholder"},
 		{"two ADR answers", func(s string) string {
 			return strings.Replace(s, "- [ ] Yes, and it is", "- [x] Yes, and it is", 1)
 		}, "2 answers ticked"},
@@ -134,9 +132,6 @@ func TestEachRuleRefusesItsOwnMistake(t *testing.T) {
 			return strings.Replace(s, "No — this implements a decision that is already recorded. Which one: ADR-0015.",
 				"No — this implements a rule already decided. Where it lives: `<file>.md §n`, or ADR-….", 1)
 		}, "does not name where the rule lives"},
-		{"a DoD item left open", func(s string) string {
-			return strings.Replace(s, " — n/a", "", 1)
-		}, "neither ticked nor marked n/a"},
 		{"an Impact placeholder left", func(s string) string {
 			return strings.Replace(s, "**Breaking change:** no", "**Breaking change:** yes / no — if yes: the migration path", 1)
 		}, "placeholder"},
@@ -183,5 +178,18 @@ func TestASubjectDocumentSectionNamesTheRule(t *testing.T) {
 		"No — this implements a rule already decided. Where it lives: `security.md §9`.", 1)
 	if problems := check(body, required, known); len(problems) != 0 {
 		t.Errorf("a section as the rule's place was refused:\n%s", strings.Join(problems, "\n"))
+	}
+}
+
+func TestHeldTo(t *testing.T) {
+	since := time.Date(2026, 10, 8, 0, 0, 0, 0, time.UTC)
+	if !heldTo(time.Time{}, since) {
+		t.Error("a local run, with no opening date, was not held to the rule")
+	}
+	if heldTo(since.Add(-time.Hour), since) {
+		t.Error("a pull request opened before the rule was held to it")
+	}
+	if !heldTo(since, since) {
+		t.Error("a pull request opened when the rule took effect was not held to it")
 	}
 }

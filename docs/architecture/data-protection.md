@@ -355,7 +355,7 @@ tenants, data categories and period within 72 hours
 
 ## 10. Integration into development and CI
 
-A task's readiness assesses the personal data it creates (class, legal basis, retention, deletion
+A task assesses the personal data it creates (class, legal basis, retention, deletion
 path, recipients); it is done with the catalogue entry and the audit declaration. **Gates**, all in
 `test/privacy/`:
 

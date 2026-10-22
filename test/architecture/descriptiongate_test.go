@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-// The description gate holds the readiness record, the merged migrations and the use cases that
+// The description gate holds the premises, the merged migrations and the use cases that
 // may not be deleted, besides the description itself. Dependabot is the one author it skips: it
 // writes its own description and settles nothing. Any other bot - a tool that steers the work
 // under its own GitHub App identity among them - is held like a person, so the condition names

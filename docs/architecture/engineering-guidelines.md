@@ -52,12 +52,13 @@ injected ([arc42.md](./arc42.md) §8.13).
 
 ## 3. Definition of Done
 
-The pull request template carries the checkboxes; this section says what each means. An item that
-does not apply is marked `n/a`, never deleted.
+What a finished change holds. Nobody ticks these off in a description (ADR-0089): the gates hold
+what they can, and the author reviews the change against the rest.
 
 ### 3.1 Tests green, the local check passed
-The relevant levels of §1 and the coverage thresholds hold; `make verify-pr` is green for the pushed
-`HEAD` before the pull request leaves draft ([ADR-0079](../adr/ADR-0079-a-draft-is-checked-locally.md)).
+The relevant levels of §1 and the coverage thresholds hold; `make check` is green for the pushed
+`HEAD` before the pull request leaves draft, and CI after
+([ADR-0089](../adr/ADR-0089-check-once-where-it-is-cheap.md)).
 
 ### 3.2 The contract first, generation clean
 An API change starts in `api/openapi.yaml`; `make generate` leaves no diff on a second run;

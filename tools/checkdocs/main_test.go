@@ -69,16 +69,16 @@ func TestADRReferencesInEveryFileType(t *testing.T) {
 	}
 }
 
-// A readiness record is a snapshot: what it links and cites may move on without it, so the link,
-// ADR and use case reference checks pass it by. Its template is current text and is still read.
+// An archived readiness record is a snapshot: what it links and cites may move on without it, so the
+// link, ADR and use case reference checks pass it by. Any other archived document is still read.
 func TestReadinessRecordsAreSnapshots(t *testing.T) {
 	// Assembled, so that this file does not cite the missing identifiers itself.
 	adr, uc, check := "ADR-"+"0002", "UC-"+"ID-99", "UC-ID-12/"+"9"
 	body := "[gone](../../gone.md) " + adr + " " + uc + " " + check + "\n"
 	root := writeTree(t, map[string]string{
-		"docs/adr/ADR-0001-x.md":         "# ADR-0001\n",
-		"docs/backlog/ready/T-01.md":     body,
-		"docs/backlog/ready/TEMPLATE.md": body,
+		"docs/adr/ADR-0001-x.md":        "# ADR-0001\n",
+		"docs/archive/ready/T-01.md":    body,
+		"docs/archive/evidence/E-01.md": body,
 	})
 	docs, err := markdownFiles(root)
 	if err != nil {
@@ -95,8 +95,8 @@ func TestReadinessRecordsAreSnapshots(t *testing.T) {
 		if strings.Contains(joined, "T-01.md") {
 			t.Errorf("%s: a readiness record was read as current text:\n%s", name, joined)
 		}
-		if !strings.Contains(joined, "TEMPLATE.md") {
-			t.Errorf("%s: the template was passed by:\n%s", name, joined)
+		if !strings.Contains(joined, "E-01.md") {
+			t.Errorf("%s: an archived document that is no record was passed by:\n%s", name, joined)
 		}
 	}
 }

@@ -87,7 +87,12 @@ const FEATURES = {
   'position-try-fallbacks': () => CSS.supports('position-try-fallbacks: flip-block'),
 };
 
-const ENGINES = { chromium, firefox, webkit };
+// CI runs Chromium only (ADR-0089); ENGINES=firefox,webkit runs the others by hand.
+const ENGINES = Object.fromEntries(
+  Object.entries({ chromium, firefox, webkit }).filter(
+    ([name]) => !process.env.ENGINES || process.env.ENGINES.split(',').includes(name),
+  ),
+);
 
 const served = await serve(DIST);
 test.after(() => served.close());

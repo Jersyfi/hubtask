@@ -121,3 +121,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | accepted | Tenancy, administration |
 | [0087](./ADR-0087-levels-and-a-livelier-product.md) | Levels, and a livelier product | accepted | Work, design |
 | [0088](./ADR-0088-a-long-press-opens-the-entry-menu.md) | A long press opens the entry menu | accepted | Design |
+| [0089](./ADR-0089-check-once-where-it-is-cheap.md) | Check once, where it is cheap; the worker checks its own premises | accepted | Process |
