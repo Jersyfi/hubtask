@@ -63,7 +63,7 @@ var (
 	deployment  = regexp.MustCompile("(?m)^\\| `(D\\d)` \\|")
 	principleID = regexp.MustCompile(`(?m)^### (P-\d{2}):`)
 	numbered    = regexp.MustCompile(`(?m)^\d+\.\s+\S`)
-	ucIndexRow  = regexp.MustCompile(`(?m)^\|\s*\[(UC-[A-Z]{2,3}-\d{2,3})\]\(([^)]+)\)\s*\|[^|]*\|[^|]*\|\s*` + "`?" + `([a-z]+)` + "`?" + `\s*\|`)
+	ucIndexRow  = regexp.MustCompile(`(?m)^\|\s*\[(UC-[A-Z]{2,3}-\d{2,3})\]\(([^)]+)\)\s*\|`)
 	taskHeading = regexp.MustCompile(`(?m)^## ([A-Z0-9]+-\d{2,3}) `)
 )
 
@@ -326,18 +326,17 @@ func sectionsOf(body string) map[string]string {
 
 func checkUseCaseIndex(root string, cases []useCase) []string {
 	index := read(root, filepath.Join("docs", "usecases", "README.md"))
-	listed := map[string]string{}
+	// The index names a use case and where it lives, not its state: the state is the file's
+	// `state:`, moved by the work itself, and a second copy here was the line every pull request
+	// collided on (ADR-0089).
+	listed := map[string]bool{}
 	var problems []string
 	for _, row := range ucIndexRow.FindAllStringSubmatch(index, -1) {
-		listed[row[1]] = row[3]
+		listed[row[1]] = true
 	}
 	for _, uc := range cases {
-		state, ok := listed[uc.id]
-		switch {
-		case !ok:
+		if !listed[uc.id] {
 			problems = append(problems, fmt.Sprintf("docs/usecases/README.md: %s is not in the index", uc.id))
-		case state != uc.fields["state"]:
-			problems = append(problems, fmt.Sprintf("docs/usecases/README.md: the index says %s is %s, the file says %s", uc.id, state, uc.fields["state"]))
 		}
 		delete(listed, uc.id)
 	}
