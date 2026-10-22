@@ -43,8 +43,9 @@ figures by hand are on the review issue of the merge flow):
 ## Decision
 
 1. **A draft runs nothing.** `ci-required` carries the draft condition like every root job; a
-   draft's run starts no runner, and After CI ignores a skipped run. The draft's name for the check
-   stays, so a skip never reports a `CI required`.
+   draft's run starts no runner, and After CI ignores a skipped run. The check's name stays an
+   expression: GitHub reports the skipped job under the expression unevaluated, never as
+   `CI required`, so a draft cannot satisfy branch protection.
 2. **Check once, where it is cheap.** `make check` replaces `make verify-pr`: the checks of what the
    branch changed, about a minute, no lock. CI checks the rest once, after *Ready*. The hook only
    holds `--draft` on creation and a pushed `HEAD` on *Ready*. `make gate-quick` is no longer run

@@ -16,8 +16,9 @@ import (
 // Three things in the workflows make that true, and each one fails quietly when it goes missing:
 // without `ready_for_review` leaving draft starts nothing, without the draft condition a draft runs
 // everything again, and without the second name for `ci-required` a draft's commit carries a green
-// `CI required` that no gate earned - a skipped job reports success under its name, so the skip
-// keeps the draft's name. These tests are what notices.
+// `CI required` that no gate earned - a skipped job reports success under its name. Skipped on a
+// draft, GitHub reports it under the expression unevaluated, which is not `CI required` either
+// (seen on the first draft after ADR-0089). These tests are what notices.
 
 const (
 	draftCondition = "!github.event.pull_request.draft"
