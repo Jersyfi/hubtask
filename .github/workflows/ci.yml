@@ -963,15 +963,39 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # Both steps run apt against the runner's mirror, which has hung for forty minutes and more;
-      # their own limits make a hung mirror fail as this step, re-run, not as a slow job.
+      # Both steps below run apt against the runner's mirror, which has hung for forty minutes and
+      # more, and stalled one pull request twice in a row on one package. apt gives up on a stalled
+      # connection after 30 seconds and tries again on its own; each step tries three times, under a
+      # limit per try, so a hung mirror costs minutes and a re-run only when it stays hung.
+      #
+      # `timeout` ends pnpm, not the apt-get it started through sudo, which then holds dpkg's lock
+      # and fails the next try at once - so a try that did not finish ends that apt-get, and
+      # lets dpkg finish what it had begun, before the next one.
+      - name: apt gives up on a stalled mirror and retries
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nDPkg::Lock::Timeout "60";\n' |
+            sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
       - if: steps.browsers.outputs.cache-hit != 'true'
-        timeout-minutes: 10
-        run: pnpm --filter @hubtask/webapp exec playwright install --with-deps chromium
+        timeout-minutes: 15
+        run: |
+          for try in 1 2 3; do
+            timeout 270 pnpm --filter @hubtask/webapp exec playwright install --with-deps chromium && exit 0
+            echo "::warning::playwright install, try $try of 3, did not finish"
+            sudo pkill -x apt-get || true
+            sudo dpkg --configure -a || true
+          done
+          exit 1
       # The system packages the engine needs are installed either way; only the browser is cached.
       - if: steps.browsers.outputs.cache-hit == 'true'
-        timeout-minutes: 5
-        run: pnpm --filter @hubtask/webapp exec playwright install-deps chromium
+        timeout-minutes: 12
+        run: |
+          for try in 1 2 3; do
+            timeout 210 pnpm --filter @hubtask/webapp exec playwright install-deps chromium && exit 0
+            echo "::warning::playwright install-deps, try $try of 3, did not finish"
+            sudo pkill -x apt-get || true
+            sudo dpkg --configure -a || true
+          done
+          exit 1
       - run: pnpm --filter "@hubtask/webapp^..." build
       - run: pnpm --filter @hubtask/webapp build
       # The design system's workbench, which e2e/workbench-layout.test.mjs measures: a reason never
