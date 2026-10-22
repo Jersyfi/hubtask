@@ -830,6 +830,12 @@ type Container struct {
 	Private       bool
 }
 
+type ContainerMilestone struct {
+	TenantID    pgtype.UUID
+	ContainerID pgtype.UUID
+	ReachedAt   pgtype.Timestamptz
+}
+
 type CustomFieldDefinition struct {
 	ID           pgtype.UUID
 	TenantID     pgtype.UUID
@@ -1052,6 +1058,14 @@ type JumbleIntake struct {
 	TenantID  pgtype.UUID
 	TokenHash []byte
 	RotatedAt pgtype.Timestamptz
+}
+
+type Kudo struct {
+	TenantID pgtype.UUID
+	ItemID   pgtype.UUID
+	GivenBy  pgtype.UUID
+	GivenTo  pgtype.UUID
+	GivenAt  pgtype.Timestamptz
 }
 
 type Label struct {

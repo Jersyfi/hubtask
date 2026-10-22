@@ -314,6 +314,22 @@ func (q *Queries) DeleteFeedsOfAccount(ctx context.Context, accountID pgtype.UUI
 	return result.RowsAffected(), nil
 }
 
+const deleteKudosOfAccount = `-- name: DeleteKudosOfAccount :execrows
+DELETE FROM kudos
+WHERE tenant_id = current_tenant_id()
+  AND (given_by = $1 OR given_to = $1)
+`
+
+// Kudos the person gave and received: an acknowledgement between two people, about both of them,
+// and evidence of nothing.
+func (q *Queries) DeleteKudosOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteKudosOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaObject = `-- name: DeleteMediaObject :execrows
 DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
 `

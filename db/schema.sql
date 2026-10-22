@@ -1117,6 +1117,37 @@ CREATE INDEX comment_item_idx ON comment (tenant_id, item_id, created_at);
 CREATE INDEX comment_kept_text_idx ON comment (tenant_id, id)
   WHERE deleted_at IS NOT NULL AND body <> '';
 
+-- The last moment a collection, or every collection of a hub, was left with nothing open
+-- (UC-WRK-29 check 4). Names nobody. Migration 0190.
+CREATE TABLE container_milestone (
+  tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  container_id uuid NOT NULL,
+  reached_at   timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, container_id),
+  CONSTRAINT container_milestone_container_fkey FOREIGN KEY (tenant_id, container_id)
+    REFERENCES container (tenant_id, id) ON DELETE CASCADE
+);
+
+-- One person's acknowledgement of another's completion (UC-WRK-29 check 5): read only by whom it
+-- was given to, never exported, audited or announced. Migration 0190.
+CREATE TABLE kudos (
+  tenant_id uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  item_id   uuid NOT NULL,
+  given_by  uuid NOT NULL,
+  given_to  uuid NOT NULL,
+  given_at  timestamptz NOT NULL,
+  PRIMARY KEY (tenant_id, item_id, given_by, given_to),
+  CONSTRAINT kudos_not_to_oneself CHECK (given_by <> given_to),
+  CONSTRAINT kudos_item_fkey FOREIGN KEY (tenant_id, item_id)
+    REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT kudos_given_by_fkey FOREIGN KEY (tenant_id, given_by)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT kudos_given_to_fkey FOREIGN KEY (tenant_id, given_to)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX kudos_given_to_idx ON kudos (tenant_id, given_to, item_id);
+CREATE INDEX kudos_given_by_idx ON kudos (tenant_id, given_by);
+
 -- Partitioned by month (multi-tenancy.md §7), constructed exactly as migration 0068
 -- leaves a converted installation: a standalone history partition carrying the old shapes, a
 -- partitioned parent under the working name, a default catch-all, and the coming month through
@@ -2552,7 +2583,8 @@ BEGIN
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
-    'custom_field_definition','comment','activity_entry','media_object','item_attachment',
+    'custom_field_definition','comment','container_milestone','kudos','activity_entry',
+    'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
     'automation_rule','rule_run','rule_occurrence','jumble_intake',
     'webhook_subscription','webhook_delivery','calendar_feed',
