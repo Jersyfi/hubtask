@@ -63,13 +63,13 @@ func TestReadHistorySettledADR(t *testing.T) {
 	if got != "docs/adr/ADR-0080-deleted.md docs/adr/ADR-0081-accepted.md" {
 		t.Fatalf("want the amended and the deleted ADR, got %q", got)
 	}
-	problems := strings.Join(historyProblems("Readiness: n/a — x", facts, files(nil)), "\n")
+	problems := strings.Join(historyProblems("Readiness: n/a — x", facts), "\n")
 	if !strings.Contains(problems, "ADR-0081-accepted.md is settled and this branch changes its text") {
 		t.Fatalf("the amendment was not refused:\n%s", problems)
 	}
 	before := facts
 	before.opened = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	if p := historyProblems("", before, files(nil)); strings.Contains(strings.Join(p, "\n"), "is settled") {
+	if p := historyProblems("", before); strings.Contains(strings.Join(p, "\n"), "is settled") {
 		t.Fatalf("a pull request opened before the rule was held to it: %v", p)
 	}
 }

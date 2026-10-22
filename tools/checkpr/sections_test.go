@@ -74,7 +74,7 @@ func TestReadHistoryRenumberedSection(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	problems := strings.Join(historyProblems("", facts, files(nil)), "\n")
+	problems := strings.Join(historyProblems("", facts), "\n")
 	if !strings.Contains(problems, "docs/architecture/audit.md no longer has §2.2") {
 		t.Fatalf("the removed section was not refused:\n%s", problems)
 	}
@@ -83,7 +83,7 @@ func TestReadHistoryRenumberedSection(t *testing.T) {
 	}
 	before := facts
 	before.opened = time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
-	if p := strings.Join(historyProblems("", before, files(nil)), "\n"); strings.Contains(p, "no longer has") {
+	if p := strings.Join(historyProblems("", before), "\n"); strings.Contains(p, "no longer has") {
 		t.Fatalf("a pull request opened before the rule was held to it:\n%s", p)
 	}
 }
