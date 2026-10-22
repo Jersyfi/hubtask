@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures'; isRail?: boolean; opened?: string } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures' | 'colours'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape the application hands this component for real.
@@ -79,6 +79,24 @@
     },
   ];
 
+  // Places in the colour and with the symbol their people chose (UC-WRK-33), beside one nobody
+  // chose for, which keeps its type's mark and no tile.
+  const colours: NavNode[] = [
+    {
+      id: 'private',
+      label: 'House',
+      icon: 'house',
+      colorToken: 'magenta',
+      children: [
+        { id: 'shopping', label: 'Shopping', icon: 'shopping-cart', colorToken: 'green', href: '/c/shopping' },
+        { id: 'renovation', label: 'Renovation', icon: 'hammer', colorToken: 'amber', href: '/c/renovation' },
+        { id: 'notes', label: 'Notes', icon: 'collection', href: '/c/notes' },
+      ],
+    },
+    { id: 'work', label: 'Agency', icon: 'briefcase', colorToken: 'violet', href: '/h/agency' },
+    { id: 'garden', label: 'Garden', icon: 'hub', href: '/h/garden' },
+  ];
+
   let expanded = $state(['private', 'work']);
   let nav = $state<HTMLElement | null>(null);
 
@@ -91,7 +109,7 @@
     if (row instanceof HTMLElement) row.click();
   });
   const nodes = $derived(
-    mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : tree,
+    mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : mode === 'colours' ? colours : tree,
   );
 </script>
 
