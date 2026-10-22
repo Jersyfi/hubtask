@@ -236,6 +236,22 @@ test('a viewer reads the list and is offered nothing that writes (P-05)', async 
   await context.close();
 });
 
+test('the list\'s head counts what is open and shows no percentage, and offline no figure (check 7)', async () => {
+  const { page, context } = await phone();
+  const open = GROCERY_ITEMS.filter((entry) => !entry.completion?.is_completed).length;
+  const figure = page.locator('[data-figure]').first();
+  await figure.waitFor({ timeout: 5_000 });
+  assert.equal((await figure.locator('.text').textContent())?.trim(), `${open} open`);
+  assert.doesNotMatch(await page.locator('main').innerText(), /\d\s?%/, 'a list shows a percentage');
+
+  // Offline the replica answers the list, and a figure is the server's alone (UX-24 D10).
+  await context.route('**/api/v1/containers**', (route) => route.abort('internetdisconnected'));
+  await page.reload();
+  await page.locator('[data-row]').first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('[data-figure]').count(), 0, 'a figure was drawn from the replica');
+  await context.close();
+});
+
 test('offline, ticks and captures wait and are sent when the network returns (check 6)', async () => {
   const { page, context } = await phone();
   pushed.length = 0;

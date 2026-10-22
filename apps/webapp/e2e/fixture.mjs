@@ -502,7 +502,12 @@ export function stub(route) {
     return route.fulfill({ json: { ...PAGE, data: rows } });
   }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
-  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}`)) return route.fulfill({ json: GROCERIES });
+  // The list's figure (UC-WRK-25 check 7, UX-24): the server counts the open entries on the read; the
+  // replica's snapshot carries none, as no change record does.
+  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}`)) {
+    const open = GROCERY_ITEMS.filter((entry) => !entry.completion?.is_completed).length;
+    return route.fulfill({ json: { ...GROCERIES, figure: { kind: 'OPEN', open, today: today() } } });
+  }
   if (path.endsWith(`/api/v1/containers/${GROCERIES.id}/labels`)) return route.fulfill({ json: GROCERY_LABELS });
   // A device's queued writes, answered as applied (offline-sync.md §3.2): the walk offline sees
   // its marks go when the network is back.
