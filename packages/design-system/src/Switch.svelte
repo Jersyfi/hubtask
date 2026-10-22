@@ -13,23 +13,46 @@
 
   import type { HTMLInputAttributes } from 'svelte/elements';
 
-  import type { Disableable } from './control.ts';
+  import Reason from './_Reason.svelte';
+  import Spinner from './Spinner.svelte';
+  import VisuallyHidden from './VisuallyHidden.svelte';
+  import type { Busyable, Disableable } from './control.ts';
+  import { guard, sharedReason } from './reason.ts';
 
-  interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'type' | 'checked'>, Disableable {
+  interface Props extends Omit<HTMLInputAttributes, 'disabled' | 'type' | 'checked'>, Disableable, Busyable {
     label: string;
+    /** What it is doing while busy, said to a reader: the present participle (voice-and-tone.md §2.4). */
+    busyLabel?: string;
     hint?: string;
     checked?: boolean;
   }
 
-  let { label, hint, disabledReason, checked = $bindable(false), ...rest }: Props = $props();
+  let { label, hint, disabledReason, isBusy = false, busyLabel, checked = $bindable(false), ...rest }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
   const uid = `switch-${instanceId}`;
   const hintId = $derived(hint ? `${uid}-hint` : undefined);
-  const reasonId = $derived(disabledReason ? `${uid}-reason` : undefined);
-  const describedBy = $derived([reasonId, hintId].filter(Boolean).join(' ') || undefined);
+
+  // Unavailable, it stays focusable and says why in a bubble at the box: `aria-disabled` rather
+  // than the native attribute, and the guard (reason.ts) refuses the click - on the box and on the
+  // label that forwards one to it - and `Space`. Busy, it shows progress inside the box and is
+  // refused the same way, without a reason: it is not unavailable, it is working.
+  const unavailable = $derived(disabledReason !== undefined);
+  const shared = sharedReason();
+  const groupReasonId = $derived(shared(disabledReason));
+  const ownReasonId = `${uid}-reason`;
+  const reasonId = $derived(disabledReason === undefined ? undefined : (groupReasonId ?? ownReasonId));
+  const busyId = $derived(isBusy && busyLabel ? `${uid}-busy` : undefined);
+  const describedBy = $derived([reasonId, busyId, hintId].filter(Boolean).join(' ') || undefined);
+  let native = $state<HTMLInputElement | null>(null);
+  let labelElement = $state<HTMLLabelElement | null>(null);
+
+  $effect(() => {
+    if (!isBusy || unavailable) return;
+    return guard([native, labelElement], () => {});
+  });
 </script>
 
 <div class="switch">
@@ -41,16 +64,25 @@
         role="switch"
         class="native"
         bind:checked
-        disabled={disabledReason !== undefined}
+        aria-disabled={unavailable ? 'true' : undefined}
+        aria-busy={isBusy ? 'true' : undefined}
         aria-describedby={describedBy}
+        bind:this={native}
         {...rest}
       />
-      <span class="track" aria-hidden="true"><span class="knob"></span></span>
+      <span class="track" aria-hidden="true">
+        <span class="knob">{#if isBusy}<Spinner size="sm" />{/if}</span>
+      </span>
+      {#if busyId}
+        <!-- Inside the box's own span, which is positioned: a hidden sentence there is no flex
+             item of the column and adds no gap. -->
+        <span id={busyId}><VisuallyHidden>{busyLabel}</VisuallyHidden></span>
+      {/if}
     </span>
-    <label class="label" for={uid}>{label}</label>
+    <label class="label" for={uid} bind:this={labelElement}>{label}</label>
   </div>
-  {#if disabledReason}
-    <p id={reasonId} class="message">{disabledReason}</p>
+  {#if disabledReason !== undefined && !groupReasonId}
+    <Reason id={ownReasonId} text={disabledReason} control={native} forwarders={[labelElement]} />
   {/if}
   {#if hint}
     <p id={hintId} class="message">{hint}</p>
@@ -74,7 +106,7 @@
     cursor: pointer;
   }
 
-  .native:disabled { cursor: not-allowed; }
+  .native[aria-disabled='true'] { cursor: not-allowed; }
 
   .track {
     /* How far the knob travels: the track's width less the knob's box. Named here so the RTL rule
@@ -97,6 +129,10 @@
   }
 
   .knob {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
     width: var(--sp-150);
     height: var(--sp-150);
     border-radius: var(--r-full);
@@ -131,17 +167,17 @@
     outline-offset: var(--sp-025);
   }
 
-  .native:hover:not(:disabled) + .track { border-color: var(--accent-primary); }
+  .native:hover:not([aria-disabled='true']) + .track { border-color: var(--accent-primary); }
 
-  .native:disabled + .track { background: var(--bg-surface-sunken); border-color: var(--border-subtle); }
-  .native:disabled + .track .knob { background: var(--border-default); }
-  .native:disabled:checked + .track { background: var(--border-default); border-color: var(--border-default); }
+  .native[aria-disabled='true'] + .track { background: var(--bg-surface-sunken); border-color: var(--border-subtle); }
+  .native[aria-disabled='true'] + .track .knob { background: var(--border-default); }
+  .native[aria-disabled='true']:checked + .track { background: var(--border-default); border-color: var(--border-default); }
 
   /* A switch that is on and cannot be changed still has to read as *on*. With the disabled knob
      grey on the disabled track's grey it disappeared, and the control read as off - which is the
      opposite of what it says. The position is what carries the state (rule 3: never colour
      alone), so the knob keeps a surface the track cannot swallow. */
-  .native:disabled:checked + .track .knob { background: var(--bg-surface); }
+  .native[aria-disabled='true']:checked + .track .knob { background: var(--bg-surface); }
 
   .label {
     color: var(--text-primary);
@@ -151,7 +187,7 @@
     overflow-wrap: anywhere;
   }
 
-  .row:has(.native:disabled) .label { color: var(--text-subtle); cursor: not-allowed; }
+  .row:has(.native[aria-disabled='true']) .label { color: var(--text-subtle); cursor: not-allowed; }
 
   .message {
     max-width: 60ch;

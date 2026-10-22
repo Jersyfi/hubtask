@@ -340,6 +340,11 @@
 
   /* The split button: the verb and its list read as one control, joined at the seam. The two
      halves keep their own focus rings; only the corners between them are squared. */
+  /* The page's one primary action carries the accent's glow (design-system.md §6 rule 1); an
+     unavailable one does not, because a glow says "this is where to go". The glow is decorative:
+     the fill and the focus ring are measured on the surface beneath it. */
+  .primary > :global(.button:not(:disabled):not([aria-disabled='true'])) { box-shadow: var(--shadow-glow); }
+
   .primary[data-split] { display: inline-flex; align-items: stretch; }
 
   .primary[data-split] > :global(.button) {

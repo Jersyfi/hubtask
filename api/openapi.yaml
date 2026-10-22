@@ -825,6 +825,47 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /automation/rules:describe:
+    post:
+      tags: [automation]
+      operationId: describeRule
+      summary: Ask AI to draft a rule from a sentence
+      description: >
+        Asks the workspace's AI provider to draft an automation rule from one sentence in the
+        caller's own words — "when a task is created in Website relaunch, give it to Lisa". Needs
+        what writing a rule needs: the automation permission at the scope, and a plan that
+        includes rules.
+
+        The draft uses only what this workspace offers: the triggers it serves, the conditions the
+        rule editor composes, a fixed set of entry-level actions, and only the people, collections
+        and labels the sentence names and the caller may read. A model writes no expression and no
+        address; what it could not draft is listed in the payload's `not_drafted`.
+
+        Asynchronous and answered `202`. The draft appears under `GET /suggestions` as a `RULE`
+        suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only
+        the caller reads, accepts or dismisses it. Accepting it is `CreateRule` as the caller, so
+        the rule is stored switched off. A workspace with no provider, or one that has not
+        consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and
+        nothing is queued and nothing is sent.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RuleDescription"
+      responses:
+        "202":
+          description: The provider will be asked by the job named here; the draft appears under /suggestions, and a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /automation/rules:test:
     post:
       tags: [automation]
@@ -6872,10 +6913,14 @@ paths:
 
         The optional body carries what the person changed or added before accepting — an edited
         title, or the destination collection a jumble suggestion cannot know. It is merged over the
-        proposal, and it is the caller's own input checked by the use case with the caller's own
-        rights, exactly as if they had made the call themselves. The suggestion's target is never
-        taken from either the proposal or the overrides: a proposal about one entry cannot be made
-        to change another.
+        proposal key by key, and it is the caller's own input checked by the use case with the
+        caller's own rights, exactly as if they had made the call themselves. The suggestion's
+        target is never taken from either the proposal or the overrides: a proposal about one entry
+        cannot be made to change another.
+
+        A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the
+        overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the
+        draft's whole.
       requestBody:
         required: false
         content:
@@ -6884,11 +6929,11 @@ paths:
               $ref: "#/components/schemas/SuggestionAcceptance"
       responses:
         "200":
-          description: Accepted; the suggestion as it now stands
+          description: Accepted; the suggestion as it now stands, and what accepting created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Suggestion"
+                $ref: "#/components/schemas/AcceptedSuggestion"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -11206,8 +11251,11 @@ components:
             `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first,
             each with the identifier and the similarity that put it there — identifiers only, so
             what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a
-            `TemplateInput` for the target collection. It is data, never an instruction, and
-            nothing acts on it until somebody accepts.
+            `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` —
+            `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence
+            could not be drafted: entries with `part` (words quoted from the sentence) or `code`
+            and `params` (a message code). It is data, never an instruction, and nothing acts on
+            it until somebody accepts.
         source:
           type: string
           enum: [AI]
@@ -11313,8 +11361,39 @@ components:
           type: object
           additionalProperties: true
           description: >
-            Fields of the proposal to replace or add. A jumble suggestion needs the destination
-            collection here, because a model cannot know which collections a workspace has.
+            Fields of the proposal to replace or add, key by key. A jumble suggestion needs the
+            destination collection here, because a model cannot know which collections a workspace
+            has; a `RULE` draft needs `name` and `run_as`.
+
+    AcceptedSuggestion:
+      description: >
+        The suggestion as accepting left it, and the identifier of what accepting created where it
+        created one thing — a template, a rule. Answered by `:accept` only.
+      allOf:
+        - $ref: "#/components/schemas/Suggestion"
+        - type: object
+          properties:
+            created_id:
+              type: string
+              format: uuid
+              description: >
+                What accepting created, where it created one thing; absent where it changed an
+                entry or created several.
+
+    RuleDescription:
+      type: object
+      description: What to ask for, and where the rule would apply.
+      required: [scope, description]
+      properties:
+        scope:
+          $ref: "#/components/schemas/RuleScope"
+        description:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: >
+            What the rule should do, in the caller's own words. It travels to the provider as
+            content, never as instruction.
 
     SuggestionPage:
       type: object
@@ -11329,15 +11408,17 @@ components:
 
     SuggestionTargetType:
       type: string
-      enum: [WORK_ITEM, JUMBLE_ENTRY, CONTAINER]
+      enum: [WORK_ITEM, JUMBLE_ENTRY, CONTAINER, ACCOUNT]
       description: >
         What the suggestion is about. `CONTAINER` is a collection rather than an entry: a
         summary of how it stands is about the collection, and nothing accepts one — a collection
-        has nowhere to put a status summary, so it is read and dismissed.
+        has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person
+        who asked, for a draft of something that does not exist yet — a rule: only that account
+        lists, accepts or dismisses it.
 
     SuggestionKind:
       type: string
-      enum: [FIELDS, DECOMPOSITION, DUPLICATES, TEMPLATE]
+      enum: [FIELDS, DECOMPOSITION, DUPLICATES, TEMPLATE, RULE]
       description: >
         What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values
         for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a
@@ -11346,6 +11427,9 @@ components:
 
         `TEMPLATE` proposes a template for the collection it targets: its payload is a
         `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
+
+        `RULE` proposes an automation rule drafted from a sentence, about the account that asked;
+        accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
 
         `DUPLICATES` is the one kind nothing accepts. It says which entries look like this
         one, and what to do about that is a person's decision through the ordinary use cases —
@@ -16799,6 +16883,38 @@ components:
           type: array
           description: Only with expand=children:N
           items: { $ref: "#/components/schemas/WorkItem" }
+        hidden:
+          $ref: "#/components/schemas/EntryHidden"
+
+    EntryHidden:
+      type: object
+      required: [level, capabilities]
+      description: >
+        What the entry's collection does not show of it. A collection's structure (its levels and
+        fields) may offer less than the entry holds; nothing is deleted when it does. The entry and
+        every value stay stored, are answered here as they are, and writing them is refused with
+        `capability_not_supported` until the collection offers them again.
+
+
+        Present on every read of an entry and in the answer of every write to one. Absent from the
+        records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of
+        `:push`): a client holding the container's `structure` derives it, since a change of the
+        structure would otherwise rewrite every entry under it.
+      properties:
+        level:
+          type: boolean
+          description: >
+            True when the collection does not offer the entry's level, or the level of an entry
+            above it - an activity under a work package is hidden in a collection that offers
+            tasks and activities but no work packages. Every write to the entry is refused with
+            the detail `items.level_hidden`; trashing, restoring and archiving are not.
+        capabilities:
+          type: array
+          description: >
+            The capabilities of the entry's type the installation carries and the collection does
+            not offer, whether or not this entry holds a value for them. Writing one is refused
+            with the detail `items.capability_hidden`.
+          items: { type: string }
 
     WorkItemCreate:
       type: object
@@ -16903,13 +17019,15 @@ components:
           description: >
             The entry that lost it. A move carries a whole subtree, so one operation can drop
             references from several entries at once.
-        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, ASSIGNEE, ATTACHMENT, CUSTOM_FIELD] }
+        kind: { type: string, enum: [LABEL, BUCKET, MEMBER, ASSIGNEE, ATTACHMENT, CUSTOM_FIELD, NOTES, DUE_DATE] }
         id:
           type: string
           description: >
             The reference that could not be carried over: an identifier for a label, a column or an
             account, and the key itself for a custom field, which has no identifier in a collection
-            that does not define it.
+            that does not define it. For `NOTES` and `DUE_DATE`, which a template's node carries as
+            values rather than references, the identifier of the entry created without them - never
+            the value itself.
         code: { type: string, description: A stable message code saying why. }
 
     SortTerm:
@@ -19539,7 +19657,7 @@ components:
             is a part of the product that has not been asked to describe itself yet. The ones
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
-            `sign_in_rules`, `search_filter`, `structure` and `setup_open`.
+            `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.
 
             `setup_open` is `true` exactly while the installation has no workspace and nobody in its
             operator register: then `POST /auth/installation:set-up` is offered, and a client shows

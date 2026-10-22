@@ -30,3 +30,16 @@ export const long: Story = {
     'Rule 4: everything grows by 40 %. The group wraps rather than clipping a label, because a view whose name is cut off is a view nobody chooses deliberately.',
   args: { mode: 'long' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'Three views, the middle one unavailable. The reason is a bubble at the item on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. The arrows reach the unavailable item without choosing it.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the item is available or not.',
+  args: { mode: 'table' },
+};

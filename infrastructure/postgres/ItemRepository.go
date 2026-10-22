@@ -107,6 +107,36 @@ func (r ItemRepository) FindMany(ctx context.Context, ids []shared.ID) ([]work.W
 	return items, nil
 }
 
+// TypesOf answers the type of each entry among ids that this tenant holds.
+func (r ItemRepository) TypesOf(ctx context.Context, ids []shared.ID) (map[shared.ID]work.ItemType, error) {
+	types := make(map[shared.ID]work.ItemType, len(ids))
+	if len(ids) == 0 {
+		return types, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.WorkItemTypes(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the types of work items: %w", err))
+	}
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		types[id] = work.ItemType(row.Type)
+	}
+	return types, nil
+}
+
 // FindByCalendarUID returns the item a calendar client's UID names.
 //
 // Not found is the whole of what a miss says, exactly as in Find: the partial unique index is

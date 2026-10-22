@@ -25,6 +25,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium, firefox, webkit } from 'playwright';
 
+import { COLLECTION, ITEMS, stub as fixtureStub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -187,6 +188,16 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     });
     assert.equal(reachedBehind, false, `${name}: a control behind the modal took focus`);
 
+    // Where the Tabs ended on a control that cannot be used yet, its reason is showing, and the
+    // first `Escape` is that bubble's (WCAG 1.4.13; design-system.md §4): one more closes the dialog.
+    const reasonShowing = () => page.evaluate(() =>
+      (document.activeElement?.getAttribute('aria-describedby') ?? '').split(' ')
+        .map((id) => document.getElementById(id))
+        .some((node) => node?.getAttribute('role') === 'tooltip' && !node.hidden));
+    if (await reasonShowing()) {
+      await page.keyboard.press('Escape');
+      assert.equal(await reasonShowing(), false, `${name}: Escape left the reason showing`);
+    }
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
     // Back on the trigger - polled, because an engine hands focus back a task after `close()`.
@@ -317,5 +328,53 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     assert.ok(written.some((body) => typeof body?.onboarding_completed_at === 'string'), `${name}: skipping did not write onboarding_completed_at: ${JSON.stringify(written)}`);
     await fresh.close();
     assert.deepEqual(failures, [], `${name}: the bundle threw during the tour`);
+  });
+
+  // UC-WRK-27 check 5 by keyboard alone, in every engine: the shortcut, the arrows and Enter
+  // perform the highlighted row, and Escape closes and returns focus where it was. Against the
+  // shared fixture, which has the collection the palette is asked for.
+  test(`${name}: the palette by keyboard alone`, async (t) => {
+    const browser = await engine.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.route('**/api/v1/**', fixtureStub);
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+
+    await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+    const checkbox = page.getByRole('checkbox', { name: `Mark ${ITEMS[2].title} as done` });
+    await checkbox.waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(600);
+    await checkbox.focus();
+
+    await page.keyboard.press('Control+k');
+    const field = page.getByRole('combobox', { name: 'Search everything' });
+    await page.locator('#search-menu').waitFor({ timeout: 5_000 });
+    await page.keyboard.type('kitch');
+    await page.getByRole('option', { name: /Open Kitchen as a board/ }).waitFor({ timeout: 5_000 });
+    let found = false;
+    for (let presses = 0; presses < 40 && !found; presses += 1) {
+      await page.keyboard.press('ArrowDown');
+      const active = await field.getAttribute('aria-activedescendant');
+      found = active !== null && (await page.locator(`[id="${active}"] .title`).textContent())?.trim() === 'Open Kitchen as a board';
+    }
+    assert.ok(found, `${name}: the arrows never reached the row`);
+    await page.keyboard.press('Enter');
+    await page.getByRole('radio', { name: 'Board', checked: true }).waitFor({ timeout: 5_000 });
+
+    const board = page.getByRole('radio', { name: 'Board' });
+    await board.focus();
+    await page.keyboard.press('Control+k');
+    await page.locator('#search-menu').waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+    await page.locator('#search-menu').waitFor({ state: 'detached', timeout: 5_000 });
+    assert.ok(await board.evaluate((node) => node === document.activeElement), `${name}: Escape did not return focus`);
+    await context.close();
+    assert.deepEqual(failures, [], `${name}: the bundle threw in the palette`);
   });
 }

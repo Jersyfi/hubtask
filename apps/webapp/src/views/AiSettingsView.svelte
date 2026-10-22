@@ -512,6 +512,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the

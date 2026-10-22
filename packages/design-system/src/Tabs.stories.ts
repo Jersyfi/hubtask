@@ -30,3 +30,16 @@ export const long: Story = {
     'Rule 4. The strip scrolls rather than squeezing the labels, because a tab whose text is clipped is a tab nobody can choose deliberately.',
   args: { mode: 'long' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'Three tabs, the middle one unavailable. The reason is a bubble at the item on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. The arrows reach the unavailable item without choosing it.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the item is available or not.',
+  args: { mode: 'table' },
+};

@@ -233,7 +233,7 @@
   .drawer {
     padding: 0;
     border: 0;
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     color: var(--text-primary);
     box-shadow: var(--shadow-overlay);
     /* Pinned to one edge over the full block size, which is what makes it a drawer rather than a

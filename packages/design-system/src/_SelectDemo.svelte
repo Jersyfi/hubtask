@@ -1,10 +1,11 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import InContext from './_InContext.svelte';
   import Select from './Select.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'resting' }: { mode?: 'resting' | 'gated' | 'grouped' } = $props();
+  const { mode = 'resting' }: { mode?: 'resting' | 'gated' | 'grouped' | 'row' | 'table' | 'option' } = $props();
 
   let kind = $state('task');
 
@@ -41,6 +42,24 @@
   ];
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="The type is set by the template this entry came from.">
+    {#snippet subject({ reason, onclick })}
+      <Select label="Type" options={plain} value="task" disabledReason={reason} {onclick} />
+    {/snippet}
+  </InContext>
+{:else if mode === 'option'}
+  <InContext context="row" reason="Not available in this workspace.">
+    {#snippet subject({ reason })}
+      <Select
+        label="Type"
+        options={[...plain, { value: 'milestone', label: 'Milestone', disabledReason: reason }]}
+        value="task"
+        describeUnavailable={(label, why) => `${label} – ${why}`}
+      />
+    {/snippet}
+  </InContext>
+{:else}
 <Stack gap="300" class="form">
   {#if mode === 'grouped'}
     <Select label="Which event" options={[]} {groups} bind:value={eventType} hint="Grouped by what the event is about; the wire name of the chosen one stands under the field." />
@@ -53,6 +72,7 @@
     />
   {/if}
 </Stack>
+{/if}
 
 <style>
   :global(.form) { max-width: 40ch; }

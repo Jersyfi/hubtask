@@ -254,6 +254,7 @@ export type CommentPage = components['schemas']['CommentPage'];
  * shape the kind fixes and never an instruction - the client renders it and acts on none of it.
  */
 export type Suggestion = components['schemas']['Suggestion'];
+export type AcceptedSuggestion = components['schemas']['AcceptedSuggestion'];
 export type SuggestionPage = components['schemas']['SuggestionPage'];
 export type SuggestionKind = components['schemas']['SuggestionKind'];
 export type SuggestionStatus = components['schemas']['SuggestionStatus'];

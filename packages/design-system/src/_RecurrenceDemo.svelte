@@ -4,9 +4,11 @@
   // The rule the editor produces is printed underneath: the presets and the raw field write the
   // same string, and that is the claim worth being able to check by looking.
 
+  import InContext from './_InContext.svelte';
+  import Self from './_RecurrenceDemo.svelte';
   import RecurrenceEditor from './RecurrenceEditor.svelte';
 
-  const { mode = 'weekly' }: { mode?: 'weekly' | 'monthly' | 'raw' | 'conflict' } = $props();
+  const { mode = 'weekly', disabledReason }: { mode?: 'weekly' | 'monthly' | 'raw' | 'conflict' | 'row' | 'table'; disabledReason?: string } = $props();
 
   let rule = $state('FREQ=WEEKLY;INTERVAL=1;BYDAY=MO,TH');
   let repeats = $state<'ON_SCHEDULE' | 'ON_COMPLETION'>('ON_SCHEDULE');
@@ -24,8 +26,16 @@
   });
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="Repeating is not available for this type of entry.">
+    {#snippet subject({ reason })}
+      <Self disabledReason={reason} />
+    {/snippet}
+  </InContext>
+{:else}
 <div>
   <RecurrenceEditor
+    {disabledReason}
     label="Repeats"
     {rule}
     mode={repeats}
@@ -69,6 +79,7 @@
 
   <p class="produced"><code>RRULE:{rule}</code></p>
 </div>
+{/if}
 
 <style>
   .produced { margin-block-start: var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }

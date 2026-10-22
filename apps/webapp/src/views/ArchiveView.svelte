@@ -111,5 +111,5 @@
 </Stack>
 
 <style>
-  .failure { margin: 0; color: var(--status-danger-text); font-size: var(--fs-075); }
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

@@ -45,6 +45,9 @@ type PlacementWriter struct {
 	Buckets    repository.Buckets
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -368,8 +371,19 @@ func (w PlacementWriter) perform(
 		if err != nil {
 			return err
 		}
+		// The destination decides: the entry has to land on a level it offers - which is also what
+		// refuses reordering an entry of a hidden level - while what it carries is kept, marked
+		// where the destination hides it (domain-model.md §2). An entry hidden where it is may be
+		// moved to a place that shows it: that is the way out without flattening.
+		offer, err := w.Gate.placing(ctx, fresh.destination, fresh.parent)
+		if err != nil {
+			return err
+		}
+		if err := offer.requireLevel(fresh.item.Type, "/target_parent_id"); err != nil {
+			return err
+		}
 
-		if err := w.ensureBucketAt(ctx, fresh, spot); err != nil {
+		if err := w.ensureBucketAt(ctx, fresh, spot, offer); err != nil {
 			return err
 		}
 
@@ -403,7 +417,7 @@ func (w PlacementWriter) perform(
 // A named column is checked against the collection the item is moving *into*, not the one it is
 // leaving, which is what makes "move it to the other board's Doing column" one operation.
 func (w PlacementWriter) ensureBucketAt(
-	ctx context.Context, plan placement, spot service.Placement,
+	ctx context.Context, plan placement, spot service.Placement, offer entryOffer,
 ) error {
 	if !plan.command.BucketGiven || plan.command.TargetBucketID.IsZero() {
 		// No column asked for, or the entry taken off the board. Neither needs the capability: an
@@ -415,7 +429,7 @@ func (w PlacementWriter) ensureBucketAt(
 	if err != nil {
 		return err
 	}
-	if err := profile.Require(domain.CapabilityBucket, "/target_bucket_id"); err != nil {
+	if err := offer.narrow(profile).Require(domain.CapabilityBucket, "/target_bucket_id"); err != nil {
 		return err
 	}
 	if spot.Depth != 1 {
@@ -851,7 +865,11 @@ func (h MoveWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return moveOutput(result), nil
+	answer, err := h.Placement.Gate.Answer(ctx, h.Placement.UnitOfWork, actor, result.Item)
+	if err != nil {
+		return nil, err
+	}
+	return moveOutput(result, answer), nil
 }
 
 func (h ReorderWorkItem) invoke(
@@ -875,12 +893,12 @@ func (h ReorderWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Placement.Gate.Answer(ctx, h.Placement.UnitOfWork, actor, item)
 }
 
 // moveOutput is the shape a move answers with: the contract's MoveResult, whose `dropped_references`
 // is always present and empty when the destination resolved everything (I-W6).
-func moveOutput(result MoveResult) usecase.Output {
+func moveOutput(result MoveResult, item usecase.Output) usecase.Output {
 	dropped := make([]usecase.Output, 0, len(result.DroppedReferences))
 	for _, reference := range result.DroppedReferences {
 		dropped = append(dropped, usecase.Output{
@@ -891,7 +909,7 @@ func moveOutput(result MoveResult) usecase.Output {
 		})
 	}
 	return usecase.Output{
-		"item":               ItemOutput(result.Item),
+		"item":               item,
 		"dropped_references": dropped,
 		"subtree_size":       result.SubtreeSize,
 	}

@@ -6,10 +6,12 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 import { MemoryStorage, type StoredRecord } from '@hubtask/sync-engine';
 
-import { storeFor } from './replica.ts';
+import { hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type StructureShape } from './replica.ts';
 
 const HUB = 'h-1';
 const COLLECTION = 'c-1';
@@ -215,5 +217,60 @@ test('the writes the queue does not carry, and why', async () => {
     ['POST', '/backups:run', 'administration'],
   ] as const) {
     assert.equal(await mutationFor(method, path, {}, h), undefined, `${method} ${path}: ${why}`);
+  }
+});
+
+// What a collection hides of an entry: the server's rule, read from the same table the Go domain
+// reads (`api/fixtures/hidden-entries.json`). A case added on either side turns both red or neither.
+
+interface HiddenCase {
+  readonly name: string;
+  readonly structure: StructureShape;
+  readonly type: string;
+  readonly ancestors: readonly string[];
+  readonly hidden: EntryHidden;
+}
+
+const hiddenFixture = JSON.parse(
+  readFileSync(fileURLToPath(new URL('../../../../../api/fixtures/hidden-entries.json', import.meta.url)), 'utf8'),
+) as { bound: BoundType[]; cases: HiddenCase[] };
+
+test('the shared table holds cases', () => {
+  assert.ok(hiddenFixture.cases.length > 0);
+});
+
+for (const tc of hiddenFixture.cases) {
+  test(`hidden: ${tc.name}`, () => {
+    assert.deepEqual(hiddenOf(tc.type, tc.ancestors, tc.structure, hiddenFixture.bound), tc.hidden);
+  });
+}
+
+test('offline, an entry is marked from its collection\'s structure and the levels above it', async () => {
+  const storage = new MemoryStorage();
+  const list = hiddenFixture.cases.find((tc) => tc.name.startsWith('Tasks offers'))!.structure;
+  await storage.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB, order_key: 'a0', structure: { settings: list } }));
+  await storage.put('items', 'task', record({ id: 'task', type: 'TASK', collection_id: COLLECTION, parent_id: null, order_key: 'a0' }));
+  await storage.put('items', 'pack', record({ id: 'pack', type: 'WORK_PACKAGE', collection_id: COLLECTION, parent_id: 'task', order_key: 'a0' }));
+  await storage.put('items', 'step', record({ id: 'step', type: 'ACTIVITY', collection_id: COLLECTION, parent_id: 'pack', order_key: 'a0' }));
+  await storage.put('items', 'call', record({ id: 'call', type: 'ACTIVITY', collection_id: COLLECTION, parent_id: 'task', order_key: 'a1' }));
+
+  useBound(undefined);
+  const before = (await storeFor({ path: '/items/step' }, storage)) as Record<string, unknown>;
+  assert.equal(before.hidden, undefined, 'before the manifest arrives nothing is marked');
+
+  useBound(hiddenFixture.bound);
+  try {
+    const step = (await storeFor({ path: '/items/step' }, storage)) as { hidden: EntryHidden };
+    assert.equal(step.hidden.level, true, 'an activity under a hidden work package is hidden');
+    const call = (await storeFor({ path: '/items/call' }, storage)) as { hidden: EntryHidden };
+    assert.equal(call.hidden.level, false, 'an activity directly under a task is shown');
+    const subtree = (await storeFor({
+      path: '/items:query',
+      body: { scope: { item_id: 'task', include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },
+    }, storage)) as { data: { id: string; hidden: EntryHidden }[] };
+    const marks = Object.fromEntries(subtree.data.map((row) => [row.id, row.hidden.level]));
+    assert.deepEqual(marks, { pack: true, step: true, call: false });
+  } finally {
+    useBound(undefined);
   }
 });

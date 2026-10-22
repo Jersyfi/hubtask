@@ -70,6 +70,7 @@ the fields; what leaves the installation is:
 |---|---|---|
 | Jumble suggestion | The entry's subject and body | A suggested title, date, destination, labels |
 | Decomposition | An entry's title and notes | A suggested tree of work packages and activities |
+| Rule drafting | The person's sentence; the names of the people, collections, hubs and labels it names that they may see; the rule vocabulary | A suggested rule, switched off until somebody saves and switches it on |
 | Automation AI actions | The fields the rule names | A suggestion, or a value the rule applies |
 | Semantic search | Titles and notes, as text to embed | A vector |
 

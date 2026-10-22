@@ -699,6 +699,9 @@ func run() error {
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
 	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}}
+	// What a collection offers its entries, for every item writer and reader: the refusal of what it
+	// hides and the mark on every read are one answer (domain-model.md §2).
+	entryGate := work.EntryGate{Structure: structures, Types: items}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
@@ -767,6 +770,7 @@ func run() error {
 	// opposite directions, and wiring them separately would be two places to get one of eleven fields
 	// wrong (work.CompletionWriter).
 	completion := work.CompletionWriter{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -776,6 +780,7 @@ func run() error {
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
 	placement := work.PlacementWriter{
+		Gate:  entryGate,
 		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -821,6 +826,7 @@ func run() error {
 	// would be one more place for "restoring records what trashing records" to stop being true
 	// (work.LifecycleWriter).
 	itemLifecycle := work.LifecycleWriter{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Queue: jobs,
@@ -868,6 +874,7 @@ func run() error {
 	// and wiring them separately would be two places to get one of thirteen fields wrong
 	// (work.ItemLabelWriter).
 	itemLabelWriter := work.ItemLabelWriter{
+		Gate:  entryGate,
 		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
 		Profiles: profiles, Authorizer: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
@@ -880,6 +887,7 @@ func run() error {
 	// purpose - the actor's own permission and the question about the second person are two
 	// different questions answered by the same service.
 	assignment := work.AssignmentWriter{
+		Gate: entryGate,
 		// No rule puts a person whose processing is restricted on an entry (Art. 18).
 		Accounts: accounts,
 		Items:    items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
@@ -903,6 +911,7 @@ func run() error {
 	// dispatch into this one instance, so a due date means the same thing whichever door it came
 	// through.
 	dueDateWriter := work.DueDateWriter{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Reminders: reminders,
 		Jobs:       jobs,
 		Authorizer: authorizer,
@@ -915,6 +924,7 @@ func run() error {
 	// wiring, because a cover is a reference an item holds: this is where the counter moves
 	// (data-protection.md §5).
 	coverWriter := work.CoverWriter{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Media: mediaObjects,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -925,6 +935,7 @@ func run() error {
 	// what judges a value is the definition in force for the entry's collection, and a second
 	// resolution of that would be a second answer to what a key means.
 	setCustomField := work.SetCustomField{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Fields: customFields,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
@@ -962,6 +973,7 @@ func run() error {
 	// The same repository serves both halves of it: MediaRepository stores the links and the
 	// records, and the reference counter moves in the same transaction as the link.
 	attachmentWriter := work.ItemAttachmentWriter{
+		Gate:  entryGate,
 		Items: items, Containers: containers, Profiles: profiles, Attachments: mediaObjects,
 		Media: mediaObjects, Authorizer: authorizer, Events: outbox, Changes: changes,
 		Audit: auditSink, Activity: journal, UnitOfWork: unitOfWork,
@@ -972,6 +984,7 @@ func run() error {
 	// pair does: they are the same write in opposite directions, and wiring them separately would
 	// be two places to get one of fourteen fields wrong (work.ItemMemberWriter).
 	itemMemberWriter := work.ItemMemberWriter{
+		Gate:     entryGate,
 		Accounts: accounts,
 		Items:    items, ItemMembers: itemMembers, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Events: outbox, Changes: changes,
@@ -984,6 +997,7 @@ func run() error {
 	// `authorizer` appears twice on purpose: the actor's own permission and the
 	// author-or-administrator question are two different questions answered by the same service.
 	commentWriter := work.CommentWriter{
+		Gate:     entryGate,
 		Comments: postgres.NewCommentRepository(cursors), Items: items, Containers: containers,
 		Profiles: profiles, Authorizer: authorizer, Moderation: authorizer,
 		Events: outbox, Changes: changes,
@@ -997,6 +1011,7 @@ func run() error {
 	// the actor's own permission and the question about whether a named recipient can see the
 	// entry are two questions answered by the same service.
 	reminderWriter := work.ReminderWriter{
+		Gate:      entryGate,
 		Reminders: reminders, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Visibility: authorizer, Changes: changes, Audit: auditSink,
 		Jobs:       jobs,
@@ -1008,6 +1023,7 @@ func run() error {
 	// before anything is stored, so a broken series is refused where somebody wrote it rather than
 	// discovered by the scheduler.
 	recurrenceWriter := work.RecurrenceWriter{
+		Gate:        entryGate,
 		Recurrences: recurrences, Items: items, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Expander: recurrenceadapter.New(),
 		Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
@@ -1041,6 +1057,7 @@ func run() error {
 	}
 
 	duplicate := work.DuplicateWorkItem{
+		Gate:  entryGate,
 		Quota: quotaGuard,
 		Items: items, ItemLabels: itemLabels, ItemMembers: itemMembers, Labels: labels,
 		Buckets: buckets, Fields: customFields, Containers: containers,
@@ -1057,6 +1074,7 @@ func run() error {
 	// The templates' three definition verbs share one dependency set (work.TemplateWriter): the
 	// same scope resolution, the same permission question, the same records.
 	templateWriter := work.TemplateWriter{
+		Gate:      entryGate,
 		Templates: templates, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Changes: changes, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
@@ -1181,6 +1199,7 @@ func run() error {
 	// cases below.
 	suggestionCases.Material = suggestionservice.CatalogueSources{
 		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
+		Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
 	}
 	// A person's own view of keeping their content out of AI, over the same rule every AI call
 	// resolves (data-protection.md §4.1).
@@ -1254,7 +1273,10 @@ func run() error {
 	}
 	produceSuggestion := suggestionservice.Produce{
 		Providers: budgetedAi, Prompts: aiPrompts,
-		Sources:     suggestionservice.CatalogueSources{Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut},
+		Sources: suggestionservice.CatalogueSources{
+			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut,
+			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
 		Catalogue: scopedSuggestions,
@@ -1263,6 +1285,7 @@ func run() error {
 		// suggestion was produced, stored, listed - and refused by every acceptance.
 		Fields:     useCaseFields{catalogue: suggestionCatalogue},
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
+		Conditions: celexpression.New(),
 	}
 
 	// The sign-in rule, resolved once for every door of the password's life (ADR-0068 §2): the
@@ -1821,6 +1844,11 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		suggestionservice.DescribeRule{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
 		// The one that asks nothing of a provider: no `AI`, no `Queue`, and no provider
 		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
 		suggestionservice.SuggestDuplicates{
@@ -1953,6 +1981,7 @@ func run() error {
 			Structure:   structures,
 		}.Descriptor(),
 		work.CreateWorkItem{
+			Gate:         entryGate,
 			Items:        items,
 			Quota:        quotaGuard,
 			Buckets:      buckets,
@@ -1977,6 +2006,7 @@ func run() error {
 			Text:         forms,
 		}.Descriptor(),
 		work.UpdateWorkItem{
+			Gate:       entryGate,
 			Items:      items,
 			Buckets:    buckets,
 			Containers: containers,
@@ -2030,7 +2060,7 @@ func run() error {
 		}.Descriptor(),
 		work.ArchiveContainer{Writer: containerWriter}.Descriptor(),
 		work.UnarchiveContainer{Writer: containerWriter}.Descriptor(),
-		work.MoveContainer{Writer: containerWriter, Revocations: revocations}.Descriptor(),
+		work.MoveContainer{Writer: containerWriter, Revocations: revocations, Structure: structures}.Descriptor(),
 		work.ReorderContainer{Writer: containerWriter}.Descriptor(),
 		work.TrashContainer{Writer: containerWriter}.Descriptor(),
 		work.RestoreContainer{Writer: containerWriter}.Descriptor(),
@@ -2094,6 +2124,7 @@ func run() error {
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.GetWorkItem{
+			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
@@ -2102,6 +2133,7 @@ func run() error {
 		// budget is refused the way the search's meaning is, and nothing is stored.
 		work.AiTranslate{
 			Reader: work.GetWorkItem{
+				Gate:  entryGate,
 				Items: items, ItemLabels: itemLabels, Containers: containers,
 				Authorizer: authorizer, UnitOfWork: unitOfWork,
 			},
@@ -2109,10 +2141,12 @@ func run() error {
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Kept: keptOut,
 		}.Descriptor(),
 		work.ListWorkItems{
+			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.QueryItems{
+			Gate:  entryGate,
 			Items: items, ItemLabels: itemLabels, Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
@@ -2120,6 +2154,7 @@ func run() error {
 		// shapes: about a hub the client named, about how far the caller reaches into a collection,
 		// and about each row of an unanchored page (SearchItems.reach).
 		work.SearchItems{
+			Gate:  entryGate,
 			Items: items, Containers: containers,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
@@ -2239,6 +2274,7 @@ func run() error {
 		}.Descriptor(),
 		importservice.GetImport{Runs: importRuns, Authorizer: authorizer, UnitOfWork: unitOfWork}.Descriptor(),
 		lifecycle.RetainItem{
+			Gate:  entryGate,
 			Items: items, Containers: containers,
 			Marking: postgres.NewRetentionMarkingRepository(), Authorizer: authorizer,
 			Audit: auditSink, Changes: changes, UnitOfWork: unitOfWork,
@@ -2315,6 +2351,7 @@ func run() error {
 		work.ExportView{
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			Query: work.QueryItems{
+				Gate:  entryGate,
 				Items: items, ItemLabels: itemLabels, Containers: containers,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
@@ -2540,6 +2577,7 @@ func run() error {
 			Export: work.ExportView{
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
+					Gate:  entryGate,
 					Items: items, ItemLabels: itemLabels, Containers: containers,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
@@ -2708,6 +2746,7 @@ func run() error {
 				Views: work.ExportView{
 					Views: savedViews, Containers: containers, Permits: authorizer,
 					Query: work.QueryItems{
+						Gate:  entryGate,
 						Items: items, ItemLabels: itemLabels, Containers: containers,
 						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 					},
@@ -2717,6 +2756,7 @@ func run() error {
 				// The entry behind an address the view no longer answers: the same
 				// read the API performs, so the permission is the same one.
 				Items: work.GetWorkItem{
+					Gate:  entryGate,
 					Items: items, ItemLabels: itemLabels, Containers: containers,
 					Authorizer: authorizer, UnitOfWork: unitOfWork,
 				},
@@ -3468,6 +3508,7 @@ func run() error {
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion},
+		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{
 			Embed: work.EmbedItems{
 				Embeddings: postgres.NewEmbeddingRepository(), Providers: budgetedAi,

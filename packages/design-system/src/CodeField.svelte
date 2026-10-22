@@ -210,7 +210,7 @@
     animation: caret var(--motion-pending-duration) step-end infinite;
   }
 
-  .code[data-invalid] .place { border-block-end-color: var(--text-danger); }
+  .code[data-invalid] .place { border-block-end-color: var(--status-danger-border); background: var(--status-danger-surface); }
 
   /* The ring on the place the next character lands in. One target, the size of any other control
      in this system, rather than a rectangle around the row. */

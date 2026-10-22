@@ -22,6 +22,8 @@
   import Avatar from './Avatar.svelte';
   import SearchField from './SearchField.svelte';
   import type { Disableable } from './control.ts';
+  import ReasonMark from './_ReasonMark.svelte';
+  import { provideReasonGroup } from './reason.ts';
   import { rovingIndex } from './focus.ts';
 
   /** One candidate, as the control needs it: who they are, and their picture if they have one. */
@@ -88,7 +90,11 @@
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
   const instanceId = $props.id();
-  const reasonId = $derived(unavailable ? `reason-${instanceId}` : undefined);
+  // One reason for every part (design-system.md §4): the parts that are off for it point at the
+  // mark's and draw nothing of their own, and the mark's guard stands over all of them.
+  const groupId = `group-reason-${instanceId}`;
+  provideReasonGroup(() => ({ id: groupId, reason: disabledReason }));
+  let container = $state<HTMLElement | null>(null);
 
   const shown = $derived(
     term.trim() === ''
@@ -121,7 +127,15 @@
   }
 </script>
 
-<div class="control">
+<div
+  class="control"
+  role="group"
+  aria-label={label}
+  aria-describedby={unavailable ? groupId : undefined}
+  bind:this={container}
+>
+  <!-- The control's heading is the caller's; the mark sits in its corner. -->
+  <span class="corner"><ReasonMark id={groupId} text={disabledReason} {container} /></span>
   <!-- The summary is a live region, so choosing announces a name rather than leaving a reader to
        go looking for what changed. It is polite: a person choosing is not interrupted by the
        result of their own click. -->
@@ -167,8 +181,8 @@
             role="option"
             data-index={index}
             aria-selected={selected.includes(person.id)}
-            aria-describedby={reasonId}
-            disabled={unavailable}
+            aria-describedby={unavailable ? groupId : undefined}
+            aria-disabled={unavailable ? 'true' : undefined}
             tabindex={index === active ? 0 : -1}
             onclick={() => {
               active = index;
@@ -186,13 +200,16 @@
     </ul>
   {/if}
 
-  {#if unavailable}
-    <p class="reason" id={reasonId}>{disabledReason}</p>
-  {/if}
 </div>
 
 <style>
-  .control { display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
+  .control { position: relative; display: flex; flex-direction: column; gap: var(--sp-100); min-width: 0; }
+
+  .corner {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-end: 0;
+  }
 
   .chosen {
     display: flex;
@@ -232,9 +249,9 @@
     cursor: pointer;
   }
 
-  .option:hover:not(:disabled) { background: var(--bg-surface-hover); }
+  .option:hover:not([aria-disabled='true']) { background: var(--bg-surface-hover); }
 
-  .option:disabled { background: var(--bg-surface-sunken); color: var(--text-subtle); cursor: not-allowed; }
+  .option[aria-disabled='true'] { background: var(--bg-surface-sunken); color: var(--text-subtle); cursor: not-allowed; }
 
   .option:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -252,9 +269,7 @@
 
   .empty-inline,
   .empty,
-  .reason { color: var(--text-subtle); font-size: var(--fs-075); }
 
   .empty { margin: 0; padding: var(--sp-150); }
 
-  .reason { margin: 0; }
 </style>

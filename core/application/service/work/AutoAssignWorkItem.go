@@ -282,7 +282,7 @@ func (h AutoAssignWorkItem) apply(
 	if err := collection.EnsureAcceptsItems(); err != nil {
 		return domain.WorkItem{}, AutoAssignOutcome{}, err
 	}
-	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
 	if err != nil {
 		return domain.WorkItem{}, AutoAssignOutcome{}, err
 	}
@@ -456,5 +456,9 @@ func (h AutoAssignWorkItem) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return outcome.output(ItemOutput(item)), nil
+	answer, err := h.Assignment.Gate.Answer(ctx, h.Assignment.UnitOfWork, actor, item)
+	if err != nil {
+		return nil, err
+	}
+	return outcome.output(answer), nil
 }

@@ -964,6 +964,9 @@ jobs:
         run: pnpm --filter @hubtask/webapp exec playwright install-deps chromium firefox webkit
       - run: pnpm --filter "@hubtask/webapp^..." build
       - run: pnpm --filter @hubtask/webapp build
+      # The design system's workbench, which e2e/workbench-layout.test.mjs measures: a reason never
+      # moves the page (UC-WRK-32). Built here, not in `pnpm -r build`, which never ships it.
+      - run: pnpm --filter @hubtask/design-system workbench:build
       - run: pnpm --filter @hubtask/webapp test:engines
 
   tokens-drift:

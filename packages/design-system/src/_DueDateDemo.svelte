@@ -4,9 +4,10 @@
   // The caller's half: the reader's zone comes from their account, and the sentence about a
   // foreign zone is formed here because a component writes none.
 
+  import InContext from './_InContext.svelte';
   import DueDateControl, { type DueDate } from './DueDateControl.svelte';
 
-  const { mode = 'timed' }: { mode?: 'timed' | 'allDay' | 'foreign' | 'none' } = $props();
+  const { mode = 'timed' }: { mode?: 'timed' | 'allDay' | 'foreign' | 'none' | 'row' | 'table' } = $props();
 
   const READER_ZONE = 'Europe/Berlin';
 
@@ -24,6 +25,23 @@
   });
 </script>
 
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="This entry is archived. Restore it to change its dates.">
+    {#snippet subject({ reason })}
+      <DueDateControl
+        label="Due"
+        value={{ date: '2026-09-17', time: '14:30', zone: READER_ZONE }}
+        readerZone={READER_ZONE}
+        dateLabel="Date"
+        timeLabel="Time"
+        allDayLabel="All day"
+        clearLabel="Remove the due date"
+        noDateLabel="No due date."
+        disabledReason={reason}
+      />
+    {/snippet}
+  </InContext>
+{:else}
 <DueDateControl
   label="Due"
   {value}
@@ -38,3 +56,4 @@
     value = next;
   }}
 />
+{/if}

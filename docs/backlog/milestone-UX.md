@@ -85,8 +85,9 @@ showing only own-origin font requests.
 
 In the design system: `Button` and `IconButton` keep the reason inside the component, shown as a
 tooltip on hover, focus and tap, with `aria-disabled` so focus reaches it; `Tabs` and
-`ViewSwitcher` attach the reason to the tab (unique ids); `Select` shows an option's reason;
-`Checkbox` and `Switch` without a label use the tooltip; composite controls (`DueDateControl`,
+`ViewSwitcher` attach the reason to the tab, and the arrows reach an unavailable one (their ids
+are unique already, except `ViewSwitcher`'s); `Select` shows an option's reason; `Checkbox` without
+a label uses the tooltip (`Switch` always draws its label); composite controls (`DueDateControl`,
 `RecurrenceEditor`, `ReminderEditor`, `CustomFieldRenderer`, `UploadField`, `AssigneeControl`)
 state a reason once; `CapabilityGate` puts it first and never turns an inline control into a
 column, and has no English fallback. New: `SourceChip`, `SaveBar`, `ReadOnlyNotice`. Busy states
@@ -416,13 +417,14 @@ returned by every read marked hidden, and are refused on write with `capability_
 keeps values and marks them hidden; the replica derives the mark from the container's structure.
 
 What the build starts from: the item writers reach the profile through `profileOf(ctx, profiles,
-type)` (`core/application/service/work/Items.go`), 20 call sites in 17 files, each to become a
-read of the collection's structure in force (`StructureResolver`, UX-09); template stamping drops
-and reports a node's value the target does not carry, and refuses a node of a hidden level. An
-entry's level is hidden when its type is not offered **or an ancestor's level is hidden**; a type
-with several system parents (an activity, under a task or a work package) is offered when **any**
-offered level may hold it. *Tasks* offers an activity under a task only once UX-08's pair is in the
-installation's profile; until then the preset is clipped to tasks.
+type)` (`core/application/service/work/Items.go`), 19 call sites in 16 files - and the hierarchies
+`CreateWorkItem`, `MoveWorkItem` and `DuplicateWorkItem` build - each to become a read of the
+collection's structure in force (`StructureResolver`, UX-09); template stamping drops and reports a
+node's value the target does not carry, and refuses a node of a hidden level. An entry's level is
+hidden when its type is not offered **or an ancestor's level is hidden**; a type with several system
+parents (an activity, under a task or a work package) is offered when **any** offered level may hold
+it. *Tasks* offers an activity under a task wherever the installation's system profile does (UX-08's
+0185); a workspace's own task row from before it is finding #1689.
 
 **Acceptance:** a round trip per door (REST, MCP, hubctl, automation, sync push): narrow → write
 refused → read shows hidden → widen → value back; cross-tenant negatives.

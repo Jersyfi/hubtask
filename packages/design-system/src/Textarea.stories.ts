@@ -22,3 +22,16 @@ export const invalid: Story = {
   about: 'As Input: the message is the state and the border is the echo.',
   args: { mode: 'invalid' },
 };
+
+export const inRow: Story = {
+  name: 'In a row of buttons',
+  about:
+    'A note, unavailable. The reason is a bubble at the control on hover, focus and tap, and takes no space: the row with it and the row without it have the same shape. Trying it reaches neither its own handler nor the row.',
+  args: { mode: 'row' },
+};
+
+export const inTableRow: Story = {
+  name: 'In a table row',
+  about: 'The same in a table row: the row keeps its height whether the control is available or not.',
+  args: { mode: 'table' },
+};

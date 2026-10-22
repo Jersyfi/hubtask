@@ -351,8 +351,11 @@ type world struct {
 	// The material a summary is made from: a collection's name, the discussion on an entry,
 	// and the entries directly in a collection.
 	containerName string
-	comments      []usecase.Output
-	level         []usecase.Output
+	// structure is what GetContainer answers as the collection's structure in force; nil answers
+	// none, as a build without the resolver does.
+	structure map[string]any
+	comments  []usecase.Output
+	level     []usecase.Output
 	// moveFails refuses MoveWorkItem alone: the entry may be written and not moved, which is what
 	// a person without the right to move it meets.
 	moveFails error
@@ -413,7 +416,16 @@ func (w *world) Invoke(
 		if w.readFails != nil {
 			return nil, w.readFails
 		}
-		return usecase.Output{"id": containerTargetID.String(), "name": w.containerName}, nil
+		out := usecase.Output{"id": containerTargetID.String(), "name": w.containerName}
+		if w.structure != nil {
+			out["structure"] = w.structure
+		}
+		return out, nil
+	case createRuleName:
+		if w.performFails != nil {
+			return nil, w.performFails
+		}
+		return usecase.Output{"id": createdRuleID.String(), "enabled": false}, nil
 	case "ListComments":
 		return usecase.Output{"data": w.comments}, nil
 	case "ListWorkItems":
@@ -927,7 +939,8 @@ func TestASubtaskTitleThatIssuesInstructionsIsATitle(t *testing.T) {
 
 	for _, call := range world.performed {
 		switch call.name {
-		case "ConvertJumbleEntry", "CreateWorkItem", "ListJumbleEntries", "GetWorkItem":
+		// GetContainer is the destination's structure, read to choose the level the titles land at.
+		case "ConvertJumbleEntry", "CreateWorkItem", "ListJumbleEntries", "GetWorkItem", "GetContainer":
 		default:
 			t.Errorf("a title caused %q to run", call.name)
 		}
@@ -1394,7 +1407,7 @@ func TestEveryDeclaredApplierIsOneOfTheNamesThisPackageCanCall(t *testing.T) {
 		"UpdateWorkItem": true, "ConvertJumbleEntry": true,
 		createWorkItemName: true, moveWorkItemName: true,
 		addLabelName: true, setCustomFieldName: true, setDueDateName: true,
-		createTemplateName: true,
+		createTemplateName: true, createRuleName: true,
 	}
 	for key, how := range acceptance {
 		switch {

@@ -82,7 +82,7 @@ const PRIMARY = ['Overview', 'Search', 'Jumble'];
 // a name somebody would look for (ADR-0063 decision 6) — and it carries no version: a build
 // reference is not what a menu row is called, and the page behind it quotes the version whole
 // (ADR-0065 decision 5). Signing out is last, because it is the last thing a reader does.
-const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Take the tour again', 'About Hubtask', 'Sign out'];
+const ACCOUNT_GROUP = ['Your settings', 'Workspace administration', 'Help and shortcuts', 'About Hubtask', 'Sign out'];
 
 async function open(browser, width, options = {}) {
   const context = await browser.newContext({ viewport: { width, height: 800 } });

@@ -169,10 +169,10 @@ func (c *Controller) outsideTheView(ctx context.Context, actor appshared.ActorCo
 func (c *Controller) entryAt(ctx context.Context, actor appshared.ActorContext, address string) (workmodel.WorkItem, bool, error) {
 	queries := make([]work.GetWorkItemQuery, 0, 2)
 	if workmodel.ValidCalendarUID(address) {
-		queries = append(queries, work.GetWorkItemQuery{CalendarUID: address})
+		queries = append(queries, work.GetWorkItemQuery{CalendarUID: address, ForCalendar: true})
 	}
 	if id, err := shared.ParseID(address); err == nil {
-		queries = append(queries, work.GetWorkItemQuery{ItemID: id})
+		queries = append(queries, work.GetWorkItemQuery{ItemID: id, ForCalendar: true})
 	}
 	for _, query := range queries {
 		item, err := c.Items.Execute(ctx, actor, query)

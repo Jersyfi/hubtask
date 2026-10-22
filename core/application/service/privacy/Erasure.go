@@ -104,8 +104,10 @@ type Erased struct {
 	Mode          domain.ErasureMode
 	Credentials   int
 	Notifications int
-	Assignments   int
-	Comments      int
+	// AiDrafts are what AI drafted for the person alone and the words they asked with.
+	AiDrafts    int
+	Assignments int
+	Comments    int
 	// Intake is what the person sent in by mail: removed in a full deletion, and stripped of the
 	// address in the mode that keeps the workspace's content.
 	Intake int
@@ -208,6 +210,14 @@ func (e Eraser) erase(
 			return err
 		}
 		erased.Notifications = notifications
+
+		// A draft AI made for the person alone is their own configuration in the making: no
+		// evidence, and nothing a hold reaches - it goes with their credentials, whatever is kept.
+		drafts, err := e.Erasure.DiscardAiDrafts(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.AiDrafts = drafts
 
 		assignments, err := e.Erasure.ReleaseAssignmentsOn(ctx, subject, plan.ReleaseOn, now)
 		if err != nil {
@@ -456,6 +466,7 @@ func (e Eraser) record(
 		{Field: "mode", Classification: audit.Open, To: string(erased.Mode)},
 		{Field: "credentials", Classification: audit.Open, To: erased.Credentials},
 		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
+		{Field: "ai_drafts", Classification: audit.Open, To: erased.AiDrafts},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},

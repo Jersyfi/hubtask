@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/suggestion"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	porttext "github.com/Jersyfi/hubtask/core/port/text"
 )
 
 // CatalogueSources reads what a suggestion is made from, through the ordinary reads.
@@ -31,6 +32,14 @@ type CatalogueSources struct {
 	// Kept is whose content stays out of AI, read in the same transaction as the material
 	// (data-protection.md §4.1). Nil keeps nobody out - a build without the rule.
 	Kept KeptOutReader
+	// Served are the action kinds this build serves, from the catalogue: a rule draft may use
+	// only what is both in its allowlist and served. Empty offers a draft no action at all.
+	Served []string
+	// Permits narrows a rule draft's places to where the asker may write rules, and its people to
+	// the scopes the asker may read. Nil offers no place but the one asked.
+	Permits Permitter
+	// Text brings a sentence and the names it is matched against to one normal form.
+	Text porttext.Normalizer
 }
 
 // KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
@@ -39,13 +48,12 @@ type KeptOutReader interface {
 	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
 }
 
-var _ Sources = CatalogueSources{}
+var _ Sources = (*CatalogueSources)(nil)
 
 // Material answers the text to describe, the fingerprint of the state it came from, and the closed
 // sets the question about to be asked may choose from.
 func (s CatalogueSources) Material(
-	ctx context.Context, actor appshared.ActorContext,
-	targetType domain.TargetType, targetID shared.ID, promptID string,
+	ctx context.Context, actor appshared.ActorContext, question Question,
 ) (Material, error) {
 	var kept integration.KeptOut
 	if s.Kept != nil {
@@ -55,7 +63,15 @@ func (s CatalogueSources) Material(
 		}
 		kept = read
 	}
-	material, err := s.material(ctx, actor, targetType, targetID, promptID, kept)
+	if question.TargetType == domain.TargetAccount && question.PromptID == draftRulePrompt {
+		material, err := s.ruleMaterial(ctx, actor, question, kept)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Kept = kept
+		return material, nil
+	}
+	material, err := s.material(ctx, actor, question.TargetType, question.TargetID, question.PromptID, kept)
 	if err != nil {
 		return Material{}, err
 	}
@@ -159,6 +175,12 @@ func (s CatalogueSources) item(
 		return Material{Digest: digest}, nil
 	}
 	title, notes = kept.Scrub(title), kept.Scrub(notes)
+	// Notes the entry's collection hides are kept as they are, and not sent anywhere: a provider
+	// is told what the collection shows (domain-model.md §2).
+	hidden := hiddenOf(out)
+	if hidden[work.CapabilityNotes] {
+		notes = ""
+	}
 	if strings.TrimSpace(title) == "" && strings.TrimSpace(notes) == "" {
 		return Material{Digest: digest}, nil
 	}
@@ -166,6 +188,7 @@ func (s CatalogueSources) item(
 	material := Material{
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  digest,
+		Hidden:  hidden,
 	}
 	if promptID == decomposePrompt && s.Profiles != nil {
 		hierarchy, err := s.hierarchy(ctx)
@@ -173,8 +196,14 @@ func (s CatalogueSources) item(
 			return Material{}, err
 		}
 		material.Hierarchy = &hierarchy
+		collectionID, err := shared.ParseID(out.String("collection_id"))
+		if err == nil {
+			if material.Shape, err = s.collectionShape(ctx, actor, collectionID); err != nil {
+				return Material{}, err
+			}
+		}
 	}
-	if promptFields[promptID][fieldsKey] {
+	if promptFields[promptID][fieldsKey] && !hidden[work.CapabilityCustomFields] {
 		declared, err := s.declared(ctx, actor, out)
 		if err != nil {
 			return Material{}, err
@@ -182,6 +211,10 @@ func (s CatalogueSources) item(
 		material.Declared = declared
 	}
 	for _, key := range choiceSets[promptID] {
+		if hidden[hiddenKeys[key]] {
+			// A set the collection hides is not one an answer may choose from.
+			continue
+		}
 		set, err := s.set(ctx, actor, key, out)
 		if err != nil {
 			return Material{}, err
@@ -257,6 +290,11 @@ func (s CatalogueSources) thread(
 	if keptEntry(kept, entry) {
 		// A summary is accepted into the entry's notes: a kept-out person's entry, or a restricted person's, is not asked
 		// about at all, whoever commented on it.
+		return Material{Digest: digest}, nil
+	}
+	if hidden := hiddenOf(entry); hidden[work.CapabilityNotes] || hidden[work.CapabilityComments] {
+		// The summary would be accepted into notes the collection hides, from a thread it hides:
+		// nothing to ask about, as for an entry nobody commented on.
 		return Material{Digest: digest}, nil
 	}
 

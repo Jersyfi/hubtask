@@ -44,7 +44,86 @@ const byOrderKey = (a: Document, b: Document): number => {
 /** The documents of one collection, the sets an entry carries folded into the fields the API spells. */
 async function documents(storage: Storage, collection: string): Promise<Document[]> {
   const held = await storage.all<StoredRecord<Document>>(collection);
-  return held.map((record) => withSets(record));
+  const rows = held.map((record) => withSets(record));
+  return collection === 'items' ? marked(storage, rows) : rows;
+}
+
+// ---------------------------------------------------------------------------------------------
+// What a collection hides of an entry (domain-model.md §2, "Narrowing hides, it never deletes").
+// ---------------------------------------------------------------------------------------------
+
+/** One type as the installation offers it: `/meta/capabilities`' `item_types`. */
+export interface BoundType {
+  readonly type?: string;
+  readonly capabilities?: readonly string[];
+}
+
+/** A container's structure in force, as far as the mark reads it: its levels and fields. */
+export interface StructureShape {
+  readonly levels?: readonly { readonly type?: string }[];
+  readonly fields?: Readonly<Record<string, { readonly capabilities?: readonly string[] } | undefined>>;
+}
+
+/** `WorkItem.hidden`, as the server answers it on every read the replica stands in for. */
+export interface EntryHidden {
+  readonly level: boolean;
+  readonly capabilities: string[];
+}
+
+/**
+ * The installation's types, handed over by `capabilities.svelte.ts` when the manifest arrives.
+ * Until then no mark is answered: before the manifest nothing is shown as available, and a mark
+ * derived from a guess would say something the client cannot know.
+ */
+let bound: readonly BoundType[] | undefined;
+
+export function useBound(types: readonly BoundType[] | undefined): void {
+  bound = types;
+}
+
+/**
+ * What the collection hides of an entry of this type under these ancestors (nearest first): the
+ * server's own rule (`StructureEntries.go`), held to the same table (`api/fixtures/hidden-entries.json`).
+ * Sync records carry no mark - a change of a structure would otherwise rewrite every entry under it -
+ * so the replica derives it from the container's structure, and the two answers must not drift.
+ */
+export function hiddenOf(
+  type: string,
+  ancestors: readonly string[],
+  structure: StructureShape,
+  types: readonly BoundType[],
+): EntryHidden {
+  const held = new Map(types.filter((row) => typeof row.type === 'string').map((row) => [row.type as string, row]));
+  const levels = new Set((structure.levels ?? []).map((level) => level.type));
+  const level = [type, ...ancestors].some((each) => held.has(each) && !levels.has(each));
+  const offered = structure.fields?.[type]?.capabilities;
+  const capabilities = offered === undefined
+    ? []
+    : (held.get(type)?.capabilities ?? []).filter((capability) => capability !== 'COMPLETION' && !offered.includes(capability));
+  return { level, capabilities };
+}
+
+/** The structure in force a container's record carries, or `undefined` for one from before it. */
+function structureOf(container: Document | undefined): StructureShape | undefined {
+  const structure = container?.structure as { settings?: StructureShape } | undefined;
+  return structure?.settings?.levels ? structure.settings : undefined;
+}
+
+/** The entries with their marks, where the installation and the container's structure are known. */
+async function marked(storage: Storage, rows: Document[]): Promise<Document[]> {
+  if (!bound || rows.length === 0) return rows;
+  const containers = new Map((await storage.all<StoredRecord<Document>>('containers')).map((record) => [record.id, record.document]));
+  const items = new Map((await storage.all<StoredRecord<Document>>('items')).map((record) => [record.id, record.document]));
+  const types = bound;
+  return rows.map((row) => {
+    const structure = structureOf(containers.get(String(row.collection_id)));
+    if (!structure || typeof row.type !== 'string') return row;
+    const ancestors: string[] = [];
+    for (let at = items.get(String(row.parent_id)); at && ancestors.length < 16; at = items.get(String(at.parent_id))) {
+      if (typeof at.type === 'string') ancestors.push(at.type);
+    }
+    return { ...row, hidden: hiddenOf(row.type, ancestors, structure, types) };
+  });
 }
 
 /**
@@ -64,7 +143,9 @@ function withSets(record: StoredRecord<Document>): Document {
 
 async function one(storage: Storage, collection: string, id: string): Promise<Document | undefined> {
   const record = await storage.get<StoredRecord<Document>>(collection, id);
-  return record ? withSets(record) : undefined;
+  if (!record) return undefined;
+  const document = withSets(record);
+  return collection === 'items' ? (await marked(storage, [document]))[0] : document;
 }
 
 /**

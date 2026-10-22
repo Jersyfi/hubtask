@@ -22,12 +22,15 @@
   interface Props {
     /** The stored layout: one of the four the contract names. */
     layout: string;
-    /** The layouts this client can actually draw. */
-    drawable: readonly string[];
+    /**
+     * The layouts that may be chosen here (`layoutsOffered`): reported and drawable. The palette
+     * offers the same list, so a layout is choosable in both places or in neither.
+     */
+    offered: readonly string[];
     onlayout: (id: string) => void;
   }
 
-  const { layout, drawable, onlayout }: Props = $props();
+  const { layout, offered, onlayout }: Props = $props();
 
   /** The two list layouts, as the contract names them, and the one place they are drawn as. */
   const COLLAPSED = 'LIST_COLLAPSED';
@@ -47,11 +50,11 @@
       .flatMap((id, index) => {
         if (isList(id)) {
           if (reported.findIndex(isList) !== index) return [];
-          // The list is drawable if either of its layouts is.
-          const drawn = reported.filter(isList).some((each) => drawable.includes(each));
+          // The list is drawable if either of its layouts is; `offered` names one of them then.
+          const drawn = offered.some(isList);
           return [{ id: LIST, label: t(`app.view.${COLLAPSED}`), icon: ICONS[LIST], unavailableReason: drawn ? undefined : t('app.view.not_built', { layout: t(`app.view.${COLLAPSED}`) }) }];
         }
-        return [{ id, label: t(`app.view.${id}`), icon: ICONS[id], unavailableReason: drawable.includes(id) ? undefined : t('app.view.not_built', { layout: t(`app.view.${id}`) }) }];
+        return [{ id, label: t(`app.view.${id}`), icon: ICONS[id], unavailableReason: offered.includes(id) ? undefined : t('app.view.not_built', { layout: t(`app.view.${id}`) }) }];
       }),
   );
 

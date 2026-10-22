@@ -59,9 +59,18 @@
   // reveal. A text field with an eye would be a control that does nothing.
   const mayReveal = $derived(type === 'password' && revealLabel !== undefined && hideLabel !== undefined);
   const shownType = $derived(mayReveal && isRevealed ? 'text' : type);
+
+  // An unavailable field stays focusable by keyboard and readable: `aria-disabled` rather than the
+  // native attribute, and the guard refuses the rest (reason.ts) - a press, which shows the reason
+  // instead of opening a keyboard, and every edit. Not `readonly`: WebKit draws a read-only field
+  // narrower than an editable one, and the field would change its width with its reason. A range,
+  // a colour or a file changes on keys of its own, so there every key but leaving is refused.
+  const unavailable = $derived(disabledReason !== undefined);
+  const hasKeysOfItsOwn = $derived(['range', 'color', 'file'].includes(type ?? 'text'));
+  const guardOptions = $derived({ isPressRefused: true, isEditRefused: true, isEveryKeyRefused: hasKeysOfItsOwn });
 </script>
 
-<Field {label} {hint} {error} {disabledReason} {isRequired} {describedBy} {isInvalid}>
+<Field {label} {hint} {error} {disabledReason} {guardOptions} {isRequired} {describedBy} {isInvalid}>
   {#snippet children({ id, describedBy, invalid })}
     <div class="shell" data-size={size} data-invalid={invalid ? '' : undefined}>
       {#if icon}
@@ -72,11 +81,11 @@
         type={shownType}
         class="input"
         bind:value
-        disabled={disabledReason !== undefined}
-        required={isRequired}
+        {...rest}
+        aria-disabled={unavailable ? 'true' : undefined}
+        required={isRequired && !unavailable}
         aria-invalid={invalid ? 'true' : undefined}
         aria-describedby={describedBy}
-        {...rest}
       />
       {#if mayReveal}
         <span class="reveal">
@@ -121,9 +130,9 @@
     border-color: var(--border-strong);
   }
 
-  .shell[data-invalid] { border-color: var(--text-danger); border-width: var(--bw-thick); }
+  .shell[data-invalid] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }
 
-  .shell:has(.input:disabled) {
+  .shell:has(.input[aria-disabled='true']) {
     background: var(--bg-surface-sunken);
     border-color: var(--border-subtle);
     cursor: not-allowed;
@@ -146,5 +155,5 @@
 
   .input:focus { outline: none; }
   .input::placeholder { color: var(--text-subtle); }
-  .input:disabled { color: var(--text-subtle); cursor: not-allowed; }
+  .input[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
 </style>

@@ -63,9 +63,29 @@ stylesheets, so `style-src 'self'` holds without an exception.
 surface it may sit on — the canvas under each `ambient` gradient, the `accent.*-subtle` tints, the
 `status.*` and `ai.*` surfaces included — and a control's boundary and the focus ring 3:1
 (SC 1.4.11). Every semantic colour token carries a role there; an unclassified one fails the suite.
-At the call site: **`border.default` and `border.strong` draw controls, `border.subtle` does not.**
+A translucent surface is measured over each opaque plane it can lie on — `bg.canvas`, `bg.surface`,
+`bg.raised`, `bg.surface-sunken` — not over the canvas alone. At the call site: **`border.default`
+and `border.strong` draw controls, `border.subtle` does not.**
 A hairline that separates sections or edges a card is exempt; a border that is the only thing
 saying "this is an input" is not.
+
+**The planes and their steps.** `bg.canvas` is the page; `bg.surface` a card on it and the frame;
+`bg.raised` what stands above a surface — a menu, a popover, a dialog, a drawer, the navigation's
+flyout, a card on its column — equal to the surface in light, where white is the ceiling and
+`elevation.raised` carries the depth, and a step lighter in dark; `bg.surface-sunken` a recess in a
+card. The same test holds the steps between them, unrounded: a card on the page at least 1.18:1 in
+both modes, what is raised at least 1.36:1 from the page in dark, and a hover, a press, a recess and
+a neutral status surface at least 1.08:1 from every plane they are drawn on. Each floor carries the
+value the tokens measure beside it in the test.
+
+**The palette.** Primitive families by hue — `indigo` (primary), `raspberry` (the signature, and
+nothing else: it carries no system meaning), `danger` (its own warmer red), `mint`, `amber`, `sky`,
+`violet` (AI) and cool `neutral` — each a ramp derived in OKLCH through the values the owner chose,
+written in hex (decision #1624). Status roles: info sky, success mint, warning amber, danger
+`danger`, neutral the neutrals. The test keeps `status.danger.accent` and `accent.signature` apart
+by OKLCH hue, and each coloured label's background at an OKLab distance from `bg.surface` and
+`bg.raised` that reads as colour, never darker than `bg.raised` in dark; `slate` is the one neutral
+label.
 
 **Status is a surface, not a text colour.** `status.{info,success,warning,danger,neutral}` carries
 `surface`, `border`, `text` and `accent` per mode, in the shape `ai.*` has. `text.danger`,
@@ -219,11 +239,39 @@ Two rules apply to every component after this wave. **There is no `disabled` boo
 `disabledReason` switches a control off, so a control cannot come apart from its reason. **`checked`
 is a value, not a state:** §5's boolean rule covers the booleans we invent, not the platform's.
 
-### Wave 2 — structure (≈ 12)
+**A control that cannot be used now** explains itself without moving the page (UC-WRK-32). It is
+`aria-disabled`, never natively disabled, so a keyboard reaches it; a guard in `reason.ts` refuses
+what the native attribute used to - a click, `Enter`, `Space`, a form's implicit submission, an
+edit - in the capture phase, before any handler of the caller's or of a row around it, and lets a
+press start a drag as before. Its reason is a bubble at the control (`_Reason.svelte`), out of the
+flow at every moment and always its `aria-describedby`: it shows on hover of the control or of the
+bubble (it stays while the pointer is over either, WCAG 1.4.13), on focus, and on a click or a tap,
+and goes on blur, `Escape` and a press elsewhere. A composite says one reason for all of its parts,
+from a mark at its heading. `test/conventions.test.js` fails a native `disabled` anywhere but on an
+option and in `Radio`; `apps/webapp/e2e/workbench-layout.test.mjs` measures in three engines that
+no reason moves a box. The eight cases, and the pattern each takes:
+
+1. *The role forbids it* — not shown (P-05); where a page needs it for orientation, a gate with a
+   lock and the reason as in 2 (`CapabilityGate` with `isInline`).
+2. *Not possible right now* — focusable, `aria-disabled`, the reason a bubble at the control on
+   hover, focus and tap; no space in the layout.
+3. *Something must be filled in* — the submit is never unavailable for it: pressing marks the
+   missing fields and moves focus to the first.
+4. *Nothing changed* — no unavailable save: `SaveBar` appears with the first change, "2 changes ·
+   Discard · Save".
+5. *A whole area is read-only* — one `ReadOnlyNotice` at the top of the area; the content stays
+   readable, its controls absent, its rows silent.
+6. *Set above (a lock, a default)* — `SourceChip` beside the name: value, source, whom to ask.
+7. *Working* — progress inside the control (`isBusy` on `Button`, `IconButton`, `Checkbox`,
+   `Switch`), its size kept; afterwards a short confirmation with *Undo*, the caller's `Toast`.
+8. *Not in this plan or installation* — absent where it concerns nobody; otherwise one card or
+   notice instead of the form, never a gated form.
+
+### Wave 2 — structure (≈ 14)
 Breadcrumb *(five levels, collapsed to `Hub / … / Parent / Current` from `medium` down)* ·
 Tabs · SideNav · Toolbar · Table · ListRow · Skeleton · EmptyState · ErrorState ·
 LoadMore *(cursor pagination — **no** page numbers, the API has none)* ·
-Drawer · SearchField
+Drawer · SearchField · ReadOnlyNotice · SaveBar
 
 `structure.ts` holds the trail's collapsing and the tree's flattening as testable arithmetic.
 `Tabs`, `SideNav` and `Toolbar` carry a roving `tabindex`: one tab stop each. `Drawer` is on the
@@ -256,6 +304,11 @@ then newest" is a statement, not a column.
 
 `SearchField` knows nothing about when a request is sent; debouncing and sending are the caller's.
 
+**`ReadOnlyNotice` says once, at the top, why a whole area cannot be changed** — an archived
+collection, a role that reads, a feature the plan does not carry — with the one action that changes
+that, if there is one. Not a `Banner` (never dismissed) and not a `Callout` (about this area now);
+the rows and fields under it say nothing about it.
+
 ### Wave 3 — Hubtask's own (≈ 20)
 
 | Component | Why it follows from the model |
@@ -270,6 +323,7 @@ then newest" is a statement, not a column.
 | `ReminderEditor` | `REL:-PT1H` presets plus free entry, multiple channels |
 | `CustomFieldRenderer` | Eight field kinds from `CustomFieldDefinition` |
 | `CapabilityGate` | A control **with a reason** — `ErrCapabilityNotSupported` never becomes silent ignoring. A refusal the manifest predicts is a client defect; one it could not is rendered as a sentence. **An optional feature the installation does not serve is not rendered at all**; a served feature degraded now is gated with the reason `/meta/health` names. A control that never applies to this reader is absent, not gated |
+| `SourceChip` | Where a value comes from, beside its name — *Set here*, *Default*, *Plan*, *Installation* — the order P-07 resolves; a lock a mark and a word. Pressed, a `Popover` with the value, its source and whom to ask. It knows no levels: the source and the lock are the application's answer |
 | `CommentThread` | Nested, with "removed" as its own state |
 | `UploadField` | Moves no bytes: it hands the caller a `File` and renders the progress the caller reports. The native file input stays in the accessibility tree and the drop target is an addition; the size limit is handed in and **announced** |
 | `ActivityFeed` | `verb` is an i18n code the component **never sees** — every sentence arrives resolved. An ordered list with a real `<time datetime>`; a step with no change set is a shorter sentence |
@@ -364,9 +418,15 @@ below it.
    `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
    always needs an opaque fallback that does not shift layout.
-3. **Colour never stands alone.** Every status also carries text or an icon. A status has a subtle
-   and a bold form (`Badge`'s `emphasis`, subtle by default); bold is for the one status on a screen
-   that must be seen first, and a screen with several has misread it.
+3. **Colour never stands alone.** A **status** is the standing state of a thing shown beside it —
+   health, connection, over a limit, open, trashed, broken, needs attention, done, checked,
+   invalid. It is drawn as a tinted surface with text or an icon: `Badge` where it is a word, the
+   tone's `surface` (or its `accent` as a fill) under it where it is a row, a mark or a block. A
+   sentence about an act just refused is not a status; it is text in `text.danger` on `color`.
+   `build/lint-status.js` holds both, by token rather than by class name, in the design system's
+   test and in both clients' `pnpm lint`. A status has a subtle and a bold form (`Badge`'s
+   `emphasis`, subtle by default); bold is for the one status on a screen that must be seen first,
+   and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
 5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
@@ -396,8 +456,9 @@ has it, an anchored overlay is raised into the **top layer**, so no transformed,
 `contain` ancestor clips it; the scale still decides for everything in the flow.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
-dialog and no key closes it; a popover opened from inside a dialog closes first, whatever the
-opening order. `src/layers.ts` holds that second order as one register for every component.
+dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
+and leaves every other one to the dialog; a popover opened from inside a dialog closes first,
+whatever the opening order. `src/layers.ts` holds that second order as one register for every component.
 
 **The five widths.** `primitive.breakpoint` carries five steps, each described in `tokens.json`:
 
@@ -501,7 +562,7 @@ elements — gives one short, plain piece of information per feature. Never a sl
 screenshots.
 
 * **It starts while the account's `onboarding_completed_at` is null.** Finishing or skipping writes
-  it; *Take the tour again* in the account menu clears it. The field is the account's
+  it; *Take the tour again* in *Help and shortcuts* (§11.4) clears it. The field is the account's
   (`AccountPreferences`): having been shown the product is a fact about the person.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
@@ -632,12 +693,12 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the wordmark · the search field | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the wordmark · the search field | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
-* **The search field sits in the middle**, from `medium` up (§11.4); on `compact` Search is a
-  bottom-bar destination.
+* **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
+  bar's *Search* opens the palette in a dialog.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
   `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
   `compact` the account group is *You* in the bottom bar.
@@ -664,7 +725,7 @@ settings*; *Workspace administration*, only where the manifest's `workspace_perm
 anybody else answers as one that reaches nothing; *Installation*, only for an account in the operator register, as the
 manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) - except on a single-workspace
 installation, where an operator who reaches the administration finds it as the administration's last
-group instead, "Installation · Applies to every workspace you create", and not in this menu; *Take the tour again*; *About
+group instead, "Installation · Applies to every workspace you create", and not in this menu; *Help and shortcuts* (§11.4), which holds the tour; *About
 Hubtask*, opening `/installation` and never carrying the version; and *Sign out*, always **last**.
 A row that does not apply is **absent, not disabled**. The server refuses the screens regardless; who sees a
 section is never a client decision.
@@ -683,9 +744,10 @@ capability lives, linked to the web app of the signed-in server; nothing else ch
 
 ### 11.4 Search
 
-**Search is a field and a place.** The bar's field is where a search is typed; `/search` is where
-one is built, also with nothing typed. Both exist from `medium` up; on `compact` the bottom bar's
-Search is the one way in. The two fields carry different accessible names.
+**Search is a field and a place.** The palette's field is where a search is typed; `/search` is
+where one is built, also with nothing typed. The field is the bar's from `medium` up; on `compact`
+the bottom bar's *Search* opens the palette in a dialog, whose *Open search* leads to the place.
+The two fields carry different accessible names.
 
 **One filter language, one state.** A search is one string holding the words and the narrowing —
 `Rechnungen who:me is:open in:Büro due:week` — defined by `apps/webapp/src/lib/data/searchquery.ts`.
@@ -714,10 +776,31 @@ proxies and history ([`security.md`](../architecture/security.md) §9):
 * No fragment (`#q=`) either.
 * **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
-**The bar answers.** Before typing, its menu offers the narrowings that need no words. While typing
-it shows the first five hits — a peek that never touches the search screen's state — with those
-narrowings for *these words*, and **All results** and **All results, with the filter open**. `Enter`
-presses what is highlighted, or with nothing highlighted, what the menu draws the key on.
+**One palette for everything** (UC-WRK-27, `apps/webapp/src/lib/palette/`). `⌘K` and `Ctrl K`
+open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*. One palette, two
+drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
+in the field; below `medium` the same field and list open in a dialog.
+
+* **What it lists.** Before typing: the actions of this page, then the narrowings that need no
+  words. While typing, ranked by match across kinds (the label starting with the words, a word
+  starting with them, the words inside it): hubs and collections, the actions of this page, a
+  matched collection's *Search in*, *Open as* each layout it offers and *New … in*, the places and
+  settings pages, and the first five entries — a peek that never touches the search screen's state —
+  then the narrowings for *these words*, **All results** and **All results, with the filter open**.
+* **It lists, it does not decide (P-05).** The actions of a page are its head's lists — the primary
+  with its own list, the secondary ones, the menu, and the open detail pane's entry menu — handed
+  over by the screen; an item carrying a reason is not listed. Places and settings are §11.3's lists.
+  A matched collection's actions ask what its screen asks (`mayCreateIn`, `layoutsOffered`); a role
+  not read yet is not "yes". The actions in a page's body — a row's menu, the bulk bar — are not
+  listed.
+* **Keys.** `Enter` presses what is highlighted, or with nothing highlighted, the row the key is drawn
+  on — the words, not the first match, because the entries arrive after the rest. `Escape` closes
+  and returns focus to where it was; an action runs after focus is back, so a dialog it opens
+  returns there too. A single-character shortcut never acts in a text field, a menu, a listbox or a
+  grid; `Ctrl K` does not act in a text field, `⌘K` does. The list of every shortcut is
+  `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
+* **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
+  they do not apply.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and

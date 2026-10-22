@@ -2,11 +2,12 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Button from './Button.svelte';
+  import InContext from './_InContext.svelte';
   import Inline from './Inline.svelte';
   import Stack from './Stack.svelte';
 
   interface Props {
-    mode?: 'tones' | 'busy' | 'unavailable';
+    mode?: 'tones' | 'busy' | 'unavailable' | 'row' | 'table' | 'busy-in-place';
     isLong?: boolean;
   }
 
@@ -19,7 +20,20 @@
   );
 </script>
 
-{#if mode === 'busy'}
+{#if mode === 'row' || mode === 'table'}
+  <InContext context={mode} reason="Only this collection's templates are changed here.">
+    {#snippet subject({ reason, onclick })}
+      <Button tone="secondary" icon="pencil" disabledReason={reason} {onclick}>Edit</Button>
+    {/snippet}
+  </InContext>
+{:else if mode === 'busy-in-place'}
+  <InContext context="row" reason="" driverLabel="Switch busy">
+    {#snippet subject({ onclick, isOn })}
+      <Button tone="secondary" isBusy={isOn} busyLabel="Saving" {onclick}>Save changes</Button>
+      <Button tone="secondary" icon="check" isBusy={isOn} busyLabel="Saving" {onclick}>Save changes</Button>
+    {/snippet}
+  </InContext>
+{:else if mode === 'busy'}
   <Inline gap="150" align="center">
     <Button tone="primary" isBusy busyLabel="Creating">Creating…</Button>
     <Button tone="secondary" isBusy busyLabel="Saving">Saving…</Button>
