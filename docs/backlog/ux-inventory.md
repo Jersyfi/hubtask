@@ -136,11 +136,11 @@ Installation:
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too)
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
-- [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16)
+- [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's
 - [ ] Star "Saved views" and menu "Saved views" → one *Views* menu with open, save, edit, share, delete, export, calendar subscription (§E9)
 - [ ] Avatars "People" and menu "People" → avatars and *Structure → People* (§E9)
 - [ ] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept
-- [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs
+- [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs — UX-10: the *Structure* panel exists (preset, the eight settings) on hubs and collections and takes *What counts…*; the tabs are UX-17's
 - [ ] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes
 - [ ] Detail pane: close, open as page → kept; also from board and timeline
 - [ ] Labels dialog: rename, delete (no confirmation), name, colour, create → *Structure → Labels*; delete with undo
@@ -150,7 +150,7 @@ Installation:
 - [ ] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
-- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol
+- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — UX-10: the preset (*Like its hub* or the workspace's default, and the four)
 
 ## E5 — List, board, timeline, selection
 
