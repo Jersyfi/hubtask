@@ -12,10 +12,12 @@ export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
 export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
+/** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
+export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
 export const ARCHIVED = { id: '01a0e2e0-0000-7000-8000-000000000004', type: 'COLLECTION', parent_id: HUB.id, name: 'Last winter', order_key: 'a1', version: 1, archived_at: '2026-08-01T09:00:00Z' };
 export const LABELS = [
-  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'label.teal' },
-  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'label.red' },
+  { id: '01a0e2e0-0000-7000-8000-000000000005', name: 'Materials', color_token: 'teal' },
+  { id: '01a0e2e0-0000-7000-8000-000000000006', name: 'Urgent', color_token: 'red' },
 ];
 export const BUCKETS = [
   { id: '01a0e2e0-0000-7000-8000-000000000021', collection_id: COLLECTION.id, name: 'To do', order_key: 'a0', wip_limit: null, is_done_bucket: false, version: 1 },
@@ -293,7 +295,7 @@ export const OFFERED_AI = [
  * A workspace's AI source on a private installation (D1): its own model, nothing offered, no lock -
  * today's screen. A walk of an installation that offers a model routes `/ai-source` itself.
  */
-export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0 };
+export const AI_SOURCE = { source: 'OWN', sources: 'OWN', installation_sources: 'OWN', sources_origin: 'DEFAULT', min_jurisdiction: 'ANY', min_jurisdiction_origin: 'DEFAULT', offered: [], search_rebuilding: false, version: 0, person_opt_out: 'OFFERED', person_opt_out_origin: 'DEFAULT', keeping_out_count: 0, prepare_on_arrival: false };
 
 /**
  * A person's own view of keeping their content out of AI where there is nothing to choose: AI off
@@ -338,10 +340,88 @@ export const ENCRYPTION_STATUS = {
 /** The passkeys of `ACCOUNT` as *Password and sign-in* reads them (identity.md §23). */
 export const PASSKEYS = { passkeys: [], limit: 10, can_add: true, can_remove: true, rp_id: 'localhost' };
 
+/**
+ * What counts, one collection per figure (UC-WRK-29): a hub of its own, so the walks that count the
+ * rows of the navigation meet the tree they always met. Shown where a walk asks for it
+ * (`showFigures`, the figure walk) or the preview is started with `HUBTASK_FIXTURE_FIGURES=1`.
+ */
+export const FIGURE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000061', type: 'HUB', parent_id: null, name: 'Home', order_key: 'a1', version: 1 };
+const today = () => new Date().toISOString().slice(0, 10);
+const structureOf = (levels, counts, extra = {}) => ({
+  preset: null,
+  settings: {
+    levels: levels.map((type) => ({ type, name: null })),
+    fields: Object.fromEntries(levels.map((type) => [type, { capabilities: MANIFEST.item_types.find((t) => t.type === type).capabilities }])),
+    counts,
+  },
+  sources: { levels: 'COLLECTION', fields: 'COLLECTION', views: 'DEFAULT', counts: 'COLLECTION', completion: 'DEFAULT', capture: 'DEFAULT', celebration: 'DEFAULT', automation: 'DEFAULT' },
+  locks: {},
+  counts_clipped: null,
+  ...extra,
+});
+const figureCollection = (n, name, levels, counts, figure, extra = {}) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000000${n}`, type: 'COLLECTION', parent_id: FIGURE_HUB.id, name, order_key: `a${n}`, version: 1,
+  structure: structureOf(levels, counts, extra),
+  ...(figure ? { figure: { today: today(), ...figure } } : {}),
+});
+export const FIGURES = {
+  sum: figureCollection('62', 'Groceries', ['TASK'], { figure: 'FIELD_SUM', field_key: 'amount' }, { kind: 'FIELD_SUM', open: 5, sum: 38.1, summed: 4 }),
+  due: figureCollection('63', 'Household', ['TASK', 'ACTIVITY'], { figure: 'DUE', field_key: null }, { kind: 'DUE', due: 3 }),
+  progress: figureCollection('64', 'Renovation', ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { figure: 'PROGRESS', field_key: null }, { kind: 'PROGRESS', done: 5, total: 13 }),
+  rhythm: figureCollection('65', 'Running', ['TASK'], { figure: 'RHYTHM', field_key: null }, { kind: 'RHYTHM', days: ['2026-10-19', '2026-10-21'], week_start: '2026-10-19' }),
+  newWeek: figureCollection('66', 'Reading', ['TASK'], { figure: 'RHYTHM', field_key: null }, { kind: 'RHYTHM', days: [], week_start: '2026-10-19' }),
+  open: figureCollection('67', 'Shed', ['TASK'], { figure: 'OPEN', field_key: null }, { kind: 'OPEN', open: 7 }, {
+    sources: { levels: 'COLLECTION', fields: 'COLLECTION', views: 'DEFAULT', counts: 'HUB', completion: 'DEFAULT', capture: 'DEFAULT', celebration: 'DEFAULT', automation: 'DEFAULT' },
+    counts_clipped: { from: { figure: 'PROGRESS', field_key: null }, reason: 'ONE_LEVEL' },
+  }),
+  none: figureCollection('68', 'Notes', ['TASK'], { figure: 'NONE', field_key: null }, undefined),
+  unavailable: figureCollection('69', 'Archive box', ['TASK'], { figure: 'OPEN', field_key: null }, { kind: 'OPEN', unavailable: true }),
+};
+/** A number field the sum may name. */
+export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collection_id: FIGURES.sum.id, key: 'amount', kind: 'NUMBER', options: [], is_required: false, applies_to: ['TASK'], version: 1 };
+
+let figuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_FIGURES === '1';
+/** Adds the figure hub to the tree, for this process. */
+export function showFigures() {
+  figuresShown = true;
+}
+
+/** The figure hub's reads and the structure write; `undefined` where the general stub answers. */
+function figureRoute(route, request, url, path) {
+  if (!figuresShown) return undefined;
+  const collections = Object.values(FIGURES);
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, FIGURE_HUB] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === FIGURE_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: collections } });
+  }
+  if (path.endsWith(`/api/v1/containers/${FIGURE_HUB.id}`)) return route.fulfill({ json: FIGURE_HUB });
+  // The replica holds the figure hub's containers as their records carry them: without a figure,
+  // which is the server's read alone (offline-sync.md §4.2).
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const containers = [HUB, COLLECTION, FIGURE_HUB, ...collections.map(({ figure, ...rest }) => rest)];
+    const records = containers.map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  const structured = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}/structure`));
+  if (structured && request.method() === 'PATCH') {
+    const counts = request.postDataJSON().settings.counts;
+    const settings = { ...structured.structure.settings, counts: { field_key: null, ...counts } };
+    return route.fulfill({ json: { ...structured, version: structured.version + 1, structure: { ...structured.structure, settings }, kept_by_lock: [], clipped_by_levels: [] } });
+  }
+  const one = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (one) return route.fulfill({ json: one });
+  if (path.endsWith('/custom-fields') && url.searchParams.get('collection_id') === FIGURES.sum.id) return route.fulfill({ json: [AMOUNT_FIELD] });
+  return undefined;
+}
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
+  const figured = figureRoute(route, request, url, path);
+  if (figured) return figured;
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
   // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
@@ -510,6 +590,7 @@ export function fallback(route, request, path) {
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
+  if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
 
   unstubbed.push(`${request.method()} ${read}`);
   return route.fulfill({ json: PAGE });

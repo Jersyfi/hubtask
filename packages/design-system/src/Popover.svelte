@@ -102,7 +102,7 @@
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
-    background: var(--bg-surface);
+    background: var(--bg-raised);
     /* Rule 1: a temporary overlay is raised off the page it covers. */
     box-shadow: var(--shadow-overlay);
     color: var(--text-primary);

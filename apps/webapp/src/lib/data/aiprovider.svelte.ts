@@ -110,6 +110,14 @@ class AiProviderStore {
     });
   }
 
+  /**
+   * Whether AI prepares a proposal for each new jumble entry as it arrives (UC-JUM-07 check 10):
+   * the workspace's own switch, off by default.
+   */
+  async setArrivalProposals(prepare: boolean): Promise<AiSource> {
+    return engine.mutate<AiSource>('PUT', '/ai-arrival-proposals', { prepare }, { invalidates: [SOURCE] });
+  }
+
   /** Sets it, whole. `api_key` absent keeps the sealed one; empty clears it; a value replaces it. */
   async configure(body: AiProviderConfiguration): Promise<AiProvider> {
     return engine.mutate<AiProvider>('PUT', PATH, body, {

@@ -36,6 +36,7 @@ var PrivateHubReaders = []string{
 	work.GetContainerName, work.ListContainersName, work.GetWorkItemName, work.ListWorkItemsName,
 	work.SearchItemsName, work.ListCommentsName, work.ListTrashName, work.QueryItemsName,
 	work.GetSavedViewName, work.ListSavedViewsName, suggestion.ListSuggestionsName,
+	work.ListJumbleDestinationsName,
 }
 
 // readerRegistry is the readers the way main.go builds them.
@@ -56,6 +57,9 @@ func readerRegistry(ctx context.Context, t *testing.T) *usecase.Registry {
 		work.GetContainer{Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork}.Descriptor(),
 		work.ListContainers{
 			Containers: containers, Authorizer: authoriser, Reader: authoriser, UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		work.ListJumbleDestinations{
+			Collections: containers, Authorizer: authoriser, Reader: authoriser, UnitOfWork: unitOfWork,
 		}.Descriptor(),
 		work.GetWorkItem{
 			Items: items, ItemLabels: labels, Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork,
@@ -129,6 +133,9 @@ func readerCalls() []readerCall {
 			return usecase.Input{"container_id": w.hub.String()}
 		}, false, notFound},
 		{work.ListContainersName, func(privateWorld) usecase.Input {
+			return usecase.Input{"size": 100}
+		}, true, omitted},
+		{work.ListJumbleDestinationsName, func(privateWorld) usecase.Input {
 			return usecase.Input{"size": 100}
 		}, true, omitted},
 		{work.GetWorkItemName, func(w privateWorld) usecase.Input {

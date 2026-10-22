@@ -610,6 +610,10 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// property of this version, for search_filter's reason. It does not promise that
 			// entries obey the levels and fields yet.
 			"structure": true,
+			// Whether entries obey their collection's levels and fields: every read marks what the
+			// collection hides (`WorkItem.hidden`), and writing it is refused with
+			// capability_not_supported (domain-model.md §2). A property of this version.
+			"structure_enforced": true,
 			// Whether the first start's setup is offered (UC-INS-01): true exactly while the
 			// installation has no workspace and nobody in its register, so a client draws the
 			// setup card in place of the sign-in card and never offers a setup the server refuses.

@@ -36,7 +36,7 @@ export type Group = 'primary' | 'account';
 export type Band = 'places' | 'tree' | 'keeping';
 
 /** What choosing a destination does: goes somewhere, or performs one of the two account verbs. */
-export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'tour' | 'sign-out' };
+export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'help' | 'sign-out' };
 
 export interface Destination {
   /** A stable identifier the drawings key on and the bottom bar announces; never display text. */
@@ -80,7 +80,9 @@ export const DESTINATIONS: readonly Destination[] = [
   // where it does not apply: somebody who is not an operator was never going to have it, and a
   // greyed row would be an invitation to ask why.
   { id: 'instance', group: 'account', icon: 'gauge', code: 'app.nav.instance', target: { kind: 'route', path: '/instance' }, routes: ['instance'], area: 'instance' },
-  { id: 'tour', group: 'account', icon: 'compass', code: 'app.help.tour_again', target: { kind: 'action', action: 'tour' }, routes: [] },
+  // Help and the list of shortcuts, with the tour inside it (ux-inventory.md §E1): one row for
+  // "how does this work", where the tour was a row of its own.
+  { id: 'help', group: 'account', icon: 'compass', code: 'app.help.label', target: { kind: 'action', action: 'help' }, routes: [] },
   // The installation: four facts — the product version, the API version, the tenancy and the
   // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
   // its address and its page; what it loses is a place in somebody's navigation. Everyone may see
@@ -254,6 +256,33 @@ export function administration(options: {
     ? ADMINISTRATION
     : ADMINISTRATION.map((group) => ({ ...group, rows: group.rows.filter((row) => row.id !== 'private-hubs') }));
   return options.withInstallation ? [...groups, INSTALLATION_GROUP] : groups;
+}
+
+/**
+ * The administration's navigation from what the frame knows about this reader - the one place the
+ * inputs of `administration` are derived, so the column and the palette list the same rows.
+ *
+ * *Private hubs* is drawn where the list is readable and either a private hub exists or the
+ * workspace holds more than one person, because there it is where *Private hubs allowed* is set
+ * (ADR-0073 §6).
+ */
+export function administrationFor(options: {
+  readonly isPrivateHubsReadable: boolean;
+  readonly hasAnyPrivateHub: boolean;
+  readonly hasSeveralPeople: boolean;
+  readonly isInstanceReachable: boolean;
+  readonly isAdministrationReachable: boolean;
+  readonly isSingleWorkspace: boolean;
+}): readonly SectionGroup[] {
+  return administration({
+    hasPrivateHubs: options.isPrivateHubsReadable && (options.hasAnyPrivateHub || options.hasSeveralPeople),
+    withInstallation:
+      installationPlace({
+        isInstanceReachable: options.isInstanceReachable,
+        isAdministrationReachable: options.isAdministrationReachable,
+        isSingleWorkspace: options.isSingleWorkspace,
+      }) === 'administration',
+  });
 }
 
 /**

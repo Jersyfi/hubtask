@@ -63,9 +63,29 @@ stylesheets, so `style-src 'self'` holds without an exception.
 surface it may sit on — the canvas under each `ambient` gradient, the `accent.*-subtle` tints, the
 `status.*` and `ai.*` surfaces included — and a control's boundary and the focus ring 3:1
 (SC 1.4.11). Every semantic colour token carries a role there; an unclassified one fails the suite.
-At the call site: **`border.default` and `border.strong` draw controls, `border.subtle` does not.**
+A translucent surface is measured over each opaque plane it can lie on — `bg.canvas`, `bg.surface`,
+`bg.raised`, `bg.surface-sunken` — not over the canvas alone. At the call site: **`border.default`
+and `border.strong` draw controls, `border.subtle` does not.**
 A hairline that separates sections or edges a card is exempt; a border that is the only thing
 saying "this is an input" is not.
+
+**The planes and their steps.** `bg.canvas` is the page; `bg.surface` a card on it and the frame;
+`bg.raised` what stands above a surface — a menu, a popover, a dialog, a drawer, the navigation's
+flyout, a card on its column — equal to the surface in light, where white is the ceiling and
+`elevation.raised` carries the depth, and a step lighter in dark; `bg.surface-sunken` a recess in a
+card. The same test holds the steps between them, unrounded: a card on the page at least 1.18:1 in
+both modes, what is raised at least 1.36:1 from the page in dark, and a hover, a press, a recess and
+a neutral status surface at least 1.08:1 from every plane they are drawn on. Each floor carries the
+value the tokens measure beside it in the test.
+
+**The palette.** Primitive families by hue — `indigo` (primary), `raspberry` (the signature, and
+nothing else: it carries no system meaning), `danger` (its own warmer red), `mint`, `amber`, `sky`,
+`violet` (AI) and cool `neutral` — each a ramp derived in OKLCH through the values the owner chose,
+written in hex (decision #1624). Status roles: info sky, success mint, warning amber, danger
+`danger`, neutral the neutrals. The test keeps `status.danger.accent` and `accent.signature` apart
+by OKLCH hue, and each coloured label's background at an OKLab distance from `bg.surface` and
+`bg.raised` that reads as colour, never darker than `bg.raised` in dark; `slate` is the one neutral
+label.
 
 **Status is a surface, not a text colour.** `status.{info,success,warning,danger,neutral}` carries
 `surface`, `border`, `text` and `accent` per mode, in the shape `ai.*` has. `text.danger`,
@@ -401,9 +421,15 @@ below it.
    `bg.canvas`, separated by hairlines, with no elevation.
 2. **Only overlays blur.** Never more than one glass surface visible at a time. `backdrop-filter`
    always needs an opaque fallback that does not shift layout.
-3. **Colour never stands alone.** Every status also carries text or an icon. A status has a subtle
-   and a bold form (`Badge`'s `emphasis`, subtle by default); bold is for the one status on a screen
-   that must be seen first, and a screen with several has misread it.
+3. **Colour never stands alone.** A **status** is the standing state of a thing shown beside it —
+   health, connection, over a limit, open, trashed, broken, needs attention, done, checked,
+   invalid. It is drawn as a tinted surface with text or an icon: `Badge` where it is a word, the
+   tone's `surface` (or its `accent` as a fill) under it where it is a row, a mark or a block. A
+   sentence about an act just refused is not a status; it is text in `text.danger` on `color`.
+   `build/lint-status.js` holds both, by token rather than by class name, in the design system's
+   test and in both clients' `pnpm lint`. A status has a subtle and a bold form (`Badge`'s
+   `emphasis`, subtle by default); bold is for the one status on a screen that must be seen first,
+   and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
 5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
@@ -500,7 +526,10 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance
-monitoring. The `celebrations` preference switches all of it off with the moments.
+monitoring. The `celebrations` preference switches the moments, the milestones and the kudos off
+together; the collection's figure — progress, rhythm, what is open or due — stays, because it is
+what counts in the collection, not a celebration (UC-WRK-29 check 7). The server counts a figure on
+the collection's read and the client draws it (domain-model.md §2).
 
 ### Celebration slots, not fixed animations
 
@@ -536,7 +565,7 @@ elements — gives one short, plain piece of information per feature. Never a sl
 screenshots.
 
 * **It starts while the account's `onboarding_completed_at` is null.** Finishing or skipping writes
-  it; *Take the tour again* in the account menu clears it. The field is the account's
+  it; *Take the tour again* in *Help and shortcuts* (§11.4) clears it. The field is the account's
   (`AccountPreferences`): having been shown the product is a fact about the person.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
@@ -667,12 +696,12 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the wordmark · the search field | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the wordmark · the search field | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
-* **The search field sits in the middle**, from `medium` up (§11.4); on `compact` Search is a
-  bottom-bar destination.
+* **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
+  bar's *Search* opens the palette in a dialog.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
   `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
   `compact` the account group is *You* in the bottom bar.
@@ -699,7 +728,7 @@ settings*; *Workspace administration*, only where the manifest's `workspace_perm
 anybody else answers as one that reaches nothing; *Installation*, only for an account in the operator register, as the
 manifest answers ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)) - except on a single-workspace
 installation, where an operator who reaches the administration finds it as the administration's last
-group instead, "Installation · Applies to every workspace you create", and not in this menu; *Take the tour again*; *About
+group instead, "Installation · Applies to every workspace you create", and not in this menu; *Help and shortcuts* (§11.4), which holds the tour; *About
 Hubtask*, opening `/installation` and never carrying the version; and *Sign out*, always **last**.
 A row that does not apply is **absent, not disabled**. The server refuses the screens regardless; who sees a
 section is never a client decision.
@@ -718,9 +747,10 @@ capability lives, linked to the web app of the signed-in server; nothing else ch
 
 ### 11.4 Search
 
-**Search is a field and a place.** The bar's field is where a search is typed; `/search` is where
-one is built, also with nothing typed. Both exist from `medium` up; on `compact` the bottom bar's
-Search is the one way in. The two fields carry different accessible names.
+**Search is a field and a place.** The palette's field is where a search is typed; `/search` is
+where one is built, also with nothing typed. The field is the bar's from `medium` up; on `compact`
+the bottom bar's *Search* opens the palette in a dialog, whose *Open search* leads to the place.
+The two fields carry different accessible names.
 
 **One filter language, one state.** A search is one string holding the words and the narrowing —
 `Rechnungen who:me is:open in:Büro due:week` — defined by `apps/webapp/src/lib/data/searchquery.ts`.
@@ -749,10 +779,31 @@ proxies and history ([`security.md`](../architecture/security.md) §9):
 * No fragment (`#q=`) either.
 * **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
-**The bar answers.** Before typing, its menu offers the narrowings that need no words. While typing
-it shows the first five hits — a peek that never touches the search screen's state — with those
-narrowings for *these words*, and **All results** and **All results, with the filter open**. `Enter`
-presses what is highlighted, or with nothing highlighted, what the menu draws the key on.
+**One palette for everything** (UC-WRK-27, `apps/webapp/src/lib/palette/`). `⌘K` and `Ctrl K`
+open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*. One palette, two
+drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
+in the field; below `medium` the same field and list open in a dialog.
+
+* **What it lists.** Before typing: the actions of this page, then the narrowings that need no
+  words. While typing, ranked by match across kinds (the label starting with the words, a word
+  starting with them, the words inside it): hubs and collections, the actions of this page, a
+  matched collection's *Search in*, *Open as* each layout it offers and *New … in*, the places and
+  settings pages, and the first five entries — a peek that never touches the search screen's state —
+  then the narrowings for *these words*, **All results** and **All results, with the filter open**.
+* **It lists, it does not decide (P-05).** The actions of a page are its head's lists — the primary
+  with its own list, the secondary ones, the menu, and the open detail pane's entry menu — handed
+  over by the screen; an item carrying a reason is not listed. Places and settings are §11.3's lists.
+  A matched collection's actions ask what its screen asks (`mayCreateIn`, `layoutsOffered`); a role
+  not read yet is not "yes". The actions in a page's body — a row's menu, the bulk bar — are not
+  listed.
+* **Keys.** `Enter` presses what is highlighted, or with nothing highlighted, the row the key is drawn
+  on — the words, not the first match, because the entries arrive after the rest. `Escape` closes
+  and returns focus to where it was; an action runs after focus is back, so a dialog it opens
+  returns there too. A single-character shortcut never acts in a text field, a menu, a listbox or a
+  grid; `Ctrl K` does not act in a text field, `⌘K` does. The list of every shortcut is
+  `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
+* **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
+  they do not apply.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and

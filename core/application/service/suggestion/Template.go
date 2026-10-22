@@ -140,18 +140,26 @@ func (s CatalogueSources) templateMaterial(
 	if description := strings.TrimSpace(container.String("description")); description != "" {
 		written.WriteString(kept.Scrub(description) + "\n")
 	}
+	// The shape is this collection's: the levels its structure offers (domain-model.md §2), so
+	// that a draft keeps to what stamping it here would write.
+	shape := shapeFrom(container)
 	written.WriteString("\nThe shape a template may take here. A root node is one of: ")
 	var roots []string
 	for _, row := range rows {
-		if hierarchy.IsRoot(row.Type) {
+		if hierarchy.IsRoot(row.Type) && shape.Offers(row.Type) {
 			roots = append(roots, string(row.Type))
 		}
 	}
 	written.WriteString(strings.Join(roots, ", ") + ".\nWhat may sit directly under each type:\n")
 	for _, row := range rows {
+		if !shape.Offers(row.Type) {
+			continue
+		}
 		children := make([]string, 0, len(row.AllowedChildTypes))
 		for _, child := range row.AllowedChildTypes {
-			children = append(children, string(child))
+			if shape.Offers(child) {
+				children = append(children, string(child))
+			}
 		}
 		under := "nothing"
 		if len(children) > 0 {
@@ -161,7 +169,7 @@ func (s CatalogueSources) templateMaterial(
 	}
 	return Material{
 		Content: written.String(), Digest: domain.Digest(container.String("name"), ""),
-		Hierarchy: &hierarchy,
+		Hierarchy: &hierarchy, Shape: shape,
 	}, nil
 }
 
@@ -197,7 +205,7 @@ const maxProposedTemplateNodes = 64
 // `scope_type` and `scope_id` are the target's, and the acceptance writes the target over them
 // again.
 func templateFrom(
-	text string, hierarchy *service.Hierarchy, target shared.ID,
+	text string, hierarchy *service.Hierarchy, shape *Shape, target shared.ID,
 ) (payload map[string]any, dropped int, ok bool) {
 	answered, ok := objectFrom(text)
 	if !ok || hierarchy == nil {
@@ -217,10 +225,10 @@ func templateFrom(
 		return nil, 0, false
 	}
 	rootType := work.ItemType(textOf(root["type"]))
-	if !hierarchy.IsRoot(rootType) {
+	if !hierarchy.IsRoot(rootType) || !shape.Offers(rootType) {
 		return nil, 0, false
 	}
-	kept, count, dropped, ok := keptTemplateNode(root, hierarchy)
+	kept, count, dropped, ok := keptTemplateNode(root, hierarchy, shape)
 	if !ok || count > maxProposedTemplateNodes {
 		return nil, dropped, false
 	}
@@ -238,7 +246,7 @@ func templateFrom(
 // keptTemplateNode reads one node and what sits under it, keeping what a node may carry and
 // what the profile lets sit where the tree puts it.
 func keptTemplateNode(
-	node map[string]any, hierarchy *service.Hierarchy,
+	node map[string]any, hierarchy *service.Hierarchy, shape *Shape,
 ) (kept map[string]any, count, dropped int, ok bool) {
 	kind := work.ItemType(textOf(node["type"]))
 	title := strings.TrimSpace(textOf(node["title"]))
@@ -266,13 +274,13 @@ func keptTemplateNode(
 			return nil, 0, 0, false
 		}
 		childType := work.ItemType(textOf(child["type"]))
-		if !profile.AllowsChild(childType) {
+		if !profile.AllowsChild(childType) || !shape.Offers(childType) {
 			// Dropped with its subtree and counted: the profile refuses it here, and a person
 			// accepting the draft would have been refused the same way with their name on it.
 			dropped += 1 + nodesUnder(child)
 			continue
 		}
-		read, n, d, ok := keptTemplateNode(child, hierarchy)
+		read, n, d, ok := keptTemplateNode(child, hierarchy, shape)
 		if !ok {
 			return nil, 0, 0, false
 		}

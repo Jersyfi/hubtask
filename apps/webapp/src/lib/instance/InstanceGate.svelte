@@ -159,7 +159,7 @@
     inline-size: var(--sp-100);
     block-size: var(--sp-100);
     border-radius: var(--r-full);
-    background: var(--text-warning);
+    background: var(--status-warning-accent);
     flex: none;
   }
 

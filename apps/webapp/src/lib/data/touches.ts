@@ -12,6 +12,10 @@
  * the three things an entry's own write changes, and the one shape a write that may reach other
  * entries takes.
  *
+ * A collection's figure is not named here: it is counted on the collection's read, and a write to
+ * an entry re-reads it through `figures.svelte.ts`, which gathers the changes of a second into one
+ * read rather than re-reading the navigation per write.
+ *
  * Pure and tested, and imported by every store that writes an entry and by `live.ts`, which maps
  * a record to the same names: the write's answer and the record for it must agree on what is
  * stale, or one of them reloads something the other did not.

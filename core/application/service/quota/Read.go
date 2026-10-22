@@ -118,15 +118,16 @@ func Standings(
 	day := StartOfDay(now, zone)
 
 	configured := map[string]bool{
-		APIRequestsPerMinute:  overrides.APIRequestsPerMinute != nil,
-		Items:                 overrides.Items != nil,
-		MediaBytes:            overrides.MediaBytes != nil,
-		AutomationRunsPerHour: overrides.AutomationRunsPerHour != nil,
-		WebhookTargets:        overrides.WebhookTargets != nil,
-		ExportJobs:            overrides.ExportJobs != nil,
-		Accounts:              overrides.Accounts != nil,
-		AiTokensPerDay:        overrides.AiTokensPerDay != nil,
-		AiOwnTokensPerDay:     overrides.AiOwnTokensPerDay != nil,
+		APIRequestsPerMinute:     overrides.APIRequestsPerMinute != nil,
+		Items:                    overrides.Items != nil,
+		MediaBytes:               overrides.MediaBytes != nil,
+		AutomationRunsPerHour:    overrides.AutomationRunsPerHour != nil,
+		WebhookTargets:           overrides.WebhookTargets != nil,
+		ExportJobs:               overrides.ExportJobs != nil,
+		Accounts:                 overrides.Accounts != nil,
+		AiTokensPerDay:           overrides.AiTokensPerDay != nil,
+		AiOwnTokensPerDay:        overrides.AiOwnTokensPerDay != nil,
+		AiArrivalProposalsPerDay: overrides.AiArrivalProposalsPerDay != nil,
 	}
 	counters := map[string]func(context.Context) (int64, error){
 		Items:          usage.Items,
@@ -145,6 +146,9 @@ func Standings(
 		},
 		AiOwnTokensPerDay: func(ctx context.Context) (int64, error) {
 			return usage.MeteredSince(ctx, AiOwnTokensPerDay, day)
+		},
+		AiArrivalProposalsPerDay: func(ctx context.Context) (int64, error) {
+			return usage.MeteredSince(ctx, AiArrivalProposalsPerDay, day)
 		},
 	}
 

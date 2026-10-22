@@ -19,6 +19,7 @@ const (
 	adminAiProvidersPath = "/admin/ai-providers"
 	aiSourcePath         = "/ai-source"
 	aiPersonOptOutPath   = "/ai-person-opt-out"
+	aiArrivalPath        = "/ai-arrival-proposals"
 )
 
 // adminAi dispatches `hubctl admin ai ls|add|set|rm`.
@@ -313,4 +314,59 @@ func aiOptOutTable(source openapi.AiSource) Table {
 	}
 	rows = append(rows, []string{"keeping their content out", strconv.Itoa(source.KeepingOutCount)})
 	return Table{Columns: []string{"", ""}, Rows: rows}
+}
+
+// aiArrivalProposals is `hubctl ai arrival-proposals [show]` and `hubctl ai arrival-proposals set
+// --on|--off`: whether each new jumble entry gets an AI proposal without anybody asking.
+func aiArrivalProposals(ctx context.Context, cli *CLI, args []string) error {
+	if len(args) > 0 && args[0] == "set" {
+		return aiArrivalProposalsSet(ctx, cli, args[1:])
+	}
+	flags := commandFlags(cli, "ai", "arrival-proposals", "[show]")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if flags.NArg() > 1 || (flags.NArg() == 1 && flags.Arg(0) != "show") {
+		return usagef("hubctl ai arrival-proposals takes `show`, `set` or nothing")
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var source openapi.AiSource
+	if err := client.Get(ctx, aiSourcePath, nil, &source); err != nil {
+		return err
+	}
+	return cli.Emit(source, aiArrivalTable(source))
+}
+
+// aiArrivalProposalsSet writes the switch. Exactly one of --on and --off, so the command says what
+// it does rather than leaving it to a default.
+func aiArrivalProposalsSet(ctx context.Context, cli *CLI, args []string) error {
+	flags := commandFlags(cli, "ai arrival-proposals", "set", "--on | --off")
+	on := flags.Bool("on", false, "prepare a proposal for each new jumble entry")
+	off := flags.Bool("off", false, "wait for somebody to ask")
+	if err := parseCommand(flags, args); err != nil {
+		return err
+	}
+	if *on == *off {
+		return usagef("hubctl ai arrival-proposals set needs exactly one of --on and --off")
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var set openapi.AiSource
+	if err := client.Put(ctx, aiArrivalPath, openapi.AiArrivalProposalsChoice{Prepare: *on}, &set); err != nil {
+		return err
+	}
+	return cli.Emit(set, aiArrivalTable(set))
+}
+
+func aiArrivalTable(source openapi.AiSource) Table {
+	state := "off"
+	if source.PrepareOnArrival {
+		state = "on"
+	}
+	return Table{Columns: []string{"", ""}, Rows: [][]string{{"proposals on arrival", state}}}
 }

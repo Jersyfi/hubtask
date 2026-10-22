@@ -278,6 +278,40 @@ func (g Guard) spent(ctx context.Context, quota string, day, at time.Time) error
 	return nil
 }
 
+// ArrivalProposal takes one of the day's proposals prepared on arrival, and reports whether there
+// was one to take: room under `ai_arrival_proposals_per_day` on the workspace's day, counted in the
+// ledger before the provider is asked. Unlike the tokens it is known up front what a question
+// costs - one arrival - so the count is taken rather than metered after, and an arrival past the
+// cap is never sent. Check-then-act like every capacity here: two at the wall can both pass, which
+// a wall against a flood allows.
+func (g Guard) ArrivalProposal(ctx context.Context, tenant string, now time.Time) (bool, error) {
+	limits, err := g.limits(ctx)
+	if err != nil {
+		return false, err
+	}
+	day, err := g.day(ctx, now)
+	if err != nil {
+		return false, err
+	}
+	limit := limits.AiArrivalProposalsPerDay
+	if limit != Unlimited {
+		taken, err := g.Usage.MeteredSince(ctx, AiArrivalProposalsPerDay, day)
+		if err != nil {
+			return false, err
+		}
+		if g.Signals != nil {
+			g.Signals.QuotaUsage(ctx, AiArrivalProposalsPerDay, tenant, Ratio(limit, taken))
+		}
+		if taken >= limit {
+			return false, nil
+		}
+	}
+	if g.Meter == nil {
+		return true, nil
+	}
+	return true, g.Meter.Add(ctx, AiArrivalProposalsPerDay, day, 1)
+}
+
 // AiRenewal is the next midnight in the workspace's time zone after `now`: when the day a spent AI
 // budget belongs to ends. Midnight of the next calendar day rather than 24 hours on, so a day that
 // a daylight-saving change makes 23 or 25 hours long still renews at midnight.

@@ -115,7 +115,8 @@
 
   .count { flex: none; color: var(--text-subtle); font-size: var(--fs-075); }
 
-  .column[data-over] .count { color: var(--text-warning); font-weight: var(--fw-medium); }
+  /* Over its limit is a status: the count on the warning surface, the word beside it (rule 3). */
+  .column[data-over] .count { padding-inline: var(--sp-050); border-radius: var(--r-sm); background: var(--status-warning-surface); color: var(--status-warning-text); font-weight: var(--fw-medium); }
 
   .done { display: inline-flex; flex: none; color: var(--text-success); }
 

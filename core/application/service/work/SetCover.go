@@ -58,6 +58,9 @@ type CoverWriter struct {
 	Items      repository.Items
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Media      MediaReferences
 	Authorizer Authorizer
 	Events     outbox.Events
@@ -188,7 +191,7 @@ func (w CoverWriter) change(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-		profile, err := profileOf(ctx, w.Profiles, item.Type)
+		profile, err := w.Gate.gatedProfile(ctx, w.Profiles, collection, item)
 		if err != nil {
 			return err
 		}
@@ -603,7 +606,7 @@ func (h SetCover) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Cover.Gate.Answer(ctx, h.Cover.UnitOfWork, actor, item)
 }
 
 func (h ClearCover) invoke(
@@ -618,7 +621,7 @@ func (h ClearCover) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return ItemOutput(item), nil
+	return h.Cover.Gate.Answer(ctx, h.Cover.UnitOfWork, actor, item)
 }
 
 // coverCommand is the adapter between the catalogue's untyped input and the typed command, for both

@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands'; isRail?: boolean; opened?: string } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape the application hands this component for real.
@@ -63,6 +63,22 @@
     { id: 'trash', label: 'Trash', icon: 'trash', href: '/trash', band: {} },
   ];
 
+  // Each collection with the figure that counts for it, the way the navigation draws them: a
+  // count, a sum, a share, a week - and one with none, which draws nothing in its place.
+  const figures: NavNode[] = [
+    {
+      id: 'private',
+      label: 'Private',
+      icon: 'hub',
+      children: [
+        { id: 'shopping', label: 'Shopping', icon: 'collection', href: '/c/shopping', meta: '5 open' },
+        { id: 'renovation', label: 'Renovation of the kitchen and the hallway', icon: 'collection', href: '/c/renovation', meta: '38 %' },
+        { id: 'household', label: 'Household', icon: 'collection', href: '/c/household', meta: '3 due' },
+        { id: 'notes', label: 'Notes', icon: 'collection', href: '/c/notes' },
+      ],
+    },
+  ];
+
   let expanded = $state(['private', 'work']);
   let nav = $state<HTMLElement | null>(null);
 
@@ -74,7 +90,9 @@
     const row = nav.querySelector(`[data-node="${opened}"]`);
     if (row instanceof HTMLElement) row.click();
   });
-  const nodes = $derived(mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : tree);
+  const nodes = $derived(
+    mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : tree,
+  );
 </script>
 
 <!-- No inline `style` on the primitive: ADR-0028's `style-src` has no `'unsafe-inline'`, so a

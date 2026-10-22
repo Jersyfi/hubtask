@@ -111,6 +111,8 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
   import { renderProblem } from '../lib/problem.ts';
+  import { actionsOfHead } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
 
   interface Props {
     id: string;
@@ -346,6 +348,10 @@
   function chooseFromMenu(chosen: string) {
     if (chosen === 'share') isSharing = true;
   }
+
+  // What the palette may list for this entry: the head's menu, as the page's own or, in the detail
+  // pane, beside the collection's (UC-WRK-27 check 2).
+  $effect(() => commands.offer(isInPane ? 'pane' : 'page', actionsOfHead(isInPane ? 'pane' : 'page', { menu: { items: entryMenu, onselect: chooseFromMenu } })));
 
   /** The language row's draft, written when the reader says so - a picker that wrote on every keystroke of a tag would send "d", "de". */
   let languageDraft = $state('');
@@ -1221,7 +1227,7 @@
 
   .details { min-width: 0; }
 
-  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); }
+  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); box-shadow: var(--shadow-raised); }
 
   .details-summary {
     padding: var(--sp-150) var(--sp-200);

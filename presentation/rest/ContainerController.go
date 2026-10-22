@@ -219,6 +219,13 @@ func containerResponse(out usecase.Output) openapi.Container {
 			container.Structure = &answered
 		}
 	}
+	// What counts in a collection, the same way: numbers and dates in the contract's words.
+	if figure, held := out["figure"]; held {
+		var answered openapi.CollectionFigure
+		if throughJSON(figure, &answered) == nil {
+			container.Figure = &answered
+		}
+	}
 	return container
 }
 

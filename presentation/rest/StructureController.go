@@ -92,6 +92,15 @@ func (c *RestController) SetContainerStructure(
 		}
 		answer.KeptByLock = &keys
 	}
+	if clipped, held := out["clipped_by_levels"].([]any); held {
+		settings := make([]openapi.StructureSettingName, 0, len(clipped))
+		for _, setting := range clipped {
+			if text, ok := setting.(string); ok {
+				settings = append(settings, openapi.StructureSettingName(text))
+			}
+		}
+		answer.ClippedByLevels = &settings
+	}
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, answer)
 }

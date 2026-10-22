@@ -349,7 +349,7 @@ created switched off, drawn on the canvas with the probe offered.
 
 ## UX-24 — What counts
 
-*Depends on: UX-09.* · issue #1656
+*Depends on: UX-09, UX-29.* · issue #1656
 
 **Use cases:** UC-WRK-29 (1, 2, 3)
 
@@ -373,7 +373,7 @@ personal figures visible only to the person, the `celebrations` switch covering 
 
 *Depends on: UX-09, UX-10.* · issue #1658
 
-**Use cases:** UC-WRK-31 (1, 2, 3, 4)
+**Use cases:** UC-WRK-31 (1, 2, 3, 4), UC-WRK-29 (1)
 
 The preset *Flow*: states as columns with limits, required fields before leaving the first column,
 the flow figure.
@@ -417,13 +417,14 @@ returned by every read marked hidden, and are refused on write with `capability_
 keeps values and marks them hidden; the replica derives the mark from the container's structure.
 
 What the build starts from: the item writers reach the profile through `profileOf(ctx, profiles,
-type)` (`core/application/service/work/Items.go`), 20 call sites in 17 files, each to become a
-read of the collection's structure in force (`StructureResolver`, UX-09); template stamping drops
-and reports a node's value the target does not carry, and refuses a node of a hidden level. An
-entry's level is hidden when its type is not offered **or an ancestor's level is hidden**; a type
-with several system parents (an activity, under a task or a work package) is offered when **any**
-offered level may hold it. *Tasks* offers an activity under a task only once UX-08's pair is in the
-installation's profile; until then the preset is clipped to tasks.
+type)` (`core/application/service/work/Items.go`), 19 call sites in 16 files - and the hierarchies
+`CreateWorkItem`, `MoveWorkItem` and `DuplicateWorkItem` build - each to become a read of the
+collection's structure in force (`StructureResolver`, UX-09); template stamping drops and reports a
+node's value the target does not carry, and refuses a node of a hidden level. An entry's level is
+hidden when its type is not offered **or an ancestor's level is hidden**; a type with several system
+parents (an activity, under a task or a work package) is offered when **any** offered level may hold
+it. *Tasks* offers an activity under a task wherever the installation's system profile does (UX-08's
+0185); a workspace's own task row from before it is finding #1689.
 
 **Acceptance:** a round trip per door (REST, MCP, hubctl, automation, sync push): narrow → write
 refused → read shows hidden → widen → value back; cross-tenant negatives.

@@ -35,7 +35,9 @@ test('a record this client does not draw makes nothing stale', () => {
 });
 
 test('each entity names what it is actually drawn on', () => {
-  assert.deepEqual(pathsFor(record({ entity: 'container', entity_id: 'c-1' })), ['/containers$', '/containers/c-1$']);
+  // A container's record makes its entries stale too: a change of its structure moves what each
+  // of them is marked hidden, and the record cannot say whether the structure is what moved.
+  assert.deepEqual(pathsFor(record({ entity: 'container', entity_id: 'c-1' })), ['/containers$', '/containers/c-1$', '/items:query', '/items/*$']);
   // The record names the reminder, not its entry: every open entry's reminders, and only those.
   assert.deepEqual(pathsFor(record({ entity: 'reminder', entity_id: 'r-9' })), ['/items/*/reminders']);
   assert.deepEqual(pathsFor(record({ entity: 'comment', entity_id: 'k-1', container_id: 'c-1' })), ['/items/*/comments']);

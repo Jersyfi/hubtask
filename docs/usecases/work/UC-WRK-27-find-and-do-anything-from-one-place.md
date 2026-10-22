@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-admin, PE-owner]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-13]
-state: specified
+state: built
 tasks: [UX-13]
-checked_by: []
+checked_by: [apps/webapp/e2e/palette.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/search.test.mjs, apps/webapp/src/lib/palette/sources.test.ts, apps/webapp/src/lib/palette/rows.test.ts, apps/webapp/src/lib/palette/actions.test.ts, apps/webapp/src/lib/shortcuts.test.ts]
 ---
 
 # Find and do anything from one place
@@ -33,10 +33,3 @@ The person presses `⌘K`, types "kitch" and sees the collection "Kitchen", entr
 * Asking the workspace a question is [UC-AI-08](../suggestion/UC-AI-08-ask-the-workspace-a-question.md).
 * The full search page with its filters stays [UC-WRK-18](./UC-WRK-18-find-an-entry-again.md).
 
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.

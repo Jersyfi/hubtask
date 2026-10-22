@@ -43,8 +43,8 @@ async function administration(browser, tenancy, viewport) {
 /** The account menu's rows, opened from the bar. */
 async function menuRows(page) {
   await page.getByRole('button', { name: new RegExp(ACCOUNT.display_name) }).first().click();
-  await page.getByText('Take the tour again').waitFor();
-  const text = await page.getByText('Take the tour again').locator('xpath=ancestor::*[.//text()[contains(., "Sign out")]][1]').innerText();
+  await page.getByText('Help and shortcuts').waitFor();
+  const text = await page.getByText('Help and shortcuts').locator('xpath=ancestor::*[.//text()[contains(., "Sign out")]][1]').innerText();
   return text;
 }
 

@@ -29,12 +29,15 @@
     Skeleton,
     Stack,
     type MenuItem,
+    type PageAction,
   } from '@hubtask/design-system/components';
 
   import { untrack } from 'svelte';
 
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
+  import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
+  import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
@@ -77,6 +80,10 @@
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
+  import { layoutsOffered } from '../lib/entries/layouts.ts';
+  import { actionsOfHead, type Act } from '../lib/palette/actions.ts';
+  import { commands } from '../lib/palette/commands.svelte.ts';
+  import { mayCreateIn } from '../lib/palette/sources.ts';
   import { anchorFor } from '../lib/data/rank.ts';
   import type {
     BulkOperation,
@@ -148,10 +155,10 @@
   let layout = $state('LIST_COLLAPSED');
   let query = $state<ItemsQuery>({});
 
-  /** The layouts this client can actually draw. */
-  const DRAWABLE = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
-
   const container = $derived(containers.find(id));
+
+  /** The layouts that may be chosen here: the switch's and the palette's one answer. */
+  const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
 
   /**
    * The path this container sits on, and the role this reader holds along it.
@@ -426,6 +433,7 @@
   let isManagingViews = $state(false);
   /** The collection's policies: how it works, as opposed to what it is called. */
   let isManagingPolicies = $state(false);
+  let isChoosingWhatCounts = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -629,6 +637,8 @@
                 ...shaping([
                   { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
                   { id: 'fields', label: t('app.fields.title'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
+                  // What counts in it (UC-WRK-29); the Structure panel takes it when there is one.
+                  { id: 'what_counts', label: t('app.figure.menu'), disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
                 ]),
                 { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
                 { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: isReadOnly ? t('app.workspace.archived') : undefined },
@@ -670,10 +680,110 @@
     else if (id === 'views') isManagingViews = true;
     else if (id === 'templates') isUsingTemplates = true;
     else if (id === 'policies') isManagingPolicies = true;
+    else if (id === 'what_counts') isChoosingWhatCounts = true;
     else if (id === 'people') isManagingMembers = true;
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
   }
+
+  /**
+   * The head's three lists, built once and handed to the head and to the palette alike: the
+   * palette lists what the head offers and nothing else (UC-WRK-27 check 2). The hub's primary is
+   * what a hub is for - a collection - with import beside it; the collection's is an entry, with
+   * the filter beside it and the templates as the verb's own list.
+   */
+  const headPrimary = $derived<PageAction | undefined>(
+    container === undefined
+      ? undefined
+      : container.type === 'HUB'
+        ? structureControl({
+            label: t('app.workspace.create_collection'),
+            icon: 'plus',
+            onclick: () => (isCreatingCollection = true),
+            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            opener: 'add-collection',
+          })
+        : mayCreateHere
+          ? {
+              label: t('app.entries.add'),
+              icon: 'plus',
+              onclick: addFromHead,
+              disabledReason: addDisabledReason,
+              opener: 'add-entry',
+              menu: {
+                label: t('app.entries.add_ways'),
+                items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
+                onselect: () => (isUsingTemplates = true),
+              },
+            }
+          : undefined,
+  );
+  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
+    container?.type === 'HUB'
+      ? mayShape
+        ? [
+            {
+              label: t('app.import.open'),
+              onclick: () => (isImporting = true),
+              disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
+            },
+          ]
+        : []
+      : [
+          {
+            label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
+            icon: 'funnel',
+            onclick: () => (isFilterOpen = !isFilterOpen),
+            opener: 'filter',
+          },
+        ],
+  );
+  const headMenu = $derived({
+    label: t('app.workspace.actions', { name: container?.name ?? '' }),
+    items: pageMenu,
+    onselect: choseFromMenu,
+    opener: 'container-menu',
+  });
+
+  /** The other layouts this collection is shown in, as the palette's *Show as …*. */
+  const layoutActs = $derived<readonly Act[]>(
+    offeredLayouts
+      .filter((each) => each !== layout && !(each.startsWith('LIST_') && layout.startsWith('LIST_')))
+      .map((each) => ({
+        id: `page:layout-${each}`,
+        label: t('app.palette.show_as', { layout: each }),
+        run: () => (layout = each),
+      })),
+  );
+
+  // What the palette may list here: the head's own lists, then the layouts.
+  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...layoutActs]));
+
+  // A wish the palette left for this collection - a layout, or the add form - taken once and acted
+  // on only where this screen's own answers allow it. It wins over any layout this screen would
+  // otherwise open with: it is what the reader just asked for.
+  $effect(() => {
+    if (!container || myRole === undefined || !commands.isWaitingFor(container.id)) return;
+    const wish = commands.take(container.id);
+    if (!wish) return;
+    untrack(() => {
+      if (wish.layout && offeredLayouts.includes(wish.layout)) layout = wish.layout;
+      if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
+        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+        isAddWished = true;
+      }
+    });
+  });
+
+  // The add form is the list's, and on arrival the list may not be drawn yet: the wish waits for
+  // it rather than being spent on a list that is not there.
+  let isAddWished = $state(false);
+  $effect(() => {
+    if (!isAddWished || !list) return;
+    isAddWished = false;
+    const drawn = list;
+    untrack(() => drawn.addEntry());
+  });
 
   function startRename() {
     draft = container?.name ?? '';
@@ -716,6 +826,11 @@
        is about a *failure* rendered as an empty list; this is the other way round. -->
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
+  <!-- What counts in the collection, counted by the server on its read (UC-WRK-29). Absent on a
+       hub, offline, and where the collection counts nothing. -->
+  {#snippet collectionFigure()}
+    {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
+  {/snippet}
   <Stack gap="300">
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
@@ -737,45 +852,10 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      primary={container.type === 'HUB'
-        ? structureControl({
-            label: t('app.workspace.create_collection'),
-            icon: 'plus',
-            onclick: () => (isCreatingCollection = true),
-            disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
-            opener: 'add-collection',
-          })
-        : mayCreateHere ? {
-            label: t('app.entries.add'),
-            icon: 'plus',
-            onclick: addFromHead,
-            disabledReason: addDisabledReason,
-            opener: 'add-entry',
-            menu: {
-              label: t('app.entries.add_ways'),
-              items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: isReadOnly ? t('app.workspace.archived') : undefined }],
-              onselect: () => (isUsingTemplates = true),
-            },
-          } : undefined}
-      secondary={container.type === 'HUB'
-        ? mayShape
-          ? [
-              {
-                label: t('app.import.open'),
-                onclick: () => (isImporting = true),
-                disabledReason: isReadOnly ? t('app.workspace.archived') : undefined,
-              },
-            ]
-          : []
-        : [
-            {
-              label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
-              icon: 'funnel',
-              onclick: () => (isFilterOpen = !isFilterOpen),
-              opener: 'filter',
-            },
-          ]}
-      menu={{ label: t('app.workspace.actions', { name: container.name }), items: pageMenu, onselect: choseFromMenu, opener: 'container-menu' }}
+      primary={headPrimary}
+      secondary={headSecondary}
+      menu={headMenu}
+      figure={container.type === 'COLLECTION' && container.figure ? collectionFigure : undefined}
     >
       {#snippet notices()}
         <!-- The two archive states say different things and offer different controls, which is the
@@ -799,7 +879,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} drawable={DRAWABLE} onlayout={(id) => (layout = id)} />
+          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={(id) => (layout = id)} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}
@@ -1000,6 +1080,9 @@
     path={containerPath}
     role={structureRole}
   />
+  {#if container.type === 'COLLECTION' && mayShape}
+    <WhatCountsDialog bind:isOpen={isChoosingWhatCounts} {container} />
+  {/if}
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}
@@ -1157,6 +1240,7 @@
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
   }
 
   .members {

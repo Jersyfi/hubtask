@@ -64,10 +64,14 @@ export function pathsFor(record: ChangeRecord): readonly string[] {
 
     case 'container':
       // The tree - the hubs, and the children of each - and the container's own document, which
-      // is a heading and a row in the sidebar. Not the entries under it: a renamed collection
-      // changes no entry, and a trashed one takes its entries to the trash under records of
-      // their own.
-      return ['/containers$', `/containers/${id}$`, ...(record.op === 'DELETE' ? ['/trash'] : [])];
+      // is a heading and a row in the sidebar. And the entries: a record cannot say which field
+      // moved without its payload, and a change of the structure in force moves what every entry
+      // under it is marked hidden (domain-model.md §2) - for a hub, every collection that
+      // inherits. A trashed container takes its entries to the trash under records of their own.
+      return [
+        '/containers$', `/containers/${id}$`, ENTRY_LISTS, ANY_ENTRY_DOCUMENT,
+        ...(record.op === 'DELETE' ? ['/trash'] : []),
+      ];
 
     case 'comment':
       // The thread it is in. `container_id` is the collection, so the entry is not in the record —

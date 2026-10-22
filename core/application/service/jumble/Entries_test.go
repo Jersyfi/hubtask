@@ -298,3 +298,26 @@ func TestARefusedSubmissionLeavesNoTrace(t *testing.T) {
 		t.Error("a refused submission left a trace")
 	}
 }
+
+// One entry is read by its identifier under the listing's permission, and a refusal reads nothing.
+func TestOneEntryIsReadByItsIdentifierAndIsAuthorised(t *testing.T) {
+	h := newHarness()
+	if _, err := (SubmitJumbleEntry{Writer: h.writer}).Execute(context.Background(), actor(),
+		SubmitCommand{RawSubject: "Order"}); err != nil {
+		t.Fatalf("seeding: %v", err)
+	}
+
+	read, err := (GetJumbleEntry{Writer: h.writer}).Execute(context.Background(), actor(), entryID)
+	if err != nil || read.RawSubject != "Order" {
+		t.Fatalf("reading answered %+v, %v", read, err)
+	}
+	last := h.auth.requests[len(h.auth.requests)-1]
+	if string(last.Permission) != "READ" || last.TokenScope != "items:read" || last.TargetID != entryID {
+		t.Errorf("the read asked %+v", last)
+	}
+
+	h.auth.refuse = shared.ErrForbidden.WithDetail("access.not_permitted")
+	if _, err := (GetJumbleEntry{Writer: h.writer}).Execute(context.Background(), actor(), entryID); err == nil {
+		t.Error("a refused read answered the entry")
+	}
+}

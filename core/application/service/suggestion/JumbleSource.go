@@ -10,6 +10,7 @@ import (
 	"time"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	workrepo "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
@@ -40,6 +41,9 @@ type CatalogueSources struct {
 	Permits Permitter
 	// Text brings a sentence and the names it is matched against to one normal form.
 	Text porttext.Normalizer
+	// Collections is where a jumble proposal's destination is chosen from: the shared set,
+	// read in the material's transaction. Nil offers no destination.
+	Collections workrepo.Collections
 }
 
 // KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
@@ -85,9 +89,9 @@ func (s CatalogueSources) material(
 ) (Material, error) {
 	switch targetType {
 	case domain.TargetJumbleEntry:
-		// An entry in the inbox is in no collection yet, so there is no board to choose from: the
-		// person converting names the destination, and its columns are theirs to pick.
-		return s.entry(ctx, actor, targetID, kept)
+		// An entry in the inbox is in no collection yet, so there is no board to choose from; the
+		// question's prompt says whether a destination is chosen, from the shared set.
+		return s.entry(ctx, actor, targetID, promptID, kept)
 	case domain.TargetWorkItem:
 		if promptID == threadPrompt {
 			return s.thread(ctx, actor, targetID, kept)
@@ -108,51 +112,92 @@ func (s CatalogueSources) material(
 // entry is the subject and the body of one inbox arrival - the least trusted text in the system,
 // which travels to a provider as user content and never as instruction.
 //
-// The listing is unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that
-// asking about an entry somebody had already converted answered nothing at all, rather than
-// answering what the entry says.
-//
-// Unfiltered, for `entryDigest`'s reason: a `status: NEW` filter here meant that asking about an
-// entry somebody had already converted answered nothing at all, rather than answering what the
-// entry says.
+// Read by its identifier in every state, for `entryDigest`'s reason: a read narrowed to undecided
+// entries meant that asking about an entry somebody had already converted answered nothing at all,
+// rather than answering what the entry says.
 func (s CatalogueSources) entry(
-	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, kept integration.KeptOut,
+	ctx context.Context, actor appshared.ActorContext, entryID shared.ID, promptID string,
+	kept integration.KeptOut,
 ) (Material, error) {
-	out, err := s.Catalogue.Invoke(ctx, "ListJumbleEntries", actor, usecase.Input{})
+	entry, err := s.Catalogue.Invoke(ctx, "GetJumbleEntry", actor, usecase.Input{"entry_id": entryID.String()})
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
+		}
+		return Material{}, err
+	}
+	material := entryMaterial(entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), kept)
+	return withDestinations(ctx, s.Collections, material, promptID, kept)
+}
+
+// maxDestinations bounds the collections a proposal chooses its destination from: the first
+// hundred of the tree's order, so that every arrival's material stays a few thousand tokens. The
+// person accepting picks any other.
+const maxDestinations = 100
+
+// withDestinations adds the shared set to a jumble entry's material, for a question that chooses a
+// destination: the collections everybody who may convert may write in - neither trashed nor
+// archived, by their own stamp or their hub's, and outside private hubs (ai-first.md §2). The
+// same set whoever asks, so that no proposal another reader sees names a private hub's collection.
+// Nothing is added to material with nothing to describe: a list of collections is not material.
+func withDestinations(
+	ctx context.Context, collections workrepo.Collections, material Material, promptID string,
+	kept integration.KeptOut,
+) (Material, error) {
+	if collections == nil || strings.TrimSpace(material.Content) == "" || !choosesFrom(promptID, collectionKey) {
+		return material, nil
+	}
+	page, err := collections.InOrder(ctx, workrepo.CollectionQuery{Page: workrepo.Page{Size: maxDestinations}})
 	if err != nil {
 		return Material{}, err
 	}
-	// `data`, which is what a page answers under (api-guidelines.md §4). Any other key makes the
-	// loop below see an empty list, so no entry is ever found to ask about - and a test fake that
-	// invents the same wrong key agrees with the defect, so only a real registry can tell.
-	entries, _ := out["data"].([]usecase.Output)
-	for _, entry := range entries {
-		if entry.String("id") != entryID.String() {
-			continue
-		}
-		subject, body := entry.String("raw_subject"), entry.String("raw_body")
-		digest := domain.Digest(subject, body)
-		if kept.HasAddress(entry.String("sender")) {
-			// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
-			return Material{Digest: digest}, nil
-		}
-		subject, body = kept.Scrub(subject), kept.Scrub(body)
-		if strings.TrimSpace(subject) == "" && strings.TrimSpace(body) == "" {
-			// Nothing to describe. The labels below would otherwise make an empty entry look like
-			// content to the caller's emptiness check, and a provider would be asked about
-			// "Subject:" and nothing else.
-			return Material{Digest: digest}, nil
-		}
-		return Material{
-			// Two fields joined for the model with a label each, because a subject and a body are
-			// different things and a model told only "here is some text" describes the wrong one.
-			// The labels are the instruction's, not the content's: nothing here is interpolated
-			// into the system message (Prompt.Ask).
-			Content: "Subject: " + subject + "\n\n" + body,
-			Digest:  digest,
-		}, nil
+	options := make([]Option, 0, len(page.Collections))
+	for _, row := range page.Collections {
+		options = append(options, Option{
+			ID:   row.Collection.ID.String(),
+			Name: kept.Scrub(row.HubName + " / " + row.Collection.Name),
+		})
 	}
-	return Material{}, shared.ErrNotFound.WithDetail("suggestions.not_found")
+	if len(options) > 0 {
+		material.Choices = append(material.Choices, Choices{
+			Key: collectionKey, Label: "Collections it could become work in", Options: options,
+		})
+	}
+	return material, nil
+}
+
+// choosesFrom reports whether a prompt's answer chooses the key from a closed set.
+func choosesFrom(promptID, key string) bool {
+	for _, chosen := range choiceSets[promptID] {
+		if chosen == key {
+			return true
+		}
+	}
+	return false
+}
+
+// entryMaterial is what one arrival tells a model, whoever asked about it.
+func entryMaterial(subject, body, sender string, kept integration.KeptOut) Material {
+	digest := domain.Digest(subject, body)
+	if kept.HasAddress(sender) {
+		// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
+		return Material{Digest: digest}
+	}
+	subject, body = kept.Scrub(subject), kept.Scrub(body)
+	if strings.TrimSpace(subject) == "" && strings.TrimSpace(body) == "" {
+		// Nothing to describe. The labels below would otherwise make an empty entry look like
+		// content to the caller's emptiness check, and a provider would be asked about
+		// "Subject:" and nothing else.
+		return Material{Digest: digest}
+	}
+	return Material{
+		// Two fields joined for the model with a label each, because a subject and a body are
+		// different things and a model told only "here is some text" describes the wrong one.
+		// The labels are the instruction's, not the content's: nothing here is interpolated
+		// into the system message (Prompt.Ask).
+		Content: "Subject: " + subject + "\n\n" + body,
+		Digest:  digest,
+	}
 }
 
 // item is an entry's title and notes, the same two fields the fingerprint is taken over - and, for
@@ -175,6 +220,12 @@ func (s CatalogueSources) item(
 		return Material{Digest: digest}, nil
 	}
 	title, notes = kept.Scrub(title), kept.Scrub(notes)
+	// Notes the entry's collection hides are kept as they are, and not sent anywhere: a provider
+	// is told what the collection shows (domain-model.md §2).
+	hidden := hiddenOf(out)
+	if hidden[work.CapabilityNotes] {
+		notes = ""
+	}
 	if strings.TrimSpace(title) == "" && strings.TrimSpace(notes) == "" {
 		return Material{Digest: digest}, nil
 	}
@@ -182,6 +233,7 @@ func (s CatalogueSources) item(
 	material := Material{
 		Content: "Title: " + title + "\n\n" + notes,
 		Digest:  digest,
+		Hidden:  hidden,
 	}
 	if promptID == decomposePrompt && s.Profiles != nil {
 		hierarchy, err := s.hierarchy(ctx)
@@ -189,8 +241,14 @@ func (s CatalogueSources) item(
 			return Material{}, err
 		}
 		material.Hierarchy = &hierarchy
+		collectionID, err := shared.ParseID(out.String("collection_id"))
+		if err == nil {
+			if material.Shape, err = s.collectionShape(ctx, actor, collectionID); err != nil {
+				return Material{}, err
+			}
+		}
 	}
-	if promptFields[promptID][fieldsKey] {
+	if promptFields[promptID][fieldsKey] && !hidden[work.CapabilityCustomFields] {
 		declared, err := s.declared(ctx, actor, out)
 		if err != nil {
 			return Material{}, err
@@ -198,6 +256,10 @@ func (s CatalogueSources) item(
 		material.Declared = declared
 	}
 	for _, key := range choiceSets[promptID] {
+		if hidden[hiddenKeys[key]] {
+			// A set the collection hides is not one an answer may choose from.
+			continue
+		}
 		set, err := s.set(ctx, actor, key, out)
 		if err != nil {
 			return Material{}, err
@@ -273,6 +335,11 @@ func (s CatalogueSources) thread(
 	if keptEntry(kept, entry) {
 		// A summary is accepted into the entry's notes: a kept-out person's entry, or a restricted person's, is not asked
 		// about at all, whoever commented on it.
+		return Material{Digest: digest}, nil
+	}
+	if hidden := hiddenOf(entry); hidden[work.CapabilityNotes] || hidden[work.CapabilityComments] {
+		// The summary would be accepted into notes the collection hides, from a thread it hides:
+		// nothing to ask about, as for an entry nobody commented on.
 		return Material{Digest: digest}, nil
 	}
 
@@ -406,6 +473,9 @@ const (
 	bucketKey = "bucket_id"
 	labelsKey = "label_ids"
 	fieldsKey = "custom_fields"
+	// collectionKey is a jumble proposal's destination, which the conversion takes as its own
+	// input; the person accepting may name another.
+	collectionKey = "collection_id"
 )
 
 // closedKinds are the custom field kinds a value can be *chosen* for.

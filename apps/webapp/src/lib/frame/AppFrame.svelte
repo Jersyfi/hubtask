@@ -26,7 +26,10 @@
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
-  import BarSearch from './BarSearch.svelte';
+  import Palette from '../palette/Palette.svelte';
+  import { palette } from '../palette/palette.svelte.ts';
+  import { listenForShortcuts } from './keys.ts';
+  import HelpDialog from './HelpDialog.svelte';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import EmergencyNotices from './EmergencyNotices.svelte';
@@ -40,6 +43,7 @@
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { figures } from '../data/figures.svelte.ts';
   import { recents } from '../recents.svelte.ts';
   import { session } from '../session.svelte.ts';
   import { stepUp } from '../data/stepup.svelte.ts';
@@ -48,7 +52,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administration, currentDestination, installationPlace, instanceSection, primary } from '../navigation.ts';
+  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, primary } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -81,6 +85,13 @@
   $effect(() => {
     if (!session.isSignedIn) return;
     return containers.start();
+  });
+
+  // What counts in each collection, kept to the reader's day: a figure counted for yesterday is read
+  // again once the date turns over (UC-WRK-29).
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return figures.start();
   });
 
   /**
@@ -136,6 +147,22 @@
   // Which of the five widths the frame is drawn at. Started with the frame and stopped with it.
   $effect(() => viewport.start());
 
+  // The global shortcuts, while somebody is signed in: `⌘K`/`Ctrl K` and `/` open the palette from
+  // every framed page (UC-WRK-27 check 1). Which press is which is `lib/shortcuts.ts`'s.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return listenForShortcuts(() => palette.isOpen, { palette: () => palette.summon(), help: () => (isHelpOpen = true) });
+  });
+
+  // The palette's state belongs to one drawing at a time: a width change closes it rather than
+  // leaving it open in a drawing that is no longer there.
+  $effect(() => {
+    void viewport.isCompact;
+    untrack(() => {
+      if (palette.isOpen) palette.dismiss();
+    });
+  });
+
   /** The destination the route belongs to; what the bottom bar and the tree announce as current. */
   const destination = $derived(currentDestination(route));
   /**
@@ -159,14 +186,13 @@
     isInAdministration
       ? {
           label: t('app.admin.nav'),
-          groups: administration({
-            hasPrivateHubs: privateHubs.isReadable &&
-              (privateHubs.hasAny || workspace.workspace?.several_people === true),
-            withInstallation: installationPlace({
-              isInstanceReachable: manifest.isInstanceReachable,
-              isAdministrationReachable,
-              isSingleWorkspace: manifest.isSingleTenant,
-            }) === 'administration',
+          groups: administrationFor({
+            isPrivateHubsReadable: privateHubs.isReadable,
+            hasAnyPrivateHub: privateHubs.hasAny,
+            hasSeveralPeople: workspace.workspace?.several_people === true,
+            isInstanceReachable: manifest.isInstanceReachable,
+            isAdministrationReachable,
+            isSingleWorkspace: manifest.isSingleTenant,
           }),
         }
       : route.area === 'instance'
@@ -240,7 +266,15 @@
     const chosen = DESTINATIONS.find((each) => each.id === id);
     if (!chosen) return;
     if (chosen.target.kind === 'route') go(chosen.target.path);
-    else if (chosen.target.action === 'tour') void tour.restart();
+    else accountVerb(chosen.target.action);
+  }
+
+  /** *Help and shortcuts*, open: from the account group, the palette, or `?`. */
+  let isHelpOpen = $state(false);
+
+  /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
+  function accountVerb(action: 'help' | 'sign-out') {
+    if (action === 'help') isHelpOpen = true;
     else void session.signOut();
   }
 
@@ -339,7 +373,7 @@
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
            the reader reaches search through the bottom bar instead. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <BarSearch onnavigate={go} />
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} />
       {/if}
     {/snippet}
     {#snippet menu()}
@@ -479,10 +513,20 @@
       current={bottomCurrent}
       onnavigate={(id) => {
         if (id === 'you') isAccountOpen = true;
+        // Search opens the palette here, the bar having no field to type in: its *All results*
+        // and *Open search* are the way to the search screen (UC-WRK-27 check 1).
+        else if (id === 'search') palette.summon();
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
     <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+  {/if}
+  <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
+  {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
+    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
+  {/if}
+  {#if isHelpOpen}
+    <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so

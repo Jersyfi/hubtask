@@ -47,6 +47,9 @@ type ItemLabelWriter struct {
 	Labels     repository.Labels
 	Containers repository.Containers
 	Profiles   metarepo.CapabilityProfiles
+	// Gate is what the entry's collection offers it: the refusal before a write of what it
+	// hides, and the mark on the answer (domain-model.md §2).
+	Gate       EntryGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -378,8 +381,11 @@ func (w ItemLabelWriter) recordAudit(
 // An activity has none (domain-model.md §2). Refused rather than silently ignored, which is the
 // rule the capability matrix states: a client that tagged an activity and received a 200 would
 // believe the tag is there.
+//
+// Through the entry's collection: a collection that hides labels refuses putting one on and taking
+// one off alike, and keeps the ones the entry carries (domain-model.md §2).
 func (w ItemLabelWriter) ensureLabelAllowed(ctx context.Context, item domain.WorkItem) error {
-	profile, err := profileOf(ctx, w.Profiles, item.Type)
+	profile, err := w.Gate.gatedProfileFor(ctx, w.Profiles, item)
 	if err != nil {
 		return err
 	}

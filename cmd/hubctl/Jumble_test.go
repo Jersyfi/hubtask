@@ -60,6 +60,40 @@ func TestTheWholeEntryIsAvailableAsJSON(t *testing.T) {
 	}
 }
 
+// One entry by its identifier, in the listing's columns and with the body left out of the table.
+func TestOneEntryIsShownByItsIdentifier(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, oneJumbleEntry)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "show", jumbleEntryID)
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if got := stub.request.URL.Path; !strings.HasSuffix(got, "/jumble/entries/"+jumbleEntryID) {
+		t.Errorf("asked %q", got)
+	}
+	if !strings.Contains(out, "Order #42") || strings.Contains(out, "a table is not for") {
+		t.Errorf("the table is %q", out)
+	}
+}
+
+// The destinations are the server's answer, named with their hub.
+func TestTheDestinationsAreListedWithTheirHub(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{"data":[{"id":"01936f2a-7c1e-7000-8000-000000000c01","name":"Orders",
+	  "hub_id":"01936f2a-7c1e-7000-8000-000000000c00","hub_name":"Shop","hub_private":false}],
+	  "page":{"has_more":false,"next_cursor":null}}`)
+
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "", "jumble", "destinations", "--size", "20")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.HasSuffix(stub.request.URL.Path, "/jumble/destinations") || stub.request.URL.Query().Get("size") != "20" {
+		t.Errorf("asked %s", stub.request.URL)
+	}
+	if !strings.Contains(out, "Shop") || !strings.Contains(out, "Orders") {
+		t.Errorf("the table is %q", out)
+	}
+}
+
 // Something has to be in an entry, and the client says so rather than sending an empty one.
 func TestAnEmptySubmissionIsRefusedHere(t *testing.T) {
 	stub := serveJSON(t, http.StatusCreated, oneJumbleEntry)

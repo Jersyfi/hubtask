@@ -21,7 +21,8 @@ const (
 	chooseAiSourceUseCase = "ChooseAiSource"
 	setOwnAiBudgetUseCase = "SetOwnAiBudget"
 
-	setAiPersonOptOutUseCase = "SetAiPersonOptOut"
+	setAiPersonOptOutUseCase     = "SetAiPersonOptOut"
+	setAiArrivalProposalsUseCase = "SetAiArrivalProposals"
 )
 
 // ReadAiSource answers GET /ai-source.
@@ -118,6 +119,27 @@ func (c *RestController) SetAiPersonOptOut(w http.ResponseWriter, r *http.Reques
 	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
 }
 
+// SetAiArrivalProposals answers PUT /ai-arrival-proposals.
+func (c *RestController) SetAiArrivalProposals(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.AiArrivalProposalsChoice
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), setAiArrivalProposalsUseCase, actorOf(r),
+		usecase.Input{"prepare": body.Prepare})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, aiSourceResponse(out))
+}
+
 // aiSourceResponse maps the use case's answer. An offered model carries what the use case gives
 // it - name, processor, jurisdiction - and this mapper has no field for anything more.
 func aiSourceResponse(out usecase.Output) openapi.AiSource {
@@ -178,6 +200,7 @@ func aiSourceResponse(out usecase.Output) openapi.AiSource {
 	if since, held := out["person_opt_out_since"].(time.Time); held && !since.IsZero() {
 		answer.PersonOptOutSince = &since
 	}
+	answer.PrepareOnArrival = out["prepare_on_arrival"] == true
 	if count, held := out["keeping_out_count"].(int); held {
 		answer.KeepingOutCount = count
 	}

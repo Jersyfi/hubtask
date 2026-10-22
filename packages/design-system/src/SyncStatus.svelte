@@ -251,8 +251,8 @@
      quiet state is `status.success.accent`; drawn in `text.subtle`, the one state that means
      *everything is fine* would be the one state with no colour at all. `data-quiet` says only
      whether there is anything waiting behind the mark. It is not a reason to say nothing in colour. */
-  .trigger[data-connection='connected'] { color: var(--status-success-text); }
-  .trigger[data-connection='reconnecting'] { color: var(--status-warning-text); }
+  .trigger[data-connection='connected'] { background: var(--status-success-surface); color: var(--status-success-text); }
+  .trigger[data-connection='reconnecting'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
   .trigger[data-connection='offline'] {
     background: var(--status-warning-accent);
     color: var(--text-inverse);
@@ -274,8 +274,8 @@
 
   .mark { display: inline-flex; }
 
-  .detail[data-connection='connected'] { color: var(--status-success-text); }
-  .detail[data-connection='offline'] { color: var(--status-danger-text); }
+  .detail[data-connection='connected'] { border-radius: var(--r-sm); background: var(--status-success-surface); color: var(--status-success-text); }
+  .detail[data-connection='offline'] { border-radius: var(--r-sm); background: var(--status-danger-surface); color: var(--status-danger-text); }
 
   .detail .word { margin-inline-start: var(--sp-050); }
 
