@@ -150,14 +150,6 @@ class Runs {
     if (state.status === 'ready') this.#details = { ...this.#details, [runId]: state.data };
   }
 
-  /** Evaluates a stored rule against a sample event. Writes nothing. */
-  async dryRun(ruleId: string, event: { type: string; subject?: string }): Promise<TestResult> {
-    return engine.mutate<TestResult>('POST', `${RULES}:test`, {
-      rule_id: ruleId,
-      sample_event: { type: event.type, ...(event.subject ? { subject: event.subject } : {}) },
-    });
-  }
-
   /**
    * Dry-runs a definition as it stands - the canvas's, not the stored rule's (automation.md §1.5) -
    * so that an unsaved change is what is tested. The same document a write takes, checked by the

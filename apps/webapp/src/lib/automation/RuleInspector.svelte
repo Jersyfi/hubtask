@@ -24,7 +24,7 @@
     selection: Selection;
     /** The *Rule* tab (automation.md §1.5): the name, where it applies, whose rights it acts with, the guardrails - together. */
     section?: 'rule';
-    /** Whether the rule has been saved at least once: what a manual trigger's button needs. */
+    /** Whether the rule has been saved at least once: what the inbound address needs. */
     ruleId?: string;
     generatedName: string;
     /** What the manifest serves. */
@@ -46,9 +46,8 @@
     onremovestep: (path: string) => void;
     onremovecondition: (index: number) => void;
     onaddcondition: () => void;
-    /** The inbound address and the manual start, both the view's to perform. */
+    /** The inbound address, the view's to mint. Starting a rule is the head's *Start now*. */
     inbound?: { rotatedAt?: string; onmint: () => void; isWorking: boolean };
-    onstart?: () => void;
   }
 
   const {
@@ -72,7 +71,6 @@
     onremovecondition,
     onaddcondition,
     inbound,
-    onstart,
   }: Props = $props();
 
   const words = { t, has: (code: string) => messages.has(code) };
@@ -327,9 +325,6 @@
       {/if}
     {:else if draft.trigger.kind === 'MANUAL'}
       <Callout>{t('app.flow.manual_hint')}</Callout>
-      {#if onstart && ruleId}
-        <div><Button size="sm" icon="play" onclick={onstart}>{t('app.flow.manual_button')}</Button></div>
-      {/if}
     {:else}
       <Callout>{t('app.flow.jumble_hint')}</Callout>
     {/if}

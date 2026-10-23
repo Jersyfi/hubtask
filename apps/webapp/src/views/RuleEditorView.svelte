@@ -622,6 +622,19 @@
     await attempt(() => runs.trigger(stored.id), t('app.flow.manual_started'));
   }
 
+  /**
+   * Why *Start now* cannot start this rule, or nothing. It is drawn for every saved rule (the runs
+   * page's own start is gone, ux-inventory.md §E9), and the server starts only an enabled rule
+   * somebody starts (UC-AUT-03 check 4): the two refusals it would answer are said here first, as
+   * something the reader can change.
+   */
+  const startRefusal = $derived.by(() => {
+    if (!stored) return undefined;
+    if (stored.trigger.kind !== 'MANUAL') return t('app.flow.start_only_manual', { trigger: t('app.rules.trigger_manual') });
+    if (!stored.enabled) return t('app.flow.start_needs_on');
+    return undefined;
+  });
+
   /** Each kind's sentence from the manifest, and how often this workspace's rules use it (automation.md §1.5). */
   const summaries = $derived((manifest.value?.automation?.action_summaries ?? {}) as Readonly<Record<string, string>>);
   const usage = $derived(usageOf(rules.all));
@@ -765,6 +778,9 @@
           <Button size="sm" tone={stored.enabled ? 'secondary' : 'primary'} isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={toggle} disabledReason={!stored.enabled && isBroken ? t('app.flow.enable_refused_broken') : undefined}>
             {stored.enabled ? t('app.flow.disable') : t('app.flow.enable')}
           </Button>
+          {/if}
+          {#if rulesIncluded}
+          <Button size="sm" tone="secondary" icon="play" isBusy={isWorking} busyLabel={t('app.rules.working')} onclick={start} disabledReason={startRefusal}>{t('app.flow.manual_button')}</Button>
           {/if}
           <Button size="sm" tone="subtle" icon="trash" onclick={() => (isDeleting = true)}>{t('app.flow.delete')}</Button>
         {/if}
@@ -995,7 +1011,6 @@
             onremovecondition={removeCondition}
             onaddcondition={addCondition}
             inbound={stored?.trigger.kind === 'INBOUND_WEBHOOK' ? { rotatedAt: stored.inbound_rotated_at ?? undefined, onmint: mint, isWorking } : undefined}
-            onstart={stored?.trigger.kind === 'MANUAL' && rulesIncluded ? start : undefined}
           />
         {:else if tab === 'probe' && resting}
           <p class="quiet panel">{t('app.plan.runs_body')}</p>
