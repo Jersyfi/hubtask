@@ -270,12 +270,17 @@ var promptFields = map[string]map[string]bool{
 	// it decides - the name, `run_as`, the throttle, what a failure does - and what it could not
 	// draft, which is told rather than applied (`toldKeys`). What each part may hold is `ruleFrom`'s.
 	draftRulePrompt: {"scope": true, "trigger": true, "conditions": true, "actions": true, notDraftedKey: true},
+	// An answer to a question: the text, the entries it rests on and the filter it implies, each
+	// narrowed to what the material showed (`answerFrom`). All three are told: nothing applies an
+	// answer.
+	answerPrompt: {answerKey: true, sourcesKey: true, filterKey: true},
 }
 
 // toldKeys are the answer keys a prompt keeps to show the person and never hands an applier: what a
 // rule draft could not draft is for the person reading it, and no use case declares it.
 var toldKeys = map[string]map[string]bool{
 	draftRulePrompt: {notDraftedKey: true},
+	answerPrompt:    {answerKey: true, sourcesKey: true, filterKey: true},
 }
 
 // ToldKeys is that map, for the gate that holds every kept key to an acceptance that applies it or
@@ -312,6 +317,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
 	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
 	draftRulePrompt:        {domain.TargetAccount: domain.KindRule},
+	answerPrompt:           {domain.TargetAccount: domain.KindAnswer},
 }
 
 // PromptTargets is the map above, for the gate that reads it beside the registry.
@@ -445,6 +451,7 @@ var defaultPrompts = map[domain.Kind]string{
 	domain.KindDecomposition: "decompose",
 	domain.KindTemplate:      templatePrompt,
 	domain.KindRule:          draftRulePrompt,
+	domain.KindAnswer:        answerPrompt,
 }
 
 // Execute asks, and records what came back.
@@ -569,7 +576,7 @@ func (h Produce) ask(
 			if err != nil {
 				return err
 			}
-			if question.Words != "" {
+			if question.Words != "" && (!answeredFromMaterial(promptID) || strings.TrimSpace(read.Content) != "") {
 				phrase, held := heldWords[promptID]
 				if !held {
 					return shared.ErrInternal.WithDetail("suggestions.held_words_unknown").
@@ -612,6 +619,8 @@ func (h Produce) ask(
 		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, material.Shape, targetID)
 	case domain.KindRule:
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
+	case domain.KindAnswer:
+		payload, dropped, ok = answerFrom(answer.Text, material.Answer)
 	default:
 		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
 		payload = onlyAsked(payload, request.Fields)
@@ -721,7 +730,13 @@ type Request struct {
 var heldWords = map[string]string{
 	templatePrompt:  "What the template should be for, in the person's words:",
 	draftRulePrompt: "What the rule should do, in the person's words:",
+	answerPrompt:    "The person's question:",
 }
+
+// answeredFromMaterial reports whether a prompt asked with words still needs material of the
+// workspace: a question is answered from the entries it finds, and its words alone are nothing to
+// answer from - where a template's or a rule's description is the whole of what it is made from.
+func answeredFromMaterial(promptID string) bool { return promptID == answerPrompt }
 
 // The two ordinary reads that answer where the person who asked lives.
 //
@@ -856,7 +871,7 @@ func payloadFrom(
 // material and is therefore data like the rest of it, which is what keeps `Prompt.Ask`'s two roles
 // meaning what they say.
 func (h Produce) today(actor appshared.ActorContext, promptID string) string {
-	if !promptFields[promptID][dueKey] {
+	if !promptFields[promptID][dueKey] && promptID != answerPrompt {
 		return ""
 	}
 	// `LoadLocation("")` answers UTC without complaining, so an empty zone is spelled rather than

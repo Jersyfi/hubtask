@@ -1135,6 +1135,7 @@
   "suggestions.choices_unknown": "That question asks a model to choose from a set this installation cannot read, so no suggestion was made.",
   "suggestions.nothing_to_apply": "This suggestion is something to read rather than something to apply. Dismiss it when you are done with it.",
   "suggestions.description_invalid": "Say what the template should be for, in up to 2000 characters.",
+  "suggestions.question_invalid": "Ask your question in up to 2000 characters.",
   "suggestions.request_not_found": "The words this question was asked with are no longer held.",
   "suggestions.requests_not_wired": "This build cannot hold the words a question is asked with.",
   "suggestions.arrivals_not_wired": "This build cannot prepare proposals for new jumble entries.",

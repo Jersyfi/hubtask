@@ -119,6 +119,7 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 	// entry the caller cannot read answers not-found exactly as reading it does, with the refusal
 	// that read records - so nothing is learned from asking first.
 	read := false
+	own := false
 	if q.TargetType == domain.TargetAccount {
 		// About the asker: only for themselves, under the token scope its kind is answered under.
 		if err := ownDraft(actor, q.TargetID, q.Kind); err != nil {
@@ -128,6 +129,13 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 	switch {
 	case q.Access != nil:
 		permission = *q.Access
+	case q.TargetType == domain.TargetAccount:
+		// A question about the workspace with nothing else to ask: the scope above is the whole
+		// question, because a person with a role on one hub may ask, and what they may read is
+		// decided entry by entry by the reads the material is made from (UC-AI-08 check 3). A
+		// workspace-scope question here would refuse them an answer about what they may read.
+		own = true
+		permission.TargetType = accountTarget
 	case q.TargetType == domain.TargetWorkItem:
 		var subject Subject
 		if err := c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -157,8 +165,10 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 		permission.Path = collectionPath(q.TargetID)
 	}
 	permission.Action = q.Action
-	if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
-		return shared.ID(""), err
+	if !own {
+		if err := c.Authorizer.Authorize(ctx, actor, permission); err != nil {
+			return shared.ID(""), err
+		}
 	}
 
 	// After the permission check, so that it cannot become a way to learn what an installation has
@@ -375,7 +385,7 @@ func (c Cases) workable(
 	if refused := material.Kept.Refusal(actor.AccountID); refused != nil {
 		return refused
 	}
-	if text == "" && strings.TrimSpace(material.Content) == "" {
+	if (text == "" || answeredFromMaterial(promptID)) && strings.TrimSpace(material.Content) == "" {
 		return integration.NothingToWorkWith()
 	}
 	if len(choiceSets[promptID]) > 0 && len(material.Choices) == 0 && len(material.Declared) == 0 {
