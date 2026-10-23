@@ -183,6 +183,84 @@ for (const width of [375, 1280]) {
   });
 }
 
+// A picture of one's own (#1732, ux-inventory.md §E7): uploaded on *You* through the three media
+// steps as usage AVATAR and set on `me`, drawn from the download URL the server answers - in place
+// of the initials, beside the name and in the bar - and removed again, leaving the initials.
+test('chromium: 1280 px — You: a picture of one’s own is uploaded, shown and removed', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const PICTURE = '01a0e2e0-0000-7000-8000-0000000017c1';
+  // One transparent pixel: what the content route hands out once the object is READY.
+  const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', 'base64');
+  const content = `${served.origin}/api/v1/media/${PICTURE}:content`;
+  const record = { id: PICTURE, usage: 'AVATAR', content_type: 'image/png', size: PIXEL.length, ref_count: 0, created_by: ACCOUNT.id, created_at: '2026-10-23T10:00:00Z' };
+  const later = new Date(Date.now() + 5 * 60_000).toISOString();
+  let held = ACCOUNT;
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const method = request.method();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/media' && method === 'POST') {
+      sent.push(['POST /media', request.postDataJSON().usage]);
+      return route.fulfill({ status: 201, json: { ...record, status: 'PENDING', upload: { url: `${content}?t=up`, method: 'PUT', expires_at: later } } });
+    }
+    if (path === `/media/${PICTURE}:content` && method === 'PUT') {
+      sent.push(['PUT bytes']);
+      return route.fulfill({ status: 204 });
+    }
+    if (path === `/media/${PICTURE}:content`) return route.fulfill({ status: 200, contentType: 'image/png', body: PIXEL });
+    if (path === `/media/${PICTURE}:confirm`) {
+      sent.push(['confirm']);
+      return route.fulfill({ json: { ...record, status: 'READY' } });
+    }
+    if (path === `/media/${PICTURE}`) {
+      return route.fulfill({ json: { ...record, status: 'READY', download: { url: `${content}?t=down`, method: 'GET', expires_at: later } } });
+    }
+    if (path === '/accounts/me/avatar') {
+      sent.push([`${method} /accounts/me/avatar`, method === 'PUT' ? request.postDataJSON() : undefined]);
+      held = method === 'PUT' ? { ...held, avatar_media_id: request.postDataJSON().media_id } : { ...held, avatar_media_id: null };
+      return route.fulfill({ json: held });
+    }
+    if (path === '/accounts/me') return route.fulfill({ json: held });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+  await page.goto(`${served.origin}/profile`);
+
+  const beside = page.locator('main').getByRole('img', { name: ACCOUNT.display_name });
+  await beside.waitFor({ timeout: 15_000 });
+  assert.equal(await beside.locator('img').count(), 0, 'a picture is drawn before there is one');
+  assert.equal(await page.getByRole('button', { name: 'Remove the picture' }).count(), 0, 'Remove is offered without a picture');
+
+  await page.locator('input[type="file"]').setInputFiles({ name: 'me.png', mimeType: 'image/png', buffer: PIXEL });
+  await page.getByText('Your picture is shown.').first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent, [
+    ['POST /media', 'AVATAR'],
+    ['PUT bytes'],
+    ['confirm'],
+    ['PUT /accounts/me/avatar', { media_id: PICTURE }],
+  ], 'the picture took another way');
+
+  // Drawn from the download URL the server answered, beside the name and in the bar's account button.
+  await beside.locator(`img[src="${content}?t=down"]`).waitFor({ timeout: 10_000 });
+  await page.getByRole('banner').locator(`img[src="${content}?t=down"]`).first().waitFor({ timeout: 10_000 });
+
+  await page.getByRole('button', { name: 'Remove the picture' }).click();
+  await page.getByText('Your initials are shown again.').first().waitFor({ timeout: 10_000 });
+  assert.deepEqual(sent.at(-1), ['DELETE /accounts/me/avatar', undefined]);
+  await beside.locator('img').waitFor({ state: 'detached', timeout: 10_000 });
+  assert.deepEqual(failures, []);
+});
+
 // "Mark the moments" is the account's (ADR-0043), so it moved from *On this device* to *You*
 // (ux-inventory.md §E7): the device screen keeps the theme and motion alone, and the switch on
 // *You* writes the account's preference.
