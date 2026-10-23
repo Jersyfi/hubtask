@@ -590,7 +590,10 @@
     -webkit-line-clamp: 2;
     line-clamp: 2;
     overflow: hidden;
-    overflow-wrap: anywhere;
+    /* Between words, and inside one only when it alone is wider than the row: "anywhere" broke a
+       short name mid-word as soon as a figure stood beside it. */
+    overflow-wrap: break-word;
+    hyphens: auto;
   }
 
   /* The figure keeps to one line and to its own width, so a long label wraps beside it rather than
@@ -616,8 +619,14 @@
     touch-action: none;
   }
 
+  /* Where a pointer hovers, the grip stands in the gutter before the row, as on a list's rows, so
+     it takes no width from the label: a row with a grip wraps exactly where one without does. */
   @media (hover: hover) {
+    .row:has(.grip) { position: relative; }
+
     .row .grip {
+      position: absolute;
+      inset-inline-start: calc(-1 * var(--sp-150));
       opacity: 0;
       transition: opacity var(--motion-state-duration) var(--motion-state-easing);
     }
