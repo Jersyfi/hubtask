@@ -1060,7 +1060,9 @@ between columns is the card's menu (§11.9).
 ([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
 the open entries under the collection's categories in their order, the entries ticked in the last 24
 hours under the collection's name for done entries (*Done* without one), and the older ones under
-*Recently*, most often completed first and narrowed by what the capture line holds. The capture line
+*Recently*, most often completed first and narrowed by what the capture line holds; while the line
+holds words, *Recently* stands right under it, before the open entries. A line is its box and its
+words, with no twist and no type mark: the list has one level. The capture line
 takes several lines as several entries and reads a leading amount where the collection offers one,
 showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
 the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still
