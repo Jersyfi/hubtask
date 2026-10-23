@@ -110,6 +110,17 @@ test('chromium: the administration opens on an overview of what needs attention,
   assert.ok((await links('requests')).includes('/administration/privacy'));
   assert.ok((await links('health')).includes('/administration/ai'));
 
+  // The links are the product's, not the browser's default blue, which reads as nothing in dark.
+  const colours = await page.locator('[data-testid="admin-overview"] a').evaluateAll((anchors) => {
+    const probe = document.createElement('span');
+    probe.style.color = 'var(--text-brand)';
+    document.body.append(probe);
+    const brand = getComputedStyle(probe).color;
+    probe.remove();
+    return { brand, links: [...new Set(anchors.map((a) => getComputedStyle(a).color))] };
+  });
+  assert.deepEqual(colours.links, [colours.brand]);
+
   // What needs somebody first: the backup opened, so it is the one card that waits below.
   const order = await page.locator('[data-card]').evaluateAll((cards) => cards.map((card) => card.getAttribute('data-card')));
   assert.equal(order.at(-1), 'backup', order.join(' '));

@@ -260,5 +260,7 @@
     gap: var(--sp-100);
   }
 
+  a { color: var(--text-brand); }
+
   .go { justify-self: start; font-size: var(--fs-100); }
 </style>
