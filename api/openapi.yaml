@@ -2939,6 +2939,33 @@ paths:
                 $ref: "#/components/schemas/Account"
         "4XX":
           $ref: "#/components/responses/Problem"
+    patch:
+      tags: [identity]
+      operationId: updateOwnAccount
+      summary: Change what the caller is called
+      description: |
+        The display name a person gives themselves: what the other members of the workspace see
+        beside everything they do, and what the audit trail records next to their actions. Only
+        one's own - there is no account identifier in the path, so there is nothing to authorise
+        beyond being signed in as a person. A service account is named by whoever administers it
+        and is refused here.
+
+        The name is trimmed and must keep at least one character; it is at most 200.
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/OwnAccountUpdate"
+      responses:
+        "200":
+          description: The account
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
 
   /accounts/{accountId}:
     parameters:
@@ -2957,7 +2984,7 @@ paths:
         and not the email, the locale, the time zone or the first day of the week. Those are the
         caller's own business or an administrator's; a name is what a workspace has to show to be
         readable at all. What the other members of a workspace see of a profile is kept minimal -
-        the display name and the avatar - and this is that minimum.
+        the display name, from which a client draws the avatar - and this is that minimum.
 
         Any member of the tenant may make it. There is nothing narrower to authorise against: the
         identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -11154,6 +11181,12 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         display_name: { type: [string, "null"], maxLength: 200 }
+
+    OwnAccountUpdate:
+      type: object
+      description: What a person may change about their own account. A field left out is left as it is.
+      properties:
+        display_name: { type: string, minLength: 1, maxLength: 200 }
 
     AccountPreferences:
       type: object

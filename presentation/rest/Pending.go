@@ -67,6 +67,10 @@ func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, 
 	notAvailable(w, r)
 }
 
+func (pending) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // ListNotificationPreferences and SetNotificationPreference are overridden by RestController, for
 // the reason given at CreateContainer.
 func (pending) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {

@@ -134,6 +134,10 @@ class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
 
+class OwnAccountUpdate(TypedDict, total=False):
+    """What a person may change about their own account. A field left out is left as it is."""
+    display_name: str
+
 class AccountPreferences(TypedDict, total=False):
     """Every field is optional, and an empty string clears the preference rather than setting it"""
     locale: str | None

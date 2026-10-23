@@ -70,7 +70,7 @@ async function open(browser, width = 1280) {
 
 /** The section's screens, and the word each puts at the end of its trail. */
 const SECTION = [
-  ['/profile', 'How the product speaks to you'],
+  ['/profile', 'You'],
   ['/profile/appearance', 'On this device'],
   ['/profile/notifications', 'What you are told about'],
   // Renamed with the sign-in work: the screen holds the password, the recovery codes and
@@ -120,6 +120,93 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
   await section.getByRole('treeitem', { name: 'The workspace', exact: true }).click();
   await page.waitForFunction(() => location.pathname === '/', null, { timeout: 5_000 });
 
+  assert.deepEqual(failures, []);
+});
+
+// *You* (ux-inventory.md §E7): the display name is the person's own, saved under the save bar with
+// the language, and the avatar the frame draws follows it. An emptied name is said at the field and
+// sent nowhere; a changed one is the one write `PATCH /accounts/me`, and the preferences are left.
+for (const width of [375, 1280]) {
+  test(`chromium: ${width} px — You: the name is changed under the save bar and the avatar follows`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    t.after(() => context.close());
+    let held = ACCOUNT;
+    const sent = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me' && request.method() === 'PATCH') {
+        sent.push(['PATCH /accounts/me', request.postDataJSON()]);
+        held = { ...held, ...request.postDataJSON() };
+        return route.fulfill({ json: held });
+      }
+      if (path.endsWith('/preferences')) sent.push([`${request.method()} ${path}`]);
+      if (path === '/accounts/me') return route.fulfill({ json: held });
+      return answer(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+    await page.goto(`${served.origin}/profile`);
+
+    const name = page.getByRole('textbox', { name: /^Your name/ });
+    await name.waitFor({ timeout: 15_000 });
+    assert.equal(await name.inputValue(), ACCOUNT.display_name);
+    assert.equal(await page.locator('main').getByRole('img', { name: ACCOUNT.display_name }).count(), 1, 'no avatar beside the name');
+
+    await name.fill('   ');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Your name cannot be empty').waitFor({ timeout: 5_000 });
+    assert.deepEqual(sent, [], 'an empty name was sent');
+
+    await name.fill('Ada Lovelace');
+    // The avatar is made from the name as it is typed: what the others will see.
+    await page.locator('main').getByRole('img', { name: 'Ada Lovelace' }).waitFor({ timeout: 5_000 });
+    await page.getByText('1 change').first().waitFor({ timeout: 5_000 });
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Saved.').first().waitFor({ timeout: 5_000 });
+
+    assert.deepEqual(sent, [['PATCH /accounts/me', { display_name: 'Ada Lovelace' }]], 'the save sent more or less than the name');
+    // The frame re-read the account: the bar's account button names the person as they now are
+    // (from medium up; a phone reaches the account through the bottom bar's *You*).
+    if (width >= 1280) {
+      await page.getByRole('banner').getByRole('button', { name: 'Ada Lovelace' }).waitFor({ timeout: 5_000 });
+    }
+    assert.equal(await page.getByRole('img', { name: ACCOUNT.display_name }).count(), 0, 'the old name is still drawn');
+    assert.deepEqual(failures, []);
+  });
+}
+
+// "Mark the moments" is the account's (ADR-0043), so it moved from *On this device* to *You*
+// (ux-inventory.md §E7): the device screen keeps the theme and motion alone, and the switch on
+// *You* writes the account's preference.
+test('chromium: 1280 px — the moments are switched on You, and On this device keeps the device', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  const written = [];
+  await page.route(`**/api/v1/accounts/${ACCOUNT.id}/preferences`, (route) => {
+    written.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
+  });
+
+  await page.goto(`${served.origin}/profile/appearance`);
+  await page.getByText('Light or dark').first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByLabel('Mark the moments').count(), 0, 'the moments are still on the device screen');
+
+  await page.goto(`${served.origin}/profile`);
+  const moments = page.getByLabel('Mark the moments');
+  await moments.waitFor({ timeout: 15_000 });
+  await moments.click();
+  await page.getByText('Moments are not marked any more.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(written, [{ celebrations: false }]);
   assert.deepEqual(failures, []);
 });
 
@@ -610,7 +697,15 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   await page.getByText('Safari on iPhone').waitFor();
 
   assert.match(await page.getByText(/You stay signed in here/).textContent() ?? '', /every other session/);
+  // A final act asks first (ux-inventory.md §E0); *Cancel* sends nothing.
   await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  const asked = page.getByRole('dialog', { name: 'Sign out everywhere else?' });
+  await asked.waitFor({ timeout: 5_000 });
+  await asked.getByRole('button', { name: 'Cancel' }).last().click();
+  await asked.waitFor({ state: 'detached' });
+  assert.deepEqual(sent, [], 'cancelling ended something');
+  await page.getByRole('button', { name: 'Sign out everywhere else' }).click();
+  await asked.getByRole('button', { name: 'Sign out everywhere else' }).click();
   await page.getByText('Safari on iPhone').waitFor({ state: 'detached' });
 
   assert.deepEqual(sent, ['/auth/sessions:revoke-others'], 'the screen ended this session too');
@@ -619,6 +714,67 @@ test('chromium: signing out everywhere else keeps this session and shows it alon
   assert.equal(new URL(page.url()).pathname, '/profile/sessions', 'the reader was signed out');
   // Nothing else to end: the control is gone with the sessions it ended.
   assert.equal(await page.getByRole('button', { name: 'Sign out everywhere else' }).count(), 0);
+});
+
+// Ending one session, withdrawing an app and withdrawing a token take access away for good - nothing
+// on the server brings them back - so each is a final act that asks in a dialog first
+// (ux-inventory.md §E0, §E7). The dialog names what ends; *Cancel* sends nothing.
+test('chromium: 1280 px — ending a session, an app and a token each asks first', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const GRANT = { id: '01a0e2e0-0000-7000-8000-00000000f701', client_id: 'c-1', client_name: 'Calendar bridge', scopes: ['items:read'], granted_at: '2026-09-01T08:00:00Z' };
+  const TOKEN = { id: '01a0e2e0-0000-7000-8000-00000000f702', name: 'Nightly script', scopes: ['items:read'], created_at: '2026-09-01T08:00:00Z', expires_at: '2027-09-01T08:00:00Z', revoked_at: null };
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (request.method() === 'DELETE' || (request.method() === 'POST' && /revoke|withdraw/.test(path))) {
+      sent.push(`${request.method()} ${path}`);
+      return route.fulfill({ status: 204 });
+    }
+    if (path === '/oauth/grants') return route.fulfill({ json: [GRANT] });
+    if (path === '/auth/tokens') return route.fulfill({ json: [TOKEN] });
+    return answer(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  const ask = async (opener, title, confirm) => {
+    await opener.click();
+    const dialog = page.getByRole('dialog', { name: title });
+    await dialog.waitFor({ timeout: 5_000 });
+    await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+    await dialog.waitFor({ state: 'detached' });
+    assert.deepEqual(sent, [], `cancelling "${title}" sent ${sent.join(', ')}`);
+    await opener.click();
+    await dialog.getByRole('button', { name: confirm, exact: true }).click();
+    await dialog.waitFor({ state: 'detached' });
+  };
+
+  await page.goto(`${served.origin}/profile/sessions`);
+  await page.getByText('Safari on iPhone').waitFor({ timeout: 15_000 });
+  const row = page.getByRole('row', { name: /Safari on iPhone/ });
+  await ask(row.getByRole('button', { name: 'End', exact: true }), 'End this session?', 'End');
+  assert.equal(sent.length, 1, `ending one session sent ${sent.join(', ')}`);
+
+  sent.length = 0;
+  await page.goto(`${served.origin}/profile/apps`);
+  const app = page.getByRole('row', { name: /Calendar bridge/ });
+  await app.waitFor({ timeout: 15_000 });
+  await ask(app.getByRole('button', { name: 'Withdraw' }), 'Withdraw what Calendar bridge may do?', 'Withdraw');
+  assert.equal(sent.length, 1, `withdrawing the app sent ${sent.join(', ')}`);
+
+  sent.length = 0;
+  await page.goto(`${served.origin}/profile/tokens`);
+  const token = page.getByRole('row', { name: /Nightly script/ });
+  await token.waitFor({ timeout: 15_000 });
+  await ask(token.getByRole('button', { name: 'Withdraw' }), 'Withdraw Nightly script?', 'Withdraw');
+  assert.equal(sent.length, 1, `withdrawing the token sent ${sent.join(', ')}`);
 });
 
 // UC-INS-09 checks 4 and 5: the workspace screen says the installation's language and zone beside
@@ -695,8 +851,8 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
   const back = page.getByRole('treeitem', { name: 'Der Arbeitsbereich', exact: true });
   await back.waitFor({ timeout: 15_000 });
   const rows = (await page.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  for (const english of ['The workspace', 'Language and clock', 'Notifications', 'Signed in', 'Devices']) {
+  for (const english of ['The workspace', 'Name and language', 'Notifications', 'Signed in', 'Devices']) {
     assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
   }
-  assert.ok(rows.includes('Sprache und Uhr'), rows.join(', '));
+  assert.ok(rows.includes('Name und Sprache'), rows.join(', '));
 });
