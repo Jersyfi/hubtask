@@ -31,7 +31,7 @@ injected ([arc42.md](./arc42.md) §8.13).
 ## 2. Definition of Ready (the story may be implemented)
 
 1. The bounded context and aggregate are named.
-2. The task's `**Use cases:**` line names the use cases ([`docs/usecases/`](../usecases/README.md)) and the checks the work makes true; its operations are named from [domain-model.md](./domain-model.md) §5.
+2. The task's `**Use cases:**` line — for a concept built whole, its pull request's *Use cases* section — names the use cases ([`docs/usecases/`](../usecases/README.md)) and the checks the work makes true; its operations are named from [domain-model.md](./domain-model.md) §5.
 3. API impact settled (operations, fields, error codes); a breaking change needs an ADR.
 4. Domain events named, with their compatibility.
 5. Permissions: which role at which scope may do this.
@@ -122,8 +122,9 @@ An `api/openapi.yaml` change regenerates `packages/api-client` and keeps the web
 pull request ([ADR-0035](../adr/ADR-0035-one-product-version.md)); a core task adds no screens.
 
 ### 3.16 Use cases met
-Every check in the task's `**Use cases:**` line holds with a test or walk as evidence, recorded in the
-use case's `state:`, `checked_by:` and *Today* and reported in the pull request; the checklist in
+Every check the work carries holds, proven by a test that asserts it — unit, integration or an
+engine walk — recorded in the use case's `state:`, `checked_by:` and *Today* and reported in the
+pull request; the checklist in
 [`docs/usecases/README.md`](../usecases/README.md#checking-work-against-its-use-cases) finds nothing
 open.
 
@@ -138,7 +139,8 @@ No colour, spacing, radius or duration value outside
 
 ### 3.19 Reviewed against what no gate checks
 The author reviews against every [AGENTS.md](../../AGENTS.md) rule marked `[partial]`, `[unchecked]`
-or `[owner]` and names the findings here: fixed in a commit, or a `finding` issue.
+or `[owner]` and names the findings here: fixed in a commit of the same pull request, or a `finding`
+issue when the fix is clearly bigger than a step ([AGENTS.md](../../AGENTS.md), "Working rules").
 
 ---
 
