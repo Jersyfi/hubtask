@@ -183,7 +183,7 @@
   });
   const isCaptureOffered = $derived(session.isSignedIn && mayCaptureHere());
 
-  /** Where the reader stands, for the capture field's own collection. */
+  /** Where the reader stands: the capture field's own collection, and what the palette offers for it. */
   const captureHere = $derived({
     collection: route.name === 'collection' ? route.params.id : undefined,
     item: route.name === 'item' ? route.params.id : undefined,
@@ -431,7 +431,7 @@
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
            the reader reaches search through the bottom bar instead. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <Palette host="bar" onnavigate={go} onaccount={accountVerb} />
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
       {/if}
     {/snippet}
     {#snippet menu()}
@@ -594,7 +594,7 @@
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
-    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
+    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
   {#if isCaptureOffered && capture.isOpen}

@@ -33,7 +33,12 @@ export type Target =
   | { readonly kind: 'route'; readonly path: string }
   | { readonly kind: 'account'; readonly action: 'help' | 'sign-out' }
   | { readonly kind: 'search'; readonly line: string }
-  | { readonly kind: 'open'; readonly containerId: string; readonly layout?: string; readonly add?: boolean };
+  | { readonly kind: 'open'; readonly containerId: string; readonly layout?: string; readonly add?: boolean }
+  /** The one create dialog, for a hub or for a collection in `parentId`. */
+  | { readonly kind: 'create'; readonly type: 'HUB' | 'COLLECTION'; readonly parentId?: string; readonly isPrivateOnly?: boolean }
+  | { readonly kind: 'capture' }
+  /** A settings screen, opened at one of its rows: the element marked `data-setting` with `row`. */
+  | { readonly kind: 'setting'; readonly path: string; readonly row: string };
 
 /** A candidate row with what it leads to. */
 export interface Offer extends Candidate {
