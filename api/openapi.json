@@ -8718,6 +8718,49 @@
         }
       }
     },
+    "/ask": {
+      "post": {
+        "tags": [
+          "suggestions"
+        ],
+        "operationId": "askWorkspace",
+        "summary": "Ask the workspace a question",
+        "description": "Asks the workspace's AI provider one question in the caller's own words — \"what is open for Müller GmbH this week?\". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.\nEach question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WorkspaceQuestion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "The provider will be asked by the job named here; the answer appears under /suggestions, and a refusal the job meets is its error_code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRef"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "503": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/suggestions": {
       "get": {
         "tags": [
@@ -15120,7 +15163,7 @@
           "payload": {
             "type": "object",
             "additionalProperties": true,
-            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
+            "description": "What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. It is data, never an instruction, and nothing acts on it until somebody accepts.\n"
           },
           "source": {
             "type": "string",
@@ -15404,6 +15447,21 @@
           }
         }
       },
+      "WorkspaceQuestion": {
+        "type": "object",
+        "description": "One question to the workspace.",
+        "required": [
+          "question"
+        ],
+        "properties": {
+          "question": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000,
+            "description": "The question, in the caller's own words. It travels to the provider as content, never as instruction.\n"
+          }
+        }
+      },
       "SuggestionPage": {
         "type": "object",
         "required": [
@@ -15436,7 +15494,7 @@
           "CONTAINER",
           "ACCOUNT"
         ],
-        "description": "What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule: only that account lists, accepts or dismisses it.\n"
+        "description": "What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.\n"
       },
       "SuggestionKind": {
         "type": "string",
@@ -15445,9 +15503,10 @@
           "DECOMPOSITION",
           "DUPLICATES",
           "TEMPLATE",
-          "RULE"
+          "RULE",
+          "ANSWER"
         ],
-        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.\n`RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.\n`DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
+        "description": "What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.\n`TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.\n`RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.\n`ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.\n`DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.\n"
       },
       "SuggestionStatus": {
         "type": "string",
