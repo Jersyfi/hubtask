@@ -256,7 +256,7 @@
 
   const writer: Writer = {
     createItem: (body, key) => items.create(body, key),
-    submitJumble: (subject, key) => jumble.capture(subject, '', key),
+    submitJumble: (subject, body, key) => jumble.capture(subject, body, key),
   };
 
   const keysFor = (sent: string, count: number): readonly string[] => {
@@ -291,13 +291,17 @@
     isBusy = true;
     try {
       if (target.kind === 'jumble') {
-        // The jumble decides nothing (UC-JUM-01): the line without its `#` and `@`.
-        const subject = readLine(text, context, targets, NOTHING).title;
-        if (subject === '') {
+        // The jumble decides nothing (UC-JUM-01): the first line without its `#` and `@` is the
+        // subject, and the lines after it the longer text, kept as typed (check 6). This field is
+        // the app's one way into the jumble, so it carries what the jumble's own form carried.
+        const [first = '', ...after] = text.split(/\r?\n/u);
+        const subject = readLine(first, context, targets, NOTHING).title;
+        const body = after.join('\n').trim() === '' ? '' : after.join('\n');
+        if (subject === '' && body === '') {
           error = t('jumble.entry_empty');
           return;
         }
-        const entry = await writer.submitJumble(subject, keysFor(text, 1)[0]!);
+        const entry = await writer.submitJumble(subject, body, keysFor(text, 1)[0]!);
         finish('');
         offerUndo({ kind: 'jumbled', entryId: entry.id }, undefined, { label: t('app.capture.open'), href: '/jumble' });
         return;

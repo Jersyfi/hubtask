@@ -24,7 +24,7 @@ import { dueOf, type Reading } from './parse.ts';
 /** The stores, as far as a capture writes to them. */
 export interface Writer {
   createItem(body: CreateBody, idempotencyKey: string): Promise<WorkItem>;
-  submitJumble(subject: string, idempotencyKey: string): Promise<JumbleEntry>;
+  submitJumble(subject: string, body: string, idempotencyKey: string): Promise<JumbleEntry>;
 }
 
 export interface CreateBody {
