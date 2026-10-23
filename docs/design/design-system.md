@@ -756,7 +756,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
-under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
+under *Edit…* in its menu, beside its name and description: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
 in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
@@ -986,9 +986,12 @@ archived container leaves the tree.
 * **On a collection**: *Add entry*, with a submenu for creating from a template, and the filter as
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
-**The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — structure, views; and trash, last and alone. An
-item unusable now stays with its reason. The people are the head's faces for everybody.
+**The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
+(name, description, colour and symbol, and a hub's default preset), move to another hub (a
+collection; a hub sits in nothing), archive, rank up, rank down; set it up — structure; and trash,
+last and alone. An item unusable now stays with its reason. The people are the head's faces for
+everybody. **A hub's collections are cards** in a grid, each with its mark, description and the
+figure its own head shows (UC-WRK-29); one column on `compact`.
 
 **The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
 in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set

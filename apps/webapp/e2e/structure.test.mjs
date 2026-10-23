@@ -193,6 +193,46 @@ test('chromium: the owner - creating a collection offers the presets, and the on
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the owner - the hub\'s Edit changes its name, description and look, and its default preset (check 1)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures, written } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+  const renamed = [];
+  page.on('request', (request) => {
+    if (request.method() === 'PATCH' && request.url().endsWith(`/api/v1/containers/${SHAPE_HUB.id}`)) renamed.push(request.postDataJSON());
+  });
+  await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
+  await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(600);
+  // One *Edit* instead of a rename and a separate look; a hub has nowhere to move to (§E9).
+  const rows = await menuRows(page, SHAPE_HUB.name);
+  assert.ok(rows.includes('Edit…'), rows.join());
+  for (const gone of ['Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
+  await page.getByRole('menuitem', { name: 'Edit…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit hub' });
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.equal(await dialog.getByRole('textbox', { name: 'Hub name' }).inputValue(), SHAPE_HUB.name);
+  // The hub has no preset of its own yet: it starts from the workspace's, and may choose one.
+  await dialog.getByRole('radio', { name: 'List' }).waitFor({ timeout: 5_000 });
+  assert.ok(await dialog.getByRole('radio', { name: "The workspace's default" }).isChecked());
+  await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Chores');
+  await dialog.getByRole('textbox', { name: 'Description' }).fill('What the week asks for.');
+  await dialog.getByRole('radio', { name: 'List' }).check();
+  await dialog.getByRole('button', { name: 'Save' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.equal(renamed.length, 1);
+  assert.equal(renamed[0].name, 'Chores');
+  assert.equal(renamed[0].description, 'What the week asks for.');
+  assert.deepEqual(written, [{ preset: 'LIST' }], 'the preset is its own write, sent as itself');
+  // The hub's collections as cards, each a way in.
+  const cards = page.getByRole('list', { name: 'Collections' });
+  for (const collection of Object.values(SHAPES)) {
+    assert.equal(await cards.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);
+  }
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: an administrator - a lock shows its value and who set it, and cannot be changed (check 7)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

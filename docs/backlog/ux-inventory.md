@@ -150,8 +150,8 @@ Administration and installation, found by UX-05's sweep:
 
 ## E4 — Hub and collection
 
-- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
-- [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
+- [x] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure — the hub's head and its menu's *Edit…*, which took *Rename* and *Colour and symbol…* (a collection's too, without the preset, which is its *Structure*); the collections as cards with their figure (UX-17)
+- [x] Hub menu "Move to another hub…" (always unavailable) → removed (§E9) — the hub's menu has none; a collection's keeps it (UX-17)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17 — *From a template…* and *Several lines…* (where the line splits them) in the add split (UX-17); import into a collection needs the import to land in one, finding #1730
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
 - [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's
