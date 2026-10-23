@@ -606,16 +606,20 @@ func (q *Queries) OpenTenantPassword(ctx context.Context, arg OpenTenantPassword
 const pageInstanceJournal = `-- name: PageInstanceJournal :many
 SELECT id, occurred_at, action, tenant_id, tenant_slug, actor_label, details
 FROM instance_event
-WHERE $1::timestamptz IS NULL
-   OR (occurred_at, id) < ($1::timestamptz, $2::uuid)
+WHERE ($1::timestamptz IS NULL
+       OR (occurred_at, id) < ($1::timestamptz, $2::uuid))
+  AND ($3::text IS NULL OR starts_with(action, $3::text))
+  AND ($4::text IS NULL OR tenant_slug = $4::text)
 ORDER BY occurred_at DESC, id DESC
-LIMIT $3
+LIMIT $5
 `
 
 type PageInstanceJournalParams struct {
-	BeforeAt pgtype.Timestamptz
-	BeforeID pgtype.UUID
-	Limit    int32
+	BeforeAt     pgtype.Timestamptz
+	BeforeID     pgtype.UUID
+	ActionPrefix *string
+	TenantSlug   *string
+	Limit        int32
 }
 
 // The journal as the dashboard reads it: newest first, one page at a time, keyed on the
@@ -623,9 +627,16 @@ type PageInstanceJournalParams struct {
 // entries can share a moment and an offset would then skip or repeat one.
 //
 // One row more than asked for, so the caller knows whether there is another page without counting
-// the table.
+// the table. Narrowed by an action prefix - `starts_with`, not `LIKE`, so a `%` or `_` in it is a
+// character rather than a pattern - and by the workspace's slug as the journal kept it.
 func (q *Queries) PageInstanceJournal(ctx context.Context, arg PageInstanceJournalParams) ([]InstanceEvent, error) {
-	rows, err := q.db.Query(ctx, pageInstanceJournal, arg.BeforeAt, arg.BeforeID, arg.Limit)
+	rows, err := q.db.Query(ctx, pageInstanceJournal,
+		arg.BeforeAt,
+		arg.BeforeID,
+		arg.ActionPrefix,
+		arg.TenantSlug,
+		arg.Limit,
+	)
 	if err != nil {
 		return nil, err
 	}

@@ -73,7 +73,7 @@ func TestTheOverviewAndTheJournalDemandTheRegisterAsWellAsTheScope(t *testing.T)
 		t.Error("a refused caller reached the census")
 	}
 	if _, err := (ListInstanceJournal{Writer: writer}).
-		Execute(t.Context(), operator(), "", 0); !errors.Is(err, shared.ErrForbidden) {
+		Execute(t.Context(), operator(), adminrepo.JournalFilter{}, "", 0); !errors.Is(err, shared.ErrForbidden) {
 		t.Errorf("a journal read outside the register answered %v", err)
 	}
 	if _, err := (ReadInstanceOverview{Writer: writer, Installation: census}).
@@ -97,7 +97,7 @@ func TestTheJournalIsWalkedNewestFirstAndTheSizeIsClamped(t *testing.T) {
 		}
 	}
 
-	page, err := ListInstanceJournal{Writer: writer}.Execute(t.Context(), operator(), "", 2)
+	page, err := ListInstanceJournal{Writer: writer}.Execute(t.Context(), operator(), adminrepo.JournalFilter{}, "", 2)
 	if err != nil {
 		t.Fatalf("reading the journal: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestTheJournalIsWalkedNewestFirstAndTheSizeIsClamped(t *testing.T) {
 	}
 
 	second, err := ListInstanceJournal{Writer: writer}.
-		Execute(t.Context(), operator(), page.Page.NextCursor, 2)
+		Execute(t.Context(), operator(), adminrepo.JournalFilter{}, page.Page.NextCursor, 2)
 	if err != nil {
 		t.Fatalf("reading the second page: %v", err)
 	}
@@ -126,6 +126,48 @@ func TestTheJournalIsWalkedNewestFirstAndTheSizeIsClamped(t *testing.T) {
 	}
 	if got := journalPageSize(0); got != defaultJournalPage {
 		t.Errorf("a request for none answered %d", got)
+	}
+}
+
+// The journal is narrowed by what happened and by the workspace it was about, and the narrowing
+// reaches the store from the input a client sends: `action` as a prefix, `workspace` as an address.
+func TestTheJournalIsNarrowedByActionAndWorkspace(t *testing.T) {
+	writer, _, journal := newInstanceWriter(newRegister(operatorID))
+	at := time.Date(2026, 9, 28, 9, 0, 0, 0, time.UTC)
+	for i, entry := range []struct{ action, slug string }{
+		{"tenant.provisioned", "acme"}, {"tenant.suspended", "acme"},
+		{"tenant.suspended", "globex"}, {"instance.settings_changed", ""},
+	} {
+		if err := journal.Record(t.Context(), adminrepo.InstanceEvent{
+			ID:         shared.ID("01936f2a-7c1e-7000-8000-00000000010" + strconv.Itoa(i)),
+			OccurredAt: at.Add(time.Duration(i) * time.Minute),
+			Action:     entry.action, TenantSlug: entry.slug,
+		}); err != nil {
+			t.Fatalf("recording: %v", err)
+		}
+	}
+
+	for _, tc := range []struct {
+		name string
+		in   usecase.Input
+		want int
+	}{
+		{"nothing narrows", usecase.Input{}, 4},
+		{"a prefix keeps every act it starts", usecase.Input{"action": "tenant."}, 3},
+		{"a whole action keeps that act", usecase.Input{"action": "tenant.suspended"}, 2},
+		{"a workspace keeps what was about it", usecase.Input{"workspace": "acme"}, 2},
+		{"both narrow together", usecase.Input{"action": "tenant.suspended", "workspace": "globex"}, 1},
+		{"a workspace nothing was about keeps nothing", usecase.Input{"workspace": "initech"}, 0},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := ListInstanceJournal{Writer: writer}.invoke(t.Context(), operator(), tc.in)
+			if err != nil {
+				t.Fatalf("reading the journal: %v", err)
+			}
+			if rows, _ := out["data"].([]usecase.Output); len(rows) != tc.want {
+				t.Errorf("%v answered %d entries, want %d", tc.in, len(rows), tc.want)
+			}
+		})
 	}
 }
 

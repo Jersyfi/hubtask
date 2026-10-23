@@ -320,7 +320,7 @@ func (j *journal) Record(_ context.Context, entry adminrepo.InstanceEvent) error
 	return nil
 }
 
-func (j *journal) Page(context.Context, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+func (j *journal) Page(context.Context, adminrepo.JournalFilter, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
 	return nil, adminrepo.PageInfo{}, nil
 }
 
