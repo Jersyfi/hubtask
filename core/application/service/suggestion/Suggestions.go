@@ -567,6 +567,9 @@ var acceptance = map[applierKey]accepted{
 	// the other - and which of those somebody means is theirs to say, through the use case that
 	// owns it.
 	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
+	// An answer to the asker's question performs no action (UC-AI-08 check 5): what it implies -
+	// a filter - is the person's to save as a view, through the use case that owns views.
+	{domain.TargetAccount, domain.KindAnswer}: {Refusal: "suggestions.nothing_to_apply"},
 }
 
 // draftableActions is what a rule drafted from a sentence may do (UC-AUT-10 check 2): entry-level
