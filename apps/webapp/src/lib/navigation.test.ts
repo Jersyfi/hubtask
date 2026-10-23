@@ -77,9 +77,20 @@ test('the bottom bar can draw the primary group and "You"', () => {
   // `BottomBar` takes three to five destinations: the primary group plus the account group's
   // head. Fewer is a switch, more is narrower than a thumb.
   for (const hasJumble of [true, false]) {
-    const count = primary({ hasJumble }).length + 1;
-    assert.ok(count >= 3 && count <= 5, `${count} destinations on a phone`);
+    for (const hasCapture of [true, false]) {
+      const count = primary({ hasJumble, hasCapture }).length + 1;
+      assert.ok(count >= 3 && count <= 5, `${count} destinations on a phone`);
+    }
   }
+});
+
+test('capture is an act in the primary group, drawn only where asked, between Search and the jumble', () => {
+  // The column lists places; the bottom bar draws the ＋ (UC-WRK-26 check 1, ux-inventory.md §E0).
+  assert.deepEqual(primary({ hasJumble: true }).map((destination) => destination.id), ['workspace', 'search', 'jumble']);
+  assert.deepEqual(primary({ hasJumble: true, hasCapture: true }).map((destination) => destination.id), ['workspace', 'search', 'capture', 'jumble']);
+  const capture = DESTINATIONS.find((destination) => destination.id === 'capture');
+  assert.equal(capture?.target.kind, 'capture');
+  assert.deepEqual(capture?.routes, []);
 });
 
 test('the search exists once', () => {

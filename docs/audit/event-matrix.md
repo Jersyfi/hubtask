@@ -9,8 +9,9 @@ from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than 
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
 Every use case is a row, under the action code it records. A use case that
-writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
-same, because a *refused* read is recorded against the action that was refused.
+writes and declares no audit obligation fails the build (gate SG-13), unless the gate names it as
+an exception with its reason (audit.md §7); a read declares one all the same, because a *refused*
+read is recorded against the action that was refused.
 
 The severity is what the entry carries when the use case succeeds. A refusal is recorded by the
 authorisation service against the same action with `outcome=DENIED`, which is what makes the
@@ -359,9 +360,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
-| `kudos.given` | GiveKudos | `item` | INFO | Every time |
+| `kudos.given` | GiveKudos | `item` | INFO | When refused |
 | `kudos.read` | ReadKudos | `item` | INFO | When refused |
-| `kudos.taken_back` | TakeBackKudos | `item` | INFO | Every time |
+| `kudos.taken_back` | TakeBackKudos | `item` | INFO | When refused |
 
 ## Oauth
 

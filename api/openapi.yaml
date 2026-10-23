@@ -15434,7 +15434,13 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"] }
         icon: { type: [string, "null"] }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `containers.color_token_unknown`; a
+            value stored before that check is kept until it is changed. Null or the empty string
+            means no colour.
         private:
           type: boolean
           default: false
@@ -15458,7 +15464,13 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"] }
         icon: { type: [string, "null"] }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `containers.color_token_unknown`; a
+            value stored before that check is kept until it is changed. Null or the empty string
+            clears it.
 
     HubPrivacy:
       type: object
@@ -17820,7 +17832,13 @@ components:
         before_bucket_id: { type: [string, "null"], format: uuid }
         wip_limit: { type: [integer, "null"] }
         is_done_bucket: { type: boolean, default: false }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value
+            stored before that check is kept until it is changed. Null or the empty string means
+            no colour.
 
     BucketUpdate:
       type: object
@@ -17835,7 +17853,13 @@ components:
             is lost by reading it that way, and it saves a client from a second field beside the
             number.
         is_done_bucket: { type: boolean }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value
+            stored before that check is kept until it is changed. Null or the empty string clears
+            it.
 
     BucketDeletion:
       type: object
@@ -17891,7 +17915,13 @@ components:
       required: [name, color_token]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        color_token: { type: string, minLength: 1 }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `labels.color_token_unknown`; a value
+            stored before that check is kept until it is changed.
         description: { type: [string, "null"] }
 
     ItemLabels:
@@ -17942,7 +17972,8 @@ components:
           minLength: 1
           description: >
             Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a
-            client would have to invent one.
+            client would have to invent one. One of the ten label colours, as on creation; any other
+            name is refused with `labels.color_token_unknown`.
         description: { type: [string, "null"] }
 
     Comment:

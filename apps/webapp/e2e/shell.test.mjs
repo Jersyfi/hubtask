@@ -153,6 +153,9 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   assert.equal(await page.locator('.frame[data-density="spacious"]').count(), 1, 'the frame is not spacious below medium');
   const bar = page.getByRole('navigation', { name: 'Sections' });
   for (const name of [...PRIMARY, 'You']) assert.equal(await bar.getByRole('link', { name }).count(), 1, `${name} is not in the bottom bar`);
+  // The ＋ between Search and the jumble is an act, so a button and never a link (UC-WRK-26 check 1).
+  assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
+  assert.equal(await bar.getByRole('link', { name: 'Capture' }).count(), 0, 'capture is drawn as a link');
   assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page');
 
   // ☰ is the tour's target and opens the tree alone: the hub, the trash last, and none of the

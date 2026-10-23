@@ -286,7 +286,8 @@ refuses. It is the account's roles; a token's scopes bound it further.
 | `parentId` | UUIDv7? | `HUB` → `null`; `COLLECTION` → a `HUB` |
 | `name` | string(1..200) | Unique per parent level (case-insensitive, Unicode NFC normalised) |
 | `description` | text? | |
-| `icon`, `color` | string? | |
+| `icon` | string? | A symbol the client offers; stored as given |
+| `colorToken` | string? | One of the ten label tokens (`LabelTokens.go`); another name is refused, a value stored before that check is kept until it is changed |
 | `orderKey` | string | A fractional index within the parent: a hub among the workspace's hubs, a collection among its hub's |
 | `policies` | JSONB | `completionPolicy` and `structure` (the container's own layer of its settings, §2); `autoAssign` is read with it from its own row |
 | `archivedAt`, `deletedAt` | timestamptz? | Lifecycle |
@@ -354,7 +355,7 @@ stateDiagram-v2
 
 | Entity | Key fields | Rules |
 |---|---|---|
-| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it |
+| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it. A colour, where set, is one of the ten label tokens, as a label's |
 | `Label` | `collectionId`, `name`, `colorToken`, `description?` | The colour is required and is one of the ten label tokens (`LabelTokens.go`), never a colour value, so clients theme it ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?` | Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
@@ -370,7 +371,7 @@ stateDiagram-v2
 | `WebhookSubscription` | `tenantId`, `targetUrl`, `eventTypes[]`, `scope` (`TENANT`\|`HUB`\|`COLLECTION` with an id), `filter` (a condition), `secret`, `state`, `failureCount` | HMAC-SHA256 signature, auto-disable after sustained failure; scope and filter narrow it as [automation.md](./automation.md) §3.1 says |
 | `CalendarFeed` | `tenantId`, `accountId` (the owner), `viewId`, `tokenHash`, `revokedAt` | The token is answered once; revocation is a stamp; a deleted view leaves the feed serving nothing. Storage and reading: [security.md](./security.md) T-21 |
 | `ContainerMilestone` | `containerId`, `reachedAt` | The last moment a collection, or every collection of a hub, was left with nothing open (UC-WRK-29 check 4). Recorded by the completion that left nothing open - every entry neither archived nor trashed, at any level, hidden ones included as the roll-up counts them - in its own transaction, under a per-hub lock so that two last completions at once cannot both miss it; the hub's only once its collection is finished, and only when no collection of it that is neither archived nor trashed holds an open entry. A later finish moves it; a reopened entry or a new one leaves it. Names nobody; answered on the container's read (`milestone`), never in a change record, an event or an archive |
-| `Kudos` | `itemId`, `givenBy`, `givenTo`, `givenAt` | One person's acknowledgement of another's completion (UC-WRK-29 checks 5, 6). `givenTo` is whoever completed the entry when it was given; an open entry and one's own completion are refused (`kudos.not_completed` 409, `kudos.own_completion` 422). Every read answers the reader's own side - whether they gave theirs, and only to the person it went to, who gave theirs - and nothing counts kudos per person. No event, history step, change record, archive or export carries one; the audit trail records the act without whom it went to. An erasure of either person removes it |
+| `Kudos` | `itemId`, `givenBy`, `givenTo`, `givenAt` | One person's acknowledgement of another's completion (UC-WRK-29 checks 5, 6). `givenTo` is whoever completed the entry when it was given; an open entry and one's own completion are refused (`kudos.not_completed` 409, `kudos.own_completion` 422). Every read answers the reader's own side - whether they gave theirs, and only to the person it went to, who gave theirs - and nothing counts kudos per person. No event, history step, change record, archive or export carries one; the audit trail records only a refused give or take-back (audit.md §7). An erasure of either person removes it |
 
 **The `ActivityEntry` verbs.** The verb is a message code, rendered under the `activity` namespace
 (`item.completed` stored, `activity.item_completed` rendered — [i18n-l10n.md](./i18n-l10n.md) §1).

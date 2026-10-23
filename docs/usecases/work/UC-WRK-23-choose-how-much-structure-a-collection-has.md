@@ -42,6 +42,6 @@ In `D1` the person creates the collection "Groceries" and picks the preset *List
 
 * Check 1: not met — no preset picker or *Structure* panel in the web app yet, tracked in #1642.
 * Check 3: not met — the panel that shows each setting's source and lock is not built, tracked in #1642.
-* Check 4: not met — the web app offers every field and view whatever the settings say, tracked in #1642 and #1649; entries obey the settings with #1670.
+* Check 4: not met — the web app offers every field and view whatever the settings say (the capture field alone follows `capture`), tracked in #1642 and #1649; entries obey the settings with #1670.
 * Check 7: not met — the lock is written and answered, and no screen shows it yet, tracked in #1642.
 * Check 9: not met — the web app does not draw the collection from its settings yet, tracked in #1642.

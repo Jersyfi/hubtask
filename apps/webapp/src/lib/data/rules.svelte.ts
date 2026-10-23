@@ -87,7 +87,8 @@ export interface InboundToken {
 
 interface RulePage {
   readonly data?: readonly Rule[];
-  readonly next_cursor?: string | null;
+  // The contract puts the next page's cursor under `page` (PageInfo), never beside `data`.
+  readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean };
 }
 
 /** What writing a rule takes. No `enabled`: a rule is created switched off, always. */
@@ -115,7 +116,7 @@ class Rules {
 
   /** Whether `all` is every rule there is - the first page was the last - so a count of it is true. */
   get isComplete(): boolean {
-    return this.#page.status === 'ready' && !this.#page.data.next_cursor;
+    return this.#page.status === 'ready' && !this.#page.data.page?.next_cursor;
   }
 
   /** Starts the listing. **From `untrack`**, for the reason every other store records. */

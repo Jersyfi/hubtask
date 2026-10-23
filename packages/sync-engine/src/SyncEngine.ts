@@ -331,6 +331,8 @@ export class SyncEngine {
   #replica: Replica | undefined;
   #device: DeviceIdentity | undefined;
   #hlc: HybridClock | undefined;
+  /** Ends the stream connection of each running listen loop, so its next turn catches up at once. */
+  readonly #turns = new Set<() => void>();
 
   constructor(options: SyncEngineOptions) {
     this.#transport = options.transport;
@@ -818,6 +820,12 @@ export class SyncEngine {
 
     while (!signal.aborted) {
       let pause: number;
+      // This turn's connection, which `resynchronise` ends early so that the next turn catches up
+      // at once. Made before the catch-up, so that an end asked for during it is not lost.
+      const turn = new AbortController();
+      const follow = () => turn.abort();
+      signal.addEventListener('abort', follow, { once: true });
+      this.#turns.add(follow);
       try {
         if (this.#replica) {
           // On start and on every reconnect: the initial synchronisation where the store holds
@@ -829,13 +837,14 @@ export class SyncEngine {
           // showing from the copy, or could not show at all, is read again.
           await this.push();
           this.#recover();
+          if (turn.signal.aborted) continue;
         }
         const connection = await this.#transport.stream(path, {
           token: this.#token(),
           lastEventId: cursor,
           connectTimeoutMs: options.connectTimeoutMs ?? DEFAULT_CONNECT_TIMEOUT_MS,
           idleTimeoutMs: options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS,
-          signal,
+          signal: turn.signal,
         });
         // The connection was accepted, so whatever went wrong before is over - and without a
         // store this is the first moment the engine knows it, so what failed is read again here.
@@ -865,8 +874,11 @@ export class SyncEngine {
         }
         // The server closed the stream: a deployment, a drain, an idle proxy. Come back when it
         // asked to be come back to.
+        if (turn.signal.aborted) continue;
         pause = suggested ?? RECONNECT_BASE_MS;
       } catch (cause) {
+        // Ended here rather than by the server: not a failure, and nothing to wait for.
+        if (turn.signal.aborted && !signal.aborted) continue;
         const error = cause instanceof TransportError ? cause : new TransportError('offline', { cause });
         if (error.status === 401) {
           // A stream outlives an access token by design - it is open for as long as the tab is.
@@ -899,6 +911,9 @@ export class SyncEngine {
         // An attempt failed and the next one is a wait away: the caller is told, once per change,
         // so that what it draws says what is true rather than what last arrived through it.
         options.onConnection?.(false);
+      } finally {
+        signal.removeEventListener('abort', follow);
+        this.#turns.delete(follow);
       }
 
       if (signal.aborted) return;
@@ -941,11 +956,37 @@ export class SyncEngine {
     const replica = this.#replica;
     if (!replica) return undefined;
     let cursor = (await replica.position())?.cursor;
+    if (cursor !== undefined && Object.values(await replica.resynchronisations()).includes('pending')) {
+      // The delta first: a deletion since the held cursor travels only there, and a snapshot
+      // written over the copy would leave the deleted record standing.
+      await this.#delta(cursor, options);
+      cursor = undefined;
+    }
     if (cursor === undefined) {
       cursor = await this.#initial(options, signal);
       if (cursor === undefined) return undefined;
     }
     return this.#delta(cursor, options);
+  }
+
+  /**
+   * Takes a fresh snapshot over the copy, once per device for each `reason`: the next catch-up
+   * walks the delta from the held cursor and then reads the snapshot whole, and a running listen
+   * loop reconnects to do it now. Offline, the request waits in the store until a catch-up
+   * succeeds. Answers whether this call asked: `false` without a store, and for a reason
+   * already asked under - a snapshot that left the copy as it was is not taken twice.
+   *
+   * The engine does not judge when one is due; the application does, from what it reads in the
+   * copy (offline-sync.md §4.2, a container held without its structure).
+   */
+  async resynchronise(reason: string): Promise<boolean> {
+    const replica = this.#replica;
+    if (!replica) return false;
+    const held = await replica.resynchronisations();
+    if (held[reason] !== undefined) return false;
+    await replica.holdResynchronisations({ ...held, [reason]: 'pending' });
+    for (const end of this.#turns) end();
+    return true;
   }
 
   /**
@@ -978,6 +1019,7 @@ export class SyncEngine {
       for await (const line of lines) {
         if (line.kind === 'cursor') {
           await replica.hold({ ...(await replica.position()), cursor: line.cursor });
+          await this.#resynchronised(replica);
           this.#recover();
           return line.cursor;
         }
@@ -999,8 +1041,16 @@ export class SyncEngine {
       if (!page.has_more) break;
     }
     await replica.hold({ ...(await replica.position()), cursor });
+    await this.#resynchronised(replica);
     this.#recover();
     return cursor;
+  }
+
+  /** Every fresh snapshot asked for is now taken: a copy read whole answers each of them. */
+  async #resynchronised(replica: Replica): Promise<void> {
+    const held = await replica.resynchronisations();
+    if (!Object.values(held).includes('pending')) return;
+    await replica.holdResynchronisations(Object.fromEntries(Object.keys(held).map((reason) => [reason, 'done'])));
   }
 
   /** `:pull` from the cursor until `has_more` is false, applying every page. */

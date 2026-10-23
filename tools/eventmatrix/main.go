@@ -79,7 +79,6 @@ type row struct {
 	target   string
 	severity string
 	required bool
-	readOnly bool
 }
 
 // render produces the whole page.
@@ -94,7 +93,6 @@ func render(descriptors []usecase.Descriptor) string {
 			target:   descriptor.Audit.TargetType,
 			severity: string(descriptor.Audit.Severity),
 			required: descriptor.Audit.Required,
-			readOnly: descriptor.ReadOnly,
 		})
 	}
 	// By area first, so that a reader looking for "what does this system record about deletions"
@@ -131,15 +129,14 @@ func render(descriptors []usecase.Descriptor) string {
 //
 // Two states rather than "yes/no". A writing use case records what it did; a read records only
 // when it is refused, because a trail that grew by being read would bury what it is for
-// (audit.md §4, and `ListAuditEntries` for the reasoning).
+// (audit.md §4, and `ListAuditEntries` for the reasoning). A write gate SG-13 names as an exception
+// is recorded as a read is, only when refused (audit.md §7): the authorisation service writes the
+// refusal of every use case, required or not.
 func recorded(entry row) string {
 	if entry.required {
 		return "Every time"
 	}
-	if entry.readOnly {
-		return "When refused"
-	}
-	return "Optional"
+	return "When refused"
 }
 
 // areaOf groups the actions the way §4's table does: by the first segment of the code, which is
@@ -201,8 +198,9 @@ from [the catalogue](../../core/application/catalogue/Catalogue.go) rather than 
 alongside it, because a matrix written by hand is a matrix that is wrong by the second release.
 
 Every use case is a row, under the action code it records. A use case that
-writes and declares no audit obligation fails the build (gate SG-13); a read declares one all the
-same, because a *refused* read is recorded against the action that was refused.
+writes and declares no audit obligation fails the build (gate SG-13), unless the gate names it as
+an exception with its reason (audit.md §7); a read declares one all the same, because a *refused*
+read is recorded against the action that was refused.
 
 The severity is what the entry carries when the use case succeeds. A refusal is recorded by the
 authorisation service against the same action with ` + "`outcome=DENIED`" + `, which is what makes the

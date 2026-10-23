@@ -17,6 +17,13 @@ export const four: Story = {
     'The primary group of the one navigation list on a phone (ADR-0061): a mark and a word each, `aria-current` on the one the reader is on, a count where something waits. It switches routes, not panels — a `<nav>` of links, not `Tabs`. Three to five and never more: a sixth would be narrower than a thumb. The bar is fixed to the bottom of the viewport, which in the workbench is the pane.',
 };
 
+export const action: Story = {
+  name: 'An act among the places',
+  about:
+    'The ＋ between Search and the jumble opens the capture field (UC-WRK-26): an act, not a place, so it is a button — never `aria-current`, no address behind it — and its mark is filled with the accent so it reads as the one thing the bar does. Five items, the most the bar takes; without the jumble it is the third of four.',
+  args: { mode: 'action' },
+};
+
 export const keyboard: Story = {
   name: 'It gives way to the keyboard',
   about:

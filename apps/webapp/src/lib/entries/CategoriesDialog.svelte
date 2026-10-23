@@ -35,9 +35,16 @@
   const available = $derived(labels.of(collectionId));
   /** The categories, in order: what the collection names now, the labels that still exist. */
   let chosen = $state<string[]>([]);
+  /**
+   * Whether the person has changed the choice. Until then it follows what arrives - the labels
+   * loading, the answer to a write just made, another device's change; from then on it is theirs,
+   * and an arriving structure does not take it back.
+   */
+  let touched = false;
   $effect.pre(() => {
     const named = structure.settings?.fields?.[itemType]?.categories ?? [];
-    chosen = named.filter((id) => labels.of(collectionId).some((label) => label.id === id));
+    const existing = named.filter((id) => labels.of(collectionId).some((label) => label.id === id));
+    if (!touched) chosen = existing;
   });
 
   let newName = $state('');
@@ -45,6 +52,7 @@
   let failure = $state<string | undefined>(undefined);
 
   function toggle(id: string) {
+    touched = true;
     chosen = chosen.includes(id) ? chosen.filter((each) => each !== id) : [...chosen, id];
   }
 
@@ -54,6 +62,7 @@
     if (at < 0 || to < 0 || to >= chosen.length) return;
     const next = [...chosen];
     [next[at], next[to]] = [next[to] as string, next[at] as string];
+    touched = true;
     chosen = next;
   }
 
@@ -67,6 +76,7 @@
         { name, color_token: labelTokens[available.length % labelTokens.length] ?? labelTokens[0] },
         crypto.randomUUID(),
       );
+      touched = true;
       chosen = [...chosen, made.id];
       newName = '';
     } catch (error) {
