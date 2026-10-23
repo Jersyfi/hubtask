@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-12, P-13]
-state: partial
+state: verified
 tasks: [UX-14, UX-12]
-checked_by: [apps/webapp/src/lib/capture/parse.test.ts, apps/webapp/src/lib/capture/target.test.ts, apps/webapp/src/lib/capture/submit.test.ts, apps/webapp/src/lib/shortcuts.test.ts, apps/webapp/e2e/capture.test.mjs, apps/webapp/e2e/engines.test.mjs]
+checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/capture/parse.test.ts, apps/webapp/src/lib/capture/target.test.ts, apps/webapp/src/lib/capture/submit.test.ts, apps/webapp/src/lib/shortcuts.test.ts, apps/webapp/e2e/capture.test.mjs, apps/webapp/e2e/engines.test.mjs]
 ---
 
 # Capture something from anywhere in one step
@@ -33,8 +33,3 @@ On the board of "Client A" the person presses `Q`, types "Call the electrician t
 
 * Capturing from mail or other systems is the jumble's ([UC-JUM-03](../jumble/UC-JUM-03-forward-mail-into-the-jumble.md)); capturing with AI from free text is [UC-AI-09](../suggestion/UC-AI-09-turn-text-into-entries.md).
 * No speech input.
-
-## Today
-
-* Check 2: not met — the amount chip comes with UX-12's follow-up, which wires its line parser into the capture field (#1684). Date, time, person, hub, collection and label chips are met; the priority label (`!`) is read as a label of the target collection, the one a person uses for priority.
-* Check 3: not met — amounts in a list come with UX-12's follow-up. The date half is met, and lines split where the collection has one level in force or its structure recognises `LINES`.

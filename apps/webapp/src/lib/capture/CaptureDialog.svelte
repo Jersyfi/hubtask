@@ -21,7 +21,7 @@
   import { capture } from './capture.svelte.ts';
   import { NOTHING, literalKey, readLine, readTargets, type Chip, type Context, type Named, type Reading } from './parse.ts';
   import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn } from './places.svelte.ts';
-  import { bodyOf, createAll, linesOf, type Writer } from './submit.ts';
+  import { bodyOf, createAll, readLinesOf, type Writer } from './submit.ts';
   import { recognitionOf, resolveTarget, rulesOf, topLevelOf, type Target } from './target.ts';
   import { vocabularyOf } from './words.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -38,6 +38,7 @@
   import { jumble } from '../data/jumble.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { captureRulesOf, unitsOf } from '../entries/capture.ts';
   import { offerUndo } from '../entries/undo.svelte.ts';
   import { formatDue } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -164,6 +165,13 @@
   const settings = $derived(collection?.structure?.settings);
   const rules = $derived(collection ? rulesOf(settings, rootTypes(), offered) : undefined);
   const entryType = $derived(topLevelOf(settings, rootTypes()));
+  /** Lines and amounts, by the rule the list's own capture line reads too (`captureRulesOf`). */
+  const lineRules = $derived(
+    collection && entryType ? captureRulesOf(collection.structure, entryType, unitsOf(t('app.entries.capture_units'))) : undefined,
+  );
+  /** The person took the amount back into the title from its chip, for this text. */
+  let keepsWhole = $state(false);
+  const amountRules = $derived(lineRules ? { ...lineRules, readsAmount: lineRules.readsAmount && !keepsWhole } : undefined);
 
   const peopleThere = $derived.by((): readonly Named[] => {
     if (!collection) return [];
@@ -181,6 +189,17 @@
 
   const recognition = $derived(recognitionOf(target, rules, { people: peopleThere, labels: labelsThere }));
   const reading = $derived<Reading>(readLine(text, context, targets, recognition));
+
+  /** One line as Enter reads it, each with the targets it names itself. */
+  const readOne = (line: string) => readLine(line, context, readTargets(line, context), recognition);
+
+  /** The amount the first line will carry, shown before Enter so that a wrong split can be taken back. */
+  const amount = $derived.by(() => {
+    if (!amountRules?.readsAmount) return undefined;
+    // Where lines are joined, the joined line is the one that is read.
+    const first = amountRules.splitsLines ? (text.split(/\r?\n/u).find((line) => line.trim() !== '') ?? '') : text;
+    return readLinesOf(first, amountRules, readOne).lines[0]?.amount;
+  });
 
   // ------------------------------------------------------------------------------------------
   // What the field says
@@ -221,7 +240,7 @@
 
   // What was recognised, said once typing pauses - never on every keystroke.
   $effect(() => {
-    const list = reading.chips.map((chip) => chipLabel(chip)).join(', ');
+    const list = [...(amount ? [amount] : []), ...reading.chips.map((chip) => chipLabel(chip))].join(', ');
     const said = list === '' ? where : t('app.capture.summary', { list, where });
     if (!capture.isOpen || text.trim() === '') return;
     const timer = setTimeout(() => untrack(() => announcer.say(said)), 700);
@@ -248,6 +267,7 @@
   function finish(rest: string) {
     text = rest;
     literal = new Set();
+    keepsWhole = false;
     attempt = undefined;
     if (rest === '') capture.close();
   }
@@ -281,15 +301,16 @@
       }
 
       const place = target.collection;
-      if (!rules || !entryType) return;
-      const { lines, rest } = linesOf(text, rules.splitsLines);
-      const readings = lines.map((line) => readLine(line, context, readTargets(line, context), recognition));
-      if (readings.length === 0 || readings.some((each) => each.title === '')) {
+      if (!amountRules || !entryType) return;
+      const { lines, rest } = readLinesOf(text, amountRules, readOne);
+      if (lines.length === 0 || lines.some((each) => each.reading.title === '')) {
         error = t('items.title_empty');
         return;
       }
-      const bodies = readings.map((each) => bodyOf(each, { collectionId: place.id, type: entryType }, { now, zone: context.zone }));
-      const outcome = await createAll(writer, bodies, keysFor(text, bodies.length), lines, rest);
+      const bodies = lines.map((each) =>
+        bodyOf(each.reading, { collectionId: place.id, type: entryType }, { now, zone: context.zone }, each.amount),
+      );
+      const outcome = await createAll(writer, bodies, keysFor(text, bodies.length), lines.map((each) => each.line), rest);
       if (outcome.kind !== 'items') return;
 
       if (outcome.failure !== undefined) {
@@ -342,6 +363,7 @@
     untrack(() => {
       text = '';
       literal = new Set();
+      keepsWhole = false;
       error = undefined;
       isWaiting = false;
       attempt = undefined;
@@ -372,8 +394,23 @@
         error = undefined;
       }}
     />
-    {#if reading.chips.length > 0}
+    {#if amount || reading.chips.length > 0}
       <ul class="chips" aria-label={t('app.capture.recognised')}>
+        {#if amount}
+          <!-- The split Enter will make, before it makes it: removing the chip keeps the number in
+               the title (UC-WRK-26 check 2, the list's own rule). -->
+          <li>
+            <LabelChip
+              name={amount}
+              description={t('app.capture.chip_kind', { kind: 'amount' })}
+              removeLabel={t('app.capture.keep_in_title', { kind: 'amount', text: amount })}
+              onRemove={() => {
+                keepsWhole = true;
+                field?.querySelector('textarea')?.focus();
+              }}
+            />
+          </li>
+        {/if}
         {#each reading.chips as chip (`${chip.kind}:${chip.start}`)}
           <li>
             <LabelChip
