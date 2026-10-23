@@ -46,10 +46,22 @@ func presetList(ctx context.Context, cli *CLI, args []string) error {
 	rows := make([][]string, 0, len(presets))
 	for _, preset := range presets {
 		rows = append(rows, []string{
-			string(preset.Key), levelsColumn(preset.Settings), viewsColumn(preset.Settings),
+			string(preset.Origin), presetColumn(preset), levelsColumn(preset.Settings),
+			viewsColumn(preset.Settings),
 		})
 	}
-	return cli.Emit(presets, Table{Columns: []string{"key", "levels", "views"}, Rows: rows})
+	return cli.Emit(presets, Table{Columns: []string{"origin", "preset", "levels", "views"}, Rows: rows})
+}
+
+// presetColumn is one of Hubtask's keys, or a saved preset's name.
+func presetColumn(preset openapi.Preset) string {
+	if preset.Key != nil {
+		return string(*preset.Key)
+	}
+	if preset.Name != nil {
+		return *preset.Name
+	}
+	return ""
 }
 
 // levelsColumn is the offered levels, top-down, each with its own name where it has one.

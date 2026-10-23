@@ -1555,6 +1555,22 @@ func (pending) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, _ o
 	notAvailable(w, r)
 }
 
+func (pending) SavePreset(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangePreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.ChangePresetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) WithdrawPreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.WithdrawPresetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseStarter(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 // AI where its subject is (UC-AI-04 checks 7 and 9).
 func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
