@@ -534,7 +534,9 @@ INSERT INTO work_item (
   retention_pending_until,
   retention_rule_id,
   retention_action,
-  retention_blocked_by
+  retention_blocked_by,
+  amount,
+  completion_count
 )
 SELECT
   r.id,
@@ -579,7 +581,10 @@ SELECT
   r.retention_pending_until,
   r.retention_rule_id,
   r.retention_action,
-  r.retention_blocked_by
+  r.retention_blocked_by,
+  r.amount,
+  -- An archive written before migration 0189 carries no count, and the column takes no NULL.
+  coalesce(r.completion_count, 0)
 FROM jsonb_populate_record(
   NULL::work_item,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -626,7 +631,9 @@ ON CONFLICT (id) DO UPDATE SET
   retention_pending_until = EXCLUDED.retention_pending_until,
   retention_rule_id = EXCLUDED.retention_rule_id,
   retention_action = EXCLUDED.retention_action,
-  retention_blocked_by = EXCLUDED.retention_blocked_by
+  retention_blocked_by = EXCLUDED.retention_blocked_by,
+  amount = EXCLUDED.amount,
+  completion_count = EXCLUDED.completion_count
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkItem :one
@@ -1609,6 +1616,33 @@ SELECT EXISTS (SELECT 1 FROM private_hub_access WHERE id = (sqlc.arg('payload'):
 
 -- name: ClearPrivateHubAccess :execrows
 DELETE FROM private_hub_access;
+
+-- name: ImportContainerMilestone :execrows
+-- With its moment and its container's identity, as a person saw it. A milestone whose container the
+-- restore did not bring back marks nothing, and is skipped rather than refused by the foreign key.
+INSERT INTO container_milestone (
+  tenant_id,
+  container_id,
+  reached_at
+)
+SELECT
+  r.tenant_id,
+  r.container_id,
+  r.reached_at
+FROM jsonb_populate_record(
+  NULL::container_milestone,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE EXISTS (SELECT 1 FROM container c WHERE c.id = r.container_id)
+ON CONFLICT (tenant_id, container_id) DO UPDATE SET
+  reached_at = EXCLUDED.reached_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsContainerMilestone :one
+SELECT EXISTS (SELECT 1 FROM container_milestone WHERE container_id = (sqlc.arg('payload')::jsonb->>'container_id')::uuid) AS held;
+
+-- name: ClearContainerMilestone :execrows
+DELETE FROM container_milestone;
 
 -- name: ImportSetElement :execrows
 INSERT INTO set_element (

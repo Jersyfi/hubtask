@@ -35,8 +35,18 @@ export type Group = 'primary' | 'account';
  */
 export type Band = 'places' | 'tree' | 'keeping';
 
-/** What choosing a destination does: goes somewhere, or performs one of the two account verbs. */
-export type Target = { readonly kind: 'route'; readonly path: string } | { readonly kind: 'action'; readonly action: 'help' | 'sign-out' };
+/** The account group's two verbs. */
+export type AccountAction = 'help' | 'sign-out';
+
+/**
+ * What choosing a destination does: goes somewhere, performs one of the two account verbs, or
+ * opens the capture field - the one row of the primary group that is an act rather than a place,
+ * drawn as a button where it is drawn at all (UC-WRK-26 check 1).
+ */
+export type Target =
+  | { readonly kind: 'route'; readonly path: string }
+  | { readonly kind: 'action'; readonly action: AccountAction }
+  | { readonly kind: 'capture' };
 
 export interface Destination {
   /** A stable identifier the drawings key on and the bottom bar announces; never display text. */
@@ -63,6 +73,10 @@ export const DESTINATIONS: readonly Destination[] = [
   // drawings and the walks know it by; the workspace keeps its own name for what it is called.
   { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
   { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
+  // Capture: the phone's ＋ between Search and the jumble (ux-inventory.md §E0). Only the bottom bar
+  // draws it; from `medium` up the bar carries *Capture* as a button of its own, and the column
+  // lists places, not acts (`primary`'s `hasCapture`).
+  { id: 'capture', group: 'primary', icon: 'plus', code: 'app.nav.capture', target: { kind: 'capture' }, routes: [] },
   { id: 'jumble', group: 'primary', icon: 'jumble', code: 'app.nav.jumble', target: { kind: 'route', path: '/jumble' }, routes: ['jumble'] },
   // The account group: what the avatar opens. Reachable from every screen, because the profile
   // is where somebody goes when the product is speaking to them in the wrong language — which is
@@ -443,9 +457,12 @@ export const YOU_CODE = 'app.nav.you';
  * Below `medium` nothing changes: the tree draws no primary group there, because the bottom bar
  * holds those destinations and Search is already one of them.
  */
-export function primary(options: { readonly hasJumble: boolean }): readonly Destination[] {
+export function primary(options: { readonly hasJumble: boolean; readonly hasCapture?: boolean }): readonly Destination[] {
   return DESTINATIONS.filter(
-    (destination) => destination.group === 'primary' && (destination.id !== 'jumble' || options.hasJumble),
+    (destination) =>
+      destination.group === 'primary' &&
+      (destination.id !== 'jumble' || options.hasJumble) &&
+      (destination.target.kind !== 'capture' || options.hasCapture === true),
   );
 }
 

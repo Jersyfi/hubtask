@@ -11961,6 +11961,79 @@
         }
       }
     },
+    "/items/{itemId}/kudos": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ItemId"
+        }
+      ],
+      "get": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "readKudos",
+        "description": "What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "giveKudos",
+        "description": "Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "takeBackKudos",
+        "description": "Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.\n",
+        "responses": {
+          "200": {
+            "description": "The reader's view of the entry's kudos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Kudos"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/containers/{containerId}/buckets": {
       "parameters": [
         {
@@ -12179,6 +12252,17 @@
           "structure"
         ],
         "operationId": "listLabels",
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "description": "Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client can offer to bring one back. Without it a deleted label is not in the list.\n",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The collection's labels, by name",
@@ -12305,6 +12389,50 @@
         "responses": {
           "204": {
             "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/containers/{containerId}/labels/{labelId}:restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        },
+        {
+          "$ref": "#/components/parameters/LabelId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "restoreLabel",
+        "description": "Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Label"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -20967,6 +21095,65 @@
           "figure": {
             "$ref": "#/components/schemas/CollectionFigure",
             "description": "What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).\n"
+          },
+          "milestone": {
+            "$ref": "#/components/schemas/ContainerMilestone",
+            "description": "The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.\n"
+          }
+        }
+      },
+      "ContainerMilestone": {
+        "type": "object",
+        "required": [
+          "reached_at"
+        ],
+        "properties": {
+          "reached_at": {
+            "type": "string",
+            "format": "date-time",
+            "description": "When the completion that left nothing open reached the server."
+          }
+        }
+      },
+      "Kudos": {
+        "type": "object",
+        "required": [
+          "item_id",
+          "given",
+          "from"
+        ],
+        "properties": {
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "given": {
+            "type": "boolean",
+            "description": "Whether the reader gave kudos to the entry's current completion. False on an open entry.\n"
+          },
+          "from": {
+            "type": "array",
+            "description": "The kudos the reader received on this entry, oldest first. Empty for everybody but the person they were given to.\n",
+            "items": {
+              "$ref": "#/components/schemas/KudosFrom"
+            }
+          }
+        }
+      },
+      "KudosFrom": {
+        "type": "object",
+        "required": [
+          "account_id",
+          "given_at"
+        ],
+        "properties": {
+          "account_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "given_at": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },
@@ -21179,6 +21366,15 @@
             "minLength": 1,
             "maxLength": 60,
             "description": "The level's own name, counted in code points after trimming."
+          },
+          "done_name": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "What the level's done entries are shown under, such as \"In the trolley\" - a name a person chose, under the same rule as the level's own. Without one, a client shows its translated name for done entries.\n"
           }
         }
       },
@@ -21190,9 +21386,18 @@
         "properties": {
           "capabilities": {
             "type": "array",
-            "description": "The capabilities this type carries, out of those `/meta/capabilities` lists for it.",
+            "description": "The capabilities this type carries, out of those `/meta/capabilities` lists for it. AMOUNT is carried only where a layer names it.\n",
             "items": {
               "type": "string"
+            }
+          },
+          "categories": {
+            "type": "array",
+            "description": "The labels this type's entries are grouped by, in their order: an entry sits under the first of them it carries. Only beside LABELS, and only on a collection's own layer; each a label of that collection (`structure.category_unknown` otherwise). A label deleted afterwards stays named and is skipped by clients.\n",
+            "maxItems": 50,
+            "items": {
+              "type": "string",
+              "format": "uuid"
             }
           }
         }
@@ -23919,6 +24124,14 @@
             "minLength": 1,
             "maxLength": 500
           },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
+          },
           "notes": {
             "type": [
               "string",
@@ -23927,6 +24140,12 @@
           },
           "completion": {
             "$ref": "#/components/schemas/Completion"
+          },
+          "completion_count": {
+            "type": "integer",
+            "minimum": 0,
+            "readOnly": true,
+            "description": "How often the entry went from open to done. Completing it again while it is done counts nothing, and reopening it keeps the count. What a list ranks entries it can bring back by, most used first. Kept by the server; a client never sends it.\n"
           },
           "bucket_id": {
             "type": [
@@ -24144,6 +24363,14 @@
             "minLength": 1,
             "maxLength": 500
           },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
+          },
           "notes": {
             "type": [
               "string",
@@ -24247,6 +24474,14 @@
             "type": "string",
             "minLength": 1,
             "maxLength": 500
+          },
+          "amount": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 40,
+            "description": "How much of it - \"2\", \"1 kg\" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.\n"
           },
           "notes": {
             "type": [
@@ -24625,6 +24860,7 @@
               "REOPEN_ITEM",
               "MOVE_ITEM",
               "TRASH_ITEM",
+              "RESTORE_ITEM",
               "ADD_LABEL",
               "REMOVE_LABEL",
               "ASSIGN"
@@ -24878,6 +25114,14 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock, returned as the ETag and sent back as If-Match."
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the label was taken out of the vocabulary. Present only in a list read with `include_deleted`; a label in the vocabulary carries null or omits it.\n"
           }
         }
       },

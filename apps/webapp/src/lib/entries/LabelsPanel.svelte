@@ -13,6 +13,7 @@
   import type { WorkItem } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
+  import { offerUndo } from './undo.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -42,7 +43,9 @@
     try {
       const isOn = (item.label_ids ?? []).includes(labelId);
       await labels.setOnItem(item.id, labelId, !isOn, crypto.randomUUID());
-      announcer.say(t('app.labels.toggled_announced'));
+      // Taking one off is at once, with the way back (UC-WRK-28 check 3).
+      if (isOn) offerUndo({ kind: 'label-removed', itemId: item.id, labelId, title: item.title });
+      else announcer.say(t('app.labels.toggled_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages).message;
     }

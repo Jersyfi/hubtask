@@ -562,7 +562,7 @@ var draftableActions = map[string]draftable{
 		Never: []string{
 			"parent_id", "bucket_id", "content_language", "auto_assign", "start_at", "due_at",
 			"due_date_only", "due_time_zone", "calendar_uid", "label_ids", "custom_fields", "cover",
-			"before_item_id", "member_ids",
+			"before_item_id", "member_ids", "amount",
 		},
 	},
 	"ADD_COMMENT": {

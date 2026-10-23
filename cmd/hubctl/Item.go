@@ -124,12 +124,13 @@ func itemList(ctx context.Context, cli *CLI, args []string) error {
 
 func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "item", "create",
-		"--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title> [--due <date|timestamp>]")
+		"--collection <id> --type TASK|WORK_PACKAGE|ACTIVITY --title <title> [--amount <amount>] [--due <date|timestamp>]")
 	collection := flags.String("collection", "", "the collection it goes into")
 	kind := flags.String("type", "", "TASK, WORK_PACKAGE or ACTIVITY")
 	title := flags.String("title", "", "what it is called")
 	parent := flags.String("parent", "", "the entry it sits inside")
 	notes := flags.String("notes", "", "the notes body")
+	amount := flags.String("amount", "", "how much of it, such as 2 or \"1 kg\", where the collection offers an amount")
 	before := flags.String("before", "", "the sibling to place it before; appended when absent")
 	// The schedule travels with the create rather than needing a second call: the three
 	// fields dispatch into the same writer either way, and a person creating something they
@@ -150,7 +151,7 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	body := openapi.WorkItemCreate{Type: itemType, Title: *title, Notes: optional(*notes)}
+	body := openapi.WorkItemCreate{Type: itemType, Title: *title, Notes: optional(*notes), Amount: optional(*amount)}
 	if *due != "" {
 		dated, err := parseDue(cli, "--due", *due)
 		if err != nil {

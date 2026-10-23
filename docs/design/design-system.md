@@ -534,9 +534,12 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
   percentage.
 * **Rhythm** — the days of this week on which something was completed; it never resets to zero,
   never names a missed day, and weekends and absences cost nothing.
-* **Milestones** — a collection or hub with nothing open records the moment with its date on it.
+* **Milestones** — a collection or hub with nothing open records the moment with its date on it:
+  the server records it at the completion that left nothing open, and the head of the collection
+  or hub says "Everything done on" that day. It stays when entries are added afterwards.
 * **Kudos** — one person's acknowledgement of another's completed entry, seen by the one who
-  completed it; never counted per person.
+  completed it; never counted per person. The entry's page offers one toggle to everybody else,
+  and names the givers - never their number - to the one who completed it (domain-model.md §3.5).
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance
@@ -718,16 +721,22 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
 
-* **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
+* **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
+  [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
+  folded menu on `compact`. *Capture* is no page's action but the product's: it opens the capture
+  field wherever the reader is (UC-WRK-26), from `medium` up here and on `compact` as the bottom
+  bar's ＋ (§11.3). On `medium` it is its mark alone, beside the wordmark: the end has no room for
+  one more control with the palette's field still centred between the two sides. It is drawn only where the reader may create somewhere — in the jumble or in a
+  collection they see — and absent otherwise (P-05).
 * **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
   bar's *Search* opens the palette in a dialog.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
   `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
   `compact` the account group is *You* in the bottom bar.
-* The two marks are §11.6. Nothing else moves into the bar.
+* The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
 
 ### 11.3 One navigation list
 
@@ -768,7 +777,7 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: the `places` destinations and *You*. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
+| `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
 | `medium` | `NavDrawer`: one `SideNav` with all three bands |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10) |
 
@@ -811,7 +820,8 @@ proxies and history ([`security.md`](../architecture/security.md) §9):
 * **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
 **One palette for everything** (UC-WRK-27, `apps/webapp/src/lib/palette/`). `⌘K` and `Ctrl K`
-open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*. One palette, two
+open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*; `Q` opens the capture
+field (UC-WRK-26), where the reader may capture at all. One palette, two
 drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
 in the field; below `medium` the same field and list open in a dialog.
 
@@ -961,7 +971,9 @@ between columns is the card's menu (§11.9).
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
    A set cover is drawn above the title; no room is taken for an absent one.
-2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag. Every
+2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
+   carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
+   *Select*, since no bulk bar acts there. Every
    level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
    manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
    one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section
@@ -970,6 +982,21 @@ between columns is the card's menu (§11.9).
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
    `DetailPane`.
 4. **Comments and activity**, as tabs.
+
+**A simple list** is how the list layout draws a collection whose levels in force are one
+([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
+the open entries under the collection's categories in their order, the entries ticked in the last 24
+hours under the collection's name for done entries (*Done* without one), and the older ones under
+*Recently*, most often completed first and narrowed by what the capture line holds. The capture line
+takes several lines as several entries and reads a leading amount where the collection offers one,
+showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
+the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still
+hold opens the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
+and the grip drags within its section. The title is not a link there: *Open* is in the row's menu,
+beside the amount and the category. For somebody who may change the shape, the *Done* heading can be
+renamed and *Categories* chosen and ordered where the list is used; the *Structure* panel opens the
+same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
+swipe included.
 
 **One way to edit.** No edit form. Title, notes and completion are edited in place; every other
 field is a details row opening its editor in a `Popover` from `medium` up and a `Drawer` below. An
@@ -1030,6 +1057,7 @@ write falls back in silence where storage is refused.
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
 | What was opened last, for *Today* | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
+| The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |
 | A resizable sheet's size | wherever its caller keeps it — the rule editor uses `localStorage` | the caller, never `Drawer` |
 | The last sign-in method used | `localStorage` | `lib/signin/lastMethod.ts` |

@@ -96,7 +96,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.equal(await page.locator('[data-opener="add-entry"]').first().evaluate((el) => el.textContent.trim()), 'Add an entry');
   await page.getByRole('button', { name: 'Add an entry', exact: true }).first().click();
   await page.getByRole('textbox', { name: 'Title' }).waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT', 'the form did not take focus');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA', 'the form did not take focus');
 
   // The switcher: three, with "show what is inside" within the list.
   const switcher = page.getByRole('radiogroup', { name: 'How these entries are shown' });
@@ -156,7 +156,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(await page.getByRole('heading', { name: 'Doing' }).count(), 1);
   assert.equal(await page.getByRole('heading', { name: 'To do' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: `Actions for ${BUCKETS[1].name}` }).count(), 1, 'the column keeps its own actions');
-  assert.equal(await page.getByRole('button', { name: 'Move Book the electrician' }).count(), 1, 'the card keeps its menu');
+  assert.equal(await page.getByRole('button', { name: 'Actions for Book the electrician' }).count(), 1, 'the card keeps its menu');
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, 'the board widened the page');
 

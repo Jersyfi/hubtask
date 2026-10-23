@@ -25,9 +25,12 @@ func structureSettingOutput(setting domain.StructureSetting, values domain.Struc
 	case domain.SettingLevels:
 		levels := make([]any, 0, len(values.Levels))
 		for _, level := range values.Levels {
-			entry := map[string]any{"type": string(level.Type), "name": nil}
+			entry := map[string]any{"type": string(level.Type), "name": nil, "done_name": nil}
 			if level.Name != "" {
 				entry["name"] = level.Name
+			}
+			if level.DoneName != "" {
+				entry["done_name"] = level.DoneName
 			}
 			levels = append(levels, entry)
 		}
@@ -39,7 +42,11 @@ func structureSettingOutput(setting domain.StructureSetting, values domain.Struc
 			for _, capability := range level.Capabilities {
 				capabilities = append(capabilities, string(capability))
 			}
-			fields[string(itemType)] = map[string]any{"capabilities": capabilities}
+			categories := make([]any, 0, len(level.Categories))
+			for _, category := range level.Categories {
+				categories = append(categories, category.String())
+			}
+			fields[string(itemType)] = map[string]any{"capabilities": capabilities, "categories": categories}
 		}
 		return fields
 	case domain.SettingViews:

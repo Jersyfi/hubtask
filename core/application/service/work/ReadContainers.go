@@ -5,6 +5,7 @@ package work
 
 import (
 	"context"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -55,6 +56,9 @@ type GetContainer struct {
 	Structure StructureResolver
 	// Figures counts what counts in a collection, after the structure (UC-WRK-29).
 	Figures FigureReader
+	// Milestones answers when the container was last finished (UC-WRK-29 check 4). A build
+	// without it answers none.
+	Milestones repository.Milestones
 }
 
 // GetContainerQuery is the input, typed.
@@ -142,7 +146,46 @@ func (h GetContainer) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, []domain.Container{container}, structures)
-	return withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID), nil
+	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, []domain.Container{container})
+	if err != nil {
+		return nil, err
+	}
+	out := withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID)
+	return withMilestone(out, milestones, container.ID), nil
+}
+
+// milestonesOf reads when the containers a read answers were last finished, after the permission
+// question, in a read-only transaction of its own. A build without the repository answers none.
+//
+// A milestone names nobody: it is the collection's or the hub's, so whoever reads the container
+// reads it (UC-WRK-29 check 6). Whether it is drawn is the reader's celebrations switch, applied
+// by the client like every celebration (design-system.md §7).
+func milestonesOf(
+	ctx context.Context, actor appshared.ActorContext, uow persistence.UnitOfWork,
+	milestones repository.Milestones, containers []domain.Container,
+) (map[shared.ID]time.Time, error) {
+	if milestones == nil || uow == nil || len(containers) == 0 {
+		return map[shared.ID]time.Time{}, nil
+	}
+	ids := make([]shared.ID, 0, len(containers))
+	for _, container := range containers {
+		ids = append(ids, container.ID)
+	}
+	var found map[shared.ID]time.Time
+	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		found, err = milestones.Of(ctx, ids)
+		return err
+	})
+	return found, err
+}
+
+// withMilestone adds a container's milestone to its output, where it has one.
+func withMilestone(out map[string]any, milestones map[shared.ID]time.Time, id shared.ID) map[string]any {
+	if reachedAt, reached := milestones[id]; reached {
+		out["milestone"] = map[string]any{"reached_at": reachedAt}
+	}
+	return out
 }
 
 // ListContainers reads one level of the container tree.
@@ -156,6 +199,8 @@ type ListContainers struct {
 	Structure StructureResolver
 	// Figures counts what counts in each collection of the page, one statement per kind on it.
 	Figures FigureReader
+	// Milestones answers when each container of the page was last finished, in one statement.
+	Milestones repository.Milestones
 }
 
 // ListContainersQuery is the input, typed.
@@ -326,9 +371,14 @@ func (h ListContainers) invoke(
 		return nil, err
 	}
 	figures := h.Figures.Count(ctx, actor, h.UnitOfWork, page.Containers, structures)
+	milestones, err := milestonesOf(ctx, actor, h.UnitOfWork, h.Milestones, page.Containers)
+	if err != nil {
+		return nil, err
+	}
 	data := make([]usecase.Output, 0, len(page.Containers))
 	for _, container := range page.Containers {
-		data = append(data, withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID))
+		out := withFigure(withStructure(containerOutput(container), structures, container.ID), figures, container.ID)
+		data = append(data, withMilestone(out, milestones, container.ID))
 	}
 	return pageOutput(data, page.Info), nil
 }

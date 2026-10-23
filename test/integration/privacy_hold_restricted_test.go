@@ -282,78 +282,96 @@ func TestWhatAHoldKeepsStaysInTheExports(t *testing.T) {
 
 func keptInTheExports(ctx context.Context, t *testing.T, s person) {
 	t.Helper()
-	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
-	written := func(write func(store backupstorage.LocalStore)) string {
-		t.Helper()
-		root := t.TempDir()
-		store, err := backupstorage.NewLocalStore(root, "archives")
-		if err != nil {
-			t.Fatalf("opening the store: %v", err)
-		}
-		write(store)
-		everything := &bytes.Buffer{}
-		if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
-			if err != nil || entry.IsDir() {
-				return err
-			}
-			content, err := os.ReadFile(path)
-			everything.Write(content)
-			return err
-		}); err != nil {
-			t.Fatalf("walking the archive: %v", err)
-		}
-		return everything.String()
+	if !strings.Contains(workspaceExportOf(ctx, t, s.tenant), "KEPTSAYS") {
+		t.Error("the workspace export left out what the hold keeps")
 	}
+	if !strings.Contains(ownCopyOf(ctx, t, s.tenant, s.account), "KEPTSAYS") {
+		t.Error("the person's own copy left out what the hold keeps")
+	}
+	if !strings.Contains(backupOf(ctx, t, s.tenant, s.account), "KEPTSAYS") {
+		t.Error("the backup left out what the hold keeps")
+	}
+}
 
-	workspace := written(func(store backupstorage.LocalStore) {
+// writtenBy answers every byte one archive run wrote to a fresh local store, file after file.
+func writtenBy(t *testing.T, write func(store backupstorage.LocalStore)) string {
+	t.Helper()
+	root := t.TempDir()
+	store, err := backupstorage.NewLocalStore(root, "archives")
+	if err != nil {
+		t.Fatalf("opening the store: %v", err)
+	}
+	write(store)
+	everything := &bytes.Buffer{}
+	if err := filepath.WalkDir(root, func(path string, entry os.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		content, err := os.ReadFile(path)
+		everything.Write(content)
+		return err
+	}); err != nil {
+		t.Fatalf("walking the archive: %v", err)
+	}
+	return everything.String()
+}
+
+// workspaceExportOf is the workspace's export an administrator takes, unencrypted.
+func workspaceExportOf(ctx context.Context, t *testing.T, tenant shared.ID) string {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	return writtenBy(t, func(store backupstorage.LocalStore) {
 		archivist := adminservice.TenantExportArchivist{
 			Targets: exportTargetStore{store: store}, Rows: postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 			Objects: exportObjects{key: "none"}, Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}),
 			Snapshot: unitOfWork, Clock: clockadapter.System{}, SchemaVersion: "test", ProductVersion: "test",
 		}
 		if _, err := archivist.Write(ctx, adminservice.ExportArchiveRequest{
-			ExportID: freshID(t), TenantID: s.tenant, TargetID: freshID(t),
+			ExportID: freshID(t), TenantID: tenant, TargetID: freshID(t),
 		}); err != nil {
 			t.Fatalf("writing the workspace export: %v", err)
 		}
 	})
-	if !strings.Contains(workspace, "KEPTSAYS") {
-		t.Error("the workspace export left out what the hold keeps")
-	}
+}
 
-	own := written(func(store backupstorage.LocalStore) {
+// ownCopyOf is the copy of one person's data an access case writes.
+func ownCopyOf(ctx context.Context, t *testing.T, tenant, account shared.ID) string {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	return writtenBy(t, func(store backupstorage.LocalStore) {
 		exporter := privacyservice.Exporter{
-			Requests: privacyRepo(), Subjects: privacyRepo(), Targets: exportTargetStore{store: store},
+			Requests: privacyRepo(), Subjects: privacyRepo(), Kudos: privacyRepo(), Targets: exportTargetStore{store: store},
 			Rows: postgres.NewBackupExportRepository(postgres.DefaultExportBatch), Objects: exportObjects{key: "none"},
 			Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}), Audit: postgres.NewAuditSink(generator{t}),
 			Snapshot: unitOfWork, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: generator{t},
 			SchemaVersion: "test", ProductVersion: "test",
 		}
-		if _, err := exporter.Export(ctx, appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: s.tenant},
+		if _, err := exporter.Export(ctx, appshared.ActorContext{Kind: appshared.ActorSystem, TenantID: tenant},
 			domain.Request{
 				ID: freshID(t), Kind: domain.KindAccess, Scope: domain.ScopeTenant,
-				SubjectAccountID: s.account, TargetID: freshID(t),
+				SubjectAccountID: account, TargetID: freshID(t),
 			}); err != nil {
 			t.Fatalf("writing the person's copy: %v", err)
 		}
 	})
-	if !strings.Contains(own, "KEPTSAYS") {
-		t.Error("the person's own copy left out what the hold keeps")
-	}
+}
 
-	// A backup taken after the erasure is the backup run's own path, not the workspace export's
-	// archivist: the two share only the row source.
-	backup := written(func(store backupstorage.LocalStore) {
+// backupOf is a backup run's archive of the workspace, at an unencrypted target. A backup is the
+// backup run's own path, not the workspace export's archivist: the two share only the row source.
+func backupOf(ctx context.Context, t *testing.T, tenant, author shared.ID) string {
+	t.Helper()
+	unitOfWork := postgres.NewUnitOfWork(appPool(ctx, t))
+	return writtenBy(t, func(store backupstorage.LocalStore) {
 		target, err := backupdomain.NewTarget(backupdomain.NewTargetInput{
-			ID: freshID(t), TenantID: s.tenant, Name: "Nightly", Kind: backupdomain.KindS3,
+			ID: freshID(t), TenantID: tenant, Name: "Nightly", Kind: backupdomain.KindS3,
 			Config:         backupdomain.TargetConfig{"bucket": "hubtask-backups", "region": "eu-central-1"},
 			EncryptionMode: backupdomain.EncryptionNone, InsecureAcknowledged: true,
-			CreatedBy: s.account, Now: created, Text: text.Composing{},
+			CreatedBy: author, Now: created, Text: text.Composing{},
 		})
 		if err != nil {
 			t.Fatalf("building the target: %v", err)
 		}
-		insertTarget(ctx, t, s.tenant, target, crypto.Sealed{})
+		insertTarget(ctx, t, tenant, target, crypto.Sealed{})
 		performer := backupservice.Performer{
 			Runs: runRepo(), Targets: targetRepo(), Export: postgres.NewBackupExportRepository(postgres.DefaultExportBatch),
 			Opener: foreignTarget{store: store}, Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}),
@@ -362,13 +380,10 @@ func keptInTheExports(ctx context.Context, t *testing.T, s person) {
 			SchemaVersion: "test", ProductVersion: "test",
 		}
 		if _, err := performer.Perform(ctx, backupservice.PerformInput{
-			RunID: freshID(t), TargetID: target.ID, TenantID: s.tenant,
+			RunID: freshID(t), TargetID: target.ID, TenantID: tenant,
 			Mode: backupdomain.ModeFull, Trigger: backupdomain.TriggerManual,
 		}); err != nil {
 			t.Fatalf("taking the backup: %v", err)
 		}
 	})
-	if !strings.Contains(backup, "KEPTSAYS") {
-		t.Error("the backup left out what the hold keeps")
-	}
 }

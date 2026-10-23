@@ -107,6 +107,8 @@ export type {
   ContainerPage,
   EffectiveStructure,
   CollectionFigure,
+  ContainerMilestone,
+  Kudos,
   Preset,
   StructureChange,
   StructureSettings,

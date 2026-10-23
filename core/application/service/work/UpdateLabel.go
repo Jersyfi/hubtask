@@ -27,13 +27,15 @@ import (
 )
 
 const (
-	UpdateLabelName = "UpdateLabel"
-	DeleteLabelName = "DeleteLabel"
+	UpdateLabelName  = "UpdateLabel"
+	DeleteLabelName  = "DeleteLabel"
+	RestoreLabelName = "RestoreLabel"
 
 	// The audit codes. Stable: an auditor filters on them and a SIEM rule matches on them
 	// (audit.md §2).
-	LabelUpdatedAction audit.Action = "label.updated"
-	LabelDeletedAction audit.Action = "label.deleted"
+	LabelUpdatedAction  audit.Action = "label.updated"
+	LabelDeletedAction  audit.Action = "label.deleted"
+	LabelRestoredAction audit.Action = "label.restored"
 )
 
 // LabelWriter is what both use cases that change an existing label share.
@@ -70,6 +72,21 @@ type UpdateLabel struct {
 // is no longer on the board would be nowhere at all.
 type DeleteLabel struct {
 	Writer LabelWriter
+}
+
+// RestoreLabel brings a deleted label back into a collection's vocabulary.
+//
+// The deletion's inverse, and possible only because the deletion rewrote nothing: every entry that
+// carried the label still does, so bringing the label back brings the chips back with it. That is
+// what lets a client offer *Undo* on a deletion and a list of deleted labels to bring back.
+type RestoreLabel struct {
+	Writer LabelWriter
+}
+
+// RestoreLabelCommand is the input, typed. No version: a restore's precondition is the deletion,
+// and a retry after a lost answer must not meet the version its own first attempt moved on.
+type RestoreLabelCommand struct {
+	LabelID shared.ID
 }
 
 // UpdateLabelCommand is the input, typed.
@@ -139,6 +156,33 @@ func (h DeleteLabel) Execute(
 	})
 }
 
+// Execute brings the label back and returns it as it now stands.
+func (h RestoreLabel) Execute(
+	ctx context.Context, actor appshared.ActorContext, cmd RestoreLabelCommand,
+) (domain.Label, error) {
+	return h.Writer.change(ctx, actor, labelChange{
+		labelID:   cmd.LabelID,
+		action:    LabelRestoredAction,
+		operation: changelog.Upsert,
+		// One entry with the whole label rather than one per field that moved: a device that
+		// applied the deletion dropped the label from its copy, and a change of `deleted_at` alone
+		// would leave it with a label it knows nothing else about (offline-sync.md §4).
+		isSnapshot: true,
+		apply: func(label domain.Label, _ time.Time) (domain.Label, []domain.FieldChange, error) {
+			restored, changes := label.Restored()
+			return restored, changes, nil
+		},
+		store: repository.Labels.SetRestored,
+		announce: func(id shared.ID, label domain.Label, _ []domain.FieldChange,
+			by event.Actor, at time.Time,
+		) (event.Envelope, error) {
+			return event.NewLabelRestored(id, label, by, at, event.Cause{})
+		},
+		// The stamp that is cleared is a timestamp this server produced, as for the deletion.
+		classification: audit.Open,
+	})
+}
+
 // labelChange is one verb's differences from the other: what it applies, what it stores, what it
 // announces, what the change log calls it, and how sensitive what it changed is.
 type labelChange struct {
@@ -146,10 +190,12 @@ type labelChange struct {
 	action          audit.Action
 	expectedVersion int
 	operation       changelog.Operation
-	apply           func(domain.Label, time.Time) (domain.Label, []domain.FieldChange, error)
-	store           func(repository.Labels, context.Context, domain.Label, int) error
-	announce        func(shared.ID, domain.Label, []domain.FieldChange, event.Actor, time.Time) (event.Envelope, error)
-	classification  audit.Classification
+	// isSnapshot records the whole label in one change log entry instead of one per field.
+	isSnapshot     bool
+	apply          func(domain.Label, time.Time) (domain.Label, []domain.FieldChange, error)
+	store          func(repository.Labels, context.Context, domain.Label, int) error
+	announce       func(shared.ID, domain.Label, []domain.FieldChange, event.Actor, time.Time) (event.Envelope, error)
+	classification audit.Classification
 }
 
 // change is the whole of what a change to an existing label owes, once.
@@ -247,7 +293,7 @@ func (w LabelWriter) write(
 	if err := w.Events.Append(ctx, announcement); err != nil {
 		return domain.Label{}, err
 	}
-	if err := w.recordChanges(ctx, after, collection, actor, change, changes); err != nil {
+	if err := w.recordChanges(ctx, after, collection, actor, change, changes, announcement.Payload); err != nil {
 		return domain.Label{}, err
 	}
 	if err := w.recordAudit(ctx, after, actor, change, changes, now); err != nil {
@@ -257,6 +303,9 @@ func (w LabelWriter) write(
 }
 
 // recordChanges writes what an offline client has to be told.
+//
+// A restoration is one entry with the whole label - the event's own snapshot, so the two cannot
+// come to disagree, as CreateLabel records it.
 //
 // A deletion is one entry with no payload: there is nothing left to describe, and a tombstone with
 // content would be a copy of the deleted object living on in the log (offline-sync.md §7).
@@ -268,6 +317,7 @@ func (w LabelWriter) write(
 func (w LabelWriter) recordChanges(
 	ctx context.Context, label domain.Label, collection domain.Container,
 	actor appshared.ActorContext, change labelChange, changes []domain.FieldChange,
+	snapshot map[string]any,
 ) error {
 	// The visibility filter a pull applies: the label's own collection, for the reason every
 	// change to an entry names the entry's - a grant on the collection alone must be on the path
@@ -279,6 +329,15 @@ func (w LabelWriter) recordChanges(
 			TenantID: label.TenantID, Entity: labelTarget, EntityID: label.ID,
 			Op: changelog.Delete, ContainerID: containerID,
 			ActorID: actor.AccountID, HLC: w.HLC.Next(),
+		})
+	}
+
+	if change.isSnapshot {
+		return w.Changes.Record(ctx, changelog.Change{
+			TenantID: label.TenantID, Entity: labelTarget, EntityID: label.ID,
+			Op: changelog.Upsert, ContainerID: containerID,
+			ActorID: actor.AccountID, HLC: w.HLC.Next(),
+			Payload: snapshot,
 		})
 	}
 
@@ -526,6 +585,49 @@ func (h DeleteLabel) invoke(
 		LabelID:         labelID,
 		ExpectedVersion: in.Int("expected_version"),
 	})
+	if err != nil {
+		return nil, err
+	}
+	return labelOutput(label), nil
+}
+
+// Descriptor is the catalogue entry.
+func (h RestoreLabel) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name: RestoreLabelName,
+		Summary: "Brings a deleted label back into a collection's vocabulary, and with it onto every " +
+			"entry that carried it: the deletion never rewrote them. Refused when another label has " +
+			"taken the name in the meantime. Idempotent: restoring a label that is not deleted " +
+			"succeeds and announces nothing.",
+		SideEffects: "Clears the deletion stamp, announces " + string(event.LabelRestored) +
+			", records the whole label for offline clients, and writes an audit entry.",
+		TokenScope: labelsWrite,
+		Input: []usecase.Field{
+			{
+				Name: "label_id", Kind: usecase.KindID, Required: true,
+				Description: "The deleted label to bring back.",
+			},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: LabelRestoredAction, TargetType: labelTarget,
+			Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{
+			Exempt: "a collection's vocabulary is its configuration. Restoring a label rewrites none " +
+				"of the entries that carry it, so nothing happened to any of them.",
+		},
+		Handler: usecase.HandlerFunc(h.invoke),
+	}
+}
+
+func (h RestoreLabel) invoke(
+	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
+) (usecase.Output, error) {
+	labelID, err := in.ID("label_id")
+	if err != nil {
+		return nil, err
+	}
+	label, err := h.Execute(ctx, actor, RestoreLabelCommand{LabelID: labelID})
 	if err != nil {
 		return nil, err
 	}

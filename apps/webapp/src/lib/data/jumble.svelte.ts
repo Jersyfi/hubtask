@@ -170,13 +170,17 @@ class Jumble {
     this.#destinations = all;
   }
 
-  /** Quick capture from inside the product. */
-  async capture(subject: string, body: string): Promise<void> {
-    await engine.mutate('POST', ENTRIES, {
+  /**
+   * Quick capture from inside the product. Answers the entry, which the capture field links to and
+   * dismisses again when its *Undo* is pressed. The key is the caller's where a retry of one
+   * capture must not make two.
+   */
+  async capture(subject: string, body: string, idempotencyKey: string = crypto.randomUUID()): Promise<JumbleEntry> {
+    return engine.mutate<JumbleEntry>('POST', ENTRIES, {
       channel: 'QUICK_CAPTURE',
       ...(subject ? { raw_subject: subject } : {}),
       ...(body ? { raw_body: body } : {}),
-    }, { idempotencyKey: crypto.randomUUID(), invalidates: [ENTRIES] });
+    }, { idempotencyKey, invalidates: [ENTRIES] });
   }
 
   /** Turns one into work, and answers what it produced so the screen can link to it. */

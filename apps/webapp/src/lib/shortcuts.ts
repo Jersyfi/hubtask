@@ -38,6 +38,7 @@ export interface Shortcut {
 export const SHORTCUTS: readonly Shortcut[] = [
   { id: 'palette', scope: 'everywhere', code: 'app.shortcuts.palette', drawn: ['⌘K', 'Ctrl K', '/'], aria: ['Meta+K', 'Control+K', '/'] },
   { id: 'help', scope: 'everywhere', code: 'app.shortcuts.help', drawn: ['?'], aria: ['Shift+?'] },
+  { id: 'capture', scope: 'everywhere', code: 'app.shortcuts.capture', drawn: ['Q'], aria: ['Q'] },
   { id: 'palette-move', scope: 'palette', code: 'app.shortcuts.palette_move', drawn: ['↑', '↓'], aria: ['ArrowUp', 'ArrowDown'] },
   { id: 'palette-enter', scope: 'palette', code: 'app.shortcuts.palette_enter', drawn: ['Enter'], aria: ['Enter'] },
   { id: 'palette-escape', scope: 'palette', code: 'app.shortcuts.palette_escape', drawn: ['Esc'], aria: ['Escape'] },
@@ -58,7 +59,7 @@ export function ariaKeysOf(id: string): readonly string[] {
   return SHORTCUTS.find((each) => each.id === id)?.aria ?? [];
 }
 
-/** What a global press means: open or close the palette, help, or capture (UX-14's, when it exists). */
+/** What a global press means: open or close the palette, help, or the capture field. */
 export type Intent = 'palette' | 'help' | 'capture';
 
 /** The parts of a key press the decision reads - a `KeyboardEvent` is one. */

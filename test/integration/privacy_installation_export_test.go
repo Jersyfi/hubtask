@@ -114,7 +114,7 @@ func TestAnInstallationWideCaseIsCarriedOutByItsOwnJob(t *testing.T) {
 	performer := privacyservice.Performer{
 		Requests: privacyRepo(),
 		Exporter: privacyservice.Exporter{
-			Requests: privacyRepo(), Subjects: privacyRepo(), Accounts: postgres.NewAccountRepository(),
+			Requests: privacyRepo(), Subjects: privacyRepo(), Accounts: postgres.NewAccountRepository(), Kudos: privacyRepo(),
 			Targets: exportTargetStore{store: store},
 			Rows:    postgres.NewBackupExportRepository(postgres.DefaultExportBatch), Objects: exportObjects{key: "none"},
 			Cipher: cryptoadapter.NewStream(clockadapter.CryptoRandom{}), Audit: postgres.NewAuditSink(generator{t}),

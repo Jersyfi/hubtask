@@ -51,6 +51,11 @@ func itemCatalogueFor(ctx context.Context, t *testing.T) *usecase.Registry {
 	}
 
 	registry, err := usecase.NewRegistry(nil, work.CreateWorkItem{
+		// The collection's structure in force decides whether it offers an amount.
+		Structure: work.StructureResolver{
+			Containers: containerRepo(), Structures: postgres.NewStructureRepository(),
+			Profiles: postgres.NewCapabilityProfileRepository(),
+		},
 		Items:      itemRepo(),
 		Containers: containerRepo(),
 		Profiles:   postgres.NewCapabilityProfileRepository(),

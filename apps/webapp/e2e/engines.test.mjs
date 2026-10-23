@@ -383,6 +383,55 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await context.close();
     assert.deepEqual(failures, [], `${name}: the bundle threw in the palette`);
   });
+
+  // UC-WRK-26 check 6 by keyboard alone, in every engine: `Q` opens the field, a chip is taken
+  // back from the keyboard and focus comes back to the field, Enter captures, Escape returns focus.
+  test(`${name}: the capture field by keyboard alone`, async (t) => {
+    const browser = await engine.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    await context.route('**/api/v1/**', fixtureStub);
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+    const creates = [];
+    page.on('request', (request) => {
+      if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/api/v1/items')) creates.push(request.postDataJSON());
+    });
+
+    await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+    const checkbox = page.getByRole('checkbox', { name: `Mark ${ITEMS[2].title} as done` });
+    await checkbox.waitFor({ timeout: 15_000 });
+    await page.waitForTimeout(600);
+    await checkbox.focus();
+
+    await page.keyboard.press('q');
+    const field = page.getByRole('textbox', { name: 'What do you want to remember?' });
+    await field.waitFor({ timeout: 5_000 });
+    await page.keyboard.type('Order tiles !Materials');
+    await page.getByRole('button', { name: 'Keep “!Materials” in the title' }).waitFor({ timeout: 5_000 });
+    // WebKit's Tab reaches text fields only, as Safari's default does; Option+Tab is its way to a
+    // button, and the reader on that engine uses the same.
+    await page.keyboard.press(name === 'webkit' ? 'Alt+Tab' : 'Tab');
+    await page.keyboard.press('Enter');
+    assert.ok(await field.evaluate((node) => node === document.activeElement), `${name}: focus did not come back to the field`);
+    await page.keyboard.press('Enter');
+    for (let waited = 0; creates.length === 0 && waited < 50; waited++) await page.waitForTimeout(100);
+    assert.equal(creates[0]?.title, 'Order tiles !Materials', `${name}: the capture was not sent as typed`);
+
+    await checkbox.focus();
+    await page.keyboard.press('q');
+    await field.waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Escape');
+    await field.waitFor({ state: 'hidden', timeout: 5_000 });
+    assert.ok(await checkbox.evaluate((node) => node === document.activeElement), `${name}: Escape did not return focus`);
+    await context.close();
+    assert.deepEqual(failures, [], `${name}: the bundle threw in the capture field`);
+  });
 }
 
 // UC-WRK-32 check 5 in every engine: a value set above carries the chip beside it, and pressing it

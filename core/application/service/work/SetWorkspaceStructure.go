@@ -181,6 +181,9 @@ func (h SetWorkspaceStructure) decide(
 		if err != nil {
 			return domain.WorkspaceStructure{}, err
 		}
+		if err := refuseWorkspaceCategories(validated); err != nil {
+			return domain.WorkspaceStructure{}, err
+		}
 		next.Layer.Values = next.Layer.Values.Overlay(validated)
 	}
 	for _, setting := range cmd.Reset {

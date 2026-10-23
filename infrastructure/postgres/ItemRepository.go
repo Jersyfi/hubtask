@@ -312,6 +312,7 @@ func (r ItemRepository) SetAttributes(ctx context.Context, item work.WorkItem, e
 
 	affected, err := queries.SetWorkItemAttributes(ctx, sqlc.SetWorkItemAttributesParams{
 		Title:           item.Title,
+		Amount:          optionalText(item.Amount),
 		Notes:           optionalText(item.Notes),
 		BucketID:        bucket,
 		StartAt:         optionalTimestamp(item.StartAt),
@@ -926,6 +927,7 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		Path:            item.Path,
 		Depth:           depth,
 		Title:           item.Title,
+		Amount:          optionalText(item.Amount),
 		Notes:           optionalText(item.Notes),
 		BucketID:        bucket,
 		OrderKey:        item.OrderKey,
@@ -1051,6 +1053,7 @@ func (r ItemRepository) InsertCopy(ctx context.Context, duplicate repository.Cop
 		Path:            item.Path,
 		Depth:           depth,
 		Title:           item.Title,
+		Amount:          optionalText(item.Amount),
 		Notes:           optionalText(item.Notes),
 		BucketID:        bucket,
 		OrderKey:        item.OrderKey,
@@ -1230,12 +1233,14 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		Path:         row.Path,
 		Depth:        int(row.Depth),
 		Title:        row.Title,
+		Amount:       stringFrom(row.Amount),
 		Notes:        stringFrom(row.Notes),
 		Completion: work.Completion{
 			IsCompleted: row.IsCompleted,
 			CompletedAt: optionalTime(row.CompletedAt),
 			CompletedBy: completedBy,
 		},
+		CompletionCount:    int(row.CompletionCount),
 		BucketID:           bucketID,
 		OrderKey:           row.OrderKey,
 		AssigneeID:         assigneeID,

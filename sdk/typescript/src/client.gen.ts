@@ -1705,6 +1705,21 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/activity", { "itemId": itemId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** GET /items/{itemId}/kudos */
+  readKudos(itemId: string, options: CallOptions = {}): Promise<operations["readKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** PUT /items/{itemId}/kudos */
+  giveKudos(itemId: string, options: CallOptions = {}): Promise<operations["giveKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** DELETE /items/{itemId}/kudos */
+  takeBackKudos(itemId: string, options: CallOptions = {}): Promise<operations["takeBackKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** GET /containers/{containerId}/buckets */
   listBuckets(containerId: string, options: CallOptions = {}): Promise<operations["listBuckets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/containers/{containerId}/buckets", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1731,8 +1746,8 @@ export class HubtaskClient {
   }
 
   /** GET /containers/{containerId}/labels */
-  listLabels(containerId: string, options: CallOptions = {}): Promise<operations["listLabels"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/containers/{containerId}/labels", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  listLabels(containerId: string, options: CallOptions & { readonly query?: NonNullable<operations["listLabels"]['parameters']['query']> } = {}): Promise<operations["listLabels"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/containers/{containerId}/labels", { "containerId": containerId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /containers/{containerId}/labels */
@@ -1748,6 +1763,11 @@ export class HubtaskClient {
   /** DELETE /containers/{containerId}/labels/{labelId} */
   deleteLabel(containerId: string, labelId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
     return this.call("DELETE", "/containers/{containerId}/labels/{labelId}", { "containerId": containerId, "labelId": labelId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** POST /containers/{containerId}/labels/{labelId}:restore */
+  restoreLabel(containerId: string, labelId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["restoreLabel"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/labels/{labelId}:restore", { "containerId": containerId, "labelId": labelId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** PUT /items/{itemId}/labels/{labelId} */
