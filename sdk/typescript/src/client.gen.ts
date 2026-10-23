@@ -611,6 +611,11 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/me", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Change what the caller is called */
+  updateOwnAccount(body: NonNullable<operations["updateOwnAccount"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["updateOwnAccount"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1510,6 +1515,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/groups/{groupId}", { "groupId": groupId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Answers the first start's question for good */
+  closeStarter(options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/tenant/starter:close", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** PATCH /tenant/structure */
   setWorkspaceStructure(body: NonNullable<operations["setWorkspaceStructure"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setWorkspaceStructure"]['responses'][200]['content']["application/json"]> {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
@@ -1518,6 +1528,21 @@ export class HubtaskClient {
   /** The presets a hub or collection can start from */
   listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Saves a hub's or collection's structure as a preset */
+  savePreset(body: NonNullable<operations["savePreset"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["savePreset"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/presets", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Renames or changes a saved preset */
+  changePreset(presetId: string, body: NonNullable<operations["changePreset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changePreset"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Withdraws a saved preset */
+  withdrawPreset(presetId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** GET /containers */
@@ -1618,6 +1643,11 @@ export class HubtaskClient {
   /** The generic query - the basis for list, kanban, and timeline */
   queryItems(body: NonNullable<operations["queryItems"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["queryItems"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The result of a query, as a file */
+  exportItems(body: NonNullable<operations["exportItems"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<Response> {
+    return this.call("POST", "/items:export", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "raw", options.signal);
   }
 
   /** Full-text search over the entries a caller may see */

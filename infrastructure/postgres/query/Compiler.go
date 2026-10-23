@@ -191,7 +191,9 @@ func Search(
 
 	b.write(`SELECT `, itemColumns, `, c.parent_id, `)
 	b.rank(search, meaning)
-	b.write(` AS rank FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
+	b.write(` AS rank, `)
+	b.byMeaning(search, meaning)
+	b.write(` AS by_meaning FROM work_item wi JOIN container c ON c.id = wi.collection_id`)
 	b.meaningJoin(meaning)
 	b.write(` WHERE `)
 	b.searchPredicates(search, meaning)
@@ -222,7 +224,7 @@ func Search(
 func SearchRows(search repository.TextSearch, boundary Boundary, probe int) (Statement, error) {
 	b := newBuilder(repository.ItemSearch{Language: search.Request.Language})
 
-	b.write(`SELECT `, itemColumns, `, c.parent_id, 0::real AS rank`)
+	b.write(`SELECT `, itemColumns, `, c.parent_id, 0::real AS rank, false AS by_meaning`)
 	b.write(` FROM work_item wi JOIN container c ON c.id = wi.collection_id WHERE `)
 	b.scope(search.Anchor)
 	b.restriction(search.RestrictTo)
@@ -324,7 +326,37 @@ func (b *builder) searchPredicates(search repository.TextSearch, meaning string)
 		IncludeTrashed:  search.Request.IncludeTrashed,
 	})
 
-	b.write(` AND (wi.search_document @@ `)
+	b.write(` AND (`)
+	b.wordMatch(search)
+	b.neighbourhood(meaning)
+	b.write(`)`)
+
+	// And the filter, where one came with the words: the same tree the query compiles, written by
+	// the same code (ADR-0064). It narrows what the words found rather than replacing it.
+	if search.Request.Filter != nil {
+		b.write(` AND (`)
+		b.node(*search.Request.Filter)
+		b.write(`)`)
+	}
+}
+
+// byMeaning writes whether a row is a hit only because of its meaning: none of the word branches
+// matched it, so the neighbourhood did. A constant where there is no query vector, since every row
+// was then found by the words.
+func (b *builder) byMeaning(search repository.TextSearch, meaning string) {
+	if meaning == "" {
+		b.write(`false`)
+		return
+	}
+	b.write(`NOT (`)
+	b.wordMatch(search)
+	b.write(`)`)
+}
+
+// wordMatch writes the word branches of the match: the two configurations, the last word as a
+// beginning, and the substring supplement - everything that finds a row by what was typed.
+func (b *builder) wordMatch(search repository.TextSearch) {
+	b.write(`wi.search_document @@ `)
 	b.languageQuery(search.Request.Words)
 	b.write(` OR wi.search_document @@ `)
 	b.simpleQuery(search.Request.Words)
@@ -347,16 +379,6 @@ func (b *builder) searchPredicates(search repository.TextSearch, meaning string)
 	if search.Request.WithoutWordBoundaries() {
 		b.write(` OR `, searchText, ` ILIKE `)
 		b.likePattern(search.Request.Words)
-	}
-	b.neighbourhood(meaning)
-	b.write(`)`)
-
-	// And the filter, where one came with the words: the same tree the query compiles, written by
-	// the same code (ADR-0064). It narrows what the words found rather than replacing it.
-	if search.Request.Filter != nil {
-		b.write(` AND (`)
-		b.node(*search.Request.Filter)
-		b.write(`)`)
 	}
 }
 

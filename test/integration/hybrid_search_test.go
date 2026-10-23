@@ -188,6 +188,11 @@ func TestASemanticHitIsFoundAndTheExactWordStillWins(t *testing.T) {
 		t.Errorf("the second hit is %q, want the entry that shares no word with the query",
 			page.Hits[1].Item.Title)
 	}
+	// Only the entry sharing no word is marked as found by meaning; the named one is the words'.
+	if page.Hits[0].ByMeaning || !page.Hits[1].ByMeaning {
+		t.Errorf("by meaning: named %v, meant %v; want false and true",
+			page.Hits[0].ByMeaning, page.Hits[1].ByMeaning)
+	}
 	for _, hit := range page.Hits {
 		if hit.Item.ID == f.unrelated {
 			t.Error("an entry that is neither named nor meant was returned")

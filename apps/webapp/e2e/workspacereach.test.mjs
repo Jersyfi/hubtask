@@ -134,7 +134,9 @@ for (const [role, expected] of Object.entries(JUMBLE)) {
     await page.goto(`${served.origin}/jumble`);
     await page.getByText('Call the plumber').waitFor();
     const count = (name) => page.getByRole('button', { name }).count();
-    assert.equal(await count('Put it in the inbox') === 1, expected.capture, 'the capture form');
+    // Named as the capture names the act (P-12): *Capture*, and where it goes.
+    assert.equal(await page.getByRole('heading', { name: 'Capture', exact: true }).count() === 1, expected.capture, 'the capture heading');
+    assert.equal(await count('Capture into the jumble') === 1, expected.capture, 'the capture form');
     assert.equal(await count('Make an entry from it') === 1, expected.settle, 'convert');
     assert.equal(await count('Dismiss') === 1, expected.settle, 'dismiss');
     assert.equal(await count('Make a new address') === 1, expected.rotate, 'the intake address');
@@ -156,7 +158,7 @@ for (const role of ['AUDITOR', 'BELOW']) {
 
     await page.goto(`${served.origin}/jumble`);
     await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();
-    assert.equal(await page.getByRole('button', { name: 'Put it in the inbox' }).count(), 0);
+    assert.equal(await page.getByRole('button', { name: 'Capture into the jumble' }).count(), 0);
     assert.equal(asked.filter((path) => path.startsWith('/jumble')).length, 0, 'the jumble was read');
     assert.deepEqual(failures, []);
   });

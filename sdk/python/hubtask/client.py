@@ -499,6 +499,10 @@ class Client:
         """The account the caller is signed in as"""
         return self._call("GET", "/accounts/me", {}, None, {}, None, "none", None, "json")
 
+    def update_own_account(self, body: "OwnAccountUpdate") -> "Account":
+        """Change what the caller is called"""
+        return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
@@ -1199,6 +1203,10 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def close_starter(self) -> None:
+        """Answers the first start's question for good"""
+        return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")
+
     def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
@@ -1206,6 +1214,18 @@ class Client:
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
         return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")
+
+    def save_preset(self, body: "PresetCreate") -> "Preset":
+        """Saves a hub's or collection's structure as a preset"""
+        return self._call("POST", "/presets", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_preset(self, preset_id: str, body: "PresetUpdate", *, if_match: str | None = None) -> "Preset":
+        """Renames or changes a saved preset"""
+        return self._call("PATCH", "/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def withdraw_preset(self, preset_id: str, *, if_match: str | None = None) -> None:
+        """Withdraws a saved preset"""
+        return self._call("DELETE", "/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def list_containers(self, *, query: dict[str, Any] | None = None) -> "ContainerPage":
         """GET /containers"""
@@ -1287,7 +1307,11 @@ class Client:
         """The generic query - the basis for list, kanban, and timeline"""
         return self._call("POST", "/items:query", {}, None, {}, body, "json", "application/json", "json")
 
-    def search_items(self, body: "ItemSearchQuery") -> "WorkItemPage":
+    def export_items(self, body: "ItemExport", *, idempotency_key: str | None = None) -> bytes:
+        """The result of a query, as a file"""
+        return self._call("POST", "/items:export", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "raw")
+
+    def search_items(self, body: "ItemSearchQuery") -> "ItemSearchPage":
         """Full-text search over the entries a caller may see"""
         return self._call("POST", "/search", {}, None, {}, body, "json", "application/json", "json")
 

@@ -161,11 +161,20 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.getByText(ITEMS[2].title).first().waitFor();
     await page.waitForTimeout(600);
     const rows = await pageMenu(page, COLLECTION.name);
-    for (const shaping of ['Rename', 'Colour and symbol…', 'Move to another hub…', 'Labels', 'Custom fields', 'Structure…', 'Policies']) {
+    // The labels, the fields, the templates, the automation and the people are *Structure*'s tabs
+    // (ux-inventory.md §E4), so they are offered exactly where *Structure…* is.
+    for (const shaping of ['Rename', 'Colour and symbol…', 'Move to another hub…', 'Structure…']) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
-    // Used by everybody: the views, the templates, who is here.
-    for (const used of ['Saved views', 'Templates', 'People']) assert.ok(rows.includes(used), `${used} missing from ${rows}`);
+    for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
+    // Used by everybody: the views in their own menu, the templates in the add split, who is here
+    // in the faces.
+    assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
+    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the head');
+    assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
+    await page.getByRole('button', { name: 'More ways to add an entry' }).click();
+    assert.equal(await page.getByRole('menuitem', { name: 'From a template…' }).count(), 1, 'no way to the templates');
+    await page.keyboard.press('Escape');
     // The trash takes a subtree with it: the owner's alone.
     assert.equal(rows.includes('Move to the trash'), role === 'OWNER');
 

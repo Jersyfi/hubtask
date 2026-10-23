@@ -196,6 +196,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'] },
@@ -353,9 +354,8 @@ export const SETTINGS: readonly SectionGroup[] = [
     code: 'app.you.group_you',
     rows: [
       { id: 'profile', icon: 'user', code: 'app.you.row_profile', titleCode: 'app.profile.title', path: '/profile', routes: ['profile'] },
-      // The theme and reduced motion are the device's (ADR-0043) and the celebrations are the
-      // account's; what they have in common is that they are how the product looks and moves at
-      // the reader, which is what the screen is called.
+      // The theme and reduced motion: the device's (ADR-0043), and nothing else - the moments are
+      // the account's and stand on *You*.
       { id: 'appearance', icon: 'sun-moon', code: 'app.profile.device_section', path: '/profile/appearance', routes: ['appearance'] },
     ],
   },

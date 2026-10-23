@@ -24,12 +24,17 @@
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import type { ItemsQuery } from '../data/items.svelte.ts';
+  import type { FilterNode } from '@hubtask/sync-engine';
+  import { untrack } from 'svelte';
+
   import type { FilterField } from '../data/query.ts';
   import {
+    conditionsOf,
     filterOf,
     filterableFields,
     groupOf,
     groupableFields,
+    isSendable,
     sortOf,
     sortableFields,
     takesList,
@@ -53,15 +58,26 @@
      * default: a screen that spans collections has no one set of definitions in force.
      */
     custom?: readonly FilterField[];
+    /**
+     * A question applied from outside - a saved view opened from the *Views* menu. The controls
+     * take it over, so the next change or a change of layout starts from it rather than replacing
+     * it with what the controls held before.
+     */
+    applied?: ItemsQuery;
   }
 
-  const { layout, onquery, oncount, custom = [] }: Props = $props();
+  const { layout, onquery, oncount, custom = [], applied }: Props = $props();
 
   let conditions = $state<QueryCondition[]>([]);
   /** The manual order is the empty choice: `order_key ASC` is the query's own default. */
   let sortField = $state('');
   let sortDir = $state<'ASC' | 'DESC'>('ASC');
   let groupField = $state('bucket_id');
+  /**
+   * An applied filter the conditions cannot draw (`conditionsOf`), kept whole and combined with
+   * whatever the reader adds, until the controls are cleared.
+   */
+  let kept = $state<FilterNode | undefined>(undefined);
 
   const fields = $derived(
     filterableFields(manifest.value, custom).map((field) => ({
@@ -95,20 +111,39 @@
    * control that somehow offered an unknown field would still not send one.
    */
   function publish() {
+    const built = filterOf(manifest.value, conditions, custom);
     onquery({
-      filter: filterOf(manifest.value, conditions, custom),
+      filter: kept && built ? { op: 'AND', nodes: [kept, built] } : (kept ?? built),
       sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
       group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
     });
-    oncount?.(conditions.length + (sortField === '' ? 0 : 1));
+    oncount?.(conditions.length + (kept ? 1 : 0) + (sortField === '' ? 0 : 1));
   }
 
   function clear() {
+    kept = undefined;
     conditions = [];
     sortField = '';
     sortDir = 'ASC';
     publish();
   }
+
+  // Before the publishing effect, so that a view opened together with its layout is published
+  // once, as itself.
+  $effect(() => {
+    if (!applied) return;
+    const conditionsDrawn = conditionsOf(applied.filter);
+    // Drawn only when every condition is one the controls would send again; a view's filter the
+    // server validated is never thinned out by this client's manifest.
+    const drawn = conditionsDrawn?.every((each) => isSendable(manifest.value, each, custom)) ? conditionsDrawn : undefined;
+    untrack(() => {
+      conditions = drawn ?? [];
+      kept = drawn ? undefined : applied.filter;
+      sortField = applied.sort?.[0]?.field ?? '';
+      sortDir = applied.sort?.[0]?.dir ?? 'ASC';
+      if (applied.group) groupField = applied.group.field;
+    });
+  });
 
   // The grouping belongs to the board, so changing the layout changes the document.
   $effect(() => {

@@ -15,16 +15,18 @@
 import type { Capabilities, EffectiveStructure, Preset, StructureChange, StructureSettings } from '@hubtask/sync-engine';
 
 import { allowedChildTypes, rootTypes } from '../data/capability.ts';
+import { presetChoice, presetValue } from '../data/presetChoice.ts';
 
 /** The eight settings, in the order the panel shows them (UC-WRK-23 check 2). */
 export const SETTINGS = ['levels', 'fields', 'views', 'counts', 'completion', 'capture', 'celebration', 'automation'] as const;
 export type SettingName = (typeof SETTINGS)[number];
 
-export type PresetKey = NonNullable<StructureChange['preset']>;
-
 export interface Draft {
-  /** The preset chosen in this sitting, if any: its values replace the container's own. */
-  readonly preset: PresetKey | undefined;
+  /**
+   * The preset chosen in this sitting, if any - Hubtask's key or a saved preset's id
+   * (`presetChoice.ts`): its values replace the container's own.
+   */
+  readonly preset: string | undefined;
   /** What each setting shows now. */
   readonly values: StructureSettings;
   /** The settings sent back to what is set above. */
@@ -62,7 +64,7 @@ export function choosePreset(draft: Draft, structure: EffectiveStructure, preset
     if (lockOf(structure, setting) !== undefined) continue;
     if (from[setting] !== undefined) values[setting] = from[setting];
   }
-  return { ...draft, preset: preset.key as PresetKey, values: values as StructureSettings, reset: [] };
+  return { ...draft, preset: presetValue(preset), values: values as StructureSettings, reset: [] };
 }
 
 /** One setting changed in the panel. */
@@ -109,7 +111,7 @@ export function changeOf(draft: Draft, structure: EffectiveStructure, chosen: Pr
     settings[setting] = values[setting];
   }
   const change: StructureChange = {
-    ...(draft.preset ? { preset: draft.preset } : {}),
+    ...presetChoice(draft.preset),
     ...(Object.keys(settings).length > 0 ? { settings: settings as StructureSettings } : {}),
     ...(draft.reset.length > 0 ? { reset: [...draft.reset] } : {}),
   };
@@ -119,7 +121,7 @@ export function changeOf(draft: Draft, structure: EffectiveStructure, chosen: Pr
 /** How many changes the save bar counts: the preset, each setting set, each reset. */
 export function countOf(change: StructureChange | undefined): number {
   if (!change) return 0;
-  return (change.preset ? 1 : 0) + Object.keys(change.settings ?? {}).length + (change.reset?.length ?? 0);
+  return (change.preset || change.preset_id ? 1 : 0) + Object.keys(change.settings ?? {}).length + (change.reset?.length ?? 0);
 }
 
 // -------------------------------------------------------------------------------------------------

@@ -17,25 +17,24 @@
   // succeeded are named before the button, because confusing a replay with a re-trigger is how
   // somebody sends the same mail twice.
 
-  import { tick, untrack } from 'svelte';
+  import { untrack } from 'svelte';
 
   import { Badge, Banner, Button, Input, LoadMore, PageHeader, RunStatusBadge, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
   import { quotas } from '../lib/data/quotas.svelte.ts';
-  import { runs, type ActionResult, type Run, type TestResult } from '../lib/data/runs.svelte.ts';
+  import { runs, type ActionResult, type Run } from '../lib/data/runs.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import LimitSource from '../lib/workspace/LimitSource.svelte';
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
-  import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
-  import { focusFirst } from '../lib/forms/missing.ts';
 
   // On the shell (ADR-0061): the page's head is a `PageHeader`, the title the bar's on
   // a phone. The filters stay beside the list they narrow, under its own heading and above the
@@ -59,10 +58,6 @@
   let from = $state('');
   let to = $state('');
   let opened = $state<string | undefined>(undefined);
-  let testing = $state('');
-  let sampleType = $state('');
-  let sampleSubject = $state('');
-  let tested = $state<TestResult | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
 
@@ -171,23 +166,6 @@
     }
   }
 
-  /** Whether *Try it* was pressed without a sample type: marked at the field, nothing sent (UC-WRK-32 check 3). */
-  let typeMissing = $state(false);
-
-  async function dryRun(ruleId: string): Promise<void> {
-    typeMissing = !sampleType.trim();
-    if (typeMissing) {
-      void tick().then(() => focusFirst(document));
-      return;
-    }
-    await attempt(async () => {
-      tested = await runs.dryRun(ruleId, {
-        type: sampleType.trim(),
-        subject: sampleSubject.trim() || undefined,
-      });
-    });
-  }
-
   const actionWord = (result: ActionResult) =>
     result.path ? `${result.kind} · ${result.path}` : result.kind;
 
@@ -221,89 +199,11 @@
       {/snippet}
     </PageHeader>
 
-    <Stack gap="150">
-      <h2 class="section">{t('app.runs.try_title')}</h2>
-      <p class="quiet small">{t('app.runs.try_hint')}</p>
-      {#if resting}
+    <!-- Trying and starting a rule are in its editor (ux-inventory.md §E9): the probe and *Start
+         now*. This page is the log. -->
+    {#if resting}
       <NotInPlan body={t('app.plan.runs_body')} />
-      {:else}
-      <WorkspaceGate permission="AUTOMATION">
-        {#snippet actions()}
-      <Select
-        label={t('app.runs.which_rule')}
-        bind:value={testing}
-        placeholder={t('app.runs.choose_rule')}
-        options={rules.all.map((rule) => ({ value: rule.id, label: rule.name }))}
-      />
-      {#if testing}
-        <Input label={t('app.runs.sample_type')} hint={t('app.runs.sample_type_hint')} bind:value={sampleType} error={typeMissing && !sampleType.trim() ? t('app.forms.required') : undefined} />
-        <Input label={t('app.runs.sample_subject')} hint={t('app.runs.sample_subject_hint')} bind:value={sampleSubject} />
-        <div class="row">
-          <Button tone="primary" isBusy={isWorking} busyLabel={t('app.runs.trying')} onclick={() => void dryRun(testing)}>
-            {t('app.runs.try')}
-          </Button>
-          <Button
-            tone="secondary"
-            isBusy={isWorking}
-            busyLabel={t('app.runs.triggering')}
-            onclick={() => void attempt(() => runs.trigger(testing), t('app.runs.triggered_announced'))}
-          >
-            {t('app.runs.trigger')}
-          </Button>
-        </div>
-      {/if}
-        {/snippet}
-      </WorkspaceGate>
-      {/if}
-
-      {#if tested}
-        <div class="result">
-          <Stack gap="100">
-            <div class="row">
-              <RunStatusBadge
-                status={tested.matched ? 'SUCCEEDED' : 'SKIPPED'}
-                label={tested.matched ? t('app.runs.would_act') : t('app.runs.would_not_act')}
-                isDryRun
-                dryRunLabel={t('app.runs.dry_run')}
-              />
-            </div>
-            <!-- Beside the results rather than in a heading: this is where somebody reading
-                 "would have assigned Ada" is actually looking. -->
-            <p class="quiet small">{t('app.runs.wrote_nothing')}</p>
-
-            {#each tested.condition_results as result (result.index)}
-              <p class="line">
-                {#if result.error_code}
-                  <!-- Not the same as a condition that did not hold: this one could not be
-                       evaluated at all. -->
-                  <Badge tone="danger">{t('app.runs.condition_broken')}</Badge>
-                {:else}
-                  <Badge tone={result.matched ? 'success' : 'neutral'}>
-                    {result.matched ? t('app.runs.condition_held') : t('app.runs.condition_did_not')}
-                  </Badge>
-                {/if}
-                <span>{t('app.runs.condition_index', { index: String(result.index + 1) })}</span>
-              </p>
-            {/each}
-
-            <ul class="actions">
-              {#each tested.actions as action (action.path)}
-                <li>
-                  <Badge tone={action.would_run ? 'info' : 'neutral'}>
-                    {action.would_run ? t('app.runs.would_run') : t('app.runs.would_not_run')}
-                  </Badge>
-                  <span class="mono">{action.kind} · {action.path}</span>
-                  {#if action.summary}<span class="quiet">{action.summary}</span>{/if}
-                </li>
-              {/each}
-            </ul>
-            <!-- Both arms appear, which a real run's log does not do: the honest answer to "what
-                 would happen" includes "and what if it had not". -->
-            <p class="quiet small">{t('app.runs.both_arms')}</p>
-          </Stack>
-        </div>
-      {/if}
-    </Stack>
+    {/if}
 
     <Stack gap="150">
       <h2 class="section">{t('app.runs.list_title')}</h2>
@@ -344,6 +244,7 @@
           {:else}
             {t('app.runs.this_hour_unlimited', { used: String(hourly.used ?? 0) })}
           {/if}
+          <LimitSource standing={hourly} />
           <a href="/administration/quotas">{t('app.quotas.title')}</a>
         </p>
       {/if}
@@ -488,8 +389,10 @@
 
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 
-  .run,
-  .result {
+  /* The way to *Limits* reads as a link in both themes, as the overview's does. */
+  [data-hourly] a { color: var(--text-brand); }
+
+  .run {
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
@@ -506,8 +409,6 @@
   .stat dd { margin: 0; font-family: var(--font-display); font-size: var(--fs-400); font-weight: var(--fw-semibold); font-variant-numeric: tabular-nums; }
 
   .stat dt { font-size: var(--fs-075); color: var(--text-subtle); }
-
-  .line { margin: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .actions { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-050); }
 

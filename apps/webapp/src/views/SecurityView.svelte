@@ -53,7 +53,6 @@
   import { signInRules } from '../lib/data/signinrules.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
-  import { recoveryNote } from '../lib/data/recoverynote.svelte.ts';
   import { identities } from '../lib/data/identities.svelte.ts';
   import { passkeys } from '../lib/data/passkeys.svelte.ts';
   import { isStale } from '../lib/data/passkeys.ts';
@@ -293,13 +292,12 @@
           <div class="section">
             <!-- Offered whenever a factor is on, also where the workspace requires one: the old
                  factor works until the new app confirms the swap, so there is never a moment
-                 without a factor. -->
-            <!-- Open by itself while a recovery code's note stands: that note's link leads here, and
-                 a closed section under it would be one more press to the thing it asked for. -->
-            <details open={recoveryNote.note !== undefined}>
-              <summary>{t('app.mfa.replace_summary')}</summary>
+                 without a factor. A section rather than a disclosure (ux-inventory.md §E7): the
+                 recovery code's note links here, and what it asks for is in sight on arrival. -->
+            <Stack gap="150">
+              <h3>{t('app.mfa.replace_summary')}</h3>
               <AuthenticatorReplacement onreplaced={() => void replaced()} />
-            </details>
+            </Stack>
           </div>
 
           <div class="section">
@@ -312,8 +310,8 @@
             <!-- Offered wherever the rule does not require the factor, to every account: the proof
                  is the step-up's, with whatever the account holds (ADR-0075 §3), so an account
                  without a password is not turned away here. -->
-            <details>
-              <summary>{t('app.mfa.disable_summary')}</summary>
+            <Stack gap="150">
+              <h3>{t('app.mfa.disable_summary')}</h3>
               <Stack gap="150">
                 <p class="quiet">{keyHeld ? t('app.mfa.disable_body_beside_key') : t('app.mfa.disable_body')}</p>
                 <p class="quiet">{t('app.mfa.disable_hint')}</p>
@@ -323,7 +321,7 @@
                   </Button>
                 </div>
               </Stack>
-            </details>
+            </Stack>
             {/if}
           </div>
         {:else}
@@ -358,8 +356,6 @@
   }
 
   form { margin: 0; max-inline-size: 52ch; }
-
-  summary { cursor: pointer; color: var(--text-primary); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
 

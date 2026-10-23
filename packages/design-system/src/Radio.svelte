@@ -71,7 +71,7 @@
           value={option.value}
           bind:group={value}
           disabled={off}
-          aria-describedby={option.disabledReason ? `${optionId}-reason` : undefined}
+          aria-describedby={option.disabledReason ? `${optionId}-reason` : option.hint ? `${optionId}-hint` : undefined}
         />
         <span class="dot" aria-hidden="true"></span>
       </span>
@@ -79,7 +79,7 @@
       {#if option.disabledReason}
         <p id={`${optionId}-reason`} class="message">{option.disabledReason}</p>
       {:else if option.hint}
-        <p class="message">{option.hint}</p>
+        <p id={`${optionId}-hint`} class="message">{option.hint}</p>
       {/if}
     </div>
   {/each}

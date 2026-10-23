@@ -11,12 +11,13 @@
   // the setting's name and the control still there, readable and unavailable with its reason
   // (cases 2 and 6); a value set above names where it comes from and whom to ask.
   //
-  // The sections are a list, so the panel's further parts - the presets of one's own, switching
-  // a level with its preview - join it without a second panel.
+  // The sections are a list, so the panel's further parts - switching a level with its preview -
+  // join it without a second panel. *Save as preset* (UC-WRK-30 check 1) sits beside the preset
+  // picker and saves what is in force, not the draft.
 
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
-  import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack, Tabs } from '@hubtask/design-system/components';
   import type { Container, StructureChange, StructurePreview, StructureSettings } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -26,9 +27,10 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
-  import { presets } from '../data/presets.svelte.ts';
+  import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import NarrowingDialog from './NarrowingDialog.svelte';
+  import SavePresetDialog from './SavePresetDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -53,12 +55,26 @@
     type SettingName,
   } from './structureDraft.ts';
 
+  /** A tab beside the settings: what it is called, and what it draws while it is the open one. */
+  export interface StructureTab {
+    readonly id: string;
+    readonly label: string;
+    readonly body: Snippet;
+  }
+
   interface Props {
     isOpen: boolean;
     container: Container;
+    /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
+    mayShapeWorkspace?: boolean;
+    /** The collection's further parts, as tabs after *Settings*; none for a panel of settings alone. */
+    tabs?: readonly StructureTab[];
+    /** The open tab's id, `settings` first. Bindable, so a way in can open the panel on its tab. */
+    tab?: string;
   }
 
-  let { isOpen = $bindable(), container }: Props = $props();
+  let { isOpen = $bindable(), container, mayShapeWorkspace = false, tabs = [], tab = $bindable('settings') }: Props = $props();
+  let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
   const isHub = $derived(container.type === 'HUB');
@@ -297,7 +313,12 @@
   // The preset, the resets, the save
   // ---------------------------------------------------------------------------------------------
 
-  const presetOptions = $derived(presets.all.map((preset) => ({ value: preset.key as string, label: t(`app.structure.preset.${preset.key}`) })));
+  // Each marked with where it comes from (UC-WRK-30 check 2).
+  const presetOptions = $derived(
+    presets.all.map((preset) => ({ value: presetValue(preset), label: t('app.structure.preset_option', { name: presetName(preset), origin: presetOrigin(preset) }) })),
+  );
+  /** The name of the preset the layer was copied from, where it is still offered. */
+  const startedFrom = $derived(presets.nameOf(structure?.preset ?? structure?.preset_id));
 
   function choosePresetKey(key: string) {
     const preset = presets.find(key);
@@ -374,12 +395,8 @@
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
 </script>
 
-<Drawer
-  bind:isOpen
-  edge={viewport.isCompact ? 'block-end' : 'inline-end'}
-  title={t('app.structure.title', { name: container.name })}
-  dismissLabel={t('app.dismiss')}
->
+<!-- The eight settings: the panel's first tab, or the whole panel where it has no other. -->
+{#snippet settingsBody()}
   {#if structure && draft}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="300">
@@ -389,14 +406,25 @@
           <Select
             label={t('app.structure.preset_label')}
             hint={draft.preset
-              ? t('app.structure.preset_chosen', { preset: t(`app.structure.preset.${draft.preset}`) })
-              : structure.preset
-                ? t('app.structure.preset_from', { preset: t(`app.structure.preset.${structure.preset}`) })
+              ? t('app.structure.preset_chosen', { preset: presets.nameOf(draft.preset) ?? '' })
+              : startedFrom
+                ? t('app.structure.preset_from', { preset: startedFrom })
                 : t('app.structure.preset_hint')}
             placeholder={t('app.structure.preset_choose')}
             options={presetOptions}
             bind:value={() => draft?.preset ?? '', (key) => choosePresetKey(key)}
           />
+          <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
+          <div class="save-as">
+          <Button
+            size="sm"
+            tone="subtle"
+            disabledReason={changeCount > 0 ? t('app.presets.save_first') : undefined}
+            onclick={() => (isSavingPreset = true)}
+          >
+            {t('app.presets.save_as')}
+          </Button>
+          </div>
         </section>
 
         {#each SETTINGS as setting (setting)}
@@ -550,6 +578,30 @@
       />
     </form>
   {/if}
+{/snippet}
+
+<Drawer
+  bind:isOpen
+  edge={viewport.isCompact ? 'block-end' : 'inline-end'}
+  title={t('app.structure.title', { name: container.name })}
+  dismissLabel={t('app.dismiss')}
+>
+  {#if tabs.length > 0}
+    <!-- A collection's further parts as tabs beside its settings (ux-inventory.md §E4): its
+         labels, fields, templates, automation and people, each the same component its dialog
+         was, drawn while its tab is the open one. -->
+    <div data-structure-tabs>
+      <Tabs label={t('app.structure.tabs_label')} tabs={[{ id: 'settings', label: t('app.structure.tab_settings') }, ...tabs]} bind:selected={tab}>
+        {#if tab === 'settings'}
+          {@render settingsBody()}
+        {:else}
+          {@render tabs.find((each) => each.id === tab)?.body()}
+        {/if}
+      </Tabs>
+    </div>
+  {:else}
+    {@render settingsBody()}
+  {/if}
 </Drawer>
 
 {#if narrowing}
@@ -561,6 +613,8 @@
     oncancel={() => (narrowing = undefined)}
   />
 {/if}
+
+<SavePresetDialog bind:isOpen={isSavingPreset} containerId={container.id} {mayShapeWorkspace} />
 
 {#if categoriesOf && structure}
   <CategoriesDialog
@@ -578,6 +632,7 @@
   .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .head h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .names { display: grid; gap: var(--sp-150); }
+  .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
 </style>

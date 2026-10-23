@@ -365,6 +365,9 @@ type ItemHit struct {
 	// it is comparable inside one result set and means nothing outside it. It is on the hit
 	// because the cursor is a keyset over it - a walk that lost it could not continue.
 	Rank float32
+	// ByMeaning marks a hit none of the words found: it is on the page because its meaning is
+	// near the query's. A reader is told so, or an entry without any of their words looks wrong.
+	ByMeaning bool
 }
 
 // ItemHitPage is one page of a search, in rank order.
@@ -1286,6 +1289,41 @@ type Structures interface {
 	// SetWorkspace writes the workspace's layer under the tenant row's version, or reports a version
 	// conflict.
 	SetWorkspace(ctx context.Context, workspace work.WorkspaceStructure, expectedVersion int, at time.Time) error
+}
+
+// Presets keeps the saved presets: the workspace's and each person's own (UC-WRK-30). Which own
+// preset a person may read or change is the caller's decision (rule 2); another tenant's preset is
+// not found.
+type Presets interface {
+	// Find answers one saved preset, or presets.not_found.
+	Find(ctx context.Context, id shared.ID) (work.Preset, error)
+
+	// ListOffered answers the workspace's presets and the person's own, the workspace's first,
+	// each by name.
+	ListOffered(ctx context.Context, ownerID shared.ID) ([]work.Preset, error)
+
+	// Count answers how many presets of the origin there are: the workspace's, or the owner's own.
+	Count(ctx context.Context, origin work.PresetOrigin, ownerID shared.ID) (int, error)
+
+	// Insert stores a new saved preset at version 1.
+	Insert(ctx context.Context, preset work.Preset, at time.Time) error
+
+	// Update writes the preset's name and values under the expected version, or reports a version
+	// conflict.
+	Update(ctx context.Context, preset work.Preset, expectedVersion int) error
+
+	// Delete removes the preset under the expected version, or reports a version conflict.
+	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
+}
+
+// Starter keeps whether the workspace's first start was answered (UC-WRK-30 check 5).
+type Starter interface {
+	// Pending reports whether nobody has answered or skipped the first start's question and the
+	// workspace holds no hub.
+	Pending(ctx context.Context) (bool, error)
+
+	// Close records that the question was answered or skipped; closing it again changes nothing.
+	Close(ctx context.Context, at time.Time) error
 }
 
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its

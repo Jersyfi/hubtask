@@ -7,6 +7,7 @@ import (
 	"context"
 
 	metarepo "github.com/Jersyfi/hubtask/core/application/repository/meta"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -22,32 +23,45 @@ const (
 // PresetsReadAction is the audit code of a refused read of the presets.
 const PresetsReadAction audit.Action = "presets.read"
 
-// ListPresets answers Hubtask's presets as this installation offers them.
+// ListPresets answers the presets a person can start from, as this installation offers them:
+// Hubtask's four, the workspace's and the person's own (UC-WRK-30 check 2), each with its origin.
 //
-// Open to anybody signed in to the workspace, like GetAccount: four starting points held to the
-// installation's capability profiles, which /meta/capabilities answers to anybody at all. What a
+// Open to anybody signed in to the workspace, like GetAccount: Hubtask's four are held to the
+// installation's capability profiles, which /meta/capabilities answers to anybody at all, and the
+// workspace's are offered to everyone in it. A person's own are answered to them alone. What a
 // credential still bounds is the token scope.
 type ListPresets struct {
-	Profiles   metarepo.CapabilityProfiles
+	Profiles metarepo.CapabilityProfiles
+	// Presets reads the saved ones; a build without it answers Hubtask's four alone.
+	Presets    repository.Presets
 	UnitOfWork persistence.UnitOfWork
 }
 
-// Execute answers the four, in a stable order.
+// Execute answers Hubtask's four in a stable order, then the workspace's and the person's own by
+// name.
 func (h ListPresets) Execute(ctx context.Context, actor appshared.ActorContext) ([]domain.Preset, error) {
 	if err := actor.RequireScope(containersRead); err != nil {
 		return nil, err
 	}
 	var bound domain.StructureBound
+	var saved []domain.Preset
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		read, err := structureBound(ctx, h.Profiles)
+		if err != nil {
+			return err
+		}
 		bound = read
+		if h.Presets == nil {
+			return nil
+		}
+		saved, err = h.Presets.ListOffered(ctx, actor.AccountID)
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	presets := domain.BuiltInPresets()
+	presets := append(domain.BuiltInPresets(), saved...)
 	offered := make([]domain.Preset, 0, len(presets))
 	for _, preset := range presets {
 		offered = append(offered, preset.Offered(bound))
@@ -72,8 +86,9 @@ func structureBound(ctx context.Context, profiles metarepo.CapabilityProfiles) (
 func (h ListPresets) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListPresetsName,
-		Summary: "The presets a hub or collection can start from - List, Tasks, Project and Flow - " +
-			"each with the values of its eight settings (levels and their names, fields, views, " +
+		Summary: "The presets a hub or collection can start from - Hubtask's List, Tasks, Project " +
+			"and Flow, the workspace's and the caller's own, each with its origin and " +
+			"the values of its eight settings (levels and their names, fields, views, " +
 			"what counts, completion, capture, celebration, automation) as this installation " +
 			"offers them. Choosing one copies its values; nothing follows a preset afterwards.",
 		SideEffects: "None. Reads only.",

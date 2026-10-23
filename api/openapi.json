@@ -4041,6 +4041,39 @@
             "$ref": "#/components/responses/Problem"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "updateOwnAccount",
+        "summary": "Change what the caller is called",
+        "description": "The display name a person gives themselves: what the other members of the workspace see\nbeside everything they do, and what the audit trail records next to their actions. Only\none's own - there is no account identifier in the path, so there is nothing to authorise\nbeyond being signed in as a person. A service account is named by whoever administers it\nand is refused here.\n\nThe name is trimmed and must keep at least one character; it is at most 200.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
       }
     },
     "/accounts/{accountId}": {
@@ -4055,7 +4088,7 @@
         ],
         "operationId": "getAccount",
         "summary": "The name behind an account identifier",
-        "description": "Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries\nan identifier and no label, and says why: \"the account is one request away and this record\nis deleted with its entry, so there is nothing for a copy of somebody's name to outlive\".\nThis is that request.\n\n**What comes back is deliberately less than `/accounts/me`.** The display name and the kind,\nand not the email, the locale, the time zone or the first day of the week. Those are the\ncaller's own business or an administrator's; a name is what a workspace has to show to be\nreadable at all. What the other members of a workspace see of a profile is kept minimal -\nthe display name and the avatar - and this is that minimum.\n\nAny member of the tenant may make it. There is nothing narrower to authorise against: the\nidentifiers a client holds arrived in records it was already allowed to read, and row level\nsecurity bounds the answer to the caller's own tenant, so an identifier from elsewhere does\nnot resolve here rather than being refused here.\n\nAn erased account answers with the marker its erasure wrote where the name was, because that\nis what the row holds — the reading is not special-cased, and there is nothing left to leak.\n",
+        "description": "Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries\nan identifier and no label, and says why: \"the account is one request away and this record\nis deleted with its entry, so there is nothing for a copy of somebody's name to outlive\".\nThis is that request.\n\n**What comes back is deliberately less than `/accounts/me`.** The display name and the kind,\nand not the email, the locale, the time zone or the first day of the week. Those are the\ncaller's own business or an administrator's; a name is what a workspace has to show to be\nreadable at all. What the other members of a workspace see of a profile is kept minimal -\nthe display name, from which a client draws the avatar - and this is that minimum.\n\nAny member of the tenant may make it. There is nothing narrower to authorise against: the\nidentifiers a client holds arrived in records it was already allowed to read, and row level\nsecurity bounds the answer to the caller's own tenant, so an identifier from elsewhere does\nnot resolve here rather than being refused here.\n\nAn erased account answers with the marker its erasure wrote where the name was, because that\nis what the row holds — the reading is not special-cased, and there is nothing left to leak.\n",
         "responses": {
           "200": {
             "description": "The account, as another member may see it",
@@ -10229,6 +10262,24 @@
         }
       }
     },
+    "/tenant/starter:close": {
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "closeStarter",
+        "summary": "Answers the first start's question for good",
+        "description": "Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.\n",
+        "responses": {
+          "204": {
+            "description": "Closed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/tenant/structure": {
       "patch": {
         "tags": [
@@ -10282,7 +10333,7 @@
         ],
         "operationId": "listPresets",
         "summary": "The presets a hub or collection can start from",
-        "description": "Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.\n",
+        "description": "The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.\n",
         "responses": {
           "200": {
             "description": "The presets",
@@ -10290,13 +10341,126 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "maxItems": 4,
+                  "maxItems": 154,
                   "items": {
                     "$ref": "#/components/schemas/Preset"
                   }
                 }
               }
             }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "savePreset",
+        "summary": "Saves a hub's or collection's structure as a preset",
+        "description": "Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/presets/{presetId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PresetId"
+        }
+      ],
+      "patch": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "changePreset",
+        "summary": "Renames or changes a saved preset",
+        "description": "Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresetUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Preset"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "withdrawPreset",
+        "summary": "Withdraws a saved preset",
+        "description": "Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IfMatch"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Withdrawn"
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -11160,6 +11324,64 @@
         }
       }
     },
+    "/items:export": {
+      "post": {
+        "tags": [
+          "items"
+        ],
+        "operationId": "exportItems",
+        "summary": "The result of a query, as a file",
+        "description": "A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.\nThe query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemExport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The rendered result",
+            "headers": {
+              "Export-Truncated": {
+                "description": "Present and true when the result reached max_export_rows and the file is the first page of a larger answer. Absent otherwise.\n",
+                "schema": {
+                  "type": "boolean"
+                }
+              }
+            },
+            "content": {
+              "text/csv": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemExportDocument"
+                }
+              },
+              "text/calendar": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/search": {
       "post": {
         "tags": [
@@ -11184,7 +11406,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/WorkItemPage"
+                  "$ref": "#/components/schemas/ItemSearchPage"
                 }
               }
             }
@@ -13830,6 +14052,15 @@
           "format": "uuid"
         }
       },
+      "PresetId": {
+        "name": "presetId",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        }
+      },
       "CustomFieldId": {
         "name": "fieldId",
         "in": "path",
@@ -14266,6 +14497,33 @@
         "default": "AUTO",
         "description": "How much of the search to use.\n`AUTO` is the default and searches by words and, where the installation has it, by meaning. `LEXICAL` searches by words only: it asks no provider, spends no budget and waits on nothing, which is what a caller in a loop - an automation, an import, a client's own type-ahead - wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the server cannot promise is a mode that would have to fail.\n"
       },
+      "ItemSearchPage": {
+        "type": "object",
+        "required": [
+          "data",
+          "page"
+        ],
+        "description": "One page of a search: the hits in rank order, and which of them were found by meaning alone.\n",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkItem"
+            }
+          },
+          "page": {
+            "$ref": "#/components/schemas/PageInfo"
+          },
+          "found_by_meaning": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "The hits on this page that share no word with `q` and were found because they are about the same subject. A client marks them, so that a reader is not left wondering why an entry without any of their words is listed. Empty where the search was by words only - `LEXICAL`, no words, or an installation without search by meaning.\n"
+          }
+        }
+      },
       "WorkItemPage": {
         "type": "object",
         "required": [
@@ -14636,6 +14894,17 @@
               "string",
               "null"
             ],
+            "maxLength": 200
+          }
+        }
+      },
+      "OwnAccountUpdate": {
+        "type": "object",
+        "description": "What a person may change about their own account. A field left out is left as it is.",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
             "maxLength": 200
           }
         }
@@ -16438,6 +16707,11 @@
           },
           "structure": {
             "$ref": "#/components/schemas/WorkspaceStructure"
+          },
+          "starter_offered": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, the workspace holds no hub, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.\n"
           },
           "hosts": {
             "type": "array",
@@ -21416,6 +21690,14 @@
               null
             ],
             "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.\n"
+          },
+          "preset_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
           }
         }
       },
@@ -21682,6 +21964,11 @@
               "FLOW"
             ]
           },
+          "preset_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
+          },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
           },
@@ -21838,6 +22125,11 @@
               "FLOW"
             ]
           },
+          "preset_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
+          },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
           },
@@ -21870,6 +22162,14 @@
               null
             ],
             "description": "The preset a hub created without one starts from; null removes it."
+          },
+          "default_preset_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "A workspace preset as the one a hub created without one starts from instead; null removes it, as does `default_preset: null`. A person's own preset is refused with `presets.unknown`; naming it beside `default_preset` with `presets.both_named`.\n"
           }
         }
       },
@@ -21908,6 +22208,14 @@
               "FLOW",
               null
             ]
+          },
+          "preset_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.\n"
           },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
@@ -22095,6 +22403,14 @@
               null
             ]
           },
+          "preset_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.\n"
+          },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
           },
@@ -22123,17 +22439,34 @@
               null
             ],
             "description": "The preset a hub created without one starts from. Collections follow their hub."
+          },
+          "default_preset_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The workspace preset a hub created without one starts from, where the default is a saved one; `default_preset` is then null.\n"
           }
         }
       },
       "Preset": {
         "type": "object",
-        "description": "A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.\n",
+        "description": "A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.\n",
         "required": [
-          "key",
+          "origin",
           "settings"
         ],
         "properties": {
+          "origin": {
+            "type": "string",
+            "enum": [
+              "HUBTASK",
+              "WORKSPACE",
+              "OWN"
+            ],
+            "description": "Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).\n"
+          },
           "key": {
             "type": "string",
             "enum": [
@@ -22141,7 +22474,71 @@
               "TASKS",
               "PROJECT",
               "FLOW"
-            ]
+            ],
+            "description": "One of Hubtask's presets. Absent on a saved one."
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A saved preset's id. Absent on one of Hubtask's."
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "A saved preset's name. Absent on one of Hubtask's, which a client names."
+          },
+          "version": {
+            "type": "integer",
+            "description": "A saved preset's optimistic lock. Absent on one of Hubtask's."
+          },
+          "settings": {
+            "$ref": "#/components/schemas/StructureSettings"
+          }
+        }
+      },
+      "PresetCreate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "origin",
+          "container_id"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "WORKSPACE",
+              "OWN"
+            ],
+            "description": "For the workspace, or for the caller alone."
+          },
+          "container_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub or collection whose structure in force is saved."
+          }
+        }
+      },
+      "PresetUpdate": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Applied in this order - the name, the structure copied again, the settings.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "container_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A hub or collection whose structure in force replaces the preset's settings."
           },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
@@ -25133,6 +25530,63 @@
             ],
             "default": "none",
             "description": "`exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.\n"
+          }
+        }
+      },
+      "ItemExport": {
+        "type": "object",
+        "required": [
+          "format",
+          "query"
+        ],
+        "description": "What to render and how. The query decides which rows; the format decides what they become.\n",
+        "properties": {
+          "format": {
+            "type": "string",
+            "enum": [
+              "CSV",
+              "JSON",
+              "ICS"
+            ],
+            "description": "CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.\n"
+          },
+          "time_zone": {
+            "type": "string",
+            "description": "The zone the dates are written in. Defaults to the caller's own. It decides how a timestamp reads, never which rows are selected.\n",
+            "example": "Europe/Berlin"
+          },
+          "query": {
+            "$ref": "#/components/schemas/ItemQuery"
+          }
+        }
+      },
+      "ItemExportDocument": {
+        "type": "object",
+        "description": "The JSON rendering - the query's rows, and what the export knows about itself.\n",
+        "required": [
+          "generated_at",
+          "count",
+          "truncated",
+          "rows"
+        ],
+        "properties": {
+          "generated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "count": {
+            "type": "integer",
+            "description": "How many rows are in this document."
+          },
+          "truncated": {
+            "type": "boolean",
+            "description": "True when the result reached max_export_rows. The same statement the Export-Truncated header makes, in the one format that can carry it in the body.\n"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WorkItem"
+            }
           }
         }
       },

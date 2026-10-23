@@ -41,6 +41,7 @@ var privateHubExemptions = map[string]string{
 	// the table because its answer names no identifier.
 	"AiTranslate":                  asksOnItsPath,
 	"ExportView":                   asksOnItsPath,
+	"ExportItems":                  asksOnItsPath,
 	"GetRecurrence":                asksOnItsPath,
 	"GetTemplate":                  asksOnItsPath,
 	"ListActivity":                 asksOnItsPath,

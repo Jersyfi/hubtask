@@ -1653,6 +1653,48 @@ SELECT EXISTS (SELECT 1 FROM container_milestone WHERE container_id = (sqlc.arg(
 -- name: ClearContainerMilestone :execrows
 DELETE FROM container_milestone;
 
+-- name: ImportStructurePreset :execrows
+-- A person's own preset whose account the restore did not bring back belongs to nobody, and is
+-- skipped rather than refused by the foreign key.
+INSERT INTO structure_preset (
+  tenant_id,
+  id,
+  origin,
+  owner_id,
+  name,
+  settings,
+  created_at,
+  version
+)
+SELECT
+  r.tenant_id,
+  r.id,
+  r.origin,
+  r.owner_id,
+  r.name,
+  r.settings,
+  r.created_at,
+  r.version
+FROM jsonb_populate_record(
+  NULL::structure_preset,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.owner_id IS NULL OR EXISTS (SELECT 1 FROM account a WHERE a.id = r.owner_id)
+ON CONFLICT (tenant_id, id) DO UPDATE SET
+  origin = EXCLUDED.origin,
+  owner_id = EXCLUDED.owner_id,
+  name = EXCLUDED.name,
+  settings = EXCLUDED.settings,
+  created_at = EXCLUDED.created_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsStructurePreset :one
+SELECT EXISTS (SELECT 1 FROM structure_preset WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearStructurePreset :execrows
+DELETE FROM structure_preset;
+
 -- name: ImportSetElement :execrows
 INSERT INTO set_element (
   tenant_id,

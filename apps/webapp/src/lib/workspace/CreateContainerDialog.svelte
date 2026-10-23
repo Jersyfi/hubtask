@@ -32,7 +32,7 @@
   import { Button, Dialog, Input, Radio, Stack, Switch, Textarea } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
-  import { presets } from '../data/presets.svelte.ts';
+  import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
@@ -97,7 +97,15 @@
           isHub
             ? { value: '', label: t('app.structure.preset_workspace_default'), hint: t('app.structure.preset_workspace_default_about') }
             : { value: '', label: t('app.structure.preset_follow_hub'), hint: t('app.structure.preset_follow_hub_about') },
-          ...presets.all.map((each) => ({ value: each.key as string, label: t(`app.structure.preset.${each.key}`), hint: t(`app.structure.preset_about.${each.key}`) })),
+          // Each marked with where it comes from (UC-WRK-30 check 2): Hubtask's with what it is,
+          // a saved one with whose it is.
+          ...presets.all.map((each) => ({
+            value: presetValue(each),
+            label: presetName(each),
+            hint: each.key
+              ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.structure.preset_about.${each.key}`) })
+              : presetOrigin(each),
+          })),
         ],
   );
 
@@ -134,7 +142,7 @@
           description: description.trim() === '' ? null : description.trim(),
           ...lookBody(symbol, colour),
           ...(isPrivateHubOnly || (isPrivacyOffered && isPrivate) ? { private: true } : {}),
-          ...(preset !== '' ? { preset: preset as 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' } : {}),
+          ...presetChoice(preset),
         },
         crypto.randomUUID(),
       );

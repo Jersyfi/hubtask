@@ -42,6 +42,12 @@ class ItemSearchQuery(TypedDict, total=False):
 
 SearchMode = Literal["AUTO", "LEXICAL"]
 
+class ItemSearchPage(TypedDict, total=False):
+    """One page of a search: the hits in rank order, and which of them were found by meaning alone."""
+    data: Required[list["WorkItem"]]
+    page: Required["PageInfo"]
+    found_by_meaning: list[str]
+
 class WorkItemPage(TypedDict, total=False):
     data: Required[list["WorkItem"]]
     page: Required["PageInfo"]
@@ -133,6 +139,10 @@ class InvitedAccount(TypedDict, total=False):
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
+
+class OwnAccountUpdate(TypedDict, total=False):
+    """What a person may change about their own account. A field left out is left as it is."""
+    display_name: str
 
 class AccountPreferences(TypedDict, total=False):
     """Every field is optional, and an empty string clears the preference rather than setting it"""
@@ -535,6 +545,7 @@ class Workspace(TypedDict, total=False):
     several_people: bool
     sign_in_policy: "SignInPolicy"
     structure: "WorkspaceStructure"
+    starter_offered: bool
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
 
@@ -1542,6 +1553,7 @@ class ContainerCreate(TypedDict, total=False):
     color_token: str | None
     private: bool
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+    preset_id: str | None
 
 class ContainerUpdate(TypedDict, total=False):
     name: str
@@ -1592,6 +1604,7 @@ class StructureCounts(TypedDict, total=False):
 class StructureChange(TypedDict, total=False):
     """A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets."""
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    preset_id: str
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
     narrowing: Literal["HIDE", "FLATTEN"]
@@ -1609,16 +1622,19 @@ class StructurePreview(TypedDict, total=False):
 class WorkspaceStructureChange(TypedDict, total=False):
     """A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset."""
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    preset_id: str
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
     locks: list[str]
     default_preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None
+    default_preset_id: str | None
 
 StructureSettingName = Literal["levels", "fields", "views", "counts", "completion", "capture", "celebration", "automation"]
 
 class EffectiveStructure(TypedDict, total=False):
     """The structure in force: every setting's value, where it came from (Hubtask's default, the installation, the workspace, the hub, this collection), and which settings are locked, by whom. A locked setting is answered with its value, not withheld; writing it is refused with `structure.setting_locked`. `preset` is where the nearest layer's values were copied from - provenance only."""
     preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    preset_id: str | None
     settings: Required["StructureSettings"]
     sources: Required[dict[str, Any]]
     locks: Required[dict[str, Any]]
@@ -1653,15 +1669,32 @@ class StructureLock(TypedDict, total=False):
 class WorkspaceStructure(TypedDict, total=False):
     """The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from."""
     preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    preset_id: str | None
     settings: Required["StructureSettings"]
     sources: Required[dict[str, Any]]
     locks: Required[dict[str, Any]]
     default_preset: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"] | None]
+    default_preset_id: str | None
 
 class Preset(TypedDict, total=False):
-    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it."""
-    key: Required[Literal["LIST", "TASKS", "PROJECT", "FLOW"]]
+    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`."""
+    origin: Required[Literal["HUBTASK", "WORKSPACE", "OWN"]]
+    key: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    id: str
+    name: str
+    version: int
     settings: Required["StructureSettings"]
+
+class PresetCreate(TypedDict, total=False):
+    name: Required[str]
+    origin: Required[Literal["WORKSPACE", "OWN"]]
+    container_id: Required[str]
+
+class PresetUpdate(TypedDict, total=False):
+    """Applied in this order - the name, the structure copied again, the settings."""
+    name: str
+    container_id: str
+    settings: "StructureSettings"
 
 class AutoAssignPolicy(TypedDict, total=False):
     """A collection's rule for handing out what is created in it. An enabled policy applies itself to everything created in the collection; one that is not enabled waits to be asked for, with auto_assign on the create request. The rotation state of ROUND_ROBIN is the server's bookkeeping and is not in this document."""
@@ -2267,6 +2300,19 @@ class ItemQuery(TypedDict, total=False):
     include_archived: bool
     include_trashed: bool
     count: Literal["none", "estimated", "exact"]
+
+class ItemExport(TypedDict, total=False):
+    """What to render and how. The query decides which rows; the format decides what they become."""
+    format: Required[Literal["CSV", "JSON", "ICS"]]
+    time_zone: str
+    query: Required["ItemQuery"]
+
+class ItemExportDocument(TypedDict, total=False):
+    """The JSON rendering - the query's rows, and what the export knows about itself."""
+    generated_at: Required[str]
+    count: Required[int]
+    truncated: Required[bool]
+    rows: Required[list["WorkItem"]]
 
 class ItemQueryGroup(TypedDict, total=False):
     """One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor."""

@@ -27,6 +27,8 @@
  */
 
 import { truncateGraphemes } from '../i18n/text.ts';
+import type { ItemExport } from '@hubtask/sync-engine';
+
 import type { ItemsQuery } from './items.svelte.ts';
 
 /** The three the contract's enum declares. */
@@ -93,6 +95,32 @@ export function queryDocumentOf(
     include_descendants: false,
     ...(query?.filter ? { filter: query.filter } : {}),
     ...(query?.sort ? { sort: query.sort } : {}),
+  };
+}
+
+/**
+ * The body of an export without a saved view: the collection as it is filtered on screen.
+ *
+ * The same question a view saved here would store — one level, anchored to this collection — so
+ * that saving it first and exporting it then would hand over the same rows. The grouping is left
+ * behind: a file is rows.
+ */
+export function itemExportOf(
+  query: ItemsQuery | undefined,
+  collectionId: string,
+  format: ExportFormat,
+  timeZone: string | undefined,
+): ItemExport {
+  return {
+    format,
+    ...(timeZone ? { time_zone: timeZone } : {}),
+    query: {
+      scope: { container_id: collectionId, include_descendants: false },
+      ...(query?.filter ? { filter: query.filter } : {}),
+      ...(query?.sort ? { sort: query.sort } : {}),
+      // The defaults the contract declares are the server's to fill; the generated type calls
+      // them required only because they have one.
+    } as ItemExport['query'],
   };
 }
 

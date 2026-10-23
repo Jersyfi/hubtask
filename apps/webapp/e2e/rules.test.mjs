@@ -109,6 +109,8 @@ const RUNS = [
   { id: '01a0e2e0-0000-7000-8000-000000000033', rule_id: RULE.id, trigger: 'EVENT', status: 'SKIPPED', started_at: '2026-09-19T20:16:00Z', causation_depth: 1, condition_results: [{ index: 0, matched: false }], action_results: [] },
 ];
 
+/** A rule somebody starts: the one *Start now* starts (UC-AUT-03). */
+const MANUAL = { ...RULE, id: '01a0e2e0-0000-7000-8000-000000000012', name: 'Close the month', trigger: { kind: 'MANUAL' } };
 /** A second rule, as the check found it: a label gone, and an action kind this version no longer serves. */
 const STALE = {
   ...RULE,
@@ -128,7 +130,7 @@ const STALE = {
 };
 
 /** The API at the network edge, and a place the last write's body is kept for the assertions. */
-function stubFor(written, tested = TEST_HELD) {
+function stubFor(written, tested = TEST_HELD, listed = [RULE, STALE]) {
   return async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -151,7 +153,11 @@ function stubFor(written, tested = TEST_HELD) {
       written.push(request.postDataJSON());
       return route.fulfill({ json: { ...RULE, ...request.postDataJSON(), version: RULE.version + written.length } });
     }
-    if (path.endsWith('/api/v1/automation/rules')) return route.fulfill({ json: { ...PAGE, data: [RULE, STALE] } });
+    if (path.endsWith('/api/v1/automation/rules')) return route.fulfill({ json: { ...PAGE, data: listed } });
+    if (path.endsWith(':trigger') && request.method() === 'POST') {
+      written.push({ triggered: path });
+      return route.fulfill({ status: 202, json: { run_id: '01a0e2e0-0000-7000-8000-0000000000aa', rule_id: MANUAL.id } });
+    }
     if (path.endsWith('/api/v1/automation/rules:check')) {
       written.push({ check: true });
       return route.fulfill({ json: { data: [RULE, STALE] } });
@@ -937,6 +943,9 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   // On the shell: one heading, from the PageHeader.
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   assert.equal((await page.getByRole('heading', { level: 1 }).textContent()).trim(), 'What the rules did');
+  // Trying and starting a rule left this page for the editor (ux-inventory.md §E9).
+  assert.equal(await page.getByRole('heading', { name: 'Try a rule' }).count(), 0);
+  assert.equal(await page.getByRole('combobox', { name: 'Which rule' }).count(), 0);
 
   await page.getByLabel('From').fill('2026-09-20T00:00');
   await page.getByLabel('To').fill('2026-09-21T00:00');
@@ -950,4 +959,41 @@ test('chromium: the runs page opens prefiltered on a rule and narrows to a windo
   await page.locator('[data-hourly]').waitFor();
   assert.match(await page.locator('[data-hourly]').textContent(), /This hour: 34 of 500 runs/);
   assert.equal(await page.locator('[data-hourly] a').getAttribute('href'), '/administration/quotas');
+});
+
+// *Start now* is in every rule's editor (ux-inventory.md §E9): a rule somebody starts is started
+// from there, and any other rule says why it is not, as the server would (UC-AUT-03 check 4).
+test('chromium: every rule\'s editor has Start now, and only a rule somebody starts is started', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const written = [];
+  const context = await browser.newContext({ viewport: { width: 1400, height: 1000 } });
+  await context.route('**/api/v1/**', stubFor(written, TEST_HELD, [RULE, STALE, MANUAL]));
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  const failures = [];
+  page.on('pageerror', (error) => failures.push(String(error)));
+
+  // An event's rule: offered, unavailable, with the reason.
+  await page.goto(`${served.origin}/administration/rules/${RULE.id}`);
+  const refused = page.getByRole('button', { name: 'Start now' });
+  await refused.waitFor({ timeout: 15_000 });
+  assert.equal(await refused.getAttribute('aria-disabled'), 'true');
+  const reason = await page.locator(`#${await refused.getAttribute('aria-describedby')}`).textContent();
+  assert.match(reason, /Only a rule whose trigger is “Somebody starts it” starts by hand/);
+  await refused.click({ force: true });
+  assert.equal(written.filter((body) => body.triggered).length, 0, 'a refused rule was started');
+
+  // A rule somebody starts: pressed, it is started.
+  await page.goto(`${served.origin}/administration/rules/${MANUAL.id}`);
+  const start = page.getByRole('button', { name: 'Start now' });
+  await start.waitFor({ timeout: 15_000 });
+  assert.equal(await start.getAttribute('aria-disabled'), null);
+  await start.click();
+  for (let tries = 0; tries < 100 && !written.some((body) => body.triggered); tries += 1) await page.waitForTimeout(50);
+  assert.deepEqual(written.filter((body) => body.triggered), [{ triggered: `/api/v1/automation/rules/${MANUAL.id}:trigger` }]);
+  assert.deepEqual(failures, []);
 });

@@ -194,6 +194,22 @@ func accountDisplayName(raw string, address string, form text.Normalizer) (strin
 	return name, nil
 }
 
+// WithDisplayName returns the account under the name its holder gave it, checked the way an
+// invitation checks one - trimmed, normal form C, one line, at most maxDisplayName - except that
+// nothing is derived: a person who clears their own name has not asked to be called by their
+// address, so an empty name is refused rather than replaced.
+func (a Account) WithDisplayName(raw string, form text.Normalizer) (Account, error) {
+	if strings.TrimSpace(raw) == "" {
+		return Account{}, shared.ErrValidation.WithDetail("accounts.display_name_empty")
+	}
+	name, err := accountDisplayName(raw, "", form)
+	if err != nil {
+		return Account{}, err
+	}
+	a.DisplayName = name
+	return a, nil
+}
+
 // Preferences is what an account may set about how the product speaks to it: the second link of
 // the resolution chain request -> account -> tenant -> installation (i18n-l10n.md §2).
 //

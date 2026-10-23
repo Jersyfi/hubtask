@@ -80,14 +80,14 @@ func (h PreviewContainerStructure) Execute(
 
 	var preview StructurePreview
 	err = w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		counted, err := h.count(ctx, cmd)
+		counted, err := h.count(ctx, actor, cmd)
 		preview = counted
 		return err
 	})
 	return preview, err
 }
 
-func (h PreviewContainerStructure) count(ctx context.Context, cmd SetContainerStructureCommand) (StructurePreview, error) {
+func (h PreviewContainerStructure) count(ctx context.Context, actor appshared.ActorContext, cmd SetContainerStructureCommand) (StructurePreview, error) {
 	reading := h.Set.Structure.within(repository.LayerRead)
 	container, err := findContainer(ctx, h.Set.Writer.Containers, cmd.ContainerID)
 	if err != nil {
@@ -96,7 +96,7 @@ func (h PreviewContainerStructure) count(ctx context.Context, cmd SetContainerSt
 	if err := container.EnsureEditable(); err != nil {
 		return StructurePreview{}, err
 	}
-	layer, _, err := h.Set.decide(ctx, reading, container, cmd)
+	layer, _, err := h.Set.decide(ctx, reading, actor, container, cmd)
 	if err != nil {
 		return StructurePreview{}, err
 	}

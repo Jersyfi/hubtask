@@ -1527,6 +1527,17 @@ type SetElement struct {
 	RemoveTag *string
 }
 
+type StructurePreset struct {
+	TenantID  pgtype.UUID
+	ID        pgtype.UUID
+	Origin    string
+	OwnerID   pgtype.UUID
+	Name      string
+	Settings  []byte
+	CreatedAt pgtype.Timestamptz
+	Version   int32
+}
+
 type SyncDevice struct {
 	ID           pgtype.UUID
 	TenantID     pgtype.UUID
@@ -1588,6 +1599,7 @@ type Tenant struct {
 	StatusBeforeDeletion    *TenantStatus
 	PurgeStartedAt          pgtype.Timestamptz
 	ExternalReference       *string
+	StarterAnsweredAt       pgtype.Timestamptz
 }
 
 type TenantHost struct {

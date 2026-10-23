@@ -196,7 +196,7 @@ func (h CreateContainer) create(
 		// change to either waits for this one and the next fan-out finds it (domain-model.md §2).
 		reading := h.Structure.within(repository.LayerShared)
 		if h.Structure.Wired() {
-			if container.Structure, err = h.seedStructure(ctx, reading, container, cmd.Preset); err != nil {
+			if container.Structure, err = h.seedStructure(ctx, reading, actor, container, cmd.Preset); err != nil {
 				return err
 			}
 		} else if cmd.Preset != "" {
@@ -255,7 +255,8 @@ func (h CreateContainer) create(
 // workspace's default preset; a collection without one, or with its hub's, stores nothing and
 // follows its hub - so a later change of the hub reaches it.
 func (h CreateContainer) seedStructure(
-	ctx context.Context, reading *layerReading, container domain.Container, preset domain.PresetKey,
+	ctx context.Context, reading *layerReading, actor appshared.ActorContext, container domain.Container,
+	preset domain.PresetKey,
 ) (domain.StructureLayer, error) {
 	workspace, _, err := reading.Workspace(ctx)
 	if err != nil {
@@ -276,7 +277,7 @@ func (h CreateContainer) seedStructure(
 	if preset == "" {
 		return domain.StructureLayer{}, nil
 	}
-	layer, _, err := choosePreset(ctx, reading, container, preset)
+	layer, _, err := choosePreset(ctx, reading, actor, container, preset)
 	return layer, err
 }
 
@@ -555,6 +556,7 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 					"A collection given its hub's preset, or none, follows its hub instead. A hub " +
 					"given none starts from the workspace's default preset where one is set.",
 			},
+			presetIDField("preset_id", "preset"),
 			{
 				Name: "private", Kind: usecase.KindBool,
 				Description: "A hub reached only by its own members, the workspace's administrators " +
@@ -585,6 +587,10 @@ func (h CreateContainer) invoke(
 		return nil, err
 	}
 
+	preset, err := presetFrom(in, "preset", "preset_id")
+	if err != nil {
+		return nil, err
+	}
 	container, structure, err := h.create(ctx, actor, CreateContainerCommand{
 		Type:        domain.ContainerType(in.String("type")),
 		ParentID:    parentID,
@@ -593,7 +599,7 @@ func (h CreateContainer) invoke(
 		Icon:        in.String("icon"),
 		ColorToken:  in.String("color_token"),
 		Private:     in.Bool("private"),
-		Preset:      domain.PresetKey(in.String("preset")),
+		Preset:      preset,
 	})
 	if err != nil {
 		return nil, err

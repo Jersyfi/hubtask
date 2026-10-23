@@ -227,6 +227,14 @@ func (h ExportView) walk(
 		// code, which is what a client needs in order to say which field is the problem.
 		return nil, false, err
 	}
+	return walkToCap(ctx, h.Query, actor, spec)
+}
+
+// walkToCap runs a query page by page until the cap or the end - the one walk both exports share,
+// so that a saved view and the same question asked without saving it cannot export differently.
+func walkToCap(
+	ctx context.Context, query QueryItems, actor appshared.ActorContext, spec view.Spec,
+) ([]domain.WorkItem, bool, error) {
 	// The grouping a client draws with is not an export's business: a file is rows, and a query
 	// asked to group answers groups instead of a page.
 	spec.GroupBy = view.GroupBy{}
@@ -235,7 +243,7 @@ func (h ExportView) walk(
 
 	var items []domain.WorkItem
 	for {
-		result, err := h.Query.Execute(ctx, actor, spec)
+		result, err := query.Execute(ctx, actor, spec)
 		if err != nil {
 			return nil, false, err
 		}

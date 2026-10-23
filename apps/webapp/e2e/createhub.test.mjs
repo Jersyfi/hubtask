@@ -121,3 +121,32 @@ test('chromium: whoever shapes the workspace where private hubs are switched off
   assert.equal(sent[0].private, undefined, `the body was ${JSON.stringify(sent[0])}`);
   assert.deepEqual(failures, []);
 });
+
+test('chromium: inside a hub, *New* makes a hub or a collection in that hub, with its preset (ux-inventory.md §E1)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context, sent } = await as(browser, { permissions: PERMISSIONS.ADMIN, offered: false, allowed: false });
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/${HUB.id}`);
+  const column = page.locator('aside.sidenav');
+  const make = column.getByRole('button', { name: 'New', exact: true });
+  await make.waitFor({ timeout: 10_000 });
+  await make.click();
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 10_000 });
+  const rows = (await menu.getByRole('menuitem').allTextContents()).map((row) => row.trim());
+  assert.deepEqual(rows, ['Create hub', `Collection in ${HUB.name}`], 'the menu does not offer the hub and a collection here');
+  await menu.getByRole('menuitem', { name: `Collection in ${HUB.name}` }).click();
+  const dialog = page.locator('dialog[open]');
+  await dialog.waitFor({ timeout: 10_000 });
+  assert.equal(await dialog.getByRole('heading', { name: 'Create collection' }).count(), 1, 'the dialog does not make a collection');
+  assert.ok((await dialog.getByRole('radio').count()) > 0, 'the dialog offers no preset');
+  await dialog.getByRole('textbox').first().fill('Groceries');
+  await dialog.getByRole('button', { name: 'Create collection' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 10_000 });
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].type, 'COLLECTION', `the body was ${JSON.stringify(sent[0])}`);
+  assert.equal(sent[0].parent_id, HUB.id, `the body was ${JSON.stringify(sent[0])}`);
+  assert.deepEqual(failures, []);
+});

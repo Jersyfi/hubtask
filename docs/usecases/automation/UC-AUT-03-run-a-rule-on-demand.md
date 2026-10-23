@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-08, P-11]
 state: built
 tasks: [G-08, F4-14]
-checked_by: [core/application/service/automation/TriggerRule_test.go, test/integration/automation_trigger_test.go]
+checked_by: [core/application/service/automation/TriggerRule_test.go, test/integration/automation_trigger_test.go, apps/webapp/e2e/rules.test.mjs]
 ---
 
 # Run a rule when I press a button
@@ -19,14 +19,14 @@ press away, for whoever manages the rule, and every press is its own run with it
 
 ## Story
 
-The rule's trigger is *on demand*. On the runs page the administrator picks the rule and presses
-*Run*; the page answers at once that the run was started, and a moment later the run is listed with
-its result.
+The rule's trigger is *on demand*. In the rule's editor the administrator presses *Start now*; the
+editor answers at once that the run was started, and a moment later the run is listed with its
+result.
 A script does the same with `hubctl rule trigger`, an agent through MCP.
 
 ## How to check
 
-1. Pressing *Run* for an enabled on-demand rule starts a run and answers with that run's identifier
+1. Pressing *Start now* for an enabled on-demand rule starts a run and answers with that run's identifier
    before the run has finished.
 2. Two presses are two runs; neither is skipped as a repeat of the other.
 3. The run records who pressed.

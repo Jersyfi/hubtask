@@ -224,8 +224,15 @@ export type ContainerMilestone = components['schemas']['ContainerMilestone'];
  * they went to - who gave kudos (UC-WRK-29 checks 5 and 6). Read online; never synchronised.
  */
 export type Kudos = components['schemas']['Kudos'];
-/** A starting point for a hub or collection: Hubtask's four, as this installation offers them. */
+/**
+ * A starting point for a hub or collection, with its origin: Hubtask's four by key, the
+ * workspace's and the reader's own by id and name (UC-WRK-30).
+ */
 export type Preset = components['schemas']['Preset'];
+/** A hub's or collection's structure saved as a preset. */
+export type PresetCreate = components['schemas']['PresetCreate'];
+/** A saved preset renamed, copied again or changed. */
+export type PresetUpdate = components['schemas']['PresetUpdate'];
 
 /**
  * Who holds which role at one scope, and the shapes around it.
@@ -410,6 +417,7 @@ export type ActivityPage = components['schemas']['ActivityPage'];
 // these would be a consumer with two packages to keep in step.
 export type ContainerPage = components['schemas']['ContainerPage'];
 export type WorkItemPage = components['schemas']['WorkItemPage'];
+export type ItemSearchPage = components['schemas']['ItemSearchPage'];
 export type ItemQueryResult = components['schemas']['ItemQueryResult'];
 
 /**
@@ -534,6 +542,8 @@ export type SavedViewUpdate = components['schemas']['SavedViewUpdate'];
 export type ViewExportDocument = components['schemas']['ViewExportDocument'];
 export type SavedViewShare = components['schemas']['SavedViewShare'];
 export type ViewExport = components['schemas']['ViewExport'];
+/** A query's result as a file without a saved view: `POST /items:export`. */
+export type ItemExport = components['schemas']['ItemExport'];
 
 /** One subscription: a token its owner holds, over one view, revocable. */
 export type CalendarFeed = components['schemas']['CalendarFeed'];
@@ -543,6 +553,8 @@ export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];
 
 /** Locale, time zone and the first day of the week. An empty value clears one. */
 export type AccountPreferences = components['schemas']['AccountPreferences'];
+/** What a person may change about their own account: the display name. */
+export type OwnAccountUpdate = components['schemas']['OwnAccountUpdate'];
 /**
  * One row per category and channel, with the effective value.
  *

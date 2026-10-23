@@ -113,6 +113,42 @@ func TestADisplayNameIsStoredInNormalFormC(t *testing.T) {
 	}
 }
 
+func TestAPersonRenamesThemselvesWithACheckedName(t *testing.T) {
+	held := Account{ID: accountID, TenantID: tenantID, Kind: AccountUser, DisplayName: "Anna", Status: AccountActive}
+	cases := []struct {
+		name   string
+		raw    string
+		want   string
+		detail string
+	}{
+		{name: "trimmed and composed", raw: "  Anna Mu\u0308ller ", want: "Anna M\u00fcller"},
+		{name: "empty is refused, not derived", raw: "   ", detail: "accounts.display_name_empty"},
+		{name: "two lines", raw: "Anna\nM\u00fcller", detail: "accounts.display_name_malformed"},
+		{name: "too long", raw: strings.Repeat("a", maxDisplayName+1), detail: "accounts.display_name_too_long"},
+		{name: "at the limit", raw: strings.Repeat("a", maxDisplayName), want: strings.Repeat("a", maxDisplayName)},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			renamed, err := held.WithDisplayName(tc.raw, text.Composing{})
+			if tc.detail != "" {
+				if shared.AsError(err).DetailCode != tc.detail {
+					t.Fatalf("got %v, want %s", err, tc.detail)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("renaming: %v", err)
+			}
+			if renamed.DisplayName != tc.want {
+				t.Errorf("renamed to %q, want %q", renamed.DisplayName, tc.want)
+			}
+			if held.DisplayName != "Anna" {
+				t.Errorf("the held account changed to %q", held.DisplayName)
+			}
+		})
+	}
+}
+
 func TestADisplayNameFallsBackToTheLocalPart(t *testing.T) {
 	account, err := Invite(accountID, tenantID, "j.winkel@example.org", "   ", nil, nil)
 	if err != nil {

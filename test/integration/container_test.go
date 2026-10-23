@@ -235,12 +235,15 @@ func TestInsertCannotWriteIntoAnotherTenant(t *testing.T) {
 // The cross-tenant negative test for LastOrderKey: ranks are counted per tenant, so a busy
 // neighbour cannot push a container to the end of somebody else's list.
 func TestTheLastOrderKeyIsPerTenant(t *testing.T) {
+	// A valid key, far above any tenant A reaches: a malformed one would stay behind in tenant B
+	// and break every later test that ranks a hub there.
+	const farKey = "yzzzzzzzzzzzzzzzzzzzzzzzzz"
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
 	repo := containerRepo()
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), freshName(t), "zz"))
+		return repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), freshName(t), farKey))
 	}); err != nil {
 		t.Fatalf("writing tenant B's hub: %v", err)
 	}
@@ -253,7 +256,7 @@ func TestTheLastOrderKeyIsPerTenant(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("reading the last order key: %v", err)
 	}
-	if key == "zz" {
+	if key == farKey {
 		t.Error("tenant A ranks its hubs after tenant B's")
 	}
 }

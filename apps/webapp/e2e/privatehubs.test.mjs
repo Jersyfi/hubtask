@@ -299,6 +299,7 @@ test('chromium: a member is told in the frame and on the hub, whatever their mai
   const frame = page.locator('[data-emergency-notice="frame"]');
   await frame.waitFor({ timeout: 10_000 });
   assert.ok((await frame.textContent()).includes(access.reason));
+  assert.equal(await page.locator('[data-banners] [data-emergency-notice="frame"]').count(), 1, 'the notice is outside the banner zone');
   await frame.getByRole('link', { name: 'Open the hub' }).click();
   await page.waitForURL(`**/hubs/${HUB.id}`, { timeout: 10_000 });
   const onHub = page.locator('[data-emergency-notice="member"]');

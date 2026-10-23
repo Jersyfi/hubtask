@@ -313,7 +313,10 @@ test('chromium: a member - the list as its settings make it, and no Structure pa
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
-  const hubRows = await menuRows(page, SHAPE_HUB.name);
+  // A member has nothing to do to a hub itself: no menu at all, and the people in the head's faces.
+  const hubMenu = page.getByRole('button', { name: `Actions for ${SHAPE_HUB.name}` });
+  const hubRows = (await hubMenu.count()) === 0 ? [] : await menuRows(page, SHAPE_HUB.name);
   assert.ok(!hubRows.some((row) => row.startsWith('Structure')), `offered ${hubRows}`);
+  assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people');
   assert.deepEqual(failures, []);
 });

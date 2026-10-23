@@ -77,6 +77,17 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
 * **Creation.** A collection created with its hub's preset, or with none, stores nothing and follows
   its hub — a later change of the hub reaches it. A hub created without a preset starts from the
   workspace's *default preset*, which applies to hubs only.
+* **Saved presets** (UC-WRK-30, `Presets.go`, table `structure_preset`). Beside Hubtask's four, a
+  preset is saved from a hub's or collection's structure in force, its categories left out: the
+  *workspace's* (offered to everyone in it; saved, changed and withdrawn with `STRUCTURE` at the
+  workspace) or a person's *own* (offered to them alone, gone with their account; another person's
+  is unknown to them). Each is answered with its `origin` (`HUBTASK`, `WORKSPACE`, `OWN`); a key
+  names one of Hubtask's or a saved one by its id, so a layer's provenance and the default preset
+  keep one string. The default preset is Hubtask's or the workspace's, never a person's own, and is
+  not withdrawn while it is the default. At most 100 workspace presets and 50 of one person's own.
+* **The first start.** A workspace that holds no hub asks whoever may shape it, once, what it is used
+  for (`starter_offered` on `GET /tenant`, `tenant.starter_answered_at`); the starter set of hubs
+  and collections on Hubtask's presets is the client's to create, its names being words (rule 8).
 * **The bound.** Every value at every layer is held inside what the installation offers: the
   system profile intersected with the profiles in force (`item_capability_profile`'s tenant rows
   stay that bound; a workspace narrows through its own layer). A write beyond it is refused with
@@ -128,7 +139,8 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   `counts_clipped` keeps what the layers said, and the write that caused it names `counts` in
   `clipped_by_levels`. A lock is judged against what the layers say, before the clip.
 * **Writers.** `SetContainerStructure` (a hub or collection, `STRUCTURE` on it) and
-  `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace). Neither
+  `SetWorkspaceStructure` (values, locks and default preset, `STRUCTURE` at the workspace);
+  `SavePreset`, `ChangePreset` and `WithdrawPreset` for the saved presets. Neither
   touches an entry. The container's write publishes `container.policies_updated` with the settings
   that moved; the workspace's is in the audit trail, as every workspace setting is (§4).
 

@@ -220,6 +220,7 @@ async function views() {
     ['devices', await load('DevicesView'), {}],
     ['grants', await load('GrantsView'), {}],
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
+    ['presets', await load('PresetsView'), {}],
     ['people', await load('PeopleView'), {}],
     ['machines', await load('MachinesView'), {}],
     ['rules', await load('RulesView'), {}],

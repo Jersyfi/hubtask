@@ -47,6 +47,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
+| `account.renamed` | UpdateOwnAccount | `account` | INFO | Every time |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
@@ -346,6 +347,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 | `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 
+## Items
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `items.exported` | ExportItems | `container` | INFO | Every time |
+
 ## Jumble
 
 | Action | Use case | Target | Severity | Recorded |
@@ -423,7 +430,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `presets.changed` | ChangePreset | `preset` | INFO | Every time |
 | `presets.read` | ListPresets | `preset` | INFO | When refused |
+| `presets.saved` | SavePreset | `preset` | INFO | Every time |
+| `presets.withdrawn` | WithdrawPreset | `preset` | INFO | Every time |
 
 ## Private_hubs
 
@@ -566,4 +576,5 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
+| `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
 | `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

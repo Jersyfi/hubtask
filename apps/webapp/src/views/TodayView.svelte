@@ -56,6 +56,7 @@
   import { bandsOf, isListFigure, isProjectFigure } from '../lib/today.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
+  import StarterDialog from '../lib/workspace/StarterDialog.svelte';
   import EntryPlace from '../lib/workspace/EntryPlace.svelte';
 
   interface Props {
@@ -397,6 +398,7 @@
 
 <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
+<StarterDialog onstarted={(id) => onnavigate?.(`/hubs/${id}`)} />
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
 
 <style>

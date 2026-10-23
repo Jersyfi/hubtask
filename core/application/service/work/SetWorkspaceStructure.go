@@ -125,7 +125,7 @@ func (h SetWorkspaceStructure) write(
 		return WorkspaceStructureResult{}, err
 	}
 
-	next, err := h.decide(bound, current, actor, cmd)
+	next, err := h.decide(ctx, reading, bound, current, actor, cmd)
 	if err != nil {
 		return WorkspaceStructureResult{}, err
 	}
@@ -163,14 +163,14 @@ func (h SetWorkspaceStructure) write(
 // decide is the workspace's next layer. A lock already there keeps its author; a new one is the
 // actor's.
 func (h SetWorkspaceStructure) decide(
-	bound domain.StructureBound, current domain.WorkspaceStructure, actor appshared.ActorContext,
-	cmd SetWorkspaceStructureCommand,
+	ctx context.Context, reading *layerReading, bound domain.StructureBound, current domain.WorkspaceStructure,
+	actor appshared.ActorContext, cmd SetWorkspaceStructureCommand,
 ) (domain.WorkspaceStructure, error) {
 	next := domain.WorkspaceStructure{
 		Layer: current.Layer, Locks: current.Locks, DefaultPreset: current.DefaultPreset,
 	}
 	if cmd.Preset != "" {
-		preset, err := domain.FindPreset(cmd.Preset, bound)
+		preset, err := reading.Preset(ctx, actor, cmd.Preset)
 		if err != nil {
 			return domain.WorkspaceStructure{}, err
 		}
@@ -207,8 +207,14 @@ func (h SetWorkspaceStructure) decide(
 	if cmd.ClearDefaultPreset {
 		next.DefaultPreset = ""
 	} else if cmd.DefaultPreset != "" {
-		if _, err := domain.FindPreset(cmd.DefaultPreset, bound); err != nil {
+		// The default is everyone's starting point: one of Hubtask's or the workspace's, never
+		// a person's own.
+		preset, err := reading.Preset(ctx, actor, cmd.DefaultPreset)
+		if err != nil {
 			return domain.WorkspaceStructure{}, err
+		}
+		if preset.Origin == domain.PresetOriginOwn {
+			return domain.WorkspaceStructure{}, domain.ErrPresetUnknown(cmd.DefaultPreset)
 		}
 		next.DefaultPreset = cmd.DefaultPreset
 	}
@@ -313,8 +319,12 @@ func (h SetWorkspaceStructure) Descriptor() usecase.Descriptor {
 			{Name: "locks", Kind: usecase.KindList,
 				Description: "The whole set of locks after the change: settings, or fields.<TYPE>.<CAPABILITY>. " +
 					"Omitted leaves the locks as they are; an empty list removes them all."},
+			presetIDField("preset_id", "preset"),
 			{Name: "default_preset", Kind: usecase.KindString, Enum: presets,
 				Description: "The preset a hub created without one starts from."},
+			{Name: "default_preset_id", Kind: usecase.KindID,
+				Description: "A workspace preset as the one a hub created without one starts from, " +
+					"instead of default_preset."},
 			{Name: "clear_default_preset", Kind: usecase.KindBool,
 				Description: "Removes the default preset: new hubs then start from the workspace's values."},
 			{Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
@@ -335,13 +345,20 @@ func (h SetWorkspaceStructure) Descriptor() usecase.Descriptor {
 func (h SetWorkspaceStructure) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
+	preset, err := presetFrom(in, "preset", "preset_id")
+	if err != nil {
+		return nil, err
+	}
+	defaultPreset, err := presetFrom(in, "default_preset", "default_preset_id")
+	if err != nil {
+		return nil, err
+	}
 	cmd := SetWorkspaceStructureCommand{
-		Preset:             domain.PresetKey(in.String("preset")),
-		DefaultPreset:      domain.PresetKey(in.String("default_preset")),
+		Preset:             preset,
+		DefaultPreset:      defaultPreset,
 		ClearDefaultPreset: in.Bool("clear_default_preset"),
 		ExpectedVersion:    in.Int("expected_version"),
 	}
-	var err error
 	if raw, held := in["settings"].(map[string]any); held {
 		if cmd.Settings, err = structureValuesFrom(raw); err != nil {
 			return nil, err

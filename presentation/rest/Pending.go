@@ -67,6 +67,10 @@ func (pending) UpdateAccountPreferences(w http.ResponseWriter, r *http.Request, 
 	notAvailable(w, r)
 }
 
+func (pending) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
 // ListNotificationPreferences and SetNotificationPreference are overridden by RestController, for
 // the reason given at CreateContainer.
 func (pending) ListNotificationPreferences(w http.ResponseWriter, r *http.Request, _ openapi.AccountId) {
@@ -1157,6 +1161,10 @@ func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.View
 	notAvailable(w, r)
 }
 
+func (pending) ExportItems(w http.ResponseWriter, r *http.Request, _ openapi.ExportItemsParams) {
+	notAvailable(w, r)
+}
+
 // The relying party. RestController serves all five of its routes; these stand behind
 // them, as they do behind every operation this installation does serve.
 func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {
@@ -1564,6 +1572,22 @@ func (pending) PreviewContainerStructure(w http.ResponseWriter, r *http.Request,
 func (pending) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, _ openapi.SetWorkspaceStructureParams) {
 	notAvailable(w, r)
 }
+
+func (pending) SavePreset(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangePreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.ChangePresetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) WithdrawPreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.WithdrawPresetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) CloseStarter(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // AI where its subject is (UC-AI-04 checks 7 and 9).
 func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {

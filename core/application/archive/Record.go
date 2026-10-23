@@ -503,6 +503,13 @@ var entities = []Entity{
 		Keys:       []string{"item_id", "set_name", "element_id"},
 		References: []Reference{{Field: "item_id", Table: "work_item"}},
 	},
+	// The workspace's presets and each person's own (UC-WRK-30). Whole: a withdrawn preset leaves
+	// no deletion marker. Not duplicable: a second preset of the same name is a second entry in a
+	// catalogue to choose from, which nobody asked for.
+	{
+		Name: "structure_presets", Table: "structure_preset", Whole: true, Later: true, Keys: []string{"id"},
+		References: []Reference{{Field: "owner_id", Table: "account"}},
+	},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a
