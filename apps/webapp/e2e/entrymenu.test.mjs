@@ -164,6 +164,70 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.deepEqual(search.failures, []);
 });
 
+test('chromium: 1280 px — the entry\'s own page carries the same menu in its head, without Open (UC-WRK-28 check 2)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const entry = await open(browser, `/items/${DATED.id}`);
+  t.after(() => entry.context.close());
+  await entry.page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
+  await entry.page.waitForTimeout(600);
+  const head = entry.page.locator('[data-opener="entry-menu"]').first();
+  await head.click();
+  const { read } = await readMenu(entry.page, DATED.title);
+  assert.deepEqual(read, COMMON.filter((label) => label !== 'Open'));
+
+  // The level was read when the menu was reached for: the second of five moves up.
+  await head.click();
+  await entry.page.waitForFunction(() => [...document.querySelectorAll('[role="menuitem"]')].find((each) => each.textContent?.includes('Move up'))?.getAttribute('aria-disabled') !== 'true', null, { timeout: 5_000 })
+    .catch(() => assert.fail('Move up stays unavailable on the page'));
+  await entry.page.keyboard.press('Escape');
+
+  // What it does is what every surface's menu does: archived at once, with its request.
+  await head.click();
+  await entry.page.getByRole('menuitem', { name: 'Archive' }).click();
+  await entry.page.waitForTimeout(300);
+  assert.ok(entry.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
+  // The trash leaves the page for the collection, where the entry was.
+  await entry.page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+  await entry.page.getByRole('heading', { name: ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
+  await entry.page.waitForTimeout(600);
+  await entry.page.locator('[data-opener="entry-menu"]').first().click();
+  await entry.page.getByRole('menuitem', { name: 'Move to the trash' }).click();
+  await entry.page.waitForURL(`**/collections/${COLLECTION.id}`, { timeout: 5_000 });
+  assert.ok(entry.written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${ITEMS[0].id}`)), 'the trash sent no DELETE');
+  assert.deepEqual(entry.failures, []);
+  assert.deepEqual(entry.unstubbed(), []);
+});
+
+test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboard is, its chips always', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const list = await open(browser, `/collections/${COLLECTION.id}`);
+  t.after(() => list.context.close());
+  const row = list.page.locator(`[data-row="${ITEMS[0].id}"]`);
+  await row.waitFor({ timeout: 15_000 });
+  await list.page.waitForTimeout(600);
+  await list.page.mouse.move(0, 0);
+  /** Whether every tool of the row - the grip, the labels, ＋ and ⋯ - stands at this opacity. */
+  const waitFor = (wanted) => list.page.waitForFunction(([id, value]) => {
+    const element = document.querySelector(`[data-row="${id}"]`);
+    return [element.querySelector('.grip'), ...element.querySelectorAll('.on-hover')].every((each) => Number(getComputedStyle(each).opacity) === value);
+  }, [ITEMS[0].id, wanted], { timeout: 5_000 });
+  await waitFor(0);
+  assert.equal(await row.locator('.on-hover').count(), 3, 'labels, ＋ and ⋯');
+  // The label chip stays: it is what the row says.
+  assert.equal(await row.locator('[data-token]').first().evaluate((chip) => Number(getComputedStyle(chip).opacity)), 1);
+  // The pointer over the row.
+  await row.hover();
+  await waitFor(1);
+  // The keyboard in the row: the tools come back without a pointer.
+  await list.page.mouse.move(0, 0);
+  await waitFor(0);
+  await row.locator('a').first().focus();
+  await waitFor(1);
+  assert.deepEqual(list.failures, []);
+});
+
 test('chromium: 390 px with a touch screen — a still long press opens the menu, Select first, and Select picks', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

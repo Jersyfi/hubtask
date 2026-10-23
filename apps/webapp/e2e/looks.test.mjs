@@ -120,8 +120,8 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
   });
 
   await page.getByRole('button', { name: `Actions for ${LOOK_HUB.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Colour and symbol' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Colour and symbol' });
+  await page.getByRole('menuitem', { name: 'Edit' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Edit hub' });
   await dialog.waitFor({ timeout: 5_000 });
   // It opens on what the hub has now.
   assert.ok(await dialog.getByRole('radio', { name: 'Violet' }).isChecked());

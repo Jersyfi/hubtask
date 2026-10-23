@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { FIGURES, showFigures, signedIn } from './fixture.mjs';
+import { FIGURE_HUB, FIGURES, showFigures, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -82,6 +82,31 @@ test('chromium: 1280 px — each row says its figure as part of its name, light 
       if (row === undefined) assert.equal(await meta.count(), 0, `${collection.name} row draws a figure`);
       else assert.equal((await meta.textContent())?.trim(), row, collection.name);
     }
+    await context.close();
+  }
+});
+
+test('chromium: 390 and 1280 px — the hub draws its collections as cards, each with its figure as its head says it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  for (const width of [390, 1280]) {
+    const { page, context, failures, unstubbed } = await signedIn(browser, width, 900);
+    await page.goto(`${served.origin}/hubs/${FIGURE_HUB.id}`);
+    await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
+    const cards = page.getByRole('list', { name: 'Collections' });
+    await cards.waitFor({ timeout: 5_000 });
+    assert.equal(await cards.getByRole('listitem').count(), EXPECTED.length, `${width}: one card per collection`);
+    for (const [collection, head] of EXPECTED) {
+      const card = cards.locator(`[data-card="${collection.id}"]`);
+      assert.equal(await card.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);
+      const figure = card.locator('[data-figure] .text');
+      if (head === undefined) assert.equal(await figure.count(), 0, `${collection.name}'s card draws a figure`);
+      else assert.equal((await figure.textContent())?.trim(), head, collection.name);
+    }
+    // A card never runs past the page: one column on a phone.
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), `${width}: the page scrolls sideways`);
+    assert.deepEqual(failures, []);
+    assert.deepEqual(unstubbed(), []);
     await context.close();
   }
 });

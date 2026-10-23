@@ -756,7 +756,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
-under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
+under *Edit…* in its menu, beside its name and description: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
 in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
@@ -986,9 +986,12 @@ archived container leaves the tree.
 * **On a collection**: *Add entry*, with a submenu for creating from a template, and the filter as
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
-**The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — structure, views; and trash, last and alone. An
-item unusable now stays with its reason. The people are the head's faces for everybody.
+**The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
+(name, description, colour and symbol, and a hub's default preset), move to another hub (a
+collection; a hub sits in nothing), archive, rank up, rank down; set it up — structure; and trash,
+last and alone. An item unusable now stays with its reason. The people are the head's faces for
+everybody. **A hub's collections are cards** in a grid, each with its mark, description and the
+figure its own head shows (UC-WRK-29); one column on `compact`.
 
 **The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
 in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
@@ -1025,7 +1028,10 @@ between columns is the card's menu (§11.9).
 
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
-   A set cover is drawn above the title; no room is taken for an absent one.
+   A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
+   entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
+   may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
+   for its collection, with *Undo*.
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
@@ -1080,6 +1086,13 @@ the page menu's *Select*, the entry menu's *Select* (a long press on a coarse po
 rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
 Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
+
+**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`), the
+grip, the labels button, ＋ and *⋯* are faded until the pointer is over the row or the focus is in
+it, and while one of them is open; the chips - people, the date, the labels - always stand. Faded,
+not removed: the row keeps its width, the tools keep their place in the tab order, and a
+right-click, `Shift`+`F10` or a hold opens the menu as before. A touch screen draws them always. A
+mark the type does not carry in the collection (a date on a *List*) is not drawn.
 
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
 one that does not opens the entry. The card follows the pointer on both axes and the column under it

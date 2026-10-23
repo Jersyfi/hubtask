@@ -16,6 +16,7 @@ import type { Capabilities } from '@hubtask/sync-engine';
 
 import {
   bothOf,
+  offeredByProfile,
   fieldNamed,
   conditionsOf,
   filterOf,
@@ -274,4 +275,16 @@ test('a saved filter comes back as the conditions it was built from, or not at a
   // A tree the editor cannot draw is said to be one, so the caller keeps it whole.
   assert.equal(conditionsOf({ op: 'OR', nodes: [{ op: 'EQ', field: 'type', value: 'TASK' }] }), undefined);
   assert.equal(conditionsOf({ op: 'AND', nodes: [{ op: 'NOT', nodes: [{ op: 'EQ', field: 'type', value: 'TASK' }] }] }), undefined);
+});
+
+test('a collection is offered only the fields its profile gives meaning to', () => {
+  const fields = [{ field: 'title' }, { field: 'due_at' }, { field: 'start_at' }, { field: 'labels' }, { field: 'assignee_id' }, { field: 'bucket_id' }, { field: 'custom_fields.amount' }];
+  // A list: a title and an amount, nothing else.
+  const list = offeredByProfile(fields, () => false).map((each) => each.field);
+  assert.deepEqual(list, ['title', 'custom_fields.amount']);
+  // Dates and labels carried: those come back, the rest stays out.
+  const some = offeredByProfile(fields, (capability) => capability === 'DUE_DATE' || capability === 'LABELS').map((each) => each.field);
+  assert.deepEqual(some, ['title', 'due_at', 'start_at', 'labels', 'custom_fields.amount']);
+  // Without a profile, the installation's answer stands.
+  assert.equal(offeredByProfile(fields).length, fields.length);
 });

@@ -32,6 +32,7 @@
     conditionsOf,
     filterOf,
     filterableFields,
+    offeredByProfile,
     groupOf,
     groupableFields,
     isSendable,
@@ -64,9 +65,14 @@
      * it with what the controls held before.
      */
     applied?: ItemsQuery;
+    /**
+     * Whether any level of the collection carries a capability: the fields its profile gives no
+     * meaning to are not offered (`offeredByProfile`). Absent, the installation's answer stands.
+     */
+    carried?: (capability: string) => boolean;
   }
 
-  const { layout, onquery, oncount, custom = [], applied }: Props = $props();
+  const { layout, onquery, oncount, custom = [], applied, carried }: Props = $props();
 
   let conditions = $state<QueryCondition[]>([]);
   /** The manual order is the empty choice: `order_key ASC` is the query's own default. */
@@ -80,7 +86,7 @@
   let kept = $state<FilterNode | undefined>(undefined);
 
   const fields = $derived(
-    filterableFields(manifest.value, custom).map((field) => ({
+    offeredByProfile(filterableFields(manifest.value, custom), carried).map((field) => ({
       // The field's own name, drawn as the installation reports it. There is no code for it and
       // there cannot be: the set grows with the installation, so a catalogue entry per field would
       // be a catalogue that is wrong on the one that has another (the same reasoning the entry
@@ -101,8 +107,8 @@
     })),
   );
 
-  const sorts = $derived(sortableFields(manifest.value));
-  const groups = $derived(groupableFields(manifest.value));
+  const sorts = $derived(offeredByProfile(sortableFields(manifest.value), carried));
+  const groups = $derived(offeredByProfile(groupableFields(manifest.value), carried));
 
   /**
    * The document, rebuilt from the controls.

@@ -19,12 +19,8 @@
     Dialog,
     Drawer,
     EmptyState,
-    focusFirst,
     Icon,
     IconButton,
-    Inline,
-    Input,
-    ListRow,
     Menu,
     PageHeader,
     ReadOnlyNotice,
@@ -74,10 +70,13 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
+  import { suggestions } from '../lib/data/suggestions.svelte.ts';
+  import { isPending } from '../lib/data/suggestions.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
-  import ContainerLookDialog from '../lib/workspace/ContainerLookDialog.svelte';
+  import ContainerEditDialog from '../lib/workspace/ContainerEditDialog.svelte';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
+  import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import ItemView from './ItemView.svelte';
@@ -326,7 +325,34 @@
   );
   const archival = $derived(container ? archivalOf(container) : 'active');
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+
+  /** The ✦ at the figure: how this collection stands, asked of AI and drawn under the head. */
+  async function askHowItStands() {
+    if (!container) return;
+    failure = undefined;
+    try {
+      await suggestions.askContainer(container.id);
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+    }
+  }
   const isReadOnly = $derived(archival !== 'active');
+
+  /**
+   * The level a kept summary becomes an entry of: the first top level that carries notes, where the
+   * reader may add one and the collection is not read-only. None, and the summary is read only.
+   */
+  const summaryKeepType = $derived(
+    mayCreateHere && !isReadOnly ? offer.rootTypes().find((type) => offer.supports(type, 'NOTES').status === 'permitted') : undefined,
+  );
+  /** Whether any level of this collection carries a capability - what its filter may ask about. */
+  const carriedHere = $derived.by(() => {
+    const levels = container?.structure?.settings?.levels;
+    if (!levels) return undefined;
+    return (capability: string) => levels.some((level) => offer.supports(level.type as string, capability).status === 'permitted');
+  });
+  const summaryAsk = $derived(container ? suggestions.askingOf(container.id) : undefined);
+
 
   // Built from the route rather than from a remembered click, which is what makes a deep link land
   // with a correct trail: a trail assembled from navigation history would be empty after a reload,
@@ -480,8 +506,8 @@
   //
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
-  /** Its colour and symbol (UC-WRK-33). */
-  let isChangingLook = $state(false);
+  /** *Edit*: its name, description, colour and symbol (UC-WRK-33), and a hub's preset. */
+  let isEditing = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
   /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
@@ -599,26 +625,11 @@
     }
   }
 
-  // Renaming, and the whole reason it is a form rather than an inline edit: a name collision is a
-  // field error on the name (`containers.name_taken`), and a field error needs a field to land on.
   // Creating a collection in this hub. A hub that holds none is where a workspace is started, and
   // before this the only way to start one was `hubctl`.
   let isCreatingCollection = $state(false);
 
-  let isRenaming = $state(false);
-  let draft = $state('');
-  let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
-  /**
-   * Whether the failure belongs under the name field rather than above the form.
-   *
-   * A taken name arrives as a **409 with `containers.name_taken`**, not as a `field_errors[]`
-   * entry — it is a conflict rather than a validation failure, and the server is right about that.
-   * But the reader's next action is to type a different name, and a sentence at the top of a form
-   * is a sentence they have to carry back down to the field. So this one code is placed, and the
-   * placement is the client's judgement rather than a claim about the document.
-   */
-  let isNameFailure = $state(false);
 
   // The bar carries the title on a phone (ADR-0061 decision 2); the head then reads its heading
   // rather than drawing it. Cleared when this screen leaves.
@@ -712,18 +723,10 @@
           // What changes the shape of the workspace - its name, its place, its order, its archive -
           // only for a role that may (UC-WRK-01 check 6, P-05); `shaping` drops the rest.
           ...shaping<MenuItem>([
-          {
-            id: 'rename',
-            label: t('app.workspace.rename'),
-            icon: 'pencil',
-            disabledReason: readOnlyReason,
-          },
-          { id: 'look', label: t('app.look.menu'), icon: 'palette', disabledReason: readOnlyReason },
-          {
-            id: 'move',
-            label: t('app.move.to_hub'),
-            disabledReason: container.type === 'HUB' ? t('app.move.hub_only') : readOnlyReason,
-          },
+          // *Edit*: the name, the description, the colour and symbol, and a hub's preset.
+          { id: 'edit', label: t('app.workspace.edit'), icon: 'pencil', disabledReason: readOnlyReason },
+          // A hub sits in nothing, so only a collection moves to another hub (ux-inventory.md §E9).
+          ...(container.type === 'COLLECTION' ? [{ id: 'move', label: t('app.move.to_hub'), disabledReason: readOnlyReason }] : []),
           ...(archival !== 'inherited'
             ? [{ id: 'archive', label: archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
             : []),
@@ -796,8 +799,7 @@
 
   function choseFromMenu(id: string) {
     if (id === 'select') selection.start();
-    else if (id === 'rename') startRename();
-    else if (id === 'look') isChangingLook = true;
+    else if (id === 'edit') isEditing = true;
     else if (id === 'move') isMovingHub = true;
     else if (id === 'archive') void toggleArchived();
     else if (id === 'up') void moveBy(-1);
@@ -925,34 +927,6 @@
     const drawn = list;
     untrack(() => drawn.addEntry());
   });
-
-  function startRename() {
-    draft = container?.name ?? '';
-    failure = undefined;
-    isNameFailure = false;
-    isRenaming = true;
-  }
-
-  async function save() {
-    if (!container) return;
-    isSaving = true;
-    failure = undefined;
-    isNameFailure = false;
-    try {
-      // The version the reader had when they started typing. A rename that lost a race is refused
-      // rather than winning by being second (ADR-0025), and `version_conflict` is what says so.
-      await containers.update(container.id, { name: draft }, container.version);
-      announcer.say(t('app.workspace.renamed_announced', { name: draft }));
-      isRenaming = false;
-    } catch (error) {
-      const problem = error as TransportError;
-      failure = renderProblem(problem, messages);
-      isNameFailure =
-        problem.detailCode === 'containers.name_taken' || failure.fields.has('/name');
-    } finally {
-      isSaving = false;
-    }
-  }
 </script>
 
 {#if live.hasLost(id)}
@@ -972,6 +946,17 @@
        collection or hub, while the reader celebrates (checks 4 and 7). -->
   {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
+    {#if container.type === 'COLLECTION' && hasAi}
+      <!-- The ✦ where what counts is said (ux-inventory.md §E4): the question is about the figure. -->
+      <IconButton
+        icon="sparkles"
+        size="sm"
+        label={t('app.workspace.summarise')}
+        disabledReason={isPending(summaryAsk) ? t('app.suggestions.pending') : undefined}
+        data-opener="summarise"
+        onclick={() => void askHowItStands()}
+      />
+    {/if}
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
@@ -1000,7 +985,7 @@
       primary={headPrimary}
       secondary={headSecondary}
       menu={headMenu}
-      figure={(container.type === 'COLLECTION' && container.figure) || hasMilestone ? collectionFigure : undefined}
+      figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
       {#snippet notices()}
@@ -1019,7 +1004,7 @@
             {/snippet}
           </ReadOnlyNotice>
         {/if}
-        {#if failure && !isRenaming}
+        {#if failure}
           <p class="failure" role="alert">{failure.message}</p>
         {/if}
       {/snippet}
@@ -1060,35 +1045,10 @@
       <EmergencyNotice hubId={container.id} />
     {/if}
 
-    {#if isRenaming}
-      <!-- The field takes the place of the control that opened it, so it takes the focus too (2.4.3). -->
-      <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="container-menu"]' })}>
-        <Input
-          label={container.type === 'HUB' ? t('app.workspace.hub_name') : t('app.workspace.collection_name')}
-          bind:value={draft}
-          error={isNameFailure ? failure?.message : undefined}
-        />
-        <!-- Everything else is a sentence above the buttons rather than a field error, and a
-             version conflict is the ordinary case: nothing about the name is wrong, the row moved
-             underneath the reader. -->
-        {#if failure && !isNameFailure}
-          <p class="failure" role="alert">{failure.message}</p>
-        {/if}
-        <Inline gap="100">
-          <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>
-            {t('app.workspace.save')}
-          </Button>
-          <Button tone="secondary" onclick={() => (isRenaming = false)}>
-            {t('app.workspace.cancel')}
-          </Button>
-        </Inline>
-      </Stack>
-    {/if}
-
     <!-- The collection's status, summarised where the manifest says AI is configured here,
          and absent - not gated - where it is not (design-system.md §4, CapabilityGate). -->
     {#if container.type === 'COLLECTION' && hasAi}
-      <CollectionSummary containerId={container.id} />
+      <CollectionSummary containerId={container.id} part="summary" keepAs={summaryKeepType} />
     {/if}
 
     {#if container.type === 'HUB'}
@@ -1110,15 +1070,9 @@
           {/snippet}
         </EmptyState>
       {:else}
-        <!-- The way to a new collection is the head's primary action now; the list is the list. -->
-        <Stack gap="050">
-          {#each collections as collection (collection.id)}
-            <ListRow href={`/collections/${collection.id}`}>
-              {#snippet leading()}<ContainerMark look={collection} />{/snippet}
-              {collection.name}
-            </ListRow>
-          {/each}
-        </Stack>
+        <!-- The way to a new collection is the head's primary action now; the collections are
+             cards with what counts in each (ux-inventory.md §E4). -->
+        <CollectionCards {collections} />
       {/if}
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
@@ -1127,11 +1081,11 @@
            `expanded`, a drawer from the bottom below it. -->
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
         </Drawer>
       {:else}
         <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
         </div>
       {/if}
 
@@ -1232,7 +1186,7 @@
 {/if}
 
 {#if container && mayShape}
-  <ContainerLookDialog bind:isOpen={isChangingLook} {container} />
+  <ContainerEditDialog bind:isOpen={isEditing} {container} />
 {/if}
 
 {#if container?.structure && mayShape}

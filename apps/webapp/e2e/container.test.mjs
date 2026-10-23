@@ -28,7 +28,7 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 // "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
-const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Move to the trash'];
+const MENU = ['Select entries', 'Edit', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -56,17 +56,10 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   // The reasons stay readable: the one collection is first and last in its level.
   assert.ok((await menu.getByRole('menuitem', { name: /Move up/ }).textContent()).includes('already first'));
 
-  // Rename: the inline form takes focus, and cancelling returns it to the menu's trigger.
-  await menu.getByRole('menuitem', { name: 'Rename' }).click();
-  const field = page.getByRole('textbox', { name: 'Collection name' });
-  await field.waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label') ?? document.activeElement?.id ?? document.activeElement?.tagName), await field.evaluate((el) => el.getAttribute('aria-label') ?? el.id ?? el.tagName));
-  await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForFunction(() => document.activeElement?.getAttribute('data-opener') === 'container-menu', null, { timeout: 5_000 })
-    .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
+  await page.keyboard.press('Escape');
 
   // Every dialog the toolbar opened opens from the menu, and Escape brings focus back.
-  for (const [item, title] of [['Structure', `Structure of ${COLLECTION.name}`], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
+  for (const [item, title] of [['Edit', 'Edit collection'], ['Structure', `Structure of ${COLLECTION.name}`], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
     await trigger.focus();
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: item }).click();
@@ -229,7 +222,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.equal(await page.getByRole('button', { name: 'Create collection' }).count(), 1);
   assert.equal(await page.getByRole('button', { name: /Import/ }).count(), 1);
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Make private', 'Move to the trash']);
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Edit', 'Archive', 'Move up', 'Move down', 'Structure', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Create collection' }).click();
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });
