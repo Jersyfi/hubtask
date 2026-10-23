@@ -830,18 +830,26 @@ field (UC-WRK-26), where the reader may capture at all. One palette, two
 drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
 in the field; below `medium` the same field and list open in a dialog.
 
-* **What it lists.** Before typing: the actions of this page, then the narrowings that need no
-  words. While typing, ranked by match across kinds (the label starting with the words, a word
-  starting with them, the words inside it): hubs and collections, the actions of this page, a
-  matched collection's *Search in*, *Open as* each layout it offers and *New … in*, the places and
-  settings pages, and the first five entries — a peek that never touches the search screen's state —
-  then the narrowings for *these words*, **All results** and **All results, with the filter open**.
+* **What it lists.** Before typing, under *Actions*: the frame's common actions (*Capture*,
+  *Create collection in* the hub one stands in, *Create hub*), then the actions of this page; under
+  *Recently opened*, the places this device opened last; then the narrowings that need no words.
+  While typing, in groups — *Places* (hubs, collections, places and settings pages), *Actions*,
+  *Settings*, *Entries* — the group with the best match first and each ranked by match (the label
+  starting with the words, a word starting with them, the words inside it): the actions include a
+  matched collection's *Search in*, *Open as* each layout it offers and *New … in*, and on an entry
+  the same for its own collection; *Settings* are the rows of *You*, *On this device*, each
+  notification category and *Password and sign-in*, each opening its screen with focus on its row
+  (`data-setting`); the first five entries are a peek that never touches the search screen's
+  state. Then the narrowings for *these words*, **All results** and **All results, with the filter
+  open**. A row is found by its label and by words in the reader's language that mean it, never
+  drawn — "anlegen" finds every way of making something, "Design" finds *Hell oder dunkel*.
 * **It lists, it does not decide (P-05).** The actions of a page are its head's lists — the primary
   with its own list, the secondary ones, the menu, and the open detail pane's entry menu — handed
-  over by the screen; an item carrying a reason is not listed. Places and settings are §11.3's lists.
-  A matched collection's actions ask what its screen asks (`mayCreateIn`, `layoutsOffered`); a role
-  not read yet is not "yes". The actions in a page's body — a row's menu, the bulk bar — are not
-  listed.
+  over by the screen; an item carrying a reason is not listed. Places and settings pages are §11.3's
+  lists. A matched collection's actions ask what its screen asks (`mayCreateIn`, `layoutsOffered`);
+  the frame's actions ask what the frame's controls ask (`hubCreationHere`, `STRUCTURE` on the hub,
+  `mayCaptureHere`); a role not read yet is not "yes". The actions in a page's body — a row's menu,
+  the bulk bar — are not listed.
 * **Keys.** `Enter` presses what is highlighted, or with nothing highlighted, the row the key is drawn
   on — the words, not the first match, because the entries arrive after the rest. `Escape` closes
   and returns focus to where it was; an action runs after focus is back, so a dialog it opens
