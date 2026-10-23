@@ -694,8 +694,14 @@ func run() error {
 	profiles := postgres.NewCapabilityProfileRepository()
 	// One resolver of the structure in force, for every reader and writer of one (domain-model.md
 	// §2): a value read on one door is the value written on another.
+	presets := postgres.NewPresetRepository()
 	structures := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
+		Presets: presets,
+	}
+	presetDesk := work.PresetDesk{
+		Presets: presets, Structure: structures, Authorizer: authorizer, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
 	milestones := postgres.NewMilestoneRepository()
@@ -2083,6 +2089,9 @@ func run() error {
 			Epochs: postgres.NewEpochRepository(), Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{}, HLC: hybrid, Text: forms,
 		}.Descriptor(),
+		work.SavePreset{Desk: presetDesk}.Descriptor(),
+		work.ChangePreset{Desk: presetDesk}.Descriptor(),
+		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,
@@ -2173,7 +2182,7 @@ func run() error {
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
-		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListPresets{Profiles: profiles, Presets: presets, UnitOfWork: unitOfWork}.Descriptor(),
 		work.ListJumbleDestinations{
 			Collections: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork,

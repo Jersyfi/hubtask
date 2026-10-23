@@ -15,18 +15,19 @@ import (
 // structureField is the change log's name for a container's structure in force.
 const structureField = "structure"
 
-// choosePreset is a layer copied from one of Hubtask's presets, held to the installation and to the
+// choosePreset is a layer copied from a preset the actor may choose, held to the installation and to the
 // workspace's locks: a locked setting is left to the layer above, a locked capability set the way
 // it is locked. It answers the locks that kept a value, which a structure write names
 // (kept_by_lock).
 func choosePreset(
-	ctx context.Context, reading *layerReading, container domain.Container, key domain.PresetKey,
+	ctx context.Context, reading *layerReading, actor appshared.ActorContext, container domain.Container,
+	key domain.PresetKey,
 ) (domain.StructureLayer, []domain.LockKey, error) {
 	bound, err := reading.Bound(ctx)
 	if err != nil {
 		return domain.StructureLayer{}, nil, err
 	}
-	preset, err := domain.FindPreset(key, bound)
+	preset, err := reading.Preset(ctx, actor, key)
 	if err != nil {
 		return domain.StructureLayer{}, nil, err
 	}

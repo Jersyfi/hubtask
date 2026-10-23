@@ -18,6 +18,9 @@ const (
 	listPresetsUseCase           = "ListPresets"
 	setContainerStructureUseCase = "SetContainerStructure"
 	setWorkspaceStructureUseCase = "SetWorkspaceStructure"
+	savePresetUseCase            = "SavePreset"
+	changePresetUseCase          = "ChangePreset"
+	withdrawPresetUseCase        = "WithdrawPreset"
 )
 
 // ListPresets answers GET /presets.
@@ -112,6 +115,9 @@ func structureChangeInput(body openapi.StructureChange) (usecase.Input, error) {
 	if body.Preset != nil {
 		in["preset"] = string(*body.Preset)
 	}
+	if body.PresetId != nil {
+		in["preset_id"] = body.PresetId.String()
+	}
 	if body.Settings != nil {
 		var settings map[string]any
 		if err := throughJSON(body.Settings, &settings); err != nil {
@@ -148,7 +154,9 @@ func (c *RestController) SetWorkspaceStructure(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	in, err := structureChangeInput(openapi.StructureChange{Settings: body.Settings, Reset: body.Reset})
+	in, err := structureChangeInput(openapi.StructureChange{
+		Settings: body.Settings, Reset: body.Reset, PresetId: body.PresetId,
+	})
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -168,6 +176,13 @@ func (c *RestController) SetWorkspaceStructure(
 			in["clear_default_preset"] = true
 		} else {
 			in["default_preset"] = string(*body.DefaultPreset)
+		}
+	}
+	if sent["default_preset_id"] {
+		if body.DefaultPresetId == nil {
+			in["clear_default_preset"] = true
+		} else {
+			in["default_preset_id"] = body.DefaultPresetId.String()
 		}
 	}
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
@@ -191,6 +206,95 @@ func (c *RestController) SetWorkspaceStructure(
 // throughJSON maps a catalogue output onto a generated schema by its JSON spelling. Used for the
 // structure documents, whose output is already in the contract's words: a field-by-field copy
 // would be a second spelling of eight settings to keep in step.
+// SavePreset answers POST /presets.
+func (c *RestController) SavePreset(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PresetCreate
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), savePresetUseCase, actorOf(r), usecase.Input{
+		"name": body.Name, "origin": string(body.Origin), "container_id": body.ContainerId.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writePreset(w, r, http.StatusCreated, out)
+}
+
+// ChangePreset answers PATCH /presets/{presetId}.
+func (c *RestController) ChangePreset(
+	w http.ResponseWriter, r *http.Request, presetID openapi.PresetId, params openapi.ChangePresetParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.PresetUpdate
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"preset_id": presetID.String(), "container_id": optionalUUIDField(body.ContainerId)}
+	if body.Name != nil {
+		in["name"] = *body.Name
+	}
+	if body.Settings != nil {
+		var settings map[string]any
+		if err := throughJSON(body.Settings, &settings); err != nil {
+			WriteProblem(w, err, requestID)
+			return
+		}
+		in["settings"] = settings
+	}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+	out, err := c.UseCases.Invoke(r.Context(), changePresetUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writePreset(w, r, http.StatusOK, out)
+}
+
+// WithdrawPreset answers DELETE /presets/{presetId}.
+func (c *RestController) WithdrawPreset(
+	w http.ResponseWriter, r *http.Request, presetID openapi.PresetId, params openapi.WithdrawPresetParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	in := usecase.Input{"preset_id": presetID.String()}
+	if version, ok := versionFromIfMatch(params.IfMatch); ok {
+		in["expected_version"] = version
+	}
+	if _, err := c.UseCases.Invoke(r.Context(), withdrawPresetUseCase, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func writePreset(w http.ResponseWriter, r *http.Request, status int, out usecase.Output) {
+	var preset openapi.Preset
+	if err := throughJSON(out, &preset); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	w.Header().Set("ETag", etag(out.Int("version")))
+	writeJSON(w, r, status, preset)
+}
+
 func throughJSON(value any, target any) error {
 	encoded, err := json.Marshal(value)
 	if err == nil {

@@ -89,10 +89,18 @@ func structureSettingOutput(setting domain.StructureSetting, values domain.Struc
 
 // presetOutput is the Preset schema.
 func presetOutput(preset domain.Preset) usecase.Output {
-	return map[string]any{
-		"key":      string(preset.Key),
+	out := usecase.Output{
+		"origin":   string(preset.Origin),
 		"settings": structureValuesOutput(preset.Values),
 	}
+	if preset.Origin == domain.PresetOriginHubtask {
+		out["key"] = string(preset.Key)
+		return out
+	}
+	out["id"] = preset.ID.String()
+	out["name"] = preset.Name
+	out["version"] = preset.Version
+	return out
 }
 
 // effectiveStructureOutput is the EffectiveStructure schema.
@@ -109,10 +117,7 @@ func effectiveStructureOutput(effective domain.EffectiveStructure) map[string]an
 		}
 		locks[string(key)] = map[string]any{"origin": string(lock.Origin), "locked_by": by}
 	}
-	var preset any
-	if effective.Preset != "" {
-		preset = string(effective.Preset)
-	}
+	preset, presetID := keySplit(effective.Preset)
 	var clipped any
 	if clip := effective.CountsClipped; clip != nil {
 		clipped = map[string]any{
@@ -122,6 +127,7 @@ func effectiveStructureOutput(effective domain.EffectiveStructure) map[string]an
 	}
 	return map[string]any{
 		"preset":         preset,
+		"preset_id":      presetID,
 		"settings":       structureValuesOutput(effective.Values),
 		"sources":        sources,
 		"locks":          locks,
@@ -133,9 +139,6 @@ func effectiveStructureOutput(effective domain.EffectiveStructure) map[string]an
 // preset a new hub starts from.
 func workspaceStructureOutput(effective domain.EffectiveStructure, workspace domain.WorkspaceStructure) map[string]any {
 	out := effectiveStructureOutput(effective)
-	out["default_preset"] = nil
-	if workspace.DefaultPreset != "" {
-		out["default_preset"] = string(workspace.DefaultPreset)
-	}
+	out["default_preset"], out["default_preset_id"] = keySplit(workspace.DefaultPreset)
 	return out
 }

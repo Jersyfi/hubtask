@@ -272,7 +272,12 @@ func FindPreset(key PresetKey, bound StructureBound) (Preset, error) {
 			return preset.Offered(bound), nil
 		}
 	}
-	return Preset{}, shared.ErrValidation.
+	return Preset{}, ErrPresetUnknown(key)
+}
+
+// ErrPresetUnknown refuses a key that names no preset the chooser is offered.
+func ErrPresetUnknown(key PresetKey) error {
+	return shared.ErrValidation.
 		WithDetail("presets.unknown").
 		WithParams(map[string]string{"preset": string(key)}).
 		WithFields(shared.FieldError{Path: "/preset", Code: "presets.unknown"})

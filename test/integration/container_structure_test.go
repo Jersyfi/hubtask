@@ -52,7 +52,11 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 	containers := containerRepo()
 	resolver := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(),
-		Profiles: postgres.NewCapabilityProfileRepository(),
+		Profiles: postgres.NewCapabilityProfileRepository(), Presets: postgres.NewPresetRepository(),
+	}
+	desk := work.PresetDesk{
+		Presets: resolver.Presets, Structure: resolver, Authorizer: authoriser, Audit: sink,
+		UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, Text: textadapter.Forms{},
 	}
 	writer := work.ContainerWriter{
 		Containers: containers, Authorizer: authoriser, Events: postgres.NewOutbox(jobQueue(t)),
@@ -74,7 +78,10 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
 			Labels: labelRepo(),
 		}.Descriptor(),
-		work.ListPresets{Profiles: resolver.Profiles, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListPresets{Profiles: resolver.Profiles, Presets: resolver.Presets, UnitOfWork: unitOfWork}.Descriptor(),
+		work.SavePreset{Desk: desk}.Descriptor(),
+		work.ChangePreset{Desk: desk}.Descriptor(),
+		work.WithdrawPreset{Desk: desk}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: resolver, Authorizer: authoriser, Changes: writer.Changes,
 			Epochs: postgres.NewEpochRepository(), Audit: sink, UnitOfWork: unitOfWork, Clock: fixed,

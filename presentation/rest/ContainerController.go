@@ -52,6 +52,7 @@ func (c *RestController) CreateContainer(w http.ResponseWriter, r *http.Request,
 	}
 	out, err := c.UseCases.Invoke(r.Context(), createContainerUseCase, actor, usecase.Input{
 		"preset":      preset,
+		"preset_id":   optionalUUIDField(body.PresetId),
 		"type":        string(body.Type),
 		"name":        body.Name,
 		"parent_id":   optionalUUIDField(body.ParentId),
