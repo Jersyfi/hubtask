@@ -209,7 +209,7 @@ async function views() {
   const load = async (name) => (await import(`../src/views/${name}.svelte`)).default;
   const noop = () => {};
   return [
-    ['home', await load('HomeView'), {}],
+    ['home', await load('TodayView'), {}],
     ['installation', await load('InstallationView'), {}],
     ['profile', await load('ProfileView'), {}],
     ['tokens', await load('MyTokensView'), {}],

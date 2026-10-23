@@ -739,7 +739,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 
 | Band | What is in it | Where |
 |---|---|---|
-| `places` | Overview, Search, Jumble | At the top. Search is here on every width |
+| `places` | Today, Search, Jumble | At the top. Search is here on every width |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
@@ -747,7 +747,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
-in a list that mixes collections (the overview, search). It is the place's, never a level's (§6),
+in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
 and never says anything alone: the name stands beside it. A place nobody chose for keeps its type's
 mark and no tile; a private hub with a symbol of its own says *Private* at the end of its row
 instead of wearing the lock. A value the client does not offer is read as none chosen.
@@ -906,13 +906,29 @@ The stage comes from the one constant in `apps/webapp/src/lib/maturity.ts`
 [`versioning-release.md`](../architecture/versioning-release.md)), never from `/meta/capabilities`.
 It is not dismissible. No banner above a page states the stage or the health report.
 
-### 11.7 The overview, the archive and the trash
+### 11.7 Today, the archive and the trash
 
-**The overview (`/`)** is what is on the reader: their overdue and next-due work, what waits in the
-jumble, what they opened last on this device, and for a workspace with no hub yet the one action that
-starts one. Its row's word is `app.nav.overview`. It uses only existing reads — the workspace-wide
-search with a filter ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)) and the jumble's
-count. What was opened last is the device's (§11.10) and sent nowhere.
+**Today (`/`)** is the page the app opens on and what is the reader's today across every hub
+([UC-WRK-34](../usecases/work/UC-WRK-34-see-my-day.md)). Its row's word is `app.nav.today`, and it
+carries no head action: a hub is made in the navigation, or from the empty workspace's one action.
+Top to bottom:
+
+* **On you** — the reader's open dated entries in three bands of their own day: *Earlier* (past
+  due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
+  checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
+  the collection's. What is past carries its date and no overdue word or tone: nothing on the page
+  says what the person did not do.
+* **Lists** — every collection whose figure is *open*, as one tile with the figure; its entries are
+  not rows in the bands.
+* **Projects** — every collection whose figure is *progress*, with the figure and the next due step,
+  which can be ticked off there.
+* **In the jumble** — how many wait and the first three, for a reader of the jumble.
+* **Recently opened** — what this device opened last (§11.10), sent nowhere.
+
+Every panel says something when it is empty; a list or project panel with nothing in it is not
+drawn. It uses only existing reads — the workspace-wide search with a filter
+([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
+one anchored query per project, and the jumble's first page.
 
 **The archive (`/archive`)** lists the archived containers and entries the reader may see, each with
 where it lives and the way back, from the container list and the collection's query with
@@ -1012,7 +1028,7 @@ write falls back in silence where storage is refused.
 | The theme — System, Light or Dark | `localStorage` | `lib/theme.ts`, the one setter of `data-theme` ([ADR-0043](../adr/ADR-0043-theme-per-device.md)) |
 | Reduced motion | `localStorage` | `lib/motion.ts`, the one setter of `data-motion` (rule 6) |
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
-| What was opened last, for the overview | `localStorage` | `lib/recents.svelte.ts` |
+| What was opened last, for *Today* | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |
 | A resizable sheet's size | wherever its caller keeps it — the rule editor uses `localStorage` | the caller, never `Drawer` |
