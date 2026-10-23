@@ -601,6 +601,7 @@
   "accounts.not_found": "That person is not in this workspace.",
   "accounts.account_required": "Say whose account to read.",
   "accounts.self_required": "This call runs as the installation itself, which has no account of its own to report.",
+  "accounts.name_needs_a_person": "A service account is named by whoever administers it, not by itself.",
   "accounts.sign_in_name_too_short": "A sign-in name needs at least {minimum} characters.",
   "accounts.sign_in_name_too_long": "A sign-in name may be at most {maximum} characters long.",
   "accounts.sign_in_name_malformed": "A sign-in name may not contain @, spaces or invisible characters.",

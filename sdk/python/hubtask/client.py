@@ -499,6 +499,10 @@ class Client:
         """The account the caller is signed in as"""
         return self._call("GET", "/accounts/me", {}, None, {}, None, "none", None, "json")
 
+    def update_own_account(self, body: "OwnAccountUpdate") -> "Account":
+        """Change what the caller is called"""
+        return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")

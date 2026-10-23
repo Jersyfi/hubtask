@@ -4041,6 +4041,39 @@
             "$ref": "#/components/responses/Problem"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "updateOwnAccount",
+        "summary": "Change what the caller is called",
+        "description": "The display name a person gives themselves: what the other members of the workspace see\nbeside everything they do, and what the audit trail records next to their actions. Only\none's own - there is no account identifier in the path, so there is nothing to authorise\nbeyond being signed in as a person. A service account is named by whoever administers it\nand is refused here.\n\nThe name is trimmed and must keep at least one character; it is at most 200.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
       }
     },
     "/accounts/{accountId}": {
@@ -14597,6 +14630,17 @@
               "string",
               "null"
             ],
+            "maxLength": 200
+          }
+        }
+      },
+      "OwnAccountUpdate": {
+        "type": "object",
+        "description": "What a person may change about their own account. A field left out is left as it is.",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
             "maxLength": 200
           }
         }

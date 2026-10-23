@@ -9109,6 +9109,11 @@ type OperatorAdd struct {
 	Workspace *string `json:"workspace,omitempty"`
 }
 
+// OwnAccountUpdate What a person may change about their own account. A field left out is left as it is.
+type OwnAccountUpdate struct {
+	DisplayName *string `json:"display_name,omitempty"`
+}
+
 // OwnAiBudget defines model for OwnAiBudget.
 type OwnAiBudget struct {
 	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
@@ -13605,6 +13610,9 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
+type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
+
 // CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
 type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 
@@ -14186,6 +14194,36 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateOwnAccountWithBody Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateOwnAccountWithApplicationMergePatchPlusJSONBody Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	//
@@ -19236,6 +19274,56 @@ type ClientInterface interface {
 // Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 func (c *Client) GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetOwnAccountRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateOwnAccountWithBody Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *Client) UpdateOwnAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateOwnAccountRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateOwnAccountWithApplicationMergePatchPlusJSONBody Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *Client) UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -29508,6 +29596,46 @@ func NewGetOwnAccountRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdateOwnAccount builder with application/merge-patch+json body
+func NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(server string, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateOwnAccountRequestWithBody(server, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdateOwnAccountRequestWithBody constructs an http.Request for the UpdateOwnAccount method, with any body, and a specified content type
+func NewUpdateOwnAccountRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -46687,6 +46815,36 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccountWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOwnAccountResult, error)
 
+	// UpdateOwnAccountWithBodyWithResponse Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
+
+	// UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
+
 	// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 	//
 	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -52227,6 +52385,54 @@ func (r GetOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateOwnAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Account
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateOwnAccountResult) GetJSON200() *Account {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateOwnAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateOwnAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateOwnAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateOwnAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateOwnAccountResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -69939,6 +70145,48 @@ func (c *ClientWithResponses) GetOwnAccountWithResponse(ctx context.Context, req
 	return ParseGetOwnAccountResult(rsp)
 }
 
+// UpdateOwnAccountWithBodyWithResponse Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *ClientWithResponses) UpdateOwnAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error) {
+	rsp, err := c.UpdateOwnAccountWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateOwnAccountResult(rsp)
+}
+
+// UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *ClientWithResponses) UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error) {
+	rsp, err := c.UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateOwnAccountResult(rsp)
+}
+
 // ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 //
 // Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -78571,6 +78819,39 @@ func ParseGetOwnAccountResult(rsp *http.Response) (*GetOwnAccountResult, error) 
 	}
 
 	response := &GetOwnAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateOwnAccountResult parses an HTTP response from a UpdateOwnAccountWithResponse call
+func ParseUpdateOwnAccountResult(rsp *http.Response) (*UpdateOwnAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateOwnAccountResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

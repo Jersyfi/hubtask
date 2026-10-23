@@ -611,6 +611,11 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/me", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Change what the caller is called */
+  updateOwnAccount(body: NonNullable<operations["updateOwnAccount"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["updateOwnAccount"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

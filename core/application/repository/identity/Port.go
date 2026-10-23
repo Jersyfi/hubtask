@@ -215,6 +215,14 @@ type Accounts interface {
 	Restricted(ctx context.Context, accountIDs []shared.ID) (map[shared.ID]bool, error)
 }
 
+// AccountNames writes the one column a person may change about themselves: their display name. A
+// port of its own rather than a method on Accounts, whose many users never rename anybody.
+type AccountNames interface {
+	// Rename writes the account's display name and nothing else. An account gone or erased in the
+	// meantime is an error wrapping shared.ErrNotFound.
+	Rename(ctx context.Context, account identity.Account, at time.Time) error
+}
+
 // ManagedAccounts is the side of the account table a managed account needs (ADR-0074): found by its
 // sign-in name, and written with the start password Hubtask drew. Its own port rather than three
 // more methods on Accounts, whose other users never meet a sign-in name.

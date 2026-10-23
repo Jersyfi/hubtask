@@ -295,6 +295,14 @@ UPDATE account SET
   updated_at = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
+-- name: RenameAccount :execrows
+-- The display name and no other column, for the reason the preferences' query gives. An erased
+-- account keeps the marker its erasure wrote: nobody is left to rename it.
+UPDATE account SET
+  display_name = sqlc.arg('display_name'),
+  updated_at   = sqlc.arg('updated_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND status <> 'ANONYMIZED';
+
 -- =============================== Groups ===============================
 
 -- name: FindGroup :one

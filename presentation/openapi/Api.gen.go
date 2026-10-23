@@ -9103,6 +9103,11 @@ type OperatorAdd struct {
 	Workspace *string `json:"workspace,omitempty"`
 }
 
+// OwnAccountUpdate What a person may change about their own account. A field left out is left as it is.
+type OwnAccountUpdate struct {
+	DisplayName *string `json:"display_name,omitempty"`
+}
+
 // OwnAiBudget defines model for OwnAiBudget.
 type OwnAiBudget struct {
 	// OwnTokensPerDay Tokens a day for the workspace's own model; null for no budget.
@@ -13599,6 +13604,9 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
+type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
+
 // CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
 type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 
@@ -14093,6 +14101,9 @@ type ServerInterface interface {
 	// GetOwnAccount The account the caller is signed in as
 	// (GET /accounts/me)
 	GetOwnAccount(w http.ResponseWriter, r *http.Request)
+	// UpdateOwnAccount Change what the caller is called
+	// (PATCH /accounts/me)
+	UpdateOwnAccount(w http.ResponseWriter, r *http.Request)
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
@@ -15183,6 +15194,20 @@ func (siw *ServerInterfaceWrapper) GetOwnAccount(w http.ResponseWriter, r *http.
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateOwnAccount operation middleware
+func (siw *ServerInterfaceWrapper) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateOwnAccount(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -27997,6 +28022,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:renew-invitation", wrapper.RenewInvitation)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me", wrapper.UpdateOwnAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)
