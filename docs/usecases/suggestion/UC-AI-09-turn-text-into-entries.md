@@ -5,7 +5,7 @@ context: suggestion
 actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-12, P-14]
-state: built
+state: verified
 tasks: [UX-20]
 checked_by: [core/application/service/suggestion/MakeEntries_test.go, infrastructure/ai/Prompts_test.go, test/integration/suggestion_test.go, apps/webapp/src/lib/capture/entries.test.ts, apps/webapp/e2e/makeentries.test.mjs]
 ---
