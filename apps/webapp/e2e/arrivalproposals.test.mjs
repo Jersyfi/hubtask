@@ -70,7 +70,7 @@ test('chromium: proposals on arrival are off until an administrator switches the
   const { page, sent, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
   const toggle = page.getByRole('switch', { name: 'Prepare proposals for new jumble entries' });
   await toggle.waitFor({ timeout: 15_000 });
   assert.equal(await toggle.isChecked(), false, 'on before anybody switched it');
@@ -92,7 +92,7 @@ test('chromium: with AI off the switch is not there at all', async (t) => {
   const { page, close } = await open(browser, { ai: false });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
   await page.getByRole('heading', { level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.getByRole('switch', { name: 'Prepare proposals for new jumble entries' }).count(), 0);

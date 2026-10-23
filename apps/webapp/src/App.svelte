@@ -333,7 +333,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'legal'}
     <SignInSettingsView part="legal" />
   {:else if route.name === 'ai'}
-    <AiSettingsView />
+    <AiSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'search'}
     <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'jumble'}
