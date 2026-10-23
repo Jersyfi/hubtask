@@ -1213,6 +1213,7 @@ func run() error {
 	suggestionCases.Material = suggestionservice.CatalogueSources{
 		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
 		Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+		Jumble: postgres.NewJumbleRepository(cursors),
 	}
 	// A person's own view of keeping their content out of AI, over the same rule every AI call
 	// resolves (data-protection.md §4.1).
@@ -1289,6 +1290,7 @@ func run() error {
 		Sources: suggestionservice.CatalogueSources{
 			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut, Collections: containers,
 			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+			Jumble: postgres.NewJumbleRepository(cursors),
 		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.

@@ -56,6 +56,10 @@ func (r JumbleRepository) Insert(ctx context.Context, entry domain.Entry) error 
 		// empty set because ListWorkItems reads nil as "no restriction". Here nil would be NULL.
 		attachments = []pgtype.UUID{}
 	}
+	createdBy, err := optionalUUID(entry.CreatedBy)
+	if err != nil {
+		return err
+	}
 
 	if err := queries.InsertJumbleEntry(ctx, sqlc.InsertJumbleEntryParams{
 		ID:          id,
@@ -66,6 +70,7 @@ func (r JumbleRepository) Insert(ctx context.Context, entry domain.Entry) error 
 		Attachments: attachments,
 		Status:      string(entry.Status),
 		ReceivedAt:  timestampOf(entry.ReceivedAt),
+		CreatedBy:   createdBy,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -232,6 +237,9 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		ReceivedAt:   timeFrom(row.ReceivedAt),
 	}
 	if entry.ArrivalJobID, err = optionalID(row.ArrivalJobID); err != nil {
+		return domain.Entry{}, err
+	}
+	if entry.CreatedBy, err = optionalID(row.CreatedBy); err != nil {
 		return domain.Entry{}, err
 	}
 	if row.ProcessedAt.Valid {

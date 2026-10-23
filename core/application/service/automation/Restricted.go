@@ -53,7 +53,7 @@ func (h RunRule) restricted(
 }
 
 // about reports whether the run's subject belongs to a restricted person: an entry they created or
-// are on, or an intake entry they sent. A subject gone since is about nobody.
+// are on, or an intake entry they submitted or sent. A subject gone since is about nobody.
 func (h RunRule) about(
 	ctx context.Context, set privacy.Restricted, cmd Command, values condition.Values,
 ) (bool, error) {
@@ -77,7 +77,7 @@ func (h RunRule) about(
 		if err != nil {
 			return false, err
 		}
-		return set.HasAddress(entry.Sender), nil
+		return set.Has(entry.CreatedBy) || set.HasAddress(entry.Sender), nil
 	}
 	return false, nil
 }

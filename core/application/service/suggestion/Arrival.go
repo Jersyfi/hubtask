@@ -113,13 +113,16 @@ func (s ArrivalSources) Arrival(ctx context.Context, request Request) (Arrival, 
 			return Arrival{}, err
 		}
 	}
-	// Who submitted it, where an account did. For a mail or a webhook arrival nobody did, and the
-	// sender address `entryMaterial` checks is the only signal there is.
+	// Who submitted it, where an account did - the entry records it, `entryMaterial` checks it -
+	// and the principal an agent or a rule acted for, which only the arrival's event names. For a
+	// mail or a webhook arrival nobody did, and the sender address is the only signal there is. The
+	// job's own submitter stands beside the entry's for a job queued by a release that did not
+	// record it on the entry.
 	if kept.Has(request.SubmittedBy) || kept.Has(request.OnBehalfOf) {
 		arrival.Material = Material{Digest: domain.Digest(entry.RawSubject, entry.RawBody), Kept: kept}
 		return arrival, nil
 	}
-	material := entryMaterial(entry.RawSubject, entry.RawBody, entry.Sender, kept)
+	material := entryMaterial(entry.RawSubject, entry.RawBody, entry.Sender, entry.CreatedBy, kept)
 	material.Kept = kept
 	if arrival.Material, err = withDestinations(ctx, s.Collections, material, arrivalPrompt, kept); err != nil {
 		return Arrival{}, err

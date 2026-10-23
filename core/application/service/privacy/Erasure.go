@@ -110,8 +110,9 @@ type Erased struct {
 	Kudos       int
 	Assignments int
 	Comments    int
-	// Intake is what the person sent in by mail: removed in a full deletion, and stripped of the
-	// address in the mode that keeps the workspace's content.
+	// Intake is what the person sent in by mail or captured into the jumble: removed in a full
+	// deletion, and stripped of the address and the account in the mode that keeps the workspace's
+	// content.
 	Intake int
 	Media  int
 	// AccountRemoved, AccountAnonymised and AccountKept are the three ends, and at most one of them
@@ -334,7 +335,7 @@ func (e Eraser) decide(
 	}), nil
 }
 
-// intake serves the one location that knows the person by address rather than by account.
+// intake serves the one location that knows the person by address as well as by account.
 //
 // The catalogue's path for `jumble_entry` is `RETENTION`, 90 days. That is right for a message
 // nobody ever converted; it is not an answer to an erasure, and PG-2 is what made the difference

@@ -186,10 +186,11 @@ func TestTheArrivalSourceKeepsOutWhatAKeptOutPersonMade(t *testing.T) {
 		request Request
 		sends   bool
 	}{
-		"a mail from nobody kept out": {entry, arrivalRequest(), true},
-		"a mail Kim sent":             {func() jumble.Entry { e := entry; e.Sender = "kim@example.org"; return e }(), arrivalRequest(), false},
-		"a capture Kim made":          {entry, func() Request { r := arrivalRequest(); r.SubmittedBy = kim; return r }(), false},
-		"an agent's capture for Kim":  {entry, func() Request { r := arrivalRequest(); r.OnBehalfOf = kim; return r }(), false},
+		"a mail from nobody kept out":     {entry, arrivalRequest(), true},
+		"a mail Kim sent":                 {func() jumble.Entry { e := entry; e.Sender = "kim@example.org"; return e }(), arrivalRequest(), false},
+		"a capture Kim made":              {entry, func() Request { r := arrivalRequest(); r.SubmittedBy = kim; return r }(), false},
+		"an agent's capture for Kim":      {entry, func() Request { r := arrivalRequest(); r.OnBehalfOf = kim; return r }(), false},
+		"a capture the entry names Kim's": {func() jumble.Entry { e := entry; e.CreatedBy = kim; return e }(), arrivalRequest(), false},
 	} {
 		arrival, err := source(tc.entry).Arrival(context.Background(), tc.request)
 		if err != nil {
