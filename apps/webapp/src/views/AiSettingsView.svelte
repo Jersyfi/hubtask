@@ -43,6 +43,7 @@
   import { renderProblem } from '../lib/problem.ts';
   import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
+  import LimitSource from '../lib/workspace/LimitSource.svelte';
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import WriteOnly from '../lib/workspace/WriteOnly.svelte';
@@ -349,17 +350,19 @@
           <Stack gap="100">
             <h2 class="section">{t('app.ai.budget_title')}</h2>
             {#if offeredBudget && allowsOffered}
-              <p>
+              <p data-budget="offered">
                 {offeredBudget.limit === 0
                   ? t('app.ai.budget_offered_unlimited', { used: offeredBudget.used ?? 0 })
                   : t('app.ai.budget_offered_use', { used: offeredBudget.used ?? 0, limit: offeredBudget.limit })}
+                <LimitSource standing={offeredBudget} />
               </p>
             {/if}
             {#if ownBudget && allowsOwn}
-              <p>
+              <p data-budget="own">
                 {ownBudget.limit === 0
                   ? t('app.ai.budget_own_unlimited', { used: ownBudget.used ?? 0 })
                   : t('app.ai.budget_own_use', { used: ownBudget.used ?? 0, limit: ownBudget.limit })}
+                <LimitSource standing={ownBudget} />
               </p>
             {/if}
             <p class="quiet">{t('app.ai.budget_day')}</p>

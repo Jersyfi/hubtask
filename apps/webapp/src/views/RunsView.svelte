@@ -28,6 +28,7 @@
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { includedHere, mayHere } from '../lib/data/capability.svelte.ts';
+  import LimitSource from '../lib/workspace/LimitSource.svelte';
   import NotInPlan from '../lib/workspace/NotInPlan.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -243,6 +244,7 @@
           {:else}
             {t('app.runs.this_hour_unlimited', { used: String(hourly.used ?? 0) })}
           {/if}
+          <LimitSource standing={hourly} />
           <a href="/administration/quotas">{t('app.quotas.title')}</a>
         </p>
       {/if}

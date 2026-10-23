@@ -187,6 +187,11 @@ test('chromium: each source shows its own budget, and the workspace sets its own
   t.after(() => browser.close());
   const budgets = [];
   const routes = sourceRoutes(sourceUnder('EITHER'));
+  // Who set each budget, as *Limits* says it: beside the budget too (ux-inventory.md §E8).
+  routes['/quotas'] = (route) => route.fulfill({ json: [
+    { quota: 'ai_tokens_per_day', limit: 200000, used: 1234, source: 'INSTANCE', lock: null },
+    { quota: 'ai_own_tokens_per_day', limit: 0, used: 56, source: 'WORKSPACE', lock: null },
+  ] });
   routes['/ai-budget'] = (route, request) => {
     budgets.push(request.postDataJSON());
     return route.fulfill({ json: [
@@ -204,6 +209,8 @@ test('chromium: each source shows its own budget, and the workspace sets its own
   assert.match(text, /The offered model: today 1,234 tokens of 200,000 tokens used/);
   assert.match(text, /Our own model: today 56 tokens used, with no budget/);
   assert.match(text, /in this workspace's time zone/);
+  assert.equal(await page.locator('[data-budget="offered"] [data-source]').getAttribute('data-source'), 'INSTANCE');
+  assert.equal(await page.locator('[data-budget="own"] [data-source]').getAttribute('data-source'), 'WORKSPACE');
 
   const field = page.getByLabel(/^Daily budget of our own model/);
   await field.fill('5000');

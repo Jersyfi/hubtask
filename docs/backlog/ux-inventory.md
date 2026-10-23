@@ -211,7 +211,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips — *Administration → Sign-in*, *Legal links*
 - [x] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation — *Sign-in → Ways and providers*
 - [x] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor) — *Administration → Automation*: the editor's probe and *Start now* (every rule, unavailable with its reason unless somebody starts it and it is on); *Runs* is the log
-- [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
+- [x] Limits (read-only, "set by") → the overview and beside each feature; source chips — *Administration → Overview* and *Limits*; beside the feature with the same chip: *Runs* (the hour's runs), *AI → The budget* (each source's budget)
 - [x] Private hubs (allowed switch, table, emergency access) → *Data* — *Administration → Data → Private hubs*
 - [x] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms — *Administration → Data → Backup*
 - [ ] Restore → *Data*; the operator's path named with where to go
