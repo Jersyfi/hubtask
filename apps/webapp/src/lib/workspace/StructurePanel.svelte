@@ -25,6 +25,7 @@
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
+  import { levelWords } from '../data/levels.ts';
   import { presets } from '../data/presets.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
@@ -150,17 +151,14 @@
   }
 
   const typeName = (type: string): string => t('app.item.type_name', { type });
-  const levelName = (type: string): string => {
-    const named = values.levels?.find((level) => level.type === type)?.name;
-    return named && named.trim() !== '' ? named : typeName(type);
-  };
+  const levelName = (type: string): string => levelWords(values, type, t).label;
 
   /** The value in force, as a person reads it - what the chip's details say. */
   function summaryOf(setting: SettingName): string {
     const settings = structure?.settings ?? {};
     switch (setting) {
       case 'levels':
-        return (settings.levels ?? []).map((level) => (level.name && level.name.trim() !== '' ? level.name : typeName(level.type as string))).join(' › ');
+        return (settings.levels ?? []).map((level) => levelWords(settings, level.type as string, t).label).join(' › ');
       case 'fields':
         return t('app.structure.fields_summary', { count: String(new Set(Object.values(settings.fields ?? {}).flatMap((level) => level.capabilities)).size) });
       case 'views':

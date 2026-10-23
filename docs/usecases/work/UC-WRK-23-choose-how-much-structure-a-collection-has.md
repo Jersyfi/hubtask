@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-owner, PE-admin, PE-member, PE-child, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10]
-state: partial
+state: verified
 tasks: [UX-09, UX-10, UX-17]
-checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/e2e/structure.test.mjs, docs/evidence/UX-10-2026-10-22.md]
+checked_by: [core/domain/model/work/StructureSettings_test.go, core/application/service/work/ListPresets_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/SetWorkspaceStructure_test.go, presentation/rest/StructureController_test.go, cmd/hubctl/Structure_test.go, test/integration/container_structure_test.go, apps/webapp/src/lib/data/offer.test.ts, apps/webapp/src/lib/data/levels.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/e2e/structure.test.mjs]
 ---
 
 # Choose how much structure a collection has
@@ -37,7 +37,3 @@ In `D1` the person creates the collection "Groceries" and picks the preset *List
 * Switching a collection to a simpler preset and what happens to entries that use more is [UC-WRK-24](./UC-WRK-24-change-a-collections-level-without-losing-anything.md).
 * Making presets of one's own and offering them to the workspace is [UC-WRK-30](./UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md); an installation's catalogue is [UC-INS-18](../admin/UC-INS-18-offer-presets-to-every-workspace.md).
 * No new kind of entry is invented by a collection: levels are the system's types, narrowed and named ([domain model §2](../../architecture/domain-model.md)).
-
-## Today
-
-* Check 6: not met — outside the *Structure* panel the web app names a level by its type, never by the name a person gave it, tracked in #1704.

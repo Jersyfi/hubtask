@@ -348,8 +348,8 @@
    * side is headed by neither name alone. Beside it, how much of it is done, counting every kind.
    */
   const heldTypes = $derived(item ? offer.childTypes(item.type) : []);
-  /** A type as a name standing on its own - a heading, a badge - in the catalogue's words. */
-  const typeName = (type: string) => t('app.item.type_name', { type });
+  /** A level as a name standing on its own - a heading, a badge - by the name the collection gave it. */
+  const typeName = (type: string) => offer.level(type).label;
   const subtreeHeading = $derived(heldTypes.length === 1 ? typeName(heldTypes[0] ?? '') : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
   let isSubtreeOpen = $state(true);
@@ -1003,7 +1003,7 @@
               {:else if isTypeKnown}
                 <!-- The manifest answered and does not declare this type. Its own sentence, once,
                      rather than fourteen refusals drawn as an empty column. -->
-                <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
+                <p class="unread" role="status">{offer.refusal({ code: 'items.type_unsupported', params: { item_type: item.type } })}</p>
               {:else if typeFailure}
                 <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
                      on. The rows are missing because the installation could not be read, and that

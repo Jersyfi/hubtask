@@ -19,6 +19,7 @@ import type { Capabilities, Container } from '@hubtask/sync-engine';
 import { itemPermitted, rootTypes } from '../data/capability.ts';
 import { archivalOf } from '../data/containers.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
+import { levelWords } from '../data/levels.ts';
 import { narrowedTo } from '../data/offer.ts';
 import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
@@ -145,7 +146,7 @@ export function collectionOffers(
     offers.push({
       kind: 'action',
       id: `new-in:${container.id}`,
-      label: t('app.palette.new_in', { type: roots.length === 1 ? (roots[0] ?? '') : '', name }),
+      label: levelWords(container.structure?.settings, roots.length === 1 ? (roots[0] ?? '') : '', t).newIn(name),
       context,
       target: { kind: 'open', containerId: container.id, add: true },
     });

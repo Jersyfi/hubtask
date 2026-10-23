@@ -32,7 +32,8 @@
   } from '@hubtask/design-system/components';
   import type { CustomFieldDefinition } from '@hubtask/sync-engine';
 
-  import { holds, typesWith } from '../data/capability.svelte.ts';
+  import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { isValidKey, isWorkspaceWide, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
@@ -51,6 +52,8 @@
 
   const structure = $derived(holds(role, 'STRUCTURE'));
   const carriers = $derived(typesWith('CUSTOM_FIELDS'));
+  // A level by its name here, never the manifest's identifier (UC-WRK-23 check 6).
+  const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
 
   const existing = $derived(customFields.of(collectionId));
 
@@ -260,7 +263,7 @@
           <CheckboxGroup
             label={t('app.fields.applies_to')}
             hint={t('app.fields.applies_to_hint')}
-            options={carriers.map((type) => ({ value: type, label: type }))}
+            options={carriers.map((type) => ({ value: type, label: offer.level(type).label }))}
             selected={chosen}
             error={missing.types ? t(missing.types) : undefined}
             onChange={(next) => {
