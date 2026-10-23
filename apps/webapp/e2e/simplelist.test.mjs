@@ -3,7 +3,7 @@
 
 // UC-WRK-25 on a phone (checks 1-6): the grocery list of the shared fixture at 375 × 812 with a
 // touch screen, online and offline. Lines become entries, a leading amount becomes the entry's
-// amount, a tap or a swipe ticks a row, a still hold opens its menu and ticks nothing, a ticked
+// amount, a tap or a swipe ticks a row, a still hold opens the entry menu and ticks nothing, a ticked
 // entry moves under the collection's name for *Done*, an entry under *Recently* comes back as the
 // same entry, open entries sit under their categories in order, and offline the ticks and the
 // captures queue and are pushed when the network returns.
@@ -139,7 +139,7 @@ test('a tap on the row ticks it once, on a target of at least 44 by 44, and it m
   await context.close();
 });
 
-test('a swipe ticks, and a still hold opens the menu with Select first and ticks nothing (check 6, ADR-0088)', async () => {
+test('a swipe ticks, and a still hold opens the entry menu with Select first and ticks nothing (check 6, ADR-0088)', async () => {
   const { page, writes, context } = await phone();
   await finger(page, idOf('apples'), [[20, 0], [60, 2], [90, 4]]);
   await page.waitForTimeout(400);
@@ -147,11 +147,25 @@ test('a swipe ticks, and a still hold opens the menu with Select first and ticks
 
   const before = writes.length;
   await finger(page, idOf('milk'), [], 450);
-  const menu = page.getByRole('menu');
+  // The entry menu every surface draws (UC-WRK-28 check 1), with the list's own items after Open
+  // and no level to move inside or out of.
+  const menu = page.getByRole('menu', { name: 'Actions for milk' });
   await menu.waitFor();
-  assert.equal((await menu.getByRole('menuitem').first().innerText()).trim(), 'Select');
+  const items = (await menu.getByRole('menuitem').allInnerTexts()).map((each) => each.trim());
+  assert.deepEqual(items.slice(0, 4), ['Select', 'Open', 'Amount', 'Category']);
+  for (const shared of ['Move up', 'Move to another collection…', 'Copy link', 'Move to the trash']) {
+    // An item that is off carries its reason under its name.
+    assert.ok(items.some((each) => each.split('\n')[0] === shared), `${shared} is missing: ${items.join(', ')}`);
+  }
+  assert.ok(!items.some((each) => each.startsWith('Move inside') || each === 'Move out one level'), items.join(', '));
   await page.waitForTimeout(300);
   assert.equal(writes.slice(before).filter((write) => write.path.includes(':complete')).length, 0, 'the hold ticked');
+
+  // A right click opens the same menu, as on every surface (UC-WRK-28 check 1).
+  await page.keyboard.press('Escape');
+  await page.locator(`[data-row="${idOf('bread')}"] .title`).click({ button: 'right' });
+  await page.getByRole('menu', { name: 'Actions for bread' }).waitFor();
+  assert.equal(writes.slice(before).filter((write) => write.path.includes(':complete')).length, 0, 'the right click ticked');
   await context.close();
 });
 

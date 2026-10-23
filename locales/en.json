@@ -1787,8 +1787,6 @@
   "app.entries.recently": "Recently",
   "app.entries.no_category": "Other",
   "app.entries.amount_title": "{amount} {title}",
-  "app.entries.select_entry": "Select",
-  "app.entries.open_entry": "Open",
   "app.entries.change_amount": "Amount",
   "app.entries.amount_label": "Amount",
   "app.entries.amount_saved_announced": "The amount of {title} was saved.",

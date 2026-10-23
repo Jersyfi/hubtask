@@ -28,7 +28,6 @@
     Input,
     LabelChip,
     LabelPicker,
-    Menu,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -486,8 +485,6 @@
     return available.find((label) => label.id === category)?.name ?? t('app.entries.no_category');
   }
 
-  /** The row whose menu is open because a still hold opened it (ADR-0088). */
-  let menuOpenFor = $state<string | undefined>(undefined);
   /** The row whose amount is being changed from its menu. */
   let amending = $state<Row | undefined>(undefined);
   let draftAmount = $state('');
@@ -847,11 +844,15 @@
     return verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
   }
 
-  /** The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. */
+  /**
+   * The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. A
+   * simple list's adds its amount and its category, which its still hold opens with *Select* first
+   * (ADR-0088).
+   */
   function menuItems(row: Row) {
-    const every = entryMenu(
+    return entryMenu(
       {
-        surface: root ? 'subtree' : isSelectable ? 'list' : 'subtree',
+        surface: root ? 'subtree' : isSimple ? 'simple' : isSelectable ? 'list' : 'subtree',
         item: {
           title: row.item.title,
           isCompleted: row.item.completion?.is_completed ?? false,
@@ -870,41 +871,13 @@
           insideReason: insideReason(row),
           outReason: outReason(row),
         },
+        simple: {
+          amount: offersAmount(row.item.type),
+          category: categories.length > 0 && supports(row.item.type, 'LABELS').status === 'permitted',
+        },
       },
       t,
     );
-    if (!isSimple) return every;
-    // A simple list keeps its own head - *Select* first, *Open*, the amount and the category - and
-    // has no levels to move inside or out of; a done entry is not ranked among the open ones.
-    const head = simpleItems(row).filter((each) => !isRoleRefused(row) || each.id === 'select' || each.id === 'open');
-    const taken = new Set(head.map((each) => each.id));
-    return [
-      ...head,
-      ...every
-        .filter((each) => !taken.has(each.id) && each.id !== 'inside' && each.id !== 'out')
-        .filter((each) => row.section === 'open' || !RANK_IDS.has(each.id)),
-    ];
-  }
-
-  const RANK_IDS = new Set(['up', 'down', 'top', 'bottom']);
-
-  /**
-   * What a simple list's row menu adds: *Select* first, because a still hold opens this menu
-   * rather than selecting (ADR-0088); *Open*, because the title is not a link there; the amount
-   * and the category, where the collection offers them.
-   */
-  function simpleItems(row: Row) {
-    const offers = [
-      { id: 'select', label: t('app.entries.select_entry') },
-      { id: 'open', label: t('app.entries.open_entry') },
-    ];
-    if (offersAmount(row.item.type) && !isFrozen(row)) {
-      offers.push({ id: 'amount', label: t('app.entries.change_amount') });
-    }
-    if (categories.length > 0 && supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row)) {
-      offers.push({ id: 'category', label: t('app.entries.choose_category') });
-    }
-    return offers;
   }
 
   /** The menus of the rows, so a right click, a key or a long press can open one. */
@@ -966,7 +939,7 @@
    * A simple list's row under a finger and a pointer (UC-WRK-25 check 6, ADR-0088): a tap anywhere
    * on the row but its controls ticks it, so the target is the whole row and never only the small
    * box; a swipe towards the inline end ticks an open entry and reopens a done one; a still hold
-   * opens the row's menu when the finger lifts, *Select* first, and ticks nothing. The grip still
+   * opens the entry menu when the finger lifts, *Select* first, and ticks nothing. The grip still
    * drags, and `Ctrl`/`Cmd`-click still selects. A tap on the checkbox itself is the checkbox's,
    * and the row lets it be, so nothing is ticked twice.
    */
@@ -1004,12 +977,32 @@
     };
     const onUp = (event: PointerEvent) => {
       if (press && !press.acted && event.timeStamp - press.start.at >= GESTURE_HOLD_MS) {
-        menuOpenFor = press.id;
+        menus[press.id]?.open(0);
         swallowsClick = true;
       }
       press = undefined;
     };
     const onCancel = () => (press = undefined);
+    // A right click and the context-menu key open the same menu, as on every surface
+    // (`entryGestures.ts`); a finger's long press is the release's, not the browser's menu.
+    const onContextMenu = (event: MouseEvent) => {
+      const id = idAt(event.target);
+      if (!id) return;
+      if ((event as PointerEvent).pointerType === 'touch' || press !== undefined) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey) return;
+      event.preventDefault();
+      menus[id]?.open(0);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      event.preventDefault();
+      menus[id]?.open(0);
+    };
     // The capture phase, so that a press a gesture already answered reaches no control.
     const onClick = (event: MouseEvent) => {
       const id = idAt(event.target);
@@ -1037,12 +1030,16 @@
     node.addEventListener('pointerup', onUp);
     node.addEventListener('pointercancel', onCancel);
     node.addEventListener('click', onClick, true);
+    node.addEventListener('contextmenu', onContextMenu);
+    node.addEventListener('keydown', onKey);
     return () => {
       node.removeEventListener('pointerdown', onDown);
       node.removeEventListener('pointermove', onMove);
       node.removeEventListener('pointerup', onUp);
       node.removeEventListener('pointercancel', onCancel);
       node.removeEventListener('click', onClick, true);
+      node.removeEventListener('contextmenu', onContextMenu);
+      node.removeEventListener('keydown', onKey);
     };
   });
 
@@ -1112,7 +1109,7 @@
       void rankTo(row, to);
     },
     // A finger held still on the grip and lifted asks for the menu, as anywhere else on the row.
-    onhold: (id) => (isSimple ? (menuOpenFor = id) : menus[id]?.open(0)),
+    onhold: (id) => menus[id]?.open(0),
   });
 
   $effect(() => {
@@ -1470,34 +1467,14 @@
           <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
                first: every position a drag can reach is an item here, each with the reason it
                cannot be used rather than a control that goes grey for no stated cause. -->
-          <!-- A simple list keeps its own row menu, which its still hold opens (ADR-0088); every
-               other list draws the entry menu every surface shares (UC-WRK-28 check 1). -->
-          {#if isSimple}
-          {#if !isReadOnly && menuItems(row).length > 0}
-            <Menu
-              label={t('app.rank.actions', { title: row.item.title })}
-              items={menuItems(row)}
-              onselect={(id) => chose(row, id)}
-              bind:isOpen={() => menuOpenFor === row.item.id, (open) => (menuOpenFor = open ? row.item.id : undefined)}
-            >
-              {#snippet trigger(props)}
-                <IconButton
-                  icon="ellipsis"
-                  label={t('app.rank.actions', { title: row.item.title })}
-                  size="sm"
-                  {...props}
-                />
-              {/snippet}
-            </Menu>
-          {/if}
-          {:else}
-            <EntryMenu
-              bind:this={menus[row.item.id]}
-              title={row.item.title}
-              items={menuItems(row)}
-              onselect={(id) => chose(row, id)}
-            />
-          {/if}
+          <!-- The entry menu every surface shares (UC-WRK-28 check 1); a simple list's still hold
+               opens it, Select first (ADR-0088). -->
+          <EntryMenu
+            bind:this={menus[row.item.id]}
+            title={row.item.title}
+            items={menuItems(row)}
+            onselect={(id) => chose(row, id)}
+          />
         {/snippet}
       </TaskRow>
 

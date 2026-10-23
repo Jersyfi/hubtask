@@ -136,6 +136,29 @@ test('the same menu on every surface; Select only where a bulk acts, the columns
   assert.equal(menus.board?.indexOf('column:doing'), (menus.board?.indexOf('elsewhere') ?? 0) + 1);
 });
 
+test('a simple list: Select first, its amount and category after Open, no levels, a done entry unranked (UC-WRK-25 check 6)', () => {
+  const simple = (overrides: Partial<EntryMenuContext> = {}) =>
+    idsOf(entryMenu(context({ surface: 'simple', simple: { amount: true, category: true }, ...overrides }), t));
+  assert.deepEqual(simple(), [
+    'select', 'open', 'amount', 'category', 'complete', 'dates', 'person', 'labels',
+    'up', 'down', 'top', 'bottom', 'elsewhere',
+    'duplicate', 'copy-link', 'archive', 'trash',
+  ]);
+  assert.deepEqual(simple({ item: { title: 'Butter', isCompleted: true, hasDue: false } }), [
+    'select', 'open', 'amount', 'category', 'reopen', 'dates', 'person', 'labels',
+    'elsewhere',
+    'duplicate', 'copy-link', 'archive', 'trash',
+  ]);
+  assert.deepEqual(simple({ simple: { amount: false, category: false } }).slice(0, 3), ['select', 'open', 'complete']);
+  // What the list adds is the list's: the same items on any other surface are not drawn.
+  const listed = idsOf(entryMenu(context({ simple: { amount: true, category: true } }), t));
+  assert.ok(!listed.includes('amount') && !listed.includes('category'));
+  // Archived in its own right: listed, off with the reason; not changeable: not listed.
+  const archived = entryMenu(context({ surface: 'simple', simple: { amount: true, category: true }, archival: 'archived' }), t);
+  assert.equal(archived.find((item) => item.id === 'amount')?.disabledReason, 'app.entries.archived');
+  assert.deepEqual(simple({ mayChange: false }), ['open', 'duplicate', 'copy-link']);
+});
+
 test('the trash is last, alone and destructive', () => {
   const items = entryMenu(context(), t);
   const last = items.at(-1);

@@ -629,8 +629,6 @@
   "app.entries.recently": "Zuletzt",
   "app.entries.no_category": "Sonstiges",
   "app.entries.amount_title": "{amount} {title}",
-  "app.entries.select_entry": "Auswählen",
-  "app.entries.open_entry": "Öffnen",
   "app.entries.change_amount": "Menge",
   "app.entries.amount_label": "Menge",
   "app.entries.amount_saved_announced": "Die Menge von {title} wurde gespeichert.",
