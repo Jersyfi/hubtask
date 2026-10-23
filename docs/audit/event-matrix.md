@@ -36,6 +36,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 |---|---|---|---|---|
 | `account.address_confirmed` | ConfirmAddress | `account` | NOTICE | Every time |
 | `account.address_requested` | RequestAddress | `account` | NOTICE | Every time |
+| `account.avatar_removed` | RemoveOwnAvatar | `account` | INFO | Every time |
+| `account.avatar_set` | SetOwnAvatar | `account` | INFO | Every time |
 | `account.invitation_renewed` | RenewInvitation | `account` | NOTICE | Every time |
 | `account.invited` | InviteAccount | `account` | NOTICE | Every time |
 | `account.managed_created` | CreateManagedAccount | `account` | NOTICE | Every time |

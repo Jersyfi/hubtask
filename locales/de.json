@@ -318,6 +318,7 @@
   "accounts.account_required": "Sag, wessen Konto gelesen werden soll.",
   "accounts.self_required": "Dieser Aufruf läuft als die Installation selbst, die kein eigenes Konto hat.",
   "accounts.name_needs_a_person": "Ein Dienstkonto benennt, wer es verwaltet, nicht es sich selbst.",
+  "accounts.picture_needs_a_person": "Nur eine Person zeigt ein Bild von sich; ein Dienstkonto hat keines.",
   "accounts.sign_in_name_too_short": "Ein Anmeldename braucht mindestens {minimum} Zeichen.",
   "accounts.sign_in_name_too_long": "Ein Anmeldename darf höchstens {maximum} Zeichen lang sein.",
   "accounts.sign_in_name_malformed": "Ein Anmeldename darf kein @, keine Leerzeichen und keine unsichtbaren Zeichen enthalten.",
