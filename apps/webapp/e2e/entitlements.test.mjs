@@ -225,17 +225,19 @@ test('chromium: the workspace\'s own providers a plan leaves out sign nobody in,
   // Configuring: the notice, the row resting, no new provider and no change; removing stays.
   await page.goto(`${served.origin}/administration/identity-provider`);
   await page.getByText('2 of this workspace\'s own providers sign nobody in; their connections stay.', { exact: false }).waitFor({ timeout: 5_000 });
-  assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
+  const configuring = page.locator('section[aria-labelledby="providers"]');
+  assert.ok(await configuring.getByText('Not included in your plan', { exact: true }).isVisible());
   assert.equal(await page.getByRole('button', { name: 'Add a provider' }).count(), 0, 'a new provider is offered');
   assert.equal(await page.getByRole('button', { name: 'Change' }).count(), 0, 'changing a resting provider is offered');
   assert.equal(await page.getByRole('button', { name: 'Remove' }).count(), 2);
 
   // The ways in: a resting provider that is on keeps only the way to switch it off; one that is
   // off says so in place of its switch.
-  await page.goto(`${served.origin}/administration/sign-in`);
-  await page.getByText('Lab login', { exact: true }).waitFor({ timeout: 5_000 });
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
+  const ways = page.getByRole('list', { name: 'Ways to sign in' });
+  await ways.getByText('Lab login', { exact: true }).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByLabel('Lab login').count(), 0, 'a resting provider that is off has a switch');
-  assert.ok(await page.getByText('Not included in your plan', { exact: true }).isVisible());
+  assert.ok(await ways.getByText('Not included in your plan', { exact: true }).isVisible());
   const on = page.getByLabel('Company login');
   assert.equal(await on.isChecked(), true);
   assert.ok(await page.getByText('Switched off here, it stays off when your plan includes it again.', { exact: false }).isVisible());

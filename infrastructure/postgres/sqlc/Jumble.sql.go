@@ -69,7 +69,7 @@ func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpi
 
 const findJumbleEntry = `-- name: FindJumbleEntry :one
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
-       e.target_item_id, e.received_at, e.processed_at,
+       e.target_item_id, e.received_at, e.processed_at, e.created_by,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -90,6 +90,7 @@ type FindJumbleEntryRow struct {
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
 	ArrivalJobID pgtype.UUID
 }
 
@@ -110,6 +111,7 @@ func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumb
 		&i.TargetItemID,
 		&i.ReceivedAt,
 		&i.ProcessedAt,
+		&i.CreatedBy,
 		&i.ArrivalJobID,
 	)
 	return i, err
@@ -153,11 +155,11 @@ func (q *Queries) FindJumbleIntakeByToken(ctx context.Context, tokenHash []byte)
 const insertJumbleEntry = `-- name: InsertJumbleEntry :exec
 
 INSERT INTO jumble_entry (
-  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at
+  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at, created_by
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
-  $7, $8
+  $7, $8, $9
 )
 `
 
@@ -170,6 +172,7 @@ type InsertJumbleEntryParams struct {
 	Attachments []pgtype.UUID
 	Status      string
 	ReceivedAt  pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
 }
 
 // The jumble (domain-model.md §2): entries arrive, are decided about exactly once, and the
@@ -187,13 +190,14 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 		arg.Attachments,
 		arg.Status,
 		arg.ReceivedAt,
+		arg.CreatedBy,
 	)
 	return err
 }
 
 const listJumbleEntries = `-- name: ListJumbleEntries :many
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
-       e.target_item_id, e.received_at, e.processed_at,
+       e.target_item_id, e.received_at, e.processed_at, e.created_by,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -225,6 +229,7 @@ type ListJumbleEntriesRow struct {
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
 	ArrivalJobID pgtype.UUID
 }
 
@@ -268,6 +273,7 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 			&i.TargetItemID,
 			&i.ReceivedAt,
 			&i.ProcessedAt,
+			&i.CreatedBy,
 			&i.ArrivalJobID,
 		); err != nil {
 			return nil, err

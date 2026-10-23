@@ -205,26 +205,26 @@ Administration and installation, found by UX-05's sweep:
 
 - [x] `/administration` redirect → the overview (UX-18) — *Administration → Overview*
 - [x] Workspace (name, address, language, zone, week start, save) → kept; save bar — *Administration → Workspace and people → Workspace*
-- [ ] People (table, renew invitation, start password, address, revoke, invite, without address, grant) → kept; one primary action with the three ways
-- [ ] Groups (rename without a permission check, take out, add, delete, new), permissions matrix → tabs of *People*; rename checked
-- [ ] Service accounts with tokens, third-party apps → *Machines and apps*
-- [ ] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips
-- [ ] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation
+- [x] People (table, renew invitation, start password, address, revoke, invite, without address, grant) → kept; one primary action with the three ways — *Administration → Workspace and people → People*, *Add people*
+- [x] Groups (rename without a permission check, take out, add, delete, new), permissions matrix → tabs of *People*; rename checked — *People → Groups*, *People → Roles and permissions*
+- [x] Service accounts with tokens, third-party apps → *Machines and apps* — *Administration → Workspace and people → Machines and apps*
+- [x] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips — *Administration → Sign-in*, *Legal links*
+- [x] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation — *Sign-in → Ways and providers*
 - [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
 - [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
 - [x] Private hubs (allowed switch, table, emergency access) → *Data* — *Administration → Data → Private hubs*
 - [x] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms — *Administration → Data → Backup*
 - [ ] Restore → *Data*; the operator's path named with where to go
 - [x] Retention (rules, preview, arm, withdraw without confirmation, write, in force, holds) → *Data*; withdraw confirms — *Administration → Data → Retention*
-- [ ] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period
+- [x] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period — *Administration → Records → The trail*
 - [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
-- [ ] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget
+- [x] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget — *Administration → AI*
 - [x] New: *Presets* (UX-27) — *Administration → Workspace and people → Presets*
 - [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
-- [ ] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu
-- [ ] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display
-- [ ] Providers, AI, backup targets, platform, keyring, operators, journal → kept; shared forms; journal filtered and paged; breadcrumbs
-- [ ] Setup, the one-hour elevation gate → kept
+- [x] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu — *Installation → Workspaces*
+- [x] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display — *Installation → Plans*, *Defaults*
+- [x] Providers, AI, backup targets, platform, keyring, operators, journal → kept; shared forms; journal filtered and paged; breadcrumbs — *Installation*
+- [x] Setup, the one-hour elevation gate → kept — `/installation`, *Installation*
 
 ## E9 — Removed, and what replaces each
 

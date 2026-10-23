@@ -1223,6 +1223,7 @@ func run() error {
 	suggestionCases.Material = suggestionservice.CatalogueSources{
 		Catalogue: suggestionCatalogue, Profiles: profiles, Kept: keptOut,
 		Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+		Jumble: postgres.NewJumbleRepository(cursors),
 	}
 	// A person's own view of keeping their content out of AI, over the same rule every AI call
 	// resolves (data-protection.md §4.1).
@@ -1299,6 +1300,7 @@ func run() error {
 		Sources: suggestionservice.CatalogueSources{
 			Catalogue: scopedSuggestions, Profiles: profiles, Kept: keptOut, Collections: containers,
 			Served: catalogue.AutomationActions(), Permits: authorizer, Text: forms,
+			Jumble: postgres.NewJumbleRepository(cursors),
 		},
 		Suggestions: suggestionStore, Requests: suggestionStore,
 		// An applied answer is accepted through the use case, never around it.
@@ -1882,6 +1884,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.DescribeRule{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.MakeEntries{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -3588,6 +3595,7 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiMakeEntries:            worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiAnswer:                 worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		// Its own kind, which a process of the previous release leaves alone.
 		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},

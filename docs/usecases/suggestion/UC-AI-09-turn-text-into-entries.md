@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-12, P-14]
-state: specified
+state: verified
 tasks: [UX-20]
-checked_by: []
+checked_by: [core/application/service/suggestion/MakeEntries_test.go, infrastructure/ai/Prompts_test.go, test/integration/suggestion_test.go, apps/webapp/src/lib/capture/entries.test.ts, apps/webapp/e2e/makeentries.test.mjs]
 ---
 
 # Turn a piece of text into entries
@@ -31,9 +31,3 @@ The person pastes a recipe into capture for "Groceries" and chooses *Make entrie
 
 * The jumble's proposals are [UC-JUM-07](../jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md).
 
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.

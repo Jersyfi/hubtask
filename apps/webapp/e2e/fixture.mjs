@@ -396,6 +396,65 @@ export const LEGAL_HOLDS = [
  */
 /** The installation at a glance, as the operator reads it: the counts `WORKSPACES` agrees with. */
 export const INSTANCE_OVERVIEW = { workspaces_active: 3, workspaces_suspended: 0, workspaces_pending_deletion: 1, accounts_active: 4, accounts_total: 5, workspaces_service_only: 0 };
+/**
+ * The installation's defaults (`GET /admin/settings`): a value of each kind in every area, decided
+ * and undecided, locked and open - what the defaults' tabs and their editor draw.
+ */
+const tighten = { workspace_may: 'TIGHTEN' };
+export const INSTANCE_SETTINGS = {
+  sign_in: {
+    min_length: { set: true, value: 14, locked: true, kind: 'COUNT', minimum: 8, maximum: 128, ...tighten },
+    min_digits: { set: false, locked: false, kind: 'COUNT', minimum: 0, ...tighten },
+    breach_check: { set: true, value: true, locked: false, kind: 'FLAG', ...tighten },
+    mfa_required_for: { set: true, value: 'ADMINS', locked: false, kind: 'CHOICE', options: ['NONE', 'ADMINS', 'EVERYONE'], ...tighten },
+    session_idle_minutes: { set: false, locked: false, kind: 'COUNT', minimum: 0, ...tighten },
+  },
+  legal: {
+    imprint_url: { set: true, value: 'https://provider.example/imprint', locked: true, kind: 'LINK', workspace_may: 'REPLACE' },
+    privacy_url: { set: true, value: 'https://provider.example/privacy', locked: false, kind: 'LINK', workspace_may: 'REPLACE' },
+    accessibility_url: { set: false, locked: false, kind: 'LINK', workspace_may: 'REPLACE' },
+  },
+  localisation: {
+    locale: { set: true, value: 'en', locked: false, kind: 'LOCALE' },
+    time_zone: { set: true, value: 'Europe/Berlin', locked: false, kind: 'TIME_ZONE' },
+    week_start: { set: false, locked: false, kind: 'CHOICE', options: ['MONDAY', 'SATURDAY', 'SUNDAY'] },
+  },
+  quotas: {
+    items: { set: true, value: 0, locked: false, kind: 'COUNT', minimum: 0, workspace_may: 'RAISE' },
+    members: { set: true, value: 50, locked: true, kind: 'COUNT', minimum: 0, workspace_may: 'RAISE' },
+    export_jobs: { set: false, locked: false, kind: 'COUNT', minimum: 0, workspace_may: 'RAISE' },
+  },
+  ai: {
+    sources: { set: true, value: 'EITHER', locked: false, kind: 'CHOICE', options: ['EITHER', 'OFFERED', 'OWN', 'NONE'], ...tighten },
+  },
+  source: 'database',
+  is_enforced_from_file: false,
+};
+
+/**
+ * The installation's journal (`GET /admin/journal`), newest first, answered two to a page and
+ * narrowed as the server narrows it: `action` a prefix, `workspace` the slug.
+ */
+export const JOURNAL = [
+  { id: '01a0e2e0-0000-7000-8000-000000001801', occurred_at: '2026-10-22T16:00:00Z', action: 'tenant.suspended', tenant_id: '01a0e2e0-0000-7000-8000-000000001811', tenant_slug: 'lumen', actor_label: 'Journal operator' },
+  { id: '01a0e2e0-0000-7000-8000-000000001802', occurred_at: '2026-10-22T15:00:00Z', action: 'instance.settings_changed', actor_label: 'Journal operator', details: { keys: 2 } },
+  { id: '01a0e2e0-0000-7000-8000-000000001803', occurred_at: '2026-10-22T14:00:00Z', action: 'tenant.provisioned', tenant_id: '01a0e2e0-0000-7000-8000-000000001812', tenant_slug: 'quarry', actor_label: 'Journal operator' },
+  { id: '01a0e2e0-0000-7000-8000-000000001804', occurred_at: '2026-10-22T13:00:00Z', action: 'plan.created', actor_label: 'Journal operator' },
+  { id: '01a0e2e0-0000-7000-8000-000000001805', occurred_at: '2026-10-22T12:00:00Z', action: 'tenant.provisioned', tenant_id: '01a0e2e0-0000-7000-8000-000000001811', tenant_slug: 'lumen', actor_label: 'Journal operator' },
+];
+const JOURNAL_PAGE = 2;
+
+function journalAnswer(url) {
+  const query = new URL(url).searchParams;
+  const action = query.get('action') ?? '';
+  const workspace = query.get('workspace');
+  const narrowed = JOURNAL.filter((entry) => entry.action.startsWith(action) && (!workspace || entry.tenant_slug === workspace));
+  const from = Number(query.get('cursor') ?? 0);
+  const data = narrowed.slice(from, from + JOURNAL_PAGE);
+  const more = from + JOURNAL_PAGE < narrowed.length;
+  return { data, page: { next_cursor: more ? String(from + JOURNAL_PAGE) : null, has_more: more } };
+}
+
 export const WORKSPACES = [
   { id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name, status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: WORKSPACE.created_at, purge_after: null, legal_hold: false },
   { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
@@ -1032,8 +1091,15 @@ export function stub(route) {
   if (path.endsWith('/api/v1/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: draftSaved ? [DRAFTED_RULE] : [] } });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
   if (path.endsWith('/api/v1/admin/overview')) return route.fulfill({ json: INSTANCE_OVERVIEW });
+  if (path.endsWith('/api/v1/admin/settings') && request.method() === 'GET') return route.fulfill({ json: INSTANCE_SETTINGS, headers: { ETag: '"1"' } });
+  if (path.endsWith('/api/v1/admin/journal') && request.method() === 'GET') return route.fulfill({ json: journalAnswer(request.url()) });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
+  // A workspace that never configured its own model: the contract's `404`, which the AI screen
+  // draws as the empty form. Anything else here would be a provider without a kind.
+  if (path.endsWith('/api/v1/ai-provider') && request.method() === 'GET') {
+    return route.fulfill({ status: 404, json: { code: 'errors.not_found', status: 404, request_id: 'req_e2e' } });
+  }
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });

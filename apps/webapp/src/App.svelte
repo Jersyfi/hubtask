@@ -13,7 +13,7 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
-  import { ROUTES, paneFor } from './lib/routes.ts';
+  import { ROUTES, movedTo, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -50,12 +50,9 @@ import ContainerView from './views/ContainerView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
-  import AppsView from './views/AppsView.svelte';
+  import MachinesView from './views/MachinesView.svelte';
   import ConsentView from './views/ConsentView.svelte';
-  import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
-  import PermissionsView from './views/PermissionsView.svelte';
-  import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import PrivateHubsView from './views/PrivateHubsView.svelte';
   import BackupView from './views/BackupView.svelte';
@@ -70,7 +67,6 @@ import ContainerView from './views/ContainerView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import PresetsView from './views/PresetsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
-  import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
@@ -104,6 +100,11 @@ import ContainerView from './views/ContainerView.svelte';
   const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
   $effect(() => {
     if (pane.kind === 'redirect') router.replace(pane.path);
+  });
+  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
+  const moved = $derived(movedTo(route.name));
+  $effect(() => {
+    if (moved) router.replace(moved);
   });
 
   /**
@@ -277,7 +278,7 @@ import ContainerView from './views/ContainerView.svelte';
       <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else if route.name === 'instance-settings'}
-    <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
+    <InstanceSettingsView tab={route.query['tab']} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
   {:else if route.name === 'instance-providers'}
     <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-ai'}
@@ -299,15 +300,9 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'presets'}
     <PresetsView />
   {:else if route.name === 'people'}
-    <PeopleView />
-  {:else if route.name === 'groups'}
-    <GroupsView />
-  {:else if route.name === 'permissions'}
-    <PermissionsView />
-  {:else if route.name === 'service-accounts'}
-    <ServiceAccountsView />
-  {:else if route.name === 'apps'}
-    <AppsView />
+    <PeopleView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.name === 'machines'}
+    <MachinesView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'rules'}
     <RulesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule-new'}
@@ -334,12 +329,14 @@ import ContainerView from './views/ContainerView.svelte';
     <AuditView />
   {:else if route.name === 'privacy'}
     <PrivacyView />
-  {:else if route.name === 'identity-provider'}
-    <IdentityProviderView />
+  {:else if movedTo(route.name)}
+    <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.name === 'sign-in-settings'}
-    <SignInSettingsView />
+    <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.name === 'legal'}
+    <SignInSettingsView part="legal" />
   {:else if route.name === 'ai'}
-    <AiSettingsView />
+    <AiSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'search'}
     <SearchView query={route.query} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'jumble'}

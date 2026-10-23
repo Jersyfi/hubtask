@@ -87,7 +87,7 @@ func (j *journalFake) Record(_ context.Context, event adminrepo.InstanceEvent) e
 	return nil
 }
 
-func (j *journalFake) Page(context.Context, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
+func (j *journalFake) Page(context.Context, adminrepo.JournalFilter, string, int) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
 	return j.entries, adminrepo.PageInfo{}, nil
 }
 

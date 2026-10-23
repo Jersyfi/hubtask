@@ -1052,6 +1052,7 @@ type JumbleEntry struct {
 	TargetItemID pgtype.UUID
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
 }
 
 type JumbleIntake struct {

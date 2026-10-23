@@ -27,15 +27,18 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
-  import type { AiJurisdiction, AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
+  import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
+  import ModelFields from '../lib/ai/ModelFields.svelte';
+  import { emptyModel, modelBody, modelOf } from '../lib/ai/model.ts';
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import PersonOptOutSection from '../lib/workspace/PersonOptOutSection.svelte';
   import { quotas } from '../lib/data/quotas.svelte.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
@@ -46,12 +49,16 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
-  let kind = $state<AiProviderKind | ''>('');
-  let baseUrl = $state('');
-  let completionModel = $state('');
-  let embeddingModel = $state('');
-  let apiKey = $state('');
-  let jurisdiction = $state<AiJurisdiction | ''>('');
+  interface Props {
+    /** The tab the address names (`?tab=`); the source where it names none or one not drawn. */
+    tab?: string;
+    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    onnavigate?: (path: string) => void;
+  }
+
+  let { tab, onnavigate }: Props = $props();
+
+  let draft = $state(emptyModel('', ''));
   let processingAllowed = $state(false);
   let confirmingRemoval = $state(false);
   let isWorking = $state(false);
@@ -140,28 +147,13 @@
     const current = provider;
     if (!current || filled) return;
     filled = true;
-    kind = current.kind;
-    baseUrl = current.base_url ?? '';
-    completionModel = current.completion_model ?? '';
-    embeddingModel = current.embedding_model ?? '';
-    jurisdiction = current.jurisdiction;
+    draft = modelOf(current);
     processingAllowed = current.processing_allowed;
   });
 
-  // The two closed sets are the contract's own enums. Written here as options for the pickers,
-  // which is not a hard-coded list of what the installation supports: a kind the server refuses
-  // comes back as `ai.kind_unknown`, rendered like any refusal.
-  const kinds: { value: AiProviderKind; label: string }[] = [
-    { value: 'OPENAI_COMPATIBLE', label: t('app.ai.kind_openai_compatible') },
-    { value: 'OLLAMA', label: t('app.ai.kind_ollama') },
-    { value: 'NOOP', label: t('app.ai.kind_noop') },
-  ];
-  const allJurisdictions: { value: AiJurisdiction; label: string }[] = [
-    { value: 'SELF_HOSTED', label: t('app.ai.jurisdiction_self_hosted') },
-    { value: 'EEA', label: t('app.ai.jurisdiction_eea') },
-    { value: 'ADEQUACY', label: t('app.ai.jurisdiction_adequacy') },
-    { value: 'THIRD_COUNTRY', label: t('app.ai.jurisdiction_third_country') },
-  ];
+  // The contract's own enum, which is not a hard-coded list of what the installation supports: a
+  // kind the server refuses comes back as `ai.kind_unknown`, rendered like any refusal.
+  const KINDS: readonly AiProviderKind[] = ['OPENAI_COMPATIBLE', 'OLLAMA', 'NOOP'];
 
   /** Who set a rule, in words: the installation or the plan. */
   const setBy = (origin: string | undefined): string =>
@@ -218,33 +210,19 @@
   // UC-AI-03 check 2: the consent names who receives the content and where, in words, from what the
   // form holds now - the sentence changes with the address and the jurisdiction it is about.
   const consentLabel = $derived.by(() => {
-    const host = hostOf(baseUrl);
-    return host && jurisdiction
-      ? t('app.ai.consent_label_named', { host, where: jurisdiction })
+    const host = hostOf(draft.baseUrl);
+    return host && draft.jurisdiction
+      ? t('app.ai.consent_label_named', { host, where: draft.jurisdiction })
       : t('app.ai.consent_label');
   });
-
-  /**
-   * The declarations the installation's minimum admits (UC-AI-06 check 4). A looser one is not
-   * offered, because the server refuses it (P-05); the sentence beside the field says why the list
-   * is shorter. A stored declaration below the minimum stays in the list, so the form can show it.
-   */
-  const RANK: Record<AiJurisdiction, number> = { THIRD_COUNTRY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
-  const MINIMUM_RANK: Record<string, number> = { ANY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
-  const jurisdictions = $derived(
-    allJurisdictions.filter(
-      (each) =>
-        RANK[each.value] >= (MINIMUM_RANK[source?.min_jurisdiction ?? 'ANY'] ?? 0) || each.value === provider?.jurisdiction,
-    ),
-  );
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     // Never switched off for an empty choice: pressed, the missing choice is marked and focused
     // (UC-WRK-32 check 3).
     missing = check([
-      { kind: 'field', key: 'kind', code: 'app.ai.kind_needed', isFilled: kind !== '' },
-      { kind: 'field', key: 'jurisdiction', code: 'app.ai.jurisdiction_needed', isFilled: jurisdiction !== '' },
+      { kind: 'field', key: 'kind', code: 'app.ai.kind_needed', isFilled: draft.kind !== '' },
+      { kind: 'field', key: 'jurisdiction', code: 'app.ai.jurisdiction_needed', isFilled: draft.jurisdiction !== '' },
     ]);
     if (!isComplete(missing)) {
       void tick().then(() => focusFirst(ownForm));
@@ -253,21 +231,11 @@
     isWorking = true;
     failure = undefined;
     try {
-      await aiProvider.configure({
-        kind: kind as AiProviderKind,
-        ...(baseUrl.trim() ? { base_url: baseUrl.trim() } : {}),
-        ...(completionModel.trim() ? { completion_model: completionModel.trim() } : {}),
-        ...(embeddingModel.trim() ? { embedding_model: embeddingModel.trim() } : {}),
-        // Absent keeps the sealed key; a value replaces it. The field is never sent empty from
-        // here, because "clear the key" is a different intent from "I typed nothing" and this
-        // screen offers the first as the removal below.
-        ...(apiKey ? { api_key: apiKey } : {}),
-        jurisdiction: jurisdiction as AiJurisdiction,
-        processing_allowed: processingAllowed,
-      });
+      // Clearing the key is the removal below, never an empty field.
+      await aiProvider.configure({ ...modelBody(draft), processing_allowed: processingAllowed });
       // Out of the component's state at once: a key kept for a second submission is a key sitting
       // in a form for as long as the tab is open.
-      apiKey = '';
+      draft.apiKey = '';
       toast.show({ text: t('app.ai.saved'), tone: 'success' });
     } catch (cause) {
       failure = problemOf(cause);
@@ -283,12 +251,7 @@
       await aiProvider.remove();
       confirmingRemoval = false;
       filled = false;
-      kind = '';
-      baseUrl = '';
-      completionModel = '';
-      embeddingModel = '';
-      apiKey = '';
-      jurisdiction = '';
+      draft = emptyModel('', '');
       processingAllowed = false;
     } catch (cause) {
       failure = problemOf(cause);
@@ -305,6 +268,27 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.ai.title')));
+
+  // **Three tabs** (ux-inventory §E8): which AI answers - the offered models, the own model with
+  // its consent, the narrowing, removing it -; what the people here are asked and what happens to
+  // what they bring in; and the budget. The own model's consent stays in its form, because the
+  // form saves the two together and a consent saved apart from what it consents to is not one.
+  /** Whether each person here is asked for their position, as `PersonOptOutSection` decides it. */
+  const peopleAsked = $derived(
+    source !== undefined && (workspace.workspace?.several_people === true || source.person_opt_out === 'NOT_OFFERED'),
+  );
+  const arrivalOffered = $derived(source !== undefined && hasAi && !allowsNone);
+  /** The consent and people tab is drawn where it would hold something, and absent otherwise. */
+  const tabs = $derived([
+    { id: 'source', label: t('app.ai.tab_source') },
+    ...(peopleAsked || arrivalOffered ? [{ id: 'consent', label: t('app.ai.tab_consent') }] : []),
+    { id: 'budget', label: t('app.ai.tab_budget') },
+  ]);
+  const current = $derived(tabs.some((each) => each.id === tab) ? (tab as string) : 'source');
+
+  function select(next: string): void {
+    onnavigate?.(next === 'source' ? '/administration/ai' : `/administration/ai?tab=${next}`);
+  }
 </script>
 
 <Stack gap="300">
@@ -334,218 +318,217 @@
         {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
       </Banner>
     {:else}
-      <WorkspaceGate permission="STRUCTURE">
-      {#if source?.search_rebuilding}
-        <Banner tone="info">{t('app.ai.rebuilding')}</Banner>
-      {/if}
-
-      {#if allowsNone}
-        <Banner tone="info">{t('app.ai.none_allowed', { by: setBy(source?.sources_origin) })}</Banner>
-      {/if}
-
-      {#if allowsOffered}
-        <!-- One card per offered model, one switch each: the switch is the consent, and the card
-             says who receives the content and where before anybody flips it (UC-AI-05). -->
-        <Stack gap="150">
-          <h2 class="section">{t('app.ai.offered_title')}</h2>
-          {#each offered as model (model.id)}
-            {@const isChosen = source?.source === 'OFFERED' && source.offered_model_id === model.id}
-            <div class="panel">
-              <Stack gap="100">
-                <p class="name">{t('app.ai.offered_name', { name: model.display_name })}</p>
-                <p class="quiet">{t('app.ai.offered_sent_to', { processor: model.processor, where: model.jurisdiction })}</p>
-                <Switch
-                  label={t('app.ai.offered_use', { name: model.display_name })}
-                  checked={isChosen}
-                  isBusy={choosingWorking === model.id}
-                  busyLabel={t('app.ai.saving')}
-                  onchange={(event) =>
-                    void choose(model.id, (event.currentTarget as HTMLInputElement).checked
-                      ? { source: 'OFFERED', offered_model_id: model.id }
-                      : { source: 'NONE' })}
-                />
-              </Stack>
-            </div>
-          {/each}
-        </Stack>
-      {/if}
-
-      {#if choosing}
-        <Switch
-          label={t('app.ai.use_own')}
-          hint={t('app.ai.use_own_hint')}
-          checked={source?.source === 'OWN'}
-          isBusy={choosingWorking === 'own'}
-          busyLabel={t('app.ai.saving')}
-          onchange={(event) => void choose('own', { source: (event.currentTarget as HTMLInputElement).checked ? 'OWN' : 'NONE' })}
-        />
-      {/if}
-
-      {#if !allowsOwn && !allowsNone}
-        <p class="quiet">{t('app.ai.own_not_allowed', { by: setBy(source?.sources_origin) })}</p>
-      {/if}
-
-      {#if allowsOwn && unconfigured && !allowsOffered}
-        <Banner tone="info">{t('app.ai.none')}</Banner>
-      {/if}
-
       {#if failure}
         <Banner tone="danger" title={failure.message}>
           {#if failure.reference}{t('app.error_reference', { request_id: failure.reference })}{/if}
         </Banner>
       {/if}
 
-      {#if allowsOwn}
-      {#if choosing}<h2 class="section">{t('app.ai.own_title')}</h2>{/if}
-      <form class="panel" bind:this={ownForm} onsubmit={save}>
-        <Stack gap="200">
-          <Select label={t('app.ai.kind_label')} hint={t('app.ai.kind_hint')} bind:value={kind} placeholder={t('app.ai.kind_choose')} options={kinds} error={missing.kind && !kind ? t(missing.kind) : undefined} />
-          <Input
-            label={t('app.ai.base_url_label')}
-            hint={t('app.ai.base_url_hint')}
-            bind:value={baseUrl}
-            type="url"
-            autocomplete="off"
-            spellcheck={false}
-          />
-          <Input label={t('app.ai.completion_model_label')} hint={t('app.ai.completion_model_hint')} bind:value={completionModel} autocomplete="off" spellcheck={false} />
-          <Input label={t('app.ai.embedding_model_label')} hint={t('app.ai.embedding_model_hint')} bind:value={embeddingModel} autocomplete="off" spellcheck={false} />
-          <Input
-            label={t('app.ai.api_key_label')}
-            hint={provider?.has_api_key ? t('app.ai.api_key_kept') : t('app.ai.api_key_hint')}
-            bind:value={apiKey}
-            type="password"
-            autocomplete="off"
-            spellcheck={false}
-          />
-          <Select label={t('app.ai.jurisdiction_label')} hint={t('app.ai.jurisdiction_hint')} bind:value={jurisdiction} placeholder={t('app.ai.jurisdiction_choose')} options={jurisdictions} error={missing.jurisdiction && !jurisdiction ? t(missing.jurisdiction) : undefined} />
-          {#if source && source.min_jurisdiction !== 'ANY'}
-            <p class="quiet">
-              {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
-              <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
-            </p>
-          {/if}
-          <!-- The consent, as its own switch, naming who receives the content and where. -->
-          <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
-          <WriteOnly>
-            <div>
-              <Button
-                type="submit"
-                tone="primary"
-                isBusy={isWorking}
-                busyLabel={t('app.ai.saving')}
-              >
-                {t('app.ai.save')}
-              </Button>
-            </div>
-          </WriteOnly>
-        </Stack>
-      </form>
-
-      {/if}
-
-      {#if narrowable}
-        <Select
-          label={t('app.ai.narrow_label')}
-          hint={t('app.ai.narrow_hint')}
-          value={source?.narrowing ?? 'INHERIT'}
-          options={narrowings}
-          onchange={(event) => narrow((event.currentTarget as HTMLSelectElement).value)}
-        />
-      {:else if source?.sources_lock && offered.length > 0}
-        <p class="quiet">
-          {t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}
-          <ValueSource source={source.sources_origin} lock={source.sources_lock} value={t(`app.ai.narrow_${source.sources.toLowerCase()}`)} />
-        </p>
-      {/if}
-
-      {#if source}
-        <!-- Whether each person may keep their own content out of AI, or AI is part of
-             everybody's work on a basis named here (data-protection.md §4.1). -->
-        <PersonOptOutSection {source} />
-      {/if}
-
-      {#if source && hasAi && !allowsNone}
-        <Switch
-          label={t('app.ai.arrival_label')}
-          hint={t('app.ai.arrival_hint')}
-          checked={source.prepare_on_arrival}
-          disabledReason={arrivalWorking ? t('app.ai.saving') : undefined}
-          onchange={(event) => void prepareOnArrival((event.currentTarget as HTMLInputElement).checked)}
-          data-arrival-proposals
-        />
-      {/if}
-
-      <Stack gap="100">
-        <h2 class="section">{t('app.ai.budget_title')}</h2>
-        {#if offeredBudget && allowsOffered}
-          <p>
-            {offeredBudget.limit === 0
-              ? t('app.ai.budget_offered_unlimited', { used: offeredBudget.used ?? 0 })
-              : t('app.ai.budget_offered_use', { used: offeredBudget.used ?? 0, limit: offeredBudget.limit })}
-          </p>
-        {/if}
-        {#if ownBudget && allowsOwn}
-          <p>
-            {ownBudget.limit === 0
-              ? t('app.ai.budget_own_unlimited', { used: ownBudget.used ?? 0 })
-              : t('app.ai.budget_own_use', { used: ownBudget.used ?? 0, limit: ownBudget.limit })}
-          </p>
-        {/if}
-        <p class="quiet">{t('app.ai.budget_day')}</p>
-        {#if allowsOwn}
-          <form class="budget" onsubmit={saveOwnBudget}>
-            <Stack gap="100">
-              <Input
-                label={t('app.ai.budget_own_label')}
-                hint={t('app.ai.budget_own_hint')}
-                type="number"
-                inputmode="numeric"
-                min="1"
-                value={ownBudgetDraft}
-                oninput={(event) => {
-                  ownBudgetTouched = true;
-                  ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
-                }}
+      <!-- The tabs outside the gate: a reader who may not change anything still reads every tab. -->
+      <Tabs label={t('app.ai.title')} selected={current} onselect={select} {tabs}>
+        <WorkspaceGate permission="STRUCTURE">
+        {#if current === 'consent'}
+          <Stack gap="300">
+            {#if source}
+              <!-- Whether each person may keep their own content out of AI, or AI is part of
+                   everybody's work on a basis named here (data-protection.md §4.1). -->
+              <PersonOptOutSection {source} />
+            {/if}
+            {#if source && arrivalOffered}
+              <Switch
+                label={t('app.ai.arrival_label')}
+                hint={t('app.ai.arrival_hint')}
+                checked={source.prepare_on_arrival}
+                disabledReason={arrivalWorking ? t('app.ai.saving') : undefined}
+                onchange={(event) => void prepareOnArrival((event.currentTarget as HTMLInputElement).checked)}
+                data-arrival-proposals
               />
-              <WriteOnly>
-                <div>
-                  <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
-                    {t('app.ai.budget_own_save')}
-                  </Button>
-                </div>
-              </WriteOnly>
-            </Stack>
-          </form>
-        {/if}
-        {#if allowsOffered}
-          <!-- Linked, not drawn twice: the offered model's budget is the installation's quota row. -->
-          <p class="quiet">{t('app.ai.budget_hint')} <a href="/administration/quotas">{t('app.ai.budget_link')}</a></p>
-        {/if}
-      </Stack>
+            {/if}
+          </Stack>
+        {:else if current === 'budget'}
+          <Stack gap="100">
+            <h2 class="section">{t('app.ai.budget_title')}</h2>
+            {#if offeredBudget && allowsOffered}
+              <p>
+                {offeredBudget.limit === 0
+                  ? t('app.ai.budget_offered_unlimited', { used: offeredBudget.used ?? 0 })
+                  : t('app.ai.budget_offered_use', { used: offeredBudget.used ?? 0, limit: offeredBudget.limit })}
+              </p>
+            {/if}
+            {#if ownBudget && allowsOwn}
+              <p>
+                {ownBudget.limit === 0
+                  ? t('app.ai.budget_own_unlimited', { used: ownBudget.used ?? 0 })
+                  : t('app.ai.budget_own_use', { used: ownBudget.used ?? 0, limit: ownBudget.limit })}
+              </p>
+            {/if}
+            <p class="quiet">{t('app.ai.budget_day')}</p>
+            {#if allowsOwn}
+              <form class="budget" onsubmit={saveOwnBudget}>
+                <Stack gap="100">
+                  <Input
+                    label={t('app.ai.budget_own_label')}
+                    hint={t('app.ai.budget_own_hint')}
+                    type="number"
+                    inputmode="numeric"
+                    min="1"
+                    value={ownBudgetDraft}
+                    oninput={(event) => {
+                      ownBudgetTouched = true;
+                      ownBudgetDraft = (event.currentTarget as HTMLInputElement).value;
+                    }}
+                  />
+                  <WriteOnly>
+                    <div>
+                      <Button type="submit" tone="secondary" isBusy={ownBudgetWorking} busyLabel={t('app.ai.saving')}>
+                        {t('app.ai.budget_own_save')}
+                      </Button>
+                    </div>
+                  </WriteOnly>
+                </Stack>
+              </form>
+            {/if}
+            {#if allowsOffered}
+              <!-- Linked, not drawn twice: the offered model's budget is the installation's quota row. -->
+              <p class="quiet">{t('app.ai.budget_hint')} <a href="/administration/quotas">{t('app.ai.budget_link')}</a></p>
+            {/if}
+          </Stack>
+        {:else}
+          <Stack gap="300">
+            {#if source?.search_rebuilding}
+              <Banner tone="info">{t('app.ai.rebuilding')}</Banner>
+            {/if}
 
-      <WriteOnly>
-      {#if provider && allowsOwn}
-        <Stack gap="150">
-          <h2 class="section">{t('app.ai.remove_title')}</h2>
-          <p class="quiet">{t('app.ai.remove_cost')}</p>
-          {#if confirmingRemoval}
-            <Banner tone="warning">{t('app.ai.remove_confirm')}</Banner>
-            <div class="row">
-              <Button tone="danger" isBusy={isWorking} busyLabel={t('app.ai.removing')} onclick={() => void remove()}>
-                {t('app.ai.remove_now')}
-              </Button>
-              <Button tone="subtle" onclick={() => (confirmingRemoval = false)}>{t('app.ai.keep')}</Button>
-            </div>
-          {:else}
-            <div>
-              <Button tone="secondary" onclick={() => (confirmingRemoval = true)}>{t('app.ai.remove')}</Button>
-            </div>
-          {/if}
-        </Stack>
-      {/if}
-      </WriteOnly>
-      </WorkspaceGate>
+            {#if allowsNone}
+              <Banner tone="info">{t('app.ai.none_allowed', { by: setBy(source?.sources_origin) })}</Banner>
+            {/if}
+
+            {#if allowsOffered}
+              <!-- One card per offered model, one switch each: the switch is the consent, and the card
+                   says who receives the content and where before anybody flips it (UC-AI-05). -->
+              <Stack gap="150">
+                <h2 class="section">{t('app.ai.offered_title')}</h2>
+                {#each offered as model (model.id)}
+                  {@const isChosen = source?.source === 'OFFERED' && source.offered_model_id === model.id}
+                  <div class="panel">
+                    <Stack gap="100">
+                      <p class="name">{t('app.ai.offered_name', { name: model.display_name })}</p>
+                      <p class="quiet">{t('app.ai.offered_sent_to', { processor: model.processor, where: model.jurisdiction })}</p>
+                      <Switch
+                        label={t('app.ai.offered_use', { name: model.display_name })}
+                        checked={isChosen}
+                        isBusy={choosingWorking === model.id}
+                        busyLabel={t('app.ai.saving')}
+                        onchange={(event) =>
+                          void choose(model.id, (event.currentTarget as HTMLInputElement).checked
+                            ? { source: 'OFFERED', offered_model_id: model.id }
+                            : { source: 'NONE' })}
+                      />
+                    </Stack>
+                  </div>
+                {/each}
+              </Stack>
+            {/if}
+
+            {#if choosing}
+              <Switch
+                label={t('app.ai.use_own')}
+                hint={t('app.ai.use_own_hint')}
+                checked={source?.source === 'OWN'}
+                isBusy={choosingWorking === 'own'}
+                busyLabel={t('app.ai.saving')}
+                onchange={(event) => void choose('own', { source: (event.currentTarget as HTMLInputElement).checked ? 'OWN' : 'NONE' })}
+              />
+            {/if}
+
+            {#if !allowsOwn && !allowsNone}
+              <p class="quiet">{t('app.ai.own_not_allowed', { by: setBy(source?.sources_origin) })}</p>
+            {/if}
+
+            {#if allowsOwn && unconfigured && !allowsOffered}
+              <Banner tone="info">{t('app.ai.none')}</Banner>
+            {/if}
+
+            {#if allowsOwn}
+            {#if choosing}<h2 class="section">{t('app.ai.own_title')}</h2>{/if}
+            <form class="panel" bind:this={ownForm} onsubmit={save}>
+              <Stack gap="200">
+                <ModelFields
+                  bind:draft
+                  kinds={KINDS}
+                  minimum={source?.min_jurisdiction ?? 'ANY'}
+                  stored={provider?.jurisdiction}
+                  hasKey={provider?.has_api_key === true}
+                  {missing}
+                >
+                  {#snippet more()}
+                    {#if source && source.min_jurisdiction !== 'ANY'}
+                      <p class="quiet">
+                        {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
+                        <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
+                      </p>
+                    {/if}
+                    <!-- The consent, as its own switch, naming who receives the content and where. -->
+                    <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
+                  {/snippet}
+                </ModelFields>
+                <WriteOnly>
+                  <div>
+                    <Button
+                      type="submit"
+                      tone="primary"
+                      isBusy={isWorking}
+                      busyLabel={t('app.ai.saving')}
+                    >
+                      {t('app.ai.save')}
+                    </Button>
+                  </div>
+                </WriteOnly>
+              </Stack>
+            </form>
+
+            {/if}
+
+            {#if narrowable}
+              <Select
+                label={t('app.ai.narrow_label')}
+                hint={t('app.ai.narrow_hint')}
+                value={source?.narrowing ?? 'INHERIT'}
+                options={narrowings}
+                onchange={(event) => narrow((event.currentTarget as HTMLSelectElement).value)}
+              />
+            {:else if source?.sources_lock && offered.length > 0}
+              <p class="quiet">
+                {t('app.ai.sources_locked', { by: setBy(source.sources_lock) })}
+                <ValueSource source={source.sources_origin} lock={source.sources_lock} value={t(`app.ai.narrow_${source.sources.toLowerCase()}`)} />
+              </p>
+            {/if}
+
+            <WriteOnly>
+            {#if provider && allowsOwn}
+              <Stack gap="150">
+                <h2 class="section">{t('app.ai.remove_title')}</h2>
+                <p class="quiet">{t('app.ai.remove_cost')}</p>
+                {#if confirmingRemoval}
+                  <Banner tone="warning">{t('app.ai.remove_confirm')}</Banner>
+                  <div class="row">
+                    <Button tone="danger" isBusy={isWorking} busyLabel={t('app.ai.removing')} onclick={() => void remove()}>
+                      {t('app.ai.remove_now')}
+                    </Button>
+                    <Button tone="subtle" onclick={() => (confirmingRemoval = false)}>{t('app.ai.keep')}</Button>
+                  </div>
+                {:else}
+                  <div>
+                    <Button tone="secondary" onclick={() => (confirmingRemoval = true)}>{t('app.ai.remove')}</Button>
+                  </div>
+                {/if}
+              </Stack>
+            {/if}
+            </WriteOnly>
+          </Stack>
+        {/if}
+        </WorkspaceGate>
+      </Tabs>
     {/if}
     </Stack>
 </Stack>

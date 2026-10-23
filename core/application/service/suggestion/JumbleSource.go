@@ -44,6 +44,10 @@ type CatalogueSources struct {
 	// Collections is where a jumble proposal's destination is chosen from: the shared set,
 	// read in the material's transaction. Nil offers no destination.
 	Collections workrepo.Collections
+	// Jumble reads who submitted an entry, after the ordinary read has said the asker may read
+	// it: the account is no field of what that read answers. Nil judges an entry by its sender
+	// address alone - a build without the rule.
+	Jumble EntryFinder
 }
 
 // KeptOutReader answers whose content stays out of AI, inside the caller's transaction. Declared
@@ -69,6 +73,14 @@ func (s CatalogueSources) Material(
 	}
 	if question.TargetType == domain.TargetAccount && question.PromptID == answerPrompt {
 		material, err := s.askMaterial(ctx, actor, question, kept)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Kept = kept
+		return material, nil
+	}
+	if question.TargetType == domain.TargetAccount && question.PromptID == makeEntriesPrompt {
+		material, err := s.entriesMaterial(ctx, actor, question)
 		if err != nil {
 			return Material{}, err
 		}
@@ -134,7 +146,17 @@ func (s CatalogueSources) entry(
 		}
 		return Material{}, err
 	}
-	material := entryMaterial(entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), kept)
+	var submitter shared.ID
+	if s.Jumble != nil {
+		found, err := s.Jumble.Find(ctx, entryID)
+		if err != nil {
+			return Material{}, err
+		}
+		submitter = found.CreatedBy
+	}
+	material := entryMaterial(
+		entry.String("raw_subject"), entry.String("raw_body"), entry.String("sender"), submitter, kept,
+	)
 	return withDestinations(ctx, s.Collections, material, promptID, kept)
 }
 
@@ -185,10 +207,12 @@ func choosesFrom(promptID, key string) bool {
 }
 
 // entryMaterial is what one arrival tells a model, whoever asked about it.
-func entryMaterial(subject, body, sender string, kept integration.KeptOut) Material {
+func entryMaterial(subject, body, sender string, submitter shared.ID, kept integration.KeptOut) Material {
 	digest := domain.Digest(subject, body)
-	if kept.HasAddress(sender) {
-		// What a kept-out person mailed in is theirs: no material, as an empty entry has none.
+	if kept.Has(submitter) || kept.HasAddress(sender) {
+		// What a kept-out person captured or mailed in is theirs: no material, as an empty entry
+		// has none. An entry from a mail or a webhook names no submitter, and its address is all
+		// there is to judge.
 		return Material{Digest: digest}
 	}
 	subject, body = kept.Scrub(subject), kept.Scrub(body)

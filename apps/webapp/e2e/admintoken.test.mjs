@@ -107,7 +107,7 @@ test('chromium: a service account\'s administrative token is created behind the 
   const { page, mints, proofs, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/service-accounts`);
+  await page.goto(`${served.origin}/administration/machines`);
   const section = page.locator('section', { hasText: SERVICE.display_name });
   await section.getByRole('button', { name: 'Its tokens' }).click();
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
@@ -153,7 +153,7 @@ test('chromium: a service account\'s token panel speaks about the service accoun
   const { page, close } = await open(browser);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/service-accounts`);
+  await page.goto(`${served.origin}/administration/machines`);
   const section = page.locator('section', { hasText: SERVICE.display_name });
   await section.getByRole('button', { name: 'Its tokens' }).click();
   await section.getByRole('button', { name: 'Create the token' }).waitFor();
@@ -180,7 +180,7 @@ test('chromium: the operator scope is offered only to somebody the operator regi
   assert.equal(await main.getByLabel('admin:provisioning', { exact: true }).count(), 0, 'the platform\'s scope is offered outside the register');
   assert.equal(await main.getByRole('group', { name: INSTALLATION }).count(), 0, 'the installation choice is drawn outside the register');
 
-  await page.goto(`${served.origin}/administration/service-accounts`);
+  await page.goto(`${served.origin}/administration/machines`);
   const section = page.locator('section', { hasText: SERVICE.display_name });
   await section.getByRole('button', { name: 'Its tokens' }).click();
   await section.getByLabel('account:read', { exact: true }).waitFor({ timeout: 10_000 });
@@ -208,7 +208,7 @@ test('chromium: the installation choice offers provisioning or full control, pre
   // EVIDENCE=<dir> keeps what the person sees, for the owner's look (docs/evidence/).
   if (process.env.EVIDENCE) await page.locator('main form').screenshot({ path: join(process.env.EVIDENCE, 'own.png') });
 
-  await page.goto(`${served.origin}/administration/service-accounts`);
+  await page.goto(`${served.origin}/administration/machines`);
   const section = page.locator('section', { hasText: SERVICE.display_name });
   await section.getByRole('button', { name: 'Its tokens' }).click();
   const choice = section.getByRole('group', { name: INSTALLATION });
@@ -232,7 +232,7 @@ test('chromium: an administrator is offered no token for a service account that 
   for (const [serviceRole, offered] of [['OWNER', false], ['MEMBER', true]]) {
     const { page, close } = await open(browser, { serviceRole });
     t.after(close);
-    await page.goto(`${served.origin}/administration/service-accounts`);
+    await page.goto(`${served.origin}/administration/machines`);
     const section = page.locator('section', { hasText: SERVICE.display_name });
     await section.getByText(serviceRole === 'OWNER' ? 'Owner' : 'Member', { exact: true }).waitFor({ timeout: 15_000 });
     await section.getByRole('button', { name: 'Its tokens' }).click();

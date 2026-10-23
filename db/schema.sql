@@ -1435,7 +1435,10 @@ CREATE TABLE jumble_entry (
   status       text NOT NULL DEFAULT 'NEW' CHECK (status IN ('NEW','PROCESSED','DISMISSED')),
   target_item_id uuid,
   received_at  timestamptz NOT NULL DEFAULT now(),
-  processed_at timestamptz
+  processed_at timestamptz,
+  -- The account that submitted the entry, where an account did; empty for a mail or a webhook
+  -- (migration 0196). What keeps a kept-out person's own capture out of AI (data-protection.md §4.1).
+  created_by   uuid
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
@@ -2549,7 +2552,7 @@ CREATE TABLE ai_suggestion (
   -- be one. The application checks the target, which it must do anyway to authorise the read.
   target_type   text NOT NULL CHECK (target_type IN ('WORK_ITEM', 'JUMBLE_ENTRY', 'CONTAINER', 'ACCOUNT')),
   target_id     uuid NOT NULL,
-  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES', 'TEMPLATE', 'RULE', 'ANSWER')),
+  kind          text NOT NULL CHECK (kind IN ('FIELDS', 'DECOMPOSITION', 'DUPLICATES', 'TEMPLATE', 'RULE', 'ANSWER', 'ENTRIES')),
   status        text NOT NULL DEFAULT 'PROPOSED'
                   CHECK (status IN ('PROPOSED', 'ACCEPTED', 'DISMISSED')),
   payload       jsonb NOT NULL,

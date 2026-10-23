@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 
 import { HUB, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { GRANT, INVITE, WITHOUT_ADDRESS, addPeople, waysOffered } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -82,7 +83,8 @@ test('People offers an account without an address where the rule allows it, and 
   const { page, close } = await open(browser, rule(true, true), sent);
   try {
     await page.goto(`${served.origin}/administration/people`);
-    await page.getByRole('heading', { name: 'Add someone without an address' }).waitFor();
+    // One of the three ways behind the page's one primary action (ux-inventory §E8).
+    await addPeople(page, WITHOUT_ADDRESS);
     const form = page.locator('form').filter({ has: page.getByLabel('Sign-in name') });
     await form.getByLabel('Sign-in name').fill('Lena');
     await form.getByRole('textbox', { name: /^Name/ }).fill('Lena');
@@ -110,8 +112,8 @@ test('People draws no such form where the workspace switched managed accounts of
   const { page, close } = await open(browser, rule(false, true, { source: 'WORKSPACE' }), {});
   try {
     await page.goto(`${served.origin}/administration/people`);
-    await page.getByRole('heading', { name: 'Give somebody a role' }).waitFor();
-    assert.equal(await page.getByRole('heading', { name: 'Add someone without an address' }).count(), 0);
+    await page.getByRole('button', { name: 'Add people', exact: true }).waitFor();
+    assert.deepEqual(await waysOffered(page), [INVITE, GRANT], 'an account without an address is offered');
   } finally {
     await close();
     await browser.close();

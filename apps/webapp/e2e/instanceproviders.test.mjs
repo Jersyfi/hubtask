@@ -227,6 +227,27 @@ test('chromium: choosing Google fills its issuer, another provider takes it out'
   assert.equal(await issuer.inputValue(), 'https://login.microsoftonline.com/1234/v2.0');
 });
 
+// UX-18 (§E8): one provider form for the workspace and the installation - the same fields in the
+// same order, the installation adding only the position after them.
+test('chromium: the offer is made in the one provider form a workspace uses too', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/providers`);
+  await page.getByRole('button', { name: 'Offer a provider' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Which provider').selectOption('GENERIC');
+  const labels = await dialog.locator('label').allInnerTexts();
+  const order = ['Which provider', 'Issuer', 'Name on the button', 'Client id', 'Client secret', 'Who may sign in through it?', 'Position'];
+  const found = order.map((name) => labels.findIndex((label) => label.startsWith(name)));
+  assert.ok(found.every((index) => index >= 0), `every field of the one form is drawn: ${labels.join(' | ')}`);
+  assert.deepEqual([...found].sort((a, b) => a - b), found, 'in the one form\'s order');
+  // The registration is said as the workspace says it, with the address to register.
+  assert.ok(await dialog.getByText('What to do at the provider').isVisible());
+});
+
 // UC-INS-11 check 3, P-12: the installation's refusal of a generic provider for anyone names the
 // provider in words, never by the contract's `GENERIC`.
 test('chromium: a refusal about a provider names it in words', async (t) => {
@@ -277,7 +298,7 @@ test('chromium: the personal directory is refused in the installation provider l
   await dialog.getByLabel(/^Issuer/).fill('https://login.microsoftonline.com/72f988bf-86f1-41af-91ab-2d7cd011db47/v2.0');
   await dialog.getByLabel(/^Client id/).fill('hubtask');
   await dialog.getByLabel(/^Client secret/).fill('s3cr3t');
-  const admission = dialog.getByLabel(/^Who this provider may admit/);
+  const admission = dialog.getByLabel(/^Who may sign in through it/);
   const save = dialog.getByRole('button', { name: 'Save the provider' });
   const refusal = /is where this provider's personal accounts live/;
 

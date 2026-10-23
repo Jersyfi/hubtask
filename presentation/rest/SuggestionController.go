@@ -29,6 +29,7 @@ const (
 	aiTranslateUseCase          = "AiTranslate"
 	aiGenerateTemplateUseCase   = "AiGenerateTemplate"
 	describeRuleUseCase         = "DescribeRule"
+	makeEntriesUseCase          = "MakeEntries"
 	askWorkspaceUseCase         = "AskWorkspace"
 )
 
@@ -267,6 +268,30 @@ func (c *RestController) AskWorkspace(
 	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
 }
 
+// MakeEntries answers POST /containers/{containerId}:make-entries: 202 with the job that turns
+// the text into a proposal of entries.
+func (c *RestController) MakeEntries(
+	w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId, _ openapi.MakeEntriesParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.EntriesText
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), makeEntriesUseCase, actorOf(r),
+		usecase.Input{"collection_id": containerID.String(), "text": body.Text})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
+}
+
 // SuggestDuplicates answers POST /items/{itemId}:duplicates.
 //
 // 200 with the suggestion, or 204 when there is nothing to propose - which is also the answer with
@@ -386,6 +411,13 @@ func (c *RestController) decideSuggestion(
 		if body.Overrides != nil {
 			in["overrides"] = *body.Overrides
 		}
+		if body.Take != nil {
+			keys := make([]any, 0, len(*body.Take))
+			for _, key := range *body.Take {
+				keys = append(keys, key)
+			}
+			in["take"] = keys
+		}
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), in)
@@ -403,13 +435,24 @@ func (c *RestController) decideSuggestion(
 		id := uuidValue(created)
 		accepted.CreatedID = &id
 	}
+	if listed, held := out["created_ids"].([]any); held {
+		ids := make([]openapi_types.UUID, 0, len(listed))
+		for _, each := range listed {
+			if text, isText := each.(string); isText {
+				ids = append(ids, uuidValue(text))
+			}
+		}
+		accepted.CreatedIDs = &ids
+	}
 	writeJSON(w, r, http.StatusOK, accepted)
 }
 
-// acceptedResponse is `AcceptedSuggestion`: the suggestion's fields, flat, and `created_id`.
+// acceptedResponse is `AcceptedSuggestion`: the suggestion's fields, flat, `created_id`, and the
+// entries an ENTRIES acceptance created.
 type acceptedResponse struct {
 	openapi.Suggestion
-	CreatedID *openapi_types.UUID `json:"created_id,omitempty"`
+	CreatedID  *openapi_types.UUID   `json:"created_id,omitempty"`
+	CreatedIDs *[]openapi_types.UUID `json:"created_ids,omitempty"`
 }
 
 // suggestionResponse maps the use case's answer.

@@ -23,10 +23,14 @@
   // stricter, go higher than a limit, use its own link - or not (check 3). A language, a zone and a
   // week start are defaults and never locked, so they say nothing there (check 4). A workspace sees
   // the same fact from the other side on its own screens.
-
+  //
+  // **One area at a time, in tabs** (ux-inventory §E8): sign-in, legal links, language and time,
+  // limits, AI - the tab in the address. The editor opens on the whole level, because a save
+  // replaces the whole level; switching tabs while editing keeps what was changed, and the one save
+  // bar counts every area's changes.
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table, Tabs } from '@hubtask/design-system/components';
   import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -48,9 +52,13 @@
 
   interface Props {
     onnavigate: (path: string) => void;
+    /** The area the address names (`?tab=`); the first where it names none the server answered. */
+    tab?: string;
+    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    onreplace?: (path: string) => void;
   }
 
-  const { onnavigate }: Props = $props();
+  const { onnavigate, tab, onreplace }: Props = $props();
 
   /** The document being edited, or nothing while it is only being read. */
   let draft = $state<InstanceSettings | undefined>(undefined);
@@ -83,6 +91,13 @@
       .map((area) => ({ area, rows: rows.filter((row) => row.area === area) }))
       .filter((group) => group.rows.length > 0),
   );
+
+  /** The area on show: the address's where the server answered it, else the first. */
+  const shown = $derived(groups.find((group) => group.area === tab) ?? groups[0]);
+
+  function select(next: string): void {
+    onreplace?.(next === groups[0]?.area ? '/instance/settings' : `/instance/settings?tab=${next}`);
+  }
 
   const locales = $derived(localesOf(manifest.value).map((each) => each.locale));
 
@@ -223,40 +238,49 @@
                 <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
               </Stack>
 
-              {#each groups as group (group.area)}
-                <section class="group" aria-labelledby={`area-${group.area}`}>
-                  <Stack gap="150">
-                    <h3 id={`area-${group.area}`} class="area">{t(`app.instance.area_${group.area}`)}</h3>
-                    {#if group.area === 'localisation'}
-                      <p class="quiet-line">{t('app.instance.locked_never_localisation')}</p>
-                    {/if}
-                    {#each group.rows as row (row.key)}
-                      <InstanceValueField
-                        area={row.area}
-                        key={row.key}
-                        declared={row.setting}
-                        current={current(row.area, row.key)}
-                        {locales}
-                        zones={zoneOptions(String(editing.localisation?.time_zone?.value ?? ''))}
-                        error={failure?.fields.get(fieldOf(row.area, row.key))}
-                        onchange={(next) => put(row.area, row.key, row.setting, next)}
-                      />
-                    {/each}
-                  </Stack>
-                </section>
-              {/each}
-
-              <Input
-                label={t('app.instance.blocklist_label')}
-                hint={t('app.instance.blocklist_hint')}
-                value={editing.blocklist_file ?? ''}
-                oninput={(event) => {
-                  if (!draft) return;
-                  draft = { ...draft, blocklist_file: (event.currentTarget as HTMLInputElement).value };
-                }}
-                autocomplete="off"
-                spellcheck={false}
-              />
+              <Tabs
+                label={t('app.instance.settings_areas')}
+                selected={shown?.area}
+                onselect={select}
+                tabs={groups.map((group) => ({ id: group.area, label: t(`app.instance.area_${group.area}`) }))}
+              >
+                {#if shown}
+                  {@const group = shown}
+                  <section class="group" aria-label={t(`app.instance.area_${group.area}`)}>
+                    <Stack gap="150">
+                      {#if group.area === 'localisation'}
+                        <p class="quiet-line">{t('app.instance.locked_never_localisation')}</p>
+                      {/if}
+                      {#each group.rows as row (row.key)}
+                        <InstanceValueField
+                          area={row.area}
+                          key={row.key}
+                          declared={row.setting}
+                          current={current(row.area, row.key)}
+                          {locales}
+                          zones={zoneOptions(String(editing.localisation?.time_zone?.value ?? ''))}
+                          error={failure?.fields.get(fieldOf(row.area, row.key))}
+                          onchange={(next) => put(row.area, row.key, row.setting, next)}
+                        />
+                      {/each}
+                      {#if group.area === 'sign_in'}
+                        <!-- The blocklist is the sign-in rules' too: the installation's alone. -->
+                        <Input
+                          label={t('app.instance.blocklist_label')}
+                          hint={t('app.instance.blocklist_hint')}
+                          value={editing.blocklist_file ?? ''}
+                          oninput={(event) => {
+                            if (!draft) return;
+                            draft = { ...draft, blocklist_file: (event.currentTarget as HTMLInputElement).value };
+                          }}
+                          autocomplete="off"
+                          spellcheck={false}
+                        />
+                      {/if}
+                    </Stack>
+                  </section>
+                {/if}
+              </Tabs>
 
               <!-- Cancel closes the editor; the changes and their save are the bar's. -->
               <div class="row">
@@ -279,10 +303,16 @@
         {:else if rows.length === 0}
           <Banner tone="info">{t('app.instance.settings_none')}</Banner>
         {:else}
-          {#each groups as group (group.area)}
-            <section aria-labelledby={`read-${group.area}`}>
+          <Tabs
+            label={t('app.instance.settings_areas')}
+            selected={shown?.area}
+            onselect={select}
+            tabs={groups.map((group) => ({ id: group.area, label: t(`app.instance.area_${group.area}`) }))}
+          >
+          {#if shown}
+            {@const group = shown}
+            <section aria-label={t(`app.instance.area_${group.area}`)}>
               <Stack gap="100">
-                <h2 id={`read-${group.area}`} class="section">{t(`app.instance.area_${group.area}`)}</h2>
                 <Table label={t(`app.instance.area_${group.area}`)} isLabelHidden {columns}>
                   {#each group.rows as row (row.key)}
                     <tr>
@@ -302,7 +332,8 @@
                 </Table>
               </Stack>
             </section>
-          {/each}
+          {/if}
+          </Tabs>
         {/if}
 
         {#if !draft && !enforced}
@@ -322,7 +353,6 @@
   .link { overflow-wrap: anywhere; }
   .undecided { color: var(--text-secondary); font-size: var(--fs-100); }
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
-  .area { margin: 0; font-size: var(--fs-200); font-weight: var(--fw-semibold); }
 
   /* A form is neither prose nor a table (ADR-0065 decision 2): the fields carry a measure of their
      own while the tables take the width. */

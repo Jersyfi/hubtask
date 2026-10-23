@@ -50,6 +50,11 @@ type Suggestions interface {
 	// Decide writes an answered suggestion, guarded on the version it was read at. False means
 	// the version moved under the caller, which is two people answering one proposal.
 	Decide(ctx context.Context, decided domain.Suggestion, expectedVersion int) (bool, error)
+
+	// Narrow writes what is left of an open proposal once part of it was taken, guarded on the
+	// version it was read at like Decide. False means the version moved, or the proposal was
+	// decided, under the caller.
+	Narrow(ctx context.Context, narrowed domain.Suggestion, expectedVersion int) (bool, error)
 }
 
 // Expiring is the slice the retention engine removes through.

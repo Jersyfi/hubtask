@@ -100,14 +100,17 @@
   );
   let anchorChoice = $state('');
 
+  // The export's own period (ux-inventory §E8): a copy taken away is rarely the stretch just
+  // checked, and borrowing the check's fields made the one depend on the other being filled.
+  let exportFrom = $state('');
+  let exportTo = $state('');
   let exportFormat = $state('JSONL');
   let exportTarget = $state('');
   let exportJob = $state('');
 
   /**
    * What a press of *Check the chain*, *Anchor here* or *Export the period* found missing: marked
-   * at the fields, focus on the first (UC-WRK-32 check 3). The export reads the period of the
-   * check above it, so its marks can land there.
+   * at the fields, focus on the first (UC-WRK-32 check 3).
    */
   let missing = $state<Missing>({});
 
@@ -223,8 +226,8 @@
       const target = backup.all.find((each) => each.id === exportTarget);
       exportedTo = {
         target: target?.name ?? exportTarget,
-        from: verifyFrom || from,
-        to: verifyTo || to,
+        from: exportFrom,
+        to: exportTo,
       };
     });
   });
@@ -516,6 +519,8 @@
       <p class="quiet small">{t('app.audit.export_has_no_filter')}</p>
 
       <div class="fields">
+        <Input label={t('app.audit.from')} type="datetime-local" bind:value={exportFrom} error={markOf('exportFrom', exportFrom)} />
+        <Input label={t('app.audit.to')} type="datetime-local" bind:value={exportTo} error={markOf('exportTo', exportTo)} />
         <Select
           label={t('app.audit.format')}
           bind:value={exportFormat}
@@ -539,12 +544,16 @@
           isBusy={isWorking}
           busyLabel={t('app.audit.exporting')}
           onclick={() => {
-            if (!ready([...period(), { kind: 'field', key: 'target', code: 'app.audit.target_first', isFilled: exportTarget !== '' }])) return;
+            if (!ready([
+              { kind: 'field', key: 'exportFrom', code: 'app.audit.period_first', isFilled: exportFrom !== '' },
+              { kind: 'field', key: 'exportTo', code: 'app.audit.period_first', isFilled: exportTo !== '' },
+              { kind: 'field', key: 'target', code: 'app.audit.target_first', isFilled: exportTarget !== '' },
+            ])) return;
             void attempt(async () => {
               exportedTo = undefined;
               const accepted = await audit.export({
-                from: new Date(verifyFrom).toISOString(),
-                to: new Date(verifyTo).toISOString(),
+                from: new Date(exportFrom).toISOString(),
+                to: new Date(exportTo).toISOString(),
                 format: exportFormat as 'JSONL' | 'CSV',
                 target_id: exportTarget,
               });

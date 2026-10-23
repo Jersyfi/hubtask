@@ -91,7 +91,7 @@ func (r PrivacyRepository) Contributions(
 	return contributions, nil
 }
 
-// CountIntake answers how much of the intake carries the person's address.
+// CountIntake answers how much of the intake carries the person's address or names them.
 func (r PrivacyRepository) CountIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {

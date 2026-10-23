@@ -6,6 +6,7 @@ package admin
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -182,11 +183,18 @@ func (s *journalStore) Record(_ context.Context, entry adminrepo.InstanceEvent) 
 
 // Page walks what was recorded, newest first, as the real one does.
 func (s *journalStore) Page(
-	_ context.Context, cursor string, size int,
+	_ context.Context, filter adminrepo.JournalFilter, cursor string, size int,
 ) ([]adminrepo.InstanceEvent, adminrepo.PageInfo, error) {
 	newest := make([]adminrepo.InstanceEvent, 0, len(s.entries))
 	for i := len(s.entries) - 1; i >= 0; i-- {
-		newest = append(newest, s.entries[i])
+		entry := s.entries[i]
+		if !strings.HasPrefix(entry.Action, filter.ActionPrefix) {
+			continue
+		}
+		if filter.TenantSlug != "" && entry.TenantSlug != filter.TenantSlug {
+			continue
+		}
+		newest = append(newest, entry)
 	}
 	// The cursor is the identifier of the last entry of the page before, which is enough for a
 	// fake: what the tests here are about is the authorisation and the clamp, not the keyset.

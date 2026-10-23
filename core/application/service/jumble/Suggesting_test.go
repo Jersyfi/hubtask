@@ -10,6 +10,7 @@ import (
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/queue"
@@ -143,6 +144,47 @@ func TestAnUnauthorisedActorLearnsNothing(t *testing.T) {
 	}
 }
 
+// What a kept-out person captured is theirs, as what they mailed in is: a colleague's ask about it
+// is answered as one about an empty entry, and nothing is queued. Anybody else's capture is asked.
+func TestAKeptOutPersonsCaptureIsNotAskedAbout(t *testing.T) {
+	kim := shared.MustParseID("0192f000-0000-7000-8000-0000000000b9")
+	kept := integration.NewKeptOut([]integration.KeptPerson{{
+		AccountID: kim, Reason: integration.KeptOutObjected, Names: []string{"Kim Keeper", "kim@example.org"},
+	}})
+
+	for name, tc := range map[string]struct {
+		createdBy shared.ID
+		sender    string
+		queued    bool
+	}{
+		"a capture Kim made":            {createdBy: kim, sender: "", queued: false},
+		"a mail Kim sent":               {sender: "kim@example.org", queued: false},
+		"a capture a colleague made":    {createdBy: account, sender: "", queued: true},
+		"a capture naming Kim's sender": {createdBy: account, sender: "Kim@example.org", queued: false},
+	} {
+		ask, jobs, h := suggester(true)
+		ask.Kept = keptOutReader{kept}
+		entry := seedEntry(t, h, "Call the customer back")
+		stored := h.store.rows[entry.ID]
+		stored.CreatedBy, stored.Sender = tc.createdBy, tc.sender
+		h.store.rows[entry.ID] = stored
+
+		_, err := ask.Ask(context.Background(), actor(), entry.ID)
+		if tc.queued {
+			if err != nil || len(jobs.queued) != 1 {
+				t.Errorf("%s: %v, %d queued", name, err, len(jobs.queued))
+			}
+			continue
+		}
+		if got := shared.AsError(err); got == nil || got.DetailCode != "ai.nothing_to_work_with" {
+			t.Errorf("%s: answered %v", name, err)
+		}
+		if len(jobs.queued) != 0 {
+			t.Errorf("%s: a question was queued", name)
+		}
+	}
+}
+
 // The fixtures.
 
 func suggester(available bool) (SuggestFromJumbleEntry, *jobQueue, *harness) {
@@ -156,6 +198,12 @@ func suggester(available bool) (SuggestFromJumbleEntry, *jobQueue, *harness) {
 }
 
 type jobQueue struct{ queued []queue.Request }
+
+type keptOutReader struct{ kept integration.KeptOut }
+
+func (k keptOutReader) Read(context.Context, shared.ID) (integration.KeptOut, error) {
+	return k.kept, nil
+}
 
 func (q *jobQueue) Enqueue(_ context.Context, request queue.Request) (shared.ID, error) {
 	q.queued = append(q.queued, request)

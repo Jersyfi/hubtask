@@ -125,6 +125,25 @@ func TestARunAboutARestrictedPersonsIntakeIsWithheld(t *testing.T) {
 	}
 }
 
+// What a restricted person captured into the jumble is theirs as well, whatever sender it names.
+func TestARunAboutARestrictedPersonsCaptureIsWithheld(t *testing.T) {
+	entryID := shared.ID("01936f2a-7c1e-7000-8000-0000000000f4")
+	rule := enabledRule()
+	rule.Trigger = domain.Trigger{Kind: domain.TriggerJumbleEntry}
+	h := restrictedEngine(t, rule, event.Envelope{}, work.WorkItem{})
+	h.engine.Jumble = jumbleEntries{entry: jumble.Entry{ID: entryID, CreatedBy: restrictedPerson, Sender: "widget"}}
+
+	run, err := h.engine.Execute(context.Background(), engineActor(), Command{
+		RuleID: ruleID, Trigger: domain.TriggerJumbleEntry, SubjectID: entryID, Occasion: "o",
+	})
+	if err != nil {
+		t.Fatalf("running: %v", err)
+	}
+	if run.Status != domain.RunSkipped || run.ErrorCode != CodeSubjectRestricted {
+		t.Errorf("the run read %s / %q", run.Status, run.ErrorCode)
+	}
+}
+
 // A restriction placed while a run waits holds the rest of it back: what was done stays recorded,
 // nothing more is done.
 func TestARestrictionPlacedDuringAWaitWithholdsTheRest(t *testing.T) {

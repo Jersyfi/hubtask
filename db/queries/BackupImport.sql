@@ -1106,7 +1106,8 @@ INSERT INTO jumble_entry (
   status,
   target_item_id,
   received_at,
-  processed_at
+  processed_at,
+  created_by
 )
 SELECT
   r.id,
@@ -1120,7 +1121,8 @@ SELECT
   r.status,
   r.target_item_id,
   r.received_at,
-  r.processed_at
+  r.processed_at,
+  r.created_by
 FROM jsonb_populate_record(
   NULL::jumble_entry,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -1136,7 +1138,8 @@ ON CONFLICT (id) DO UPDATE SET
   status = EXCLUDED.status,
   target_item_id = EXCLUDED.target_item_id,
   received_at = EXCLUDED.received_at,
-  processed_at = EXCLUDED.processed_at
+  processed_at = EXCLUDED.processed_at,
+  created_by = EXCLUDED.created_by
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsJumbleEntry :one

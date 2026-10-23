@@ -188,8 +188,14 @@ func TestASubmissionLandsAndAnnounces(t *testing.T) {
 	if entry.Channel != domain.ChannelQuickCapture || entry.Status != domain.StatusNew {
 		t.Errorf("the entry reads %+v", entry)
 	}
-	if _, stored := h.store.rows[entry.ID]; !stored {
+	stored, found := h.store.rows[entry.ID]
+	if !found {
 		t.Fatal("the entry was not stored")
+	}
+	// The submitting account is recorded: what keeps a kept-out person's own capture out of AI,
+	// which the sender a caller types cannot.
+	if stored.CreatedBy != account {
+		t.Errorf("the entry names %q as its submitter, want %q", stored.CreatedBy, account)
 	}
 
 	if len(h.events.envelopes) != 1 || h.events.envelopes[0].Type != event.JumbleEntryReceived {

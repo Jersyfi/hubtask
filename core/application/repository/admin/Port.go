@@ -158,9 +158,17 @@ type Journal interface {
 	// whatever transaction the act runs in - including the one that ends the tenant it names.
 	Record(ctx context.Context, entry InstanceEvent) error
 
-	// Page walks the journal backwards from `cursor`, empty for the first page. The entries and
-	// whether there is another page behind them.
-	Page(ctx context.Context, cursor string, size int) ([]InstanceEvent, PageInfo, error)
+	// Page walks the journal backwards from `cursor`, empty for the first page, narrowed by
+	// `filter`. The entries and whether there is another page behind them.
+	Page(ctx context.Context, filter JournalFilter, cursor string, size int) ([]InstanceEvent, PageInfo, error)
+}
+
+// JournalFilter narrows the journal; an empty field narrows nothing.
+type JournalFilter struct {
+	// ActionPrefix keeps the entries whose action starts with it: `tenant.` or `tenant.suspended`.
+	ActionPrefix string
+	// TenantSlug keeps the entries about the workspace of this address, as the journal kept it.
+	TenantSlug string
 }
 
 // PlatformEvent is one installation event as it is kept: the envelope and its number, which is

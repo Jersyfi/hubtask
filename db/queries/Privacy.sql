@@ -237,21 +237,28 @@ UPDATE account SET
 WHERE id = sqlc.arg('id') AND tenant_id = current_tenant_id();
 
 -- name: DiscardIntakeOf :execrows
--- What the person sent in by mail, and the address it came from.
+-- What the person sent in by mail or captured themselves, and the address it came from.
 --
--- `jumble_entry` is matched by address rather than by account, because that is all an inbound mail
--- carries. The catalogue's path for it is `RETENTION` - 90 days - and an erasure that left the
--- person's own address and text sitting there for those 90 days would be an erasure in name
--- (PG-2).
+-- `jumble_entry` is matched by address as well as by account, because an address is all an inbound
+-- mail carries; `created_by` names the account a capture came from. The catalogue's path for it is
+-- `RETENTION` - 90 days - and an erasure that left the person's own address and text sitting there
+-- for those 90 days would be an erasure in name (PG-2).
 DELETE FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+  AND (created_by = sqlc.arg('account_id')
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
 -- name: ReleaseIntakeOf :execrows
--- The same in the mode that keeps the workspace's content: the text stays and stops being anybody's.
-UPDATE jumble_entry SET sender = NULL
+-- The same in the mode that keeps the workspace's content: the text stays and stops being anybody's
+-- - the address goes where it is the person's, the account where it is theirs, each on its own.
+UPDATE jumble_entry
+SET sender = CASE
+      WHEN lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'))
+      THEN NULL ELSE sender END,
+    created_by = CASE WHEN created_by = sqlc.arg('account_id') THEN NULL ELSE created_by END
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+  AND (created_by = sqlc.arg('account_id')
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
 -- name: AutomationsRunningAs :one
 -- What stands in the way of a full deletion, counted before it is attempted.
@@ -436,10 +443,12 @@ WHERE tenant_id = current_tenant_id() AND erased_at IS NULL
 ORDER BY request_id, hold_id;
 
 -- name: CountIntakeOf :one
--- How much of the intake carries the person's address: what a hold on the workspace keeps of it.
+-- How much of the intake carries the person's address or names them as its submitter: what a hold
+-- on the workspace keeps of it.
 SELECT count(*) FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id'));
+  AND (created_by = sqlc.arg('account_id')
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = sqlc.arg('account_id')));
 
 -- name: RestrictedPeople :many
 -- Whose processing is restricted (Art. 18, data-protection.md §4): every account whose status is

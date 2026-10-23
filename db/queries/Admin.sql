@@ -233,11 +233,14 @@ ORDER BY occurred_at, id;
 -- entries can share a moment and an offset would then skip or repeat one.
 --
 -- One row more than asked for, so the caller knows whether there is another page without counting
--- the table.
+-- the table. Narrowed by an action prefix - `starts_with`, not `LIKE`, so a `%` or `_` in it is a
+-- character rather than a pattern - and by the workspace's slug as the journal kept it.
 SELECT id, occurred_at, action, tenant_id, tenant_slug, actor_label, details
 FROM instance_event
-WHERE sqlc.narg('before_at')::timestamptz IS NULL
-   OR (occurred_at, id) < (sqlc.narg('before_at')::timestamptz, sqlc.narg('before_id')::uuid)
+WHERE (sqlc.narg('before_at')::timestamptz IS NULL
+       OR (occurred_at, id) < (sqlc.narg('before_at')::timestamptz, sqlc.narg('before_id')::uuid))
+  AND (sqlc.narg('action_prefix')::text IS NULL OR starts_with(action, sqlc.narg('action_prefix')::text))
+  AND (sqlc.narg('tenant_slug')::text IS NULL OR tenant_slug = sqlc.narg('tenant_slug')::text)
 ORDER BY occurred_at DESC, id DESC
 LIMIT sqlc.arg('limit');
 
