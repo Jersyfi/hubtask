@@ -699,6 +699,36 @@
     return found;
   };
   const closeProposal = (suggestionId: string) => (closed = new Set([...closed, suggestionId]));
+  /**
+   * Whether the details card holds at least one row (P-05, P-11): a value that is set, or a row the
+   * reader may fill in. A read-only reader on an entry with nothing set would otherwise meet an
+   * empty frame that reads as something that failed to load. Each line mirrors when `detailRows`
+   * draws its row - `DetailRow` draws a read-only row only with a value. While the type is unknown
+   * or not offered the card stays: it says why there are no rows.
+   */
+  const holdsDetails = $derived.by(() => {
+    if (!item) return false;
+    if (!(isTypeKnown && isTypeOffered)) return true;
+    if (proposalsAt('due').length + proposalsAt('labels').length > 0) return true;
+    const shown = (isSet: boolean, isReadOnly: boolean) => isSet || !isReadOnly;
+    const held = item.custom_fields as Record<string, unknown> | undefined;
+    return (
+      ((carries('ASSIGNMENT') || carries('MEMBERS')) && shown(Boolean(item.assignee_id), !isWritable)) ||
+      (carries('DUE_DATE') && shown(datesValue !== undefined, !isWritable)) ||
+      (offersAmount && shown(item.amount != null, !isChangeable)) ||
+      (carries('LABELS') && shown(carriedLabels.length > 0, !isWritable)) ||
+      (carries('REMINDER') && shown(reminderCount > 0, !isWritable)) ||
+      (carries('RECURRENCE') && shown(repeatValue !== undefined, !isWritable)) ||
+      shown(Boolean(item.content_language), !isWritable) ||
+      (carries('COVER') && shown(Boolean(item.cover), !isWritable)) ||
+      (carries('ATTACHMENTS') && (isWritable || Boolean(attachmentCount))) ||
+      (carries('CUSTOM_FIELDS') &&
+        definitions.some((definition) => {
+          const value = held?.[definition.key];
+          return shown(value !== undefined && value !== null && value !== '', !isWritable);
+        }))
+    );
+  });
   /** The translation, open under the head once *Read in another language* was chosen. */
   let isTranslating = $state(false);
   $effect(() => () => untrack(() => entryAsks.forget(id)));
@@ -955,33 +985,36 @@
     <div class="columns" data-pane={isInPane ? '' : undefined}>
       <!-- The details before the text in the document: after the head they are what the entry
            is, so the reading order and the tab order meet them there on every width; from
-           `expanded` they are drawn beside the text, at the end of the line. -->
-      <aside class="details" aria-label={t('app.item.details')}>
-        <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
-        <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
-          <summary class="details-summary">{t('app.item.details')}</summary>
-          <div class="rows">
-            {#if isTypeKnown && isTypeOffered}
-              {@render detailRows()}
-            {:else if isTypeKnown}
-              <!-- The manifest answered and does not declare this type. Its own sentence, once,
-                   rather than fourteen refusals drawn as an empty column. -->
-              <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
-            {:else if typeFailure}
-              <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
-                   on. The rows are missing because the installation could not be read, and that
-                   is what it says — with the sentence the server gave, and where to ask again. -->
-              <p class="unread" role="status">{t('app.item.type_unread')}</p>
-              <p class="unread-detail">{typeFailure.message}</p>
-              {#if typeFailure.reference}
-                <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
+           `expanded` they are drawn beside the text, at the end of the line. Absent where they
+           would hold no row (`holdsDetails`). -->
+      {#if holdsDetails}
+        <aside class="details" aria-label={t('app.item.details')}>
+          <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
+          <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
+            <summary class="details-summary">{t('app.item.details')}</summary>
+            <div class="rows">
+              {#if isTypeKnown && isTypeOffered}
+                {@render detailRows()}
+              {:else if isTypeKnown}
+                <!-- The manifest answered and does not declare this type. Its own sentence, once,
+                     rather than fourteen refusals drawn as an empty column. -->
+                <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
+              {:else if typeFailure}
+                <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
+                     on. The rows are missing because the installation could not be read, and that
+                     is what it says — with the sentence the server gave, and where to ask again. -->
+                <p class="unread" role="status">{t('app.item.type_unread')}</p>
+                <p class="unread-detail">{typeFailure.message}</p>
+                {#if typeFailure.reference}
+                  <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
+                {/if}
+              {:else}
+                <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
               {/if}
-            {:else}
-              <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
-            {/if}
-          </div>
-        </details>
-      </aside>
+            </div>
+          </details>
+        </aside>
+      {/if}
 
       <div class="main-column">
 
