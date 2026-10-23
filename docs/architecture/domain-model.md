@@ -102,12 +102,21 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
 * **What is applied where.** `levels` and `fields` say what a client offers, and entries obey them
-  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `capture`, `celebration` and `automation` are applied by clients; the server
-  stores and answers them. `counts` the server applies on the collection's read: it counts the
-  figure (`figure`, in the reader's day and week, leaving out trashed and hidden entries, in a
-  read-only transaction of its own so that a figure that cannot be counted is marked
-  `unavailable` and never fails the read) and the client draws it. `automation` holds no value yet: nothing runs by itself that
-  a collection may switch on.
+  as below (`StructureEntries.go`, the application's `EntryGate`). `views`, `capture` and
+  `celebration` are applied by clients; the server stores and answers them. `counts` the server
+  applies on the collection's read: it counts the figure (`figure`, in the reader's day and week,
+  leaving out trashed and hidden entries, in a read-only transaction of its own so that a figure
+  that cannot be counted is marked `unavailable` and never fails the read) and the client draws
+  it. `FLOW` counts the top-level entries completed in the seven days up to the read, their
+  average time from creation to completion — a flow's entries start in its first column and its
+  done column completes them — and the board's columns holding more open entries than their limit
+  (UC-WRK-31). `automation` is a closed set the server applies: `REQUIRED_BEYOND_FIRST_COLUMN`
+  lets an entry enter a column after the board's first only with every required custom field of
+  its type set, refused `items.required_fields_missing` with the keys named, on every writer that
+  places an entry in a column (`FlowGate`: an edit, a move, a creation, and so a push or a rule).
+  The first column, no column and a move within a column are never refused, a type whose fields
+  leave out `CUSTOM_FIELDS` is never asked, and a required field still means only that it cannot
+  be cleared (§3.5). *Flow* sets it; the other presets set nothing.
 * **What counts and the levels.** `PROGRESS` applies only where more than one level is in force:
   a collection of one level is a list, and a list never shows a percentage (UC-WRK-29 check 2). A
   write whose own values set `PROGRESS` where the levels in force after it are one is refused
