@@ -113,6 +113,10 @@ var rlsExceptions = map[string]string{
 		"kept for 13 months after the workspace's row is gone, so a policy comparing " +
 		"current_tenant_id() would make them unreachable under every honest scope; counts only, " +
 		"no name and no reference, written by the purge and read by the control plane through admin_usage()",
+	"installation_preset": "the installation's presets (UC-INS-18, migration 0198): offered to " +
+		"every workspace and read when its structure resolves, so a policy comparing " +
+		"current_tenant_id() would hide them from everybody; configuration, never a person's " +
+		"data, written only by the control plane's use cases",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2, migration 0164): read with its " +
 		"plan by every workspace on it, for the same reason as plan; configuration, never a " +
 		"person's data, written only by the control plane's use cases",

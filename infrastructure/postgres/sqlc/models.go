@@ -968,6 +968,18 @@ type ImportRun struct {
 	FinishedAt  pgtype.Timestamptz
 }
 
+type InstallationPreset struct {
+	ID        pgtype.UUID
+	Name      string
+	Settings  []byte
+	IsDefault bool
+	Locks     []string
+	Version   int32
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+	UpdatedBy pgtype.UUID
+}
+
 type InstanceEvent struct {
 	ID         pgtype.UUID
 	OccurredAt pgtype.Timestamptz
