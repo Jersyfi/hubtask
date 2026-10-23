@@ -24,12 +24,16 @@ test('a fresh workspace leaves out what it cannot point at, and the last step le
   assert.equal(steps.at(-1)?.selector, '[data-tour="hubs"]');
 });
 
-test('a collection without an entry keeps the list step and drops the entry step', () => {
-  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: true }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'jumble', 'search', 'profile', 'make']);
+test('a collection without an entry keeps the list step, drops the entry step and tells the levels at the list', () => {
+  const steps = stepsFor({ collectionId: 'c', hasJumble: true });
+  assert.deepEqual(steps.map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'levels', 'jumble', 'search', 'profile', 'make']);
+  const levels = steps.find((s) => s.id === 'levels');
+  assert.equal(levels?.route, '/collections/c');
+  assert.equal(levels?.selector, '[data-tour="levels-inside"]');
 });
 
 test('somebody the jumble is not drawn for is not toured through it', () => {
-  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'search', 'profile', 'make']);
+  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'levels', 'search', 'profile', 'make']);
 });
 
 test('the tour starts on the overview only, so an address opened by link keeps its screen', () => {
