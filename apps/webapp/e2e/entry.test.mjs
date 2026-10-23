@@ -160,7 +160,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.getByRole('button', { name: 'Add a work package' }).click();
   const field = page.getByRole('textbox', { name: 'Title' }).last();
   await field.waitFor({ timeout: 5_000 });
-  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'INPUT');
+  assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA');
   await field.fill('Grout');
   await page.getByRole('button', { name: 'Create', exact: true }).click();
   await page.waitForTimeout(300);

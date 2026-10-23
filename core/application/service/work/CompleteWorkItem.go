@@ -431,7 +431,13 @@ func (w CompletionWriter) recordChange(
 		ActorID:     actor.AccountID,
 		HLC:         w.HLC.Next(),
 		Field:       domain.FieldCompletion,
-		Payload:     map[string]any{domain.FieldCompletion: snapshot[domain.FieldCompletion]},
+		// The count rides with the completion it moved with: it is the server's, never merged, so it
+		// takes no clock of its own, and a device that learned the completion without it would rank
+		// its *Recently* on a stale count (UC-WRK-25 check 4).
+		Payload: map[string]any{
+			domain.FieldCompletion:      snapshot[domain.FieldCompletion],
+			domain.FieldCompletionCount: snapshot[domain.FieldCompletionCount],
+		},
 	})
 }
 

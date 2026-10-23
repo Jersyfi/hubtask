@@ -165,6 +165,23 @@
                 }
               }
             },
+            "amount": {
+              "type": "object",
+              "description": "How much of it (\"2\", \"1 kg\"). Only where the collection carries the AMOUNT capability; the empty string on either side means unset.",
+              "required": [
+                "from",
+                "to"
+              ],
+              "additionalProperties": true,
+              "properties": {
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                }
+              }
+            },
             "notes": {
               "type": "object",
               "description": "Markdown, unrendered by the server. Only on a type whose profile carries the NOTES capability; the empty string on either side means unset.",

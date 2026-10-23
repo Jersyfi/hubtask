@@ -53,6 +53,7 @@ narrow them, never widen them beyond the system boundary.
 | `HISTORY` | ✔ | ✔ | ✔ | Compact history for activities |
 | `RECURRENCE` | ✔ | ✘ | ✘ | A series applies to the whole subtree |
 | `CUSTOM_FIELDS` | ✔ | ✔ | ✘ | |
+| `AMOUNT` | ✔ | ✘ | ✘ | Opt-in: carried only where a layer's fields name it (UC-WRK-25) |
 | `CHILDREN` | `WORK_PACKAGE`, `ACTIVITY` | `ACTIVITY` | — | The permitted child types; a task may hold both at once (decision #1627) |
 | `MAX_DEPTH` | 3 | 2 | 1 | Relative to the collection |
 
@@ -84,7 +85,14 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   on them: a collection may switch dates on under a hub without them.
 * **Levels and fields.** *Levels* are the offered types, top-down: a root always, any other type only
   beneath one of its system parents (an activity has two). *Fields* are a capability set per type,
-  completion always in it.
+  completion always in it. An **opt-in** capability (`AMOUNT`) is carried only where a layer names
+  it: Hubtask's default and a type a layer leaves out keep the behaviour from before it existed,
+  and of Hubtask's presets only *List* names it. A level may carry a name for its done entries
+  (*In the trolley*), the person's content like the level's own name. A type's fields may name
+  **categories**: labels of the collection, in order, that its entries are grouped by - only beside
+  `LABELS` and only on a collection's own layer (`structure.categories_collection_only`), each a
+  live label of that collection when first named (`structure.category_unknown`); one already named
+  stays when its label is deleted, so that undoing the deletion restores the order.
 * **Locks.** The workspace locks a whole setting (`views`) or one capability of one type
   (`fields.TASK.DUE_DATE`); a lock answers its origin and who set it. A locked value applies below:
   a lower layer's own value is ignored when resolving and refused when written
@@ -303,6 +311,7 @@ Invariants:
 | `path` | string | A materialised path (`/<taskId>/<wpId>/…`) for subtree queries |
 | `depth` | int | Derived, ≤ the type's `MAX_DEPTH` |
 | `title` | string(1..500) | Required, trimmed, non-empty |
+| `amount` | string(1..40)? | Capability `AMOUNT`; how much of it ("2", "1 kg"), the person's content; trimmed, NFC, empty is none |
 | `notes` | text? | Markdown (not rendered server-side), capability-dependent |
 | `completion` | `{isCompleted, completedAt, completedBy}` | |
 | `bucketId` | UUIDv7? | `TASK` only; the bucket must belong to the collection |

@@ -1054,6 +1054,10 @@
               onduplicate={(item) => (duplicating = item)}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
+              structure={container.structure ?? undefined}
+              {onnavigate}
+              {mayShape}
+              containerVersion={container.version}
             />
           {/if}
         </div>

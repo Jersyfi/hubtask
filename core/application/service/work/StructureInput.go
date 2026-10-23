@@ -98,8 +98,13 @@ func levelsFrom(value any) ([]domain.Level, error) {
 				return nil, err
 			}
 		}
+		if name, present := entry["done_name"]; present && name != nil {
+			if level.DoneName, err = textFrom(name, string(domain.SettingLevels)); err != nil {
+				return nil, err
+			}
+		}
 		for key := range entry {
-			if key != "type" && key != "name" {
+			if key != "type" && key != "name" && key != "done_name" {
 				return nil, shapeInvalid(string(domain.SettingLevels))
 			}
 		}
@@ -116,8 +121,13 @@ func fieldsFrom(value any) (map[domain.ItemType]domain.LevelFields, error) {
 	fields := make(map[domain.ItemType]domain.LevelFields, len(entries))
 	for itemType, entry := range entries {
 		level, held := entry.(map[string]any)
-		if !held || len(level) != 1 {
+		if !held {
 			return nil, shapeInvalid(string(domain.SettingFields))
+		}
+		for key := range level {
+			if key != "capabilities" && key != "categories" {
+				return nil, shapeInvalid(string(domain.SettingFields))
+			}
 		}
 		capabilities, err := textsFrom(level["capabilities"], string(domain.SettingFields))
 		if err != nil {
@@ -128,6 +138,17 @@ func fieldsFrom(value any) (map[domain.ItemType]domain.LevelFields, error) {
 			carried = append(carried, domain.Capability(capability))
 		}
 		fields[domain.ItemType(itemType)] = domain.LevelFields{Capabilities: carried}
+		if raw, present := level["categories"]; present && raw != nil {
+			ids, err := textsFrom(raw, string(domain.SettingFields))
+			if err != nil {
+				return nil, err
+			}
+			categories := make([]shared.ID, 0, len(ids))
+			for _, id := range ids {
+				categories = append(categories, shared.ID(id))
+			}
+			fields[domain.ItemType(itemType)] = domain.LevelFields{Capabilities: carried, Categories: categories}
+		}
 	}
 	return fields, nil
 }

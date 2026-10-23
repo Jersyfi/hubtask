@@ -2033,6 +2033,7 @@ func run() error {
 			Covers:       coverWriter,
 			CustomFields: setCustomField,
 			Text:         forms,
+			Structure:    structures,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Gate:       entryGate,
@@ -2051,11 +2052,13 @@ func run() error {
 			HLC:        hybrid,
 			DueDates:   dueDateWriter,
 			Text:       forms,
+			Structure:  structures,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
+			Labels: labels,
 		}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: structures, Authorizer: authorizer, Changes: changes,

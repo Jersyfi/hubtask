@@ -915,10 +915,14 @@ CREATE TABLE work_item (
   path               text NOT NULL,              -- '/<uuid>/<uuid>/…', materialised
   depth              integer NOT NULL CHECK (depth >= 0),
   title              text NOT NULL CHECK (length(btrim(title)) BETWEEN 1 AND 500),
+  -- How much of it ("2", "1 kg"), capability AMOUNT (migration 0188); NULL for none.
+  amount             text CHECK (amount IS NULL OR char_length(amount) BETWEEN 1 AND 40),
   notes              text,
   is_completed       boolean NOT NULL DEFAULT false,
   completed_at       timestamptz,
   completed_by       uuid,
+  -- How often it went from open to done; kept by a reopen (migration 0189).
+  completion_count   integer NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
   bucket_id          uuid,
   order_key          text NOT NULL,
   start_at           timestamptz,
