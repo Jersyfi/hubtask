@@ -1698,6 +1698,7 @@
   "app.instance.column_state": "Stand",
   "app.instance.column_since": "Seit",
   "app.instance.column_actions": "Was möglich ist",
+  "app.instance.workspace_actions": "Aktionen für {name}",
   "app.instance.column_account": "Konto",
   "app.instance.column_home": "Ihr Arbeitsbereich",
   "app.instance.column_added": "Hinzugefügt",

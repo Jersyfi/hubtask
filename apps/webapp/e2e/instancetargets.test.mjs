@@ -16,6 +16,7 @@ import { chromium } from 'playwright';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chooseInRow } from './rowmenu.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -118,7 +119,7 @@ test('chromium: the export offers the installation\'s target by name, never wher
   await page.goto(`${served.origin}/instance/workspaces`);
   const row = page.getByRole('row').filter({ hasText: 'Acme GmbH' });
   await row.waitFor({ timeout: 15_000 });
-  await row.getByRole('button', { name: /Export/ }).click();
+  await chooseInRow(row, 'Export');
   const dialog = page.getByRole('dialog');
   const picker = dialog.getByLabel('Target', { exact: true });
   await picker.waitFor();

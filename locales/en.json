@@ -2208,6 +2208,7 @@
   "app.instance.column_state": "Standing",
   "app.instance.column_since": "Since",
   "app.instance.column_actions": "What can be done",
+  "app.instance.workspace_actions": "Actions for {name}",
   "app.instance.column_account": "Account",
   "app.instance.column_home": "Their workspace",
   "app.instance.column_added": "Added",

@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 import { MANIFEST, WORKSPACE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chooseInRow, pageOffers, rowMenu, rowOffers } from './rowmenu.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -92,7 +93,7 @@ test('chromium: an operator opens the password for one workspace, sees it on the
   await row.waitFor();
   assert.doesNotMatch(await row.textContent() ?? '', /Password open/);
 
-  await row.getByRole('button', { name: 'Open the password' }).click();
+  await chooseInRow(row, 'Open the password');
   const dialog = page.getByRole('dialog', { name: 'Open the password for Acme' });
   await dialog.waitFor();
   // What it does, before the button.
@@ -119,11 +120,11 @@ test('chromium: an operator opens the password for one workspace, sees it on the
   // The row says it stands, until when and for whom - and offers to close it.
   await row.getByText('Password open', { exact: true }).waitFor();
   assert.match(await row.textContent() ?? '', /asked for by TICKET-4711/);
-  assert.equal(await row.getByRole('button', { name: 'Open the password' }).count(), 0);
-  await row.getByRole('button', { name: 'Close the password' }).click();
-  await row.getByRole('button', { name: 'Open the password' }).waitFor();
+  assert.equal(await rowOffers(row, 'Open the password'), 0);
+  await chooseInRow(row, 'Close the password');
+  await row.getByText('Password open', { exact: true }).waitFor({ state: 'detached' });
   assert.equal(sent[2].path, `/admin/tenants/${TENANT}:close-password`);
-  assert.doesNotMatch(await row.textContent() ?? '', /Password open/);
+  assert.equal(await rowOffers(row, 'Open the password'), 1);
 });
 
 // A workspace under a legal hold cannot be deleted (data-protection.md §5): the row says a hold is
@@ -160,7 +161,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
   await held.waitFor();
   assert.match(await held.textContent() ?? '', /Legal hold/);
   assert.match(await held.textContent() ?? '', /cannot be deleted until its owner releases every hold/);
-  assert.equal(await held.getByRole('button', { name: 'Delete' }).count(), 0);
+  assert.equal(await rowOffers(held, 'Delete'), 0);
 
   const leaving = page.getByRole('row').filter({ hasText: 'Leaving' });
   assert.match(await leaving.textContent() ?? '', /the deletion waits until every hold is released/);
@@ -169,7 +170,7 @@ test('chromium: a workspace under a legal hold is marked and offers no deletion'
 
   const free = page.getByRole('row').filter({ hasText: 'Free' });
   assert.doesNotMatch(await free.textContent() ?? '', /Legal hold/);
-  assert.equal(await free.getByRole('button', { name: 'Delete' }).count(), 1);
+  assert.equal(await rowOffers(free, 'Delete'), 1);
 });
 
 /**
@@ -227,7 +228,7 @@ test('chromium: suspending asks first, and the own workspace is marked and warne
   assert.equal(await customer.getByText('Your workspace', { exact: true }).count(), 0);
 
   // A customer's workspace: the dialog names it, says what it does, and keeping it sends nothing.
-  await customer.getByRole('button', { name: 'Suspend' }).click();
+  await chooseInRow(customer, 'Suspend');
   let dialog = page.getByRole('dialog', { name: 'Suspend Acme?' });
   await dialog.waitFor();
   assert.match(await dialog.textContent() ?? '', /Nothing in it is lost/);
@@ -236,20 +237,20 @@ test('chromium: suspending asks first, and the own workspace is marked and warne
   await dialog.waitFor({ state: 'hidden' });
   assert.deepEqual(sent, []);
 
-  await customer.getByRole('button', { name: 'Suspend' }).click();
+  await chooseInRow(customer, 'Suspend');
   await dialog.getByRole('button', { name: 'Suspend it' }).click();
   await dialog.waitFor({ state: 'hidden' });
   assert.deepEqual(sent, [`${TENANT}:suspend`]);
 
   // The own workspace: the same dialog, and the warning that the session ends.
-  await own.getByRole('button', { name: 'Suspend' }).click();
+  await chooseInRow(own, 'Suspend');
   dialog = page.getByRole('dialog', { name: `Suspend ${WORKSPACE.display_name}?` });
   await dialog.waitFor();
   assert.match(await dialog.textContent() ?? '', /This is your own workspace. Your session ends at once/);
   await dialog.getByRole('button', { name: 'Keep it running' }).click();
   await dialog.waitFor({ state: 'hidden' });
 
-  await own.getByRole('button', { name: 'Delete' }).click();
+  await chooseInRow(own, 'Delete');
   dialog = page.getByRole('dialog', { name: 'Delete this workspace' });
   await dialog.waitFor();
   assert.match(await dialog.textContent() ?? '', /only an operator from another workspace can cancel the deletion/);
@@ -273,13 +274,13 @@ test('chromium: a pending deletion is called off with one press, until the remov
   const going = page.getByRole('row').filter({ hasText: 'Going' });
   await going.waitFor();
   assert.match(await going.textContent() ?? '', /the deletion can no longer be called off/);
-  assert.equal(await going.getByRole('button', { name: 'Cancel deletion' }).count(), 0);
+  assert.equal(await rowOffers(going, 'Cancel deletion'), 0);
 
   const leaving = page.getByRole('row').filter({ hasText: 'Leaving' });
-  await leaving.getByRole('button', { name: 'Cancel deletion' }).click();
-  await leaving.getByRole('button', { name: 'Suspend' }).waitFor();
+  await chooseInRow(leaving, 'Cancel deletion');
+  await leaving.getByText('Active').waitFor();
   assert.deepEqual(sent, [`${TENANT}:cancel-deletion`]);
-  assert.match(await leaving.textContent() ?? '', /Active/);
+  assert.equal(await rowOffers(leaving, 'Suspend'), 1);
 });
 
 // UC-INS-07 check 4: in single mode the one workspace is the installation - no *New workspace*,
@@ -294,13 +295,13 @@ test('chromium: single mode offers no new workspace, no suspension and no deleti
   t.after(single.close);
   await single.page.getByRole('row').filter({ hasText: 'acme' }).waitFor();
   assert.equal(await single.page.getByRole('button', { name: 'New workspace' }).count(), 0);
-  assert.equal(await single.page.getByRole('button', { name: 'Suspend' }).count(), 0);
-  assert.equal(await single.page.getByRole('button', { name: 'Delete' }).count(), 0);
-  assert.equal(await single.page.getByRole('button', { name: 'Resume' }).count(), 1);
+  assert.equal(await pageOffers(single.page, 'Suspend'), 0);
+  assert.equal(await pageOffers(single.page, 'Delete'), 0);
+  assert.equal(await pageOffers(single.page, 'Resume'), 1);
 
   const multi = await operatorConsole(browser, { mode: 'multi', rows: [workspace(), suspended] });
   t.after(multi.close);
   await multi.page.getByRole('button', { name: 'New workspace' }).waitFor();
-  assert.equal(await multi.page.getByRole('button', { name: 'Suspend' }).count(), 1);
-  assert.equal(await multi.page.getByRole('button', { name: 'Delete' }).count(), 2);
+  assert.equal(await pageOffers(multi.page, 'Suspend'), 1);
+  assert.equal(await pageOffers(multi.page, 'Delete'), 2);
 });

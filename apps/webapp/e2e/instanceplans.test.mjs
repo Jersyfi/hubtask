@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 import { MANIFEST, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { chooseInRow, keyToItem, pageOffers, rowMenu, rowOffers } from './rowmenu.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -307,7 +308,7 @@ test('chromium: moving a workspace names what rests, what is over the new limit 
   assert.match(await row.textContent() ?? '', /Family/);
   assert.match(await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).textContent() ?? '', /Without a plan/);
 
-  await row.getByRole('button', { name: 'Change plan' }).click();
+  await chooseInRow(row, 'Change plan');
   const choosing = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
   const offered = await choosing.getByRole('combobox', { name: 'Plan' }).locator('option:not([disabled])').allInnerTexts();
   assert.deepEqual(offered, ['Private', 'Business', 'Without a plan'], 'the plan it is on is offered');
@@ -348,7 +349,7 @@ test('chromium: a move somebody overtook is refused and says so', async (t) => {
   await page.goto(`${served.origin}/instance/workspaces`);
   const row = page.getByRole('row').filter({ hasText: 'Familie Berger' });
   await row.waitFor({ timeout: 10_000 });
-  await row.getByRole('button', { name: 'Change plan' }).click();
+  await chooseInRow(row, 'Change plan');
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('combobox', { name: 'Plan' }).selectOption('-');
   await dialog.getByText('The workspace changed while you were editing; read it again.').waitFor({ timeout: 5_000 });
@@ -418,7 +419,7 @@ test('chromium: under a plan, an empty exception shows the plan\'s value where t
   await page.goto(`${served.origin}/instance/workspaces`);
   const row = page.getByRole('row').filter({ hasText: 'Familie Berger' });
   await page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
-  await row.getByRole('button', { name: 'Limits', exact: true }).click();
+  await chooseInRow(row, 'Limits');
   const dialog = page.getByRole('dialog', { name: 'Limits for Familie Berger' });
   const people = dialog.getByRole('spinbutton', { name: 'People' });
   assert.equal(await people.getAttribute('placeholder'), '6', 'the plan sets people');
@@ -427,7 +428,7 @@ test('chromium: under a plan, an empty exception shows the plan\'s value where t
   assert.equal(await dialog.getByRole('spinbutton', { name: 'Entries', exact: true }).getAttribute('placeholder'), '20000', 'the plan sets no entries');
 
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
-  await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Limits', exact: true }).click();
+  await chooseInRow(page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }), 'Limits');
   assert.equal(await page.getByRole('dialog', { name: 'Limits for Kanzlei Roth' }).getByRole('spinbutton', { name: 'People' }).getAttribute('placeholder'), null, 'without a plan, the installation sets no people');
 });
 
@@ -487,10 +488,11 @@ test('chromium: the plans list, the editor and the move dialog work from the key
   assert.ok(await save.evaluate((element) => element === document.activeElement), 'the focus did not return to Save the plan');
 
   await page.goto(`${served.origin}/instance/workspaces`);
-  const change = page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' });
+  const change = rowMenu(page.getByRole('row').filter({ hasText: 'Familie Berger' }));
   await change.waitFor({ timeout: 10_000 });
   await tabTo(page, change);
   await page.keyboard.press('Enter');
+  await keyToItem(page, 'Change plan');
   const dialog = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
   await dialog.waitFor({ timeout: 5_000 });
   for (let i = 0; i < 6; i += 1) {
@@ -499,9 +501,10 @@ test('chromium: the plans list, the editor and the move dialog work from the key
   }
   await page.keyboard.press('Escape');
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
-  assert.ok(await change.evaluate((element) => element === document.activeElement), 'the focus did not return to Change plan');
+  assert.ok(await change.evaluate((element) => element === document.activeElement), 'the focus did not return to the row\'s menu');
 
   await page.keyboard.press('Enter');
+  await keyToItem(page, 'Change plan');
   await dialog.waitFor({ timeout: 5_000 });
   const plan = dialog.getByRole('combobox', { name: 'Plan' });
   // The choice itself is the native select's, whose keyboard is the platform's picker (a popup
@@ -524,12 +527,14 @@ test('chromium: the move dialog closed and opened again at once stays open', asy
   t.after(close);
 
   await page.goto(`${served.origin}/instance/workspaces`);
-  const change = page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' });
+  const change = rowMenu(page.getByRole('row').filter({ hasText: 'Familie Berger' }));
   await change.waitFor({ timeout: 10_000 });
-  // Held before it opens: behind a modal the opener is inert, and no role query reaches it.
+  // Held before it opens: behind a modal the opener is inert, and no role query reaches it. The
+  // row's menu closes before the dialog opens, so the menu's trigger is what the focus returns to.
   const opener = await change.elementHandle();
   await change.focus();
   await page.keyboard.press('Enter');
+  await keyToItem(page, 'Change plan');
   const dialog = page.getByRole('dialog', { name: 'Change Familie Berger\'s plan' });
   await dialog.waitFor({ timeout: 5_000 });
   // Escape and the opener within one task, so the native close event of the first closing is
@@ -540,8 +545,16 @@ test('chromium: the move dialog closed and opened again at once stays open', asy
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     for (let i = 0; i < 50 && open?.open; i += 1) await Promise.resolve();
     const wasClosed = open !== null && !open.open;
+    // Through the row's menu, still within the task: the trigger opens it, and its item opens the
+    // dialog again once Svelte has drawn it.
     element.click();
-    return wasClosed;
+    let item;
+    for (let i = 0; i < 50 && !item; i += 1) {
+      await Promise.resolve();
+      item = [...document.querySelectorAll('[role=menuitem]')].find((each) => each.textContent?.trim() === 'Change plan');
+    }
+    item?.click();
+    return wasClosed && item !== undefined;
   });
   assert.ok(closed, 'Escape did not close the dialog within the task');
   await page.evaluate(() => new Promise((resolve) => setTimeout(resolve, 200)));
@@ -644,7 +657,7 @@ test('chromium: an unknown plan is said at the plan field when provisioning, and
   assert.equal(await plan.getAttribute('aria-invalid'), 'true', 'the refusal is not at the plan field');
   await dialog.getByRole('button', { name: 'Cancel' }).last().click();
 
-  await page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' }).click();
+  await chooseInRow(page.getByRole('row').filter({ hasText: 'Familie Berger' }), 'Change plan');
   const moving = page.getByRole('dialog');
   await moving.getByRole('combobox', { name: 'Plan' }).selectOption('business');
   await moving.getByText('There is no plan with that name to put the workspace on.').waitFor({ timeout: 5_000 });
@@ -669,7 +682,7 @@ test('chromium: an earlier choice\'s late dry run is not shown under a later cho
   t.after(close);
 
   await page.goto(`${served.origin}/instance/workspaces`);
-  await page.getByRole('row').filter({ hasText: 'Familie Berger' }).getByRole('button', { name: 'Change plan' }).click();
+  await chooseInRow(page.getByRole('row').filter({ hasText: 'Familie Berger' }), 'Change plan');
   const plan = page.getByRole('dialog').getByRole('combobox', { name: 'Plan' });
   await plan.selectOption('private');
   await plan.selectOption('business');
@@ -695,7 +708,7 @@ test('chromium: a workspace read without a version moves without guessing one', 
   t.after(close);
 
   await page.goto(`${served.origin}/instance/workspaces`);
-  await page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }).getByRole('button', { name: 'Change plan' }).click();
+  await chooseInRow(page.getByRole('row').filter({ hasText: 'Kanzlei Roth' }), 'Change plan');
   await page.getByRole('dialog').getByRole('combobox', { name: 'Plan' }).selectOption('business');
   await page.getByRole('button', { name: 'Put it on Business' }).click();
   await page.getByRole('dialog').waitFor({ state: 'hidden', timeout: 5_000 });
@@ -710,7 +723,7 @@ test('chromium: a single installation shows no plan on Workspaces; an enforced o
   await single.page.goto(`${served.origin}/instance/workspaces`);
   await single.page.getByRole('row').filter({ hasText: 'Familie Berger' }).waitFor({ timeout: 10_000 });
   assert.equal(await single.page.getByRole('columnheader', { name: 'Plan' }).count(), 0);
-  assert.equal(await single.page.getByRole('button', { name: 'Change plan' }).count(), 0);
+  assert.equal(await pageOffers(single.page, 'Change plan'), 0);
 
   // The file enforces the level's values, not which plan a workspace is on.
   const enforced = await openInstance(browser, {
@@ -720,7 +733,7 @@ test('chromium: a single installation shows no plan on Workspaces; an enforced o
   t.after(enforced.close);
   await enforced.page.goto(`${served.origin}/instance/workspaces`);
   await enforced.page.getByRole('columnheader', { name: 'Plan' }).waitFor({ timeout: 10_000 });
-  assert.equal(await enforced.page.getByRole('button', { name: 'Change plan' }).count(), 2);
+  assert.equal(await pageOffers(enforced.page, 'Change plan'), 2);
   await enforced.page.getByRole('main').getByRole('button', { name: 'New workspace' }).click();
   assert.equal(await enforced.page.getByRole('dialog', { name: 'New workspace' }).getByRole('combobox', { name: 'Plan' }).count(), 1);
 });
