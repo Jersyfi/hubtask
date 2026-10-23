@@ -199,14 +199,15 @@ const VIEWS = [
  */
 async function openPart(page, tab, mayShape) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
-  await page.locator('[data-opener="container-menu"]').click();
   if (mayShape) {
+    await page.locator('[data-opener="container-menu"]').click();
     await page.getByRole('menuitem', { name: 'Structure…', exact: true }).click();
     const panel = page.getByRole('dialog');
     await panel.getByRole('tab', { name: tab }).click();
     return panel;
   }
-  await page.keyboard.press('Escape');
+  // A viewer's page menu may hold nothing at all, so it is not where this starts.
+  await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   if (tab !== 'Templates') return undefined;
   const ways = page.getByRole('button', { name: 'More ways to add an entry' });
   await page.waitForTimeout(400);
@@ -277,7 +278,8 @@ test('chromium: 1280 px — a saved view offers sharing only to who may share, a
     await context.route('**/api/v1/**/views**', (route) => route.fulfill({ json: VIEWS }));
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('[data-opener="views"]').click();
-    const dialog = page.getByRole('dialog');
+    await page.getByRole('menuitem', { name: 'Rename, share or delete a view…' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Saved views' });
     await dialog.getByText('Mine, due soon').waitFor({ timeout: 10_000 });
     await page.waitForTimeout(400);
     await dialog.getByRole('button', { name: 'Edit' }).click();
