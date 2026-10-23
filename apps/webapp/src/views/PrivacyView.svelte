@@ -28,11 +28,9 @@
 
   import { Badge, Banner, Button, Dialog, Input, LoadMore, PageHeader, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
-  import { actor } from '../lib/data/account.svelte.ts';
   import ConsentRegister from '../lib/workspace/ConsentRegister.svelte';
   import { accounts } from '../lib/data/accounts.svelte.ts';
-  import { holds } from '../lib/data/capability.svelte.ts';
-  import { people } from '../lib/data/people.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import type { ErasureKept } from '@hubtask/sync-engine';
   import { backup } from '../lib/data/backup.svelte.ts';
   import {
@@ -129,15 +127,13 @@
   $effect(() => untrack(() => workspace.open()));
   const zone = $derived(workspace.workspace?.default_time_zone ?? deviceZone());
 
-  // The reader's role in the workspace, and whether it may start an erasure: the owner's
-  // DELETE_CONTAINER, as the server asks (data-protection.md §4). A prediction; the server decides.
-  $effect(() => untrack(() => people.open({})));
-  const workspaceRole = $derived(
-    people.along({}).find((membership) => membership.account_id === actor.account?.id)?.role as
-      | string
-      | undefined,
-  );
-  const mayDestroy = $derived(holds(workspaceRole, 'DELETE_CONTAINER').status === 'permitted');
+  // What the reader holds on the workspace, as the server asks it of a case's steps: MANAGE_MEMBERS
+  // for each, the owner's DELETE_CONTAINER for starting an erasure (data-protection.md §4). From
+  // the manifest, so a role held through a group counts; a prediction, the server decides.
+  const reader = $derived({
+    mayManage: holdsHere('MANAGE_MEMBERS') === true,
+    mayDestroy: holdsHere('DELETE_CONTAINER') === true,
+  });
 
   /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared when the closed cases are shown or hidden. */
   let arrived = $state<string | undefined>(undefined);
@@ -420,7 +416,7 @@
                 </p>
               {/if}
 
-              {#if canAct(request) && request.kind === 'ERASURE' && request.status !== 'COMPLETED'}
+              {#if canAct(request, reader) && request.kind === 'ERASURE' && request.status !== 'COMPLETED'}
                 <!-- What each mode does to other people's content, before the choice is made. -->
                 <Stack gap="050">
                   <Select
@@ -444,10 +440,10 @@
                 </Stack>
               {/if}
 
-              {#if canAct(request) && (request.status === 'RECEIVED' || request.status === 'IN_PROGRESS')}
+              {#if canAct(request, reader) && (request.status === 'RECEIVED' || request.status === 'IN_PROGRESS')}
                 <div class="row">
                   {#if request.status === 'RECEIVED'}
-                    {#if canStart(request, mayDestroy)}
+                    {#if canStart(request, reader)}
                       <Button
                         size="sm"
                         tone="primary"
@@ -473,7 +469,7 @@
                       {t('app.privacy.complete')}
                     </Button>
                   {/if}
-                  {#if canExtend(request)}
+                  {#if canExtend(request, reader)}
                     <Button size="sm" tone="secondary" onclick={() => beginExtending(request)}>
                       {t('app.privacy.extend')}
                     </Button>
@@ -496,7 +492,7 @@
                 {/if}
               {/if}
 
-              {#if extending === request.id && canExtend(request)}
+              {#if extending === request.id && canExtend(request, reader)}
                 <!-- Once, by law, and recorded rather than sent: the controller tells the person,
                      and the case keeps the reason and the day they were told. -->
                 <Stack gap="100">
@@ -542,7 +538,7 @@
                 </Stack>
               {/if}
 
-              {#if rejecting === request.id && canAct(request)}
+              {#if rejecting === request.id && canAct(request, reader)}
                 <Stack gap="100">
                   <Input
                     label={t('app.privacy.reject_reason')}

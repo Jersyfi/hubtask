@@ -278,6 +278,38 @@ func TestRevokingTwiceStampsOnceAndRecordsOnce(t *testing.T) {
 	}
 }
 
+// A service account's token is withdrawn by whoever answers for access, and by nobody else: the
+// authoriser's refusal stands and the token keeps working until somebody who may pulls it.
+func TestRevokingAServiceAccountsTokenWithoutThePermissionIsRefused(t *testing.T) {
+	machine := domain.Account{
+		ID: serviceAccountID, TenantID: tenant, Kind: domain.AccountServiceAccount,
+		DisplayName: "the nightly export", Status: domain.AccountActive,
+	}
+	accounts, auth, sink := newAccounts(machine), &authorizer{}, &auditSink{}
+	writer := tokenWriter(t, accounts, auth, sink)
+
+	command := validCommand()
+	command.AccountID = serviceAccountID
+	if _, err := (CreateAccessToken{Writer: writer}).Execute(t.Context(), holder(), command); err != nil {
+		t.Fatalf("minting for a service account failed: %v", err)
+	}
+
+	auth.refuse = shared.ErrForbidden.WithDetail("access.not_permitted")
+	err := RevokeAccessToken{Writer: writer}.Execute(t.Context(), holder(), tokenRowID)
+	if !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("error = %v, want the authoriser's refusal", err)
+	}
+	if got := auth.requests[len(auth.requests)-1].Permission; got != service.PermissionManageMembers {
+		t.Errorf("permission = %s, want %s", got, service.PermissionManageMembers)
+	}
+	if stored := writer.Tokens.(*tokens).minted[0]; !stored.RevokedAt.IsZero() {
+		t.Error("a refused revocation withdrew the token")
+	}
+	if len(sink.entries) != 1 {
+		t.Errorf("wrote %d audit entries, want only the minting", len(sink.entries))
+	}
+}
+
 // T-04: somebody else's is not found rather than forbidden. A 403 would confirm that the token
 // exists, which is the one thing a stranger should not learn from asking.
 func TestRevokingATokenThatIsNotThereIsNotFound(t *testing.T) {

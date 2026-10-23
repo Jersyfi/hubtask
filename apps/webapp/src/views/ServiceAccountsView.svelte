@@ -20,6 +20,7 @@
   import { Banner, Button, Input, PageHeader, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { mayIssueWayIn } from '../lib/data/people.ts';
   import { serviceAccounts } from '../lib/data/serviceaccounts.svelte.ts';
@@ -54,6 +55,11 @@
   const refusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
+
+  // A service account's tokens are listed, minted and revoked under MANAGE_MEMBERS (security.md
+  // §5); a reader without it, an auditor among them, reads the accounts and is not offered a
+  // door every press of which is refused (P-05). The server decides (rule 2).
+  const mayAdminister = $derived(holdsHere('MANAGE_MEMBERS') === true);
 
   /** What this account holds at the workspace. Empty is the case the screen exists to explain. */
   function rolesOf(accountId: string) {
@@ -116,6 +122,7 @@
           <Stack gap="150">
             <div class="head">
               <h2 class="name">{account.display_name}</h2>
+{#if mayAdminister}
               <Button
                 size="sm"
                 tone="subtle"
@@ -123,6 +130,7 @@
               >
                 {opened === account.id ? t('app.service_accounts.hide_tokens') : t('app.service_accounts.show_tokens')}
               </Button>
+              {/if}
             </div>
 
             <div class="roles">
@@ -139,7 +147,7 @@
               {/each}
             </div>
 
-            {#if opened === account.id}
+            {#if mayAdminister && opened === account.id}
               <TokensView
                 accountId={account.id}
                 mintable={mayIssueWayIn(rolesOf(account.id).map((holder) => holder.role), people.grantableAt(TENANT))}

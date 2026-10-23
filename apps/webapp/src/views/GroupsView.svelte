@@ -15,7 +15,9 @@
   // **A group passes on every role it holds.** Joining one that holds a role above the reader's
   // own would make them more than they are, so the server answers `members_changeable` and the
   // member controls and the delete are drawn only where it says yes (domain-model.md §3.2, P-05);
-  // the screen says why where they are left out. Renaming places nothing and stays.
+  // the screen says why where they are left out. Renaming places nothing, so it does not wait on
+  // that answer; it asks MANAGE_MEMBERS on the server like every write here and is offered only to
+  // a reader who holds it.
   //
   // **Any member may read this.** The contract's reasoning, not a relaxation: a membership granted
   // to a group is unreadable until the group can be shown as the people it reaches. What it
@@ -27,6 +29,7 @@
   import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
+  import { holdsHere } from '../lib/data/capability.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -90,6 +93,9 @@
   function changeable(groupId: string): boolean {
     return groups.detail(groupId)?.members_changeable === true;
   }
+
+  /** Whether the reader may rename a group: MANAGE_MEMBERS on the workspace. The server decides. */
+  const mayRename = $derived(holdsHere('MANAGE_MEMBERS') === true);
 
   function nameFor(accountId: string): string {
     return accounts.nameOf(accountId) ?? t('app.people.unnamed');
@@ -182,6 +188,7 @@
                 <Button tone="subtle" onclick={() => (renaming = undefined)}>{t('app.groups.cancel')}</Button>
               {:else}
                 <h2 class="name">{group.name}</h2>
+                {#if mayRename}
                 <Button
                   size="sm"
                   tone="subtle"
@@ -192,6 +199,7 @@
                 >
                   {t('app.groups.rename')}
                 </Button>
+                {/if}
               {/if}
             </div>
 
