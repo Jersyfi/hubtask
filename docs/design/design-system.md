@@ -961,8 +961,16 @@ archived container leaves the tree.
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — labels, fields, views, templates, policies, people;
-and trash, last and alone. An item unusable now stays with its reason. A set-up dialog used daily is
+move, archive, rank up, rank down; set it up — labels, fields, structure, views, templates,
+policies, people; and trash, last and alone. An item unusable now stays with its reason.
+
+**The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
+in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
+here, and a lock drawn as the chip's lock with the controls still readable and unavailable, their
+reason naming who set it (§4, cases 2 and 6). Only a reader who may change the shape is offered it.
+What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
+view or bulk operation for it — the installation's manifest narrowed to the structure in force
+(`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
 also reachable where it is used — saved views from a star beside the layout switch, templates from
 the primary action's submenu, people from the member avatars — opening the same dialog.
 

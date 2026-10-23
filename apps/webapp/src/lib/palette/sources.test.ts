@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
 import { collectionOffers, containerOffers, contextOf, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
-import { layoutsOffered } from '../entries/layouts.ts';
+import { layoutsOffered, openingLayout } from '../entries/layouts.ts';
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 const ROLES = [
@@ -76,6 +76,39 @@ test('the layouts are the reported ones this client draws, the list once', () =>
   assert.deepEqual(layoutsOffered(KITCHEN, outlineOnly, DRAWABLE), ['LIST_EXPANDED', 'KANBAN']);
   assert.deepEqual(layoutsOffered(HOUSE, MANIFEST, DRAWABLE), []);
   assert.deepEqual(layoutsOffered(KITCHEN, undefined, DRAWABLE), []);
+});
+
+/** A collection whose structure offers one level and the views named (UC-WRK-23 check 4). */
+const shaped = (views: string[], opening: string) =>
+  ({
+    ...KITCHEN,
+    structure: {
+      preset: 'LIST',
+      settings: { levels: [{ type: 'TASK', name: null }], views: { offered: views, default: opening } },
+      sources: {},
+      locks: {},
+    },
+  }) as unknown as Container;
+
+test('a collection offers only the layouts its structure offers, and opens in the one it names', () => {
+  const list = shaped(['LIST_COLLAPSED'], 'LIST_COLLAPSED');
+  assert.deepEqual(layoutsOffered(list, MANIFEST, DRAWABLE), ['LIST_COLLAPSED']);
+  const flow = shaped(['KANBAN', 'LIST_COLLAPSED'], 'KANBAN');
+  assert.deepEqual(layoutsOffered(flow, MANIFEST, DRAWABLE), ['LIST_COLLAPSED', 'KANBAN']);
+  assert.equal(openingLayout(flow, layoutsOffered(flow, MANIFEST, DRAWABLE)), 'KANBAN');
+  // A project opens with what is inside shown: the list's other stored value.
+  const project = shaped(['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], 'LIST_EXPANDED');
+  assert.equal(openingLayout(project, layoutsOffered(project, MANIFEST, DRAWABLE)), 'LIST_EXPANDED');
+  // A default this client cannot offer gives way to the first it can; no structure, to the list.
+  assert.equal(openingLayout(shaped(['LIST_COLLAPSED'], 'TIMELINE'), ['LIST_COLLAPSED']), 'LIST_COLLAPSED');
+  assert.equal(openingLayout(KITCHEN, layoutsOffered(KITCHEN, MANIFEST, DRAWABLE)), 'LIST_COLLAPSED');
+});
+
+test('the palette offers a list no board, and a new entry of its one level', () => {
+  const list = shaped(['LIST_COLLAPSED'], 'LIST_COLLAPSED');
+  const all = [placed(list, HOUSE)];
+  const offers = collectionOffers(all[0]!, all, { role: 'MEMBER', manifest: MANIFEST, drawable: DRAWABLE, t });
+  assert.deepEqual(ids(offers), ['search-in:c1', 'open-as:c1:LIST_COLLAPSED', 'new-in:c1']);
 });
 
 test('a member typing a collection\'s name is offered a search in it, its layouts and a new entry', () => {

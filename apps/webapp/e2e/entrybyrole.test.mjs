@@ -161,7 +161,7 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.getByText(ITEMS[2].title).first().waitFor();
     await page.waitForTimeout(600);
     const rows = await pageMenu(page, COLLECTION.name);
-    for (const shaping of ['Rename', 'Colour and symbol…', 'Move to another hub…', 'Labels', 'Custom fields', 'What counts…', 'Policies']) {
+    for (const shaping of ['Rename', 'Colour and symbol…', 'Move to another hub…', 'Labels', 'Custom fields', 'Structure…', 'Policies']) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
     // Used by everybody: the views, the templates, who is here.
