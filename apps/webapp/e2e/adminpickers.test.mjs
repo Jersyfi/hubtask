@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, OTHER, PERMISSIONS, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, OTHER, PAGE, PERMISSIONS, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -42,6 +42,9 @@ async function as(browser, permissions) {
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions } });
     if (path === '/audit' && request.method() === 'GET') return route.fulfill({ json: { items: [ENTRY], next_cursor: null } });
     if (path === `/accounts/${FORMER.id}`) return route.fulfill({ json: FORMER });
+    // A reader without READ is answered no collection, as the server answers an auditor; the
+    // shared stub's collections would have the frame read their roles, and their people with them.
+    if (path === '/containers' && request.method() === 'GET' && !permissions.includes('READ')) return route.fulfill({ json: PAGE });
     return stub(route);
   });
   await context.addInitScript(() => {
