@@ -21808,7 +21808,7 @@
               "null"
             ],
             "format": "uuid",
-            "description": "A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
+            "description": "A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
           }
         }
       },
@@ -22078,7 +22078,7 @@
           "preset_id": {
             "type": "string",
             "format": "uuid",
-            "description": "A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
+            "description": "A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
           },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"
@@ -22108,7 +22108,7 @@
           "preset_id": {
             "type": "string",
             "format": "uuid",
-            "description": "A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
+            "description": "A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.\n"
           },
           "settings": {
             "$ref": "#/components/schemas/StructureSettings"

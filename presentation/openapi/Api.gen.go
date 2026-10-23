@@ -7066,7 +7066,7 @@ type ContainerCreate struct {
 	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
-	// PresetId A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
@@ -11242,7 +11242,7 @@ type StepUpRequest struct {
 type StructureChange struct {
 	Preset *StructureChangePreset `json:"preset,omitempty"`
 
-	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
@@ -12449,7 +12449,7 @@ type WorkspaceStructureChange struct {
 	Locks  *[]string                       `json:"locks,omitempty"`
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
 
-	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
