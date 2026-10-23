@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
-state: specified
+state: verified
 tasks: [UX-15]
-checked_by: []
+checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs, docs/evidence/UX-15-2026-10-23.md]
 ---
 
 # See my day
@@ -33,12 +33,3 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 
 * The page is the person's own; nobody else's day is shown.
 * The detailed lists stay [UC-WRK-20](./UC-WRK-20-see-what-is-on-me-when-i-arrive.md).
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: not met — not built yet, tracked in milestone UX.

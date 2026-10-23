@@ -139,10 +139,10 @@ Administration and installation, found by UX-05's sweep:
 
 ## E3 — Today, search, jumble, archive, trash
 
-- [ ] Overview "Create hub" primary → *＋ New* and the empty state (§E9)
-- [ ] "What is on you": overdue, due next, "search for the rest" → Today (UX-15); its checkbox now completes
-- [ ] "In the jumble" (three + open) → Today's jumble tile
-- [ ] "What you had open" → Today's recently opened
+- [x] Overview "Create hub" primary → *＋ New* and the empty state (§E9) — *Today* has no head action; the hub tree's create and the empty workspace's one action remain (UX-15)
+- [x] "What is on you": overdue, due next, "search for the rest" → Today (UX-15); its checkbox now completes — *On you*: *Earlier*, *Today*, *Coming up*, the link to the search
+- [x] "In the jumble" (three + open) → Today's jumble tile — *In the jumble* on *Today* (UX-15)
+- [x] "What you had open" → Today's recently opened — *Recently opened* on *Today* (UX-15)
 - [ ] Search page: field, meaning switch, filter chips (status, kind, due, assigned, collection, label), More (last changed, created, starts, on it, created by, archive, trash), text mode with tokens, show the request, edit as text/controls, copy link, clear, result notes → kept; results gain the entry menu and selection; meaning hits marked
 - [ ] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target
 - [ ] Archive: hubs and collections, bring back → kept; archived entries listed with a filter
