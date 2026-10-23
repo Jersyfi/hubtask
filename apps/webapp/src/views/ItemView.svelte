@@ -890,16 +890,7 @@
 
     <!-- The head (ADR-0061 decision 4). The heading is read and not drawn on every width: the
          title the reader sees is the field they edit it in, and a screen holds one `h1`. -->
-    {#if isInPane}
-      <!-- The pane's own head names the entry and leads to its page; the menu stands alone. -->
-      <div class="pane-menu">
-        <Menu label={t('app.workspace.actions', { name: item.title })} items={entryMenu} placement={{ side: 'block-end', align: 'end' }} onselect={chooseFromMenu}>
-          {#snippet trigger(props)}
-            <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} tone="secondary" data-opener="entry-menu" {...props} />
-          {/snippet}
-        </Menu>
-      </div>
-    {:else}
+    {#if !isInPane}
       <PageHeader
         title={item.title}
         isTitleInBar={true}
@@ -951,6 +942,15 @@
         ></textarea>
         {#if hasAi}
           <AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
+        {/if}
+        {#if isInPane}
+          <!-- The pane's own head names the entry and leads to its page; its menu is at the end of
+               the title's line, not on a line of its own above an empty band. -->
+          <Menu label={t('app.workspace.actions', { name: item.title })} items={entryMenu} placement={{ side: 'block-end', align: 'end' }} onselect={chooseFromMenu}>
+            {#snippet trigger(props)}
+              <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} tone="secondary" data-opener="entry-menu" {...props} />
+            {/snippet}
+          </Menu>
         {/if}
       </div>
       {#if writeFailure && isTitleFailure}
@@ -1405,7 +1405,6 @@
     .columns[data-pane] details[open] > .details-summary { list-style: disclosure-open inside; }
   }
 
-  .pane-menu { display: flex; justify-content: flex-end; }
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 

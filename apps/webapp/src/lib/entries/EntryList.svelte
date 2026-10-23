@@ -1316,9 +1316,11 @@
           <!-- Drawn at the top. -->
         {:else if addingUnder === 'root'}
           {@render addForm()}
-        {:else if !(viewport.isCompact && !root)}
+        {:else if addingUnder === null && !(viewport.isCompact && !root)}
           <!-- Not on a phone's collection: the head pins the same *Add an entry* above the bottom
-               bar there, and a second one under the rows was one add too many on one screen. -->
+               bar there, and a second one under the rows was one add too many on one screen. Not
+               while a row's form is open either: under it, a top-level add read as that form's
+               second button. -->
           <Inline gap="100">
             {#each addControls as control (control.label)}
               <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>
@@ -1558,7 +1560,10 @@
     {/if}
 
     {#if addingUnder === row.item.id}
-      {@render addForm()}
+      <!-- Indented as the rows it adds will be: a form the page's width read as a top-level add. -->
+      <div class="under" data-under={row.item.id} style:--depth={row.depth + 1}>
+        {@render addForm()}
+      </div>
     {/if}
 {/snippet}
 
@@ -1711,6 +1716,15 @@
   .level[data-simple] .row { touch-action: pan-y; cursor: pointer; }
 
   .section-row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  /* A row's add form starts where its children's boxes do: their indent (`TaskRow`'s step) after
+     the grip's and the twist's columns. */
+  .under { padding-inline-start: calc(var(--depth) * var(--sp-300) + 2 * var(--sp-400) + var(--sp-050)); }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .under { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200) + 2 * var(--sp-400) + var(--sp-050)); }
+  }
 
   /* A list's line, as `TaskRow` draws a title: a few lines at most, and a ticked one struck as
      well as faded, so it reads in greyscale (rule 3). */
