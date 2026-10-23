@@ -105,6 +105,7 @@
     return {
       id: comment.id,
       authorName: accounts.nameOf(comment.author_id) ?? t('app.people.unnamed'),
+      authorSrc: accounts.pictureOf(comment.author_id),
       body: comment.body ?? undefined,
       when: formatDateTime(comment.created_at, messages.locale),
       at: comment.created_at,

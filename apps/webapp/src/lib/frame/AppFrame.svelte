@@ -49,6 +49,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { live } from '../data/live.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { figures } from '../data/figures.svelte.ts';
   import { recents } from '../recents.svelte.ts';
@@ -466,7 +467,7 @@
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -590,7 +591,7 @@
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
