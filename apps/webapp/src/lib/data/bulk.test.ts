@@ -11,7 +11,6 @@ import {
   allApplied,
   byItem,
   createOperations,
-  isDestructive,
   needsItem,
   operationsFor,
   outcomeOf,
@@ -26,11 +25,9 @@ test('the nine are the contract’s nine', () => {
     [...BULK_OPERATIONS].sort(),
     ['ADD_LABEL', 'ASSIGN', 'COMPLETE_ITEM', 'CREATE_ITEM', 'MOVE_ITEM', 'REMOVE_LABEL', 'REOPEN_ITEM', 'TRASH_ITEM', 'UPDATE_ITEM'],
   );
-  // The one with no entry yet, and the one that asks first.
+  // The one with no entry yet.
   assert.equal(needsItem('CREATE_ITEM'), false);
   assert.equal(needsItem('TRASH_ITEM'), true);
-  assert.equal(isDestructive('TRASH_ITEM'), true);
-  assert.equal(isDestructive('COMPLETE_ITEM'), false);
 });
 
 test('one operation per selected entry, in the order they are drawn', () => {

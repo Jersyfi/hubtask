@@ -2141,6 +2141,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateLabel{Writer: labelWriter}.Descriptor(),
 		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
+		work.RestoreLabel{Writer: labelWriter}.Descriptor(),
 		work.AddLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),

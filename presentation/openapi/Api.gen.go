@@ -1233,6 +1233,7 @@ const (
 	MOVEITEM     BulkOperationOp = "MOVE_ITEM"
 	REMOVELABEL  BulkOperationOp = "REMOVE_LABEL"
 	REOPENITEM   BulkOperationOp = "REOPEN_ITEM"
+	RESTOREITEM  BulkOperationOp = "RESTORE_ITEM"
 	TRASHITEM    BulkOperationOp = "TRASH_ITEM"
 	UPDATEITEM   BulkOperationOp = "UPDATE_ITEM"
 )
@@ -1253,6 +1254,8 @@ func (e BulkOperationOp) Valid() bool {
 	case REMOVELABEL:
 		return true
 	case REOPENITEM:
+		return true
+	case RESTOREITEM:
 		return true
 	case TRASHITEM:
 		return true
@@ -8377,6 +8380,9 @@ type Label struct {
 	// ColorToken A theme token rather than a colour value, so clients render it in their own palette. Required: a label is rendered as a chip and nothing else.
 	ColorToken string `json:"color_token"`
 
+	// DeletedAt When the label was taken out of the vocabulary. Present only in a list read with `include_deleted`; a label in the vocabulary carries null or omits it.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
+
 	// Description Always present, as null when unset.
 	Description *string            `json:"description"`
 	Id          openapi_types.UUID `json:"id"`
@@ -12707,6 +12713,12 @@ type ReorderBucketParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListLabelsParams defines parameters for ListLabels.
+type ListLabelsParams struct {
+	// IncludeDeleted Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client can offer to bring one back. Without it a deleted label is not in the list.
+	IncludeDeleted *bool `form:"include_deleted,omitempty" json:"include_deleted,omitempty"`
+}
+
 // DeleteLabelParams defines parameters for DeleteLabel.
 type DeleteLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -12717,6 +12729,12 @@ type DeleteLabelParams struct {
 type UpdateLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// RestoreLabelParams defines parameters for RestoreLabel.
+type RestoreLabelParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateContainerPoliciesParams defines parameters for UpdateContainerPolicies.
@@ -14488,7 +14506,7 @@ type ServerInterface interface {
 	ReorderBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params ReorderBucketParams)
 
 	// (GET /containers/{containerId}/labels)
-	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ListLabelsParams)
 
 	// (POST /containers/{containerId}/labels)
 	CreateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -14498,6 +14516,9 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId}/labels/{labelId})
 	UpdateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params UpdateLabelParams)
+
+	// (POST /containers/{containerId}/labels/{labelId}:restore)
+	RestoreLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params RestoreLabelParams)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -20155,8 +20176,24 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLabelsParams
+
+	// ------------- Optional query parameter "include_deleted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_deleted", r.URL.Query(), &params.IncludeDeleted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_deleted"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_deleted", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListLabels(w, r, containerId)
+		siw.Handler.ListLabels(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20301,6 +20338,65 @@ func (siw *ServerInterfaceWrapper) UpdateLabel(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateLabel(w, r, containerId, labelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreLabel operation middleware
+func (siw *ServerInterfaceWrapper) RestoreLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RestoreLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreLabel(w, r, containerId, labelId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -27917,6 +28013,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.CreateLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.DeleteLabel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.UpdateLabel)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}:restore", wrapper.RestoreLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.RemoveLabel)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.AddLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.RemoveMember)

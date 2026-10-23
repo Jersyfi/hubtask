@@ -284,4 +284,20 @@ func TestTheLabelChangeEvents(t *testing.T) {
 			t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
 		}
 	})
+
+	t.Run("a restoration carries the live snapshot", func(t *testing.T) {
+		envelope, err := NewLabelRestored(eventID, label, by(), occurred, Cause{})
+		if err != nil {
+			t.Fatalf("building the event: %v", err)
+		}
+		if envelope.Type != LabelRestored {
+			t.Errorf("event type %s", envelope.Type)
+		}
+		if _, present := envelope.Payload["change_set"]; present {
+			t.Error("a restoration carries a change set")
+		}
+		if envelope.Payload["deleted_at"] != nil {
+			t.Errorf("deleted_at is %v", envelope.Payload["deleted_at"])
+		}
+	})
 }

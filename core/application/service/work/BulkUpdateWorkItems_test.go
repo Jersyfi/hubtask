@@ -120,6 +120,24 @@ func TestABulkRunsEachOperationThroughTheUseCaseThatOwnsIt(t *testing.T) {
 	}
 }
 
+// A selection moved to the trash is taken back as one bulk: RESTORE_ITEM is the single restore.
+func TestABulkRestoresThroughTheSingleRestore(t *testing.T) {
+	h := newBulkHarness()
+
+	result, err := h.handler.Execute(t.Context(), actor(), BulkUpdateWorkItemsCommand{
+		Atomic:     true,
+		Operations: []BulkOperation{{Op: "RESTORE_ITEM", ItemID: bulkItemID}},
+	})
+	if err != nil {
+		t.Fatalf("the bulk was refused: %v", err)
+	}
+	if result.Applied != 1 || len(h.catalogue.invoked) != 1 ||
+		h.catalogue.invoked[0].name != RestoreWorkItemName ||
+		h.catalogue.invoked[0].in["item_id"] != bulkItemID.String() {
+		t.Errorf("the restore ran as %+v", h.catalogue.invoked)
+	}
+}
+
 // The acceptance criterion: a bulk with one invalid operation applies the rest and reports the one.
 func TestABulkAppliesWhatItCanAndReportsTheRest(t *testing.T) {
 	h := newBulkHarness()
