@@ -338,8 +338,11 @@
         {/if}
       {/snippet}
     </EmptyState>
-  {:else if newItems.length > 1}
-    <!-- More than one thing to make here: *＋ New* lists them, the hub first. -->
+  {:else if newItems.length > 0}
+    <!-- *＋ New* lists what can be made here, the hub first - one name on every page, even where
+         the list holds one row: a control that read "Create hub" on one page and "New" on the next
+         would be two controls. In a block of its own so that it keeps its width at the start of
+         the line; folded, it stands in the rail's one column with the marks above it. -->
     <div class="create" data-rail={isRail ? '' : undefined} data-new>
       <Menu label={t('app.nav.new')} items={newItems} onselect={chooseNew}>
         {#snippet trigger(props)}
@@ -350,20 +353,6 @@
           {/if}
         {/snippet}
       </Menu>
-    </div>
-  {:else if createLabel}
-    <!-- In a block of its own so that the control keeps its width at the start of the line
-         rather than stretching across the column with its label in the middle. Folded, it stands
-         in the rail's one column with the marks above it: everything drawn in a rail is in that
-         column, or it is the one thing in the navigation that is not. -->
-    <div class="create" data-rail={isRail ? '' : undefined}>
-      {#if isRail}
-        <IconButton icon="plus" label={createLabel} size="sm" onclick={() => (isCreatingHub = true)} />
-      {:else}
-        <Button tone="subtle" size="sm" icon="plus" onclick={() => (isCreatingHub = true)}>
-          {createLabel}
-        </Button>
-      {/if}
     </div>
   {/if}
 

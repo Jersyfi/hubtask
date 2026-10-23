@@ -90,6 +90,7 @@
   let reason = $state('');
 
   $effect(() => {
+    if (!instance.isElevated) return;
     // The instance level too, so the limits dialog can say what an empty field actually means:
     // "the installation's default" is not a helpful sentence without the number.
     const stops = untrack(() => [instance.openWorkspaces(), instance.openSettings(), instance.openTargets()]);
@@ -103,6 +104,7 @@
   });
   // The plans, where there are any to put a workspace on (multi-tenancy.md §4.2).
   $effect(() => {
+    if (!instance.isElevated) return;
     if (!manifest.isMultiTenant) return;
     return untrack(() => plans.open());
   });

@@ -44,6 +44,7 @@
   const FEATURES: readonly PlanFeature[] = ['AUTOMATION_RULES', 'WEBHOOKS', 'OWN_SIGN_IN_PROVIDERS'];
 
   $effect(() => {
+    if (!instance.isElevated) return;
     if (!manifest.isMultiTenant) return;
     const stops = untrack(() => [plans.open(), instance.openSettings()]);
     return () => stops.forEach((stop) => stop());

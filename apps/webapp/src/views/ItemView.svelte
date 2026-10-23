@@ -147,6 +147,7 @@
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
   // is read rather than drawn, because the title the reader sees is the field they edit it in.
   $effect(() => (isInPane ? undefined : page.entitle(item?.title)));
+  $effect(() => (isInPane ? undefined : page.locate(item?.collection_id)));
 
   // What the overview's "what you had open" is built from. Noted when the entry has a title rather
   // than when the route resolved: a row naming an entry nothing could name yet would be a blank.

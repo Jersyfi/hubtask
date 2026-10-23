@@ -32,6 +32,7 @@
   const { onnavigate }: Props = $props();
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openEncryption());
     return stop;
   });

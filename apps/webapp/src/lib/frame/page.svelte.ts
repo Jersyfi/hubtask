@@ -27,6 +27,7 @@ class Page {
   #title = $state<string | undefined>(undefined);
   #menu = $state<PageMenu | undefined>(undefined);
   #fills = $state(false);
+  #place = $state<string | undefined>(undefined);
 
   get title(): string | undefined {
     return this.#title;
@@ -37,6 +38,22 @@ class Page {
     this.#title = title;
     return () => {
       if (this.#title === title) this.#title = undefined;
+    };
+  }
+
+  /**
+   * The container the page belongs to where the route does not say it: an entry's page lives in
+   * its collection, and the tree marks that row rather than the workspace's.
+   */
+  get place(): string | undefined {
+    return this.#place;
+  }
+
+  /** Sets the place for as long as the caller's effect lives; the cleanup clears it. */
+  locate(containerId: string | undefined): () => void {
+    this.#place = containerId;
+    return () => {
+      if (this.#place === containerId) this.#place = undefined;
     };
   }
 

@@ -51,6 +51,11 @@
   let wasElevated = $state(false);
   /** Whether the proof has already been asked for on this visit, so it is asked once. */
   let asked = $state(false);
+  /**
+   * Whether the arrival's own prompt is open. The door's button is not drawn meanwhile: the prompt
+   * is the one way in, and a button spinning behind it would read as a second one.
+   */
+  let isArriving = $state(false);
 
   $effect(() => {
     // `untrack` for the reason every store here records: the clock writes the store and writing it
@@ -77,7 +82,7 @@
     // reads and an effect that tracked that would ask again the moment the answer came back.
     if (!asked) {
       asked = true;
-      untrack(() => void raise());
+      untrack(() => void raise(true));
     }
   });
 
@@ -88,8 +93,9 @@
       : t('app.instance.remaining_seconds', { seconds: remaining }),
   );
 
-  async function raise(): Promise<void> {
-    isWorking = true;
+  async function raise(onArrival = false): Promise<void> {
+    if (onArrival) isArriving = true;
+    else isWorking = true;
     failure = undefined;
     try {
       await instance.elevate();
@@ -100,6 +106,7 @@
           : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
     } finally {
       isWorking = false;
+      isArriving = false;
     }
   }
 </script>
@@ -122,14 +129,16 @@
          opens it as its action (UC-WRK-32 check 4). -->
     <ReadOnlyNotice text={t('app.instance.locked_intro')}>
       {#snippet action()}
-        <Button
-          tone="primary"
-          isBusy={isWorking}
-          busyLabel={t('app.instance.raising')}
-          onclick={() => void raise()}
-        >
-          {t('app.instance.raise')}
-        </Button>
+        {#if !isArriving}
+          <Button
+            tone="primary"
+            isBusy={isWorking}
+            busyLabel={t('app.instance.raising')}
+            onclick={() => void raise()}
+          >
+            {t('app.instance.raise')}
+          </Button>
+        {/if}
       {/snippet}
     </ReadOnlyNotice>
     {#if failure}

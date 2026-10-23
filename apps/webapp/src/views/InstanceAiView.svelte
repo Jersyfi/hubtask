@@ -46,6 +46,7 @@
   let draft = $state(emptyModel('OPENAI_COMPATIBLE', 'EEA'));
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openOfferedAi());
     return stop;
   });

@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { HUB, MANIFEST, PERMISSIONS, WORKSPACE, signedIn, stub } from './fixture.mjs';
+import { HUB, MANIFEST, PERMISSIONS, WORKSPACE, chooseNew, newRows, signedIn, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -55,8 +55,14 @@ async function as(browser, { permissions, offered, allowed = true }) {
   return { page, failures, context, sent };
 }
 
-const shared = (page) => page.getByRole('button', { name: 'Create hub', exact: true });
-const own = (page) => page.getByRole('button', { name: 'Create private hub', exact: true });
+/** The navigation's *＋ New*, once the tree is drawn: what its menu offers. */
+async function offered(page) {
+  await page.getByRole('tree').first().waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  const rows = await newRows(page);
+  if (rows.length > 0) await page.keyboard.press('Escape');
+  return rows;
+}
 
 test('chromium: a member is offered a private hub of their own and no shared hub, and the dialog makes it private', async (t) => {
   const browser = await chromium.launch();
@@ -65,12 +71,11 @@ test('chromium: a member is offered a private hub of their own and no shared hub
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
-  await own(page).first().waitFor({ timeout: 10_000 });
-  // In the navigation, once: *Today* carries no head action of its own (ux-inventory.md §E9).
-  assert.equal(await own(page).count(), 1, 'not offered once, in the navigation');
-  assert.equal(await shared(page).count(), 0, 'a member is offered a shared hub the server refuses');
+  // In the navigation's *＋ New*, alone: *Today* carries no head action of its own (§E9), and a
+  // member is offered no shared hub the server refuses.
+  assert.deepEqual(await offered(page), ['Create private hub']);
 
-  await own(page).first().click();
+  await chooseNew(page, 'Create private hub');
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByRole('heading', { name: 'Create private hub' }).count(), 1, 'the dialog does not say what it makes');
@@ -91,10 +96,7 @@ test('chromium: where private hubs are not offered, a viewer is offered no hub a
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
-  await page.getByRole('navigation').first().waitFor({ timeout: 10_000 });
-  await page.waitForTimeout(600);
-  assert.equal(await own(page).count(), 0, 'a private hub offered where the server refuses one');
-  assert.equal(await shared(page).count(), 0, 'a shared hub offered to somebody without STRUCTURE');
+  assert.deepEqual(await offered(page), [], 'a hub offered to somebody the server refuses one');
   assert.deepEqual(failures, []);
 });
 
@@ -105,10 +107,9 @@ test('chromium: whoever shapes the workspace where private hubs are switched off
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/`);
-  await shared(page).first().waitFor({ timeout: 10_000 });
-  assert.equal(await own(page).count(), 0, 'a private-only hub offered to whoever may shape the workspace');
+  assert.deepEqual(await offered(page), ['Create hub'], 'not a shared hub alone for whoever may shape the workspace');
 
-  await shared(page).first().click();
+  await chooseNew(page, 'Create hub');
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Garden');

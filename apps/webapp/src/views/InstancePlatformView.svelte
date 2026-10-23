@@ -39,6 +39,7 @@
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { instance } from '../lib/data/instance.svelte.ts';
   import { platformSubscriptions } from '../lib/data/platformsubscriptions.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { formatRelative } from '../lib/i18n/datetime.ts';
@@ -72,7 +73,7 @@
   const isMulti = $derived(manifest.isMultiTenant);
 
   $effect(() => {
-    if (!isMulti) return;
+    if (!isMulti || !instance.isElevated) return;
     const stop = untrack(() => platformSubscriptions.openSubscriptions());
     return stop;
   });

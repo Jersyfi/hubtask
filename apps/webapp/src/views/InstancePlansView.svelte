@@ -42,6 +42,7 @@
 
   $effect(() => page.entitle(t('app.instance.plans')));
   $effect(() => {
+    if (!instance.isElevated) return;
     if (!manifest.isMultiTenant) return;
     const stops = untrack(() => [plans.open(), instance.openWorkspaces(), instance.openSettings()]);
     return () => stops.forEach((stop) => stop());

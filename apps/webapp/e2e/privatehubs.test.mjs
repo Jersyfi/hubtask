@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { ACCOUNT, EMERGENCY_ACCESS, HUB, OTHER, PRIVATE_HUBS, WORKSPACE, signedIn } from './fixture.mjs';
+import { ACCOUNT, EMERGENCY_ACCESS, HUB, OTHER, PRIVATE_HUBS, WORKSPACE, chooseNew, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -24,7 +24,7 @@ test.after(() => served.close());
 /** Opens the create-hub dialog from the overview's head. */
 async function openCreate(page) {
   await page.goto(`${served.origin}/`);
-  await page.getByRole('button', { name: 'Create hub' }).first().click();
+  await chooseNew(page, 'Create hub');
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });
   return dialog;
