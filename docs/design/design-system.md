@@ -586,7 +586,9 @@ screenshots.
 
 * **It starts while the account's `onboarding_completed_at` is null.** Finishing or skipping writes
   it; *Take the tour again* in *Help and shortcuts* (§11.4) clears it. The field is the account's
-  (`AccountPreferences`): having been shown the product is a fact about the person.
+  (`AccountPreferences`): having been shown the product is a fact about the person. It starts on
+  the overview, where its first step is: an address opened by link, bookmark or mail keeps its
+  screen, and the tour waits until the person first arrives on the overview.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
   complete a first task, which fires the tier-3 onboarding moment (§7). Any completion while

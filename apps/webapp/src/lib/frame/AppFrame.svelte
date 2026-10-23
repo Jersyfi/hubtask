@@ -614,7 +614,7 @@
   <StepUpPrompt />
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
-    <TourGuide {onnavigate} />
+    <TourGuide path={route.path} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a

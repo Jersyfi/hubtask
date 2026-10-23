@@ -70,5 +70,14 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
   return steps;
 }
 
+/**
+ * Whether the tour may start at this address: only on the overview, where its first step is.
+ * Its first step navigates, so a start anywhere else would replace an address somebody opened by
+ * link or bookmark with the overview; it starts instead when they first arrive there.
+ */
+export function startsAt(path: string): boolean {
+  return path === '/';
+}
+
 /** The key under which this tab remembers that the tour was walked to its end or skipped. */
 export const TOUR_SESSION_KEY = 'hubtask.tour';
