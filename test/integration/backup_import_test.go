@@ -729,6 +729,7 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 
 	original := taskIn(tenantA, authorA, collection, id, "Weekly shop", "a0")
 	original.Notes = "milk, bread, and something for Sunday"
+	original.Amount = "1 bag"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		return itemRepo().Insert(ctx, original)
 	}); err != nil {

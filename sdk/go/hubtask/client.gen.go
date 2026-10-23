@@ -10945,6 +10945,9 @@ type StructureCountsClipReason string
 
 // StructureLevel defines model for StructureLevel.
 type StructureLevel struct {
+	// DoneName What the level's done entries are shown under, such as "In the trolley" - a name a person chose, under the same rule as the level's own. Without one, a client shows its translated name for done entries.
+	DoneName *string `json:"done_name,omitempty"`
+
 	// Name The level's own name, counted in code points after trimming.
 	Name *string `json:"name,omitempty"`
 
@@ -10954,8 +10957,11 @@ type StructureLevel struct {
 
 // StructureLevelFields defines model for StructureLevelFields.
 type StructureLevelFields struct {
-	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it.
+	// Capabilities The capabilities this type carries, out of those `/meta/capabilities` lists for it. AMOUNT is carried only where a layer names it.
 	Capabilities []string `json:"capabilities"`
+
+	// Categories The labels this type's entries are grouped by, in their order: an entry sits under the first of them it carries. Only beside LABELS, and only on a collection's own layer; each a label of that collection (`structure.category_unknown` otherwise). A label deleted afterwards stays named and is skipped by clients.
+	Categories *[]openapi_types.UUID `json:"categories,omitempty"`
 }
 
 // StructureLock defines model for StructureLock.
@@ -11836,6 +11842,8 @@ type WebhookSubscriptionUpdateState string
 
 // WorkItem defines model for WorkItem.
 type WorkItem struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount     *string             `json:"amount,omitempty"`
 	ArchivedAt *time.Time          `json:"archived_at,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 
@@ -11852,6 +11860,9 @@ type WorkItem struct {
 	Children     *[]WorkItem        `json:"children,omitempty"`
 	CollectionId openapi_types.UUID `json:"collection_id"`
 	Completion   Completion         `json:"completion"`
+
+	// CompletionCount How often the entry went from open to done. Completing it again while it is done counts nothing, and reopening it keeps the count. What a list ranks entries it can bring back by, most used first. Kept by the server; a client never sends it.
+	CompletionCount *int `json:"completion_count,omitempty"`
 
 	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.
 	ContentLanguage *string                 `json:"content_language,omitempty"`
@@ -11906,6 +11917,8 @@ type WorkItem struct {
 
 // WorkItemCreate defines model for WorkItemCreate.
 type WorkItemCreate struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount       *string             `json:"amount,omitempty"`
 	AssigneeId   *openapi_types.UUID `json:"assignee_id,omitempty"`
 	AutoAssign   *bool               `json:"auto_assign,omitempty"`
 	BeforeItemId *openapi_types.UUID `json:"before_item_id,omitempty"`
@@ -11943,6 +11956,8 @@ type WorkItemPage struct {
 
 // WorkItemUpdate JSON Merge Patch; null deletes a field.
 type WorkItemUpdate struct {
+	// Amount How much of it - "2", "1 kg" - beside the title rather than in it. Up to 40 characters on one line, trimmed; empty or null is none. Only where the collection's structure in force carries AMOUNT for the entry's type (`structure.settings.fields`); elsewhere `capability_not_supported`. Nothing sums it or reads a unit out of it.
+	Amount     *string             `json:"amount,omitempty"`
 	AssigneeId *openapi_types.UUID `json:"assignee_id,omitempty"`
 	BucketId   *openapi_types.UUID `json:"bucket_id,omitempty"`
 

@@ -36,6 +36,8 @@ type Preset struct {
 // is a decision about what a kind of collection needs - *List* has no date, person, label, note
 // editor or child entry (UC-WRK-23 check 4) - and a decision belongs in one readable place.
 func BuiltInPresets() []Preset {
+	// Every capability but the opt-in ones (Capability.OptIn): *Project* and *Flow* are the bound
+	// minus what a collection has to ask for.
 	all := []Capability{
 		CapabilityCompletion, CapabilityDueDate, CapabilityReminder, CapabilityAssignment,
 		CapabilityMembers, CapabilityBucket, CapabilityNotes, CapabilityLabels, CapabilityComments,
@@ -51,7 +53,7 @@ func BuiltInPresets() []Preset {
 		{Key: PresetList, Values: StructureValues{
 			Levels: []Level{{Type: ItemTask}},
 			Fields: map[ItemType]LevelFields{ItemTask: {Capabilities: []Capability{
-				CapabilityCompletion, CapabilityHistory, CapabilityCustomFields,
+				CapabilityCompletion, CapabilityHistory, CapabilityCustomFields, CapabilityAmount,
 			}}},
 			Views:       &Views{Offered: []ViewLayout{ViewListCollapsed}, Default: ViewListCollapsed},
 			Counts:      &Counts{Figure: FigureOpen},

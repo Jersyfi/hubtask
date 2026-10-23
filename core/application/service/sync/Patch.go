@@ -32,7 +32,7 @@ const clockEntityItem = "item"
 var (
 	// updateFields are UpdateWorkItem's: one call carries every winner among them.
 	updateFields = map[string]bool{
-		work.FieldTitle: true, work.FieldNotes: true, work.FieldBucketID: true,
+		work.FieldTitle: true, work.FieldAmount: true, work.FieldNotes: true, work.FieldBucketID: true,
 		work.FieldContentLanguage: true, work.FieldStartAt: true,
 		work.FieldDueAt: true, work.FieldDueDateOnly: true, work.FieldDueTimeZone: true,
 	}
@@ -47,7 +47,8 @@ var (
 	// lifecycle stamps, the search's columns).
 	ownedFields = map[string]bool{
 		"id": true, "type": true, work.FieldCollectionID: true, "path": true, "depth": true,
-		"version": true, "updated_at": true, "created_at": true, "created_by": true,
+		work.FieldCompletionCount: true,
+		"version":                 true, "updated_at": true, "created_at": true, "created_by": true,
 		"recurrence_rule_id": true, "recurrence_source_id": true, "origin_jumble_id": true,
 		work.FieldCalendarUID: true, "retention": true, "archived_at": true, "deleted_at": true, "trash_batch_id": true,
 		"search_document": true, "search_configuration": true,

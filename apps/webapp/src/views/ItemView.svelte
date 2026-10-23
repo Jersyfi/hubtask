@@ -79,6 +79,7 @@
   import CelebrationSlot from '../lib/entries/CelebrationSlot.svelte';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
+  import AmountPanel from '../lib/entries/AmountPanel.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
@@ -214,6 +215,10 @@
    */
   const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
+  /** Whether the collection's structure in force gives this entry an amount (UC-WRK-25 check 2). */
+  const offersAmount = $derived(
+    item ? (collection?.structure?.settings?.fields?.[item.type]?.capabilities ?? []).includes('AMOUNT') : false,
+  );
   const trail = $derived([
     ...(hub ? [{ id: hub.id, label: hub.name, href: `/hubs/${hub.id}` }] : []),
     ...(collection ? [{ id: collection.id, label: collection.name, href: `/collections/${collection.id}` }] : []),
@@ -1094,6 +1099,11 @@
                    they pressed. -->
               <DetailRow id="due" label={t('app.due.title')} value={datesValue} isReadOnly={!isWritable} ask={hasAi ? dueAsk : undefined} below={hasAi ? dueBelow : undefined}>
                 <DuePanel {item} />
+              </DetailRow>
+            {/if}
+            {#if offersAmount}
+              <DetailRow id="amount" label={t('app.entries.amount_label')} value={item.amount ?? undefined} isReadOnly={!isChangeable}>
+                <AmountPanel {item} disabledReason={frozenReason} />
               </DetailRow>
             {/if}
             {#if carries('LABELS')}

@@ -281,8 +281,11 @@ class Containers {
   }
 
   /**
-   * Changes settings of a hub's or a collection's own structure (`PATCH …/structure`), one by one;
-   * the answer is the container with its structure in force, its figure read again with the level.
+   * Changes settings of a hub's or a collection's own structure (`PATCH …/structure`, domain-model.md
+   * §2), one by one: each setting sent replaces the layer's own value of it, whole. The answer is the
+   * container with its structure in force, its figure read again with the level. Online only - a
+   * structure is resolved by the server, and offline the engine refuses it with
+   * `sync.needs_connection`.
    */
   async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
     return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {

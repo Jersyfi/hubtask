@@ -1713,4 +1713,6 @@ type WorkItem struct {
 	RecurrenceSourceID    pgtype.UUID
 	SearchConfiguration   *string
 	CalendarUid           *string
+	Amount                *string
+	CompletionCount       int32
 }
