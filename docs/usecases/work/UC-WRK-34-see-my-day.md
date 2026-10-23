@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
 state: verified
 tasks: [UX-15]
-checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs, docs/evidence/UX-15-2026-10-23.md]
+checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/src/lib/today.test.ts, apps/webapp/e2e/looks.test.mjs]
 ---
 
 # See my day
