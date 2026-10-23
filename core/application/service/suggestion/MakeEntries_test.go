@@ -66,8 +66,8 @@ func (l listWorkspace) Invoke(
 
 func entriesAsker() appshared.ActorContext {
 	actor := person()
-	// A token that writes entries and nothing of automation: asking needs no more than creating.
-	actor.Scopes = []string{automationScope, suggestionsRead, suggestionsWrite}
+	// A token for entries and nothing of automation: proposed entries are no configuration.
+	actor.Scopes = []string{suggestionsRead, suggestionsWrite}
 	return actor
 }
 
@@ -501,5 +501,41 @@ func TestNobodyElseTakesYourEntries(t *testing.T) {
 	_, _, err := AcceptSuggestion{Cases: cases}.Take(context.Background(), other, entriesProposalID, nil, nil)
 	if !errors.Is(err, shared.ErrNotFound) || len(created(w)) != 0 {
 		t.Errorf("another person's take answered %v with %d creates", err, len(created(w)))
+	}
+}
+
+// Entries are no configuration: a token that writes entries and nothing else asks for them and
+// takes them, and listing them asks only the read of entries - automation's scope is never asked.
+func TestATokenForEntriesAloneAsksListsAndTakesThem(t *testing.T) {
+	writeOnly := entriesAsker()
+	writeOnly.Scopes = []string{suggestionsWrite}
+
+	registry, a, _ := making(true, integration.KeptOut{}, shoppingList())
+	if _, err := registry.Invoke(context.Background(), MakeEntriesName, writeOnly, usecase.Input{
+		"collection_id": containerTargetID.String(), "text": "Flour\nEggs",
+	}); err != nil || len(a.jobs.queued) != 1 {
+		t.Fatalf("a token with items:write alone could not ask: %v, %d jobs", err, len(a.jobs.queued))
+	}
+
+	cases, w := newWorld()
+	w.store.proposals[entriesProposalID] = entriesProposal()
+	readOnly := entriesAsker()
+	readOnly.Scopes = []string{suggestionsRead}
+	page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), readOnly, ListQuery{
+		TargetType: domain.TargetAccount, TargetID: accountID,
+	})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("a token with items:read alone does not list them: %v, %d", err, len(page.Items))
+	}
+	automationOnly := entriesAsker()
+	automationOnly.Scopes = []string{automationScope}
+	if page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), automationOnly, ListQuery{
+		TargetType: domain.TargetAccount, TargetID: accountID,
+	}); err != nil || len(page.Items) != 0 {
+		t.Errorf("a token for automation alone listed them: %v, %d", err, len(page.Items))
+	}
+
+	if _, ids, err := (AcceptSuggestion{Cases: cases}).Take(context.Background(), writeOnly, entriesProposalID, nil, nil); err != nil || len(ids) != 3 {
+		t.Fatalf("a token with items:write alone could not take them: %v, %d created", err, len(ids))
 	}
 }

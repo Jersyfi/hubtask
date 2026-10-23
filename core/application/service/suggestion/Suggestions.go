@@ -361,7 +361,8 @@ func ownAccount(actor appshared.ActorContext, accountID shared.ID) error {
 
 // ownScope is the token scope a suggestion about its asker is read or answered under. A rule draft
 // is configuration, so it travels with automation's scope; anything else for the asker - an answer
-// to a question - is no configuration and travels with the suggestions' own scope.
+// to a question, entries made from a text - is no configuration and travels with the suggestions'
+// own scope.
 func ownScope(kind domain.Kind, suggestionsScope string) string {
 	if kind == domain.KindRule {
 		return automationScope
