@@ -1550,6 +1550,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/containers/{containerId}/structure", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** POST /containers/{containerId}/structure:preview */
+  previewContainerStructure(containerId: string, body: NonNullable<operations["previewContainerStructure"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["previewContainerStructure"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/structure:preview", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** PUT /containers/{containerId}/privacy */
   setHubPrivacy(containerId: string, body: NonNullable<operations["setHubPrivacy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setHubPrivacy"]['responses'][200]['content']["application/json"]> {
     return this.call("PUT", "/containers/{containerId}/privacy", { "containerId": containerId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);

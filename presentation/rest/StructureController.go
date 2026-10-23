@@ -15,9 +15,10 @@ import (
 
 // The structure use cases: presets and the settings of hubs, collections and the workspace.
 const (
-	listPresetsUseCase           = "ListPresets"
-	setContainerStructureUseCase = "SetContainerStructure"
-	setWorkspaceStructureUseCase = "SetWorkspaceStructure"
+	listPresetsUseCase               = "ListPresets"
+	setContainerStructureUseCase     = "SetContainerStructure"
+	previewContainerStructureUseCase = "PreviewContainerStructure"
+	setWorkspaceStructureUseCase     = "SetWorkspaceStructure"
 )
 
 // ListPresets answers GET /presets.
@@ -103,6 +104,40 @@ func (c *RestController) SetContainerStructure(
 	}
 	w.Header().Set("ETag", etag(out.Int("version")))
 	writeJSON(w, r, http.StatusOK, answer)
+}
+
+// PreviewContainerStructure answers POST /containers/{containerId}/structure:preview: what the
+// change in the body would stop showing, decided as PATCH .../structure would decide it.
+func (c *RestController) PreviewContainerStructure(
+	w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.StructureChange
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in, err := structureChangeInput(body)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in["container_id"] = containerID.String()
+	out, err := c.UseCases.Invoke(r.Context(), previewContainerStructureUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	var preview openapi.StructurePreview
+	if err := throughJSON(out, &preview); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, preview)
 }
 
 // structureChangeInput is a structure change as the catalogue reads it: the preset, the settings as

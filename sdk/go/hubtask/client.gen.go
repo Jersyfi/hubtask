@@ -4386,6 +4386,30 @@ func (e StructureLockOrigin) Valid() bool {
 	}
 }
 
+// Defines values for StructurePreviewViews.
+const (
+	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
+	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
+	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
+	StructurePreviewViewsTIMELINE      StructurePreviewViews = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructurePreviewViews enum.
+func (e StructurePreviewViews) Valid() bool {
+	switch e {
+	case StructurePreviewViewsKANBAN:
+		return true
+	case StructurePreviewViewsLISTCOLLAPSED:
+		return true
+	case StructurePreviewViewsLISTEXPANDED:
+		return true
+	case StructurePreviewViewsTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingName.
 const (
 	StructureSettingNameAutomation  StructureSettingName = "automation"
@@ -11015,6 +11039,45 @@ type StructureLock struct {
 // StructureLockOrigin defines model for StructureLock.Origin.
 type StructureLockOrigin string
 
+// StructurePreview What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted.
+type StructurePreview struct {
+	// Automation What runs by itself now and would pause.
+	Automation []string `json:"automation"`
+
+	// Fields The capabilities whose values would no longer be shown on entries that stay shown, and on how many entries a value would be.
+	Fields []struct {
+		Capability string `json:"capability"`
+		Entries    int    `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"fields"`
+
+	// Keeping For a hub: the collections that follow it but keep their own value of a setting the change moves, and which settings. Empty for a collection.
+	Keeping []struct {
+		ContainerId openapi_types.UUID     `json:"container_id"`
+		Name        string                 `json:"name"`
+		Settings    []StructureSettingName `json:"settings"`
+	} `json:"keeping"`
+
+	// Levels The levels whose entries would no longer be shown, and how many entries each - an entry counts under its own level when the change hides it or a level above it.
+	Levels []struct {
+		Entries int `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"levels"`
+
+	// Narrows Whether anything shown now would no longer be shown.
+	Narrows bool `json:"narrows"`
+
+	// Views The views no longer offered.
+	Views []StructurePreviewViews `json:"views"`
+}
+
+// StructurePreviewViews defines model for StructurePreview.Views.
+type StructurePreviewViews string
+
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
@@ -13808,6 +13871,9 @@ type SetHubPrivacyJSONRequestBody = HubPrivacy
 
 // SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
 type SetContainerStructureJSONRequestBody = StructureChange
+
+// PreviewContainerStructureJSONRequestBody defines body for PreviewContainerStructure for application/json ContentType.
+type PreviewContainerStructureJSONRequestBody = StructureChange
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
@@ -16771,6 +16837,18 @@ type ClientInterface interface {
 	//
 	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewContainerStructureWithBody performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+	PreviewContainerStructureWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// PreviewContainerStructure performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type.
+	//
+	// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+	PreviewContainerStructure(ctx context.Context, containerId ContainerId, body PreviewContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ArchiveContainer performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
@@ -24416,6 +24494,38 @@ func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId 
 // Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewContainerStructureWithBody performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+func (c *Client) PreviewContainerStructureWithBody(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerStructureRequestWithBody(c.Server, containerId, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// PreviewContainerStructure performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type.
+//
+// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+func (c *Client) PreviewContainerStructure(ctx context.Context, containerId ContainerId, body PreviewContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewPreviewContainerStructureRequest(c.Server, containerId, body)
 	if err != nil {
 		return nil, err
 	}
@@ -37351,6 +37461,53 @@ func NewSetContainerStructureRequestWithBody(server string, containerId Containe
 	return req, nil
 }
 
+// NewPreviewContainerStructureRequest calls the generic PreviewContainerStructure builder with application/json body
+func NewPreviewContainerStructureRequest(server string, containerId ContainerId, body PreviewContainerStructureJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewPreviewContainerStructureRequestWithBody(server, containerId, "application/json", bodyReader)
+}
+
+// NewPreviewContainerStructureRequestWithBody constructs an http.Request for the PreviewContainerStructure method, with any body, and a specified content type
+func NewPreviewContainerStructureRequestWithBody(server string, containerId ContainerId, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s/structure:preview", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewArchiveContainerRequest constructs an http.Request for the ArchiveContainer method
 func NewArchiveContainerRequest(server string, containerId ContainerId, params *ArchiveContainerParams) (*http.Request, error) {
 	var err error
@@ -49312,6 +49469,20 @@ type ClientWithResponsesInterface interface {
 	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
 
+	// PreviewContainerStructureWithBodyWithResponse performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
+	// with any type of body and a specified content type.
+	//
+	// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	PreviewContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerStructureResult, error)
+
+	// PreviewContainerStructureWithResponse performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request.
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+	PreviewContainerStructureWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerStructureResult, error)
+
 	// ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 	//
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -60527,6 +60698,54 @@ func (r SetContainerStructureResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetContainerStructureResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type PreviewContainerStructureResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *StructurePreview
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r PreviewContainerStructureResult) GetJSON200() *StructurePreview {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r PreviewContainerStructureResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r PreviewContainerStructureResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r PreviewContainerStructureResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r PreviewContainerStructureResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r PreviewContainerStructureResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -74056,6 +74275,32 @@ func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Cont
 	return ParseSetContainerStructureResult(rsp)
 }
 
+// PreviewContainerStructureWithBodyWithResponse performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
+// with any type of body and a specified content type.
+//
+// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) PreviewContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*PreviewContainerStructureResult, error) {
+	rsp, err := c.PreviewContainerStructureWithBody(ctx, containerId, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerStructureResult(rsp)
+}
+
+// PreviewContainerStructureWithResponse performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request.
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Answers what a change of a hub's or collection's own structure would stop showing, before it is made, and writes nothing: the levels whose entries would no longer be shown with how many, the fields whose values would no longer be shown with on how many entries, the views no longer offered, and what would no longer run by itself. For a hub, the counts are over every collection that follows it, and `keeping` names the collections that keep their own value of a setting the change moves. `narrows` false means nothing shown now would stop being shown, and the change can be made at once. Takes the body `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+func (c *ClientWithResponses) PreviewContainerStructureWithResponse(ctx context.Context, containerId ContainerId, body PreviewContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*PreviewContainerStructureResult, error) {
+	rsp, err := c.PreviewContainerStructure(ctx, containerId, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParsePreviewContainerStructureResult(rsp)
+}
+
 // ArchiveContainerWithResponse performs a POST /containers/{containerId}:archive (the `ArchiveContainer` operationId) request.
 //
 // Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
@@ -84317,6 +84562,39 @@ func ParseSetContainerStructureResult(rsp *http.Response) (*SetContainerStructur
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParsePreviewContainerStructureResult parses an HTTP response from a PreviewContainerStructureWithResponse call
+func ParsePreviewContainerStructureResult(rsp *http.Response) (*PreviewContainerStructureResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PreviewContainerStructureResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest StructurePreview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

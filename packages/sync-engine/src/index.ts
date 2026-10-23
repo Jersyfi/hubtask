@@ -111,6 +111,7 @@ export type {
   Kudos,
   Preset,
   StructureChange,
+  StructurePreview,
   StructureSettings,
   WorkspaceStructure,
   WorkspaceStructureChange,

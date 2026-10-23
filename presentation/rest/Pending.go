@@ -1551,6 +1551,10 @@ func (pending) SetContainerStructure(
 	notAvailable(w, r)
 }
 
+func (pending) PreviewContainerStructure(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+	notAvailable(w, r)
+}
+
 func (pending) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, _ openapi.SetWorkspaceStructureParams) {
 	notAvailable(w, r)
 }

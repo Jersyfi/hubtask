@@ -2073,6 +2073,12 @@ func run() error {
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
 			Labels: labels,
 		}.Descriptor(),
+		work.PreviewContainerStructure{
+			Set: work.SetContainerStructure{
+				Writer: containerWriter, Structure: structures, Labels: labels,
+			},
+			Shapes: items,
+		}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: structures, Authorizer: authorizer, Changes: changes,
 			Epochs: postgres.NewEpochRepository(), Audit: auditSink, UnitOfWork: unitOfWork,

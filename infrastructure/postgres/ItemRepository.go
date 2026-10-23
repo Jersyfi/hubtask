@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"time"
 
@@ -135,6 +136,62 @@ func (r ItemRepository) TypesOf(ctx context.Context, ids []shared.ID) (map[share
 		types[id] = work.ItemType(row.Type)
 	}
 	return types, nil
+}
+
+// ShapesIn answers up to limit live entries of the collections, with the capabilities each holds
+// a value for. Another tenant's collection is absent, by the predicate and row level security.
+func (r ItemRepository) ShapesIn(
+	ctx context.Context, collectionIDs []shared.ID, limit int,
+) ([]repository.EntryShape, error) {
+	if len(collectionIDs) == 0 || limit <= 0 {
+		return []repository.EntryShape{}, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.CollectionEntryShapes(ctx, sqlc.CollectionEntryShapesParams{
+		CollectionIds: keys, MaxRows: int32(min(limit, math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the shapes of work items: %w", err))
+	}
+	shapes := make([]repository.EntryShape, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		collectionID, err := idFrom(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		holds := []work.Capability{}
+		for capability, held := range map[work.Capability]bool{
+			work.CapabilityDueDate: row.HasDueDate, work.CapabilityAssignment: row.HasAssignment,
+			work.CapabilityBucket: row.HasBucket, work.CapabilityNotes: row.HasNotes,
+			work.CapabilityCover: row.HasCover, work.CapabilityAmount: row.HasAmount,
+			work.CapabilityRecurrence: row.HasRecurrence, work.CapabilityCustomFields: row.HasCustomFields,
+			work.CapabilityLabels: row.HasLabels, work.CapabilityMembers: row.HasMembers,
+			work.CapabilityComments: row.HasComments, work.CapabilityAttachments: row.HasAttachments,
+			work.CapabilityReminder: row.HasReminder,
+		} {
+			if held {
+				holds = append(holds, capability)
+			}
+		}
+		slices.Sort(holds)
+		shapes = append(shapes, repository.EntryShape{
+			ID: id, CollectionID: collectionID, Type: work.ItemType(row.Type), Path: row.Path, Holds: holds,
+		})
+	}
+	return shapes, nil
 }
 
 // FindByCalendarUID returns the item a calendar client's UID names.

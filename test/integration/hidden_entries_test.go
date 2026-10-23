@@ -89,6 +89,9 @@ func hiddenCatalogue(t *testing.T) *usecase.Registry {
 		work.SetContainerStructure{
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
 		}.Descriptor(),
+		work.PreviewContainerStructure{
+			Set: work.SetContainerStructure{Writer: writer, Structure: resolver}, Shapes: itemRepo(),
+		}.Descriptor(),
 		work.CreateWorkItem{
 			Items: itemRepo(), Containers: containers, Profiles: profiles, Gate: gate,
 			Authorizer: authoriser, Ownership: authoriser, Events: outbox, Changes: changes, Audit: sink,
@@ -215,6 +218,12 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	// Tenant B, seeded through the repository with its own ranks: tenant A carries a narrowed TASK
 	// profile and tenant B's hub level a rank another test wrote, both in the shared database.
 	collection := collectionFor(ctx, t, tenantB, authorB).String()
+	// UC-WRK-24's story: the collection is a project first.
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "PROJECT",
+	}); err != nil {
+		t.Fatalf("making it a project: %v", err)
+	}
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
 		"type": "TASK", "collection_id": collection, "title": "Summer party", "notes": "Budget 400",
@@ -289,6 +298,35 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		}
 	})
 	before := storedAbout(ctx, t, entries...)
+
+	// UC-WRK-24 check 2: the preview names what List would no longer show, and writes nothing.
+	preview, err := registry.Invoke(ctx, "PreviewContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	levels, _ := json.Marshal(preview["levels"])
+	fields, _ := json.Marshal(preview["fields"])
+	if preview["narrows"] != true ||
+		string(levels) != `[{"entries":1,"type":"WORK_PACKAGE"},{"entries":1,"type":"ACTIVITY"}]` {
+		t.Errorf("the preview named levels %s", levels)
+	}
+	for _, capability := range []string{"NOTES", "DUE_DATE", "ASSIGNMENT", "BUCKET", "COVER", "MEMBERS",
+		"ATTACHMENTS", "COMMENTS", "REMINDER", "RECURRENCE"} {
+		if !strings.Contains(string(fields), `{"capability":"`+capability+`","entries":1,"type":"TASK"}`) {
+			t.Errorf("the preview did not name %s: %s", capability, fields)
+		}
+	}
+	if previewed := storedAbout(ctx, t, entries...); previewed != before {
+		t.Fatalf("the preview changed what is stored")
+	}
+	// Another workspace previews nothing of it.
+	if _, err := registry.Invoke(ctx, "PreviewContainerStructure", hiddenActor(tenantA, authorA), usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("tenant A previewed tenant B's collection: %v", err)
+	}
 
 	// Narrow to List: nothing stored moves.
 	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
@@ -410,6 +448,30 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	recorder = restItem(ctx, t, registry, actor, http.MethodPatch, "/items/"+taskID, `{"notes":"Budget 500"}`)
 	if recorder.Code != http.StatusOK {
 		t.Errorf("widened, REST answered %d %s", recorder.Code, recorder.Body)
+	}
+
+	// UC-WRK-24 check 8: every switch is in the trail with who, when and from what to what.
+	rows, err := adminPool(ctx, t).Query(ctx, `SELECT actor_id::text, occurred_at IS NOT NULL, changes::text
+		FROM audit_log WHERE target_id::text = $1 AND action = 'container.structure_updated' ORDER BY seq`, collection)
+	if err != nil {
+		t.Fatalf("reading the trail: %v", err)
+	}
+	switches := []string{}
+	for rows.Next() {
+		var who, changes string
+		var when bool
+		if err := rows.Scan(&who, &when, &changes); err != nil {
+			t.Fatalf("reading the trail: %v", err)
+		}
+		if who != authorB.String() || !when {
+			t.Errorf("a switch was recorded as %s at %v", who, when)
+		}
+		switches = append(switches, changes)
+	}
+	rows.Close()
+	if len(switches) != 3 || !strings.Contains(switches[1], `"PROJECT"`) || !strings.Contains(switches[1], `"LIST"`) ||
+		!strings.Contains(switches[2], `"PROJECT"`) {
+		t.Errorf("the trail holds %d switches: %v", len(switches), switches)
 	}
 }
 

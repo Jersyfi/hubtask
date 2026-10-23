@@ -8306,6 +8306,37 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}/structure:preview:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [containers]
+      operationId: previewContainerStructure
+      description: >
+        Answers what a change of a hub's or collection's own structure would stop showing, before
+        it is made, and writes nothing: the levels whose entries would no longer be shown with how
+        many, the fields whose values would no longer be shown with on how many entries, the views
+        no longer offered, and what would no longer run by itself. For a hub, the counts are over
+        every collection that follows it, and `keeping` names the collections that keep their own
+        value of a setting the change moves. `narrows` false means nothing shown now would stop
+        being shown, and the change can be made at once. Takes the body
+        `PATCH /containers/{containerId}/structure` takes, and is refused as it would be.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StructureChange"
+      responses:
+        "200":
+          description: What the change would stop showing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructurePreview"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/privacy:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -15642,6 +15673,63 @@ components:
           type: array
           maxItems: 8
           items: { $ref: "#/components/schemas/StructureSettingName" }
+
+    StructurePreview:
+      type: object
+      description: >
+        What a change of structure would stop showing. Nothing it names is deleted by the change:
+        hidden entries and values stay stored and come back when the structure offers them again.
+        Trashed entries are not counted.
+      required: [narrows, levels, fields, views, automation, keeping]
+      properties:
+        narrows:
+          type: boolean
+          description: Whether anything shown now would no longer be shown.
+        levels:
+          type: array
+          description: >
+            The levels whose entries would no longer be shown, and how many entries each - an
+            entry counts under its own level when the change hides it or a level above it.
+          items:
+            type: object
+            required: [type, entries]
+            properties:
+              type: { $ref: "#/components/schemas/ItemType" }
+              entries: { type: integer, minimum: 1 }
+        fields:
+          type: array
+          description: >
+            The capabilities whose values would no longer be shown on entries that stay shown, and
+            on how many entries a value would be.
+          items:
+            type: object
+            required: [type, capability, entries]
+            properties:
+              type: { $ref: "#/components/schemas/ItemType" }
+              capability: { type: string }
+              entries: { type: integer, minimum: 1 }
+        views:
+          type: array
+          description: The views no longer offered.
+          items: { type: string, enum: [LIST_COLLAPSED, LIST_EXPANDED, KANBAN, TIMELINE] }
+        automation:
+          type: array
+          description: What runs by itself now and would pause.
+          items: { type: string }
+        keeping:
+          type: array
+          description: >
+            For a hub: the collections that follow it but keep their own value of a setting the
+            change moves, and which settings. Empty for a collection.
+          items:
+            type: object
+            required: [container_id, name, settings]
+            properties:
+              container_id: { type: string, format: uuid }
+              name: { type: string }
+              settings:
+                type: array
+                items: { $ref: "#/components/schemas/StructureSettingName" }
 
     WorkspaceStructureChange:
       type: object

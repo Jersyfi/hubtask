@@ -463,6 +463,22 @@ type ItemTypes interface {
 	TypesOf(ctx context.Context, ids []shared.ID) (map[shared.ID]work.ItemType, error)
 }
 
+// EntryShape is one live entry as a preview of a structure change counts it: where it sits, its
+// type, and the capabilities it holds a value for - never a value.
+type EntryShape struct {
+	ID           shared.ID
+	CollectionID shared.ID
+	Type         work.ItemType
+	Path         string
+	Holds        []work.Capability
+}
+
+// EntryShapes answers the live entries of collections, at most limit of them, ordered by
+// collection and depth. Its own interface for ItemTypes' reason: only the preview needs it.
+type EntryShapes interface {
+	ShapesIn(ctx context.Context, collectionIDs []shared.ID, limit int) ([]EntryShape, error)
+}
+
 type Items interface {
 	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
 	// archived items come back as they are stored: whether one may take children is the domain's

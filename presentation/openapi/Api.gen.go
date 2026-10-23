@@ -4380,6 +4380,30 @@ func (e StructureLockOrigin) Valid() bool {
 	}
 }
 
+// Defines values for StructurePreviewViews.
+const (
+	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
+	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
+	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
+	StructurePreviewViewsTIMELINE      StructurePreviewViews = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructurePreviewViews enum.
+func (e StructurePreviewViews) Valid() bool {
+	switch e {
+	case StructurePreviewViewsKANBAN:
+		return true
+	case StructurePreviewViewsLISTCOLLAPSED:
+		return true
+	case StructurePreviewViewsLISTEXPANDED:
+		return true
+	case StructurePreviewViewsTIMELINE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingName.
 const (
 	StructureSettingNameAutomation  StructureSettingName = "automation"
@@ -11009,6 +11033,45 @@ type StructureLock struct {
 // StructureLockOrigin defines model for StructureLock.Origin.
 type StructureLockOrigin string
 
+// StructurePreview What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted.
+type StructurePreview struct {
+	// Automation What runs by itself now and would pause.
+	Automation []string `json:"automation"`
+
+	// Fields The capabilities whose values would no longer be shown on entries that stay shown, and on how many entries a value would be.
+	Fields []struct {
+		Capability string `json:"capability"`
+		Entries    int    `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"fields"`
+
+	// Keeping For a hub: the collections that follow it but keep their own value of a setting the change moves, and which settings. Empty for a collection.
+	Keeping []struct {
+		ContainerId openapi_types.UUID     `json:"container_id"`
+		Name        string                 `json:"name"`
+		Settings    []StructureSettingName `json:"settings"`
+	} `json:"keeping"`
+
+	// Levels The levels whose entries would no longer be shown, and how many entries each - an entry counts under its own level when the change hides it or a level above it.
+	Levels []struct {
+		Entries int `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"levels"`
+
+	// Narrows Whether anything shown now would no longer be shown.
+	Narrows bool `json:"narrows"`
+
+	// Views The views no longer offered.
+	Views []StructurePreviewViews `json:"views"`
+}
+
+// StructurePreviewViews defines model for StructurePreview.Views.
+type StructurePreviewViews string
+
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
@@ -13803,6 +13866,9 @@ type SetHubPrivacyJSONRequestBody = HubPrivacy
 // SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
 type SetContainerStructureJSONRequestBody = StructureChange
 
+// PreviewContainerStructureJSONRequestBody defines body for PreviewContainerStructure for application/json ContentType.
+type PreviewContainerStructureJSONRequestBody = StructureChange
+
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
@@ -14558,6 +14624,9 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId}/structure)
 	SetContainerStructure(w http.ResponseWriter, r *http.Request, containerId ContainerId, params SetContainerStructureParams)
+
+	// (POST /containers/{containerId}/structure:preview)
+	PreviewContainerStructure(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (POST /containers/{containerId}:archive)
 	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
@@ -20618,6 +20687,32 @@ func (siw *ServerInterfaceWrapper) SetContainerStructure(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetContainerStructure(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewContainerStructure operation middleware
+func (siw *ServerInterfaceWrapper) PreviewContainerStructure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewContainerStructure(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28041,6 +28136,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)

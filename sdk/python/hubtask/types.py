@@ -1589,6 +1589,15 @@ class StructureChange(TypedDict, total=False):
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
 
+class StructurePreview(TypedDict, total=False):
+    """What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted."""
+    narrows: Required[bool]
+    levels: Required[list[dict[str, Any]]]
+    fields: Required[list[dict[str, Any]]]
+    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    automation: Required[list[str]]
+    keeping: Required[list[dict[str, Any]]]
+
 class WorkspaceStructureChange(TypedDict, total=False):
     """A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset."""
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]

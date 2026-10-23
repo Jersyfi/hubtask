@@ -166,6 +166,96 @@ func (q *Queries) ClaimOverdueItems(ctx context.Context, arg ClaimOverdueItemsPa
 	return items, nil
 }
 
+const collectionEntryShapes = `-- name: CollectionEntryShapes :many
+SELECT
+  wi.id, wi.collection_id, wi.type, wi.path,
+  (wi.due_at IS NOT NULL OR wi.start_at IS NOT NULL)::boolean AS has_due_date,
+  (wi.assignee_id IS NOT NULL)::boolean AS has_assignment,
+  (wi.bucket_id IS NOT NULL)::boolean AS has_bucket,
+  (coalesce(wi.notes, '') <> '')::boolean AS has_notes,
+  (wi.cover_kind IS NOT NULL)::boolean AS has_cover,
+  (wi.amount IS NOT NULL)::boolean AS has_amount,
+  (wi.recurrence_rule_id IS NOT NULL)::boolean AS has_recurrence,
+  (wi.custom_fields <> '{}'::jsonb)::boolean AS has_custom_fields,
+  EXISTS (SELECT 1 FROM item_label il WHERE il.item_id = wi.id)::boolean AS has_labels,
+  EXISTS (SELECT 1 FROM item_member im WHERE im.item_id = wi.id)::boolean AS has_members,
+  EXISTS (SELECT 1 FROM comment c WHERE c.item_id = wi.id AND c.deleted_at IS NULL)::boolean AS has_comments,
+  EXISTS (SELECT 1 FROM item_attachment ia WHERE ia.item_id = wi.id)::boolean AS has_attachments,
+  EXISTS (SELECT 1 FROM reminder r WHERE r.item_id = wi.id AND r.state = 'PENDING')::boolean AS has_reminder
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.collection_id = ANY($1::uuid[])
+  AND wi.deleted_at IS NULL
+ORDER BY wi.collection_id, wi.depth, wi.id
+LIMIT $2
+`
+
+type CollectionEntryShapesParams struct {
+	CollectionIds []pgtype.UUID
+	MaxRows       int32
+}
+
+type CollectionEntryShapesRow struct {
+	ID              pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	Path            string
+	HasDueDate      bool
+	HasAssignment   bool
+	HasBucket       bool
+	HasNotes        bool
+	HasCover        bool
+	HasAmount       bool
+	HasRecurrence   bool
+	HasCustomFields bool
+	HasLabels       bool
+	HasMembers      bool
+	HasComments     bool
+	HasAttachments  bool
+	HasReminder     bool
+}
+
+// What a preview of a structure change counts (UC-WRK-24 check 2): every live entry of the
+// collections, its type and path, and whether it holds a value of each capability - never the
+// value. Bounded by the caller; ordered so that a bound cuts the same entries every time.
+func (q *Queries) CollectionEntryShapes(ctx context.Context, arg CollectionEntryShapesParams) ([]CollectionEntryShapesRow, error) {
+	rows, err := q.db.Query(ctx, collectionEntryShapes, arg.CollectionIds, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CollectionEntryShapesRow{}
+	for rows.Next() {
+		var i CollectionEntryShapesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CollectionID,
+			&i.Type,
+			&i.Path,
+			&i.HasDueDate,
+			&i.HasAssignment,
+			&i.HasBucket,
+			&i.HasNotes,
+			&i.HasCover,
+			&i.HasAmount,
+			&i.HasRecurrence,
+			&i.HasCustomFields,
+			&i.HasLabels,
+			&i.HasMembers,
+			&i.HasComments,
+			&i.HasAttachments,
+			&i.HasReminder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const containerOrderKeyNeighbours = `-- name: ContainerOrderKeyNeighbours :one
 WITH level AS (
   SELECT id, order_key
