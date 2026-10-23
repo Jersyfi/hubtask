@@ -64,6 +64,12 @@ export interface EntryMenuContext {
    * there, the category where the list has categories and the type carries labels.
    */
   readonly simple?: { readonly amount: boolean; readonly category: boolean };
+  /**
+   * The entry's own page (UC-WRK-28 check 2), where the reader may not share: *People*, to read who
+   * has access, stands where *Share* would (UC-WRK-21 check 7). Elsewhere a reader who may not
+   * share is offered neither.
+   */
+  readonly readsPeople?: boolean;
 }
 
 type Translate = (code: string, params?: Record<string, string | number>) => string;
@@ -80,26 +86,29 @@ const RANKS = [
 
 /** The menu's items for one entry, in their one order (D2: *Select* first, the trash last). */
 export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
-  const open: MenuItem = { id: 'open', label: t('app.entry_menu.open') };
+  // On its own page the entry is open already: *Open* is every other surface's.
+  const opens: MenuItem[] = context.surface === 'page' ? [] : [{ id: 'open', label: t('app.entry_menu.open') }];
   const copyLink: MenuItem = { id: 'copy-link', label: t('app.entry_menu.copy_link') };
   const mayDuplicate = context.mayCreate && !context.isCollectionReadOnly;
   const duplicate: MenuItem = { id: 'duplicate', label: t('app.duplicate.title') };
+  /** Who has access, read only: the page's, where the reader may not share. */
+  const people = (): MenuItem[] => (context.readsPeople && !context.mayShare ? [{ id: 'share', label: t('app.people.title') }] : []);
 
   // Until the role is known nothing that writes is drawn, and no reason either.
-  if (context.mayChange === undefined) return [open, copyLink];
+  if (context.mayChange === undefined) return [...opens, copyLink];
 
   // A read-only area: what does not write the entry, and nothing that would only say "archived"
   // on every row.
   if (context.archival === 'inherited' || context.isCollectionReadOnly) {
-    return [open, copyLink, ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: true }] : [])];
+    return [...opens, ...people(), copyLink, ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: true }] : [])];
   }
 
   // The role may not change it: a copy where the reader may create one, and the ways to look at it.
   if (!context.mayChange) {
     return [
-      open,
-      ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: true }] : []),
-      ...(context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : []),
+      ...opens,
+      ...(mayDuplicate ? [{ ...duplicate, hasSeparatorBefore: opens.length > 0 }] : []),
+      ...(context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : people()),
       copyLink,
     ];
   }
@@ -111,7 +120,7 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
 
   // *Select* first: on a list and a board a still hold opens this menu rather than selecting (ADR-0088).
   if (SELECTING.has(context.surface)) items.push({ id: 'select', label: t('app.entry_menu.select') });
-  items.push(open);
+  items.push(...opens);
   const isSimple = context.surface === 'simple';
   if (isSimple && context.simple?.amount) {
     items.push({ id: 'amount', label: t('app.entries.change_amount'), disabledReason: archived });
@@ -181,8 +190,9 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   });
 
   if (mayDuplicate) items.push({ ...duplicate, hasSeparatorBefore: true });
-  if (context.mayShare) items.push({ id: 'share', label: t('app.people.share'), hasSeparatorBefore: !mayDuplicate });
-  items.push({ ...copyLink, hasSeparatorBefore: !mayDuplicate && !context.mayShare });
+  const sharing = context.mayShare ? [{ id: 'share', label: t('app.people.share') }] : people();
+  sharing.forEach((each) => items.push({ ...each, hasSeparatorBefore: !mayDuplicate }));
+  items.push({ ...copyLink, hasSeparatorBefore: !mayDuplicate && sharing.length === 0 });
 
   items.push({
     id: context.archival === 'archived' ? 'unarchive' : 'archive',

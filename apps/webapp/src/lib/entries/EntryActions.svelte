@@ -40,9 +40,11 @@
     onnavigate?: (path: string) => void;
     /** *Select*, on a surface whose bulk bar acts on what is picked. */
     onselect?: (itemId: string) => void;
+    /** After an entry went to the trash: the entry's own page leaves for its collection. */
+    ontrashed?: (itemId: string) => void;
   }
 
-  const { onopen, onnavigate, onselect }: Props = $props();
+  const { onopen, onnavigate, onselect, ontrashed }: Props = $props();
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let dropped = $state<{ title: string; references: readonly DroppedReference[] } | undefined>(undefined);
@@ -193,6 +195,7 @@
         case 'trash':
           await items.trash(item.id, item.version);
           offerUndo({ kind: 'trash', itemId: item.id, title: item.title });
+          ontrashed?.(item.id);
           return;
         case 'inside': {
           const level = siblings ?? siblingsOf(item);

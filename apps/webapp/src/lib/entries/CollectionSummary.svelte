@@ -1,15 +1,18 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the collection stands, as AI summarised it: what is open, what moved, what
-  // is overdue. Rendered as an `AISuggestion` with no accept - a collection has nowhere to put a
-  // status summary, so it is read and dismissed. Asked through `:summarize`, which answers `202`
-  // with no body like every AI ask, and followed through the listing.
+  // What AI answered about a collection, in one of two places (ux-inventory.md §E4):
   //
-  // The same listing carries a template drafted for the collection: asked from the
-  // templates dialog, it lands here because the collection is its target. That one is drawn as a
-  // tree, read-only, the way a breakdown is, and accepting it is `CreateTemplate` - the verb says
-  // so - after which the dialog's list shows it.
+  // * `summary` - how the collection stands: what is open, what moved, what is overdue. Asked by
+  //   the ✦ at the collection's figure (`:summarize`, answered `202` and followed through the
+  //   listing) and drawn under the head. Nothing on the server accepts it - a description says what
+  //   a collection is *for*, not how its week went - so it is kept, where the collection's entries
+  //   carry notes, as a new entry whose notes it is (`keepAs`), and then closed.
+  // * `template` - a template drafted for the collection, asked and drawn in *Structure →
+  //   Templates*: as a tree, read-only, the way a breakdown is; accepting it is `CreateTemplate`,
+  //   after which the tab's list shows it.
+  //
+  // Both read the same listing, the collection's suggestions; each draws its own kind.
 
   import { untrack } from 'svelte';
 
@@ -19,26 +22,43 @@
   import { resource } from '../data/resource.svelte.ts';
   import { suggestions, suggestionsPath } from '../data/suggestions.svelte.ts';
   import { acceptCodeOf, headingCodeOf, isPending, noteOf, shapeOf } from '../data/suggestions.ts';
-  import { formatDateTime } from '../i18n/datetime.ts';
+  import { formatDateTime, formatDay } from '../i18n/datetime.ts';
+  import { items } from '../data/items.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem, renderRefusal } from '../problem.ts';
 
   interface Props {
     containerId: string;
+    /** Which of the collection's answers this place draws. */
+    part: 'summary' | 'template';
+    /**
+     * The level a kept summary becomes an entry of: a top level of this collection that carries
+     * notes, where the reader may add one. Absent, the summary is read and closed only.
+     */
+    keepAs?: string;
   }
 
-  const { containerId }: Props = $props();
+  const { containerId, part, keepAs }: Props = $props();
 
   const listing = resource<SuggestionPage>(untrack(() => suggestionsPath(containerId, 'CONTAINER')));
-  $effect(() => () => suggestions.forget(containerId));
+  // The page's place forgets the collection's asks when the page goes; the tab closing does not.
+  $effect(() => () => {
+    if (part === 'summary') suggestions.forget(containerId);
+  });
 
   const open = $derived(
     listing.state.status === 'ready'
-      ? (listing.state.data.items ?? []).filter((suggestion) => suggestion.status === 'PROPOSED')
+      ? (listing.state.data.items ?? []).filter(
+          (suggestion) => suggestion.status === 'PROPOSED' && (shapeOf(suggestion, undefined).shape === 'template') === (part === 'template'),
+        )
       : [],
   );
-  const asking = $derived(suggestions.askingOf(containerId));
+  /** The ask running here: a summary's at the page, a template's in the tab. */
+  const asking = $derived.by(() => {
+    const now = suggestions.askingOf(containerId);
+    return now && (now.operation === 'template') === (part === 'template') ? now : undefined;
+  });
 
   const note = $derived(noteOf(asking));
 
@@ -60,12 +80,33 @@
   let dismissing = $state<string | undefined>(undefined);
   let accepting = $state<string | undefined>(undefined);
 
-  async function ask() {
+  let keeping = $state<string | undefined>(undefined);
+
+  /**
+   * Keeps a summary as a new entry's notes, then closes the suggestion: the answer now lives in
+   * the collection, where it can be read, changed and found again.
+   */
+  async function keep(suggestion: Suggestion, text: string) {
+    if (!keepAs) return;
+    keeping = suggestion.id;
     failure = undefined;
     try {
-      await suggestions.askContainer(containerId);
+      await items.create(
+        {
+          type: keepAs,
+          collection_id: containerId,
+          parent_id: null,
+          title: t('app.workspace.summary_kept_title', { day: formatDay(suggestion.produced_at, messages.locale) }),
+          notes: text,
+        },
+        crypto.randomUUID(),
+      );
+      await suggestions.dismiss(suggestion);
+      announcer.say(t('app.workspace.summary_kept_announced'));
     } catch (error) {
       failure = renderProblem(error as never, messages);
+    } finally {
+      keeping = undefined;
     }
   }
 
@@ -112,18 +153,7 @@
   }
 </script>
 
-<div class="summary" data-ai>
-  <div>
-    <Button
-      size="sm"
-      tone="secondary"
-      icon="sparkles"
-      disabledReason={isPending(asking) ? t('app.suggestions.pending') : undefined}
-      onclick={ask}
-    >
-      {t('app.workspace.summarise')}
-    </Button>
-  </div>
+<div class="summary" data-ai={part}>
   {#if failure}
     <p class="failure" role="alert">{failure.message}</p>
   {/if}
@@ -196,7 +226,17 @@
       >
         <p class="text">{text ?? t('app.suggestions.unknown_hint')}</p>
         {#snippet actions()}
-          <!-- No accept: nothing accepts a collection's summary. Read, then dismissed. -->
+          <!-- Nothing on the server accepts a collection's summary; kept, it is an entry's notes. -->
+          {#if keepAs && text}
+            <Button
+              tone="primary"
+              isBusy={keeping === suggestion.id}
+              busyLabel={t('app.suggestions.deciding')}
+              onclick={() => void keep(suggestion, text)}
+            >
+              {t('app.workspace.summary_keep')}
+            </Button>
+          {/if}
           <Button
             tone="subtle"
             isBusy={dismissing === suggestion.id}

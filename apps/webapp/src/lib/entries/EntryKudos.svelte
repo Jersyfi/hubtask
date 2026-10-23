@@ -32,6 +32,12 @@
   const current = $derived(view.state.status === 'ready' ? view.state.data : undefined);
   const completer = $derived(accounts.nameOf(item.completion?.completed_by) ?? t('app.people.unnamed'));
   const givers = $derived((current?.from ?? []).map((each) => accounts.nameOf(each.account_id) ?? t('app.people.unnamed')));
+  // The names are read here, not borrowed from the head's people marks: a collection whose
+  // entries carry no person draws none.
+  $effect(() => {
+    const ids = [item.completion?.completed_by, ...(current?.from ?? []).map((each) => each.account_id)].filter((id): id is string => Boolean(id));
+    if (ids.length > 0) accounts.resolve(ids);
+  });
 
   let isBusy = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
