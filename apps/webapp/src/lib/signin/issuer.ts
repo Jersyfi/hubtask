@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-import type { IdentityProviderPreset } from '@hubtask/sync-engine';
+import type { IdentityProvider, IdentityProviderConfiguration, IdentityProviderPreset } from '@hubtask/sync-engine';
 
 /**
  * The issuer a provider form holds once another provider is chosen.
@@ -107,4 +107,77 @@ export function admissionLists(
   const directories = claim && (shared || provisioning === 'DOMAINS' || provisioning === 'INVITED_ONLY');
   const domains = !claim && provisioning === 'DOMAINS';
   return { directories, domains, required: shared || provisioning === 'DOMAINS' };
+}
+
+/**
+ * What a provider form holds, the same at the workspace and the installation: one form, so a field
+ * the two levels share reads and saves alike. What only one level asks - newcomers, admission at
+ * the installation's level, the position - stays with the screen that asks it.
+ */
+export interface ProviderDraft {
+  kind: string;
+  issuer: string;
+  clientId: string;
+  /** Typed or empty: empty keeps the sealed one, which nothing can read back. */
+  clientSecret: string;
+  displayName: string;
+  provisioning: string;
+  /** One per line or separated by commas - whichever somebody pastes. */
+  domains: string;
+  directories: string;
+}
+
+/** An empty form, admitting as strictly as the level asks for a new provider. */
+export function emptyDraft(provisioning: string): ProviderDraft {
+  return { kind: 'GENERIC', issuer: '', clientId: '', clientSecret: '', displayName: '', provisioning, domains: '', directories: '' };
+}
+
+/** The form opened on a stored provider. The secret stays empty, because nothing can read it. */
+export function draftOf(provider: IdentityProvider): ProviderDraft {
+  return {
+    kind: provider.kind,
+    issuer: provider.issuer,
+    clientId: provider.client_id,
+    clientSecret: '',
+    displayName: provider.display_name,
+    provisioning: provider.provisioning,
+    domains: (provider.allowed_email_domains ?? []).join('\n'),
+    directories: (provider.allowed_directories ?? []).join('\n'),
+  };
+}
+
+/** A list as written: one per line or separated by commas, blanks dropped. */
+export function readList(written: string): string[] {
+  return written
+    .split(/[\n,]/)
+    .map((one) => one.trim())
+    .filter((one) => one !== '');
+}
+
+/** The personal directory the drawn list names where the save would refuse it, or nothing. */
+export function draftRefusal(draft: ProviderDraft, preset: IdentityProviderPreset | undefined): string | undefined {
+  const lists = admissionLists(preset, draft.provisioning, isSharedIssuer(preset, draft.issuer));
+  return lists.directories ? personalDirectoryListed(preset, draft.provisioning, readList(draft.directories)) : undefined;
+}
+
+/**
+ * The fields both levels send. Only the list drawn is sent: one typed under another mode and hidden
+ * since is not saved unseen. An empty secret is left out, which keeps the sealed one - an empty
+ * string would be a secret of no characters - and an empty name is left out for the issuer's host.
+ */
+export function draftBody(
+  draft: ProviderDraft,
+  preset: IdentityProviderPreset | undefined,
+): Omit<IdentityProviderConfiguration, 'position'> {
+  const lists = admissionLists(preset, draft.provisioning, isSharedIssuer(preset, draft.issuer));
+  return {
+    issuer: draft.issuer.trim(),
+    client_id: draft.clientId.trim(),
+    ...(draft.clientSecret === '' ? {} : { client_secret: draft.clientSecret }),
+    ...(draft.displayName.trim() === '' ? {} : { display_name: draft.displayName.trim() }),
+    kind: draft.kind as IdentityProvider['kind'],
+    provisioning: draft.provisioning as IdentityProvider['provisioning'],
+    allowed_email_domains: lists.domains ? readList(draft.domains) : [],
+    allowed_directories: lists.directories ? readList(draft.directories) : [],
+  };
 }

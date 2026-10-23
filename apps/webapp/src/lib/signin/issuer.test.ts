@@ -6,7 +6,18 @@ import assert from 'node:assert/strict';
 
 import type { IdentityProviderPreset } from '@hubtask/sync-engine';
 
-import { admissionLists, isPersonalIssuer, isSharedIssuer, issuerAfterChoosing, offeredModes, personalDirectoryListed } from './issuer.ts';
+import {
+  admissionLists,
+  draftBody,
+  draftRefusal,
+  emptyDraft,
+  isPersonalIssuer,
+  isSharedIssuer,
+  issuerAfterChoosing,
+  offeredModes,
+  personalDirectoryListed,
+  readList,
+} from './issuer.ts';
 
 const PERSONAL_DIRECTORY = '9188040d-6c67-4c5b-b112-36a304b66dad';
 const MICROSOFT = {
@@ -92,4 +103,25 @@ test('the personal directory is refused in the list wherever the mode creates ac
   // A preset that names none, or none at all.
   assert.equal(personalDirectoryListed(GENERIC, 'DOMAINS', [PERSONAL_DIRECTORY]), undefined);
   assert.equal(personalDirectoryListed(undefined, 'DOMAINS', [PERSONAL_DIRECTORY]), undefined);
+});
+
+test('a list is read one per line or by commas, whichever was pasted', () => {
+  assert.deepEqual(readList('a.example\n b.example, c.example\n\n'), ['a.example', 'b.example', 'c.example']);
+});
+
+test('the one provider form sends only the list it draws, and keeps the sealed secret when none is typed', () => {
+  const draft = { ...emptyDraft('DOMAINS'), issuer: ' https://login.example.org ', clientId: 'hubtask', domains: 'a.example\nb.example', directories: 'hidden' };
+  const body = draftBody(draft, GENERIC);
+  assert.deepEqual(body.allowed_email_domains, ['a.example', 'b.example']);
+  assert.deepEqual(body.allowed_directories, []);
+  assert.equal(body.issuer, 'https://login.example.org');
+  assert.equal('client_secret' in body, false);
+  assert.equal('display_name' in body, false);
+  assert.equal(draftBody({ ...draft, clientSecret: 's3cr3t' }, GENERIC).client_secret, 's3cr3t');
+});
+
+test('the one provider form refuses a personal directory where the mode creates accounts', () => {
+  const draft = { ...emptyDraft('DOMAINS'), kind: 'MICROSOFT', issuer: 'https://login.microsoftonline.com/organizations/v2.0', directories: PERSONAL_DIRECTORY };
+  assert.equal(draftRefusal(draft, MICROSOFT), PERSONAL_DIRECTORY);
+  assert.equal(draftRefusal({ ...draft, provisioning: 'INVITED_ONLY' }, MICROSOFT), undefined);
 });

@@ -18,11 +18,8 @@
   // already sealed". A row of dots standing in for a value nobody can read would be a screen
   // inventing a fact.
   //
-  // **The modes a preset permits come from the server.** Which of the three a provider may use is a
-  // rule about the provider (a public issuer may only sign in people who were invited first), and the
-  // presets answer it — so the select offers what would be accepted rather than three of which two
-  // are refused. A client that decided this itself would be a second copy of the rule. Each is said
-  // in the use case's own words (UC-ID-11 check 1); the contract's values never reach the screen.
+  // **The fields are the one provider form** (`ProviderFields`), the installation's too: the modes a
+  // preset permits come from the server, each said in the use case's own words (UC-ID-11 check 1).
   //
   // **What newcomers get is asked only where somebody new arrives**: under the two modes that create
   // accounts (UC-ID-11 check 5). The roles come from the manifest and never include OWNER, which the
@@ -34,20 +31,13 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, ReadOnlyNotice, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, ReadOnlyNotice, Select, Spinner, Stack } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderConfiguration } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
-  import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
-  import {
-    admissionLists,
-    isPersonalIssuer,
-    isSharedIssuer,
-    issuerAfterChoosing,
-    offeredModes,
-    personalDirectoryListed,
-  } from '../lib/signin/issuer.ts';
+  import ProviderFields from '../lib/signin/ProviderFields.svelte';
+  import { draftBody, draftOf, draftRefusal, emptyDraft } from '../lib/signin/issuer.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { groups } from '../lib/data/groups.svelte.ts';
@@ -61,14 +51,7 @@
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
-  let issuer = $state('');
-  let clientId = $state('');
-  let clientSecret = $state('');
-  let displayName = $state('');
-  let kind = $state('GENERIC');
-  let provisioning = $state('DOMAINS');
-  let domains = $state('');
-  let directories = $state('');
+  let draft = $state(emptyDraft('DOMAINS'));
   /** What newcomers get: empty is nothing, `role:<ROLE>` or `group:<id>` one of the two. */
   let newcomers = $state('');
   /** The order the buttons are drawn in. Kept rather than shown: a workspace with two providers
@@ -109,42 +92,10 @@
   );
 
   /** The preset of whichever kind the form is set to, where the presets have been read. */
-  const preset = $derived(identityProvider.presetOf(kind as IdentityProvider['kind']));
-  /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
-  const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
-  /**
-   * The server's sentence for a personal directory in the drawn list, where the mode creates
-   * accounts: shown on the field as it is typed, and the reason *Save* waits - the save would be
-   * refused in every such case (`identity_provider.directory_personal`).
-   */
-  const personalDirectory = $derived.by(() => {
-    if (!lists.directories) return undefined;
-    const listed = personalDirectoryListed(preset, provisioning, readDomains(directories));
-    return listed === undefined ? undefined : t('identity_provider.directory_personal', { directory: listed });
-  });
-
-  const kindOptions = $derived(
-    identityProvider.presets.map((one) => ({
-      value: one.kind,
-      label: t(`app.identity_provider.kind.${one.kind.toLowerCase()}`),
-    })),
-  );
-
-  /**
-   * The modes this preset permits, in the order they tighten. Empty until the presets are read,
-   * which is the third value of every capability question here: not yet known is not "all of them".
-   */
-  /** Whether the issuer also serves personal accounts, where the server refuses `ANY`. */
-  const personal = $derived(isPersonalIssuer(preset, issuer));
-  const provisioningOptions = $derived(
-    offeredModes(preset?.provisioning ?? [], personal, provisioning).map((mode) => ({
-      value: mode,
-      label: t(`app.identity_provider.provisioning.${mode.toLowerCase()}`),
-    })),
-  );
+  const preset = $derived(identityProvider.presetOf(draft.kind as IdentityProvider['kind']));
 
   /** Whether the mode chosen creates accounts, and so has newcomers to give anything to. */
-  const createsAccounts = $derived(provisioning === 'DOMAINS' || provisioning === 'ANY');
+  const createsAccounts = $derived(draft.provisioning === 'DOMAINS' || draft.provisioning === 'ANY');
 
   /**
    * What a newcomer may be given: nothing, a role of the manifest other than OWNER (the server
@@ -168,14 +119,7 @@
   /** Opens the form on a new provider. */
   function add(): void {
     editing = '';
-    issuer = '';
-    clientId = '';
-    clientSecret = '';
-    displayName = '';
-    kind = 'GENERIC';
-    provisioning = 'DOMAINS';
-    domains = '';
-    directories = '';
+    draft = emptyDraft('DOMAINS');
     newcomers = '';
     position = identityProvider.own.length;
     failure = undefined;
@@ -185,14 +129,7 @@
   /** Opens it on one that exists. The secret stays empty, because nothing can read it back. */
   function edit(provider: IdentityProvider): void {
     editing = provider.id;
-    issuer = provider.issuer;
-    clientId = provider.client_id;
-    clientSecret = '';
-    displayName = provider.display_name;
-    kind = provider.kind;
-    provisioning = provider.provisioning;
-    domains = (provider.allowed_email_domains ?? []).join('\n');
-    directories = (provider.allowed_directories ?? []).join('\n');
+    draft = draftOf(provider);
     newcomers = provider.newcomer_role
       ? `role:${provider.newcomer_role}`
       : provider.newcomer_group_id
@@ -205,14 +142,14 @@
 
   function close(): void {
     editing = undefined;
-    clientSecret = '';
+    draft.clientSecret = '';
   }
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     // Checked here rather than switching Save off: the field already says why the server would
     // refuse it; pressed, focus goes there and nothing is sent (UC-WRK-32 check 3).
-    if (personalDirectory) {
+    if (draftRefusal(draft, preset) !== undefined) {
       // Kept before the tick: an event's current target is gone once it has been dispatched.
       const form = event.currentTarget as HTMLFormElement;
       void tick().then(() => focusFirst(form));
@@ -221,20 +158,10 @@
     isWorking = true;
     failure = undefined;
     saved = false;
-    const body: IdentityProviderConfiguration = {
-      issuer: issuer.trim(),
-      client_id: clientId.trim(),
-      display_name: displayName.trim(),
-      kind: kind as IdentityProvider['kind'],
-      provisioning: provisioning as IdentityProvider['provisioning'],
-      position,
-      // No `enabled`: the field is deprecated, and the list of ways to sign in is the one place a
-      // way in is turned on or off (UC-ID-11 check 8, ADR-0076 §5). A new provider is created off -
-      // configuring is not offering - and a replaced one keeps its switch.
-      // Only the list drawn: one typed under another mode and hidden since is not saved unseen.
-      allowed_email_domains: lists.domains ? readDomains(domains) : [],
-      allowed_directories: lists.directories ? readDomains(directories) : [],
-    };
+    // No `enabled`: the field is deprecated, and the list of ways to sign in is the one place a
+    // way in is turned on or off (UC-ID-11 check 8, ADR-0076 §5). A new provider is created off -
+    // configuring is not offering - and a replaced one keeps its switch.
+    const body: IdentityProviderConfiguration = { ...draftBody(draft, preset), position };
     // Sent only where somebody new arrives: the server refuses a newcomer setting under a mode that
     // creates nobody, and the configuration is set whole, so leaving it out is "nothing".
     if (createsAccounts && newcomers.startsWith('role:')) {
@@ -242,9 +169,6 @@
     } else if (createsAccounts && newcomers.startsWith('group:')) {
       body.newcomer_group_id = newcomers.slice('group:'.length);
     }
-    // Sent only when it was typed. An empty string and an absent field are two different requests:
-    // absent keeps the sealed one, and that is the contract's promise rather than this screen's rule.
-    if (clientSecret !== '') body.client_secret = clientSecret;
     try {
       if (editing === '' || editing === undefined) {
         await identityProvider.add(body);
@@ -253,7 +177,7 @@
       }
       // Out of the component's state at once. A secret kept for a second submission is a secret
       // sitting in a form for as long as the tab is open.
-      clientSecret = '';
+      draft.clientSecret = '';
       saved = true;
       editing = undefined;
     } catch (cause) {
@@ -276,14 +200,6 @@
     } finally {
       isWorking = false;
     }
-  }
-
-  /** One domain per line, or separated by commas — whichever somebody pastes. */
-  function readDomains(written: string): string[] {
-    return written
-      .split(/[\n,]/)
-      .map((one) => one.trim())
-      .filter((one) => one !== '');
   }
 
   function problemOf(cause: unknown): ReturnType<typeof renderProblem> {
@@ -443,114 +359,18 @@
                 ? t('app.identity_provider.add_title')
                 : t('app.identity_provider.edit_title')}
             </h2>
-            <Select
-              label={t('app.identity_provider.kind_label')}
-              hint={t('app.identity_provider.kind_hint')}
-              options={kindOptions}
-              bind:value={kind}
-              onchange={(event) =>
-                (issuer = issuerAfterChoosing(identityProvider.presets, (event.currentTarget as HTMLSelectElement).value, issuer))}
-            />
-            {#if preset}
-              <!-- The instructions are the server's message code rendered with this installation's
-                   own callback: the one value every registration form at every provider asks for. -->
-              <Banner tone="info" title={t('app.identity_provider.registration')}>
-                {messages.t(preset.instructions, { redirect_uri: preset.redirect_uri })}
-                {#if preset.particular}
-                  {' '}{messages.t(preset.particular, {})}
+            <ProviderFields bind:draft presets={identityProvider.presets} level="workspace" isNew={editing === ''}>
+              {#snippet more()}
+                {#if createsAccounts}
+                  <Select
+                    label={t('app.identity_provider.newcomers_label')}
+                    hint={t('app.identity_provider.newcomers_hint')}
+                    options={newcomerOptions}
+                    bind:value={newcomers}
+                  />
                 {/if}
-              </Banner>
-              <RedirectAddress address={preset.redirect_uri} />
-            {/if}
-            <Input
-              label={t('app.identity_provider.issuer_label')}
-              hint={t('app.identity_provider.issuer_hint')}
-              bind:value={issuer}
-              type="url"
-              autocomplete="off"
-              spellcheck={false}
-              isRequired
-            />
-            <Input
-              label={t('app.identity_provider.name_label')}
-              hint={t('app.identity_provider.name_hint')}
-              bind:value={displayName}
-              autocomplete="off"
-            />
-            <Input
-              label={t('app.identity_provider.client_id_label')}
-              hint={t('app.identity_provider.client_id_hint')}
-              bind:value={clientId}
-              autocomplete="off"
-              spellcheck={false}
-              isRequired
-            />
-            <Input
-              label={t('app.identity_provider.client_secret_label')}
-              hint={editing === ''
-                ? t('app.identity_provider.client_secret_hint')
-                : t('app.identity_provider.client_secret_kept')}
-              bind:value={clientSecret}
-              type="password"
-              autocomplete="off"
-              spellcheck={false}
-              isRequired={editing === ''}
-            />
-            <Select
-              label={t('app.identity_provider.provisioning_label')}
-              hint={t('app.identity_provider.provisioning_hint')}
-              options={provisioningOptions}
-              bind:value={provisioning}
-            />
-            {#if personal && provisioning === 'ANY'}
-              <!-- Said where the choice is made: the save refuses ANY on this issuer, and the
-                   sentence names what may be chosen instead. Not moved for the person - a row
-                   stored so still admits organisation accounts. -->
-              <Banner tone="info">{t('identity_provider.provisioning_personal', { issuer: issuer.trim() })}</Banner>
-            {/if}
-            <!-- The field the server will actually read, and only that one (ADR-0071 §2). Which it
-                 is comes from the preset's `directory_claim`: a provider that names organisations
-                 is admitted on the organisation, and one that does not has nothing but the
-                 address's domain. Under INVITED_ONLY a list only narrows; on a shared endpoint it
-                 is required in every mode, ANY included. -->
-            {#if lists.directories && preset?.directory_claim}
-              <Textarea
-                label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-                hint={isSharedIssuer(preset, issuer)
-                  ? t('app.identity_provider.directories_shared_hint')
-                  : lists.required
-                    ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
-                    : t('app.identity_provider.directories_narrow_hint')}
-                error={personalDirectory}
-                bind:value={directories}
-                rows={3}
-                spellcheck={false}
-                isRequired={lists.required}
-              />
-            {/if}
-            {#if lists.domains}
-              <Textarea
-                label={t('app.identity_provider.domains_label')}
-                hint={t('app.identity_provider.domains_hint')}
-                bind:value={domains}
-                rows={3}
-                spellcheck={false}
-              />
-            {/if}
-            {#if createsAccounts}
-              <Select
-                label={t('app.identity_provider.newcomers_label')}
-                hint={t('app.identity_provider.newcomers_hint')}
-                options={newcomerOptions}
-                bind:value={newcomers}
-              />
-            {/if}
-            {#if preset?.supports_templated_issuer}
-              <!-- Said where the issuer is typed rather than after a refusal: the shared endpoints
-                   are what make one registration serve many customers, and they are also what needs
-                   the directories named. -->
-              <Banner tone="info">{t('app.identity_provider.shared_endpoint')}</Banner>
-            {/if}
+              {/snippet}
+            </ProviderFields>
             <!-- No switch here: a provider is turned on or off in the list of ways to sign in,
                  and nowhere else (UC-ID-11 check 8). A new one is saved off. -->
             <p class="quiet">{t('app.identity_provider.switched_in_sign_in')}</p>
