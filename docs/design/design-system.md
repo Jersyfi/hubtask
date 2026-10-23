@@ -848,6 +848,18 @@ in the field; below `medium` the same field and list open in a dialog.
   `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
 * **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
   they do not apply.
+* **Ask** (UC-AI-08, `apps/webapp/src/lib/ask/`). With words typed and AI consented to, one row
+  *Ask: “…”*; without AI there is no row and nothing of AI is drawn. Choosing it asks at once and
+  opens *Ask the workspace*: the question, editable and asked again with *Ask*, then the answer in
+  the AI proposal (§7) headed *Proposed answer* — the text, *Based on* the entries it rests on as
+  links (each read again, so one the reader can no longer open is left out), the provenance behind
+  one collapsed line, and *As a filter*: the chips the answer implies (a place, the state, a due
+  span, a person, labels), each removable and the state and due span changeable, framed rather than
+  pills because a select carries its label. *Save as view* saves what the chips hold as the reader's
+  own view; a view needs a place, so without one the place chip is marked on submit (§4, case 3).
+  While the question runs the proposal is pending with *Stop*, and the nearly-spent note stands
+  above it. *Dismiss* is the only decision about the answer; a new question carries nothing of the
+  last one.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and

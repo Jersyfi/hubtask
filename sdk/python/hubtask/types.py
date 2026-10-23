@@ -362,6 +362,10 @@ class RuleDescription(TypedDict, total=False):
     scope: Required["RuleScope"]
     description: Required[str]
 
+class WorkspaceQuestion(TypedDict, total=False):
+    """One question to the workspace."""
+    question: Required[str]
+
 class SuggestionPage(TypedDict, total=False):
     items: Required[list["Suggestion"]]
     next_cursor: str | None
@@ -369,7 +373,7 @@ class SuggestionPage(TypedDict, total=False):
 
 SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER", "ACCOUNT"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE", "ANSWER"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 
