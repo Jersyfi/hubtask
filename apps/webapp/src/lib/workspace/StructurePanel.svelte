@@ -635,4 +635,8 @@
   .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
+
+  /* Six tabs are wider than the sheet. Scrolled, the last ones were cut off with nothing saying
+     there were more; wrapped onto a second line, every tab is in sight. */
+  [data-structure-tabs] :global([role='tablist']) { flex-wrap: wrap; overflow-x: visible; }
 </style>

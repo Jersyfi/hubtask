@@ -196,13 +196,13 @@
       />
 
       <!-- A radio group by hand rather than ten `Radio`s: what a reader is choosing between is the
-           chips themselves, and a list of ten labelled radios would name the colours in words the
-           catalogue would then have to carry in every language. The chip is the label. -->
+           chips themselves, drawn with the label's own name. The chip is what is seen; the radio is
+           named by its colour, or every swatch would be read out as the name field's label. -->
       <fieldset class="colours">
         <legend>{t('app.workspace.colour')}</legend>
         {#each labelTokens as token (token)}
           <label class="swatch">
-            <input type="radio" name="label-colour" value={token} bind:group={colour} />
+            <input type="radio" name="label-colour" value={token} aria-label={t(`app.colour.${token}`)} bind:group={colour} />
             <LabelChip name={name.trim() === '' ? t('app.labels.name') : name.trim()} colorToken={token} />
           </label>
         {/each}

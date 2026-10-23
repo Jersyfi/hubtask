@@ -85,6 +85,34 @@ async function openPanel(page, name) {
   return panel;
 }
 
+// The sheet's six tabs, all in sight at a phone's width and a desk's: none cut off at the sheet's
+// edge. And on *Labels* each colour is named by its colour, not by the name field's label.
+for (const width of [390, 1280]) {
+  test(`chromium: ${width} px - every tab of the sheet is in sight, and a label's colours are named`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await as(browser, 'OWNER', width);
+    t.after(() => context.close());
+
+    await openCollection(page, SHAPES.list);
+    await openPanel(page, SHAPES.list.name);
+    const panel = page.locator('[data-structure-tabs]');
+    // The sheet slides in from the edge; measured once it is in place.
+    await page.waitForFunction(() => (document.querySelector('[data-structure-tabs] [role="tablist"]')?.getBoundingClientRect().right ?? Infinity) <= innerWidth);
+    const tabs = panel.getByRole('tab');
+    assert.equal(await tabs.count(), 6);
+    const sheet = await panel.getByRole('tablist').boundingBox();
+    for (const box of await tabs.evaluateAll((each) => each.map((tab) => tab.getBoundingClientRect().toJSON()))) {
+      assert.ok(box.right <= sheet.x + sheet.width + 1 && box.right <= width, `a tab ends at ${box.right}, past the sheet's ${sheet.x + sheet.width}`);
+    }
+    await tabs.filter({ hasText: 'Labels' }).click();
+    const colours = await panel.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));
+    assert.ok(colours.length >= 10);
+    assert.ok(colours.includes('Slate') && colours.includes('Violet'), `the colours are named ${colours.join(', ')}`);
+    assert.deepEqual(failures, []);
+  });
+}
+
 test('chromium: the owner - a list offers what a list offers, and its panel says where each value comes from (checks 1, 3, 4)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
