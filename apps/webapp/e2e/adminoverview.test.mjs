@@ -49,6 +49,7 @@ async function as(browser, permissions, { verifyOk = true } = {}) {
         { quota: 'accounts', limit: 30, used: 28, ratio: 28 / 30 },
         { quota: 'items', limit: 10000, used: 120, ratio: 0.012 },
         { quota: 'api_requests_per_minute', limit: 600, used: null, ratio: null },
+        { quota: 'ai_arrival_proposals_per_day', limit: 200, used: 0, ratio: 0 },
       ] });
     }
     if (path === '/automation/rules') return route.fulfill({ json: { data: [QUIET_RULE, RULE], next_cursor: null } });
@@ -96,6 +97,14 @@ test('chromium: the administration opens on an overview of what needs attention,
 
   assert.match(await cardText(page, 'limits'), /People\s*28 of 30/);
   assert.match(await cardText(page, 'limits'), /Entries\s*120 of 10000/);
+  // Every line's badge sits beside its name at the line's end, a long name wrapping in its own
+  // column rather than pushing its badge under it.
+  const placed = await page.locator('[data-card="limits"] li').evaluateAll((lines) => lines.map((line) => {
+    const [name, badge] = [...line.children].map((child) => child.getBoundingClientRect());
+    return { text: line.textContent?.trim(), beside: badge.left >= name.right && badge.top < name.bottom, atEnd: Math.abs(badge.right - line.getBoundingClientRect().right) < 1 };
+  }));
+  assert.ok(placed.length >= 3, JSON.stringify(placed));
+  for (const line of placed) assert.ok(line.beside && line.atEnd, `a badge out of place: ${JSON.stringify(line)}`);
   assert.match(await cardText(page, 'rules'), /Overview mail relay\s*Failed 3 times/);
   assert.doesNotMatch(await cardText(page, 'rules'), /quiet rule/);
   assert.match(await cardText(page, 'backup'), /Last backup .*Opened/);
