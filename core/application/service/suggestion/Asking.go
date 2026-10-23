@@ -119,6 +119,12 @@ func (a Ask) queue(ctx context.Context, actor appshared.ActorContext, q asking) 
 	// entry the caller cannot read answers not-found exactly as reading it does, with the refusal
 	// that read records - so nothing is learned from asking first.
 	read := false
+	if q.TargetType == domain.TargetAccount {
+		// About the asker: only for themselves, under the token scope its kind is answered under.
+		if err := ownDraft(actor, q.TargetID, q.Kind); err != nil {
+			return shared.ID(""), err
+		}
+	}
 	switch {
 	case q.Access != nil:
 		permission = *q.Access
