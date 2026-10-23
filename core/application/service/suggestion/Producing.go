@@ -75,6 +75,8 @@ type Material struct {
 	Kept integration.KeptOut
 	// Rule is what a rule drafted from this material may name; nil for every other question.
 	Rule *RuleSets
+	// Answer is what an answer to a question may name; nil for every other question.
+	Answer *AnswerSets
 }
 
 // Declared is one custom field definition, with the entry's own value beside it.
