@@ -1087,6 +1087,9 @@ WHERE m.tenant_id = current_tenant_id()
   AND NOT EXISTS (
     SELECT 1 FROM item_attachment a WHERE a.tenant_id = m.tenant_id AND a.media_id = m.id
   )
+  AND NOT EXISTS (
+    SELECT 1 FROM work_item w WHERE w.tenant_id = m.tenant_id AND w.cover_media_id = m.id
+  )
 `
 
 type MediaUploadedByRow struct {
@@ -1096,9 +1099,11 @@ type MediaUploadedByRow struct {
 
 // The media the person uploaded that nothing points at any more.
 //
-// Only the unattached ones. A file attached to an entry is the workspace's content - somebody
-// else's work refers to it - and removing it would erase a third party's material along with the
-// person's, which is exactly what the two erasure modes exist to keep apart.
+// Only the unattached ones. A file attached to an entry, or shown as its cover, is the workspace's
+// content - somebody else's work refers to it - and removing it would erase a third party's
+// material along with the person's, which is exactly what the two erasure modes exist to keep
+// apart. A cover also holds its object by a restricting foreign key: handed to the discard, its
+// bytes went and its row could not.
 func (q *Queries) MediaUploadedBy(ctx context.Context, createdBy pgtype.UUID) ([]MediaUploadedByRow, error) {
 	rows, err := q.db.Query(ctx, mediaUploadedBy, createdBy)
 	if err != nil {
