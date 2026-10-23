@@ -213,6 +213,16 @@ func TestRenamedChecksEveryValueItStores(t *testing.T) {
 			attributes: work.ContainerAttributes{Icon: pointerTo("bas\nket")},
 			detailCode: "containers.field_malformed", path: "/icon",
 		},
+		{
+			name:       "a colour outside the ten",
+			attributes: work.ContainerAttributes{ColorToken: pointerTo("raspberry")},
+			detailCode: "containers.color_token_unknown", path: "/color_token",
+		},
+		{
+			name:       "a token of another palette",
+			attributes: work.ContainerAttributes{ColorToken: pointerTo("accent.red")},
+			detailCode: "containers.color_token_unknown", path: "/color_token",
+		},
 	}
 
 	for _, c := range cases {
@@ -223,6 +233,23 @@ func TestRenamedChecksEveryValueItStores(t *testing.T) {
 				t.Errorf("the finding does not point at %s: %+v", c.path, fields)
 			}
 		})
+	}
+}
+
+// A colour stored before the ten were checked survives a rename that leaves it alone; only a new
+// colour has to be one of the ten.
+func TestRenamedKeepsAColourFromBeforeTheCheckUntilItIsChanged(t *testing.T) {
+	container := collection()
+	container.ColorToken = "raspberry"
+
+	_, changes, err := container.Renamed(work.ContainerAttributes{
+		Name: pointerTo("Groceries"), ColorToken: pointerTo("raspberry"),
+	}, text.Composing{}, changed)
+	if err != nil {
+		t.Fatalf("the stored colour sent back unchanged was refused: %v", err)
+	}
+	if len(changes) != 1 || changes[0].Field != work.FieldName {
+		t.Errorf("only the name moved, got %+v", changes)
 	}
 }
 

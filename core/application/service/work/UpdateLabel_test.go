@@ -42,7 +42,7 @@ func TestUpdatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 	h.withLabel(urgentLabel, "Urgent")
 	ctx := correlation.ContextWithRequestID(context.Background(), "01J9REQUEST")
 
-	colour := "accent.amber"
+	colour := "amber"
 	label, err := h.update.Execute(ctx, actor(), UpdateLabelCommand{
 		LabelID: urgentLabel, Attributes: domain.LabelAttributes{ColorToken: &colour},
 	})
@@ -50,7 +50,7 @@ func TestUpdatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		t.Fatalf("updating the label failed: %v", err)
 	}
 
-	if label.ColorToken != "accent.amber" || label.Version != 2 {
+	if label.ColorToken != "amber" || label.Version != 2 {
 		t.Errorf("unexpected label: %+v", label)
 	}
 	if len(h.labels.written) != 1 || h.labels.written[0].method != "attributes" {

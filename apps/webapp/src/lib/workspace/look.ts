@@ -3,9 +3,10 @@
 
 // What a hub or a collection looks like: the symbol and the colour its people chose (UC-WRK-33).
 //
-// The server stores both as free strings (`icon`, `color_token`); this is where the client decides
-// what it offers and how it reads back what it finds. A value it does not offer - written by a
-// script, an older client or another door - is read as "none chosen" rather than drawn as a guess:
+// The server stores the symbol as a free string (`icon`) and refuses a new colour outside the ten
+// label tokens (`color_token`); this is where the client decides what it offers and how it reads
+// back what it finds. A value it does not offer - written by a script, an older client, another door
+// or before the server checked the colour - is read as "none chosen" rather than drawn as a guess:
 // an unknown symbol would be a missing glyph, an unknown colour a tile with no pair behind it.
 //
 // The colour is the place's, never its level's (design-system.md §6): nothing here derives one

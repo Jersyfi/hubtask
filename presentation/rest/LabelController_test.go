@@ -140,6 +140,24 @@ func TestALabelRefusalIsReportedAsAProblem(t *testing.T) {
 	}
 }
 
+// A colour outside the ten is the domain's refusal, answered as a validation problem that names
+// the field and the code a client translates.
+func TestALabelColourOutsideTheTenIsAnsweredAs422(t *testing.T) {
+	registry := &catalogue{err: shared.ErrValidation.
+		WithDetail("labels.color_token_unknown").
+		WithFields(shared.FieldError{Path: "/color_token", Code: "labels.color_token_unknown"})}
+
+	recorder := labelRequest(t, registry, http.MethodPost,
+		"/containers/"+boardCollection+"/labels", `{"name":"Urgent","color_token":"raspberry"}`)
+
+	if recorder.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("status %d, want 422: %s", recorder.Code, recorder.Body)
+	}
+	if body := recorder.Body.String(); !strings.Contains(body, "labels.color_token_unknown") || !strings.Contains(body, "/color_token") {
+		t.Errorf("the problem does not name the field and its code: %s", body)
+	}
+}
+
 // A merge patch says "leave it alone" by omission, and the handler passes on only what arrived.
 func TestUpdatingALabelPassesOnOnlyWhatArrived(t *testing.T) {
 	registry := &catalogue{out: storedLabel("Blocked")}

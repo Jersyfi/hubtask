@@ -6500,10 +6500,12 @@ type Bucket struct {
 // BucketCreate defines model for BucketCreate.
 type BucketCreate struct {
 	BeforeBucketId *openapi_types.UUID `json:"before_bucket_id,omitempty"`
-	ColorToken     *string             `json:"color_token,omitempty"`
-	IsDoneBucket   *bool               `json:"is_done_bucket,omitempty"`
-	Name           string              `json:"name"`
-	WipLimit       *int                `json:"wip_limit,omitempty"`
+
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.
+	ColorToken   *string `json:"color_token,omitempty"`
+	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
+	Name         string  `json:"name"`
+	WipLimit     *int    `json:"wip_limit,omitempty"`
 }
 
 // BucketDeletion What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them.
@@ -6519,6 +6521,7 @@ type BucketDeletion struct {
 
 // BucketUpdate JSON Merge Patch; null deletes a field.
 type BucketUpdate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.
 	ColorToken   *string `json:"color_token,omitempty"`
 	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
 	Name         *string `json:"name,omitempty"`
@@ -6908,6 +6911,7 @@ type Container struct {
 
 // ContainerCreate defines model for ContainerCreate.
 type ContainerCreate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.
 	ColorToken  *string             `json:"color_token,omitempty"`
 	Description *string             `json:"description,omitempty"`
 	Icon        *string             `json:"icon,omitempty"`
@@ -6951,6 +6955,7 @@ type ContainerType string
 
 // ContainerUpdate defines model for ContainerUpdate.
 type ContainerUpdate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.
 	ColorToken  *string `json:"color_token,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
@@ -8394,6 +8399,7 @@ type Label struct {
 
 // LabelCreate defines model for LabelCreate.
 type LabelCreate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `labels.color_token_unknown`; a value stored before that check is kept until it is changed.
 	ColorToken  string  `json:"color_token"`
 	Description *string `json:"description,omitempty"`
 	Name        string  `json:"name"`
@@ -8401,7 +8407,7 @@ type LabelCreate struct {
 
 // LabelUpdate JSON Merge Patch; null deletes a field.
 type LabelUpdate struct {
-	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one.
+	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one. One of the ten label colours, as on creation; any other name is refused with `labels.color_token_unknown`.
 	ColorToken  *string `json:"color_token,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Name        *string `json:"name,omitempty"`

@@ -286,7 +286,8 @@ refuses. It is the account's roles; a token's scopes bound it further.
 | `parentId` | UUIDv7? | `HUB` → `null`; `COLLECTION` → a `HUB` |
 | `name` | string(1..200) | Unique per parent level (case-insensitive, Unicode NFC normalised) |
 | `description` | text? | |
-| `icon`, `color` | string? | |
+| `icon` | string? | A symbol the client offers; stored as given |
+| `colorToken` | string? | One of the ten label tokens (`LabelTokens.go`); another name is refused, a value stored before that check is kept until it is changed |
 | `orderKey` | string | A fractional index within the parent: a hub among the workspace's hubs, a collection among its hub's |
 | `policies` | JSONB | `completionPolicy` and `structure` (the container's own layer of its settings, §2); `autoAssign` is read with it from its own row |
 | `archivedAt`, `deletedAt` | timestamptz? | Lifecycle |
@@ -354,7 +355,7 @@ stateDiagram-v2
 
 | Entity | Key fields | Rules |
 |---|---|---|
-| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it |
+| `Bucket` | `collectionId`, `name`, `orderKey`, `wipLimit?`, `isDoneBucket`, `colorToken?` | The "list" of the requirements. `isDoneBucket` marks the column that means finished; it is stored and reported, and the server completes nothing because of it. A colour, where set, is one of the ten label tokens, as a label's |
 | `Label` | `collectionId`, `name`, `colorToken`, `description?` | The colour is required and is one of the ten label tokens (`LabelTokens.go`), never a colour value, so clients theme it ([ADR-0029](../adr/ADR-0029-design-system-tokens.md)) |
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?` | Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
