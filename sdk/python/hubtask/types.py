@@ -2906,12 +2906,14 @@ class ImportRequest(TypedDict, total=False):
     media_id: Required[str]
     kind: Required["ImportKind"]
     hub_id: Required[str]
+    collection_id: str
     mapping: dict[str, Any]
 
 class ImportRun(TypedDict, total=False):
     id: Required[str]
     kind: Required["ImportKind"]
     hub_id: Required[str]
+    collection_id: str | None
     media_id: str
     status: Required[Literal["PENDING", "RUNNING", "SUCCEEDED", "FAILED"]]
     report: "RestoreReport"

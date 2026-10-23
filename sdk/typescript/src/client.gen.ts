@@ -501,7 +501,7 @@ export class HubtaskClient {
     return this.call("POST", "/jobs/{jobId}:cancel", { "jobId": jobId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Import entries from another system into a hub */
+  /** Import entries from another system into a hub or one of its collections */
   importEntries(body: NonNullable<operations["importEntries"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["importEntries"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/imports", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }

@@ -7989,6 +7989,9 @@ type ImportKind string
 
 // ImportRequest defines model for ImportRequest.
 type ImportRequest struct {
+	// CollectionId A collection of that hub to land the entries in, instead of new collections under the hub. Absent: the import creates collections.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId The hub the imported collections land under.
 	HubId openapi_types.UUID `json:"hub_id"`
 
@@ -8004,11 +8007,13 @@ type ImportRequest struct {
 
 // ImportRun defines model for ImportRun.
 type ImportRun struct {
-	CreatedAt  time.Time          `json:"created_at"`
-	ErrorCode  *string            `json:"error_code,omitempty"`
-	FinishedAt *time.Time         `json:"finished_at,omitempty"`
-	HubId      openapi_types.UUID `json:"hub_id"`
-	Id         openapi_types.UUID `json:"id"`
+	// CollectionId The collection the entries landed in, or null where the import created collections.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ErrorCode    *string             `json:"error_code,omitempty"`
+	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
 
 	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
 	Kind    ImportKind          `json:"kind"`
@@ -15126,7 +15131,7 @@ type ServerInterface interface {
 	// OfferIdentityProvider Switch a provider on or off as a way in here
 	// (POST /identity-providers/{providerId}:offer)
 	OfferIdentityProvider(w http.ResponseWriter, r *http.Request, providerId ProviderId, params OfferIdentityProviderParams)
-	// ImportEntries Import entries from another system into a hub
+	// ImportEntries Import entries from another system into a hub or one of its collections
 	// (POST /imports)
 	ImportEntries(w http.ResponseWriter, r *http.Request, params ImportEntriesParams)
 	// GetImport An import and its report

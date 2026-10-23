@@ -7995,6 +7995,9 @@ type ImportKind string
 
 // ImportRequest defines model for ImportRequest.
 type ImportRequest struct {
+	// CollectionId A collection of that hub to land the entries in, instead of new collections under the hub. Absent: the import creates collections.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+
 	// HubId The hub the imported collections land under.
 	HubId openapi_types.UUID `json:"hub_id"`
 
@@ -8010,11 +8013,13 @@ type ImportRequest struct {
 
 // ImportRun defines model for ImportRun.
 type ImportRun struct {
-	CreatedAt  time.Time          `json:"created_at"`
-	ErrorCode  *string            `json:"error_code,omitempty"`
-	FinishedAt *time.Time         `json:"finished_at,omitempty"`
-	HubId      openapi_types.UUID `json:"hub_id"`
-	Id         openapi_types.UUID `json:"id"`
+	// CollectionId The collection the entries landed in, or null where the import created collections.
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	CreatedAt    time.Time           `json:"created_at"`
+	ErrorCode    *string             `json:"error_code,omitempty"`
+	FinishedAt   *time.Time          `json:"finished_at,omitempty"`
+	HubId        openapi_types.UUID  `json:"hub_id"`
+	Id           openapi_types.UUID  `json:"id"`
 
 	// Kind The system the file came from. `CSV` is a header row and one entry per line; `TRELLO` is a board's JSON export; `GOOGLE_TASKS` is Takeout's `Tasks.json`; `MICROSOFT_TODO` is the Graph API's JSON for the lists and their tasks. A kind this build does not serve is refused by name.
 	Kind    ImportKind          `json:"kind"`
@@ -17658,10 +17663,11 @@ type ClientInterface interface {
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
 	OfferIdentityProvider(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportEntriesWithBody Import entries from another system into a hub
+	// ImportEntriesWithBody Import entries from another system into a hub or one of its collections
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+	// with `collection_id`, as entries in that collection of the hub. One
 	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
@@ -17672,17 +17678,24 @@ type ClientInterface interface {
 	// where the report is read once the job has finished. The object is deleted when the job
 	// ends, success or failure: a file somebody imported is not a file they attached.
 	//
-	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+	// collection, `STRUCTURE` on that collection, because the import may add its board columns
+	// and labels. There the file's own collection is the named one: a board's lists become its
+	// columns as they would in a collection of their own, and where the file holds several
+	// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+	// a label named after its list. A column or label whose name the collection already has is
+	// that one, not a second.
 	//
 	// Takes any type of body and a specified content type.
 	//
 	// Corresponds with POST /imports (the `ImportEntries` operationId).
 	ImportEntriesWithBody(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
-	// ImportEntries Import entries from another system into a hub
+	// ImportEntries Import entries from another system into a hub or one of its collections
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+	// with `collection_id`, as entries in that collection of the hub. One
 	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
@@ -17693,7 +17706,13 @@ type ClientInterface interface {
 	// where the report is read once the job has finished. The object is deleted when the job
 	// ends, success or failure: a file somebody imported is not a file they attached.
 	//
-	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+	// collection, `STRUCTURE` on that collection, because the import may add its board columns
+	// and labels. There the file's own collection is the named one: a board's lists become its
+	// columns as they would in a collection of their own, and where the file holds several
+	// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+	// a label named after its list. A column or label whose name the collection already has is
+	// that one, not a second.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -25959,10 +25978,11 @@ func (c *Client) OfferIdentityProvider(ctx context.Context, providerId ProviderI
 	return c.Client.Do(req)
 }
 
-// ImportEntriesWithBody Import entries from another system into a hub
+// ImportEntriesWithBody Import entries from another system into a hub or one of its collections
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+// with `collection_id`, as entries in that collection of the hub. One
 // ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
@@ -25973,7 +25993,13 @@ func (c *Client) OfferIdentityProvider(ctx context.Context, providerId ProviderI
 // where the report is read once the job has finished. The object is deleted when the job
 // ends, success or failure: a file somebody imported is not a file they attached.
 //
-// Needs `STRUCTURE` on the hub, because an import creates collections there.
+// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+// collection, `STRUCTURE` on that collection, because the import may add its board columns
+// and labels. There the file's own collection is the named one: a board's lists become its
+// columns as they would in a collection of their own, and where the file holds several
+// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+// a label named after its list. A column or label whose name the collection already has is
+// that one, not a second.
 //
 // Takes any type of body and a specified content type.
 //
@@ -25990,10 +26016,11 @@ func (c *Client) ImportEntriesWithBody(ctx context.Context, params *ImportEntrie
 	return c.Client.Do(req)
 }
 
-// ImportEntries Import entries from another system into a hub
+// ImportEntries Import entries from another system into a hub or one of its collections
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+// with `collection_id`, as entries in that collection of the hub. One
 // ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
@@ -26004,7 +26031,13 @@ func (c *Client) ImportEntriesWithBody(ctx context.Context, params *ImportEntrie
 // where the report is read once the job has finished. The object is deleted when the job
 // ends, success or failure: a file somebody imported is not a file they attached.
 //
-// Needs `STRUCTURE` on the hub, because an import creates collections there.
+// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+// collection, `STRUCTURE` on that collection, because the import may add its board columns
+// and labels. There the file's own collection is the named one: a board's lists become its
+// columns as they would in a collection of their own, and where the file holds several
+// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+// a label named after its list. A column or label whose name the collection already has is
+// that one, not a second.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -51394,10 +51427,11 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /identity-providers/{providerId}:offer (the `OfferIdentityProvider` operationId).
 	OfferIdentityProviderWithResponse(ctx context.Context, providerId ProviderId, params *OfferIdentityProviderParams, body OfferIdentityProviderJSONRequestBody, reqEditors ...RequestEditorFn) (*OfferIdentityProviderResult, error)
 
-	// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
+	// ImportEntriesWithBodyWithResponse Import entries from another system into a hub or one of its collections
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+	// with `collection_id`, as entries in that collection of the hub. One
 	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
@@ -51408,17 +51442,24 @@ type ClientWithResponsesInterface interface {
 	// where the report is read once the job has finished. The object is deleted when the job
 	// ends, success or failure: a file somebody imported is not a file they attached.
 	//
-	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+	// collection, `STRUCTURE` on that collection, because the import may add its board columns
+	// and labels. There the file's own collection is the named one: a board's lists become its
+	// columns as they would in a collection of their own, and where the file holds several
+	// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+	// a label named after its list. A column or label whose name the collection already has is
+	// that one, not a second.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /imports (the `ImportEntries` operationId).
 	ImportEntriesWithBodyWithResponse(ctx context.Context, params *ImportEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ImportEntriesResult, error)
 
-	// ImportEntriesWithResponse Import entries from another system into a hub
+	// ImportEntriesWithResponse Import entries from another system into a hub or one of its collections
 	//
 	// Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-	// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+	// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+	// with `collection_id`, as entries in that collection of the hub. One
 	// ingestion path: the file is converted into the same records a
 	// backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 	// identities derived from the source's own, so that importing the same file twice creates
@@ -51429,7 +51470,13 @@ type ClientWithResponsesInterface interface {
 	// where the report is read once the job has finished. The object is deleted when the job
 	// ends, success or failure: a file somebody imported is not a file they attached.
 	//
-	// Needs `STRUCTURE` on the hub, because an import creates collections there.
+	// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+	// collection, `STRUCTURE` on that collection, because the import may add its board columns
+	// and labels. There the file's own collection is the named one: a board's lists become its
+	// columns as they would in a collection of their own, and where the file holds several
+	// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+	// a label named after its list. A column or label whose name the collection already has is
+	// that one, not a second.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -77212,10 +77259,11 @@ func (c *ClientWithResponses) OfferIdentityProviderWithResponse(ctx context.Cont
 	return ParseOfferIdentityProviderResult(rsp)
 }
 
-// ImportEntriesWithBodyWithResponse Import entries from another system into a hub
+// ImportEntriesWithBodyWithResponse Import entries from another system into a hub or one of its collections
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+// with `collection_id`, as entries in that collection of the hub. One
 // ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
@@ -77226,7 +77274,13 @@ func (c *ClientWithResponses) OfferIdentityProviderWithResponse(ctx context.Cont
 // where the report is read once the job has finished. The object is deleted when the job
 // ends, success or failure: a file somebody imported is not a file they attached.
 //
-// Needs `STRUCTURE` on the hub, because an import creates collections there.
+// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+// collection, `STRUCTURE` on that collection, because the import may add its board columns
+// and labels. There the file's own collection is the named one: a board's lists become its
+// columns as they would in a collection of their own, and where the file holds several
+// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+// a label named after its list. A column or label whose name the collection already has is
+// that one, not a second.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -77239,10 +77293,11 @@ func (c *ClientWithResponses) ImportEntriesWithBodyWithResponse(ctx context.Cont
 	return ParseImportEntriesResult(rsp)
 }
 
-// ImportEntriesWithResponse Import entries from another system into a hub
+// ImportEntriesWithResponse Import entries from another system into a hub or one of its collections
 //
 // Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,
-// a Microsoft To Do dump - and lands its contents as collections under the named hub. One
+// a Microsoft To Do dump - and lands its contents as collections under the named hub, or,
+// with `collection_id`, as entries in that collection of the hub. One
 // ingestion path: the file is converted into the same records a
 // backup archive holds and applied through the restore in `MERGE` mode with `skip`, under
 // identities derived from the source's own, so that importing the same file twice creates
@@ -77253,7 +77308,13 @@ func (c *ClientWithResponses) ImportEntriesWithBodyWithResponse(ctx context.Cont
 // where the report is read once the job has finished. The object is deleted when the job
 // ends, success or failure: a file somebody imported is not a file they attached.
 //
-// Needs `STRUCTURE` on the hub, because an import creates collections there.
+// Needs `STRUCTURE` on the hub, because an import creates collections there; into a
+// collection, `STRUCTURE` on that collection, because the import may add its board columns
+// and labels. There the file's own collection is the named one: a board's lists become its
+// columns as they would in a collection of their own, and where the file holds several
+// lists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries
+// a label named after its list. A column or label whose name the collection already has is
+// that one, not a second.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
