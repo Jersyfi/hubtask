@@ -71,6 +71,8 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 			PrivateHubs: privateHubsRule(unitOfWork), Events: writer.Events, Changes: writer.Changes,
 			Audit: sink, UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
 			Text: textadapter.Forms{}, Structure: resolver,
+			Buckets: postgres.NewBucketRepository(), Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Renderer: catalogueRenderer(t),
 		}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authoriser, UnitOfWork: unitOfWork, Structure: resolver,

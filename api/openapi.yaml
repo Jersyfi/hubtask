@@ -15897,7 +15897,10 @@ components:
           description: >
             The preset the new hub or collection starts from; its values are copied. A collection
             given its hub's preset, or none, follows its hub instead and stores nothing of its own. A
-            hub given none starts from the workspace's default preset where one is set.
+            hub given none starts from the workspace's default preset where one is set. A
+            collection whose structure offers the board starts with the columns to do, in progress
+            and done, named in the workspace's language; where the board is its default view, the
+            column in progress is limited to three.
         preset_id:
           type: [string, "null"]
           format: uuid
