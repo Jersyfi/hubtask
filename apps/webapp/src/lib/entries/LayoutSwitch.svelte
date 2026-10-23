@@ -27,10 +27,15 @@
      * offers the same list, so a layout is choosable in both places or in neither.
      */
     offered: readonly string[];
+    /**
+     * The layouts reported for this collection: the installation's, narrowed to what its structure
+     * offers. A layout the collection does not offer is absent, not drawn with a reason.
+     */
+    reported?: readonly string[];
     onlayout: (id: string) => void;
   }
 
-  const { layout, offered, onlayout }: Props = $props();
+  const { layout, offered, reported: reportedHere, onlayout }: Props = $props();
 
   /** The two list layouts, as the contract names them, and the one place they are drawn as. */
   const COLLAPSED = 'LIST_COLLAPSED';
@@ -39,7 +44,7 @@
 
   const isList = (id: string) => id === COLLAPSED || id === EXPANDED;
 
-  const reported = $derived<readonly string[]>(manifest.value?.view_layouts ?? []);
+  const reported = $derived<readonly string[]>(reportedHere ?? manifest.value?.view_layouts ?? []);
   const hasBothLists = $derived(reported.includes(COLLAPSED) && reported.includes(EXPANDED));
 
   const ICONS: Record<string, IconName> = { [LIST]: 'menu', KANBAN: 'bucket', TIMELINE: 'calendar' };
@@ -73,7 +78,10 @@
 
 <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
 <div class="layout-switch" data-tour="layouts">
-  <ViewSwitcher label={t('app.view.label')} {views} {selected} onselect={choose} />
+  <!-- One way to look at the entries is no choice: a list that offers only itself draws no switch. -->
+  {#if views.length > 1}
+    <ViewSwitcher label={t('app.view.label')} {views} {selected} onselect={choose} />
+  {/if}
   {#if isList(layout) && hasBothLists}
     <Checkbox
       label={t('app.view.show_inside')}

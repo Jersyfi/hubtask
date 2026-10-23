@@ -33,6 +33,19 @@ export function formatDay(iso: string, locale: string): string {
 }
 
 /**
+ * The reader's day as a heading says it - "Friday, 23 October" - on the clock of their own zone,
+ * which is where *Today* is today. A zone the platform does not know falls back to the device's.
+ */
+export function formatToday(locale: string, zone: string, now: number = Date.now()): string {
+  const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long' };
+  try {
+    return new Intl.DateTimeFormat(locale, { ...options, timeZone: zone }).format(now);
+  } catch {
+    return new Intl.DateTimeFormat(locale, options).format(now);
+  }
+}
+
+/**
  * A due date, drawn as what it is.
  *
  * An all-day date gets **no time in any locale**, which is the whole point of the flag: rendering

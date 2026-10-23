@@ -36,7 +36,7 @@
 
   import { accounts } from '../data/accounts.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
-  import { holds, supports } from '../data/capability.svelte.ts';
+  import { holds, offerIn } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { people, type Path } from '../data/people.svelte.ts';
@@ -48,8 +48,10 @@
 
   const { item, path }: { item: WorkItem; path: Path } = $props();
 
-  const assignment = $derived(supports(item.type, 'ASSIGNMENT'));
-  const membership = $derived(supports(item.type, 'MEMBERS'));
+  /** The two parts as the collection offers them: its structure may carry one without the other. */
+  const offer = $derived(offerIn(containers.find(item.collection_id)?.structure?.settings));
+  const assignment = $derived(offer.supports(item.type, 'ASSIGNMENT'));
+  const membership = $derived(offer.supports(item.type, 'MEMBERS'));
 
   /**
    * Whether anything would choose, if asked.

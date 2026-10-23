@@ -150,9 +150,9 @@ for (const role of ['AUDITOR', 'BELOW']) {
     t.after(() => context.close());
 
     await page.goto(`${served.origin}/`);
-    await page.getByRole('heading', { name: 'What you had open' }).waitFor();
+    await page.getByRole('heading', { name: 'Recently opened' }).waitFor();
     assert.equal(await page.getByRole('navigation').getByText('Jumble', { exact: true }).count(), 0, 'the jumble row is drawn');
-    assert.equal(await page.getByRole('heading', { name: 'In the jumble' }).count(), 0, 'the overview draws the jumble');
+    assert.equal(await page.getByRole('heading', { name: 'In the jumble' }).count(), 0, 'Today draws the jumble');
 
     await page.goto(`${served.origin}/jumble`);
     await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();

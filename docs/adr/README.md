@@ -122,3 +122,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0087](./ADR-0087-levels-and-a-livelier-product.md) | Levels, and a livelier product | accepted | Work, design |
 | [0088](./ADR-0088-a-long-press-opens-the-entry-menu.md) | A long press opens the entry menu | accepted | Design |
 | [0089](./ADR-0089-check-once-where-it-is-cheap.md) | Check once, where it is cheap; the worker checks its own premises | accepted | Process |
+| [0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) | Concept mode, findings fixed where found, proof by tests | accepted | Process |

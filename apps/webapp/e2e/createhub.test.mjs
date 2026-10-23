@@ -66,8 +66,8 @@ test('chromium: a member is offered a private hub of their own and no shared hub
 
   await page.goto(`${served.origin}/`);
   await own(page).first().waitFor({ timeout: 10_000 });
-  // The head and the navigation, each once.
-  assert.equal(await own(page).count(), 2, 'not offered in both the head and the navigation');
+  // In the navigation, once: *Today* carries no head action of its own (ux-inventory.md §E9).
+  assert.equal(await own(page).count(), 1, 'not offered once, in the navigation');
   assert.equal(await shared(page).count(), 0, 'a member is offered a shared hub the server refuses');
 
   await own(page).first().click();

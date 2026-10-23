@@ -23,7 +23,17 @@
   import { formatDue, formatRelative } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
 
-  const { item }: { item: WorkItem } = $props();
+  interface Props {
+    item: WorkItem;
+    /**
+     * The date alone, without the overdue or due-soon word and tone: *Today* lists what is past
+     * plainly and says nothing about what the person did not do (UC-WRK-34 check 6). Its band says
+     * when, so the row need not.
+     */
+    isPlain?: boolean;
+  }
+
+  const { item, isPlain = false }: Props = $props();
 
   /** How near counts as near. A day, which is the horizon a to-do list is read over. */
   const SOON_MS = 24 * 60 * 60 * 1000;
@@ -57,7 +67,9 @@
 {/if}
 
 {#if date}
-  {#if overdue}
+  {#if isPlain}
+    <Badge icon="calendar">{date}</Badge>
+  {:else if overdue}
     <!-- An icon and a word and the date. The tone is the third signal, not the only one. -->
     <Badge tone="danger" icon="triangle-alert">
       {t('app.due.overdue_by', { relative })} · {date}

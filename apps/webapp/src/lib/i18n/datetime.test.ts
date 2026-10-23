@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDay, formatDue, formatRelative } from './datetime.ts';
+import { formatDateTime, formatDay, formatDue, formatRelative, formatToday } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -67,4 +67,13 @@ test('how far away it is comes from Intl, not from a phrase assembled here', () 
 test('a value that is not an instant is shown as it arrived', () => {
   assert.equal(formatDue('not an instant', 'en', 'UTC'), 'not an instant');
   assert.equal(formatRelative('not an instant', 'en'), 'not an instant');
+});
+
+test('today is the reader’s day on their own clock, not the device’s', () => {
+  // 23:30 in Greenwich on the 23rd is already the 24th in Auckland.
+  const late = Date.parse('2026-10-23T23:30:00Z');
+  assert.equal(formatToday('en-GB', 'UTC', late), 'Friday 23 October');
+  assert.equal(formatToday('en-GB', 'Pacific/Auckland', late), 'Saturday 24 October');
+  assert.equal(formatToday('de', 'Europe/Berlin', late), 'Samstag, 24. Oktober');
+  assert.equal(formatToday('en-GB', 'Not/AZone', late).length > 0, true, 'an unknown zone draws a day all the same');
 });

@@ -7,8 +7,8 @@
  * One answer for the list, the subtree, the board, the timeline and search - and the entry's own
  * page and *Today* when they draw it - so the same entry offers the same actions in the same order
  * in every place. Pure: what the reader may do, what the type carries and where the entry stands
- * arrive as a context; the words arrive through `t`. A surface adds only what is its own (the
- * board's columns), after the moves.
+ * arrive as a context; the words arrive through `t`. A surface adds only what is its own: the
+ * board's columns after the moves, a simple list's amount and category after *Open*.
  *
  * Absent and off are different answers (P-05, design-system.md §4): what the reader's role may not
  * do and what the type does not carry is not listed; what is impossible *now* - an archived entry,
@@ -21,7 +21,8 @@ import type { MenuItem } from '@hubtask/design-system/components';
 
 import type { Archival } from '../data/containers.ts';
 
-export type EntrySurface = 'list' | 'subtree' | 'board' | 'timeline' | 'search' | 'today' | 'page';
+/** `simple` is a collection of one level drawn as a simple list (UC-WRK-25): no levels to move between. */
+export type EntrySurface = 'list' | 'simple' | 'subtree' | 'board' | 'timeline' | 'search' | 'today' | 'page';
 
 /** Where the entry stands in its level, for the four rank commands and the two moves. */
 export interface EntryLevel {
@@ -58,12 +59,17 @@ export interface EntryMenuContext {
   readonly level: EntryLevel | undefined;
   /** What only this surface offers, drawn after the moves (the board's columns). */
   readonly extras?: readonly MenuItem[];
+  /**
+   * What a simple list offers of its own, drawn after *Open*: the amount where the type carries one
+   * there, the category where the list has categories and the type carries labels.
+   */
+  readonly simple?: { readonly amount: boolean; readonly category: boolean };
 }
 
 type Translate = (code: string, params?: Record<string, string | number>) => string;
 
 /** The surfaces where selecting acts: a bulk bar is there to act on what is picked. */
-const SELECTING: ReadonlySet<EntrySurface> = new Set(['list', 'board']);
+const SELECTING: ReadonlySet<EntrySurface> = new Set(['list', 'simple', 'board']);
 
 const RANKS = [
   { id: 'up', label: 'app.rank.up', isForward: false },
@@ -103,8 +109,16 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
   const archived = context.archival === 'archived' ? t('app.entries.archived') : undefined;
   const items: MenuItem[] = [];
 
+  // *Select* first: on a list and a board a still hold opens this menu rather than selecting (ADR-0088).
   if (SELECTING.has(context.surface)) items.push({ id: 'select', label: t('app.entry_menu.select') });
   items.push(open);
+  const isSimple = context.surface === 'simple';
+  if (isSimple && context.simple?.amount) {
+    items.push({ id: 'amount', label: t('app.entries.change_amount'), disabledReason: archived });
+  }
+  if (isSimple && context.simple?.category) {
+    items.push({ id: 'category', label: t('app.entries.choose_category'), disabledReason: archived });
+  }
   if (context.carries('COMPLETION')) {
     items.push({
       id: context.item.isCompleted ? 'reopen' : 'complete',
@@ -124,7 +138,10 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
 
   const level = context.level;
   const moving = t('app.move.moving');
-  RANKS.forEach((command, position) => {
+  // A simple list ranks only its open entries - a done one sits under *Done*, by when - and has no
+  // level to move inside or out of.
+  const ranks = isSimple && context.item.isCompleted ? [] : RANKS;
+  ranks.forEach((command, position) => {
     const isAtEdge =
       level !== undefined && (command.isForward ? level.index >= level.count - 1 : level.index <= 0);
     items.push({
@@ -140,17 +157,24 @@ export function entryMenu(context: EntryMenuContext, t: Translate): MenuItem[] {
       hasSeparatorBefore: position === 0,
     });
   });
+  if (!isSimple) {
+    items.push({
+      id: 'inside',
+      label: level?.aboveTitle ? t('app.move.inside', { name: level.aboveTitle }) : t('app.move.inside_above'),
+      disabledReason: archived ?? (level === undefined ? moving : level.insideReason),
+    });
+    items.push({
+      id: 'out',
+      label: t('app.move.out'),
+      disabledReason: archived ?? (level === undefined ? moving : level.outReason),
+    });
+  }
   items.push({
-    id: 'inside',
-    label: level?.aboveTitle ? t('app.move.inside', { name: level.aboveTitle }) : t('app.move.inside_above'),
-    disabledReason: archived ?? (level === undefined ? moving : level.insideReason),
+    id: 'elsewhere',
+    label: t('app.move.elsewhere'),
+    disabledReason: archived,
+    ...(ranks.length === 0 ? { hasSeparatorBefore: true } : {}),
   });
-  items.push({
-    id: 'out',
-    label: t('app.move.out'),
-    disabledReason: archived ?? (level === undefined ? moving : level.outReason),
-  });
-  items.push({ id: 'elsewhere', label: t('app.move.elsewhere'), disabledReason: archived });
 
   context.extras?.forEach((extra, position) => {
     items.push({ ...extra, disabledReason: archived ?? extra.disabledReason, hasSeparatorBefore: position === 0 });

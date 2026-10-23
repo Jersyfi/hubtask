@@ -9,8 +9,28 @@ export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
 /** Somebody invited who has not arrived yet: the row an invitation is renewed from (UC-ID-14 check 5). */
 export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER', display_name: 'Bert', email: 'bert@example.invalid', status: 'INVITED' };
-export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
-export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
+/**
+ * The structure a container answers where nobody chose one: Hubtask's default, every level and
+ * view of the installation (domain-model.md §2). A type left out of `fields` carries everything.
+ */
+export const DEFAULT_STRUCTURE = {
+  preset: null,
+  settings: {
+    levels: [{ type: 'TASK', name: null }, { type: 'WORK_PACKAGE', name: null }, { type: 'ACTIVITY', name: null }],
+    fields: {},
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'NONE', field_key: null },
+    completion: 'MANUAL',
+    capture: ['DATE', 'PERSON', 'LABEL'],
+    celebration: 'ALL',
+    automation: [],
+  },
+  sources: { levels: 'DEFAULT', fields: 'DEFAULT', views: 'DEFAULT', counts: 'DEFAULT', completion: 'DEFAULT', capture: 'DEFAULT', celebration: 'DEFAULT', automation: 'DEFAULT' },
+  locks: {},
+  counts_clipped: null,
+};
+export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
+export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
 /** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
 export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
@@ -507,7 +527,9 @@ export const FIGURE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000061', type: 'H
 const today = () => new Date().toISOString().slice(0, 10);
 const structureOf = (levels, counts, extra = {}) => ({
   preset: null,
+  // All eight settings, as a server answers them: the panel refuses a save that offers no view.
   settings: {
+    ...DEFAULT_STRUCTURE.settings,
     levels: levels.map((type) => ({ type, name: null })),
     fields: Object.fromEntries(levels.map((type) => [type, { capabilities: MANIFEST.item_types.find((t) => t.type === type).capabilities }])),
     counts,
@@ -537,6 +559,109 @@ export const FIGURES = {
 };
 /** A number field the sum may name. */
 export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collection_id: FIGURES.sum.id, key: 'amount', kind: 'NUMBER', options: [], is_required: false, applies_to: ['TASK'], version: 1 };
+
+/**
+ * How much structure a collection has (UC-WRK-23): a hub of its own with a *List* collection - one
+ * level, which its owner named "item", no dates, people, labels or notes, the list alone - and a *Project* whose views and task
+ * dates the workspace locked (Mara Lind set the locks). Shown where a walk asks for it
+ * (`showStructures`) or the preview is started with `HUBTASK_FIXTURE_STRUCTURES=1`.
+ */
+export const SHAPE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Errands', order_key: 'a3', version: 1, structure: DEFAULT_STRUCTURE };
+const own = (extra = {}) => ({ levels: 'COLLECTION', fields: 'COLLECTION', views: 'COLLECTION', counts: 'COLLECTION', completion: 'COLLECTION', capture: 'COLLECTION', celebration: 'COLLECTION', automation: 'DEFAULT', ...extra });
+const PRESET_SETTINGS = {
+  LIST: {
+    levels: [{ type: 'TASK', name: null }],
+    fields: { TASK: { capabilities: ['COMPLETION', 'HISTORY', 'CUSTOM_FIELDS'] } },
+    views: { offered: ['LIST_COLLAPSED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'OPEN', field_key: null }, completion: 'MANUAL', capture: ['LINES', 'AMOUNT'], celebration: 'SUBTLE', automation: [],
+  },
+  TASKS: {
+    levels: [{ type: 'TASK', name: null }, { type: 'ACTIVITY', name: null }],
+    fields: { TASK: { capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'] } },
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'DUE', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: [],
+  },
+  PROJECT: {
+    ...DEFAULT_STRUCTURE.settings,
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], default: 'LIST_EXPANDED' },
+    counts: { figure: 'PROGRESS', field_key: null }, completion: 'ROLLUP',
+  },
+  FLOW: {
+    levels: [{ type: 'TASK', name: null }], fields: {},
+    views: { offered: ['KANBAN', 'LIST_COLLAPSED'], default: 'KANBAN' },
+    counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: [],
+  },
+};
+/** Hubtask's four presets, as `GET /presets` answers them. */
+export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ key, settings }));
+export const SHAPES = {
+  list: {
+    id: '01a0e2e0-0000-7000-8000-000000000082', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Shopping', order_key: 'a0', version: 1,
+    structure: {
+      preset: 'LIST', settings: { ...PRESET_SETTINGS.LIST, levels: [{ type: 'TASK', name: 'item' }] }, sources: own(), locks: {}, counts_clipped: null,
+    },
+  },
+  locked: {
+    id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Client project', order_key: 'a1', version: 1,
+    structure: {
+      preset: 'PROJECT', settings: PRESET_SETTINGS.PROJECT, sources: own({ views: 'WORKSPACE' }),
+      locks: { views: { origin: 'WORKSPACE', locked_by: OTHER.id }, 'fields.TASK.DUE_DATE': { origin: 'WORKSPACE', locked_by: OTHER.id } },
+      counts_clipped: null,
+    },
+  },
+};
+/** Two entries on the list, and what a write of the list's structure was sent. */
+export const SHAPE_ITEMS = [
+  item('84', 'Oat milk', { collection_id: SHAPES.list.id }),
+  item('85', 'Rye bread', { collection_id: SHAPES.list.id }),
+];
+
+/** What the structure writes made of the hub and its collections, so a read after a write agrees. */
+let shaped = new Map();
+const current = (container) => shaped.get(container.id) ?? container;
+
+let structuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_STRUCTURES === '1';
+/** Adds the structure hub to the tree, for this process. */
+export function showStructures() {
+  structuresShown = true;
+}
+
+/** The structure hub's reads and writes; `undefined` where the general stub answers. */
+function structureRoute(route, request, url, path) {
+  if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS });
+  if (!structuresShown) return undefined;
+  const collections = Object.values(SHAPES).map(current);
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, ...(figuresShown ? [FIGURE_HUB] : []), current(SHAPE_HUB)] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === SHAPE_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: collections } });
+  }
+  if (path.endsWith(`/api/v1/containers/${SHAPE_HUB.id}`)) return route.fulfill({ json: current(SHAPE_HUB) });
+  const structured = [current(SHAPE_HUB), ...collections].find((c) => path.endsWith(`/api/v1/containers/${c.id}/structure`));
+  if (structured && request.method() === 'PATCH') {
+    // The fixture agrees with whatever is sent: a preset copied, the settings laid on top, a reset
+    // back to Hubtask's default. What the server decides is its own tests' (UC-WRK-23 check 8).
+    const change = request.postDataJSON();
+    const settings = { ...structured.structure.settings, ...(change.preset ? PRESET_SETTINGS[change.preset] : {}), ...(change.settings ?? {}) };
+    for (const name of change.reset ?? []) settings[name] = DEFAULT_STRUCTURE.settings[name];
+    const kept = change.preset ? Object.keys(structured.structure.locks).filter((key) => !key.includes('.')) : [];
+    for (const key of kept) settings[key] = structured.structure.settings[key];
+    const written = { ...structured, version: structured.version + 1, structure: { ...structured.structure, preset: change.preset ?? structured.structure.preset, settings } };
+    shaped.set(structured.id, written);
+    return route.fulfill({ json: { ...written, kept_by_lock: kept, clipped_by_levels: [] } });
+  }
+  const one = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (one) return route.fulfill({ json: one });
+  if (path.endsWith('/api/v1/items:query')) {
+    const body = request.postDataJSON();
+    if (body.scope?.container_id === SHAPES.list.id) return route.fulfill({ json: { data: SHAPE_ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: SHAPE_ITEMS.length } });
+    if (body.scope?.container_id === SHAPES.locked.id) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false }, total: 0 } });
+  }
+  const entry = SHAPE_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && request.method() === 'GET') return route.fulfill({ json: entry });
+  return undefined;
+}
 
 let figuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_FIGURES === '1';
 /** Adds the figure hub to the tree, for this process. */
@@ -699,10 +824,107 @@ function lookRoute(route, request, url, path) {
   return undefined;
 }
 
+/**
+ * A person's day (UC-WRK-34): a hub of its own with a list, a project and a collection of chores,
+ * the entries on the reader across them - one past, one today, one coming up, and one in the list,
+ * which *Today* draws as the list's tile instead - the project's next due step and two arrivals in
+ * the jumble. Shown where a walk asks for it (`showToday`) or the preview is started with
+ * `HUBTASK_FIXTURE_TODAY=1`. A completion is answered and remembered, so a walk that ticks one off
+ * reads it back as done.
+ */
+export const TODAY_HUB = { id: '01a0e2e0-0000-7000-8000-0000000d7a01', type: 'HUB', parent_id: null, name: 'Life', icon: 'leaf', color_token: 'teal', order_key: 'a5', version: 1 };
+const dayCollection = (n, name, levels, figure) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'COLLECTION', parent_id: TODAY_HUB.id, name, order_key: `a${n}`, version: 1,
+  structure: structureOf(levels, { figure: figure.kind, field_key: null }),
+  figure: { today: today(), ...figure },
+});
+export const TODAY_COLLECTIONS = {
+  list: dayCollection('11', 'Shopping', ['TASK'], { kind: 'OPEN', open: 5 }),
+  project: dayCollection('12', 'Garden', ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { kind: 'PROGRESS', done: 3, total: 8 }),
+  chores: dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }),
+};
+const dayItem = (n, title, collection, due, extra = {}) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'TASK', title, collection_id: collection.id, parent_id: null, depth: 0,
+  order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
+});
+const hoursFromNow = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
+/** On the reader, soonest first as the search answers them. */
+export const TODAY_ITEMS = [
+  dayItem('21', 'Water the plants', TODAY_COLLECTIONS.chores, hoursFromNow(-26)),
+  dayItem('22', 'Buy oat milk', TODAY_COLLECTIONS.list, `${inDays(0)}T00:00:00Z`, { due_date_only: true, due_time_zone: 'UTC' }),
+  dayItem('23', 'Pay the electricity bill', TODAY_COLLECTIONS.chores, `${inDays(0)}T00:00:00Z`, { due_date_only: true, due_time_zone: 'UTC' }),
+  dayItem('24', 'Book the sauna', TODAY_COLLECTIONS.chores, `${inDays(3)}T17:00:00Z`),
+];
+/** The project's next due step: an activity two levels down, not on the reader. */
+export const TODAY_STEP = dayItem('31', 'Order the seeds', TODAY_COLLECTIONS.project, `${inDays(1)}T09:00:00Z`, { type: 'ACTIVITY', depth: 2, parent_id: '01a0e2e0-0000-7000-8000-0000000d7a32' });
+export const TODAY_ARRIVALS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000d7a41', channel: 'EMAIL', raw_subject: 'Invoice from the plumber', attachments: [], status: 'NEW', received_at: '2026-10-23T07:10:00Z' },
+  { id: '01a0e2e0-0000-7000-8000-0000000d7a42', channel: 'EMAIL', raw_subject: '', attachments: [], status: 'NEW', received_at: '2026-10-23T07:40:00Z' },
+];
+
+let todayShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_TODAY === '1';
+/** Adds the day to the workspace, for this process. */
+export function showToday() {
+  todayShown = true;
+}
+/** What was ticked off so far, by entry; reset by `forgetUnstubbed`. */
+let dayTicked = {};
+/** The completions the day's entries were sent, in order: what a walk reads to prove a tick. */
+let dayCompletions = [];
+export function dayCompletionsSoFar() {
+  return [...dayCompletions];
+}
+const asTicked = (entry) => (entry && dayTicked[entry.id] !== undefined ? { ...entry, completion: { is_completed: dayTicked[entry.id] } } : entry);
+
+/** The day's reads and its completions; `undefined` where the general stub answers. */
+function todayRoute(route, request, url, path) {
+  if (!todayShown) return undefined;
+  const collections = Object.values(TODAY_COLLECTIONS);
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, TODAY_HUB] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === TODAY_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: collections } });
+  }
+  if (path.endsWith(`/api/v1/containers/${TODAY_HUB.id}`)) return route.fulfill({ json: TODAY_HUB });
+  const one = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (one) return route.fulfill({ json: one });
+  if (path.endsWith('/api/v1/search')) {
+    // Answered as the server would: what is still open, so a tick read again is gone.
+    const open = TODAY_ITEMS.map(asTicked).filter((each) => !each.completion.is_completed);
+    return route.fulfill({ json: { ...PAGE, data: open } });
+  }
+  if (path.endsWith('/api/v1/items:query') && request.postDataJSON()?.scope?.container_id === TODAY_COLLECTIONS.project.id) {
+    const step = asTicked(TODAY_STEP);
+    const data = step.completion.is_completed ? [] : [step];
+    return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+  }
+  const done = /\/api\/v1\/items\/([^/]+):(complete|reopen)$/.exec(path);
+  const target = done && [...TODAY_ITEMS, TODAY_STEP].find((each) => each.id === done[1]);
+  if (target && request.method() === 'POST') {
+    dayTicked[target.id] = done[2] === 'complete';
+    dayCompletions.push(`${done[2]} ${target.id}`);
+    return route.fulfill({ json: { ...asTicked(target), version: target.version + 1 } });
+  }
+  const entry = [...TODAY_ITEMS, TODAY_STEP].find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && request.method() === 'GET') return route.fulfill({ json: asTicked(entry) });
+  if (path.endsWith('/api/v1/jumble/entries')) return route.fulfill({ json: { data: TODAY_ARRIVALS, page: { next_cursor: null } } });
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const containers = [HUB, COLLECTION, TODAY_HUB, ...collections.map(({ figure, ...rest }) => rest)];
+    const records = containers.map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  return undefined;
+}
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
+  const day = todayRoute(route, request, url, path);
+  if (day) return day;
+  const shaped = structureRoute(route, request, url, path);
+  if (shaped) return shaped;
   const looks = lookRoute(route, request, url, path);
   if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
@@ -1027,9 +1249,12 @@ export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'Q
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  shaped = new Map();
   created = undefined;
   pushed.length = 0;
   looked = [];
+  dayTicked = {};
+  dayCompletions = [];
   draftSaved = false;
   answers = [];
 }
