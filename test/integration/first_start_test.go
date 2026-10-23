@@ -12,8 +12,11 @@ import (
 
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/Jersyfi/hubtask/core/application/service/access"
 	adminservice "github.com/Jersyfi/hubtask/core/application/service/admin"
 	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
+	workservice "github.com/Jersyfi/hubtask/core/application/service/work"
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
@@ -321,6 +324,25 @@ func TestTheSetupMakesTheFirstWorkspaceAndItsOperatorInOneStep(t *testing.T) {
 	var hubs int
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM container WHERE type = 'HUB'`).Scan(&hubs); err != nil || hubs != 1 {
 		t.Errorf("the seeded hub: %d, %v", hubs, err)
+	}
+	// What the setup seeded keeps nobody from being asked what the workspace is for (UC-WRK-30 check 5).
+	var tenantID, ownerID string
+	if err := admin.QueryRow(ctx, `SELECT tenant_id::text, id::text FROM account`).Scan(&tenantID, &ownerID); err != nil {
+		t.Fatalf("reading the owner: %v", err)
+	}
+	authoriser := access.Service{
+		Memberships: postgres.NewMembershipRepository(), UnitOfWork: uow,
+		Audit: postgres.NewAuditSink(ids), Clock: clockadapter.System{},
+	}
+	starter := workservice.Starter{
+		Starts: postgres.NewStarterRepository(), Permits: authoriser, Authorizer: authoriser,
+		Audit: postgres.NewAuditSink(ids), UnitOfWork: uow, Clock: clockadapter.System{},
+	}
+	if asked, err := starter.StarterOffered(ctx, appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.ID(tenantID), AccountID: shared.ID(ownerID),
+		Scopes: []string{"workspace:manage"},
+	}); err != nil || !asked {
+		t.Errorf("the owner of a workspace just set up is not asked its first start: %v, %v", asked, err)
 	}
 
 	if _, err := setup.Execute(ctx, command); shared.AsError(err).DetailCode != "setup.already_done" {

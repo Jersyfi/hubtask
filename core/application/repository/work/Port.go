@@ -1349,8 +1349,8 @@ type InstallationPresets interface {
 
 // Starter keeps whether the workspace's first start was answered (UC-WRK-30 check 5).
 type Starter interface {
-	// Pending reports whether nobody has answered or skipped the first start's question and the
-	// workspace holds no hub.
+	// Pending reports whether nobody has answered or skipped the first start's question and nobody
+	// has made a hub, collection or entry beyond what the workspace was created with.
 	Pending(ctx context.Context) (bool, error)
 
 	// Close records that the question was answered or skipped; closing it again changes nothing.

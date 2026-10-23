@@ -12741,7 +12741,8 @@ components:
           description: >
             Whether a client asks the reader, once, what the workspace is used for and offers a
             starter set of hubs and collections on matching presets: nobody has answered or skipped
-            it yet, the workspace holds no hub, and the reader may change the workspace's shape.
+            it yet, nobody has made a hub, collection or entry beyond what the workspace was created
+            with, and the reader may change the workspace's shape.
             `POST /tenant/starter:close` answers it for good.
         hosts:
           type: array
