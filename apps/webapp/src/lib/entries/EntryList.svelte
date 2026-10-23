@@ -12,7 +12,7 @@
   // example — a new type is a profile entry and no code change — is only true if nothing here
   // spells them out.
 
-  import { untrack } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Badge,
@@ -583,6 +583,10 @@
 
   /** The person took the amount back into the title for this submit, from the chip. */
   let keepsWhole = $state(false);
+  /** Opened for several lines (the add split's *Several lines…*): the field starts tall. */
+  let isSeveral = $state(false);
+  /** The capture form while it is open, for the focus `addEntry` gives an already open one. */
+  let captureBox = $state<HTMLElement | null>(null);
   /** What the line reads its first line as, shown before submitting so a split can be undone. */
   const preview = $derived(
     captureRules.readsAmount && !keepsWhole ? parseLine(draftTitle.split(/\r?\n/u)[0] ?? '', captureRules) : undefined,
@@ -620,15 +624,21 @@
    * exactly as the button at the end does. Exported so the view can ask without owning the
    * form's state, which is the list's.
    */
-  export function addEntry() {
+  export function addEntry(several = false) {
     if (isReadOnly || !mayCreate || topTypes().length === 0) return;
+    // A simple list's capture line is open already, so nothing mounts and nothing takes the
+    // focus by itself: it is given.
+    const wasOpen = addingUnder === 'root';
     startAdding('root');
+    isSeveral = several;
+    if (wasOpen) void tick().then(() => captureBox?.querySelector('textarea')?.focus());
   }
 
   function startAdding(under: string, type?: string) {
     addingUnder = under;
     draftTitle = '';
     keepsWhole = false;
+    isSeveral = false;
     captureNote = undefined;
     draftLanguage = actor.locale ?? messages.locale;
     writeFailure = undefined;
@@ -1508,6 +1518,7 @@
 {#snippet addForm()}
   <!-- Opened by a button that stays where it is; the focus still moves in, because the next Tab
        from the button would otherwise skip the form the reader just asked for (2.4.3). -->
+  <div bind:this={captureBox}>
   <Stack gap="150" {@attach focusFirst({ returnTo: '[data-opener="add-entry"]' })}>
     <!-- The chooser appears only when there is a choice: at most installations a work package takes
          activities and nothing else, and a select with one option is a decision nobody has. Nor
@@ -1518,7 +1529,7 @@
     <Textarea
       label={captureRules.splitsLines ? t('app.entries.capture_label') : t('app.entries.new_title')}
       hint={captureRules.splitsLines ? t('app.entries.capture_hint') : undefined}
-      rows={1}
+      rows={isSeveral && captureRules.splitsLines ? 5 : 1}
       bind:value={draftTitle}
       onkeydown={onCaptureKey}
       oninput={() => (captureNote = undefined)}
@@ -1586,6 +1597,7 @@
       {/if}
     </Inline>
   </Stack>
+  </div>
 {/snippet}
 
 {#if isChoosingCategories && structure && simpleLevel && containerVersion !== undefined}

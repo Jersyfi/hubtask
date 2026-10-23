@@ -69,6 +69,7 @@
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
   import { queryOf } from '../lib/data/views.ts';
+  import { captureRulesOf } from '../lib/entries/capture.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
@@ -645,12 +646,19 @@
   );
 
   /** Creating from the head: on a board or the timeline, the list is where the form lives. */
-  function addFromHead() {
+  function addFromHead(several = false) {
     if (!container || addDisabledReason) return;
     if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
     // After the layout switch the list is mounted on the next tick.
-    queueMicrotask(() => list?.addEntry());
+    queueMicrotask(() => list?.addEntry(several));
   }
+
+  /**
+   * Whether the collection's capture line takes several lines as several entries (UC-WRK-25
+   * check 1) - the rule every capture field reads, so the split offers *Several lines…* exactly
+   * where the line would split them.
+   */
+  const splitsLines = $derived(captureRulesOf(container?.structure, '', []).splitsLines);
 
   /** Where the people dialog and the *People* tab grant and read roles: the container's own scope and path. */
   const memberScope = $derived(
@@ -830,13 +838,16 @@
           ? {
               label: addLabel,
               icon: 'plus',
-              onclick: addFromHead,
+              onclick: () => addFromHead(),
               disabledReason: addDisabledReason,
               opener: 'add-entry',
               menu: {
                 label: t('app.entries.add_ways'),
-                items: [{ id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: readOnlyReason }],
-                onselect: () => (isUsingTemplates = true),
+                items: [
+                  { id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: readOnlyReason },
+                  ...(splitsLines ? [{ id: 'lines', label: t('app.entries.add_lines'), icon: 'menu' as const, disabledReason: addDisabledReason }] : []),
+                ],
+                onselect: (way: string) => (way === 'lines' ? addFromHead(true) : (isUsingTemplates = true)),
               },
             }
           : undefined,

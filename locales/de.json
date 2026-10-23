@@ -4295,6 +4295,7 @@
   "app.recurrence.saved_announced": "Serie gespeichert.",
   "app.recurrence.removed_announced": "Die Serie wurde beendet.",
   "app.templates.title": "Vorlagen",
+  "app.entries.add_lines": "Mehrere Zeilen…",
   "app.templates.from": "Aus einer Vorlage…",
   "app.templates.none": "Hier gelten noch keine Vorlagen.",
   "app.templates.scope_TENANT": "Ganzer Arbeitsbereich",

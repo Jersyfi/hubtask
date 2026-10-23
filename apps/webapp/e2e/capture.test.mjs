@@ -392,3 +392,36 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   assert.equal(after, before);
   assert.deepEqual(failures, []);
 });
+
+test('chromium: the add split offers several lines where the line splits them, and opens a tall field', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280);
+  t.after(() => context.close());
+  await context.route('**/api/v1/containers**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith(`/containers/${GROCERIES.id}`)) return route.fulfill({ json: GROCERIES });
+    return stub(route);
+  });
+  const ways = async () => {
+    await page.getByRole('button', { name: 'More ways to add an entry' }).click();
+    const rows = await page.getByRole('menuitem').allTextContents();
+    await page.keyboard.press('Escape');
+    return rows.map((each) => each.trim());
+  };
+
+  // A collection with several levels makes one entry of what is typed: no such way is offered.
+  await land(page, `/collections/${COLLECTION.id}`);
+  assert.ok(!(await ways()).includes('Several lines…'), 'several lines offered where the line does not split them');
+
+  // A list splits lines: the way is there, and it opens the capture line tall, focused.
+  await land(page, `/collections/${GROCERIES.id}`);
+  assert.ok((await ways()).includes('Several lines…'), `several lines missing from ${await ways()}`);
+  await page.getByRole('button', { name: 'More ways to add an entry' }).click();
+  await page.getByRole('menuitem', { name: 'Several lines…' }).click();
+  const field = page.locator('main textarea').first();
+  await field.waitFor({ timeout: 5_000 });
+  assert.equal(await field.getAttribute('rows'), '5');
+  assert.ok(await field.evaluate((node) => node === document.activeElement), 'the field did not take the focus');
+  assert.deepEqual(failures, []);
+});

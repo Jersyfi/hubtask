@@ -5517,6 +5517,7 @@
   "app.recurrence.saved_announced": "Series saved.",
   "app.recurrence.removed_announced": "The series was stopped.",
   "app.templates.title": "Templates",
+  "app.entries.add_lines": "Several lines…",
   "app.templates.from": "From a template…",
   "app.templates.none": "No templates apply here yet.",
   "app.templates.scope_TENANT": "Whole workspace",

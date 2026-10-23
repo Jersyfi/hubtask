@@ -152,7 +152,7 @@ Administration and installation, found by UX-05's sweep:
 
 - [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
-- [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17
+- [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17 — *From a template…* and *Several lines…* (where the line splits them) in the add split (UX-17); import into a collection needs the import to land in one, finding #1730
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
 - [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's
 - [x] Star "Saved views" and menu "Saved views" → one *Views* menu with open, save, edit, share, delete, export, calendar subscription (§E9) — *Views* beside the layout switch; the page menu's row is gone (UX-17)
@@ -166,7 +166,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] Templates dialog: use, edit, delete, define, generate from a description, stamp it out, editor per step → *Structure → Templates*; *From template* in capture; AI drafts land in the same panel — *Structure → Templates*; *From a template…* in the add button's split for everybody who may add; a generated draft is asked in the tab and lands in the collection's strip (UX-17)
 - [x] Policies dialog: completion roll-up, handing out (six strategies), candidates, add, applies to everything, save → *Structure → Automation* — *Structure → Automation*; *Cancel* in the tab goes back to what the collection holds (UX-17)
 - [x] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view — *Views* → *Export this list…* (`POST /items:export`), *Calendar subscriptions…*, a view's own export and subscription in *Rename, share or delete a view…* (UX-17)
-- [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
+- [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import* — kept on the hub's head; into a collection: finding #1730
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
 - [x] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol in UX-07; the preset in UX-10 (*Like its hub* or the workspace's default, and the four)
 
