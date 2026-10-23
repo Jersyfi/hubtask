@@ -20,8 +20,11 @@
 import type { Quick } from '../data/searchquery.ts';
 import { score, type Score } from './rank.ts';
 
-/** What a candidate row is: a hub or collection, an action, a place or settings page, an entry. */
-export type CandidateKind = 'container' | 'action' | 'place' | 'hit';
+/**
+ * What a candidate row is: a hub or collection, an action, a place or settings page, one row of a
+ * settings screen, an entry, or a place this device opened last.
+ */
+export type CandidateKind = 'container' | 'action' | 'place' | 'setting' | 'hit' | 'recent';
 
 /** One thing the palette could list, before ranking. */
 export interface Candidate {
@@ -30,6 +33,11 @@ export interface Candidate {
   readonly id: string;
   /** What is matched against the words, and what the row says. Resolved text. */
   readonly label: string;
+  /**
+   * Other words in the reader's language that find it, never drawn - "anlegen" for *Eintrag
+   * hinzufügen*. Resolved text.
+   */
+  readonly keywords?: string;
   /** Where it is, said beside the label: the hub of a collection whose name is not unique. */
   readonly context?: string;
   /** The shortcut that does the same thing, by its id in `lib/shortcuts.ts`. */
@@ -45,42 +53,76 @@ export interface Row {
 }
 
 /** How many of each kind one answer lists: enough to choose from, few enough to read. */
-export const CAPS: Readonly<Record<CandidateKind, number>> = { container: 5, action: 7, place: 5, hit: 5 };
-
-/** Among rows that match equally well, the order the kinds come in. */
-const KIND_ORDER: readonly CandidateKind[] = ['container', 'action', 'place', 'hit'];
+export const CAPS: Readonly<Record<CandidateKind, number>> = { container: 5, action: 7, place: 5, setting: 5, hit: 5, recent: 5 };
 
 /**
- * The candidates that answer the words, best first, each kind capped.
+ * How many actions an empty palette lists: the frame's common ones and the screen's, which a
+ * typed answer's cap would cut before the screen's own primary.
+ */
+export const EMPTY_ACTIONS = 10;
+
+/** The groups the list is drawn in, each under its own heading. */
+export type Group = 'places' | 'actions' | 'settings' | 'entries' | 'recent';
+
+/** Among groups that match equally well, the order they come in. */
+const GROUP_ORDER: readonly Group[] = ['places', 'actions', 'settings', 'entries', 'recent'];
+
+/** The group a kind is drawn in: a hub, a collection and a page are all places to go. */
+export function groupOf(kind: CandidateKind): Group {
+  if (kind === 'container' || kind === 'place') return 'places';
+  if (kind === 'action') return 'actions';
+  if (kind === 'setting') return 'settings';
+  if (kind === 'hit') return 'entries';
+  return 'recent';
+}
+
+/**
+ * How well a candidate answers the words. A keyword counts as a word's start at most, so a row
+ * that says the words ranks above one that only means them.
+ */
+function gradeOf(candidate: Candidate, words: string, locale?: string): Score {
+  const byLabel = score(candidate.label, words, locale);
+  const byKeywords = candidate.keywords ? Math.min(score(candidate.keywords, words, locale), 2) : 0;
+  const found = Math.max(byLabel, byKeywords) as Score;
+  return candidate.kind === 'hit' && found === 0 ? 1 : found;
+}
+
+/**
+ * The candidates that answer the words, group by group, best first, each kind capped.
  *
- * With no words the palette is "what can I do here": the actions in the order their screen offers
- * them, and nothing else (no ranking of an empty question). An entry the server returned matches
- * even where no grade here says so - it was found by a word form or by meaning - so it is kept at
- * the lowest grade rather than dropped.
+ * **In the drawn order.** The list is drawn under a heading per group and the arrows walk what is
+ * drawn, so the group whose best row matches best comes first, and within a group the best row
+ * first: "ranked by match" (UC-WRK-27 check 2) inside the heading that says what a row is.
+ *
+ * With no words the palette is "what can I do, and where was I": the actions in the order they
+ * are offered, then the places this device opened last - nothing is ranked against an empty
+ * question. A place opened last is offered only then: with words it would repeat a container or
+ * an entry found under its own heading. An entry the server returned matches even where no grade
+ * here says so - it was found by a word form or by meaning - so it is kept at the lowest grade.
  */
 export function rank(candidates: readonly Candidate[], words: string, locale?: string): readonly Candidate[] {
-  if (words.trim() === '') return candidates.filter((each) => each.kind === 'action').slice(0, CAPS.action);
-  const graded = candidates
-    .map((candidate, order) => {
-      const found = score(candidate.label, words, locale);
-      const grade: Score = candidate.kind === 'hit' && found === 0 ? 1 : found;
-      return { candidate, grade, order };
-    })
-    .filter((each) => each.grade > 0)
-    .sort(
-      (a, b) =>
-        b.grade - a.grade ||
-        KIND_ORDER.indexOf(a.candidate.kind) - KIND_ORDER.indexOf(b.candidate.kind) ||
-        a.order - b.order,
-    );
-  const taken: Record<CandidateKind, number> = { container: 0, action: 0, place: 0, hit: 0 };
-  const kept: Candidate[] = [];
-  for (const { candidate } of graded) {
-    if (taken[candidate.kind] >= CAPS[candidate.kind]) continue;
-    taken[candidate.kind] += 1;
-    kept.push(candidate);
+  if (words.trim() === '') {
+    return [
+      ...candidates.filter((each) => each.kind === 'action').slice(0, EMPTY_ACTIONS),
+      ...candidates.filter((each) => each.kind === 'recent').slice(0, CAPS.recent),
+    ];
   }
-  return kept;
+  const graded = candidates
+    .filter((candidate) => candidate.kind !== 'recent')
+    .map((candidate, order) => ({ candidate, grade: gradeOf(candidate, words, locale), order }))
+    .filter((each) => each.grade > 0)
+    .sort((a, b) => b.grade - a.grade || a.order - b.order);
+  const taken: Record<CandidateKind, number> = { container: 0, action: 0, place: 0, setting: 0, hit: 0, recent: 0 };
+  const kept: { readonly candidate: Candidate; readonly grade: Score }[] = [];
+  for (const each of graded) {
+    if (taken[each.candidate.kind] >= CAPS[each.candidate.kind]) continue;
+    taken[each.candidate.kind] += 1;
+    kept.push(each);
+  }
+  const best = new Map<Group, number>();
+  for (const { candidate, grade } of kept) best.set(groupOf(candidate.kind), Math.max(best.get(groupOf(candidate.kind)) ?? 0, grade));
+  const groups = [...best.keys()].sort((a, b) => (best.get(b) ?? 0) - (best.get(a) ?? 0) || GROUP_ORDER.indexOf(a) - GROUP_ORDER.indexOf(b));
+  return groups.flatMap((group) => kept.filter((each) => groupOf(each.candidate.kind) === group).map((each) => each.candidate));
 }
 
 /**

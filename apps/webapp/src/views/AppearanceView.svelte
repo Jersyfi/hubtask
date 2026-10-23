@@ -55,17 +55,22 @@
     <div class="panel">
       <Stack gap="200">
         <p class="quiet">{t('app.profile.device_hint')}</p>
-        <Radio
-          label={t('app.profile.theme')}
-          bind:value={themeChoice}
-          options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))}
-        />
-        <Radio
-          label={t('app.profile.motion')}
-          hint={t('app.profile.motion_hint')}
-          bind:value={motionChoice}
-          options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
-        />
+        <!-- Wrapped: a `Radio` group takes no attribute of its own, and the palette lands on the row. -->
+        <div data-setting="theme">
+          <Radio
+            label={t('app.profile.theme')}
+            bind:value={themeChoice}
+            options={THEMES.map((each) => ({ value: each, label: t(`app.profile.theme_${each}`) }))}
+          />
+        </div>
+        <div data-setting="motion">
+          <Radio
+            label={t('app.profile.motion')}
+            hint={t('app.profile.motion_hint')}
+            bind:value={motionChoice}
+            options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
+          />
+        </div>
       </Stack>
     </div>
   </Stack>
