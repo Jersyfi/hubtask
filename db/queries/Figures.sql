@@ -131,3 +131,40 @@ SELECT wi.collection_id::uuid AS collection_id,
         AND c.type::text = ANY (string_to_array(w.offered, ','))
    )
  GROUP BY wi.collection_id;
+
+-- name: CountFigureFlow :many
+-- FLOW (UC-WRK-31 checks 3 and 4): per collection, the visible top-level entries completed since a
+-- moment - archived ones included, as the rhythm counts them (`wi_figure_done_idx`) - with their
+-- average time from creation to completion, and the board's columns holding more open, unarchived,
+-- visible entries than their limit (`wi_board_idx`). A top-level entry has no ancestor, so the
+-- hidden predicate is its own type alone. Every collection asked is answered, with zeros where
+-- nothing counts, so that "nothing completed" and "not counted" stay two answers.
+SELECT w.collection_id::uuid AS collection_id,
+       coalesce(done.completed, 0)::int AS completed,
+       -- Zero where none was completed; the count says whether there is an average at all.
+       coalesce(done.average_seconds, 0)::float8 AS average_seconds,
+       (SELECT count(*)
+          FROM bucket b
+         WHERE b.collection_id = w.collection_id AND b.deleted_at IS NULL AND b.wip_limit IS NOT NULL
+           AND b.wip_limit < (
+             SELECT count(*) FROM work_item wi
+              WHERE wi.collection_id = w.collection_id AND wi.bucket_id = b.id
+                AND wi.parent_id IS NULL AND wi.is_completed = false
+                AND wi.archived_at IS NULL AND wi.deleted_at IS NULL
+                AND wi.type::text = ANY (string_to_array(w.offered, ','))
+           ))::int AS over_limit
+  FROM (
+    SELECT (sqlc.arg('collection_ids')::uuid[])[i] AS collection_id,
+           (sqlc.arg('offered')::text[])[i] AS offered
+      FROM generate_series(1, cardinality(sqlc.arg('collection_ids')::uuid[])) AS i
+  ) w
+  LEFT JOIN LATERAL (
+    SELECT count(*) AS completed,
+           avg(extract(epoch FROM wi.completed_at - wi.created_at)) AS average_seconds
+      FROM work_item wi
+     WHERE wi.collection_id = w.collection_id AND wi.parent_id IS NULL
+       AND wi.is_completed = true AND wi.deleted_at IS NULL
+       AND wi.completed_at >= sqlc.arg('since')::timestamptz
+       AND wi.completed_at <= sqlc.arg('now')::timestamptz
+       AND wi.type::text = ANY (string_to_array(w.offered, ','))
+  ) done ON true;

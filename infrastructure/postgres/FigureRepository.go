@@ -147,5 +147,26 @@ func (r FigureRepository) Count(
 			}
 		}
 	}
+	if batch := batches[work.FigureFlow]; batch != nil {
+		rows, err := queries.CountFigureFlow(ctx, sqlc.CountFigureFlowParams{
+			CollectionIds: batch.ids, Offered: batch.offered,
+			Since: timestampOf(window.FlowSince()), Now: timestampOf(window.Now),
+		})
+		if err != nil {
+			return nil, failed("flow", err)
+		}
+		for _, row := range rows {
+			err := update(row.CollectionID, func(c *work.FigureCounts) {
+				c.Completed, c.OverLimit = int(row.Completed), int(row.OverLimit)
+				if row.Completed > 0 {
+					average := row.AverageSeconds
+					c.AverageSeconds = &average
+				}
+			})
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	return counted, nil
 }

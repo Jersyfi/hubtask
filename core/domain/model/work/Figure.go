@@ -33,6 +33,14 @@ type FigureWindow struct {
 	WeekStartDate string
 }
 
+// FlowWindow is how far back the flow figure looks: a week up to the moment of counting, rolling
+// rather than the reader's calendar week, so that "a week" means the same on a Monday as on a
+// Friday (UC-WRK-31 check 4).
+const FlowWindow = 7 * 24 * time.Hour
+
+// FlowSince is the first instant the flow figure counts a completion from.
+func (w FigureWindow) FlowSince() time.Time { return w.Now.Add(-FlowWindow) }
+
 // weekStarts is the account's vocabulary for a week's first day.
 var weekStarts = map[string]time.Weekday{
 	"MONDAY": time.Monday, "SUNDAY": time.Sunday, "SATURDAY": time.Saturday,
@@ -79,15 +87,14 @@ type FigureRequest struct {
 	FieldKey string
 }
 
-// FigureRequestFor answers what to count for a collection, or false where nothing is counted: what
-// counts is NONE, or FLOW, whose figure is not counted by this server yet (UC-WRK-31 check 4).
+// FigureRequestFor answers what to count for a collection, or false where what counts is NONE.
 func FigureRequestFor(collectionID shared.ID, effective EffectiveStructure) (FigureRequest, bool) {
 	counts := effective.Values.Counts
 	if counts == nil {
 		return FigureRequest{}, false
 	}
 	switch counts.Figure {
-	case FigureOpen, FigureFieldSum, FigureDue, FigureRhythm, FigureProgress:
+	case FigureOpen, FigureFieldSum, FigureDue, FigureRhythm, FigureProgress, FigureFlow:
 	default:
 		return FigureRequest{}, false
 	}
@@ -127,6 +134,14 @@ type FigureCounts struct {
 	Done, Total int
 	// Days are the reader's dates this week with a completion.
 	Days []string
+	// Completed are the visible top-level entries completed since FlowSince, archived ones
+	// included; AverageSeconds is their average time from creation to completion - from the
+	// first column to the last, since a flow's entries start in its first column and its last
+	// completes them - nil where none was completed.
+	Completed      int
+	AverageSeconds *float64
+	// OverLimit are the board's columns holding more open, visible entries than their limit.
+	OverLimit int
 }
 
 // CollectionFigure is a collection's figure as answered: numbers and dates, never words (P-12).
