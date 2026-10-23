@@ -5349,9 +5349,20 @@ paths:
 
         Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it
         readable at all after the workspace it names is gone.
+
+        Narrowed by what happened (`action`, a prefix) and by the workspace it was about
+        (`workspace`, its address); a cursor walks on under the same narrowing.
       parameters:
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/PageSize"
+        - name: action
+          in: query
+          description: A prefix of the action, e.g. `tenant.` for every workspace's lifecycle or `tenant.suspended` for one act.
+          schema: { type: string, maxLength: 64 }
+        - name: workspace
+          in: query
+          description: The address (slug) of the workspace the entries are about, as the journal kept it - also of one that is gone.
+          schema: { type: string, maxLength: 64 }
       responses:
         "200":
           description: One page, newest first

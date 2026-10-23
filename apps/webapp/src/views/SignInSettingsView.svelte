@@ -50,12 +50,20 @@
   // **Asking everybody for a new password is a button, not a field.** It sets a moment, and every
   // password older than it meets the change step at the next sign-in. It is red, it is behind a
   // confirmation, and its sentence says what it does to sessions.
+  //
+  // **Tabs, one save each** (ux-inventory §E8). *Passwords* (with the second factor and accounts
+  // without mail), *Sessions*, and *Ways and providers* - the list of ways with the providers'
+  // configuration under it, which was a screen of its own. The legal links are not about signing in
+  // at all and are the same rule's own page (`part: 'legal'`), so the filling, the source chips and
+  // the save are not written twice. Each tab's save bar counts and sends its own rows only; a row
+  // moved on another tab waits there for that tab's save.
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, ErrorState, Input, PageHeader, SaveBar, Select, Spinner, Stack, Switch, Tabs } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
 
+  import IdentityProviderView from './IdentityProviderView.svelte';
   import ProviderMark from '../lib/signin/ProviderMark.svelte';
   import { withdrawalPhase } from '../lib/instance/withdrawal.ts';
   import { identityProvider } from '../lib/data/identityprovider.svelte.ts';
@@ -74,6 +82,37 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
+
+  interface Props {
+    /** The sign-in rules in tabs, or the legal links on their own page. */
+    part?: 'sign-in' | 'legal';
+    /** The tab the address names (`?tab=`); the first where it names none or an unknown one. */
+    tab?: string;
+    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    onnavigate?: (path: string) => void;
+  }
+  let { part = 'sign-in', tab, onnavigate }: Props = $props();
+
+  /** Which rows each tab saves: the keys of `draft` its save bar counts and sends. */
+  const PASSWORD_KEYS = [
+    'min_length', 'min_lowercase', 'min_uppercase', 'min_digits', 'min_symbols', 'min_classes',
+    'max_repeat', 'common_passwords', 'context_words', 'breach_check', 'max_age_days',
+    'history_count', 'min_age_hours', 'mfa_required_for', 'managed_accounts',
+  ];
+  const SCOPES: Readonly<Record<string, readonly string[]>> = {
+    passwords: PASSWORD_KEYS,
+    sessions: ['session_max_days', 'session_idle_minutes'],
+    ways: [],
+    legal: ['imprint_url', 'privacy_url', 'terms_url', 'terms_version', 'accessibility_url'],
+  };
+  const TABS = [
+    { id: 'passwords', code: 'app.signin_settings.passwords' },
+    { id: 'sessions', code: 'app.signin_settings.sessions' },
+    { id: 'ways', code: 'app.signin_settings.ways_and_providers' },
+  ] as const;
+  const current = $derived(
+    part === 'legal' ? 'legal' : TABS.some((each) => each.id === tab) ? (tab as string) : 'passwords',
+  );
 
   $effect(() => untrack(() => signInPolicy.open()));
   $effect(() => untrack(() => identityProvider.open()));
@@ -179,12 +218,23 @@
       : t('app.signin_settings.link_inherited', { value: setting.installation });
   }
 
-  /** The rows that moved, in the shape the contract takes. Empty means there is nothing to save. */
-  function moved(): Record<string, unknown> {
+  /**
+   * The rows of a tab that moved, in the shape the contract takes - this tab's where none is
+   * named. Empty means there is nothing to save.
+   */
+  function moved(scope: string = current): Record<string, unknown> {
+    const keys = SCOPES[scope] ?? [];
     const changes: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(draft)) {
-      if (value !== baseline[key]) changes[key] = value;
+      if (keys.includes(key) && value !== baseline[key]) changes[key] = value;
     }
+    return changes;
+  }
+
+  /** What moved on the other tabs, kept through this tab's save and its re-filling. */
+  function movedElsewhere(): Record<string, unknown> {
+    const changes: Record<string, unknown> = {};
+    for (const scope of Object.keys(SCOPES)) if (scope !== current) Object.assign(changes, moved(scope));
     return changes;
   }
 
@@ -274,17 +324,25 @@
     // Nothing to send - Enter in an untouched field. A `PATCH` of nothing would ask for the
     // step-up on the way to doing nothing.
     if (Object.keys(changes).length === 0) return;
+    const waiting = movedElsewhere();
     if (await signInPolicy.save(changes)) {
       // From the answer rather than from the draft: what is in force is the server's word, and a
-      // value it bounded is a value this form has to show.
+      // value it bounded is a value this form has to show. What another tab holds unsaved stays.
       fill();
+      draft = { ...draft, ...waiting };
       toast.show({ text: t('app.signin_settings.saved'), tone: 'success' });
     }
   }
 
-  /** The rules back as they were read. */
+  /** This tab's rules back as they were read; another tab's stay as they are. */
   function discard(): void {
-    draft = { ...baseline };
+    const reverted = { ...draft };
+    for (const key of SCOPES[current] ?? []) if (key in baseline) reverted[key] = baseline[key];
+    draft = reverted;
+  }
+
+  function select(next: string): void {
+    onnavigate?.(next === 'passwords' ? '/administration/sign-in' : `/administration/sign-in?tab=${next}`);
   }
 
   // The ways in, and how many of them are on. The last one on cannot be switched off.
@@ -394,7 +452,8 @@
     if (await signInPolicy.requireNewPasswords()) announcer.say(t('app.signin_settings.rotated'));
   }
 
-  $effect(() => page.entitle(t('app.signin_settings.title')));
+  const title = $derived(part === 'legal' ? t('app.signin_settings.legal') : t('app.signin_settings.title'));
+  $effect(() => page.entitle(title));
 
 </script>
 
@@ -462,12 +521,12 @@
 
 <Stack gap="300">
   <PageHeader
-    title={t('app.signin_settings.title')}
+    {title}
     isTitleInBar={viewport.isCompact}
     breadcrumb={{
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'sign-in', label: t('app.signin_settings.title') },
+        { id: part, label: title },
       ],
       label: t('app.admin.trail'),
       expandLabel: t('app.admin.expand_trail'),
@@ -502,7 +561,7 @@
     </p>
   {:else}
     <Stack gap="300">
-      <p class="lead">{t('app.signin_settings.lead')}</p>
+      <p class="lead">{part === 'legal' ? t('app.signin_settings.legal_hint') : t('app.signin_settings.lead')}</p>
 
       {#if general}
         <Banner tone="danger" title={general.message}>
@@ -510,9 +569,30 @@
         </Banner>
       {/if}
 
+      {#if part === 'sign-in'}
+        <Tabs
+          label={t('app.signin_settings.title')}
+          selected={current}
+          onselect={select}
+          tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+        >
+          {@render panel()}
+        </Tabs>
+      {:else}
+        {@render panel()}
+      {/if}
+    </Stack>
+  {/if}
+</Stack>
+
+{#snippet panel()}
+  {#if policy}
+    <Stack gap="300">
+      {#if current !== 'ways'}
       <WorkspaceGate permission="STRUCTURE">
         <form bind:this={form} onsubmit={save} use:enterSubmits>
           <Stack gap="300">
+            {#if current === 'passwords'}
             <section class="panel">
               <Stack gap="200">
                 <h2>{t('app.signin_settings.passwords')}</h2>
@@ -559,7 +639,8 @@
               </Stack>
             </section>
 
-            {#if policy.managed_accounts}
+            {/if}
+            {#if current === 'passwords' && policy.managed_accounts}
               {@const managed = policy.managed_accounts}
               <section class="panel">
                 <Stack gap="200">
@@ -582,6 +663,7 @@
               </section>
             {/if}
 
+            {#if current === 'sessions'}
             <section class="panel">
               <Stack gap="200">
                 <h2>{t('app.signin_settings.sessions')}</h2>
@@ -590,10 +672,10 @@
               </Stack>
             </section>
 
+            {/if}
+            {#if current === 'legal'}
             <section class="panel">
               <Stack gap="200">
-                <h2>{t('app.signin_settings.legal')}</h2>
-                <p class="quiet small">{t('app.signin_settings.legal_hint')}</p>
                 {@render linkRow('imprint_url', t('app.legal.imprint'))}
                 {@render linkRow('privacy_url', t('app.legal.privacy'))}
                 {@render linkRow('terms_url', t('app.legal.terms'))}
@@ -621,6 +703,7 @@
                 {@render linkRow('accessibility_url', t('app.legal.accessibility'))}
               </Stack>
             </section>
+            {/if}
 
           </Stack>
           <WriteOnly>
@@ -637,7 +720,9 @@
           </WriteOnly>
         </form>
       </WorkspaceGate>
+      {/if}
 
+      {#if current === 'ways'}
       <!-- The ways in save the moment a switch moves, so they stand outside the rules' form and
            its save: a form holds what waits for its save, and nothing else. -->
       <section class="panel">
@@ -756,10 +841,19 @@
               </li>
             {/each}
           </ul>
-          <p class="small"><a href="/administration/identity-provider">{t('app.signin_settings.configure_providers')}</a></p>
         </Stack>
       </section>
 
+      <!-- The providers' configuration, under the switches that turn them on here. -->
+      <section class="panel" aria-labelledby="providers">
+        <Stack gap="200">
+          <h2 id="providers">{t('app.identity_provider.title')}</h2>
+          <IdentityProviderView />
+        </Stack>
+      </section>
+      {/if}
+
+      {#if current === 'passwords'}
       <WorkspaceGate permission="STRUCTURE">
         {#snippet actions()}
       <section class="panel">
@@ -775,9 +869,10 @@
       </section>
         {/snippet}
       </WorkspaceGate>
+      {/if}
     </Stack>
   {/if}
-</Stack>
+{/snippet}
 
 <Dialog
   bind:isOpen={confirming}

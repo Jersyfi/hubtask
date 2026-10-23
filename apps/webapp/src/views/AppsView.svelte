@@ -3,6 +3,8 @@
 <script lang="ts">
   // The third-party apps this workspace has registered.
   //
+  // Drawn as *Machines and apps*' *Apps* tab, which carries the head, the trail and the title.
+  //
   // **The redirect URIs are matched byte for byte**, at authorization and again at exchange. So the
   // form says that, and this screen normalises nothing: a trailing slash quietly removed here is an
   // app that fails to match its own address, and the failure appears much later and somewhere else.
@@ -23,7 +25,6 @@
     Checkbox,
     Input,
     OneTimeSecret,
-    PageHeader,
     Spinner,
     Stack,
     Textarea,
@@ -37,8 +38,6 @@
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { mayHere } from '../lib/data/capability.svelte.ts';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   let name = $state('');
   /** What *Register* found missing when pressed, marked at the fields (UC-WRK-32 check 3). */
@@ -94,28 +93,12 @@
       confidential = false;
     }, t('app.apps.registered_announced'));
   }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.apps.title')));
 
   /** Whether the reader may register and remove apps (`MANAGE_MEMBERS`), as the server asks. */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
 </script>
 
 <Stack gap="300">
-  <PageHeader
-    title={t('app.apps.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'apps', label: t('app.apps.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
     <Stack gap="300">
     <p class="quiet">{t('app.apps.intro')}</p>
 

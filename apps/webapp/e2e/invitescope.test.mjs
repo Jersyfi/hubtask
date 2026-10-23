@@ -16,6 +16,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, HUB, ITEMS, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { addPeople } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -79,6 +80,7 @@ test('chromium: People invites somebody with a role on one hub, not on the works
   t.after(close);
 
   await page.goto(`${served.origin}/administration/people`);
+  await addPeople(page);
   const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
   await form.getByLabel('Email address').fill('anna@example.invalid');
   await form.getByLabel('Where').selectOption(HUB.id);

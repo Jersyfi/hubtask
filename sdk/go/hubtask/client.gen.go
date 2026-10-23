@@ -12446,6 +12446,12 @@ type WithdrawInstanceIdentityProviderParams struct {
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Action A prefix of the action, e.g. `tenant.` for every workspace's lifecycle or `tenant.suspended` for one act.
+	Action *string `form:"action,omitempty" json:"action,omitempty"`
+
+	// Workspace The address (slug) of the workspace the entries are about, as the journal kept it - also of one that is gone.
+	Workspace *string `form:"workspace,omitempty" json:"workspace,omitempty"`
 }
 
 // CreatePlanParams defines parameters for CreatePlan.
@@ -14907,6 +14913,7 @@ type ClientInterface interface {
 	//
 	// What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.
 	// Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.
+	// Narrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.
 	//
 	// Corresponds with GET /admin/journal (the `ListInstanceJournal` operationId).
 	ListInstanceJournal(ctx context.Context, params *ListInstanceJournalParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -20485,6 +20492,7 @@ func (c *Client) WithdrawInstanceIdentityProvider(ctx context.Context, providerI
 //
 // What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.
 // Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.
+// Narrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.
 //
 // Corresponds with GET /admin/journal (the `ListInstanceJournal` operationId).
 func (c *Client) ListInstanceJournal(ctx context.Context, params *ListInstanceJournalParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -31116,6 +31124,30 @@ func NewListInstanceJournalRequest(server string, params *ListInstanceJournalPar
 		if params.Size != nil {
 
 			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "size", *params.Size, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "integer", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Action != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "action", *params.Action, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if params.Workspace != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "workspace", *params.Workspace, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
 				return nil, err
 			} else {
 				for _, qp := range strings.Split(queryFrag, "&") {
@@ -47421,6 +47453,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.
 	// Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.
+	// Narrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -70984,6 +71017,7 @@ func (c *ClientWithResponses) WithdrawInstanceIdentityProviderWithResponse(ctx c
 //
 // What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.
 // Identifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.
+// Narrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.
 //
 // Returns a wrapper object for the known response body format(s).
 //

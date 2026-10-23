@@ -31,6 +31,7 @@
     Spinner,
     Stack,
     Table,
+    Tabs,
   } from '@hubtask/design-system/components';
   import type { MembershipRole } from '@hubtask/sync-engine';
 
@@ -60,6 +61,53 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
+  import GroupsView from './GroupsView.svelte';
+  import PermissionsView from './PermissionsView.svelte';
+
+  interface Props {
+    /** The tab the address names (`?tab=`); the people where it names none or an unknown one. */
+    tab?: string;
+    /** Replaces the address when the tab changes, so a reload or a link keeps it. */
+    onnavigate?: (path: string) => void;
+  }
+
+  let { tab, onnavigate }: Props = $props();
+
+  // The groups and what each role means are tabs here (ux-inventory §E8): both answer "who may do
+  // what in this workspace", and a reader comparing a group's reach with a role's meaning should
+  // not leave the screen to do it.
+  const TABS = [
+    { id: 'people', code: 'app.people.tab_people' },
+    { id: 'groups', code: 'app.groups.title' },
+    { id: 'permissions', code: 'app.people.tab_permissions' },
+  ] as const;
+  const current = $derived(TABS.some((each) => each.id === tab) ? (tab as string) : 'people');
+
+  function select(next: string): void {
+    onnavigate?.(next === 'people' ? '/administration/people' : `/administration/people?tab=${next}`);
+  }
+
+  /**
+   * Which of the three ways in is open: an invitation, an account without an address, or a role
+   * for somebody already here. One at a time, opened from the head's one primary action, so the
+   * screen is the list first and a form only when somebody is being added.
+   */
+  type Way = 'invite' | 'managed' | 'grant';
+  let adding = $state<Way | undefined>(undefined);
+  let addingPanel = $state<HTMLElement | undefined>(undefined);
+
+  async function open(next: string): Promise<void> {
+    adding = next as Way;
+    missing = {};
+    await tick();
+    addingPanel?.querySelector<HTMLElement>('input, select')?.focus();
+  }
+
+  function close(): void {
+    adding = undefined;
+    missing = {};
+    document.querySelector<HTMLElement>('[data-opener="add-person"]')?.focus();
+  }
 
   /** The workspace itself. One scope, named once, so the read and the writes cannot disagree. */
   const TENANT = { scopeType: 'TENANT' } as const;
@@ -380,6 +428,28 @@
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.people.title')));
+
+  /** The ways this reader may add somebody here: none where nothing can be given (P-05). */
+  const ways = $derived(
+    grantable.length === 0
+      ? []
+      : [
+          { id: 'invite', label: t('app.people.invite_title') },
+          ...(managedAllowed ? [{ id: 'managed', label: t('app.people.managed_title') }] : []),
+          { id: 'grant', label: t('app.people.grant_title') },
+        ],
+  );
+  const addAction = $derived(
+    current === 'people' && ways.length > 0
+      ? {
+          label: t('app.people.add'),
+          icon: 'plus' as const,
+          opener: 'add-person',
+          onclick: () => void open('invite'),
+          menu: { label: t('app.people.add_ways'), items: ways, onselect: (id: string) => void open(id) },
+        }
+      : undefined,
+  );
 </script>
 
 <Stack gap="300">
@@ -389,15 +459,16 @@
      The head is **not** in that measure - `PageHeader` folds by the width it has, so a head
      inside a 60ch column folds like one on a phone and hides the trail behind the parent link.
 
-       No primary action in the head, and that is the screen rather than the pattern: what one
-       does here is give somebody a role, which is a form on the page. A screen whose one action
-       opens a dialog puts its button here.
+     One primary action, *Add people*, with the three ways in its list (ux-inventory §E8): an
+     invitation is the verb, an account without an address and a role for somebody already here
+     are the other two. Each opens its form above the list.
 
-       No `onnavigate` either: the crumb carries an `href` and the router takes every same-origin
-       link, so a handler here would be a second way to do what the link already does. -->
+     No `onnavigate` on the trail: the crumb carries an `href` and the router takes every
+     same-origin link, so a handler here would be a second way to do what the link already does. -->
   <PageHeader
     title={t('app.people.title')}
     isTitleInBar={viewport.isCompact}
+    primary={addAction}
     breadcrumb={{
       trail: [
         { id: 'administration', label: t('app.admin.title'), href: '/administration' },
@@ -408,6 +479,17 @@
     }}
   />
 
+  <Tabs
+    label={t('app.people.title')}
+    selected={current}
+    onselect={select}
+    tabs={TABS.map((each) => ({ id: each.id, label: t(each.code) }))}
+  >
+    {#if current === 'groups'}
+      <GroupsView />
+    {:else if current === 'permissions'}
+      <PermissionsView />
+    {:else}
     <Stack gap="300">
     <p class="quiet">{t('app.people.intro')}</p>
 
@@ -425,6 +507,123 @@
           onDismiss={() => (renewed = undefined)}
         />
       </Stack>
+    {/if}
+
+    {#if invited}
+      <Banner tone="success">{t('app.people.invited_sent', { email: invited })}</Banner>
+    {/if}
+    {#if handedOver}
+      <!-- The only time the link exists anywhere but as the server's hash. Focused when drawn: a
+           renewal pressed in the table above draws it here. -->
+      <div class="handed-over" tabindex="-1" bind:this={handedOverPanel} data-invitation-link>
+        <OneTimeSecret
+          value={handedOver.link}
+          label={t('app.people.invite_link', { name: handedOver.who })}
+          hint={t('app.people.invite_link_hint')}
+          revealLabel={t('app.people.invite_link_reveal')}
+          hideLabel={t('app.people.invite_link_hide')}
+          copyLabel={t('app.people.managed_copy')}
+          copiedLabel={t('app.people.invite_link_copied')}
+          acknowledgementLabel={t('app.people.invite_link_kept')}
+          notAcknowledgedReason={t('app.people.invite_link_keep_first')}
+          dismissLabel={t('app.tokens.done')}
+          onDismiss={() => (handedOver = undefined)}
+        />
+      </div>
+    {/if}
+
+    {#if adding && ways.length > 0}
+      <div class="adding" bind:this={addingPanel}>
+        <Stack gap="150">
+          {#if adding === 'managed' && managedAllowed}
+            <ManagedAccountForm {roles} workspaceRoles={grantable} />
+          {:else if adding === 'grant'}
+            <h2 class="section">{t('app.people.grant_title')}</h2>
+            <p class="quiet small">{t('app.people.grant_hint')}</p>
+            <Select
+              label={t('app.people.who')}
+              bind:value={chosenSubject}
+              placeholder={t('app.people.choose_person')}
+              options={candidates}
+              error={missing.subject && !chosenSubject ? t(missing.subject) : undefined}
+            />
+            <Select
+              label={t('app.people.role_column')}
+              bind:value={chosenRole}
+              placeholder={t('app.people.choose_role')}
+              options={roleOptions}
+              error={missing.grantRole && !chosenRole ? t(missing.grantRole) : undefined}
+            />
+            <div>
+              <Button
+                tone="primary"
+                isBusy={isWriting}
+                busyLabel={t('app.people.working')}
+                onclick={() => void grant()}
+              >
+                {t('app.people.grant')}
+              </Button>
+            </div>
+          {:else}
+            <h2 class="section">{t('app.people.invite_title')}</h2>
+            <!-- What the press will do, said before it: a mail, or - where no mail goes out - a
+                 link to hand over. Neither until the manifest has said which. -->
+            <p class="quiet small">
+              {way === 'link' ? t('app.people.invite_hint_link') : way === 'mail' ? t('app.people.invite_hint') : t('app.people.invite_hint_neutral')}
+            </p>
+            <form class="panel" onsubmit={invite}>
+              <Stack gap="150">
+                <div bind:this={inviteAddressField}>
+                  <Input
+                    label={t('app.people.invite_email')}
+                    bind:value={inviteEmail}
+                    type="email"
+                    autocomplete="off"
+                    spellcheck={false}
+                    isRequired
+                    error={inviteRefusal ?? (missing.email && !inviteEmail.trim() ? t(missing.email) : undefined)}
+                    oninput={() => (inviteRefusal = undefined)}
+                  />
+                </div>
+                <Input
+                  label={t('app.people.invite_name')}
+                  hint={t('app.people.invite_name_hint')}
+                  bind:value={inviteName}
+                  autocomplete="off"
+                />
+                <Select
+                  label={t('app.people.invite_where')}
+                  hint={t('app.people.invite_where_hint')}
+                  bind:value={inviteWhere}
+                  options={inviteWhereOptions}
+                />
+                <Select
+                  label={t('app.people.role_column')}
+                  hint={t('app.people.invite_role_hint')}
+                  bind:value={inviteRole}
+                  placeholder={t('app.people.choose_role')}
+                  options={inviteRoleOptions}
+                  error={missing.inviteRole && !inviteRole ? t(missing.inviteRole) : undefined}
+                />
+                {#if grantRefusal}
+                  <Banner tone="warning">{grantRefusal}</Banner>
+                {/if}
+                <div>
+                  <Button
+                    type="submit"
+                    tone="primary"
+                    isBusy={isWriting}
+                    busyLabel={t('app.people.working')}
+                  >
+                    {way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite')}
+                  </Button>
+                </div>
+              </Stack>
+            </form>
+          {/if}
+          <div><Button tone="subtle" onclick={close}>{t('app.people.add_close')}</Button></div>
+        </Stack>
+      </div>
     {/if}
 
     {#if holders.length === 0}
@@ -534,126 +733,9 @@
       onConfirm={() => void revoke()}
       onCancel={() => (revoking = undefined)}
     />
-
-    {#if grantable.length > 0 || invited || handedOver}
-    <Stack gap="150">
-      <h2 class="section">{t('app.people.invite_title')}</h2>
-      <!-- What the press will do, said before it: a mail, or - where no mail goes out - a link to
-           hand over. Neither until the manifest has said which. -->
-      <p class="quiet small">
-        {way === 'link' ? t('app.people.invite_hint_link') : way === 'mail' ? t('app.people.invite_hint') : t('app.people.invite_hint_neutral')}
-      </p>
-      {#if invited}
-        <Banner tone="success">{t('app.people.invited_sent', { email: invited })}</Banner>
-      {/if}
-      {#if handedOver}
-        <!-- The only time the link exists anywhere but as the server's hash. Focused when drawn: a
-             renewal pressed in the table above draws it here. -->
-        <div class="handed-over" tabindex="-1" bind:this={handedOverPanel} data-invitation-link>
-          <OneTimeSecret
-            value={handedOver.link}
-            label={t('app.people.invite_link', { name: handedOver.who })}
-            hint={t('app.people.invite_link_hint')}
-            revealLabel={t('app.people.invite_link_reveal')}
-            hideLabel={t('app.people.invite_link_hide')}
-            copyLabel={t('app.people.managed_copy')}
-            copiedLabel={t('app.people.invite_link_copied')}
-            acknowledgementLabel={t('app.people.invite_link_kept')}
-            notAcknowledgedReason={t('app.people.invite_link_keep_first')}
-            dismissLabel={t('app.tokens.done')}
-            onDismiss={() => (handedOver = undefined)}
-          />
-        </div>
-      {/if}
-      {#if grantable.length > 0}
-      <form class="panel" onsubmit={invite}>
-        <Stack gap="150">
-          <div bind:this={inviteAddressField}>
-            <Input
-              label={t('app.people.invite_email')}
-              bind:value={inviteEmail}
-              type="email"
-              autocomplete="off"
-              spellcheck={false}
-              isRequired
-              error={inviteRefusal ?? (missing.email && !inviteEmail.trim() ? t(missing.email) : undefined)}
-              oninput={() => (inviteRefusal = undefined)}
-            />
-          </div>
-          <Input
-            label={t('app.people.invite_name')}
-            hint={t('app.people.invite_name_hint')}
-            bind:value={inviteName}
-            autocomplete="off"
-          />
-          <Select
-            label={t('app.people.invite_where')}
-            hint={t('app.people.invite_where_hint')}
-            bind:value={inviteWhere}
-            options={inviteWhereOptions}
-          />
-          <Select
-            label={t('app.people.role_column')}
-            hint={t('app.people.invite_role_hint')}
-            bind:value={inviteRole}
-            placeholder={t('app.people.choose_role')}
-            options={inviteRoleOptions}
-            error={missing.inviteRole && !inviteRole ? t(missing.inviteRole) : undefined}
-          />
-          {#if grantRefusal}
-            <Banner tone="warning">{grantRefusal}</Banner>
-          {/if}
-          <div>
-            <Button
-              type="submit"
-              tone="primary"
-              isBusy={isWriting}
-              busyLabel={t('app.people.working')}
-            >
-              {way === 'link' ? t('app.people.invite_link_button') : t('app.people.invite')}
-            </Button>
-          </div>
-        </Stack>
-      </form>
-      {/if}
     </Stack>
     {/if}
-
-    {#if managedAllowed && grantable.length > 0}
-      <ManagedAccountForm {roles} workspaceRoles={grantable} />
-    {/if}
-
-    {#if grantable.length > 0}
-    <Stack gap="150">
-      <h2 class="section">{t('app.people.grant_title')}</h2>
-      <p class="quiet small">{t('app.people.grant_hint')}</p>
-      <Select
-        label={t('app.people.who')}
-        bind:value={chosenSubject}
-        placeholder={t('app.people.choose_person')}
-        options={candidates}
-        error={missing.subject && !chosenSubject ? t(missing.subject) : undefined}
-      />
-      <Select
-        label={t('app.people.role_column')}
-        bind:value={chosenRole}
-        placeholder={t('app.people.choose_role')}
-        options={roleOptions}
-        error={missing.grantRole && !chosenRole ? t(missing.grantRole) : undefined}
-      />
-      <div>
-        <Button
-          tone="primary"
-          isBusy={isWriting}
-          busyLabel={t('app.people.working')}
-          onclick={() => void grant()}
-        >
-          {t('app.people.grant')}
-        </Button>
-      </div>
-    </Stack>
-    {/if}
-    </Stack>
+  </Tabs>
 </Stack>
 
 <style>
@@ -690,6 +772,6 @@
 
   /* Focused when drawn, so that a renewal pressed in the table reaches the reader here; the ring
      is the focus ring every control draws. */
-  .handed-over { max-inline-size: 52ch; }
+  .handed-over, .adding { max-inline-size: 52ch; }
   .handed-over:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

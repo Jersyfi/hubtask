@@ -15,12 +15,9 @@
   // **A provider whose addresses are not verified cannot be offered.** The blast radius is what
   // decides it: this row reaches every workspace, and one that can only be `DOMAINS` or `ANY`
   // creates accounts in each of them from an address nobody vouched for. The server refuses it;
-  // the form does not offer the modes the preset does not permit, so the refusal is rare rather
-  // than the first thing a reader meets.
-  //
-  // **The secret is written and never read.** Sealed on the way in, absent from every
-  // answer. Leaving it empty on a change keeps the one that is sealed, which is why the field says
-  // so rather than looking like a field somebody forgot to fill.
+  // the form - the one a workspace's own providers use too (`ProviderFields`) - offers only the
+  // modes the preset permits at this level, so the refusal is rare rather than the first thing a
+  // reader meets.
   //
   // **An offer ends announced** (ADR-0076). *Withdraw* shows how many workspaces use the provider -
   // a number, never which - and names a day, two weeks ahead unless the operator chooses another;
@@ -32,21 +29,14 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderPreset } from '@hubtask/sync-engine';
 
-  import {
-    admissionLists,
-    isPersonalIssuer,
-    isSharedIssuer,
-    issuerAfterChoosing,
-    offeredModes,
-    personalDirectoryListed,
-  } from '../lib/signin/issuer.ts';
+  import { draftBody, draftOf, draftRefusal, emptyDraft } from '../lib/signin/issuer.ts';
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
-  import RedirectAddress from '../lib/signin/RedirectAddress.svelte';
+  import ProviderFields from '../lib/signin/ProviderFields.svelte';
   import {
     defaultWithdrawalDate,
     earliestWithdrawalDate,
@@ -77,14 +67,7 @@
   let working = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
-  let kind = $state('GENERIC');
-  let issuer = $state('');
-  let clientId = $state('');
-  let clientSecret = $state('');
-  let displayName = $state('');
-  let provisioning = $state('INVITED_ONLY');
-  let domains = $state('');
-  let directories = $state('');
+  let draft = $state(emptyDraft('INVITED_ONLY'));
   let position = $state('0');
   let isEnabled = $state(true);
   /** The withdrawal's day, and the count typed back for *Withdraw now*. */
@@ -130,44 +113,8 @@
 
   /** The preset the chosen kind carries, which decides what the form may offer. */
   const preset = $derived<IdentityProviderPreset | undefined>(
-    presets.find((each) => each.kind === kind),
+    presets.find((each) => each.kind === draft.kind),
   );
-
-  /**
-   * The modes this preset permits when the installation offers it, as the server answers them.
-   *
-   * Narrower than a workspace's for a preset with no directory claim: offered to every workspace, a
-   * self-hosted issuer may admit only the people each workspace invited (ADR-0071's addendum). The
-   * server's list rather than a rule repeated here, so the two cannot disagree.
-   */
-  const modes = $derived(preset === undefined ? [] : preset.installation_provisioning);
-  /** Which admission list the server will read for this mode and issuer - the one drawn and sent. */
-  const lists = $derived(admissionLists(preset, provisioning, isSharedIssuer(preset, issuer)));
-  /**
-   * The server's sentence for a personal directory in the drawn list, where the mode creates
-   * accounts: shown on the field as it is typed, and the reason *Save* waits - the save would be
-   * refused in every such case (`identity_provider.directory_personal`).
-   */
-  const personalDirectory = $derived.by(() => {
-    if (!lists.directories) return undefined;
-    const listed = personalDirectoryListed(preset, provisioning, directories.split(','));
-    return listed === undefined ? undefined : t('identity_provider.directory_personal', { directory: listed });
-  });
-  /** Whether the issuer also serves personal accounts, where the server refuses `ANY`. */
-  const personal = $derived(isPersonalIssuer(preset, issuer));
-  /** Whether the installation's level narrows this preset to the invited, which the form says. */
-  const narrowedToInvited = $derived(
-    preset !== undefined && modes.length === 1 && preset.provisioning.length > 1,
-  );
-
-  // A mode the chosen preset does not permit is one the server refuses at the save, so it is
-  // corrected to the strictest the preset allows the moment the kind changes. A rule rather than a
-  // change handler, because the value can also arrive from a row being opened for a change.
-  $effect(() => {
-    const strictest = modes[0];
-    if (strictest === undefined) return;
-    if (!modes.includes(provisioning as (typeof modes)[number])) provisioning = strictest;
-  });
 
   const HOUR = 60 * 60 * 1000;
 
@@ -219,26 +166,12 @@
       confirmCount = '';
     }
     if (next === 'add') {
-      kind = 'GENERIC';
-      issuer = '';
-      clientId = '';
-      clientSecret = '';
-      displayName = '';
-      provisioning = 'INVITED_ONLY';
-      domains = '';
-      directories = '';
+      draft = emptyDraft('INVITED_ONLY');
       position = '0';
       isEnabled = true;
     }
     if (next === 'change' && provider) {
-      kind = provider.kind;
-      issuer = provider.issuer;
-      clientId = provider.client_id;
-      clientSecret = '';
-      displayName = provider.display_name;
-      provisioning = provider.provisioning;
-      domains = provider.allowed_email_domains.join(', ');
-      directories = (provider.allowed_directories ?? []).join(', ');
+      draft = draftOf(provider);
       position = String(provider.position);
       isEnabled = provider.enabled;
     }
@@ -260,28 +193,9 @@
     }
   }
 
-  /** The body both the add and the change send, with the secret left out where it is empty. */
+  /** The body both the add and the change send: the one form's fields, its position and switch. */
   function body(): Parameters<typeof instance.configureProvider>[0] {
-    const split = (written: string) =>
-      written
-        .split(',')
-        .map((each) => each.trim())
-        .filter((each) => each !== '');
-    return {
-      issuer: issuer.trim(),
-      client_id: clientId.trim(),
-      // Absent keeps what is sealed. An empty string would be a secret of no characters, which is
-      // a different thing and one the provider would refuse at the exchange rather than here.
-      ...(clientSecret.trim() === '' ? {} : { client_secret: clientSecret }),
-      ...(displayName.trim() === '' ? {} : { display_name: displayName.trim() }),
-      kind: kind as IdentityProvider['kind'],
-      provisioning: provisioning as IdentityProvider['provisioning'],
-      // Only the list drawn: one typed under another mode and hidden since is not saved unseen.
-      allowed_email_domains: lists.domains ? split(domains) : [],
-      allowed_directories: lists.directories ? split(directories) : [],
-      position: Number(position) || 0,
-      enabled: isEnabled,
-    };
+    return { ...draftBody(draft, preset), position: Number(position) || 0, enabled: isEnabled };
   }
 
   $effect(() => page.entitle(t('app.instance.providers')));
@@ -400,7 +314,7 @@
       onclick={() => {
         // Checked here rather than switching Save off: the field already says why the server would
         // refuse it; pressed, focus goes there and nothing is sent (UC-WRK-32 check 3).
-        if (personalDirectory) {
+        if (draftRefusal(draft, preset) !== undefined) {
           void tick().then(() => focusFirst(document));
           return;
         }
@@ -415,87 +329,11 @@
   <Stack gap="150">
     <p class="prose">{t('app.instance.provider_form_intro')}</p>
 
-    <Select
-      label={t('app.instance.provider_kind_label')}
-      bind:value={kind}
-      onchange={(event) => (issuer = issuerAfterChoosing(presets, (event.currentTarget as HTMLSelectElement).value, issuer))}
-      options={presets.map((each) => ({
-        value: each.kind,
-        label: t(`app.identity_provider.kind.${each.kind.toLowerCase()}`),
-      }))}
-    />
-
-    {#if narrowedToInvited}
-      <!-- Said where the choice is made: the admission field below offers one answer, and a field
-           with one answer needs the sentence that says why. -->
-      <Banner tone="info">{t('app.instance.provider_invited_only')}</Banner>
-    {/if}
-    {#if preset?.particular}
-      <Banner tone="info">{t(preset.particular, { redirect_uri: preset.redirect_uri })}</Banner>
-    {/if}
-    {#if preset}
-      <p class="quiet-line">{t(preset.instructions, { redirect_uri: preset.redirect_uri })}</p>
-      <RedirectAddress address={preset.redirect_uri} />
-    {/if}
-
-    <Input label={t('app.instance.provider_issuer_label')} hint={t('app.instance.provider_issuer_hint')} bind:value={issuer} autocomplete="off" spellcheck={false} isRequired />
-    <Input label={t('app.instance.provider_client_label')} bind:value={clientId} autocomplete="off" spellcheck={false} isRequired />
-    <Input
-      label={t('app.instance.provider_secret_label')}
-      hint={acting?.kind === 'change' ? t('app.instance.provider_secret_kept') : t('app.instance.provider_secret_hint')}
-      bind:value={clientSecret}
-      type="password"
-      autocomplete="off"
-      spellcheck={false}
-    />
-    <Input label={t('app.instance.provider_name_label')} hint={t('app.instance.provider_name_hint')} bind:value={displayName} autocomplete="off" />
-
-    <Select
-      label={t('app.instance.provider_admission_label')}
-      hint={t('app.instance.provider_admission_hint')}
-      bind:value={provisioning}
-      options={offeredModes(modes, personal, provisioning).map((mode) => ({ value: mode, label: admissionLabel(mode) }))}
-    />
-    {#if personal && provisioning === 'ANY'}
-      <!-- The save refuses ANY on this issuer; the sentence names what may be chosen instead. -->
-      <Banner tone="info">{t('identity_provider.provisioning_personal', { issuer: issuer.trim() })}</Banner>
-    {/if}
-
-    <!-- The list the server will read, and only that one (ADR-0071 §2): under INVITED_ONLY a
-         narrowing, on a shared endpoint required in every mode, ANY included. -->
-    {#if lists.directories && preset?.directory_claim}
-      <Input
-        label={t(`app.identity_provider.directories_label_${preset.directory_claim}`)}
-        hint={isSharedIssuer(preset, issuer)
-          ? t('app.identity_provider.directories_shared_hint')
-          : lists.required
-            ? t(`app.identity_provider.directories_hint_${preset.directory_claim}`)
-            : t('app.identity_provider.directories_narrow_hint')}
-        error={personalDirectory}
-        bind:value={directories}
-        autocomplete="off"
-        spellcheck={false}
-        isRequired={lists.required}
-      />
-    {/if}
-    {#if lists.domains}
-      <Input
-        label={t('app.instance.provider_domains_label')}
-        hint={t('app.instance.provider_domains_hint')}
-        bind:value={domains}
-        autocomplete="off"
-        spellcheck={false}
-      />
-    {/if}
-    {#if preset?.supports_templated_issuer}
-      <!-- The platform case, said where the issuer is typed: one registration at the provider
-           serving many customers, and the directory list is what bounds it. -->
-      <Banner tone="info" title={t('app.instance.provider_shared_title')}>
-        {t('app.instance.provider_shared')}
-      </Banner>
-    {/if}
-
-    <Input label={t('app.instance.provider_position_label')} hint={t('app.instance.provider_position_hint')} bind:value={position} type="number" inputmode="numeric" autocomplete="off" />
+    <ProviderFields bind:draft {presets} level="installation" isNew={acting?.kind !== 'change'}>
+      {#snippet more()}
+        <Input label={t('app.instance.provider_position_label')} hint={t('app.instance.provider_position_hint')} bind:value={position} type="number" inputmode="numeric" autocomplete="off" />
+      {/snippet}
+    </ProviderFields>
   </Stack>
 </Dialog>
 
@@ -600,7 +438,6 @@
 <style>
   .prose { margin: 0; max-inline-size: 60ch; }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
-  .quiet-line { margin: 0; max-inline-size: 60ch; color: var(--text-secondary); font-size: var(--fs-100); }
   .mono { font-family: var(--font-mono); font-size: var(--fs-100); overflow-wrap: anywhere; }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }

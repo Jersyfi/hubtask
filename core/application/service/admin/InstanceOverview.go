@@ -83,7 +83,7 @@ type JournalPage struct {
 
 // Execute reads one page.
 func (h ListInstanceJournal) Execute(
-	ctx context.Context, actor appshared.ActorContext, cursor string, size int,
+	ctx context.Context, actor appshared.ActorContext, filter adminrepo.JournalFilter, cursor string, size int,
 ) (JournalPage, error) {
 	w := h.Writer
 	if err := w.authorize(ctx, actor); err != nil {
@@ -93,7 +93,7 @@ func (h ListInstanceJournal) Execute(
 	var page JournalPage
 	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
 		func(ctx context.Context) error {
-			entries, info, err := w.Journal.Page(ctx, cursor, journalPageSize(size))
+			entries, info, err := w.Journal.Page(ctx, filter, cursor, journalPageSize(size))
 			page = JournalPage{Entries: entries, Page: info}
 			return err
 		})
@@ -164,6 +164,11 @@ func (h ListInstanceJournal) Descriptor() usecase.Descriptor {
 				Description: "Where the last page ended. Absent starts at the newest entry."},
 			{Name: "limit", Kind: usecase.KindInt,
 				Description: "How many entries, clamped to 200."},
+			{Name: "action", Kind: usecase.KindString,
+				Description: "A prefix of the action: tenant. for every workspace's lifecycle, " +
+					"tenant.suspended for one act."},
+			{Name: "workspace", Kind: usecase.KindString,
+				Description: "The address of the workspace the entries are about, also of one that is gone."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: instanceJournalReadAction, TargetType: instanceTarget,
@@ -176,7 +181,8 @@ func (h ListInstanceJournal) Descriptor() usecase.Descriptor {
 func (h ListInstanceJournal) invoke(
 	ctx context.Context, actor appshared.ActorContext, in usecase.Input,
 ) (usecase.Output, error) {
-	page, err := h.Execute(ctx, actor, in.String("cursor"), in.Int("limit"))
+	filter := adminrepo.JournalFilter{ActionPrefix: in.String("action"), TenantSlug: in.String("workspace")}
+	page, err := h.Execute(ctx, actor, filter, in.String("cursor"), in.Int("limit"))
 	if err != nil {
 		return nil, err
 	}

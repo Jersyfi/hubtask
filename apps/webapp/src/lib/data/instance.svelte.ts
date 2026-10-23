@@ -55,6 +55,24 @@ const TENANTS = '/admin/tenants';
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
+
+/** What the journal is narrowed by: an action prefix and a workspace's address, each optional. */
+export interface JournalFilter {
+  readonly action?: string;
+  readonly workspace?: string;
+}
+
+/** The journal's address for a narrowing, and a page past the first where a cursor is given. */
+export function journalPath(filter: JournalFilter = {}, cursor?: string): string {
+  const query = new URLSearchParams();
+  if (filter.action) query.set('action', filter.action);
+  if (filter.workspace) query.set('workspace', filter.workspace);
+  if (cursor) query.set('cursor', cursor);
+  const text = query.toString();
+  return text === '' ? JOURNAL : `${JOURNAL}?${text}`;
+}
+
+type JournalAnswer = { readonly data: readonly InstanceJournalEntry[]; readonly page?: { readonly next_cursor?: string | null } };
 const PROVIDERS = '/admin/identity-providers';
 const ENCRYPTION = '/admin/encryption';
 const AI_PROVIDERS = '/admin/ai-providers';
@@ -82,6 +100,10 @@ class Instance {
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
+  /** The journal per narrowing (`journalPath`): the first page's state, what is held, where it goes on. */
+  #journals = $state<Record<string, ResourceState<JournalAnswer>>>({});
+  #journalHeld = $state<Record<string, readonly InstanceJournalEntry[]>>({});
+  #journalCursors = $state<Record<string, string | undefined>>({});
   #providers = $state<ResourceState<readonly IdentityProvider[]>>({ status: 'idle' });
   #encryption = $state<ResourceState<EncryptionStatus>>({ status: 'idle' });
   #offeredAi = $state<ResourceState<readonly OfferedAiModel[]>>({ status: 'idle' });
@@ -181,6 +203,9 @@ class Instance {
     this.#settings = { status: 'idle' };
     this.#operators = { status: 'idle' };
     this.#journal = { status: 'idle' };
+    this.#journals = {};
+    this.#journalHeld = {};
+    this.#journalCursors = {};
     this.#providers = { status: 'idle' };
     this.#encryption = { status: 'idle' };
     this.#offeredAi = { status: 'idle' };
@@ -325,6 +350,42 @@ class Instance {
         this.#journal = next;
       },
     );
+  }
+
+  /** The journal under a narrowing, its first page read and kept fresh. **From `untrack`.** */
+  openJournalOf(filter: JournalFilter): () => void {
+    const key = journalPath(filter);
+    return engine.subscribe<JournalAnswer>({ path: key }, (next) => {
+      this.#journals = { ...this.#journals, [key]: next };
+      if (next.status === 'ready') {
+        this.#journalHeld = { ...this.#journalHeld, [key]: next.data.data };
+        this.#journalCursors = { ...this.#journalCursors, [key]: next.data.page?.next_cursor ?? undefined };
+      }
+    });
+  }
+
+  journalStateOf(filter: JournalFilter): ResourceState<JournalAnswer> {
+    return this.#journals[journalPath(filter)] ?? { status: 'idle' };
+  }
+
+  journalOf(filter: JournalFilter): readonly InstanceJournalEntry[] {
+    return this.#journalHeld[journalPath(filter)] ?? [];
+  }
+
+  journalMoreAfter(filter: JournalFilter): string | undefined {
+    return this.#journalCursors[journalPath(filter)];
+  }
+
+  /** The next page of a narrowing, appended. Cursor pagination, never page numbers. */
+  async moreJournal(filter: JournalFilter): Promise<void> {
+    const key = journalPath(filter);
+    const cursor = this.#journalCursors[key];
+    if (!cursor) return;
+    const next = await engine.refresh<JournalAnswer>({ path: journalPath(filter, cursor) });
+    if (next.status === 'failed') throw next.error;
+    if (next.status !== 'ready') return;
+    this.#journalHeld = { ...this.#journalHeld, [key]: [...(this.#journalHeld[key] ?? []), ...next.data.data] };
+    this.#journalCursors = { ...this.#journalCursors, [key]: next.data.page?.next_cursor ?? undefined };
   }
 
   /** Adds somebody to the register. The workspace comes from the account, never from the caller. */

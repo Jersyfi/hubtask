@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, ADMIN_GRANTS, INVITED, MANIFEST, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { addPeople } from './addpeople.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const LINK = 'https://home.example/redeem#token=hbt_inv_e2e-link';
@@ -76,6 +77,7 @@ const linked = {
 };
 
 async function invite(page, address) {
+  await addPeople(page);
   const form = page.locator('form').filter({ has: page.getByLabel('Email address') });
   await form.getByLabel('Email address').fill(address);
   await form.getByLabel('Role').selectOption('MEMBER');
@@ -106,8 +108,8 @@ test('without mail the form promises a link, shows it once, and keeps it nowhere
   const { page, close } = await open(browser, { mail: false, invite: linked }, sent);
   try {
     await page.goto(`${served.origin}/administration/people`);
-    await page.getByText('No mail goes out from here.', { exact: false }).waitFor();
     const form = await invite(page, 'anna@example.invalid');
+    await page.getByText('No mail goes out from here.', { exact: false }).waitFor();
     await form.getByRole('button', { name: 'Create the invitation link' }).click();
 
     await page.getByText('Invitation link for anna@example.invalid').waitFor();
@@ -212,11 +214,11 @@ test('with mail the screen is what it was: a mail is promised, sent, and no link
   const { page, close } = await open(browser, { mail: true, invite: mailed }, sent);
   try {
     await page.goto(`${served.origin}/administration/people`);
-    await page.getByText('They get an email with a link', { exact: false }).waitFor();
     const row = page.getByRole('row').filter({ hasText: 'Bert' });
     await row.getByRole('button', { name: 'Send the invitation again' }).waitFor();
 
     const form = await invite(page, 'anna@example.invalid');
+    await page.getByText('They get an email with a link', { exact: false }).waitFor();
     await form.getByRole('button', { name: 'Send the invitation' }).click();
     await page.getByText('Invitation sent to anna@example.invalid', { exact: false }).waitFor();
     assert.equal(await page.locator('[data-invitation-link]').count(), 0, 'a link was drawn beside a mail');
@@ -233,6 +235,7 @@ test('an administrator is not offered Owner', async () => {
   const { page, close } = await open(browser, { mail: true, invite: linked, grants: ADMIN_GRANTS }, {});
   try {
     await page.goto(`${served.origin}/administration/people`);
+    await addPeople(page);
     const inviteForm = page.locator('form').filter({ has: page.getByLabel('Email address') });
     await inviteForm.getByLabel('Role').waitFor();
     const offered = async (select) => select.locator('option').evaluateAll((options) => options.map((option) => option.value));
@@ -260,6 +263,7 @@ test('a reader who may grant nothing sees the people and no form', async () => {
     await page.getByRole('row').filter({ hasText: 'Bert' }).waitFor();
     assert.equal(await page.getByLabel('Email address').count(), 0, 'the invitation is drawn');
     assert.equal(await page.getByRole('button', { name: 'Grant' }).count(), 0, 'the grant is drawn');
+    assert.equal(await page.getByRole('button', { name: 'Add people' }).count(), 0, 'a way to add somebody is offered');
   } finally {
     await close();
     await browser.close();

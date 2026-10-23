@@ -3,6 +3,8 @@
 <script lang="ts">
   // What each role actually means here.
   //
+  // Drawn as *People*'s *Permissions* tab, which carries the head, the trail and the title.
+  //
   // **Everything on this screen comes from `/meta/capabilities`.** Not one role, permission or
   // qualifier is compiled in: the manifest answers the matrix, and the contract says why in its own
   // words — "a client that does not know them offers buttons the server refuses". An installation
@@ -16,12 +18,10 @@
   // **Nothing here is editable, and that is not a missing feature.** Changing what a role carries
   // is not an operation this product has: a role is granted, and this says what the grant means.
 
-  import { PageHeader, PermissionMatrix, Stack, type MatrixRole } from '@hubtask/design-system/components';
+  import { PermissionMatrix, Stack, type MatrixRole } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { t } from '../lib/i18n/i18n.svelte.ts';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** The permissions this build has wording for. One it does not is shown as its own token. */
   const DESCRIBED = new Set([
@@ -74,25 +74,9 @@
     ASSIGNED: t('app.permissions.access_assigned'),
     NONE: t('app.permissions.access_none'),
   });
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.permissions.title')));
 </script>
 
 <Stack gap="300">
-  <PageHeader
-    title={t('app.permissions.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'permissions', label: t('app.permissions.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
     <Stack gap="300">
     <p class="quiet">{t('app.permissions.intro')}</p>
 
