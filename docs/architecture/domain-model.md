@@ -76,7 +76,7 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   before settings existed, so a container nobody configured answers exactly that.
 * **Creation.** A collection created with its hub's preset, or with none, stores nothing and follows
   its hub — a later change of the hub reaches it. A hub created without a preset starts from the
-  workspace's *default preset*, which applies to hubs only.
+  workspace's *default preset*, else from the installation's, which apply to hubs only.
 * **Saved presets** (UC-WRK-30, `Presets.go`, table `structure_preset`). Beside Hubtask's four, a
   preset is saved from a hub's or collection's structure in force, its categories left out: the
   *workspace's* (offered to everyone in it; saved, changed and withdrawn with `STRUCTURE` at the
@@ -85,6 +85,16 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   names one of Hubtask's or a saved one by its id, so a layer's provenance and the default preset
   keep one string. The default preset is Hubtask's or the workspace's, never a person's own, and is
   not withdrawn while it is the default. At most 100 workspace presets and 50 of one person's own.
+* **Installation presets** (UC-INS-18, `InstallationPresets.go`, table `installation_preset`,
+  multi mode only). The operator keeps up to 50 presets every workspace is offered with origin
+  `INSTALLATION` — through the installation's defaults, `/admin/presets`, `hubctl admin presets`
+  and the instance file's `presets`. One of them may be the *default for new workspaces*, and only
+  the default locks. Its values are not a layer: they reach a hub only by being copied when it is
+  created without a preset in a workspace without a default of its own, so choosing a default
+  changes no workspace that exists. A workspace's default is never an installation preset, which
+  the operator may withdraw without the workspace knowing; the default is not withdrawn while it is
+  the default. The installation's *hold* — the default's key, values and locks — travels on the
+  `StructureBound`, so every resolution and every writer sees it.
 * **The first start.** A workspace that holds no hub asks whoever may shape it, once, what it is used
   for (`starter_offered` on `GET /tenant`, `tenant.starter_answered_at`); the starter set of hubs
   and collections on Hubtask's presets is the client's to create, its names being words (rule 8).
@@ -108,7 +118,10 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   (`fields.TASK.DUE_DATE`); a lock answers its origin and who set it. A locked value applies below:
   a lower layer's own value is ignored when resolving and refused when written
   (`structure.setting_locked`); a preset chosen under a lock is accepted with the locked value kept
-  and named (`kept_by_lock`). The installation's and the plan's locks arrive with their writers.
+  and named (`kept_by_lock`). The installation's default preset locks the same way, above the
+  workspace: a locked setting takes the default's value with source and lock origin `INSTANCE`, and
+  a workspace's own lock or value on it is ignored when resolving and refused when written. The
+  plan's locks arrive with their writer.
 * **Completion** is the one setting the server applies here: the roll-up (I-W5) follows the value in
   force. A collection's own completion is one stored value, `policies.completion_policy`, which
   `PUT /containers/{id}/policies` writes too.
