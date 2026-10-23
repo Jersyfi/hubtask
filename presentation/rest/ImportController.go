@@ -34,6 +34,9 @@ func (c *RestController) ImportEntries(w http.ResponseWriter, r *http.Request, _
 		"kind":     string(body.Kind),
 		"hub_id":   body.HubId.String(),
 	}
+	if body.CollectionId != nil {
+		in["collection_id"] = body.CollectionId.String()
+	}
 	if body.Mapping != nil {
 		mapping := map[string]any{}
 		for key, value := range *body.Mapping {
@@ -69,6 +72,10 @@ func importRunResponse(out usecase.Output) openapi.ImportRun {
 		HubId:     uuidValue(out.String("hub_id")),
 		Status:    openapi.ImportRunStatus(out.String("status")),
 		CreatedAt: timeValue(out["created_at"]),
+	}
+	if collection := out.String("collection_id"); collection != "" {
+		id := uuidValue(collection)
+		run.CollectionId = &id
 	}
 	if media := out.String("media_id"); media != "" {
 		id := uuidValue(media)
