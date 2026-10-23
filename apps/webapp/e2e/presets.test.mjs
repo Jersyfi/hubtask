@@ -122,6 +122,20 @@ test('chromium: Save as preset - for the workspace, sent with the collection (ch
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the picker shows the preset in force until another is chosen', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+
+  const panel = await openPanel(page, SHAPES.list);
+  const picker = panel.getByLabel('Preset', { exact: true });
+  assert.equal(await picker.inputValue(), 'LIST', 'the picker does not show the preset the collection started from');
+  await picker.selectOption(SHOP.id);
+  assert.equal(await picker.inputValue(), SHOP.id, 'the preset chosen is not shown');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a member saves for themselves alone, and replacing their own keeps its name (check 1)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
