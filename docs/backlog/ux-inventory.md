@@ -132,10 +132,10 @@ Administration and installation, found by UX-05's sweep:
 ## E2 — Signing in, invitations, setup
 
 - [x] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette (UX-01, UX-06)
-- [ ] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept
-- [ ] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept
-- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27)
-- [ ] Consent "Allow this app?" · About "This installation" → kept
+- [x] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept — the sign-in card's steps (`SignInView`); walks `signin`, `keyfactor`, `passkeysignin`, `signinnames`, `terms` (UX-17)
+- [x] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept — `ResetView`, `RedeemView`, `ConfirmAddressView`, `OidcCallbackView` (back to sign-in, to the step-up's page, to *Password and sign-in*); walks `signin`, `terms`, `invitationlink`, `managedaddress`, `stepup` (UX-17)
+- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27) — kept checked in UX-17 (`SetupView`, walk `setup`); ticked with the starter question
+- [x] Consent "Allow this app?" · About "This installation" → kept — `ConsentView` at `/oauth/consent`, `InstallationView` from the account menu (UX-17)
 
 ## E3 — Today, search, jumble, archive, trash
 
