@@ -528,7 +528,10 @@
   let subscribing = $state<SavedView | undefined>(undefined);
   let isManagingMembers = $state(false);
   let isImporting = $state(false);
-  /** `STRUCTURE` on the hub is what an import takes, because it creates collections there. */
+  /**
+   * `STRUCTURE` is what an import takes: on the hub because it creates collections there, on a
+   * collection because it may add the file's columns and labels.
+   */
   const structure = $derived(holds(structureRole, 'STRUCTURE'));
   /**
    * A control that changes the shape of the workspace, or nothing where the reader's role may not
@@ -849,8 +852,14 @@
                 items: [
                   { id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: readOnlyReason },
                   ...(splitsLines ? [{ id: 'lines', label: t('app.entries.add_lines'), icon: 'menu' as const, disabledReason: addDisabledReason }] : []),
+                  // Into this collection (ux-inventory.md §E4); absent where the reader may not shape it.
+                  ...(mayShape ? [{ id: 'import', label: t('app.import.open'), icon: 'cloud-upload' as const, disabledReason: readOnlyReason }] : []),
                 ],
-                onselect: (way: string) => (way === 'lines' ? addFromHead(true) : (isUsingTemplates = true)),
+                onselect: (way: string) => {
+                  if (way === 'lines') addFromHead(true);
+                  else if (way === 'import') isImporting = true;
+                  else isUsingTemplates = true;
+                },
               },
             }
           : undefined,
@@ -1211,6 +1220,15 @@
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
   <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
+{/if}
+
+{#if container?.type === 'COLLECTION' && container.parent_id && mayShape}
+  <ImportDialog
+    bind:isOpen={isImporting}
+    hubId={container.parent_id}
+    collection={{ id: container.id, name: container.name }}
+    {onnavigate}
+  />
 {/if}
 
 {#if container && mayShape}

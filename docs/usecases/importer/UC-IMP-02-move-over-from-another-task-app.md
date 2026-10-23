@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-12]
 state: built
 tasks: [P-09, P-10, F6-09]
-checked_by: [infrastructure/importer/Trello_test.go, infrastructure/importer/GoogleTasks_test.go, infrastructure/importer/MicrosoftTodo_test.go, test/integration/import_test.go]
+checked_by: [infrastructure/importer/Trello_test.go, infrastructure/importer/GoogleTasks_test.go, infrastructure/importer/MicrosoftTodo_test.go, test/integration/import_test.go, infrastructure/importer/Into_test.go]
 ---
 
 # Move over from Trello, Google Tasks or Microsoft To Do

@@ -380,6 +380,28 @@ test('a caller that does want a re-read after the bytes names the prefixes', asy
   assert.ok(transport.calls.length > readsBefore, 'the named prefix was not read again');
 });
 
+test('what a job landed is read again under the prefixes named, and nothing else', async () => {
+  const transport = new FakeTransport().answer('/items/i1', { id: 'i1' }).answer('/hubs', []);
+  const engine = engineWith(transport);
+  engine.subscribe({ path: '/items/i1' }, () => {});
+  engine.subscribe({ path: '/hubs' }, () => {});
+  await loaded(engine, { path: '/items/i1' });
+  await loaded(engine, { path: '/hubs' });
+  await Promise.resolve();
+  await Promise.resolve();
+  const before = (path: string) => transport.calls.filter((call) => call.path === path).length;
+  const items = before('/items/i1');
+  const hubs = before('/hubs');
+
+  engine.landed(['/items']);
+  engine.landed([]);
+  await Promise.resolve();
+  await Promise.resolve();
+
+  assert.equal(before('/items/i1'), items + 1, 'the named prefix was not read again');
+  assert.equal(before('/hubs'), hubs, 'a path nobody named was read again');
+});
+
 test('a document is a read that answers a file, and it invalidates nothing', () => {
   // An export is a read whatever its verb: a `POST` because a view's query is the caller's content
   // and a query string travels through access logs, not because anything changes.

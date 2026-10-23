@@ -123,8 +123,14 @@ func (MicrosoftTodo) Convert(_ context.Context, source service.Source) (service.
 	b := newBuilder(source, "microsoft-todo")
 	var refused []refusal
 	row := 0
+	// Into one collection, several lists are kept apart by a label each.
+	several := len(lists) > 1
 	for _, list := range lists {
 		collection := b.collection("list:"+list.ID, list.DisplayName, "")
+		var listLabel shared.ID
+		if several {
+			listLabel = b.listLabel(list.ID, list.DisplayName)
+		}
 		tasks, err := graphTasksOf(list.Tasks)
 		if err != nil {
 			return service.Result{}, shared.ErrValidation.WithDetail(domain.CodeFileNotKind)
@@ -165,6 +171,9 @@ func (MicrosoftTodo) Convert(_ context.Context, source service.Source) (service.
 			if !ok {
 				refused = append(refused, refusal{row: row, code: domain.CodeRowUnreadable})
 				continue
+			}
+			if !listLabel.IsZero() {
+				b.link(id, listLabel)
 			}
 			if task.IsReminderOn && task.ReminderDateTime != nil && task.ReminderDateTime.DateTime != "" {
 				if at, _, err := task.ReminderDateTime.instant(); err == nil {

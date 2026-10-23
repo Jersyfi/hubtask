@@ -47,6 +47,10 @@ func (r ImportRunRepository) Insert(ctx context.Context, run domain.Run) error {
 	if err != nil {
 		return err
 	}
+	collectionID, err := optionalUUID(run.CollectionID)
+	if err != nil {
+		return err
+	}
 	var mapping []byte
 	if len(run.Mapping) > 0 {
 		mapping, err = json.Marshal(run.Mapping)
@@ -55,7 +59,7 @@ func (r ImportRunRepository) Insert(ctx context.Context, run domain.Run) error {
 		}
 	}
 	err = queries.InsertImportRun(ctx, sqlc.InsertImportRunParams{
-		ID: id, RequestedBy: requestedBy, Kind: string(run.Kind), MediaID: mediaID, HubID: hubID, Mapping: mapping,
+		ID: id, RequestedBy: requestedBy, Kind: string(run.Kind), MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Mapping: mapping,
 		TimeZone: optionalText(run.Zone), Language: optionalText(run.Language),
 	})
 	if err != nil {
@@ -212,6 +216,10 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 	if err != nil {
 		return domain.Run{}, err
 	}
+	collectionID, err := optionalID(row.CollectionID)
+	if err != nil {
+		return domain.Run{}, err
+	}
 	report, err := decodeReport(row.Report)
 	if err != nil {
 		return domain.Run{}, err
@@ -222,7 +230,7 @@ func importRunFrom(row sqlc.ImportRun) (domain.Run, error) {
 	}
 	run := domain.Run{
 		ID: id, TenantID: tenantID, RequestedBy: requestedBy, Kind: domain.Kind(row.Kind),
-		MediaID: mediaID, HubID: hubID, Status: domain.Status(row.Status), Report: report,
+		MediaID: mediaID, HubID: hubID, CollectionID: collectionID, Status: domain.Status(row.Status), Report: report,
 		Progress: progress, CreatedAt: row.CreatedAt.Time,
 		StartedAt: optionalTime(row.StartedAt), FinishedAt: optionalTime(row.FinishedAt),
 	}

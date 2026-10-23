@@ -3621,6 +3621,15 @@ func run() error {
 		Jobs: jobs, UnitOfWork: backgroundWork,
 		Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
 	}
+	importJob := worker.Import{
+		Runner: importservice.Runner{
+			Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
+			Containers: containers, Buckets: buckets, Labels: labels, Items: items,
+			Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
+		},
+		Progress: jobs,
+	}
 	handlers := map[queueport.Kind]queueport.Handler{
 		queueport.KindReminderFire:          reminderFiring,
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
@@ -3692,17 +3701,11 @@ func run() error {
 			},
 			Fallback: cfg.Retention.Interval,
 		},
-		queueport.KindAutomationCheck: worker.AutomationCheck{Check: ruleCheck},
-		queueport.KindAuditExport:     worker.AuditExport{Archivist: auditArchivist},
-		queueport.KindImport: worker.Import{
-			Runner: importservice.Runner{
-				Runs: importRuns, Objects: mediaObjects, Store: mediaStore, Converters: importConverters,
-				Applier: backupApplier, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
-				MaxBytes: cfg.Request.MaxUploadBytes, SchemaVersion: schemaVersion(), ProductVersion: version,
-			},
-			Progress: jobs,
-		},
-		queueport.KindAuditAnchor: worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
+		queueport.KindAutomationCheck:      worker.AutomationCheck{Check: ruleCheck},
+		queueport.KindAuditExport:          worker.AuditExport{Archivist: auditArchivist},
+		queueport.KindImport:               importJob,
+		queueport.KindImportIntoCollection: importJob,
+		queueport.KindAuditAnchor:          worker.AuditAnchoring{Anchoring: auditAnchoring, Fallback: 24 * time.Hour},
 		// A month of the trail that went, recorded in each workspace's own trail (audit.md §3).
 		queueport.KindAuditTrailRemoved: worker.AuditTrailRemoved{
 			Record: auditservice.RecordTrailRemoval{

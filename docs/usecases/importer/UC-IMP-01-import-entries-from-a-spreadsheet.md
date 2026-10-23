@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-08, P-09, P-12]
 state: built
 tasks: [P-08, F6-09]
-checked_by: [core/application/service/importer/Import_test.go, infrastructure/importer/Csv_test.go, test/integration/import_test.go, apps/webapp/src/lib/data/imports.test.ts]
+checked_by: [core/application/service/importer/Import_test.go, infrastructure/importer/Csv_test.go, test/integration/import_test.go, apps/webapp/src/lib/data/imports.test.ts, core/application/service/importer/Into_test.go, infrastructure/importer/Into_test.go, test/integration/import_into_test.go, apps/webapp/e2e/importinto.test.mjs]
 ---
 
 # Import entries from a spreadsheet

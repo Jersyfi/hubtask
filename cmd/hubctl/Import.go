@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	openapitypes "github.com/oapi-codegen/runtime/types"
+
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
@@ -21,7 +23,7 @@ func importGroup() group {
 	return group{
 		name:    "import",
 		summary: "bring another system's entries in: a CSV, a Trello board, a Google Tasks export, a Microsoft To Do dump",
-		usage:   "<csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--map <field>=<column>]... [--wait <d>]",
+		usage:   "<csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--collection <id>] [--map <field>=<column>]... [--wait <d>]",
 		run:     importRun,
 		// The job is followed to its end: bounded by --wait rather than by the per-command
 		// deadline, which a file of a few thousand rows would outrun.
@@ -51,7 +53,7 @@ reads {"value": [{"id": ..., "displayName": ..., "tasks": {"value": [...]}}, ...
   hubctl import microsoft-todo <file> --hub <id>`
 
 func importRun(ctx context.Context, cli *CLI, args []string) error {
-	const usage = "import <csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--map <field>=<column>]..."
+	const usage = "import <csv|trello|google-tasks|microsoft-todo> <file> --hub <id> [--collection <id>] [--map <field>=<column>]..."
 	// Microsoft To Do has no export: the file is what the Graph API
 	// answers, fetched by the person. `hubctl import microsoft-todo` alone says how.
 	if len(args) == 1 && (strings.EqualFold(args[0], "microsoft-todo") || strings.EqualFold(args[0], "todo")) {
@@ -66,8 +68,9 @@ func importRun(ctx context.Context, cli *CLI, args []string) error {
 		return usagef("%q is not a kind hubctl imports: hubctl %s", args[0], usage)
 	}
 	path := args[1]
-	flags := commandFlags(cli, "import", "", "<kind> <file> --hub <id> [--map <field>=<column>]...")
+	flags := commandFlags(cli, "import", "", "<kind> <file> --hub <id> [--collection <id>] [--map <field>=<column>]...")
 	hub := flags.String("hub", "", "the hub the collections land under")
+	collection := flags.String("collection", "", "a collection of the hub to land the entries in instead")
 	var mappings multiFlag
 	flags.Var(&mappings, "map", "a CSV column by field, field=column; repeatable")
 	wait := waitFlag(flags)
@@ -83,6 +86,14 @@ func importRun(ctx context.Context, cli *CLI, args []string) error {
 	hubID, err := cli.parseID("--hub", *hub)
 	if err != nil {
 		return err
+	}
+	var collectionID *openapitypes.UUID
+	if *collection != "" {
+		id, err := cli.parseID("--collection", *collection)
+		if err != nil {
+			return err
+		}
+		collectionID = &id
 	}
 	mapping := map[string]string{}
 	for _, each := range mappings {
@@ -126,7 +137,7 @@ func importRun(ctx context.Context, cli *CLI, args []string) error {
 		return err
 	}
 
-	request := openapi.ImportRequest{MediaId: staged.Id, Kind: kind, HubId: hubID}
+	request := openapi.ImportRequest{MediaId: staged.Id, Kind: kind, HubId: hubID, CollectionId: collectionID}
 	if len(mapping) > 0 {
 		request.Mapping = &mapping
 	}

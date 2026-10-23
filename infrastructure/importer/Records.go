@@ -16,19 +16,28 @@ import (
 	backup "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domainservice "github.com/Jersyfi/hubtask/core/domain/service"
+	"github.com/Jersyfi/hubtask/infrastructure/text"
 )
 
 // builder accumulates records in the archive's entity order.
 //
 // Every identity is DuplicateID(salt, entity, source key): the same derivation the restore's
-// DUPLICATE rule uses, with the salt derived from the hub and the source's own identity - the
-// file's digest, or the board's identifier - so that the same source imported into the same hub
-// twice produces the same identifiers and MERGE with skip makes the second import a no-op, while
-// the same file into another hub is another set of rows.
+// DUPLICATE rule uses, with the salt derived from the hub - or the collection the import lands
+// in - and the source's own identity - the file's digest, or the board's identifier - so that the
+// same source imported into the same place twice produces the same identifiers and MERGE with
+// skip makes the second import a no-op, while the same file into another place is another set of
+// rows.
 type builder struct {
 	source  service.Source
 	salt    shared.ID
 	records map[string][]archive.Record
+	// named keeps each column's and label's identity by its collection and folded name: the
+	// collection's unique names would refuse a second one under another identity, so a name met
+	// again - in the file, or already in the target collection - is the one there.
+	named map[string]shared.ID
+	// linked keeps the links written, so that a label a row names twice - in its labels and as
+	// its list - is one link.
+	linked map[string]bool
 	// orders keeps the last order key handed out per parent, so siblings rank after one another.
 	orders map[string]string
 	// entries remembers each entry's identity by the key its source used, for a parent reference;
@@ -46,14 +55,38 @@ type entry struct {
 // newBuilder starts a builder salted by the hub and the source's identity: the digest of the
 // file, or a key the converter read out of it.
 func newBuilder(source service.Source, identity string) *builder {
-	return &builder{
+	place := source.Hub
+	if source.Into != nil {
+		place = source.Into.Collection
+	}
+	b := &builder{
 		source:  source,
-		salt:    backup.DuplicateID(source.Hub, "import", identity),
+		salt:    backup.DuplicateID(place, "import", identity),
 		records: map[string][]archive.Record{},
+		named:   map[string]shared.ID{},
+		linked:  map[string]bool{},
 		orders:  map[string]string{},
 		entries: map[string]entry{},
 		byTitle: map[string]string{},
 	}
+	if into := source.Into; into != nil {
+		for _, bucket := range into.Buckets {
+			b.named[nameKey("buckets", into.Collection, bucket.Name)] = bucket.ID
+		}
+		for _, label := range into.Labels {
+			b.named[nameKey("labels", into.Collection, label.Name)] = label.ID
+		}
+		// What lands ranks after what was there.
+		b.orders["bucket:"+into.Collection.String()] = into.LastBucketOrder
+		b.orders["item:"+into.Collection.String()+":"] = into.LastEntryOrder
+	}
+	return b
+}
+
+// nameKey is a column's or a label's name as the collection's unique index compares it: lower
+// case, without accents (`lower(imm_unaccent(name))`).
+func nameKey(entity string, collection shared.ID, name string) string {
+	return entity + "/" + collection.String() + "/" + text.Folded(name)
 }
 
 // titles remembers an entry by its title, first one wins: a parent named by title is the first
@@ -96,7 +129,12 @@ func optional(at *time.Time) any {
 }
 
 // collection adds a collection under the hub. The key is the source's own identifier for it.
+// Into a collection, that collection is the file's: nothing is added, and what the source kept in
+// its own collection lands there.
 func (b *builder) collection(key, name, description string) shared.ID {
+	if b.source.Into != nil {
+		return b.source.Into.Collection
+	}
 	id := b.id("containers", key)
 	name = clip(strings.TrimSpace(name), 200)
 	if name == "" {
@@ -116,11 +154,16 @@ func (b *builder) collection(key, name, description string) shared.ID {
 
 // bucket adds a bucket to a collection.
 func (b *builder) bucket(key string, collection shared.ID, name string, done bool) shared.ID {
-	id := b.id("buckets", key)
 	name = clip(strings.TrimSpace(name), 120)
 	if name == "" {
 		name = "Bucket"
 	}
+	named := nameKey("buckets", collection, name)
+	if id, ok := b.named[named]; ok {
+		return id
+	}
+	id := b.id("buckets", key)
+	b.named[named] = id
 	b.add("buckets", id, map[string]any{
 		"id": id.String(), "collection_id": collection.String(), "name": name,
 		"order_key": b.nextOrder("bucket:" + collection.String()), "wip_limit": nil,
@@ -131,15 +174,31 @@ func (b *builder) bucket(key string, collection shared.ID, name string, done boo
 
 // label adds a label to a collection, in one of the ten tokens.
 func (b *builder) label(key string, collection shared.ID, name, token string) shared.ID {
-	id := b.id("labels", key)
 	name = clip(strings.TrimSpace(name), 120)
 	if name == "" {
 		name = "Label"
 	}
+	named := nameKey("labels", collection, name)
+	if id, ok := b.named[named]; ok {
+		return id
+	}
+	id := b.id("labels", key)
+	b.named[named] = id
 	b.add("labels", id, map[string]any{
 		"id": id.String(), "collection_id": collection.String(), "name": name, "color_token": token, "version": 1,
 	})
 	return id
+}
+
+// listLabel is the label a list of the file becomes where the file lands in one collection: a
+// source that keeps several lists - a CSV's `collection` column, Google Tasks' and Microsoft To
+// Do's lists - keeps them apart by it, and each top-level entry of the list carries it. Empty where
+// the import creates collections, which keep the lists apart themselves.
+func (b *builder) listLabel(key, name string) shared.ID {
+	if b.source.Into == nil || strings.TrimSpace(name) == "" {
+		return shared.ID("")
+	}
+	return b.label("list:"+key, b.source.Into.Collection, name, tokenFor(name))
 }
 
 // Item is what a converter knows about one entry.
@@ -228,6 +287,11 @@ func completedBy(at *time.Time, actor shared.ID) any {
 
 // link attaches a label to an entry.
 func (b *builder) link(item, label shared.ID) {
+	key := item.String() + "/" + label.String()
+	if b.linked[key] {
+		return
+	}
+	b.linked[key] = true
 	b.records["item_labels"] = append(b.records["item_labels"], archive.Record{
 		ID: item.String() + "/" + label.String(), Op: archive.OpUpsert, UpdatedAt: b.source.Now,
 		Data: map[string]any{"item_id": item.String(), "label_id": label.String()},

@@ -3234,8 +3234,8 @@
           "imports"
         ],
         "operationId": "importEntries",
-        "summary": "Import entries from another system into a hub",
-        "description": "Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,\na Microsoft To Do dump - and lands its contents as collections under the named hub. One\ningestion path: the file is converted into the same records a\nbackup archive holds and applied through the restore in `MERGE` mode with `skip`, under\nidentities derived from the source's own, so that importing the same file twice creates\nnothing the second time.\n\nThe file arrives first, through the media upload staged with `usage: IMPORT`; this\noperation names the object. The work is a job, and `result_url` points at the import,\nwhere the report is read once the job has finished. The object is deleted when the job\nends, success or failure: a file somebody imported is not a file they attached.\n\nNeeds `STRUCTURE` on the hub, because an import creates collections there.\n",
+        "summary": "Import entries from another system into a hub or one of its collections",
+        "description": "Takes a file somebody exported elsewhere - a CSV, a Trello board, a Google Tasks export,\na Microsoft To Do dump - and lands its contents as collections under the named hub, or,\nwith `collection_id`, as entries in that collection of the hub. One\ningestion path: the file is converted into the same records a\nbackup archive holds and applied through the restore in `MERGE` mode with `skip`, under\nidentities derived from the source's own, so that importing the same file twice creates\nnothing the second time.\n\nThe file arrives first, through the media upload staged with `usage: IMPORT`; this\noperation names the object. The work is a job, and `result_url` points at the import,\nwhere the report is read once the job has finished. The object is deleted when the job\nends, success or failure: a file somebody imported is not a file they attached.\n\nNeeds `STRUCTURE` on the hub, because an import creates collections there; into a\ncollection, `STRUCTURE` on that collection, because the import may add its board columns\nand labels. There the file's own collection is the named one: a board's lists become its\ncolumns as they would in a collection of their own, and where the file holds several\nlists - a `collection` column, Google Tasks or Microsoft To Do lists - each entry carries\na label named after its list. A column or label whose name the collection already has is\nthat one, not a second.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
@@ -3286,7 +3286,7 @@
         ],
         "operationId": "getImport",
         "summary": "An import and its report",
-        "description": "What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.\n",
+        "description": "What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.\n",
         "responses": {
           "200": {
             "description": "The import",
@@ -28820,6 +28820,11 @@
             "format": "uuid",
             "description": "The hub the imported collections land under."
           },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A collection of that hub to land the entries in, instead of new collections under the hub. Absent: the import creates collections.\n"
+          },
           "mapping": {
             "type": "object",
             "additionalProperties": {
@@ -28849,6 +28854,14 @@
           "hub_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "collection_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The collection the entries landed in, or null where the import created collections."
           },
           "media_id": {
             "type": "string",
