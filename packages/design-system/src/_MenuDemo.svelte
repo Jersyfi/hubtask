@@ -8,7 +8,7 @@
   import Stack from './Stack.svelte';
   import type { MenuItem } from './overlay.ts';
 
-  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' } = $props();
+  const { mode = 'actions' }: { mode?: 'actions' | 'long' | 'outside' | 'foot' } = $props();
 
   let chosen = $state<string | null>(null);
 
@@ -59,6 +59,22 @@
     </Inline>
     <p>Chosen: {chosen ?? 'nothing yet'}</p>
   </Stack>
+{:else if mode === 'foot'}
+  <!-- Rows that fill the screen, the last one with a menu longer than the room on either side of
+       its trigger: the menu takes the larger side and scrolls inside it. -->
+  <div class="foot">
+    {#each Array.from({ length: 12 }, (_, index) => index + 1) as row (row)}
+      <div class="filler">Row {row}</div>
+    {/each}
+    <Inline gap="150" align="center" justify="between">
+      <span class="filler">Last row</span>
+      <Menu label="Actions for the last row" items={many} placement={{ side: 'block-end', align: 'end' }} onselect={(id) => (chosen = id)}>
+        {#snippet trigger(props)}
+          <IconButton icon="ellipsis" label="Actions for the last row" {...props} />
+        {/snippet}
+      </Menu>
+    </Inline>
+  </div>
 {:else if mode === 'long'}
   <Stack gap="200">
     <Menu label="Task actions" items={many} onselect={(id) => (chosen = id)}>
@@ -87,6 +103,16 @@
 {/if}
 
 <style>
+  .foot {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: var(--sp-100);
+    min-block-size: 100vh;
+  }
+
+  .filler { padding: var(--sp-100) var(--sp-150); }
+
   .row {
     padding: var(--sp-100) var(--sp-150);
     border: var(--bw-hairline) solid var(--border-subtle);
