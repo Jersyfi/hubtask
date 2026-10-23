@@ -228,7 +228,8 @@
             </ul>
 
             {#if !changeable(group.id)}
-              {#if groups.detail(group.id)}
+              <!-- Without MANAGE_MEMBERS no group is changeable, and the page's notice says why. -->
+              {#if groups.detail(group.id) && mayRename}
                 <p class="quiet small">{t('app.groups.above_own')}</p>
               {/if}
             {:else}

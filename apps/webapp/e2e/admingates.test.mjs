@@ -41,7 +41,7 @@ async function as(browser, permissions) {
     const path = new URL(route.request().url()).pathname.replace(/^.*\/api\/v1/, '');
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: permissions } });
     if (path === '/groups') return route.fulfill({ json: { ...PAGE, data: [GROUP] } });
-    if (path === `/groups/${GROUP.id}`) return route.fulfill({ json: { ...GROUP, members: [], members_changeable: true } });
+    if (path === `/groups/${GROUP.id}`) return route.fulfill({ json: { ...GROUP, members: [], members_changeable: permissions.includes('MANAGE_MEMBERS') } });
     if (path === '/auth/service-accounts') return route.fulfill({ json: [MACHINE] });
     if (path === '/trash') return route.fulfill({ json: { data: [TRASHED], page: { next_cursor: null, has_more: false } } });
     return stub(route);
@@ -71,6 +71,19 @@ test('chromium: renaming a group is offered only to whom may manage members', as
   t.after(() => browser.close());
   assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/groups', GROUP.name, 'Rename'), 1);
   assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/groups', GROUP.name, 'Rename'), 0);
+});
+
+test('chromium: a reader who may not manage members is not told the group is above their own role', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page } = await as(browser, PERMISSIONS.AUDITOR);
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/administration/groups`);
+  await page.getByText(GROUP.name).first().waitFor({ timeout: 15_000 });
+  await page.waitForLoadState('networkidle');
+  // Their role cannot change any group; the page's read-only notice says so once, and "a role you
+  // do not hold yourself" would name the wrong reason.
+  assert.equal(await page.getByText('a role you do not hold yourself', { exact: false }).count(), 0);
 });
 
 test('chromium: emptying the trash is offered only to whom may delete a hub', async (t) => {
