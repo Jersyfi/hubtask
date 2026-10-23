@@ -192,11 +192,27 @@ const VIEWS = [
   { id: '01a0e2e0-0000-7000-8000-0000000007b1', scope_type: 'ACCOUNT', scope_id: ACCOUNT.id, name: 'Mine, due soon', layout: 'LIST_COLLAPSED', query: {}, sharing: 'PRIVATE', version: 1 },
 ];
 
-/** Opens one of the collection's set-up dialogs from its page menu. */
-async function openFromMenu(page, name) {
+/**
+ * Opens one of the collection's parts: a tab of *Structure* for whom the shape belongs to
+ * (ux-inventory.md §E4); the templates also from the add button's *From a template…*, the way
+ * everybody who may add an entry uses them. Nothing where the reader has neither.
+ */
+async function openPart(page, tab, mayShape) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.locator('[data-opener="container-menu"]').click();
-  await page.getByRole('menuitem', { name, exact: true }).click();
+  if (mayShape) {
+    await page.getByRole('menuitem', { name: 'Structure…', exact: true }).click();
+    const panel = page.getByRole('dialog');
+    await panel.getByRole('tab', { name: tab }).click();
+    return panel;
+  }
+  await page.keyboard.press('Escape');
+  if (tab !== 'Templates') return undefined;
+  const ways = page.getByRole('button', { name: 'More ways to add an entry' });
+  await page.waitForTimeout(400);
+  if ((await ways.count()) === 0) return undefined;
+  await ways.click();
+  await page.getByRole('menuitem', { name: 'From a template…' }).click();
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
   return dialog;
@@ -209,7 +225,10 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
     const { page, context, failures } = await as(browser, 1280, role);
     await context.route('**/api/v1/templates**', (route) => route.fulfill({ json: { data: TEMPLATES, page: { next_cursor: null, has_more: false } } }));
 
-    const dialog = await openFromMenu(page, 'Templates');
+    const dialog = await openPart(page, 'Templates', may.shape);
+    // A viewer adds nothing, so is offered no template to use either.
+    assert.equal(dialog === undefined, !may.use, 'the templates are offered against the role');
+    if (dialog) {
     await dialog.getByText('Room checklist').waitFor({ timeout: 10_000 });
     // Let the role arrive: nothing that writes is drawn before it, so wait for the answer first.
     await page.waitForTimeout(400);
@@ -231,8 +250,9 @@ for (const [role, may] of [['OWNER', { use: true, shape: true }], ['MEMBER', { u
       }
     }
     await page.keyboard.press('Escape');
+    }
 
-    const fields = await openFromMenu(page, 'Custom fields').catch(() => undefined);
+    const fields = await openPart(page, 'Fields', may.shape);
     if (fields) {
       assert.equal(await fields.getByLabel('Key', { exact: true }).count(), may.shape ? 1 : 0, 'the define form follows the role');
       if (may.shape) {

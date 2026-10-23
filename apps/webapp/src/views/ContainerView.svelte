@@ -475,16 +475,17 @@
   //
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
-  let isManagingLabels = $state(false);
   /** Its colour and symbol (UC-WRK-33). */
   let isChangingLook = $state(false);
-  let isManagingFields = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
-  /** The collection's policies: how it works, as opposed to what it is called. */
-  let isManagingPolicies = $state(false);
-  /** The hub's or the collection's *Structure* panel (UC-WRK-23). */
+  /**
+   * The hub's or the collection's *Structure* panel (UC-WRK-23), and its open tab: the settings,
+   * or one of the collection's parts - labels, fields, templates, automation, people
+   * (ux-inventory.md §E4).
+   */
   let isShaping = $state(false);
+  let shapingTab = $state('settings');
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -643,7 +644,16 @@
     queueMicrotask(() => list?.addEntry());
   }
 
-  /** Who holds a role here, for the faces in the head: the same dialog the menu opens. */
+  /** Where the people dialog and the *People* tab grant and read roles: the container's own scope and path. */
+  const memberScope = $derived(
+    container?.type === 'HUB'
+      ? { scopeType: 'HUB' as const, scopeId: container.id }
+      : { scopeType: 'COLLECTION' as const, scopeId: container?.id ?? '' },
+  );
+  const memberPath = $derived(
+    container?.type === 'HUB' ? { hubId: container.id } : { hubId: container?.parent_id ?? undefined, collectionId: container?.id },
+  );
+  /** Who holds a role here, for the faces in the head: the same dialog the *People* tab draws. */
   const memberIds = $derived([...new Set(people.along(containerPath).map((membership) => membership.account_id))]);
   $effect(() => {
     accounts.resolve(memberIds);
@@ -683,7 +693,7 @@
             : []),
           // What changes the shape of the workspace - its name, its place, its order, its archive -
           // only for a role that may (UC-WRK-01 check 6, P-05); `shaping` drops the rest.
-          ...shaping([
+          ...shaping<MenuItem>([
           {
             id: 'rename',
             label: t('app.workspace.rename'),
@@ -702,25 +712,14 @@
           { id: 'up', label: t('app.rank.up'), icon: 'chevron-up', disabledReason: canMoveUp ? undefined : t('app.rank.already_first') },
           { id: 'down', label: t('app.rank.down'), icon: 'chevron-down', disabledReason: canMoveDown ? undefined : t('app.rank.already_last') },
           ]),
+          // The labels, the fields, the templates, the automation and the people are *Structure*'s
+          // tabs (ux-inventory.md §E4), offered to whom the shape belongs; everybody reaches the
+          // people by the faces in the head and a template by the add button's *From a template*
+          // (UC-WRK-09 check 7). The views are the head's *Views* menu.
+          ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
           ...(container.type === 'COLLECTION'
-            ? [
-                // The labels, the fields and the policies are the collection's shape, managed and
-                // nothing else; the views and the templates are used by everybody, and their
-                // dialogs offer what changes the shape only to whom it belongs (UC-WRK-09 check 7).
-                ...shaping([
-                  { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: readOnlyReason },
-                  { id: 'fields', label: t('app.fields.title'), disabledReason: readOnlyReason },
-                  ...structureRow,
-                ]),
-                { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
-                { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: readOnlyReason },
-                ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: readOnlyReason }]),
-                { id: 'people', label: t('app.people.title'), icon: 'users' as const },
-              ]
-            : [
-                ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
-                { id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: !mayShape || structureRow.length === 0 },
-              ]),
+            ? [{ id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape || structureRow.length === 0 }]
+            : []),
           ...(privacyControl
             ? [
                 {
@@ -751,15 +750,16 @@
     else if (id === 'archive') void toggleArchived();
     else if (id === 'up') void moveBy(-1);
     else if (id === 'down') void moveBy(1);
-    else if (id === 'labels') isManagingLabels = true;
-    else if (id === 'fields') isManagingFields = true;
     else if (id === 'views') isManagingViews = true;
-    else if (id === 'templates') isUsingTemplates = true;
-    else if (id === 'policies') isManagingPolicies = true;
-    else if (id === 'structure') isShaping = true;
-    else if (id === 'people') isManagingMembers = true;
+    else if (id === 'structure') openStructure('settings');
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
+  }
+
+  /** The *Structure* panel, open on one of its tabs. */
+  function openStructure(tab: string) {
+    shapingTab = tab;
+    isShaping = true;
   }
 
   /**
@@ -972,9 +972,12 @@
           <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
-        {#if memberIds.length > 0}
-          <!-- Who holds a role here, as faces; pressing them opens the same dialog the menu's
-               "People" does. The faces are decoration on the button: its name is the word. -->
+        {#if memberIds.length === 0}
+          <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
+          <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
+        {:else}
+          <!-- Who holds a role here, as faces; pressing them opens the people, the same component
+               as *Structure → People*. The faces are decoration on the button: its name is the word. -->
           <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
             <span aria-hidden="true">
               <AvatarGroup
@@ -1170,22 +1173,48 @@
 {/if}
 
 {#if container?.structure && mayShape}
-  <StructurePanel bind:isOpen={isShaping} {container} />
+  {#snippet labelsTab()}
+    <LabelsDialog isEmbedded isOpen={isShaping} collectionId={container.id} />
+  {/snippet}
+  {#snippet fieldsTab()}
+    <CustomFieldsDialog isEmbedded isOpen={isShaping} collectionId={container.id} role={structureRole} />
+  {/snippet}
+  {#snippet templatesTab()}
+    <TemplatesDialog
+      isEmbedded
+      isOpen={isShaping}
+      collectionId={container.id}
+      path={containerPath}
+      role={structureRole}
+      onopened={(itemId) => {
+        isShaping = false;
+        onnavigate(`/items/${itemId}`);
+      }}
+    />
+  {/snippet}
+  {#snippet automationTab()}
+    <PoliciesDialog isEmbedded isOpen={isShaping} {container} path={containerPath} role={structureRole} />
+  {/snippet}
+  {#snippet peopleTab()}
+    <MembersDialog isEmbedded isOpen={isShaping} title={t('app.people.title')} scope={memberScope} path={memberPath} />
+  {/snippet}
+  <StructurePanel
+    bind:isOpen={isShaping}
+    bind:tab={shapingTab}
+    {container}
+    tabs={container.type === 'COLLECTION'
+      ? [
+          { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
+          { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
+          { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
+          { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
+          { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
+        ]
+      : [{ id: 'people', label: t('app.structure.tab_people'), body: peopleTab }]}
+  />
 {/if}
 
 {#if container?.type === 'COLLECTION'}
-  <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
-  <CustomFieldsDialog
-    bind:isOpen={isManagingFields}
-    collectionId={container.id}
-    role={structureRole}
-  />
-  <PoliciesDialog
-    bind:isOpen={isManagingPolicies}
-    {container}
-    path={containerPath}
-    role={structureRole}
-  />
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}
@@ -1232,16 +1261,7 @@
 {#if container}
   <!-- The path is the container's own: a collection composes the workspace, its hub and itself,
        and a hub composes the workspace and itself. -->
-  <MembersDialog
-    bind:isOpen={isManagingMembers}
-    title={t('app.people.title')}
-    scope={container.type === 'HUB'
-      ? { scopeType: 'HUB', scopeId: container.id }
-      : { scopeType: 'COLLECTION', scopeId: container.id }}
-    path={container.type === 'HUB'
-      ? { hubId: container.id }
-      : { hubId: container.parent_id ?? undefined, collectionId: container.id }}
-  />
+  <MembersDialog bind:isOpen={isManagingMembers} title={t('app.people.title')} scope={memberScope} path={memberPath} />
 {/if}
 
 {#if isTrashing && container}

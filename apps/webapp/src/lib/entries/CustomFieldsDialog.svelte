@@ -40,15 +40,18 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { check, focusFirst, isComplete, without, type Missing } from '../forms/missing.ts';
+  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
 
   interface Props {
+    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
+    isEmbedded?: boolean;
     isOpen: boolean;
     collectionId: string;
     /** The role this reader holds along the collection, which is what `STRUCTURE` is read from. */
     role?: string;
   }
 
-  let { isOpen = $bindable(), collectionId, role }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(), collectionId, role }: Props = $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
   const carriers = $derived(typesWith('CUSTOM_FIELDS'));
@@ -184,7 +187,7 @@
   const kindLabel = (value: string) => t(`app.fields.kind_${value}`);
 </script>
 
-<Dialog bind:isOpen title={t('app.fields.title')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.fields.title')}>
   <Stack gap="200">
     <p class="hint">{t('app.fields.scope_hint')}</p>
 
@@ -287,7 +290,7 @@
       </div>
     {/if}
   </Stack>
-</Dialog>
+</PanelOrDialog>
 
 {#if deleting}
   <Dialog
