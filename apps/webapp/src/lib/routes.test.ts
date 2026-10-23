@@ -12,7 +12,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, paneFor } from './routes.ts';
+import { ADMINISTRATION_PREFIX, INSTANCE_PREFIX, ROUTES, movedTo, paneFor } from './routes.ts';
 import { normalisePath, resolve } from './router.ts';
 
 test('the administration area is exactly the routes under its prefix', () => {
@@ -43,6 +43,7 @@ test('the administration area is exactly these screens, by name', () => {
     'backup',
     'groups',
     'identity-provider',
+    'legal',
     'people',
     'permissions',
     'privacy',
@@ -171,6 +172,22 @@ test('the addresses this application publishes resolve to their screens', () => 
   assert.equal(resolve(ROUTES, '/administration/retention').name, 'retention');
   assert.equal(resolve(ROUTES, '/administration/restore').name, 'restore');
   assert.equal(resolve(ROUTES, '/administration/identity-provider').name, 'identity-provider');
+  assert.equal(resolve(ROUTES, '/administration/legal').name, 'legal');
+});
+
+test('an address whose screen became a tab replaces itself with that tab, and no other moves', () => {
+  // A bookmark or a link in a mail keeps working (ux-inventory §E9); every other address stays.
+  assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in?tab=ways');
+  for (const route of ROUTES) {
+    const target = movedTo(route.name);
+    if (target === undefined) continue;
+    // Where it goes is a screen that does not move again.
+    const landing = resolve(ROUTES, target);
+    assert.ok(landing.name, `${route.name} moves to ${target}, which resolves to nothing`);
+    assert.equal(movedTo(landing.name), undefined, `${route.name} moves twice`);
+  }
+  assert.equal(movedTo(resolve(ROUTES, '/administration/sign-in').name), undefined);
+  assert.equal(movedTo(null), undefined);
 });
 
 test('the detail pane is a place, not a feature: a pane from large, a redirect below, the entry page untouched', () => {

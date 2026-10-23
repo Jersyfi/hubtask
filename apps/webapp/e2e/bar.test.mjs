@@ -98,7 +98,7 @@ const ROUTES = [
   // `rules.test.mjs`, and what it would add to a walk of the bar is a second copy of that stub.
   '/administration/apps', '/administration/rules', '/administration/runs', '/administration/webhooks', '/administration/quotas', '/administration/private-hubs',
   '/administration/backup', '/administration/retention', '/administration/restore',
-  '/administration/audit', '/administration/privacy', '/administration/identity-provider',
+  '/administration/audit', '/administration/privacy', '/administration/sign-in', '/administration/legal',
   '/administration/ai',
 ];
 
@@ -184,7 +184,7 @@ const SECTION = [
   ['/administration/audit', 'The trail'],
   ['/administration/privacy', "People's requests"],
   ['/administration/sign-in', 'Sign-in'],
-  ['/administration/identity-provider', 'Sign-in provider'],
+  ['/administration/legal', 'Legal links'],
   ['/administration/ai', 'AI'],
 ];
 

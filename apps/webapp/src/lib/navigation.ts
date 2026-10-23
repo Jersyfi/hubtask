@@ -209,8 +209,10 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     id: 'sign-in',
     code: 'app.admin.group_sign_in',
     rows: [
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
-      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
+      // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
+      // moved there and is claimed here, so the row is current the moment it lands.
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
+      { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
     ],
   },
   {

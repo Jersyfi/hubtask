@@ -13,7 +13,7 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
-  import { ROUTES, paneFor } from './lib/routes.ts';
+  import { ROUTES, movedTo, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -69,7 +69,6 @@ import ContainerView from './views/ContainerView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
-  import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
   import ResetView from './views/ResetView.svelte';
@@ -103,6 +102,11 @@ import ContainerView from './views/ContainerView.svelte';
   const pane = $derived(paneFor(route, { isLarge: viewport.isLarge }));
   $effect(() => {
     if (pane.kind === 'redirect') router.replace(pane.path);
+  });
+  // An address whose screen became a tab elsewhere (`movedTo`) replaces itself with that tab's.
+  const moved = $derived(movedTo(route.name));
+  $effect(() => {
+    if (moved) router.replace(moved);
   });
 
   /**
@@ -331,10 +335,12 @@ import ContainerView from './views/ContainerView.svelte';
     <AuditView />
   {:else if route.name === 'privacy'}
     <PrivacyView />
-  {:else if route.name === 'identity-provider'}
-    <IdentityProviderView />
+  {:else if movedTo(route.name)}
+    <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.name === 'sign-in-settings'}
-    <SignInSettingsView />
+    <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.name === 'legal'}
+    <SignInSettingsView part="legal" />
   {:else if route.name === 'ai'}
     <AiSettingsView />
   {:else if route.name === 'search'}

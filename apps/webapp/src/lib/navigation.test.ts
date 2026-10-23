@@ -167,7 +167,7 @@ test('the administration is grouped as the new order names it (ux-inventory.md \
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
   assert.deepEqual(of('people'), ['workspace', 'quotas', 'people', 'groups', 'permissions', 'service-accounts', 'apps']);
-  assert.deepEqual(of('sign-in'), ['sign-in-settings', 'identity-provider']);
+  assert.deepEqual(of('sign-in'), ['sign-in-settings', 'legal']);
   assert.deepEqual(of('automation'), ['rules', 'runs', 'webhooks']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore']);
   assert.deepEqual(of('records'), ['audit', 'privacy']);

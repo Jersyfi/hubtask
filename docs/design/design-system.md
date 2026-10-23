@@ -895,6 +895,10 @@ operators — with one anatomy:
   it is given (§11.1).
 * **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
   signed in*); nothing else about them may.
+* **A screen of several views of one subject is `Tabs`** (*Sign-in*: passwords, sessions, ways and
+  providers), the tab in the address as `?tab=` so a reload or a link keeps it, and **one save bar
+  per tab** that counts and sends that tab's rows only. An address whose screen became a tab
+  replaces itself with that tab (`movedTo` in `routes.ts`), so bookmarks keep working.
 
 The sections' groups and rows are `navigation.ts`'s. Where somebody is signed in and which devices
 hold a copy are tables, newest first. The rules list is the way into automation and

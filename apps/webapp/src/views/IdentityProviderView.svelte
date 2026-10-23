@@ -1,7 +1,8 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The workspace's identity providers, configured.
+  // The workspace's identity providers, configured - the *Ways and providers* tab of the sign-in
+  // screen, under the list of ways that switches them, so it draws no head of its own.
   //
   // **Plural, and two levels deep.** The listing carries this workspace's own rows and the ones its
   // installation offers every workspace on it. An inherited row is not this workspace's to change,
@@ -33,7 +34,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, ReadOnlyNotice, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Input, ReadOnlyNotice, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
   import type { IdentityProvider, IdentityProviderConfiguration } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -57,8 +58,6 @@
   import ValueSource from '../lib/workspace/ValueSource.svelte';
   import { focusFirst } from '../lib/forms/missing.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   /** Which row the form is editing. `undefined` is closed; the empty string is a new one. */
   let editing = $state<string | undefined>(undefined);
@@ -292,10 +291,6 @@
       ? renderProblem(cause, messages)
       : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
   }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.identity_provider.title')));
-
   /** Whether the reader may configure the workspace's providers (`MANAGE_MEMBERS`). */
   const mayManage = $derived(mayHere('MANAGE_MEMBERS').status === 'permitted');
   /**
@@ -306,25 +301,8 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader
-    title={t('app.identity_provider.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'identity-provider', label: t('app.identity_provider.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
   <Stack gap="300">
     <p class="quiet">{t('app.identity_provider.intro')}</p>
-    <p class="quiet">
-      {t('app.identity_provider.switched_in_sign_in')}
-      <a href="/administration/sign-in">{t('app.identity_provider.to_ways')}</a>
-    </p>
 
     {#if reading.status === 'loading' || reading.status === 'idle'}
       <p class="quiet">

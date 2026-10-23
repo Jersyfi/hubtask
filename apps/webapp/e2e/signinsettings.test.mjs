@@ -82,6 +82,12 @@ async function originOf(page, label) {
 }
 
 /** A control by its label; a pattern for a required field, whose name carries its marker. */
+/** Opens a tab of the sign-in screen as a reader does: by its name. */
+async function toTab(page, name) {
+  await page.getByRole('tab', { name, exact: true }).click();
+  await page.getByRole('tab', { name, exact: true, selected: true }).waitFor();
+}
+
 const control = (page, label) => (label instanceof RegExp ? page.getByLabel(label) : page.getByLabel(label, { exact: true }));
 
 /** All a rule says, found by its control's label: the control, its reason, its hint, its origin. */
@@ -132,23 +138,13 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   // A number below the installation's is not offered either.
   assert.equal(await page.getByLabel('Minimum length', { exact: true }).getAttribute('min'), '12');
 
-  // The installation ends idle sessions after thirty minutes: "off" (an empty field) is not a choice,
-  // and neither is a longer time.
-  // By prefix: a required field's name carries its marker.
-  const idle = page.getByLabel(/^End an idle session after, in minutes/);
-  assert.equal(await idle.getAttribute('required'), '', 'an idle bound the installation set can be emptied');
-  assert.equal(await idle.getAttribute('max'), '30');
-
-  // The password's own way in says where it comes from too.
-  const way = await page.locator('ul.ways li').first().locator('[data-origin]').textContent();
-  assert.match(way ?? '', /Hubtask.s default/, way ?? '');
-
   // The eighteenth rule has its control.
   assert.ok(await page.getByLabel('Earliest change after, in hours', { exact: true }).isVisible());
 
   // UC-ID-12 check 7: every rule ADR-0068 lets a workspace set has a control of its own, found by its
-  // label - the password's thirteen, the second factor, both session bounds - with the ways to sign
-  // in as one list and the rotation as its action. (`blocklist_file` is the installation's alone.)
+  // label - the password's thirteen and the second factor on *Passwords* with the rotation as its
+  // action, both session bounds on *Sessions*, the ways to sign in as one list on *Ways and
+  // providers*. (`blocklist_file` is the installation's alone.)
   for (const label of [
     'Minimum length', 'Lowercase', 'Uppercase', 'Digits', 'Other', 'At least this many of the four kinds',
     'Most of the same character in a row', 'Refuse commonly used passwords',
@@ -157,9 +153,6 @@ test('chromium: every rule says where it comes from, and looser choices are not 
   ]) {
     assert.equal(await page.getByLabel(label, { exact: true }).count(), 1, `no control for "${label}"`);
   }
-  assert.equal(await page.getByLabel(/^End a session after, in days/).count(), 1, 'no control for the session\'s maximum age');
-  assert.equal(await idle.count(), 1, 'no control for the idle time');
-  assert.ok(await page.locator('ul.ways li').count() >= 1, 'no list of the ways to sign in');
   assert.equal(await page.getByRole('button', { name: 'Require a new password from everyone' }).count(), 1, 'no rotation action');
 
   // A switch kept on by Hubtask's own default says so, not that the installation required it: the
@@ -168,6 +161,22 @@ test('chromium: every rule says where it comes from, and looser choices are not 
     input.closest('[data-rule]')?.textContent ?? '');
   assert.match(common, /Hubtask requires this of every workspace/, common);
   assert.doesNotMatch(common, /The installation requires this/, common);
+
+  // The installation ends idle sessions after thirty minutes: "off" (an empty field) is not a choice,
+  // and neither is a longer time.
+  await toTab(page, 'Sessions');
+  // By prefix: a required field's name carries its marker.
+  const idle = page.getByLabel(/^End an idle session after, in minutes/);
+  assert.equal(await idle.getAttribute('required'), '', 'an idle bound the installation set can be emptied');
+  assert.equal(await idle.getAttribute('max'), '30');
+  assert.equal(await page.getByLabel(/^End a session after, in days/).count(), 1, 'no control for the session\'s maximum age');
+  assert.equal(await idle.count(), 1, 'no control for the idle time');
+
+  // The password's own way in says where it comes from too.
+  await toTab(page, 'Ways and providers');
+  assert.ok(await page.locator('ul.ways li').count() >= 1, 'no list of the ways to sign in');
+  const way = await page.locator('ul.ways li').first().locator('[data-origin]').textContent();
+  assert.match(way ?? '', /Hubtask.s default/, way ?? '');
 });
 
 // UC-ID-12 check 4 (multi-tenancy.md §4.2): on a plan, the screen names it, and what the plan set
@@ -214,6 +223,9 @@ test('chromium: a workspace on a plan names it, and what the plan set says so', 
   assert.match(required, /Your plan requires this/, required);
   assert.doesNotMatch(required, /The installation requires this/, required);
 
+  // The links are their own page, under the same rule and the same plan.
+  await page.goto(`${served.origin}/administration/legal`);
+  await page.getByLabel('Terms', { exact: true }).waitFor();
   const terms = await ruleText(page, 'Terms');
   assert.match(terms, /Empty here, so your plan.s applies: https:\/\/plan\.example\/terms/, terms);
 });
@@ -248,7 +260,7 @@ test('chromium: a refusal is shown at the rule it is about', async (t) => {
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   const field = page.getByLabel('End a session after, in days', { exact: true });
   await field.waitFor();
   await field.fill('20');
@@ -272,7 +284,7 @@ test('chromium: the rules save through the save bar, and Enter saves', async (t)
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   const field = page.getByLabel('End a session after, in days', { exact: true });
   await field.waitFor();
   const bar = page.getByRole('region', { name: 'Unsaved changes' });
@@ -289,6 +301,60 @@ test('chromium: the rules save through the save bar, and Enter saves', async (t)
   await field.press('Enter');
   await page.getByText('The sign-in rules were saved.').first().waitFor();
   assert.deepEqual(patches, [{ sign_in_policy: { session_max_days: 20 } }]);
+});
+
+// ux-inventory §E8: the sign-in rules are tabs, one save each. A row moved on one tab is neither
+// counted nor sent by another tab's save, and waits on its own tab until that tab saves; the legal
+// links are a page of their own with their own save.
+test('chromium: each tab saves its own rows, and the legal links are their own page', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const patches = [];
+  const { page, close } = await open(browser, (route, path) => {
+    if (path !== '/tenant') return undefined;
+    if (route.request().method() === 'PATCH') patches.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ...WORKSPACE, sign_in_policy: policy() } });
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.getByLabel('Minimum length', { exact: true }).waitFor();
+  assert.deepEqual(
+    await page.getByRole('tab').allTextContents(),
+    ['Passwords', 'Sessions', 'Ways and providers'],
+  );
+  // No legal link on the sign-in screen: they are their own page, with their own breadcrumb.
+  assert.equal(await page.getByLabel('Imprint', { exact: true }).count(), 0);
+
+  await toTab(page, 'Sessions');
+  assert.match(page.url(), /\/administration\/sign-in\?tab=sessions$/, 'the tab is not in the address');
+  await page.getByLabel('End a session after, in days', { exact: true }).fill('20');
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await bar.getByText('1 change').waitFor();
+
+  await toTab(page, 'Passwords');
+  assert.equal(await bar.count(), 0, 'the passwords tab counts a session row');
+  const length = page.getByLabel('Minimum length', { exact: true });
+  await length.fill('14');
+  await bar.getByText('1 change').waitFor();
+  await length.press('Enter');
+  await page.getByText('The sign-in rules were saved.').first().waitFor();
+  assert.deepEqual(patches, [{ sign_in_policy: { min_length: 14 } }], 'a tab sent another tab\'s row');
+
+  await toTab(page, 'Sessions');
+  assert.equal(await page.getByLabel('End a session after, in days', { exact: true }).inputValue(), '20', 'the waiting row was lost');
+  await bar.getByText('1 change').waitFor();
+
+  await page.goto(`${served.origin}/administration/legal`);
+  await page.getByLabel('Imprint', { exact: true }).waitFor();
+  assert.equal(await page.getByRole('tab').count(), 0);
+  assert.equal(await page.getByLabel('Minimum length', { exact: true }).count(), 0);
+  const trail = await page.getByRole('navigation', { name: 'Where you are in the administration' }).innerText();
+  assert.match(trail, /Legal links/, trail);
+  await page.getByLabel('Imprint', { exact: true }).fill('https://acme.example/imprint');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByText('The sign-in rules were saved.').first().waitFor();
+  assert.deepEqual(patches[1], { sign_in_policy: { imprint_url: 'https://acme.example/imprint' } });
 });
 
 // UC-ID-19: the terms' version sits beside their link, says what changing it does, travels in the
@@ -313,7 +379,7 @@ test('chromium: the terms version is set beside the link and its refusal lands t
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/legal`);
   const field = page.getByLabel('Version of the terms', { exact: true });
   await field.waitFor();
   await page.getByText(/asks every person to agree again at their next sign-in/).waitFor();
@@ -394,7 +460,7 @@ test('chromium: the ways to sign in are one list, one switch each, and the last 
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const rows = (await list.getByRole('listitem').allTextContents()).map((row) => row.replace(/\s+/g, ' ').trim());
@@ -437,7 +503,7 @@ test('chromium: a provider the installation withdraws says when, under its switc
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const withdrawing = list.getByRole('listitem').filter({ hasText: 'The platform' });
@@ -483,7 +549,7 @@ test('chromium: a workspace left without a way in is told the password is open a
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   await page.getByText('The password is open again').waitFor();
   const said = await page.getByText(/until you switch on a way in/i).textContent() ?? '';
   assert.doesNotMatch(said, /withdr|invitation/i, 'the sentence names one cause of many');
@@ -510,7 +576,7 @@ test('chromium: the password switch says how many people have no provider here b
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const password = list.getByRole('listitem').filter({ hasText: 'Password' }).first();
@@ -551,7 +617,7 @@ test('chromium: a password the installation locked says no count', async (t) => 
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.getByRole('listitem').filter({ hasText: 'The platform' }).waitFor();
   await new Promise((resolve) => setTimeout(resolve, 300));
@@ -574,7 +640,7 @@ test('chromium: a switched-off password says no count', async (t) => {
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.getByRole('listitem').filter({ hasText: 'Contoso Entra ID' }).waitFor();
   assert.equal(await list.locator('[data-reach]').count(), 0, 'a switched-off password still says the count');
@@ -613,7 +679,7 @@ test('chromium: an operator\'s opening of the password is said with its end, its
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   await page.getByText('The installation\'s operator opened the password').waitFor();
   const said = await page.getByText(/whatever these settings say/).textContent() ?? '';
   assert.match(said, /Asked for by TICKET-4711: the directory answers 500/);
@@ -633,7 +699,7 @@ test('chromium: an opening answered without who asked is said without an empty a
       : undefined);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   await page.getByText('The installation\'s operator opened the password').waitFor();
   const said = await page.getByText(/whatever these settings say/).textContent() ?? '';
   assert.doesNotMatch(said, /Asked for by|undefined|\{/, said);
@@ -641,7 +707,7 @@ test('chromium: an opening answered without who asked is said without an empty a
 
 // UC-ID-11 check 8: the provider screen configures; it switches nothing - not with a control, and
 // not with the deprecated field in the body it saves (ADR-0076 §5).
-test('chromium: the provider screen has no switch of its own', async (t) => {
+test('chromium: the providers\' configuration has no switch of its own, and its old address lands on its tab', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const saved = [];
@@ -662,10 +728,13 @@ test('chromium: the provider screen has no switch of its own', async (t) => {
   t.after(close);
 
   await page.goto(`${served.origin}/administration/identity-provider`);
-  await page.getByText('Contoso Entra ID').first().waitFor();
-  await page.getByRole('button', { name: 'Change' }).first().click();
-  assert.equal(await page.locator('main input[type="checkbox"], main [role="switch"]').count(), 0,
-    'a provider is still switched on its own screen');
+  await page.waitForURL(/\/administration\/sign-in\?tab=ways$/);
+  assert.equal(await page.getByRole('tab', { name: 'Ways and providers', selected: true }).count(), 1);
+  const providers = page.locator('section[aria-labelledby="providers"]');
+  await providers.getByText('Contoso Entra ID').first().waitFor();
+  await providers.getByRole('button', { name: 'Change' }).first().click();
+  assert.equal(await providers.locator('input[type="checkbox"], [role="switch"]').count(), 0,
+    'a provider is still switched in its configuration');
 
   await page.getByRole('button', { name: 'Save the provider' }).click();
   await page.getByText('Saved. The provider answered its metadata.').waitFor();
@@ -688,7 +757,7 @@ test('chromium: the sign-in rules read in German', async (t) => {
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Mindestlänge', { exact: true }).waitFor({ timeout: 15_000 });
   const text = await page.locator('main').innerText();
-  for (const german of ['Wege der Anmeldung', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
+  for (const german of ['Wege und Anbieter', 'Hier festgelegt', 'Voreinstellung von Hubtask', 'Frühestens änderbar nach, in Stunden', 'Verlangt von']) {
     assert.ok(text.includes(german), `"${german}" is missing`);
   }
   for (const english of ['Minimum length', 'Ways to sign in', 'Set here', "Hubtask's default", 'Required of', 'Sessions', 'Imprint', 'Where you are in the administration']) {
@@ -727,7 +796,7 @@ test('chromium: a provider the installation\'s lock turns on is shown on and set
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
 
@@ -764,7 +833,7 @@ test('chromium: a link field holds the workspace\'s own, with the installation\'
     path === '/tenant' ? route.fulfill({ json: { ...WORKSPACE, sign_in_policy: answer } }) : undefined);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/legal`);
   await page.getByLabel('Imprint', { exact: true }).waitFor();
 
   // Inherited: the workspace's own field is empty, and the installation's link is said under it.
@@ -798,19 +867,24 @@ test('chromium: a locked rule or link says its lock once', async (t) => {
   await page.goto(`${served.origin}/administration/sign-in`);
   await page.getByLabel('Minimum length', { exact: true }).waitFor();
 
-  for (const [label, chip, reason] of [
+  const lockedRules = [
     ['Remember previous passwords', 'INSTANCE-locked', 'Set by the installation for every workspace.'],
     [/^Expires after, in days/, 'PLAN-locked', 'Set by your plan.'],
     ['Imprint', 'INSTANCE-locked', 'Set by the installation for every workspace.'],
-  ]) {
+  ];
+  for (const [label, chip, reason] of lockedRules) {
+    if (label === 'Imprint') {
+      // An open rule keeps its origin line.
+      assert.match(await originOf(page, 'Minimum length'), /Set here/);
+      await page.goto(`${served.origin}/administration/legal`);
+      await page.getByLabel('Imprint', { exact: true }).waitFor();
+    }
     assert.equal(await sourcesOf(page, label), chip, String(label));
     assert.equal(await control(page, label).isDisabled(), true, String(label));
     const described = await control(page, label).evaluate((input) =>
       (input.getAttribute('aria-describedby') ?? '').split(' ').map((id) => document.getElementById(id)?.textContent?.trim()).join(' '));
     assert.ok(described.includes(reason), `${label}: ${described}`);
   }
-  // An open rule keeps its origin line.
-  assert.match(await originOf(page, 'Minimum length'), /Set here/);
 });
 
 test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', async (t) => {
@@ -829,7 +903,7 @@ test('chromium: a provider the plan\'s lock turns on says it is the plan\'s', as
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
 
@@ -866,7 +940,7 @@ test('chromium: passkeys switch on and off beside the password, which keeps them
     return undefined;
   });
   t.after(close);
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=ways`);
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   await list.waitFor();
   const passkeys = list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input');
@@ -913,7 +987,7 @@ test('chromium: the rules and the ways are saved against the version they were r
   });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   const field = page.getByLabel('End a session after, in days', { exact: true });
   await field.waitFor();
   await field.fill('20');
@@ -921,6 +995,7 @@ test('chromium: the rules and the ways are saved against the version they were r
   await page.getByText('The sign-in rules were saved.').first().waitFor();
   assert.deepEqual(preconditions, ['"3"'], 'the rules were saved without the version they were read at');
 
+  await toTab(page, 'Ways and providers');
   const list = page.getByRole('list', { name: 'Ways to sign in' });
   const passkeys = list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input');
   await passkeys.check();

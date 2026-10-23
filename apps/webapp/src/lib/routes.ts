@@ -77,11 +77,14 @@ export const ROUTES: readonly Route[] = [
   { name: 'restore', pattern: '/administration/restore', area: 'administration' },
   { name: 'audit', pattern: '/administration/audit', area: 'administration' },
   { name: 'privacy', pattern: '/administration/privacy', area: 'administration' },
+  // Kept as an address that moved (`movedTo`): the providers are a tab of the sign-in screen now.
   { name: 'identity-provider', pattern: '/administration/identity-provider', area: 'administration' },
   // How people sign in: the rules, what the installation locked, and the one action that asks
   // everybody for a new password. Beside the provider rather than inside the workspace screen,
   // because ADR-0065 decision 3 is one screen per question and this is a question of its own.
   { name: 'sign-in-settings', pattern: '/administration/sign-in', area: 'administration' },
+  // The links the sign-in footer shows: the same rule, but nothing about how somebody signs in.
+  { name: 'legal', pattern: '/administration/legal', area: 'administration' },
   // The AI provider and the consent that lets it be used: where a workspace's content may
   // be sent is administration, exactly as the sign-in provider above it is.
   { name: 'ai', pattern: '/administration/ai', area: 'administration' },
@@ -123,6 +126,20 @@ export const ROUTES: readonly Route[] = [
 
 /** Where the area's own screens live. One prefix, so the test and the table cannot disagree. */
 export const ADMINISTRATION_PREFIX = '/administration';
+
+/**
+ * Addresses whose screen became a tab of another, by route name: each answers by replacing itself
+ * with where its screen now is, so a bookmark or a link in a mail keeps working and the back button
+ * does not return to the address that sent the reader on.
+ */
+const MOVED: Readonly<Record<string, string>> = {
+  'identity-provider': '/administration/sign-in?tab=ways',
+};
+
+/** Where an address that moved now is, or nothing for one that did not. */
+export function movedTo(name: string | null): string | undefined {
+  return name === null ? undefined : MOVED[name];
+}
 
 /** The instance area's own prefix, for the same reason (ADR-0070 §5). */
 export const INSTANCE_PREFIX = '/instance';
