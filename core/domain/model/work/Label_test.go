@@ -249,6 +249,40 @@ func TestLabelDeletedIsIdempotent(t *testing.T) {
 	}
 }
 
+func TestLabelRestored(t *testing.T) {
+	live := newLabel(t, baseLabel)
+	deleted, _, err := live.Deleted(deletedAt)
+	if err != nil {
+		t.Fatalf("the deletion was refused: %v", err)
+	}
+
+	cases := []struct {
+		name        string
+		label       work.Label
+		wantChanges int
+	}{
+		{name: "a deleted label comes back", label: deleted, wantChanges: 1},
+		{name: "a label in use stays as it is", label: live, wantChanges: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			restored, changes := tc.label.Restored()
+			if len(changes) != tc.wantChanges {
+				t.Fatalf("changes: got %+v, want %d", changes, tc.wantChanges)
+			}
+			if restored.IsDeleted() {
+				t.Fatal("the label is still deleted")
+			}
+			if restored.Name != live.Name || restored.ColorToken != live.ColorToken || restored.ID != live.ID {
+				t.Errorf("restoring changed the label itself: %+v", restored)
+			}
+			if tc.wantChanges == 1 && (changes[0].Field != work.FieldDeletedAt || changes[0].To != "") {
+				t.Errorf("the change does not clear the stamp: %+v", changes[0])
+			}
+		})
+	}
+}
+
 func TestADeletedLabelRefusesEveryChange(t *testing.T) {
 	label := newLabel(t, baseLabel)
 	deleted, _, err := label.Deleted(deletedAt)

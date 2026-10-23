@@ -197,6 +197,21 @@ func (l Label) Deleted(at time.Time) (Label, []FieldChange, error) {
 	return l, changes, nil
 }
 
+// Restored brings a deleted label back into the collection's vocabulary.
+//
+// The inverse of Deleted, and as idempotent: a label in the vocabulary is already what the caller
+// asked for. Whether its name is still free is the store's to answer - the uniqueness of a name is
+// an index over the labels in use, and a label that was out of use held no claim on it.
+func (l Label) Restored() (Label, []FieldChange) {
+	if !l.IsDeleted() {
+		return l, nil
+	}
+
+	changes := []FieldChange{{Field: FieldDeletedAt, From: instant(*l.DeletedAt), To: ""}}
+	l.DeletedAt = nil
+	return l, changes
+}
+
 // EnsureEditable refuses a label that is no longer in the collection's vocabulary. A conflict
 // rather than a validation failure, for the reason Bucket.EnsureEditable gives.
 func (l Label) EnsureEditable() error {

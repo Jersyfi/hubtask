@@ -37,6 +37,8 @@
   // granularity to mark, where a week starts, and how a month is spelled are all questions this
   // package answers in no language (ADR-0011).
 
+  import type { Snippet } from 'svelte';
+
   import { HOLD_MS, columnAt, hasLeftTheHandle } from './reorder.ts';
   import { rovingIndex } from './focus.ts';
 
@@ -97,6 +99,19 @@
     onSelect?: (id: string) => void;
     /** Where a drag ended. Called once, and only when it ended somewhere else. */
     onCarry?: (carry: TimelineCarry) => void;
+    /** The entry open beside the timeline: its row is announced as current, not only tinted. */
+    currentId?: string;
+    /**
+     * What a row carries at the end of its title - the entry's menu. Drawn on the axis and in the
+     * tray alike, in a place the title keeps for it, so titles do not shift when it appears.
+     */
+    rowAction?: Snippet<[string]>;
+    /**
+     * A coarse pointer held still on a row and lifted without moving (design-system.md §11.9): what
+     * a mouse has the right click for. A hold that moves drags instead; the click the lift would
+     * otherwise send is not delivered, so the row does not also open.
+     */
+    onHold?: (id: string) => void;
   }
 
   const {
@@ -114,6 +129,9 @@
     dueHandleLabel,
     onSelect,
     onCarry,
+    currentId,
+    rowAction,
+    onHold,
   }: Props = $props();
 
   const DAY = 86_400_000;
@@ -223,38 +241,60 @@
   function attach(node: HTMLElement) {
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target as Element | null;
+      // The row's action is a control of its own, and a press on it is that control's.
+      if (target?.closest?.('[data-action]')) return;
       const end = target?.closest?.('[data-end]');
-      const surface = end ?? target?.closest?.('[data-track]') ?? target?.closest?.('[data-tray]');
+      const surface =
+        end ?? target?.closest?.('[data-track]') ?? target?.closest?.('[data-tray]') ?? target?.closest?.('[data-hold]');
       if (!(surface instanceof HTMLElement)) return;
       const id = surface.closest<HTMLElement>('[data-row]')?.dataset.row;
       if (id === undefined) return;
-      if (rows.find((row) => row.id === id)?.isLocked) return;
+      // A locked row, and a title, take no drag - but a finger held on either still asks for the
+      // entry's menu.
+      const isHoldOnly = rows.find((row) => row.id === id)?.isLocked === true || surface.hasAttribute('data-hold');
       // `hasAttribute`, not the dataset value: `data-track` carries no value, and `''` is falsy -
       // read as a truth test it made every bar drag look like a tray entry being placed.
       const grab = (
         end instanceof HTMLElement ? end.dataset.end : surface.hasAttribute('data-track') ? 'bar' : 'place'
       ) as TimelineCarry['grab'] | undefined;
       if (grab === undefined) return;
-      begin(event, id, grab);
+      begin(event, id, grab, isHoldOnly);
     };
     node.addEventListener('pointerdown', onPointerDown);
     return () => node.removeEventListener('pointerdown', onPointerDown);
   }
 
-  function begin(event: PointerEvent, id: string, grab: TimelineCarry['grab']) {
+  /** Swallows the one click a lifted hold sends, so the row it was on does not also open. */
+  function swallowNextClick() {
+    const swallow = (click: MouseEvent) => {
+      click.preventDefault();
+      click.stopPropagation();
+    };
+    window.addEventListener('click', swallow, { capture: true, once: true });
+    // A lift that sends no click (the finger left the row) must not eat the next real one.
+    setTimeout(() => window.removeEventListener('click', swallow, { capture: true }), HOLD_MS);
+  }
+
+  function begin(event: PointerEvent, id: string, grab: TimelineCarry['grab'], isHoldOnly = false) {
     if (event.button !== 0) return;
+    const isCoarse = event.pointerType !== 'mouse';
+    // A mouse on a row that takes no drag has nothing to begin: its click is the title's.
+    if (isHoldOnly && !isCoarse) return;
     const box = axis?.getBoundingClientRect();
     if (!box) return;
     const width = box.width / days;
     const startColumn = columnAt(event.clientX, box.left, width, days);
     const origin = { x: event.clientX, y: event.clientY };
 
-    const isCoarse = event.pointerType !== 'mouse';
     let hasBegun = false;
-    let mayBegin = !isCoarse;
+    let mayBegin = !isCoarse && !isHoldOnly;
+    /** Whether the finger stayed still for the whole hold: lifted now, it asks for the menu. */
+    let isHeldStill = false;
     let held: ReturnType<typeof setTimeout> | undefined = isCoarse
       ? setTimeout(() => {
-          mayBegin = true;
+          held = undefined;
+          isHeldStill = true;
+          mayBegin = !isHoldOnly;
         }, HOLD_MS)
       : undefined;
     let landed = startColumn;
@@ -262,8 +302,9 @@
     const onMove = (move: PointerEvent) => {
       if (!hasBegun) {
         if (!hasLeftTheHandle(origin, { x: move.clientX, y: move.clientY })) return;
-        // A finger that moved before the hold was up is scrolling the axis. Let the gesture go
-        // entirely rather than taking it.
+        // A finger that moved before the hold was up is scrolling the axis, and one on a row that
+        // takes no drag is too. Let the gesture go entirely rather than taking it.
+        isHeldStill = false;
         if (!mayBegin) {
           finish();
           return;
@@ -284,6 +325,12 @@
       window.removeEventListener('pointercancel', finish);
       const moved = hasBegun && (landed !== startColumn || grab === 'place');
       carry = null;
+      // Decided on the lift, not when the timer fired, so the same hold could still become a drag.
+      if (isHeldStill && !hasBegun && onHold) {
+        swallowNextClick();
+        onHold(id);
+        return;
+      }
       // A drag that ends where it began writes nothing: it is the ordinary outcome of thinking
       // better of it. An undated entry is the exception - carried anywhere on the axis it is
       // asking for a date, and one column is a day.
@@ -324,19 +371,25 @@
             data-carrying={carry?.id === entry.row.id ? '' : undefined}
             data-locked={entry.row.isLocked ? '' : undefined}
           >
-            <button
-              type="button"
-              class="title"
-              data-index={index}
-              tabindex={index === active ? 0 : -1}
-              onkeydown={onKeydown}
-              onclick={() => {
-                active = index;
-                onSelect?.(entry.row.id);
-              }}
-            >
-              {entry.row.title}
-            </button>
+            <span class="lead">
+              <button
+                type="button"
+                class="title"
+                data-index={index}
+                data-hold
+                data-current={entry.row.id === currentId ? '' : undefined}
+                aria-current={entry.row.id === currentId ? 'true' : undefined}
+                tabindex={index === active ? 0 : -1}
+                onkeydown={onKeydown}
+                onclick={() => {
+                  active = index;
+                  onSelect?.(entry.row.id);
+                }}
+              >
+                {entry.row.title}
+              </button>
+              {#if rowAction}<span class="action" data-action>{@render rowAction(entry.row.id)}</span>{/if}
+            </span>
             <!-- The track is the drag surface and not a control: the row's control is its title,
                  which opens the entry and is where a keyboard reaches the dates. -->
             <div class="track" data-track>
@@ -373,7 +426,7 @@
           <!-- The undated entry while it is being carried: where it would land, drawn on the axis
                it is being given to. -->
           <li class="row" data-carrying>
-            <span class="title">{placing.row.title}</span>
+            <span class="lead"><span class="title">{placing.row.title}</span></span>
             <div class="track">
               {#each columns as column (column)}
                 <span
@@ -392,10 +445,18 @@
         <summary class="name">{undatedLabel}</summary>
         <ul class="plain">
           {#each undated as row (row.id)}
-            <li data-row={row.id} data-locked={row.isLocked ? '' : undefined}>
-              <button type="button" class="entry" data-tray onclick={() => onSelect?.(row.id)}>
+            <li class="trayed" data-row={row.id} data-locked={row.isLocked ? '' : undefined}>
+              <button
+                type="button"
+                class="entry"
+                data-tray
+                data-current={row.id === currentId ? '' : undefined}
+                aria-current={row.id === currentId ? 'true' : undefined}
+                onclick={() => onSelect?.(row.id)}
+              >
                 {row.title}
               </button>
+              {#if rowAction}<span class="action" data-action>{@render rowAction(row.id)}</span>{/if}
             </li>
           {/each}
         </ul>
@@ -488,12 +549,24 @@
 
   .row[data-carrying] { opacity: 0.7; }
 
-  .title {
+  /* The title and the row's action share the title's width, so the axis rules the same columns
+     with or without an action: the action's place is taken from the title, never added to the row. */
+  .lead {
+    display: flex;
     flex: none;
+    align-items: center;
+    gap: var(--sp-050);
     /* The step the scale gained for this: at the widest step it had, every entry truncated to
        three words, which makes the axis readable and the rows useless. A value that does not
        exist goes into tokens.json or is not needed (ADR-0029), so it went in. */
     inline-size: var(--title);
+  }
+
+  .action { display: inline-flex; flex: none; }
+
+  .title {
+    flex: 1 1 auto;
+    min-inline-size: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -509,6 +582,20 @@
   button.title { cursor: pointer; }
 
   button.title:hover { background: var(--bg-surface-hover); }
+
+  /* Rule 3, as a list row marks it: the open entry carries the rail as well as the tint. */
+  .title[data-current],
+  .entry[data-current] {
+    background: var(--bg-surface-pressed);
+    box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
+  }
+
+  :global([dir='rtl']) .title[data-current],
+  :global([dir='rtl']) .entry[data-current] {
+    box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary);
+  }
+
+  .trayed { display: flex; align-items: center; gap: var(--sp-050); }
 
   button.title:focus-visible,
   .entry:focus-visible,

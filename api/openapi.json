@@ -12252,6 +12252,17 @@
           "structure"
         ],
         "operationId": "listLabels",
+        "parameters": [
+          {
+            "name": "include_deleted",
+            "in": "query",
+            "description": "Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client can offer to bring one back. Without it a deleted label is not in the list.\n",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "The collection's labels, by name",
@@ -12378,6 +12389,50 @@
         "responses": {
           "204": {
             "description": "Deleted"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/containers/{containerId}/labels/{labelId}:restore": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/ContainerId"
+        },
+        {
+          "$ref": "#/components/parameters/LabelId"
+        }
+      ],
+      "post": {
+        "tags": [
+          "structure"
+        ],
+        "operationId": "restoreLabel",
+        "description": "Brings a deleted label back into the collection's vocabulary, with every entry that carried it: the deletion never rewrote them. Refused when another label has taken the name in the meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Restored",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Label"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -24805,6 +24860,7 @@
               "REOPEN_ITEM",
               "MOVE_ITEM",
               "TRASH_ITEM",
+              "RESTORE_ITEM",
               "ADD_LABEL",
               "REMOVE_LABEL",
               "ASSIGN"
@@ -25058,6 +25114,14 @@
           "version": {
             "type": "integer",
             "description": "The optimistic lock, returned as the ETag and sent back as If-Match."
+          },
+          "deleted_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When the label was taken out of the vocabulary. Present only in a list read with `include_deleted`; a label in the vocabulary carries null or omits it.\n"
           }
         }
       },

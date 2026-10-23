@@ -157,7 +157,7 @@ for (const width of WIDTHS) {
     await page.getByText(UNDER_ARCHIVED_ENTRY.title).first().waitFor({ timeout: 10_000 });
     const child = page.getByRole('checkbox', { name: `Mark ${UNDER_ARCHIVED_ENTRY.title} as done` });
     assert.equal(await child.getAttribute('aria-disabled'), null, 'the child of an archived entry is frozen');
-    assert.equal(await page.getByRole('button', { name: `Move ${UNDER_ARCHIVED_ENTRY.title}` }).count(), 1, 'the child lost its menu');
+    assert.equal(await page.getByRole('button', { name: `Actions for ${UNDER_ARCHIVED_ENTRY.title}` }).count(), 1, 'the child lost its menu');
     assert.deepEqual(failures, []);
   });
 

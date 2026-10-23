@@ -588,3 +588,30 @@ test('without a store there is nothing to take a snapshot into', async () => {
   const engine = new SyncEngine({ transport: new FakeTransport(), clock: new FixedClock() });
   assert.equal(await engine.resynchronise('structure'), false);
 });
+
+test('a label deleted and then restored is held whole again', async () => {
+  const storage = new MemoryStorage();
+  const first = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-100' }).streamSessions({ open: true });
+  first.answer('/sync:pull', { changes: [], cursor: 'c-100', has_more: false });
+  const a = await attached(first, storage);
+  const stopA = a.engine.listen({ pathsFor });
+  await settle();
+  stopA();
+
+  // The deletion is a payload-less DELETE; the restoration one UPSERT of the whole label, because
+  // a field record alone would leave the replica with a label it knows nothing else about.
+  const restored = { id: LABEL, collection_id: COLLECTION, name: 'urgent', color_token: 'accent.red', description: null, deleted_at: null, version: 3 };
+  const second = new FakeTransport().streamSessions({ open: true }).answerEach('/sync:pull', [
+    { changes: [{ op: 'DELETE', entity: 'label', entity_id: LABEL, container_id: COLLECTION }], cursor: 'c-101', has_more: true },
+    { changes: [{ op: 'UPSERT', entity: 'label', entity_id: LABEL, container_id: COLLECTION, payload: restored }], cursor: 'c-102', has_more: false },
+  ]);
+  const b = await attached(second, storage);
+  const stopB = b.engine.listen({ pathsFor });
+  await settle();
+  stopB();
+
+  const label = await held(storage, 'label', LABEL);
+  assert.deepEqual(label?.document, restored, 'the restored label is held with every field');
+  const item = await held(storage, 'item', ITEM);
+  assert.deepEqual(item?.sets, { labels: [LABEL] }, 'the entry still carries it: the deletion rewrote no entry');
+});

@@ -196,3 +196,14 @@ func NewLabelDeleted(id shared.ID, label work.Label, actor Actor,
 	return NewEnvelope(id, LabelDeleted, label.TenantID,
 		LabelSubject(label.ID), actor, occurredAt, cause, labelPayload(label))
 }
+
+// NewLabelRestored announces that a deleted label is back in a collection's vocabulary.
+//
+// The snapshot alone, as for the deletion: the entries that carry it are not named, and a consumer
+// that renders chips draws this label on all of them again.
+func NewLabelRestored(id shared.ID, label work.Label, actor Actor,
+	occurredAt time.Time, cause Cause,
+) (Envelope, error) {
+	return NewEnvelope(id, LabelRestored, label.TenantID,
+		LabelSubject(label.ID), actor, occurredAt, cause, labelPayload(label))
+}
