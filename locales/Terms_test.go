@@ -6,6 +6,7 @@ package locales
 import (
 	"encoding/json"
 	"regexp"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +26,11 @@ func TestNoRetiredWordReachesAReader(t *testing.T) {
 			t.Fatalf("parsing %s: %v", name, err)
 		}
 		for code, text := range messages {
+			// The palette's search words are matched against what a person types, never shown:
+			// "2FA" is exactly what someone looking for the second factor types.
+			if strings.HasPrefix(code, "app.palette.words_") {
+				continue
+			}
 			if word := retired.FindString(text); word != "" {
 				t.Errorf("%s %s says %q: %s", name, code, word, text)
 			}

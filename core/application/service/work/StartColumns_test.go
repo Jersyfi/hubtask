@@ -38,7 +38,9 @@ func (w workspaces) Find(context.Context) (identity.Workspace, error) {
 // Answers the locale and the code it was asked for, so a test reads which catalogue a name came from.
 type echoRenderer struct{}
 
-func (echoRenderer) Render(locale, code string, _ map[string]string) string { return locale + ":" + code }
+func (echoRenderer) Render(locale, code string, _ map[string]string) string {
+	return locale + ":" + code
+}
 
 func boardOn(defaultView domain.ViewLayout) domain.StructureValues {
 	return domain.StructureValues{Views: &domain.Views{
@@ -84,7 +86,7 @@ func TestANewCollectionStartsWithItsColumnsInTheWorkspacesLanguage(t *testing.T)
 			if !store.inserted[2].IsDoneBucket {
 				t.Error("the last column does not complete what enters it")
 			}
-			if !(store.inserted[0].OrderKey < store.inserted[1].OrderKey && store.inserted[1].OrderKey < store.inserted[2].OrderKey) {
+			if store.inserted[0].OrderKey >= store.inserted[1].OrderKey || store.inserted[1].OrderKey >= store.inserted[2].OrderKey {
 				t.Errorf("the columns are not ranked in order: %q %q %q",
 					store.inserted[0].OrderKey, store.inserted[1].OrderKey, store.inserted[2].OrderKey)
 			}
@@ -129,9 +131,9 @@ func TestABuildWithoutTheColumnsWiringCreatesNone(t *testing.T) {
 func TestAFailureWhileStartingTheColumnsIsReturned(t *testing.T) {
 	refused := errors.New("refused")
 	tests := []struct {
-		name       string
-		startedColumns    *startedColumns
-		workspaces workspaces
+		name           string
+		startedColumns *startedColumns
+		workspaces     workspaces
 	}{
 		{"the workspace cannot be read", &startedColumns{}, workspaces{err: refused}},
 		{"a column cannot be written", &startedColumns{err: refused}, workspaces{locale: "en"}},
