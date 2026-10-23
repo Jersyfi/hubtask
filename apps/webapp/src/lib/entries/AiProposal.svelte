@@ -18,6 +18,8 @@
 
   import { actor } from '../data/account.svelte.ts';
   import { buckets } from '../data/buckets.svelte.ts';
+  import { offerIn } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { suggestions } from '../data/suggestions.svelte.ts';
@@ -81,6 +83,7 @@
     return formatDue(value, messages.locale, item.due_time_zone ?? actor.zone, { allDay: isProposed || item.due_date_only });
   }
 
+  const offer = $derived(offerIn(containers.find(item.collection_id)?.structure?.settings));
   const labelNamed = (id: string) => labels.of(item.collection_id).find((label) => label.id === id);
   const bucketNamed = (id: string) => buckets.of(item.collection_id).find((bucket) => bucket.id === id);
   const fieldNamed = (key: string) => customFields.of(item.collection_id).find((definition) => definition.key === key || definition.id === key);
@@ -129,7 +132,7 @@
     <ul class="tree">
       {#each shape.nodes as node, index (index)}
         <li data-depth={Math.min(node.depth, 4)}>
-          <span class="type">{t('app.item.type_name', { type: node.type })}</span>
+          <span class="type">{offer.level(node.type).label}</span>
           <span class="proposed">{node.title}</span>
           {#if node.notes}<span class="current">{node.notes}</span>{/if}
         </li>
