@@ -5806,7 +5806,7 @@
   "app.capture.nowhere_in_hub": "Nothing in {hub} can take an entry from you: name a collection with @.",
   "app.capture.unresolved": "Where this goes could not be worked out. Name a collection with @, or try again once the connection is back.",
   "app.capture.recognised": "Recognised",
-  "app.capture.chip_kind": "{kind, select, hub {Hub} collection {Collection} person {Responsible} label {Label} date {Day} time {Time} other {}}",
+  "app.capture.chip_kind": "{kind, select, hub {Hub} collection {Collection} person {Responsible} label {Label} date {Day} time {Time} amount {Amount} other {}}",
   "app.capture.keep_in_title": "Keep “{text}” in the title",
   "app.capture.summary": "{list}. {where}",
   "app.capture.submit": "Capture",

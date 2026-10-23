@@ -4550,7 +4550,7 @@
   "app.capture.nowhere_in_hub": "In {hub} kann nichts einen Eintrag von dir aufnehmen: Nenne eine Sammlung mit @.",
   "app.capture.unresolved": "Wohin das gehört, ließ sich nicht klären. Nenne eine Sammlung mit @ oder versuch es wieder, sobald die Verbindung zurück ist.",
   "app.capture.recognised": "Erkannt",
-  "app.capture.chip_kind": "{kind, select, hub {Hub} collection {Sammlung} person {Verantwortlich} label {Label} date {Tag} time {Uhrzeit} other {}}",
+  "app.capture.chip_kind": "{kind, select, hub {Hub} collection {Sammlung} person {Verantwortlich} label {Label} date {Tag} time {Uhrzeit} amount {Menge} other {}}",
   "app.capture.keep_in_title": "„{text}“ im Titel lassen",
   "app.capture.summary": "{list}. {where}",
   "app.capture.submit": "Erfassen",

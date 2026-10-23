@@ -6,8 +6,10 @@
 // * check 1 - `Q` and the bar's *Capture* open the field on every framed page; on a phone the
 //   bottom bar's ＋ does; a reader who may create nowhere has none of the three, and a child with
 //   one hub and no workspace role has all of them;
-// * check 2 - the story's line shows its chips, and a chip taken back stays in the title sent;
-// * check 3 - a collection set up as a list takes no date, person or label, and splits lines;
+// * check 2 - the story's line shows its chips, and a chip taken back stays in the title sent; a
+//   list's line shows its amount as a chip, and taken back the number stays in the title;
+// * check 3 - a collection set up as a list takes no date, person or label, splits lines and reads
+//   a leading amount, by the rule the list's own capture line reads too;
 // * check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
 //   the message names the place, links to it and undoes it;
 // * check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
@@ -242,6 +244,66 @@ test('chromium: a list takes no date, person or label, and makes one entry per l
   const bulk = await sent(page, writes, 'POST /items:bulk');
   assert.equal(bulk.body.atomic, true);
   assert.deepEqual(bulk.body.operations.map((each) => each.op), ['TRASH_ITEM', 'TRASH_ITEM']);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a list reads amounts and lines - the amount chip, taken back keeps the number (checks 2, 3)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280);
+  t.after(() => context.close());
+  await context.route('**/api/v1/containers**', async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith(`/containers/${GROCERIES.id}`)) return route.fulfill({ json: GROCERIES });
+    if (url.pathname.endsWith('/containers') && url.searchParams.get('parent_id') === HUB.id) {
+      return route.fulfill({ json: { ...PAGE, data: [COLLECTION, GROCERIES] } });
+    }
+    return stub(route);
+  });
+  const writes = recordWrites(page);
+  const creates = () => writes.filter((each) => each.call === 'POST /items');
+  const recognised = () => dialogOf(page).getByRole('list', { name: 'Recognised' });
+
+  // From another collection's page, `@Groceries` names the list: what it recognises is the list's.
+  await land(page, `/collections/${COLLECTION.id}`);
+  await page.keyboard.press('q');
+  await fieldOf(page).fill('@Groceries 1 kg apples');
+  await recognised().getByText('1 kg', { exact: true }).waitFor({ timeout: 5_000 });
+  await fieldOf(page).press('Shift+Enter');
+  await fieldOf(page).pressSequentially('- 2x eggs');
+  await fieldOf(page).press('Shift+Enter');
+  await fieldOf(page).pressSequentially('bread');
+  await fieldOf(page).press('Enter');
+  for (let waited = 0; creates().length < 3 && waited < 50; waited++) await page.waitForTimeout(100);
+  assert.deepEqual(
+    creates().map((each) => [each.body.title, each.body.amount ?? null, each.body.collection_id]),
+    [
+      ['apples', '1 kg', GROCERIES.id],
+      ['eggs', '2×', GROCERIES.id],
+      ['bread', null, GROCERIES.id],
+    ],
+  );
+  await page.locator('.stack').getByText('3 entries added to Groceries').waitFor({ timeout: 5_000 });
+
+  // The chip shows the split before Enter; removing it keeps the number in the title.
+  await land(page, `/collections/${GROCERIES.id}`);
+  await page.keyboard.press('q');
+  await fieldOf(page).fill('3 lemons');
+  await recognised().getByText('3', { exact: true }).waitFor({ timeout: 5_000 });
+  await recognised().getByRole('button', { name: 'Keep “3” in the title' }).click();
+  assert.equal(await recognised().count(), 0, 'the chip stayed');
+  await fieldOf(page).press('Enter');
+  for (let waited = 0; creates().length < 4 && waited < 50; waited++) await page.waitForTimeout(100);
+  const last = creates().at(-1);
+  assert.equal(last?.body.title, '3 lemons');
+  assert.equal(last?.body.amount, undefined);
+
+  // A collection that does not recognise AMOUNT reads no amount: the number is the title's.
+  await land(page, `/collections/${COLLECTION.id}`);
+  await page.keyboard.press('q');
+  await fieldOf(page).fill('2 kg apples');
+  await page.waitForTimeout(500);
+  assert.equal(await recognised().count(), 0, 'a collection without AMOUNT showed an amount');
   assert.deepEqual(failures, []);
 });
 

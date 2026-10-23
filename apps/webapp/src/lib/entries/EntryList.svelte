@@ -42,7 +42,7 @@
   } from '@hubtask/design-system/components';
   import type { BulkResult, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
 
-  import { capture, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
+  import { capture, captureRulesOf, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
   import { narrow, partition, type Sections } from './simplelist.ts';
   import { classify, edgeInset, HOLD_MS as GESTURE_HOLD_MS, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
 
@@ -563,18 +563,13 @@
     (structure?.settings?.fields?.[type]?.capabilities ?? []).includes('AMOUNT');
 
   /**
-   * What the capture line recognises (UC-WRK-25 checks 1, 2): several lines are several entries in
-   * a collection of one level or one that says `LINES`; a leading amount is read where the
-   * collection says `AMOUNT` and the type carries one. Only at the top of the collection: a line
-   * added inside an entry is that entry's one child.
+   * What the capture line recognises (UC-WRK-25 checks 1, 2): the one rule every capture field reads
+   * a collection by (`captureRulesOf`). Lines split only at the top of the collection: a line added
+   * inside an entry is that entry's one child.
    */
-  const captureRules = $derived<CaptureRules>({
-    splitsLines:
-      !root &&
-      addingUnder === 'root' &&
-      ((structure?.settings?.levels?.length ?? 0) === 1 || (structure?.settings?.capture ?? []).includes('LINES')),
-    readsAmount: (structure?.settings?.capture ?? []).includes('AMOUNT') && offersAmount(draftType),
-    units: unitsOf(t('app.entries.capture_units')),
+  const captureRules = $derived.by((): CaptureRules => {
+    const rules = captureRulesOf(structure, draftType, unitsOf(t('app.entries.capture_units')));
+    return { ...rules, splitsLines: rules.splitsLines && !root && addingUnder === 'root' };
   });
 
   /** The person took the amount back into the title for this submit, from the chip. */
