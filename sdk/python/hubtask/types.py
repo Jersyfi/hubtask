@@ -336,6 +336,7 @@ class AiAsk(TypedDict, total=False):
 class SuggestionAcceptance(TypedDict, total=False):
     """What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights."""
     overrides: dict[str, Any]
+    take: list[str]
 
 class AcceptedSuggestion(TypedDict, total=False):
     """The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only."""
@@ -356,6 +357,11 @@ class AcceptedSuggestion(TypedDict, total=False):
     dropped_nodes: int
     version: Required[int]
     created_id: str
+    created_ids: list[str]
+
+class EntriesText(TypedDict, total=False):
+    """The text to turn into entries."""
+    text: Required[str]
 
 class RuleDescription(TypedDict, total=False):
     """What to ask for, and where the rule would apply."""
@@ -369,7 +375,7 @@ class SuggestionPage(TypedDict, total=False):
 
 SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER", "ACCOUNT"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE", "ENTRIES"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 

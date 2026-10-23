@@ -456,6 +456,12 @@ func (pending) DescribeRule(w http.ResponseWriter, r *http.Request, _ openapi.De
 	notAvailable(w, r)
 }
 
+func (pending) MakeEntries(
+	w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.MakeEntriesParams,
+) {
+	notAvailable(w, r)
+}
+
 // The jumble. RestController overrides them as the steps land.
 func (pending) ListJumbleEntries(w http.ResponseWriter, r *http.Request, _ openapi.ListJumbleEntriesParams) {
 	notAvailable(w, r)
