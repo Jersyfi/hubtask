@@ -20,7 +20,7 @@
  * persistence port.
  */
 
-import type { Account, ResourceState } from '@hubtask/sync-engine';
+import type { Account, OwnAccountUpdate, ResourceState } from '@hubtask/sync-engine';
 
 import { deviceZone } from '../i18n/zone.ts';
 import { platform } from '../platform/index.ts';
@@ -132,6 +132,17 @@ class Actor {
   async reread(): Promise<void> {
     if (platform.bearer() === undefined) return;
     await engine.refresh<Account>({ path: PATH });
+  }
+
+  /**
+   * Gives the account the name its holder chose (`PATCH /accounts/me`).
+   *
+   * `/accounts` is invalidated, as the preferences' write does: the frame's own read of the account
+   * and every name read behind an identifier are re-read, so the avatar and the lists follow.
+   */
+  async rename(displayName: string): Promise<Account> {
+    const body: OwnAccountUpdate = { display_name: displayName };
+    return engine.mutate<Account>('PATCH', PATH, body, { invalidates: ['/accounts'] });
   }
 
   start(): () => void {

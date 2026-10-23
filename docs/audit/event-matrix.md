@@ -47,6 +47,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `account.preferences_changed` | UpdateAccountPreferences | `account` | INFO | Every time |
 | `account.read` | GetAccount | `account` | INFO | When refused |
 | `account.read` | GetOwnAccount | `account` | INFO | When refused |
+| `account.renamed` | UpdateOwnAccount | `account` | INFO | Every time |
 | `account.service_account_created` | CreateServiceAccount | `account` | NOTICE | Every time |
 | `account.service_accounts_read` | ListServiceAccounts | `account` | INFO | When refused |
 | `account.start_password_issued` | IssueStartPassword | `account` | WARNING | Every time |
@@ -344,6 +345,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.settings_changed` | WriteInstanceSettings | `instance` | NOTICE | Every time |
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 | `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
+
+## Items
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `items.exported` | ExportItems | `container` | INFO | Every time |
 
 ## Jumble
 

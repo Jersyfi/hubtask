@@ -228,6 +228,41 @@ func TestPreferencesOfAnotherTenantCannotBeWritten(t *testing.T) {
 	}
 }
 
+// A rename writes the name and leaves every other column; another tenant's account is not found
+// and keeps its name (the cross-tenant negative test of Rename).
+func TestARenameWritesTheNameAndStaysInItsTenant(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	account := invitedIn(t, tenantA)
+
+	renamed, err := account.WithDisplayName("Anna Renamed", nil)
+	if err != nil {
+		t.Fatalf("applying: %v", err)
+	}
+
+	err = write(ctx, t, tenantB, func(ctx context.Context) error {
+		return postgres.NewAccountRepository().Rename(ctx, renamed, created)
+	})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("from tenant B: error %v, want not found", err)
+	}
+
+	var read identity.Account
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		accounts := postgres.NewAccountRepository()
+		if err := accounts.Rename(ctx, renamed, created); err != nil {
+			return err
+		}
+		read, err = accounts.Find(ctx, account.ID)
+		return err
+	}); err != nil {
+		t.Fatalf("renaming: %v", err)
+	}
+	if read.DisplayName != "Anna Renamed" || read.Email != account.Email || read.Status != account.Status {
+		t.Errorf("read back %+v", read)
+	}
+}
+
 // The cross-tenant negative test of reading the own account, about the use case rather than the
 // repository.
 //

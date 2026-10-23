@@ -100,6 +100,9 @@ test('chromium: where AI is part of everybody\'s work, the basis instead of a sw
   const notice = page.locator('[data-ai-notice]');
   await notice.waitFor({ timeout: 15_000 });
   assert.match((await notice.textContent()) ?? '', /no longer takes effect/);
+  // The frame's one banner zone holds it, above the page's own head (ux-inventory.md §E1).
+  assert.equal(await page.locator('main [data-banners] [data-ai-notice]').count(), 1, 'the notice is outside the banner zone');
+  assert.equal(await page.locator('main [data-banners]').count(), 1, 'more than one banner zone');
   await notice.getByRole('button', { name: 'Understood' }).click();
   await notice.waitFor({ state: 'detached', timeout: 15_000 });
   assert.ok(sent.includes('/privacy/ai-objection:noticed'), 'the acknowledgement was not sent');

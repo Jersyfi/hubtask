@@ -987,18 +987,24 @@ archived container leaves the tree.
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — labels, fields, structure, views, templates,
-policies, people; and trash, last and alone. An item unusable now stays with its reason.
+move, archive, rank up, rank down; set it up — structure, views; and trash, last and alone. An
+item unusable now stays with its reason. The people are the head's faces for everybody.
 
 **The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
 in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
 here, and a lock drawn as the chip's lock with the controls still readable and unavailable, their
 reason naming who set it (§4, cases 2 and 6). Only a reader who may change the shape is offered it.
+The settings are its first tab; a collection's labels, fields, templates, automation (the
+policies) and people are the tabs after it, a hub's people the one after it — each the same
+component that is a dialog elsewhere (`PanelOrDialog`).
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
 (`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
-also reachable where it is used — saved views from a star beside the layout switch, templates from
-the primary action's submenu, people from the member avatars — opening the same dialog.
+also reachable where it is used — templates from the primary action's submenu, people from the
+member avatars — opening the same dialog. Beside the layout switch is the one *Views* menu: the
+saved views that apply here, each opened by its row with its query and layout, then saving what is
+on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
+calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
 *Structure* panel's picker — each is marked with where it comes from: Hubtask's, the workspace's,

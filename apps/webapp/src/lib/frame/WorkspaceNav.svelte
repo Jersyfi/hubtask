@@ -18,16 +18,17 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, SideNav, Skeleton } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
   import { chosenSymbol, markOf } from '../workspace/look.ts';
 
   import { actor } from '../data/account.svelte.ts';
-  import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
+  import { people } from '../data/people.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
   import { KEEPING, primary } from '../navigation.ts';
@@ -68,6 +69,41 @@
   const createLabel = $derived(
     creation === 'shared' ? t('app.workspace.create_hub') : creation === 'private' ? t('app.workspace.create_private_hub') : undefined,
   );
+
+  /**
+   * *＋ New* (ux-inventory.md §E1): a hub, or a collection in the hub the reader stands in, each
+   * with its preset in the one create dialog. The collection is offered only where the reader's
+   * role on that hub holds `STRUCTURE`, the condition the hub's own *Create collection* asks;
+   * elsewhere the control stays the hub's alone (P-05).
+   */
+  const hereHub = $derived.by(() => {
+    const container = current ? containers.find(current) : undefined;
+    const hubId = container?.type === 'HUB' ? container.id : container?.type === 'COLLECTION' ? container.parent_id : undefined;
+    return hubId ? containers.find(hubId) : undefined;
+  });
+  $effect(() => {
+    const hubId = hereHub?.id;
+    if (!hubId) return;
+    return untrack(() => people.open({ hubId }));
+  });
+  const mayCreateCollection = $derived(
+    hereHub !== undefined &&
+      holds(people.roleOf({ hubId: hereHub.id }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted',
+  );
+  let isCreatingCollection = $state(false);
+  /** The collection's hub, held while its dialog is open so that moving on does not change it. */
+  let collectionHubId = $state<string | undefined>(undefined);
+  const newItems = $derived([
+    ...(createLabel ? [{ id: 'hub', label: createLabel, icon: 'hub' as const }] : []),
+    ...(mayCreateCollection && hereHub ? [{ id: 'collection', label: t('app.nav.new_collection', { hub: hereHub.name }), icon: 'collection' as const }] : []),
+  ]);
+  function chooseNew(id: string) {
+    if (id === 'hub') isCreatingHub = true;
+    else if (id === 'collection' && hereHub) {
+      collectionHubId = hereHub.id;
+      isCreatingCollection = true;
+    }
+  }
 
   let expanded = $state<string[]>([]);
 
@@ -256,6 +292,19 @@
         {/if}
       {/snippet}
     </EmptyState>
+  {:else if newItems.length > 1}
+    <!-- More than one thing to make here: *＋ New* lists them, the hub first. -->
+    <div class="create" data-rail={isRail ? '' : undefined} data-new>
+      <Menu label={t('app.nav.new')} items={newItems} onselect={chooseNew}>
+        {#snippet trigger(props)}
+          {#if isRail}
+            <IconButton icon="plus" label={t('app.nav.new')} size="sm" {...props} />
+          {:else}
+            <Button tone="subtle" size="sm" icon="plus" {...props}>{t('app.nav.new')}</Button>
+          {/if}
+        {/snippet}
+      </Menu>
+    </div>
   {:else if createLabel}
     <!-- In a block of its own so that the control keeps its width at the start of the line
          rather than stretching across the column with its label in the middle. Folded, it stands
@@ -285,6 +334,14 @@
   isPrivateOnly={creation === 'private'}
   oncreated={(id) => onnavigate(`/hubs/${id}`)}
 />
+{#if collectionHubId}
+  <CreateContainerDialog
+    bind:isOpen={isCreatingCollection}
+    type="COLLECTION"
+    parentId={collectionHubId}
+    oncreated={(id) => onnavigate(`/collections/${id}`)}
+  />
+{/if}
 
 <style>
   .column {

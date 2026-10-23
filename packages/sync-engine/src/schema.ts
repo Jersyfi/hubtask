@@ -540,6 +540,8 @@ export type SavedViewUpdate = components['schemas']['SavedViewUpdate'];
 export type ViewExportDocument = components['schemas']['ViewExportDocument'];
 export type SavedViewShare = components['schemas']['SavedViewShare'];
 export type ViewExport = components['schemas']['ViewExport'];
+/** A query's result as a file without a saved view: `POST /items:export`. */
+export type ItemExport = components['schemas']['ItemExport'];
 
 /** One subscription: a token its owner holds, over one view, revocable. */
 export type CalendarFeed = components['schemas']['CalendarFeed'];
@@ -549,6 +551,8 @@ export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];
 
 /** Locale, time zone and the first day of the week. An empty value clears one. */
 export type AccountPreferences = components['schemas']['AccountPreferences'];
+/** What a person may change about their own account: the display name. */
+export type OwnAccountUpdate = components['schemas']['OwnAccountUpdate'];
 /**
  * One row per category and channel, with the effective value.
  *

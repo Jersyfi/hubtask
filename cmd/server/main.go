@@ -1689,6 +1689,10 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.UpdateOwnAccount{
+			Accounts: accounts, Names: accounts, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+		}.Descriptor(),
 		identity.ListNotificationPreferences{
 			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,
@@ -2430,6 +2434,15 @@ func run() error {
 		}.Descriptor(),
 		work.ExportView{
 			Views: savedViews, Containers: containers, Permits: authorizer,
+			Query: work.QueryItems{
+				Gate:  entryGate,
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
+		work.ExportItems{
 			Query: work.QueryItems{
 				Gate:  entryGate,
 				Items: items, ItemLabels: itemLabels, Containers: containers,

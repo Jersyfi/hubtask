@@ -611,6 +611,11 @@ export class HubtaskClient {
     return this.call("GET", "/accounts/me", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Change what the caller is called */
+  updateOwnAccount(body: NonNullable<operations["updateOwnAccount"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions = {}): Promise<operations["updateOwnAccount"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1633,6 +1638,11 @@ export class HubtaskClient {
   /** The generic query - the basis for list, kanban, and timeline */
   queryItems(body: NonNullable<operations["queryItems"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["queryItems"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The result of a query, as a file */
+  exportItems(body: NonNullable<operations["exportItems"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<Response> {
+    return this.call("POST", "/items:export", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "raw", options.signal);
   }
 
   /** Full-text search over the entries a caller may see */

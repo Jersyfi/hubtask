@@ -134,6 +134,10 @@ class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
 
+class OwnAccountUpdate(TypedDict, total=False):
+    """What a person may change about their own account. A field left out is left as it is."""
+    display_name: str
+
 class AccountPreferences(TypedDict, total=False):
     """Every field is optional, and an empty string clears the preference rather than setting it"""
     locale: str | None
@@ -2278,6 +2282,19 @@ class ItemQuery(TypedDict, total=False):
     include_archived: bool
     include_trashed: bool
     count: Literal["none", "estimated", "exact"]
+
+class ItemExport(TypedDict, total=False):
+    """What to render and how. The query decides which rows; the format decides what they become."""
+    format: Required[Literal["CSV", "JSON", "ICS"]]
+    time_zone: str
+    query: Required["ItemQuery"]
+
+class ItemExportDocument(TypedDict, total=False):
+    """The JSON rendering - the query's rows, and what the export knows about itself."""
+    generated_at: Required[str]
+    count: Required[int]
+    truncated: Required[bool]
+    rows: Required[list["WorkItem"]]
 
 class ItemQueryGroup(TypedDict, total=False):
     """One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor."""

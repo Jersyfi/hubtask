@@ -21,7 +21,7 @@
   import { untrack } from 'svelte';
 
   import { labelTokens } from '@hubtask/design-system';
-  import { Button, Dialog, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
+  import { Button, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
 
   import { labels } from '../data/labels.svelte.ts';
   import { offerUndo } from './undo.svelte.ts';
@@ -31,13 +31,16 @@
   import { focusFirst } from '../forms/missing.ts';
 
   import type { Label } from '@hubtask/sync-engine';
+  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
 
   interface Props {
+    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
+    isEmbedded?: boolean;
     isOpen: boolean;
     collectionId: string;
   }
 
-  let { isOpen = $bindable(), collectionId }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(), collectionId }: Props = $props();
 
   let name = $state('');
   let colour = $state<string>(labelTokens[0]);
@@ -140,7 +143,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.labels.manage')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.labels.manage')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
     {#if existing.length === 0}
       <p class="notice">{t('app.labels.none_yet')}</p>
@@ -222,7 +225,7 @@
     </Stack>
     </div>
   </Stack>
-</Dialog>
+</PanelOrDialog>
 
 <style>
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }

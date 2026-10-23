@@ -34,7 +34,7 @@ record remains) · `RETENTION` (a period job) · `IMMUTABLE` (only through audit
 
 | Data category | Table / location | Classification | Purpose | Typical legal basis | Retention | Deletion path |
 |---|---|---|---|---|---|---|
-| Display name, avatar reference | `account` | `PERSONAL_BASIC` | Presentation, attribution of tasks | Contract / legitimate interest | The lifetime of the account | `ANONYMIZE` or `CASCADE` |
+| Display name (the avatar is drawn from its initials; no picture is stored) | `account` | `PERSONAL_BASIC` | Presentation, attribution of tasks | Contract / legitimate interest | The lifetime of the account | `ANONYMIZE` or `CASCADE` |
 | Email address | `account` | `PERSONAL_BASIC` | Sign-in, invitation, notification. Stored lower-cased with the domain in its ASCII (Punycode) form, so that two spellings of one mailbox are one row (`i18n-l10n.md` §7, M-10); an address stored before `0.8.0` keeps its form and is matched by it | Contract | The lifetime of the account | `CASCADE` |
 | Sign-in name (`sign_in_name`) | `account` | `PERSONAL_BASIC` | Sign-in for a managed account, a person without a mail address (ADR-0074). Stored folded (compatibility form, lower case), unique in the workspace; compared in that form at sign-in | Contract | The lifetime of the account | `ANONYMIZE` (cleared with the address) or `CASCADE` |
 | When a start password was drawn (`start_password_at`) | `account` | `PERSONAL_TECHNICAL` | Routing a managed account's first sign-in into choosing its own password (ADR-0074 §2); cleared when the person sets one | Contract | Until the person chooses a password | `ANONYMIZE` (cleared) or `CASCADE` |

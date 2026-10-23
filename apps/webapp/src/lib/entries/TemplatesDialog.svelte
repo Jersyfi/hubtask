@@ -44,8 +44,11 @@
   import { renderProblem } from '../problem.ts';
   import { focusFirst } from '../forms/missing.ts';
   import TemplateEditor from './TemplateEditor.svelte';
+  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
 
   interface Props {
+    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
+    isEmbedded?: boolean;
     isOpen: boolean;
     collectionId: string;
     path: Path;
@@ -54,7 +57,7 @@
     onopened: (itemId: string) => void;
   }
 
-  let { isOpen = $bindable(), collectionId, path, role, onopened }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(), collectionId, path, role, onopened }: Props = $props();
 
   // The collection's levels by the names it gave them (UC-WRK-23 check 6), never the identifiers.
   const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
@@ -145,7 +148,8 @@
       // dialog closes so that the strip, where the draft lands, is what the person sees. Only
       // the ask's own refusal - no provider, no consent - is this dialog's to show.
       await suggestions.generateTemplate(collectionId, description);
-      isOpen = false;
+      // In *Structure → Templates* the tab stays open; the draft lands in the collection's strip.
+      if (!isEmbedded) isOpen = false;
     }, t('app.templates.generation_asked_announced'));
   }
 
@@ -245,7 +249,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.templates.title')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.templates.title')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
     {#if using}
       <Stack gap="150">
@@ -411,7 +415,7 @@
       {/if}
     {/if}
   </Stack>
-</Dialog>
+</PanelOrDialog>
 
 {#if deleting}
   <Dialog

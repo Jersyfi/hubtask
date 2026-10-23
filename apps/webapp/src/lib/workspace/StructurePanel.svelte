@@ -15,9 +15,9 @@
   // join it without a second panel. *Save as preset* (UC-WRK-30 check 1) sits beside the preset
   // picker and saves what is in force, not the draft.
 
-  import { untrack } from 'svelte';
+  import { untrack, type Snippet } from 'svelte';
 
-  import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack, Tabs } from '@hubtask/design-system/components';
   import type { Container, StructureSettings } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -54,14 +54,25 @@
     type SettingName,
   } from './structureDraft.ts';
 
+  /** A tab beside the settings: what it is called, and what it draws while it is the open one. */
+  export interface StructureTab {
+    readonly id: string;
+    readonly label: string;
+    readonly body: Snippet;
+  }
+
   interface Props {
     isOpen: boolean;
     container: Container;
     /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
     mayShapeWorkspace?: boolean;
+    /** The collection's further parts, as tabs after *Settings*; none for a panel of settings alone. */
+    tabs?: readonly StructureTab[];
+    /** The open tab's id, `settings` first. Bindable, so a way in can open the panel on its tab. */
+    tab?: string;
   }
 
-  let { isOpen = $bindable(), container, mayShapeWorkspace = false }: Props = $props();
+  let { isOpen = $bindable(), container, mayShapeWorkspace = false, tabs = [], tab = $bindable('settings') }: Props = $props();
   let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
@@ -352,12 +363,8 @@
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
 </script>
 
-<Drawer
-  bind:isOpen
-  edge={viewport.isCompact ? 'block-end' : 'inline-end'}
-  title={t('app.structure.title', { name: container.name })}
-  dismissLabel={t('app.dismiss')}
->
+<!-- The eight settings: the panel's first tab, or the whole panel where it has no other. -->
+{#snippet settingsBody()}
   {#if structure && draft}
     <form class="panel" data-structure-panel onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="300">
@@ -538,6 +545,30 @@
         onSave={() => void save()}
       />
     </form>
+  {/if}
+{/snippet}
+
+<Drawer
+  bind:isOpen
+  edge={viewport.isCompact ? 'block-end' : 'inline-end'}
+  title={t('app.structure.title', { name: container.name })}
+  dismissLabel={t('app.dismiss')}
+>
+  {#if tabs.length > 0}
+    <!-- A collection's further parts as tabs beside its settings (ux-inventory.md §E4): its
+         labels, fields, templates, automation and people, each the same component its dialog
+         was, drawn while its tab is the open one. -->
+    <div data-structure-tabs>
+      <Tabs label={t('app.structure.tabs_label')} tabs={[{ id: 'settings', label: t('app.structure.tab_settings') }, ...tabs]} bind:selected={tab}>
+        {#if tab === 'settings'}
+          {@render settingsBody()}
+        {:else}
+          {@render tabs.find((each) => each.id === tab)?.body()}
+        {/if}
+      </Tabs>
+    </div>
+  {:else}
+    {@render settingsBody()}
   {/if}
 </Drawer>
 

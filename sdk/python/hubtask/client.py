@@ -499,6 +499,10 @@ class Client:
         """The account the caller is signed in as"""
         return self._call("GET", "/accounts/me", {}, None, {}, None, "none", None, "json")
 
+    def update_own_account(self, body: "OwnAccountUpdate") -> "Account":
+        """Change what the caller is called"""
+        return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
@@ -1298,6 +1302,10 @@ class Client:
     def query_items(self, body: "ItemQuery") -> "ItemQueryResult":
         """The generic query - the basis for list, kanban, and timeline"""
         return self._call("POST", "/items:query", {}, None, {}, body, "json", "application/json", "json")
+
+    def export_items(self, body: "ItemExport", *, idempotency_key: str | None = None) -> bytes:
+        """The result of a query, as a file"""
+        return self._call("POST", "/items:export", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "raw")
 
     def search_items(self, body: "ItemSearchQuery") -> "WorkItemPage":
         """Full-text search over the entries a caller may see"""

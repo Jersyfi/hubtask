@@ -2376,6 +2376,27 @@ func (e ItemAccess) Valid() bool {
 	}
 }
 
+// Defines values for ItemExportFormat.
+const (
+	ItemExportFormatCSV  ItemExportFormat = "CSV"
+	ItemExportFormatICS  ItemExportFormat = "ICS"
+	ItemExportFormatJSON ItemExportFormat = "JSON"
+)
+
+// Valid indicates whether the value is a known member of the ItemExportFormat enum.
+func (e ItemExportFormat) Valid() bool {
+	switch e {
+	case ItemExportFormatCSV:
+		return true
+	case ItemExportFormatICS:
+		return true
+	case ItemExportFormatJSON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemQueryCount.
 const (
 	ItemQueryCountEstimated ItemQueryCount = "estimated"
@@ -8189,6 +8210,30 @@ type ItemAttachments struct {
 	MediaIds []openapi_types.UUID `json:"media_ids"`
 }
 
+// ItemExport What to render and how. The query decides which rows; the format decides what they become.
+type ItemExport struct {
+	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+	Format ItemExportFormat `json:"format"`
+	Query  ItemQuery        `json:"query"`
+
+	// TimeZone The zone the dates are written in. Defaults to the caller's own. It decides how a timestamp reads, never which rows are selected.
+	TimeZone *string `json:"time_zone,omitempty"`
+}
+
+// ItemExportFormat CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+type ItemExportFormat string
+
+// ItemExportDocument The JSON rendering - the query's rows, and what the export knows about itself.
+type ItemExportDocument struct {
+	// Count How many rows are in this document.
+	Count       int        `json:"count"`
+	GeneratedAt time.Time  `json:"generated_at"`
+	Rows        []WorkItem `json:"rows"`
+
+	// Truncated True when the result reached max_export_rows. The same statement the Export-Truncated header makes, in the one format that can carry it in the body.
+	Truncated bool `json:"truncated"`
+}
+
 // ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
 type ItemLabels struct {
 	ItemId   openapi_types.UUID   `json:"item_id"`
@@ -9152,6 +9197,11 @@ type OperatorAdd struct {
 
 	// Workspace The workspace's address, with `email`.
 	Workspace *string `json:"workspace,omitempty"`
+}
+
+// OwnAccountUpdate What a person may change about their own account. A field left out is left as it is.
+type OwnAccountUpdate struct {
+	DisplayName *string `json:"display_name,omitempty"`
 }
 
 // OwnAiBudget defines model for OwnAiBudget.
@@ -13413,6 +13463,12 @@ type BulkUpdateWorkItemsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExportItemsParams defines parameters for ExportItems.
+type ExportItemsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CancelJobParams defines parameters for CancelJob.
 type CancelJobParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13721,6 +13777,9 @@ type ShareSavedViewParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
+
+// UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
+type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
 // CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
 type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
@@ -14106,6 +14165,9 @@ type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 // FindDuplicatesByTitleJSONRequestBody defines body for FindDuplicatesByTitle for application/json ContentType.
 type FindDuplicatesByTitleJSONRequestBody = DuplicatesByTitleQuery
 
+// ExportItemsJSONRequestBody defines body for ExportItems for application/json ContentType.
+type ExportItemsJSONRequestBody = ItemExport
+
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
 
@@ -14309,6 +14371,36 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateOwnAccountWithBody Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// UpdateOwnAccountWithApplicationMergePatchPlusJSONBody Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	//
@@ -14520,7 +14612,7 @@ type ClientInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name and the avatar - and this is that minimum.
+	// the display name, from which a client draws the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -17998,6 +18090,26 @@ type ClientInterface interface {
 	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
 	FindDuplicatesByTitle(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ExportItemsWithBody The result of a query, as a file
+	//
+	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /items:export (the `ExportItems` operationId).
+	ExportItemsWithBody(ctx context.Context, params *ExportItemsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExportItems The result of a query, as a file
+	//
+	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /items:export (the `ExportItems` operationId).
+	ExportItems(ctx context.Context, params *ExportItemsParams, body ExportItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// QueryItemsWithBody The generic query - the basis for list, kanban, and timeline
 	//
 	// One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -19419,6 +19531,56 @@ func (c *Client) GetOwnAccount(ctx context.Context, reqEditors ...RequestEditorF
 	return c.Client.Do(req)
 }
 
+// UpdateOwnAccountWithBody Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *Client) UpdateOwnAccountWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateOwnAccountRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// UpdateOwnAccountWithApplicationMergePatchPlusJSONBody Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *Client) UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 //
 // Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -19759,7 +19921,7 @@ func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPass
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name and the avatar - and this is that minimum.
+// the display name, from which a client draws the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -27087,6 +27249,46 @@ func (c *Client) FindDuplicatesByTitle(ctx context.Context, body FindDuplicatesB
 	return c.Client.Do(req)
 }
 
+// ExportItemsWithBody The result of a query, as a file
+//
+// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /items:export (the `ExportItems` operationId).
+func (c *Client) ExportItemsWithBody(ctx context.Context, params *ExportItemsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportItemsRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExportItems The result of a query, as a file
+//
+// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /items:export (the `ExportItems` operationId).
+func (c *Client) ExportItems(ctx context.Context, params *ExportItemsParams, body ExportItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExportItemsRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // QueryItemsWithBody The generic query - the basis for list, kanban, and timeline
 //
 // One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -29791,6 +29993,46 @@ func NewGetOwnAccountRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody calls the generic UpdateOwnAccount builder with application/merge-patch+json body
+func NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(server string, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewUpdateOwnAccountRequestWithBody(server, "application/merge-patch+json", bodyReader)
+}
+
+// NewUpdateOwnAccountRequestWithBody constructs an http.Request for the UpdateOwnAccount method, with any body, and a specified content type
+func NewUpdateOwnAccountRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -42735,6 +42977,61 @@ func NewFindDuplicatesByTitleRequestWithBody(server string, contentType string, 
 	return req, nil
 }
 
+// NewExportItemsRequest calls the generic ExportItems builder with application/json body
+func NewExportItemsRequest(server string, params *ExportItemsParams, body ExportItemsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewExportItemsRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewExportItemsRequestWithBody constructs an http.Request for the ExportItems method, with any body, and a specified content type
+func NewExportItemsRequestWithBody(server string, params *ExportItemsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items:export")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewQueryItemsRequest calls the generic QueryItems builder with application/json body
 func NewQueryItemsRequest(server string, body QueryItemsJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -47148,6 +47445,36 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /accounts/me (the `GetOwnAccount` operationId).
 	GetOwnAccountWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*GetOwnAccountResult, error)
 
+	// UpdateOwnAccountWithBodyWithResponse Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
+
+	// UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse Change what the caller is called
+	//
+	// The display name a person gives themselves: what the other members of the workspace see
+	// beside everything they do, and what the audit trail records next to their actions. Only
+	// one's own - there is no account identifier in the path, so there is nothing to authorise
+	// beyond being signed in as a person. A service account is named by whoever administers it
+	// and is refused here.
+	//
+	// The name is trimmed and must keep at least one character; it is at most 200.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+	UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
+
 	// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 	//
 	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -47368,7 +47695,7 @@ type ClientWithResponsesInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name and the avatar - and this is that minimum.
+	// the display name, from which a client draws the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -51182,6 +51509,26 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with POST /items:duplicates (the `FindDuplicatesByTitle` operationId).
 	FindDuplicatesByTitleWithResponse(ctx context.Context, body FindDuplicatesByTitleJSONRequestBody, reqEditors ...RequestEditorFn) (*FindDuplicatesByTitleResult, error)
 
+	// ExportItemsWithBodyWithResponse The result of a query, as a file
+	//
+	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:export (the `ExportItems` operationId).
+	ExportItemsWithBodyWithResponse(ctx context.Context, params *ExportItemsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportItemsResult, error)
+
+	// ExportItemsWithResponse The result of a query, as a file
+	//
+	// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+	// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /items:export (the `ExportItems` operationId).
+	ExportItemsWithResponse(ctx context.Context, params *ExportItemsParams, body ExportItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportItemsResult, error)
+
 	// QueryItemsWithBodyWithResponse The generic query - the basis for list, kanban, and timeline
 	//
 	// One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -52742,6 +53089,54 @@ func (r GetOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r GetOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type UpdateOwnAccountResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Account
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r UpdateOwnAccountResult) GetJSON200() *Account {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r UpdateOwnAccountResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r UpdateOwnAccountResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r UpdateOwnAccountResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r UpdateOwnAccountResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r UpdateOwnAccountResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -66113,6 +66508,61 @@ func (r FindDuplicatesByTitleResult) ContentType() string {
 	return ""
 }
 
+// ExportItemsResult200Headers the declared response headers of an HTTP 200 response for ExportItems
+type ExportItemsResult200Headers struct {
+	ExportTruncated *bool
+}
+
+type ExportItemsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ItemExportDocument
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ExportItemsResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExportItemsResult) GetJSON200() *ItemExportDocument {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ExportItemsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ExportItemsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ExportItemsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ExportItemsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ExportItemsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type QueryItemsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -70646,6 +71096,48 @@ func (c *ClientWithResponses) GetOwnAccountWithResponse(ctx context.Context, req
 	return ParseGetOwnAccountResult(rsp)
 }
 
+// UpdateOwnAccountWithBodyWithResponse Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *ClientWithResponses) UpdateOwnAccountWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error) {
+	rsp, err := c.UpdateOwnAccountWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateOwnAccountResult(rsp)
+}
+
+// UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse Change what the caller is called
+//
+// The display name a person gives themselves: what the other members of the workspace see
+// beside everything they do, and what the audit trail records next to their actions. Only
+// one's own - there is no account identifier in the path, so there is nothing to authorise
+// beyond being signed in as a person. A service account is named by whoever administers it
+// and is refused here.
+//
+// The name is trimmed and must keep at least one character; it is at most 200.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
+func (c *ClientWithResponses) UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error) {
+	rsp, err := c.UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseUpdateOwnAccountResult(rsp)
+}
+
 // ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 //
 // Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -70944,7 +71436,7 @@ func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.C
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name and the avatar - and this is that minimum.
+// the display name, from which a client draws the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -77068,6 +77560,38 @@ func (c *ClientWithResponses) FindDuplicatesByTitleWithResponse(ctx context.Cont
 	return ParseFindDuplicatesByTitleResult(rsp)
 }
 
+// ExportItemsWithBodyWithResponse The result of a query, as a file
+//
+// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:export (the `ExportItems` operationId).
+func (c *ClientWithResponses) ExportItemsWithBodyWithResponse(ctx context.Context, params *ExportItemsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ExportItemsResult, error) {
+	rsp, err := c.ExportItemsWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportItemsResult(rsp)
+}
+
+// ExportItemsWithResponse The result of a query, as a file
+//
+// A collection as it is filtered, rendered whole without saving a view first: the same query POST /items:query takes, in the same three formats as POST /views/{viewId}:export. A read with no side effect, and a POST because the query is a document and what it selects is the caller's content, which a query string would carry into access logs.
+// The query is checked against its scope once, under the caller's authorisation, exactly as POST /items:query checks it - a refusal is a refusal rather than an empty file. The export walks every page itself up to max_export_rows, so the query's page, count, group_by and expand are not its business and are ignored; a result that reached the cap is answered whole up to the cap with the Export-Truncated header set.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /items:export (the `ExportItems` operationId).
+func (c *ClientWithResponses) ExportItemsWithResponse(ctx context.Context, params *ExportItemsParams, body ExportItemsJSONRequestBody, reqEditors ...RequestEditorFn) (*ExportItemsResult, error) {
+	rsp, err := c.ExportItems(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExportItemsResult(rsp)
+}
+
 // QueryItemsWithBodyWithResponse The generic query - the basis for list, kanban, and timeline
 //
 // One filter grammar behind every view. A `POST` because the query is a document rather than
@@ -79368,6 +79892,39 @@ func ParseGetOwnAccountResult(rsp *http.Response) (*GetOwnAccountResult, error) 
 	}
 
 	response := &GetOwnAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseUpdateOwnAccountResult parses an HTTP response from a UpdateOwnAccountWithResponse call
+func ParseUpdateOwnAccountResult(rsp *http.Response) (*UpdateOwnAccountResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &UpdateOwnAccountResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}
@@ -89091,6 +89648,55 @@ func ParseFindDuplicatesByTitleResult(rsp *http.Response) (*FindDuplicatesByTitl
 				return nil, err
 			}
 			headers.CacheControl = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseExportItemsResult parses an HTTP response from a ExportItemsWithResponse call
+func ParseExportItemsResult(rsp *http.Response) (*ExportItemsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ExportItemsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ItemExportDocument
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case rsp.StatusCode == 200:
+		// Content-type (text/csv) unsupported
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ExportItemsResult200Headers
+		if values := rsp.Header.Values("Export-Truncated"); len(values) > 0 {
+			var value bool
+			if err := runtime.BindStyledParameterWithOptions("simple", "Export-Truncated", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "boolean", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ExportTruncated = &value
 		}
 		response.Headers200 = &headers
 	}

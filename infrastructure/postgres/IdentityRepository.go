@@ -367,6 +367,35 @@ func (r AccountRepository) UpdatePreferences(
 	return nil
 }
 
+var _ repository.AccountNames = AccountRepository{}
+
+// Rename writes the display name alone.
+func (r AccountRepository) Rename(ctx context.Context, account identity.Account, at time.Time) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(account.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.RenameAccount(ctx, sqlc.RenameAccountParams{
+		DisplayName: account.DisplayName,
+		UpdatedAt:   timestampOf(at),
+		ID:          id,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("renaming %s: %w", account.ID, err))
+	}
+	if affected == 0 {
+		return shared.ErrNotFound.WithDetail("accounts.not_found")
+	}
+	return nil
+}
+
 // accountFrom rebuilds an account from its columns. Shared by both lookups, so the two cannot
 // disagree about what a row means.
 func accountFrom(

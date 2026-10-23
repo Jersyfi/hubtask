@@ -18,6 +18,7 @@ import type {
   CalendarFeed,
   CalendarFeedCreate,
   CalendarFeedSecret,
+  ItemExport,
   ResourceState,
   SavedView,
   SavedViewCreate,
@@ -108,6 +109,14 @@ class Views {
    */
   async export(id: string, body: ViewExport): Promise<TransportDocument> {
     return engine.document(`/views/${id}:export`, body, { timeoutMs: 120_000 });
+  }
+
+  /**
+   * A collection as it is filtered, rendered whole without saving a view first — the same walk,
+   * cap and formats as a view's export, and the same deadline for the same reason.
+   */
+  async exportItems(body: ItemExport): Promise<TransportDocument> {
+    return engine.document('/items:export', body, { timeoutMs: 120_000 });
   }
 }
 

@@ -241,6 +241,28 @@ func TestANullPreferenceClearsAndAnOmittedOneIsLeftAlone(t *testing.T) {
 // The moments reach the use case as the words it reads - a boolean as "true"/"false", an
 // instant as RFC 3339 - and a null as the empty one; and an account that has them answers them in
 // the contract's own types.
+// The own name is written on `me`, never on an identifier, and an omitted name is not sent as an
+// empty one - which the use case would refuse as clearing the name.
+func TestTheOwnNameIsWrittenOnMe(t *testing.T) {
+	registry := &catalogue{out: ownAccount()}
+	recorder := identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/me", `{"display_name": "Anna B."}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != updateOwnAccountUseCase || registry.in["display_name"] != "Anna B." {
+		t.Fatalf("invoked %q with %v", registry.name, registry.in)
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequestWithBody(t, registry, http.MethodPatch, "/accounts/me", `{}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if _, sent := registry.in["display_name"]; sent {
+		t.Errorf("an omitted name reached the use case: %v", registry.in)
+	}
+}
+
 func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {
 	registry := &catalogue{out: ownAccount()}
 	body := `{"celebrations": false, "onboarding_completed_at": "2026-09-17T10:00:00+02:00"}`

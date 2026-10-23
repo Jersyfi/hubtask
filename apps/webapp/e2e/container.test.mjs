@@ -28,7 +28,7 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 // "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
-const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Labels', 'Custom fields', 'Structure', 'Saved views', 'Templates', 'Policies', 'People', 'Move to the trash'];
+const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -66,7 +66,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
     .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
 
   // Every dialog the toolbar opened opens from the menu, and Escape brings focus back.
-  for (const [item, title] of [['Labels', 'Labels'], ['Custom fields', 'Custom fields'], ['Structure', `Structure of ${COLLECTION.name}`], ['Saved views', 'Saved views'], ['Templates', 'Templates'], ['Policies', 'Policies'], ['People', 'People'], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
+  for (const [item, title] of [['Structure', `Structure of ${COLLECTION.name}`], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
     await trigger.focus();
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: item }).click();
@@ -80,9 +80,26 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
       .catch(async () => assert.fail(`${item}: focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
   }
 
-  // The daily ways: the star opens the views, the faces open the people, the split opens the templates.
-  await page.getByRole('button', { name: 'Saved views' }).click();
-  await page.locator('dialog[open]').getByRole('heading', { name: /Saved views/ }).waitFor({ timeout: 5_000 });
+  // The collection's parts are *Structure*'s tabs (ux-inventory.md §E4): each draws the same
+  // component its dialog was, under its own name.
+  await trigger.focus();
+  await page.keyboard.press('Enter');
+  await page.getByRole('menuitem', { name: 'Structure' }).click();
+  const structurePanel = page.locator('dialog[open]');
+  await structurePanel.getByRole('tab').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual((await structurePanel.getByRole('tab').allTextContents()).map((each) => each.trim()), ['Settings', 'Labels', 'Fields', 'Templates', 'Automation', 'People']);
+  for (const [tab, part] of [['Labels', 'Labels in this collection'], ['Fields', 'Custom fields'], ['Templates', 'Templates'], ['Automation', 'Policies'], ['People', 'People']]) {
+    await structurePanel.getByRole('tab', { name: tab }).click();
+    await structurePanel.getByRole('region', { name: part }).waitFor({ timeout: 5_000 }).catch(() => assert.fail(`${tab} draws no ${part}`));
+  }
+  await page.keyboard.press('Escape');
+  await structurePanel.waitFor({ state: 'hidden', timeout: 5_000 });
+
+  // The daily ways: the *Views* menu saves a view, the faces open the people, the split opens the
+  // templates.
+  await page.getByRole('button', { name: 'Views' }).click();
+  await page.getByRole('menuitem', { name: 'Save this view…' }).click();
+  await page.locator('dialog[open]').getByRole('heading', { name: /Save this view/ }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'People' }).click();
   await page.locator('dialog[open]').getByRole('heading', { name: /People/ }).waitFor({ timeout: 5_000 });
@@ -212,7 +229,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.equal(await page.getByRole('button', { name: 'Create collection' }).count(), 1);
   assert.equal(await page.getByRole('button', { name: /Import/ }).count(), 1);
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'People', 'Make private', 'Move to the trash']);
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'Create collection' }).click();
   await page.locator('dialog[open]').waitFor({ timeout: 5_000 });

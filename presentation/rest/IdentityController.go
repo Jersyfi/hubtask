@@ -28,6 +28,7 @@ const (
 	getOwnAccountUseCase               = "GetOwnAccount"
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
+	updateOwnAccountUseCase            = "UpdateOwnAccount"
 	listNotificationPreferencesUseCase = "ListNotificationPreferences"
 	setNotificationPreferenceUseCase   = "SetNotificationPreference"
 	listMembershipsUseCase             = "ListMemberships"
@@ -195,6 +196,34 @@ func (c *RestController) GetOwnAccount(w http.ResponseWriter, r *http.Request) {
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), getOwnAccountUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, accountResponse(out))
+}
+
+// UpdateOwnAccount answers PATCH /accounts/me: the caller's own display name.
+//
+// Written out like GetOwnAccount, for the reason given there. A field left out of the merge patch
+// is left out of the input, so the use case leaves it.
+func (c *RestController) UpdateOwnAccount(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.OwnAccountUpdate
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{}
+	if body.DisplayName != nil {
+		in["display_name"] = *body.DisplayName
+	}
+	out, err := c.UseCases.Invoke(r.Context(), updateOwnAccountUseCase, actorOf(r), in)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
