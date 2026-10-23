@@ -21,7 +21,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { presets } from '../data/presets.svelte.ts';
+  import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -62,7 +62,7 @@
       description = container.description ?? '';
       symbol = chosenSymbol(container);
       colour = chosenColour(container);
-      presetBefore = container.structure?.preset ?? '';
+      presetBefore = container.structure?.preset ?? container.structure?.preset_id ?? '';
       preset = presetBefore;
       version = container.version;
       failure = undefined;
@@ -87,7 +87,15 @@
           ...(presetBefore === ''
             ? [{ value: '', label: t('app.structure.preset_workspace_default'), hint: t('app.structure.preset_workspace_default_about') }]
             : []),
-          ...presets.all.map((each) => ({ value: each.key as string, label: t(`app.structure.preset.${each.key}`), hint: t(`app.structure.preset_about.${each.key}`) })),
+          // Saved presets too, each marked with where it comes from, as at creation (UC-WRK-30
+          // check 2): a saved one has no key, and keying the list by one drew them all as one.
+          ...presets.all.map((each) => ({
+            value: presetValue(each),
+            label: presetName(each),
+            hint: each.key
+              ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.structure.preset_about.${each.key}`) })
+              : presetOrigin(each),
+          })),
         ],
   );
 
@@ -109,7 +117,7 @@
       );
       version = saved.version;
       if (preset !== '' && preset !== presetBefore) {
-        await containers.setStructure(container.id, { preset: preset as 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' }, saved.version);
+        await containers.setStructure(container.id, presetChoice(preset), saved.version);
       }
       announcer.say(t('app.workspace.edited_announced', { name: name.trim() }));
       isOpen = false;
