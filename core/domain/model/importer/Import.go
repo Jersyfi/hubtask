@@ -62,6 +62,9 @@ type Run struct {
 	Kind        Kind
 	MediaID     shared.ID
 	HubID       shared.ID
+	// CollectionID is the collection of the hub the entries land in, or empty where the import
+	// creates collections under the hub.
+	CollectionID shared.ID
 	// Mapping is the CSV kind's: which column carries which field, by header name.
 	Mapping map[string]string
 	// Zone and Language are the requester's at the request: what a date without a zone and an
@@ -93,14 +96,16 @@ type Outcome struct {
 
 // The message codes.
 const (
-	CodeKindUnknown      = "imports.kind_unknown"
-	CodeKindUnsupported  = "imports.kind_unsupported"
-	CodeNotFound         = "imports.not_found"
-	CodeMediaNotImport   = "imports.media_not_import"
-	CodeMediaNotReady    = "imports.media_not_ready"
-	CodeMediaNotOwned    = "imports.media_not_owned"
-	CodeHubRequired      = "imports.hub_required"
-	CodeNotAHub          = "imports.not_a_hub"
+	CodeKindUnknown     = "imports.kind_unknown"
+	CodeKindUnsupported = "imports.kind_unsupported"
+	CodeNotFound        = "imports.not_found"
+	CodeMediaNotImport  = "imports.media_not_import"
+	CodeMediaNotReady   = "imports.media_not_ready"
+	CodeMediaNotOwned   = "imports.media_not_owned"
+	CodeHubRequired     = "imports.hub_required"
+	CodeNotAHub         = "imports.not_a_hub"
+	// CodeNotInHub is a target collection that is not a live collection of the named hub.
+	CodeNotInHub         = "imports.not_in_hub"
 	CodeFileNotKind      = "imports.file_not_kind"
 	CodeFileEmpty        = "imports.file_empty"
 	CodeRunNotRunning    = "imports.run_not_running"

@@ -167,6 +167,12 @@ func (CSV) Convert(_ context.Context, source service.Source) (service.Result, er
 			continue
 		}
 		b.titles(title, item.Key)
+		if item.ParentKey == "" {
+			// Into one collection, the row's own collection is a label of it.
+			if list := b.listLabel("collection:"+cell("collection"), cell("collection")); !list.IsZero() {
+				b.link(id, list)
+			}
+		}
 		for _, name := range splitLabels(cell("labels")) {
 			key := collectionName + "/" + name
 			label, ok := labels[key]

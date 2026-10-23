@@ -283,6 +283,10 @@ const (
 	// (backup-restore.md §9): converted into archive records and landed through the restore's
 	// applier. One per import, deduplicated by the import's identifier.
 	KindImport Kind = "import.run"
+	// KindImportIntoCollection is the same job for an import that lands in a collection of the
+	// hub. A kind of its own so that a process that predates landing in a collection - and would
+	// create collections from the file instead - leaves it for one that does not (rule 12).
+	KindImportIntoCollection Kind = "import.into_collection"
 
 	// KindPrivacyRequest carries out a data subject request that has been started: the archive an
 	// access or portability case produces, or the erasure an erasure case is (data-protection.md

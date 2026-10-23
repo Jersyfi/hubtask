@@ -145,10 +145,10 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).evaluate((el) => el.getBoundingClientRect().width <= 1), true, 'the h1 is drawn as well as read');
   assert.equal(await page.getByRole('link', { name: HUB.name }).count(), 1, 'the parent as the way up');
 
-  // Folded: the filter joined the menu, ahead of the twelve.
+  // Folded: the add split's rows and the filter joined the menu, ahead of the twelve.
   await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
   const menu = page.getByRole('menu');
-  assert.deepEqual(await labelsOf(menu), ['From a template', 'Filter and sort', ...MENU]);
+  assert.deepEqual(await labelsOf(menu), ['From a template', 'Import', 'Filter and sort', ...MENU]);
   await menu.getByRole('menuitem', { name: 'Filter and sort' }).click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });

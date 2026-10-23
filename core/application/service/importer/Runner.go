@@ -19,6 +19,7 @@ import (
 	backupdomain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/importer"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/storage"
@@ -36,6 +37,12 @@ type Runner struct {
 	Objects    ObjectFinder
 	Store      storage.ObjectStore
 	Converters map[domain.Kind]repository.Converter
+	// Containers, Buckets, Labels and Items read the collection an import lands in, where it
+	// names one: whether it is still the hub's, and what it holds that the file's names meet.
+	Containers ContainerFinder
+	Buckets    BucketReader
+	Labels     LabelReader
+	Items      ItemOrders
 	Applier    backup.Applier
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -63,6 +70,8 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 
 	var run domain.Run
 	var object mediaObject
+	var target *repository.Target
+	var gone error
 	claimed := false
 	err := r.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
 		found, err := r.Runs.Find(ctx, in.ImportID)
@@ -86,7 +95,15 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 			return err
 		}
 		object = mediaObject{key: stored.StorageKey, size: stored.ByteSize, name: stored.FileName}
-		return nil
+		if run.CollectionID.IsZero() {
+			return nil
+		}
+		target, err = r.target(ctx, run)
+		if err != nil && !isTransient(err) {
+			// The collection left the hub since the import was accepted: the run's outcome.
+			gone, err = err, nil
+		}
+		return err
 	})
 	if err != nil {
 		return err
@@ -94,8 +111,11 @@ func (r Runner) Run(ctx context.Context, in RunInput) error {
 	if !claimed {
 		return nil
 	}
+	if gone != nil {
+		return r.finish(ctx, scope, run, backupdomain.Report{}, nil, gone)
+	}
 
-	report, refused, applied := r.perform(ctx, in, run, object)
+	report, refused, applied := r.perform(ctx, in, run, object, target)
 	if applied != nil && isTransient(applied) {
 		// The store or the database being away is not the file's fault: the run stays RUNNING
 		// with the progress it recorded, the job retries, and the next attempt claims the same
@@ -113,6 +133,40 @@ type mediaObject struct {
 	name string
 }
 
+// target reads the collection an import lands in, in the claim's transaction: still a live
+// collection of the run's hub, its live columns and labels, and the order keys to rank after.
+func (r Runner) target(ctx context.Context, run domain.Run) (*repository.Target, error) {
+	collection, err := r.Containers.Find(ctx, run.CollectionID)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return nil, err
+	}
+	if err != nil || collection.Type != work.ContainerCollection || collection.ParentID != run.HubID || collection.DeletedAt != nil {
+		return nil, shared.ErrValidation.WithDetail(domain.CodeNotInHub)
+	}
+	target := &repository.Target{Collection: collection.ID}
+	buckets, err := r.Buckets.List(ctx, collection.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, bucket := range buckets {
+		target.Buckets = append(target.Buckets, repository.Named{ID: bucket.ID, Name: bucket.Name})
+	}
+	labels, err := r.Labels.List(ctx, collection.ID)
+	if err != nil {
+		return nil, err
+	}
+	for _, label := range labels {
+		target.Labels = append(target.Labels, repository.Named{ID: label.ID, Name: label.Name})
+	}
+	if target.LastBucketOrder, err = r.Buckets.LastOrderKey(ctx, collection.ID); err != nil {
+		return nil, err
+	}
+	if target.LastEntryOrder, err = r.Items.LastOrderKey(ctx, collection.ID, shared.ID("")); err != nil {
+		return nil, err
+	}
+	return target, nil
+}
+
 // stem is the file's name without its extension, for a converter that names a collection after
 // it: `errands.csv` is *errands*. Nothing else is read into it - a name is a name.
 func stem(fileName string) string {
@@ -125,7 +179,7 @@ func stem(fileName string) string {
 
 // perform is the fallible middle: the file, the conversion, the archive, the apply. What it
 // answers is the outcome the run records.
-func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object mediaObject) (backupdomain.Report, []domain.Refusal, error) {
+func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object mediaObject, target *repository.Target) (backupdomain.Report, []domain.Refusal, error) {
 	converter, ok := r.Converters[run.Kind]
 	if !ok {
 		return backupdomain.Report{}, nil, shared.ErrValidation.WithDetail(domain.CodeKindUnsupported)
@@ -156,7 +210,7 @@ func (r Runner) perform(ctx context.Context, in RunInput, run domain.Run, object
 
 	now := r.Clock.Now()
 	result, err := converter.Convert(ctx, repository.Source{
-		Content: bytes.NewReader(raw), Hub: run.HubID, Name: stem(object.name), Digest: hex.EncodeToString(digest[:]),
+		Content: bytes.NewReader(raw), Hub: run.HubID, Into: target, Name: stem(object.name), Digest: hex.EncodeToString(digest[:]),
 		Mapping: run.Mapping, Now: now, Actor: run.RequestedBy, Zone: run.Zone, Language: run.Language,
 	})
 	if err != nil {

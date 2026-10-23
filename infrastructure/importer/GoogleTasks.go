@@ -73,12 +73,18 @@ func (GoogleTasks) Convert(_ context.Context, source service.Source) (service.Re
 	zone := zoneOf(source.Zone)
 	var refused []refusal
 	row := 0
+	// Into one collection, several lists are kept apart by a label each.
+	several := len(takeout.Items) > 1
 	for _, list := range takeout.Items {
 		name := strings.TrimSpace(list.Title)
 		if name == "" {
 			name = "Tasks"
 		}
 		collection := b.collection("list:"+list.ID, name, "")
+		var listLabel shared.ID
+		if several {
+			listLabel = b.listLabel(list.ID, name)
+		}
 
 		// Parents before children, each level in its position order; a child whose parent is
 		// missing or refused lands at the top rather than nowhere.
@@ -127,8 +133,13 @@ func (GoogleTasks) Convert(_ context.Context, source service.Source) (service.Re
 			if at, err := time.Parse(time.RFC3339, task.Updated); err == nil {
 				item.CreatedAt = &at
 			}
-			if _, ok := b.item(item); !ok {
+			id, ok := b.item(item)
+			if !ok {
 				refused = append(refused, refusal{row: row, code: domain.CodeRowUnreadable})
+				continue
+			}
+			if item.ParentKey == "" && !listLabel.IsZero() {
+				b.link(id, listLabel)
 			}
 		}
 	}

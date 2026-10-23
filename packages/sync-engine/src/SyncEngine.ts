@@ -472,6 +472,16 @@ export class SyncEngine {
     return entry.state as ResourceState<T>;
   }
 
+  /**
+   * A write a server job made after the request that started it had been answered - an import -
+   * reads again what the caller names, as the write would have had it been the request's own.
+   * Named prefixes only, never everything: the caller knows where the job wrote, and a job writes
+   * without change log entries, so the stream will not say.
+   */
+  landed(prefixes: readonly string[]): void {
+    if (prefixes.length > 0) this.#invalidate(prefixes);
+  }
+
   /** The current state without subscribing. For a caller that wants one look. */
   peek<T>(request: ResourceRequest): ResourceState<T> {
     return (this.#resources.get(this.#keyFor(request))?.state ?? { status: 'idle' }) as ResourceState<T>;

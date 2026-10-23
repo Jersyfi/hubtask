@@ -950,23 +950,24 @@ type IdentityProvider struct {
 }
 
 type ImportRun struct {
-	ID          pgtype.UUID
-	TenantID    pgtype.UUID
-	RequestedBy pgtype.UUID
-	Kind        string
-	MediaID     pgtype.UUID
-	HubID       pgtype.UUID
-	Mapping     []byte
-	TimeZone    *string
-	Language    *string
-	Status      string
-	Report      []byte
-	Refused     []byte
-	Progress    []byte
-	ErrorCode   *string
-	CreatedAt   pgtype.Timestamptz
-	StartedAt   pgtype.Timestamptz
-	FinishedAt  pgtype.Timestamptz
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	RequestedBy  pgtype.UUID
+	Kind         string
+	MediaID      pgtype.UUID
+	HubID        pgtype.UUID
+	Mapping      []byte
+	TimeZone     *string
+	Language     *string
+	Status       string
+	Report       []byte
+	Refused      []byte
+	Progress     []byte
+	ErrorCode    *string
+	CreatedAt    pgtype.Timestamptz
+	StartedAt    pgtype.Timestamptz
+	FinishedAt   pgtype.Timestamptz
+	CollectionID pgtype.UUID
 }
 
 type InstallationPreset struct {

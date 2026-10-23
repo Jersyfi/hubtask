@@ -997,8 +997,10 @@ archived container leaves the tree.
 * **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
   `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
   component as a restore's dry run, refused rows beneath it by number and code.
-* **On a collection**: *Add entry*, with a submenu for creating from a template, and the filter as
-  the secondary action with a count — inline from `expanded` up, a `Drawer` below.
+* **On a collection**: *Add entry*, with a submenu for creating from a template and — where the
+  reader may shape the collection — *Import*, which lands the file's entries there and says so
+  before the kind is chosen; the filter is the secondary action with a count — inline from
+  `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
 (name, description, colour and symbol, and a hub's default preset), move to another hub (a

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12]
 state: built
 tasks: [P-08, F6-09]
-checked_by: [core/application/service/importer/Import_test.go, test/integration/import_test.go]
+checked_by: [core/application/service/importer/Import_test.go, test/integration/import_test.go, core/application/service/importer/Into_test.go]
 ---
 
 # See what an import did
