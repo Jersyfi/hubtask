@@ -117,8 +117,8 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.goto(`${served.origin}/`);
     // *Today*, drawn: the page the app opens on, past the session and the manifest.
     await page.getByRole('region', { name: 'On you' }).waitFor({ state: 'visible', timeout: 15_000 });
-    // The navigation's way to make a hub: the dialog this walk opens below.
-    const createHub = page.getByRole('button', { name: 'Create hub', exact: true }).first();
+    // The navigation's way to make a hub, *＋ New*: the dialog this walk opens below.
+    const createHub = page.getByRole('button', { name: 'New', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 
@@ -172,6 +172,8 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     // return to and the engine leaves focus on the body - as Safari does.
     await createHub.focus();
     await page.keyboard.press('Enter');
+    await page.getByRole('menuitem', { name: 'Create hub', exact: true }).waitFor({ timeout: 5_000 });
+    await page.keyboard.press('Enter');
     const dialog = page.locator('dialog[open]');
     await dialog.waitFor({ state: 'visible', timeout: 5_000 });
     assert.equal(await dialog.getAttribute('aria-labelledby') !== null, true, `${name}: the dialog has no name`);
@@ -209,7 +211,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     await page.keyboard.press('Escape');
     await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
     // Back on the trigger - polled, because an engine hands focus back a task after `close()`.
-    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Create hub', null, { timeout: 5_000 })
+    await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'New', null, { timeout: 5_000 })
       .catch(async () => {
         const landed = await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80));
         assert.fail(`${name}: focus did not return to the trigger but sits on ${landed}`);

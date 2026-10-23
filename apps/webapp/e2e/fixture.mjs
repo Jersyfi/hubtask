@@ -1326,3 +1326,22 @@ export async function signedIn(browser, width, height = 800, { timezoneId, hasTo
   forgetUnstubbed();
   return { context, page, failures, unstubbed: unstubbedSoFar };
 }
+
+/**
+ * What the navigation's *＋ New* offers, as the rows of its menu; empty where it is not drawn. The
+ * menu is left open. `name` is the control's name in the reader's language.
+ */
+export async function newRows(page, { scope = page, name = 'New' } = {}) {
+  const make = scope.getByRole('button', { name, exact: true }).first();
+  if ((await make.count()) === 0) return [];
+  await make.click();
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  return (await menu.getByRole('menuitem').allTextContents()).map((row) => row.trim());
+}
+
+/** Chooses `row` from the navigation's *＋ New*: "Create hub", "Collection in …". */
+export async function chooseNew(page, row, { scope = page } = {}) {
+  await scope.getByRole('button', { name: 'New', exact: true }).first().click();
+  await page.getByRole('menu').getByRole('menuitem', { name: row, exact: true }).click();
+}

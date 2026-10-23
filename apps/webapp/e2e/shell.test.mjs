@@ -173,7 +173,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await drawer.waitFor({ timeout: 5_000 });
   const rows = await drawer.getByRole('treeitem').allTextContents();
   assert.deepEqual(rows.map((row) => row.trim()), ['House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  assert.equal(await drawer.getByRole('button', { name: 'Create hub' }).count(), 1, 'the drawer has no way to create a hub');
+  assert.equal(await drawer.getByRole('button', { name: 'New', exact: true }).count(), 1, 'the drawer has no way to create a hub');
   // The twist opens a hub where it stands; pressing the hub's row goes to the hub, because a hub
   // is a place before it is a container: the way into one is not through a collection and back up
   // the breadcrumb.
