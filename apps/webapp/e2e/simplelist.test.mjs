@@ -223,6 +223,37 @@ test('a holder of STRUCTURE names the done section and orders the categories whe
   await context.close();
 });
 
+// The collection's structure can change while its categories are being chosen - the answer to
+// the rename just made, or another device's change arriving by sync. The choice in the open dialog
+// is the person's and stays; on a slow runner the late answer used to reset it.
+test('a structure that arrives while the categories are chosen keeps the choice (check 5)', async () => {
+  const { page, writes, context } = await phone();
+  let release;
+  const held = new Promise((done) => (release = done));
+  await context.route('**/containers/*/structure', async (route) => {
+    if (route.request().method() !== 'PATCH') return route.fallback();
+    await held;
+    return route.fallback();
+  });
+  await page.getByRole('button', { name: 'Rename the section of done entries' }).click();
+  await page.getByLabel('What done entries are shown under').fill('Im Wagen');
+  await page.getByRole('button', { name: 'Save', exact: true }).first().click();
+
+  await page.getByRole('button', { name: 'Categories' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('Bakery').uncheck();
+  release();
+  await page.waitForResponse((response) => response.url().endsWith('/structure') && response.request().method() === 'PATCH');
+  await page.waitForTimeout(400);
+  assert.equal(await dialog.getByLabel('Bakery').isChecked(), false, 'the arriving structure ticked Bakery again');
+
+  await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.waitForTimeout(400);
+  const ordered = writes.filter((write) => write.method === 'PATCH' && write.path.endsWith('/structure')).at(-1);
+  assert.deepEqual(ordered?.body?.settings?.fields?.TASK?.categories, [GROCERY_LABELS[0].id, GROCERY_LABELS[1].id]);
+  await context.close();
+});
+
 test('a viewer reads the list and is offered nothing that writes (P-05)', async () => {
   const { page, writes, context } = await phone('VIEWER');
   await page.waitForTimeout(800);
