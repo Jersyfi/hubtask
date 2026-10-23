@@ -205,9 +205,14 @@
   /**
    * The node the tree marks: the container the reader is in, or the destination they are on. On
    * the workspace page the workspace row; inside a collection the collection, not the row above it.
+   * On an entry's page its collection, and nothing until the entry says which - never the workspace.
    */
   const currentNode = $derived(
-    route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
+    route.name === 'hub' || route.name === 'collection'
+      ? route.params.id
+      : route.name === 'item'
+        ? page.place
+        : destination,
   );
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
