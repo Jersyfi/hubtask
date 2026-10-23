@@ -5,7 +5,7 @@ context: work
 actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-13]
-state: partial
+state: verified
 tasks: [UX-15, UX-16, UX-17]
 checked_by: [apps/webapp/src/lib/entries/entryMenu.test.ts, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/undo.test.mjs, apps/webapp/src/lib/entries/undo.test.ts, test/integration/restore_label_test.go, test/integration/bulk_restore_test.go, apps/webapp/e2e/layoutmemory.test.mjs, apps/webapp/src/lib/entries/layoutmemory.test.ts, apps/webapp/e2e/today.test.mjs]
 ---
@@ -33,7 +33,3 @@ On the board the person right-clicks a card and moves it to another collection â
 ## Where it ends
 
 * What the actions do is their own use cases ([UC-WRK-06](./UC-WRK-06-put-work-in-order-and-move-it-where-it-belongs.md), [UC-LIF-01](../lifecycle/UC-LIF-01-get-something-back-from-the-trash.md) and others); this one is where they are.
-
-## Today
-
-* Check 2: not met â€” not built yet, tracked in milestone UX (UX-17).

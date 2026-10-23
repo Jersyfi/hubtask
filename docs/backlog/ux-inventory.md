@@ -228,15 +228,15 @@ Administration and installation, found by UX-05's sweep:
 
 ## E9 — Removed, and what replaces each
 
-| Removed | Why | Now in |
-|---|---|---|
-| Hub menu "Move to another hub…" | never usable for a hub | — (kept for collections) |
-| Second "Saved views" entry | duplicate | *Views* menu |
-| Second "People" entry | duplicate | avatars and *Structure → People* |
-| "Try a rule" on the runs page | duplicate of the probe and *Start now* | the rule editor |
-| Overview's "Create hub" primary | three places | *＋ New* and the empty state |
-| The separate sign-in provider page | setup and switching split | *Sign-in → Ways and providers* |
-| The empty "Nothing has been suggested" area | space without use | ✦ at the fields |
+| Removed | Why | Now in | Removed by |
+|---|---|---|---|
+| Hub menu "Move to another hub…" | never usable for a hub | — (kept for collections) | UX-17: the hub's menu |
+| Second "Saved views" entry | duplicate | *Views* menu | UX-17: the collection's head |
+| Second "People" entry | duplicate | avatars and *Structure → People* | UX-17: the collection's head |
+| "Try a rule" on the runs page | duplicate of the probe and *Start now* | the rule editor | UX-17: *Automation → Runs* |
+| Overview's "Create hub" primary | three places | *＋ New* and the empty state | UX-15: *Today* |
+| The separate sign-in provider page | setup and switching split | *Sign-in → Ways and providers* | UX-18: *Administration → Sign-in* |
+| The empty "Nothing has been suggested" area | space without use | ✦ at the fields | UX-19: the entry page |
 
 ## E10 — Across every screen
 
