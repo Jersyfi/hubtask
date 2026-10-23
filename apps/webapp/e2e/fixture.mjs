@@ -553,7 +553,7 @@ export const SHAPES = {
 };
 /** Two entries on the list, and what a write of the list's structure was sent. */
 export const SHAPE_ITEMS = [
-  item('84', 'Oat milk', { collection_id: SHAPES.list.id }),
+  item('84', 'Oat milk', { collection_id: SHAPES.list.id, hidden: { level: false, capabilities: [], below: 3 } }),
   item('85', 'Rye bread', { collection_id: SHAPES.list.id }),
 ];
 
@@ -579,6 +579,23 @@ function structureRoute(route, request, url, path) {
     return route.fulfill({ json: { ...PAGE, data: collections } });
   }
   if (path.endsWith(`/api/v1/containers/${SHAPE_HUB.id}`)) return route.fulfill({ json: current(SHAPE_HUB) });
+  const previewed = [current(SHAPE_HUB), ...collections].find((c) => path.endsWith(`/api/v1/containers/${c.id}/structure:preview`));
+  if (previewed && request.method() === 'POST') {
+    // UC-WRK-24: a preset with fewer levels than the container has narrows; anything else does
+    // not, and is saved at once. The counts are the story's, not computed - the server's tests own those.
+    const change = request.postDataJSON();
+    const narrows = change.preset !== undefined && (PRESET_SETTINGS[change.preset]?.levels.length ?? 3) < (previewed.structure.settings.levels?.length ?? 3);
+    return route.fulfill({
+      json: narrows
+        ? {
+          narrows: true,
+          levels: [{ type: 'WORK_PACKAGE', entries: 4 }, { type: 'ACTIVITY', entries: 11 }],
+          fields: [{ type: 'TASK', capability: 'DUE_DATE', entries: 9 }],
+          views: ['KANBAN', 'TIMELINE'], automation: [], keeping: [], flatten: { entries: 15 },
+        }
+        : { narrows: false, levels: [], fields: [], views: [], automation: [], keeping: [], flatten: { entries: 0 } },
+    });
+  }
   const structured = [current(SHAPE_HUB), ...collections].find((c) => path.endsWith(`/api/v1/containers/${c.id}/structure`));
   if (structured && request.method() === 'PATCH') {
     // The fixture agrees with whatever is sent: a preset copied, the settings laid on top, a reset

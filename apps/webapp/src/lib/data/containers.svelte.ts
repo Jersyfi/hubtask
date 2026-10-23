@@ -19,7 +19,7 @@
  * — correct, and enough to make renaming a collection empty every other level as well.
  */
 
-import type { Container, ContainerPage, ResourceState, StructureChange } from '@hubtask/sync-engine';
+import type { Container, ContainerPage, ResourceState, StructureChange, StructurePreview } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { etagFor } from './etag.ts';
@@ -292,6 +292,14 @@ class Containers {
    * structure is resolved by the server, and offline the engine refuses it with
    * `sync.needs_connection`.
    */
+  /**
+   * What a change of structure would stop showing, before it is made (UC-WRK-24 check 2). Writes
+   * nothing, so it invalidates nothing.
+   */
+  async previewStructure(id: string, change: StructureChange): Promise<StructurePreview> {
+    return engine.mutate<StructurePreview>('POST', `/containers/${id}/structure:preview`, change);
+  }
+
   async setStructure(id: string, change: StructureChange, version: number): Promise<Container> {
     return engine.mutate<Container>('PATCH', `/containers/${id}/structure`, change, {
       ifMatch: etagFor(version),

@@ -143,6 +143,44 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   assert.deepEqual(failures, []);
 });
 
+test('chromium: the owner - a narrowing first shows what it would stop showing, Hide by default, Flatten on choice (UC-WRK-24 checks 2, 4, 6)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures, written } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+
+  // Check 4: an entry says what its collection hides under it.
+  await openCollection(page, SHAPES.list);
+  await page.getByText('3 hidden').first().waitFor({ timeout: 5_000 });
+
+  await openCollection(page, SHAPES.locked);
+  const panel = await openPanel(page, SHAPES.locked.name);
+  await panel.getByRole('combobox', { name: 'Preset' }).selectOption('LIST');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Show less?' });
+  await dialog.waitFor({ timeout: 5_000 });
+  assert.deepEqual(written, [], 'a narrowing was saved before it was confirmed');
+  const said = await dialog.textContent();
+  for (const line of ['Work package: 4 entries', 'Activity: 11 entries', 'The view Board']) {
+    assert.ok(said.includes(line), `the preview does not say "${line}": ${said}`);
+  }
+  assert.ok(said.includes('15 entries move to the top level'), 'Flatten does not say what it moves');
+  assert.ok(said.includes('does not undo this'), 'Flatten does not say it cannot be undone');
+  assert.equal(await dialog.getByRole('radio', { name: 'Hide' }).isChecked(), true, 'Hide is not the default');
+
+  // Cancelled, nothing is written; confirmed with Flatten, the choice travels.
+  await dialog.getByRole('button', { name: 'Cancel' }).last().click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(written, []);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await dialog.waitFor({ timeout: 5_000 });
+  await dialog.getByRole('radio', { name: 'Flatten' }).check();
+  await dialog.getByRole('button', { name: 'Flatten and save' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(written, [{ preset: 'LIST', narrowing: 'FLATTEN' }]);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: the owner - a level is named by the name given to it, and by its type without one (check 6)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -224,10 +262,12 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   await page.keyboard.press('Escape');
 
   // A preset under the lock: sent as itself, the locked value kept and said.
+  // List offers fewer levels, so it is previewed first and confirmed with the default, Hide.
   await panel.getByRole('combobox', { name: 'Preset' }).selectOption('LIST');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Show less?' }).getByRole('button', { name: 'Hide and save' }).click();
   await page.getByText('1 locked setting kept its value.').first().waitFor({ timeout: 5_000 });
-  assert.deepEqual(written, [{ preset: 'LIST' }]);
+  assert.deepEqual(written, [{ preset: 'LIST', narrowing: 'HIDE' }]);
   assert.deepEqual(failures, []);
 });
 
