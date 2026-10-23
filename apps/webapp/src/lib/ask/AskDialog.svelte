@@ -240,14 +240,16 @@
 
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: var(--sp-050) 0 0; padding: 0; list-style: none; }
 
+  /* A chip that holds a select carries its label above it, so the chips are framed rather than
+     pills: a pill around two lines reads as a blob. The remove button sits on the control's line. */
   .chip {
     display: inline-flex;
-    align-items: center;
+    align-items: flex-end;
     gap: var(--sp-050);
-    padding-block: var(--sp-025);
-    padding-inline: var(--sp-100) var(--sp-025);
+    padding-block: var(--sp-050);
+    padding-inline: var(--sp-100) var(--sp-050);
     border: var(--bw-hairline) solid var(--border-default);
-    border-radius: var(--r-full);
+    border-radius: var(--r-md);
     background: var(--bg-surface-sunken);
   }
 
