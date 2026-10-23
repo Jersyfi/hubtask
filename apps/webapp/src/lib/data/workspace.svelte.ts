@@ -15,7 +15,7 @@
  * (ADR-0025), which is what the `If-Match` here is for.
  */
 
-import type { ResourceState } from '@hubtask/sync-engine';
+import type { ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 
@@ -53,6 +53,10 @@ export interface Workspace {
     readonly time_zone?: string;
     readonly week_start?: string;
   };
+  /** The workspace's structure: what every hub inherits, its locks, its default preset. */
+  readonly structure?: WorkspaceStructure;
+  /** Whether to ask this reader, once, what the workspace is used for (UC-WRK-30 check 5). */
+  readonly starter_offered?: boolean;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */
@@ -97,6 +101,15 @@ class WorkspaceStore {
    * The `ETag` the read carried is presented as `If-Match`: two administrators on the same screen
    * is the ordinary case, and the second one's save has to be refused rather than quietly winning.
    */
+  /**
+   * Changes the workspace's structure: its default preset, its locks (UC-WRK-30 check 4). The
+   * workspace's version is the If-Match, as for `change`.
+   */
+  async changeStructure(body: WorkspaceStructureChange): Promise<WorkspaceStructure> {
+    const etag = this.#state.status === 'ready' ? this.#state.etag : undefined;
+    return engine.mutate<WorkspaceStructure>('PATCH', `${PATH}/structure`, body, { ifMatch: etag, invalidates: [PATH] });
+  }
+
   async change(body: WorkspaceChange): Promise<Workspace> {
     const etag = this.#state.status === 'ready' ? this.#state.etag : undefined;
     return engine.mutate<Workspace>('PATCH', PATH, body, {

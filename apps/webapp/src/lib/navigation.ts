@@ -196,6 +196,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people'] },
       { id: 'groups', icon: 'users', code: 'app.admin.groups', path: '/administration/groups', routes: ['groups'] },

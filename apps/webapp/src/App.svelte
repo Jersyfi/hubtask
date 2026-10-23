@@ -68,6 +68,7 @@ import ContainerView from './views/ContainerView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
+  import PresetsView from './views/PresetsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
   import IdentityProviderView from './views/IdentityProviderView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -295,6 +296,8 @@ import ContainerView from './views/ContainerView.svelte';
     <AdministrationOverviewView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
+  {:else if route.name === 'presets'}
+    <PresetsView />
   {:else if route.name === 'people'}
     <PeopleView />
   {:else if route.name === 'groups'}

@@ -376,6 +376,7 @@
             bind:value={() => draft?.preset ?? '', (key) => choosePresetKey(key)}
           />
           <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
+          <div class="save-as">
           <Button
             size="sm"
             tone="subtle"
@@ -384,6 +385,7 @@
           >
             {t('app.presets.save_as')}
           </Button>
+          </div>
         </section>
 
         {#each SETTINGS as setting (setting)}
@@ -557,6 +559,7 @@
   .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .head h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .names { display: grid; gap: var(--sp-150); }
+  .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
 </style>

@@ -39,7 +39,10 @@ async function as(browser, role, { width = 1280, defaultPreset = DEFAULTED.id } 
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   forgetUnstubbed();
   const written = [];
-  const structure = { ...DEFAULT_STRUCTURE, default_preset: null, default_preset_id: defaultPreset };
+  const structure = {
+    ...DEFAULT_STRUCTURE, default_preset: null, default_preset_id: defaultPreset,
+    locks: { 'fields.TASK.DUE_DATE': { origin: 'WORKSPACE', locked_by: ACCOUNT.id }, celebration: { origin: 'INSTANCE', locked_by: null } },
+  };
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
@@ -172,4 +175,66 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   assert.equal(created?.body.preset_id, CLIENT.id);
   assert.equal(created?.body.preset, undefined);
   assert.deepEqual(failures, []);
+});
+
+test("chromium: the workspace's Presets - rename, withdraw, the default kept, the default chosen, a lock set (checks 3, 4)", async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures, written } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/administration/presets`);
+  await page.getByRole('heading', { name: 'Presets', level: 1 }).first().waitFor({ timeout: 15_000 });
+  const shop = page.locator(`[data-preset="${SHOP.id}"]`);
+  await shop.waitFor({ timeout: 10_000 });
+  assert.equal(await page.locator(`[data-preset="${CLIENT.id}"]`).count(), 0, "a person's own preset is among the workspace's");
+
+  // Check 3: renamed and withdrawn, under the version read.
+  await shop.getByRole('textbox').fill('Big shop');
+  await shop.getByRole('button', { name: 'Rename' }).click();
+  await page.waitForTimeout(300);
+  const renamed = written.find((write) => write.method === 'PATCH' && write.path === `/presets/${SHOP.id}`);
+  assert.deepEqual(renamed?.body, { name: 'Big shop' });
+  assert.equal(renamed?.ifMatch, '"2"');
+  await shop.getByRole('button', { name: 'Withdraw “Weekly shop”' }).click();
+  await page.waitForTimeout(300);
+  assert.ok(written.some((write) => write.method === 'DELETE' && write.path === `/presets/${SHOP.id}`), 'the withdrawal was not sent');
+
+  // The default's withdrawal is unavailable, with its reason, and sends nothing.
+  const defaulted = page.locator(`[data-preset="${DEFAULTED.id}"]`);
+  const withdrawDefault = defaulted.getByRole('button', { name: 'Withdraw “Household”' });
+  assert.equal(await withdrawDefault.getAttribute('aria-disabled'), 'true', "the default's withdrawal is offered");
+  await withdrawDefault.click({ force: true });
+  const reason = await withdrawDefault.evaluate((button) => document.getElementById(button.getAttribute('aria-describedby') ?? '')?.textContent ?? '');
+  assert.ok(reason.includes('New hubs start from this preset'), `the reason reads ${JSON.stringify(reason)}`);
+  assert.ok(!written.some((write) => write.path === `/presets/${DEFAULTED.id}`), "the default's withdrawal was sent");
+
+  // Check 4: the default chosen - a workspace preset by id, Hubtask's by key.
+  const defaultSelect = page.getByLabel('A new hub starts from');
+  await defaultSelect.selectOption(SHOP.id);
+  await page.waitForTimeout(300);
+  await defaultSelect.selectOption('FLOW');
+  await page.waitForTimeout(300);
+  const defaults = written.filter((write) => write.path === '/tenant/structure').map((write) => write.body);
+  assert.deepEqual(defaults, [{ default_preset_id: SHOP.id }, { default_preset: 'FLOW' }]);
+
+  // Check 4: a lock, the whole set sent with the field's lock kept; the installation's is not the workspace's.
+  const locks = page.locator('[data-presets-locks]');
+  assert.equal(await locks.getByRole('checkbox', { name: 'Success' }).getAttribute('aria-disabled') === 'true' || await locks.getByRole('checkbox', { name: 'Success' }).isDisabled(), true, "the installation's lock can be lifted");
+  await locks.getByRole('checkbox', { name: 'Views' }).check();
+  await page.waitForTimeout(300);
+  const locked = written.filter((write) => write.path === '/tenant/structure').at(-1);
+  assert.deepEqual(locked?.body, { locks: ['views', 'fields.TASK.DUE_DATE'] });
+  assert.deepEqual(failures, []);
+});
+
+test("chromium: a member reaches no Presets screen", async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, written } = await as(browser, 'MEMBER');
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/administration/presets`);
+  await page.waitForTimeout(1500);
+  assert.equal(await page.locator('[data-presets-saved]').count(), 0, 'a member is shown the workspace\'s presets to change');
+  assert.ok(!written.some((write) => write.path.startsWith('/presets') || write.path === '/tenant/structure'));
 });
