@@ -923,6 +923,10 @@ CREATE TABLE work_item (
   completed_by       uuid,
   -- How often it went from open to done; kept by a reopen (migration 0189).
   completion_count   integer NOT NULL DEFAULT 0 CHECK (completion_count >= 0),
+  -- When it first entered its collection's first column and last entered a done column, kept by
+  -- the trigger work_item_flow_moments (migration 0194; UC-WRK-31 check 4).
+  flow_started_at    timestamptz,
+  flow_finished_at   timestamptz,
   bucket_id          uuid,
   order_key          text NOT NULL,
   start_at           timestamptz,
@@ -1033,6 +1037,56 @@ CREATE TRIGGER work_item_search_document
   BEFORE INSERT OR UPDATE OF title, notes, content_language ON work_item
   FOR EACH ROW EXECUTE FUNCTION work_item_search_document();
 CREATE INDEX wi_search_document_idx ON work_item USING gin (search_document);
+-- The moments a flow's figure measures by, set wherever a row's column or collection changes
+-- (migration 0194).
+CREATE OR REPLACE FUNCTION work_item_flow_moments() RETURNS trigger LANGUAGE plpgsql AS
+$$
+DECLARE
+  moment timestamptz;
+  first_column uuid;
+  completes boolean;
+BEGIN
+  IF TG_OP = 'UPDATE' THEN
+    IF NEW.flow_started_at IS DISTINCT FROM OLD.flow_started_at
+       OR NEW.flow_finished_at IS DISTINCT FROM OLD.flow_finished_at THEN
+      -- The statement wrote the moments itself: a restore overwriting the row.
+      RETURN NEW;
+    ELSIF NEW.collection_id IS DISTINCT FROM OLD.collection_id THEN
+      NEW.flow_started_at := NULL;
+      NEW.flow_finished_at := NULL;
+    ELSIF NEW.bucket_id IS NOT DISTINCT FROM OLD.bucket_id THEN
+      RETURN NEW;
+    END IF;
+    moment := NEW.updated_at;
+  ELSE
+    moment := NEW.created_at;
+  END IF;
+  IF NEW.bucket_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  -- The board's first column as a board is answered: by rank, then identifier (ListBuckets).
+  SELECT b.id INTO first_column
+    FROM bucket b
+   WHERE b.tenant_id = NEW.tenant_id AND b.collection_id = NEW.collection_id AND b.deleted_at IS NULL
+   ORDER BY b.order_key COLLATE "C", b.id
+   LIMIT 1;
+  SELECT b.is_done_bucket INTO completes
+    FROM bucket b
+   WHERE b.tenant_id = NEW.tenant_id AND b.id = NEW.bucket_id;
+
+  IF NEW.bucket_id = first_column AND NEW.flow_started_at IS NULL THEN
+    NEW.flow_started_at := moment;
+  END IF;
+  IF completes AND (TG_OP = 'UPDATE' OR NEW.flow_finished_at IS NULL) THEN
+    NEW.flow_finished_at := moment;
+  END IF;
+  RETURN NEW;
+END
+$$;
+CREATE TRIGGER work_item_flow_moments
+  BEFORE INSERT OR UPDATE OF bucket_id, collection_id ON work_item
+  FOR EACH ROW EXECUTE FUNCTION work_item_flow_moments();
 -- The supplement for the scripts a tsquery cannot serve: CJK and Thai have no word boundaries, so
 -- one run of characters is one token and a substring of it is unfindable (i18n-l10n.md §5).
 CREATE INDEX wi_search_trgm_idx ON work_item

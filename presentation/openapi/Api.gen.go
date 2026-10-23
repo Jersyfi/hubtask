@@ -1363,6 +1363,7 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
 	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindFLOW     CollectionFigureKind = "FLOW"
 	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
 	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
 	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
@@ -1374,6 +1375,8 @@ func (e CollectionFigureKind) Valid() bool {
 	case CollectionFigureKindDUE:
 		return true
 	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindFLOW:
 		return true
 	case CollectionFigureKindOPEN:
 		return true
@@ -4416,6 +4419,21 @@ func (e StructureSettingName) Valid() bool {
 	}
 }
 
+// Defines values for StructureSettingsAutomation.
+const (
+	REQUIREDBEYONDFIRSTCOLUMN StructureSettingsAutomation = "REQUIRED_BEYOND_FIRST_COLUMN"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsAutomation enum.
+func (e StructureSettingsAutomation) Valid() bool {
+	switch e {
+	case REQUIREDBEYONDFIRSTCOLUMN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingsCapture.
 const (
 	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
@@ -6722,6 +6740,12 @@ type CapabilitiesWorkspacePermissions string
 
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
+	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
+	AverageSeconds *float64 `json:"average_seconds,omitempty"`
+
+	// Completed FLOW - entries at the top level completed in the seven days up to the moment of counting, archived ones included.
+	Completed *int `json:"completed,omitempty"`
+
 	// Days RHYTHM - the dates of the reader's week on which something was completed.
 	Days *[]openapi_types.Date `json:"days,omitempty"`
 
@@ -6734,6 +6758,9 @@ type CollectionFigure struct {
 
 	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
 	Open *int `json:"open,omitempty"`
+
+	// OverLimit FLOW - the board's columns that hold more open entries than their limit. Reported, never enforced.
+	OverLimit *int `json:"over_limit,omitempty"`
 
 	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
 	Sum *float64 `json:"sum,omitempty"`
@@ -7301,7 +7328,7 @@ type EffectiveStructure struct {
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
 	// Sources For each of the eight settings, the level its value comes from.
@@ -9669,7 +9696,7 @@ type PolicySource string
 type Preset struct {
 	Key PresetKey `json:"key"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 }
 
@@ -10952,7 +10979,7 @@ type StructureChange struct {
 	Preset *StructureChangePreset  `json:"preset,omitempty"`
 	Reset  *[]StructureSettingName `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -11012,10 +11039,10 @@ type StructureLockOrigin string
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
-// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
-	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
-	Automation *[]string `json:"automation,omitempty"`
+	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.
+	Automation *[]StructureSettingsAutomation `json:"automation,omitempty"`
 
 	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
 	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
@@ -11038,6 +11065,9 @@ type StructureSettings struct {
 	// Views The layouts a client offers, and the one it opens with. Applied by clients.
 	Views *StructureViews `json:"views,omitempty"`
 }
+
+// StructureSettingsAutomation defines model for StructureSettings.Automation.
+type StructureSettingsAutomation string
 
 // StructureSettingsCapture defines model for StructureSettings.Capture.
 type StructureSettingsCapture string
@@ -12117,7 +12147,7 @@ type WorkspaceStructure struct {
 	Locks         map[string]StructureLock         `json:"locks"`
 	Preset        *WorkspaceStructurePreset        `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
 	Sources  map[string]PolicySource `json:"sources"`
 }
@@ -12138,7 +12168,7 @@ type WorkspaceStructureChange struct {
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
 	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 

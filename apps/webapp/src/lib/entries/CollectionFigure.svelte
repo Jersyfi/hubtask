@@ -3,13 +3,14 @@
 <script lang="ts">
   // What counts in a collection, in its head (UC-WRK-29 check 1): the sentence, a bar for progress
   // alone (check 2), and for the week's rhythm one mark per day with a completion and nothing for
-  // the others (check 3). The words are figure.ts's; this draws them.
+  // the others (check 3); for a flow, the columns over their limit as a warning beside the figure
+  // (UC-WRK-31 check 3). The words are figure.ts's; this draws them.
 
   import type { CollectionFigure } from '@hubtask/sync-engine';
   import { ProgressBar } from '@hubtask/design-system/components';
 
   import { messages, t } from '../i18n/i18n.svelte.ts';
-  import { barShare, headMessage, rhythmMarks } from '../data/figure.ts';
+  import { barShare, headMessage, overLimitMessage, rhythmMarks } from '../data/figure.ts';
 
   interface Props {
     figure: CollectionFigure;
@@ -22,6 +23,7 @@
   const message = $derived(headMessage(figure, messages.locale));
   const share = $derived(barShare(figure));
   const marks = $derived(rhythmMarks(figure));
+  const overLimit = $derived(overLimitMessage(figure));
 </script>
 
 {#if message}
@@ -35,6 +37,9 @@
       </span>
     {/if}
     <span class="text">{t(message.code, message.params)}</span>
+    {#if overLimit}
+      <span class="over" data-over-limit>{t(overLimit.code, overLimit.params)}</span>
+    {/if}
   </span>
 {/if}
 
@@ -63,4 +68,12 @@
   }
 
   .figure[data-unavailable] .text { font-style: italic; }
+
+  /* A column over its limit: advice, so a tinted mark rather than an error. */
+  .over {
+    padding-inline: var(--sp-100);
+    border-radius: var(--r-full);
+    background: var(--status-warning-surface);
+    color: var(--status-warning-text);
+  }
 </style>

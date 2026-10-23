@@ -79,8 +79,8 @@ func TestTheFigureWindowIsTheReadersDayAndWeek(t *testing.T) {
 	}
 }
 
-// What to count follows the structure in force: NONE and FLOW count nothing; DUE reads only the
-// levels that carry a due date; FIELD_SUM sums only where the top level carries custom fields.
+// What to count follows the structure in force: NONE counts nothing; DUE reads only the levels that
+// carry a due date; FIELD_SUM sums only where the top level carries custom fields.
 func TestTheFigureRequestFollowsTheStructureInForce(t *testing.T) {
 	id := shared.MustParseID("0192f000-0000-7000-8000-0000000000c1")
 	bound := seededBound()
@@ -88,10 +88,13 @@ func TestTheFigureRequestFollowsTheStructureInForce(t *testing.T) {
 		return ResolveStructure(bound, WorkspaceStructure{}, LayerAt{Layer: StructureLayer{Values: values}})
 	}
 
-	for _, figure := range []Figure{FigureNone, FigureFlow} {
-		if _, counted := FigureRequestFor(id, resolve(StructureValues{Counts: counting(figure)})); counted {
-			t.Errorf("%s is counted", figure)
-		}
+	if _, counted := FigureRequestFor(id, resolve(StructureValues{Counts: counting(FigureNone)})); counted {
+		t.Error("NONE is counted")
+	}
+	// FLOW is counted (UC-WRK-31 check 4).
+	if request, counted := FigureRequestFor(id, resolve(StructureValues{Counts: counting(FigureFlow)})); !counted ||
+		request.Kind != FigureFlow {
+		t.Errorf("FLOW answers %+v %v", request, counted)
 	}
 
 	activityUndated := map[ItemType]LevelFields{
@@ -144,5 +147,17 @@ func TestACollectionFigureIsNumbersAndDates(t *testing.T) {
 	}
 	if JoinTypes([]ItemType{ItemTask, ItemActivity}) != "TASK,ACTIVITY" {
 		t.Error("the type list")
+	}
+}
+
+// The flow figure looks back a rolling week from the moment of counting, whatever the reader's
+// week start: "a week" means the same on a Monday as on a Friday.
+func TestTheFlowLooksBackARollingWeek(t *testing.T) {
+	for _, now := range []string{"2026-10-19T08:00:00Z", "2026-10-23T17:30:00Z"} {
+		moment, _ := time.Parse(time.RFC3339, now)
+		window := NewFigureWindow(moment, time.UTC, "MONDAY")
+		if got := moment.Sub(window.FlowSince()); got != 7*24*time.Hour {
+			t.Errorf("at %s the flow looks back %s", now, got)
+		}
 	}
 }
