@@ -159,7 +159,7 @@ CREATE TABLE tenant (
   -- byte goes, after which no cancel lands.
   status_before_deletion    tenant_status,
   purge_started_at          timestamptz,
-  -- The first start's question was answered or skipped (0195, UC-WRK-30 check 5): nobody is asked
+  -- The first start's question was answered or skipped (0197, UC-WRK-30 check 5): nobody is asked
   -- again.
   starter_answered_at       timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
@@ -1211,7 +1211,7 @@ CREATE INDEX kudos_given_by_idx ON kudos (tenant_id, given_by);
 
 -- A preset saved from a hub's or collection's structure (UC-WRK-30): the workspace's, or one
 -- person's own, gone with their account. `settings` is a layer's settings document without
--- categories; the name is the person's content (rule 10). Migration 0195.
+-- categories; the name is the person's content (rule 10). Migration 0197.
 CREATE TABLE structure_preset (
   tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   id         uuid NOT NULL,
