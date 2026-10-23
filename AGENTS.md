@@ -156,7 +156,9 @@ The other sections explain.
   (`docs/backlog/README.md`, "A concept built whole"). The bar is a task's: the concept's use cases
   written or updated with their checks and proven by tests; domain → application → ports →
   adapters → presentation; the subject documents and arc42 updated; the contract first; `make
-  check` green, CI on *Ready*; the merge on the owner's word. When one context cannot hold it, it is
+  check` green, CI on *Ready*; the merge on the owner's word. A change to an existing use case's
+  *Goal*, *How to check* or *Where it ends* that the released concept names is decided by that
+  word; any other still needs the owner's decision. When one context cannot hold it, it is
   split into pull requests by screen or area, never by a cross-cutting theme. `[owner]`
 - Each new task starts with a fresh worker, unless the owner asks for a series. `[unchecked: a
   preference]`
@@ -200,12 +202,13 @@ Bring these to the owner with a worked-out proposal:
 Everything else you decide and write down why, in the pull request and where the next reader needs
 it.
 
-**Asking.** Only when the work cannot go on without the answer; otherwise take the option that
-changes no rule, gate or use case, build on, and name the choice in the pull request, where the
-owner may overrule it. Search `docs/`, the milestones' `Decisions` and closed `decision` issues
-first; an answered question is cited. Otherwise the `decision` issue form
-(`.github/ISSUE_TEMPLATE/`): the problem with a person's example, the proposal's effect on users,
-administrators and operators through D1–D7, the alternatives, one answerable question, what waits. Tell the owner once, with the
+**Asking.** First whether to ask at all: only when the work cannot go on without the answer;
+otherwise take the option that changes no rule, gate or use case, build on, and name the choice in
+the pull request, where the owner may overrule it. Then search `docs/`, the milestones' `Decisions`
+and closed `decision` issues; an answered question is cited. Only an unanswered one becomes a
+`decision` issue in its form (`.github/ISSUE_TEMPLATE/`): the problem with a person's example, the
+proposal's effect on users, administrators and operators through D1–D7, the alternatives, one
+answerable question, what waits. Tell the owner once, with the
 list; a follow-up needs a new fact.
 
 ## Which command checks what

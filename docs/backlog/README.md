@@ -59,8 +59,9 @@ with the owner", concept mode).
 
 - **It still has its use cases.** The worker writes or updates them — *Goal*, *How to check*,
   *Where it ends*, walked through D1–D7 — on the branch, and the pull request's *Use cases* section
-  names every check it makes true. The owner's word asks for new ones; a change to an existing
-  *Goal*, *How to check* or *Where it ends* still needs the owner's decision (`AGENTS.md`).
+  names every check it makes true. The owner's word asks for new ones, and decides the changes to
+  an existing *Goal*, *How to check* or *Where it ends* that the released concept names; any other
+  such change still needs the owner's decision (`AGENTS.md`).
 - **The milestone file is optional.** Without one there is no `Delivers` line, no task issues and
   no `**Use cases:**` lines; the pull request closes the concept's issue, or says `No issue:` and
   the owner's word.
