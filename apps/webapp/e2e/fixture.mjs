@@ -902,20 +902,6 @@ let created;
 /** What a capture into the jumble makes. */
 export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'QUICK_CAPTURE', raw_subject: null, raw_body: null, attachments: [], status: 'NEW', received_at: '2026-10-21T08:00:00Z' };
 
-/**
- * A collection set up as a list (the *List* preset of `api/fixtures/structure-presets.json`): one
- * level, no dates, no people, no labels. Not in the tree's answer, so no other walk counts it; a
- * walk that wants it routes it in.
- */
-export const GROCERIES = {
-  id: '01a0e2e0-0000-7000-8000-000000000007', type: 'COLLECTION', parent_id: '01a0e2e0-0000-7000-8000-000000000002', name: 'Groceries', order_key: 'a2', version: 1,
-  structure: {
-    preset: 'LIST',
-    settings: { levels: [{ type: 'TASK' }], fields: { TASK: { capabilities: ['COMPLETION', 'HISTORY', 'CUSTOM_FIELDS'] } }, capture: ['LINES', 'AMOUNT'] },
-    sources: {}, locks: [],
-  },
-};
-
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];

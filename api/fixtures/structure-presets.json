@@ -5,7 +5,7 @@
       "key": "LIST",
       "levels": ["TASK"],
       "fields": {
-        "TASK": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS"]
+        "TASK": ["COMPLETION", "HISTORY", "CUSTOM_FIELDS", "AMOUNT"]
       },
       "capture": ["LINES", "AMOUNT"]
     },
