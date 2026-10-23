@@ -118,9 +118,10 @@ for dir in $packages; do
 	[ -f "$dir/package.json" ] || continue
 	name="$(sed -n 's/^  "name": "\(.*\)",$/\1/p' "$dir/package.json")"
 	step "$name"
-	# Its workspace dependencies are built first: its typecheck reads their dist/, which another
+	# It and its workspace dependencies are built first: its typecheck reads their dist/ - and the
+	# generated SDK reads its own (`client.gen.ts` imports `../dist/schema.js`) - which another
 	# branch's build may have left behind.
-	pnpm --filter "$name^..." build >/dev/null
+	pnpm --filter "$name..." build >/dev/null
 	pnpm --filter "$name" lint
 	pnpm --filter "$name" typecheck
 	pnpm --filter "$name" test
