@@ -384,11 +384,13 @@
     list-style: none;
   }
 
+  .tiles > li { display: flex; }
+
   .tile {
     display: flex;
+    flex: 1;
     flex-direction: column;
     gap: var(--sp-100);
-    block-size: 100%;
     padding: var(--sp-150);
     border-radius: var(--r-md);
     background: var(--bg-surface-sunken);
