@@ -47,7 +47,8 @@
   import { viewport } from './viewport.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
-  import { live } from '../data/live.svelte.ts';
+  import { live, type LiveState } from '../data/live.svelte.ts';
+  import { liveAnnouncement } from './liveannouncement.ts';
   import { actor } from '../data/account.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { figures } from '../data/figures.svelte.ts';
@@ -336,19 +337,17 @@
    *
    * Only on a change, and only these two: a badge that narrated every reconnection attempt would
    * be a screen reader reading a heartbeat. Becoming live is worth saying because it changes what
-   * the reader can trust; losing it is worth saying for the same reason.
+   * the reader can trust; losing it is worth saying for the same reason. Which ones, in
+   * `liveAnnouncement`: the first connection of a page is not a return.
    */
-  let announced = $state<string | undefined>(undefined);
+  let announced = $state<LiveState | undefined>(undefined);
+  let hasBeenLive = false;
   $effect(() => {
     const state = live.state;
     if (!session.isSignedIn || state === announced) return;
-    if (announced !== undefined) {
-      if (state === 'live') announcer.say(t('app.live.became_live'));
-      // Losing it is worth saying whichever half lost it: the stream cannot be reached, or the
-      // device says it has no network at all.
-      else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
-      else if (state === 'offline') announcer.say(t('app.live.device_offline'));
-    }
+    const code = liveAnnouncement(announced, state, hasBeenLive);
+    if (code) announcer.say(t(code));
+    if (state === 'live') hasBeenLive = true;
     announced = state;
   });
 
