@@ -44,6 +44,7 @@
   import { renderProblem } from '../problem.ts';
   import { focusFirst } from '../forms/missing.ts';
   import TemplateEditor from './TemplateEditor.svelte';
+  import CollectionSummary from './CollectionSummary.svelte';
   import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
 
   interface Props {
@@ -97,8 +98,8 @@
   /**
    * Generate from a description…: present exactly when the manifest says AI is on
    * (design-system.md §4, CapabilityGate - absence is absence, not a disabled control). The draft is a
-   * suggestion targeting the collection, so it arrives in the collection's strip behind this
-   * dialog, where accepting it is `CreateTemplate` and this list then shows it.
+   * suggestion targeting the collection, drawn here above the list (ux-inventory.md §E4), where
+   * accepting it is `CreateTemplate` and the list then shows it.
    */
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
   let isGenerating = $state(false);
@@ -144,12 +145,11 @@
       return;
     }
     void attempt(async () => {
-      // The ask is answered `202` at once and the store follows the listing on its own; the
-      // dialog closes so that the strip, where the draft lands, is what the person sees. Only
-      // the ask's own refusal - no provider, no consent - is this dialog's to show.
+      // The ask is answered `202` at once and the store follows the listing on its own; the form
+      // goes back to the list, above which the draft lands. Only the ask's own refusal - no
+      // provider, no consent - is the form's to show.
       await suggestions.generateTemplate(collectionId, description);
-      // In *Structure → Templates* the tab stays open; the draft lands in the collection's strip.
-      if (!isEmbedded) isOpen = false;
+      reset();
     }, t('app.templates.generation_asked_announced'));
   }
 
@@ -394,6 +394,11 @@
       {/if}
 
       {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
+
+      {#if hasAi}
+        <!-- The drafts asked here, while they run and once they arrive. -->
+        <CollectionSummary containerId={collectionId} part="template" />
+      {/if}
 
       {#if mayShape}
         <Inline gap="100">

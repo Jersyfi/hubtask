@@ -150,47 +150,47 @@ Administration and installation, found by UX-05's sweep:
 
 ## E4 — Hub and collection
 
-- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
-- [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
+- [x] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure — the hub's head and its menu's *Edit…*, which took *Rename* and *Colour and symbol…* (a collection's too, without the preset, which is its *Structure*); the collections as cards with their figure (UX-17)
+- [x] Hub menu "Move to another hub…" (always unavailable) → removed (§E9) — the hub's menu has none; a collection's keeps it (UX-17)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17 — *From a template…* and *Several lines…* (where the line splits them) in the add split (UX-17); import into a collection needs the import to land in one, finding #1730
-- [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
-- [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's
+- [x] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile — the head's *Filter and sort*; a field none of the collection's levels carries is not offered (UX-17)
+- [x] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's — the head's layout switch (UX-17)
 - [x] Star "Saved views" and menu "Saved views" → one *Views* menu with open, save, edit, share, delete, export, calendar subscription (§E9) — *Views* beside the layout switch; the page menu's row is gone (UX-17)
 - [x] Avatars "People" and menu "People" → avatars and *Structure → People* (§E9) — the head's faces open the people (a mark where there are none yet); *Structure → People* for whom the shape belongs to; the menu row is gone (UX-17)
-- [ ] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept
+- [x] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept — the page menu; rename is *Edit…* (UX-17)
 - [x] Menu: labels, custom fields, templates, policies → *Structure* tabs — UX-10: the *Structure* panel exists (preset, the eight settings) on hubs and collections and takes *What counts…*; the tabs are UX-17's; the rows are gone, each is a tab of *Structure*: *Labels*, *Fields*, *Templates*, *Automation*, *People* (UX-17)
-- [ ] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes
+- [x] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes — the ✦ beside the figure in the head; the answer under the head, kept as a new entry whose notes it is where the collection's entries carry notes (UX-17)
 - [x] Detail pane: close, open as page → kept; also from board and timeline — done in UX-16: `/collections/:id?item=` from list, board and timeline
 - [x] Labels dialog: rename, delete (no confirmation), name, colour, create → *Structure → Labels*; delete with undo — *Structure → Labels*; deleting is at once with *Undo* and the deleted labels listed with the way back (UX-16, UX-17)
 - [x] Custom fields dialog: list, change, take out of use, key, kind, values, required, carried by → *Structure → Fields* — *Structure → Fields* (UX-17)
-- [x] Templates dialog: use, edit, delete, define, generate from a description, stamp it out, editor per step → *Structure → Templates*; *From template* in capture; AI drafts land in the same panel — *Structure → Templates*; *From a template…* in the add button's split for everybody who may add; a generated draft is asked in the tab and lands in the collection's strip (UX-17)
+- [x] Templates dialog: use, edit, delete, define, generate from a description, stamp it out, editor per step → *Structure → Templates*; *From template* in capture; AI drafts land in the same panel — *Structure → Templates*; *From a template…* in the add button's split for everybody who may add; a generated draft is asked in the tab and lands in it (UX-17)
 - [x] Policies dialog: completion roll-up, handing out (six strategies), candidates, add, applies to everything, save → *Structure → Automation* — *Structure → Automation*; *Cancel* in the tab goes back to what the collection holds (UX-17)
 - [x] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view — *Views* → *Export this list…* (`POST /items:export`), *Calendar subscriptions…*, a view's own export and subscription in *Rename, share or delete a view…* (UX-17)
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import* — kept on the hub's head; into a collection: finding #1730
-- [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
+- [x] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept — the entry menu's *Duplicate…* and *Move to another collection…*, the page menu's *Move to another hub…*; the head's faces and *Structure → People* (UX-17)
 - [x] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol in UX-07; the preset in UX-10 (*Like its hub* or the workspace's default, and the four)
 
 ## E5 — List, board, timeline, selection
 
-- [ ] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover
-- [ ] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08)
+- [x] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover — the list's rows; the grip shows where the pointer or the focus is (UX-17)
+- [x] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08) — the list's rows: the chips always, *Labels*, ＋ and *⋯* where the pointer or the focus is; people and the date per the profile (UX-17)
 - [x] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo — done in UX-16: `EntryMenu` on the list and the subtree, labels undo on the chips
-- [ ] "Left some things behind" notice → kept
+- [x] "Left some things behind" notice → kept — after a move or a copy from the entry menu, and after a template is used (UX-17)
 - [x] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more* (UX-12: the capture line takes several lines and a leading amount; kind and language under *More*; a simple list keeps it open at its top)
-- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16 (ADR-0088)
+- [x] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16 (ADR-0088) — the list, the board and the frame (UX-17)
 - [x] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press — done in UX-16: `EntryMenu` on cards, Ctrl/⌘-click and the still long press (ADR-0088)
-- [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile
-- [ ] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3)
+- [x] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile — the layout switch's *Timeline*, offered where the structure offers it (UX-10, UX-17)
+- [x] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3) — above the list and the board in the selection mode; *Apply* stays pressable and a missing value is marked at its field (UX-17)
 
 ## E6 — The entry
 
-- [ ] Head menu: only "Share this entry" → the full entry menu
-- [ ] Conflict strip, celebration → kept
-- [ ] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title
-- [ ] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11)
+- [x] Head menu: only "Share this entry" → the full entry menu — the entry page's head (and the pane's, and the bar's *⋯* on phones): the one entry menu without *Open*, *People* where the reader may not share (UX-17)
+- [x] Conflict strip, celebration → kept — the entry page's conflict strip above the head and the celebration on its head (UX-17)
+- [x] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title — the entry page's head; a cover or mark the type does not carry here is not drawn, the ✦ beside the title (UX-19, UX-17)
+- [x] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11) — the entry page's *Details*, beside the content from `expanded` up and below it on `compact`, a row per field the type carries here; what it no longer carries stays stored, undrawn (UX-17)
 - [x] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
 - [x] Children: heading, count, open/close all levels, embedded list → kept; ＋ activity and ＋ work package (UX-08, the entry page)
-- [ ] Tabs: comments (edit, remove, reply, older, write), history (more) → kept
+- [x] Tabs: comments (edit, remove, reply, older, write), history (more) → kept — the entry page's *Comments* and *History* tabs (UX-17)
 
 ## E7 — Your settings
 
@@ -228,15 +228,15 @@ Administration and installation, found by UX-05's sweep:
 
 ## E9 — Removed, and what replaces each
 
-| Removed | Why | Now in |
-|---|---|---|
-| Hub menu "Move to another hub…" | never usable for a hub | — (kept for collections) |
-| Second "Saved views" entry | duplicate | *Views* menu |
-| Second "People" entry | duplicate | avatars and *Structure → People* |
-| "Try a rule" on the runs page | duplicate of the probe and *Start now* | the rule editor |
-| Overview's "Create hub" primary | three places | *＋ New* and the empty state |
-| The separate sign-in provider page | setup and switching split | *Sign-in → Ways and providers* |
-| The empty "Nothing has been suggested" area | space without use | ✦ at the fields |
+| Removed | Why | Now in | Removed by |
+|---|---|---|---|
+| Hub menu "Move to another hub…" | never usable for a hub | — (kept for collections) | UX-17: the hub's menu |
+| Second "Saved views" entry | duplicate | *Views* menu | UX-17: the collection's head |
+| Second "People" entry | duplicate | avatars and *Structure → People* | UX-17: the collection's head |
+| "Try a rule" on the runs page | duplicate of the probe and *Start now* | the rule editor | UX-17: *Automation → Runs* |
+| Overview's "Create hub" primary | three places | *＋ New* and the empty state | UX-15: *Today* |
+| The separate sign-in provider page | setup and switching split | *Sign-in → Ways and providers* | UX-18: *Administration → Sign-in* |
+| The empty "Nothing has been suggested" area | space without use | ✦ at the fields | UX-19: the entry page |
 
 ## E10 — Across every screen
 

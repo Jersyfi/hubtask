@@ -623,7 +623,8 @@ export const SHAPES = {
 };
 /** Two entries on the list, and what a write of the list's structure was sent. */
 export const SHAPE_ITEMS = [
-  item('84', 'Oat milk', { collection_id: SHAPES.list.id, hidden: { level: false, capabilities: [], below: 3 } }),
+  // Dated, given to the reader and covered while the collection was a project: kept, not drawn on a list.
+  item('84', 'Oat milk', { collection_id: SHAPES.list.id, due_at: '2026-11-02T09:00:00Z', assignee_id: ACCOUNT.id, cover: { kind: 'COLOR', color_token: 'teal' }, hidden: { level: false, capabilities: [], below: 3 } }),
   item('85', 'Rye bread', { collection_id: SHAPES.list.id }),
 ];
 

@@ -163,7 +163,7 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     const rows = await pageMenu(page, COLLECTION.name);
     // The labels, the fields, the templates, the automation and the people are *Structure*'s tabs
     // (ux-inventory.md §E4), so they are offered exactly where *Structure…* is.
-    for (const shaping of ['Rename', 'Colour and symbol…', 'Move to another hub…', 'Structure…']) {
+    for (const shaping of ['Edit…', 'Move to another hub…', 'Structure…']) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);

@@ -115,7 +115,8 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.getByRole('button', { name: `Actions for ${ENTRY.title}`, exact: true }).click();
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
-  assert.deepEqual((await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim()), ['Share this entry']);
+  const offered = (await menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent?.trim() ?? '')));
+  assert.ok(offered.includes('Share this entry') && !offered.some((label) => /^(Edit|Rename)/.test(label)), offered.join());
   await page.keyboard.press('Escape');
 
   // Every details row opens its editor beside it and gives focus back on Escape.
