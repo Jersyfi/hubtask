@@ -237,6 +237,8 @@
    */
   const myRole = $derived(container ? people.roleOf(containerPath, actor.account?.id, roleOrder()) : undefined);
   const structureRole = $derived(myRole ?? undefined);
+  /** The workspace's shape is the reader's to change: *Save as preset* then offers the workspace. */
+  const mayShapeWorkspace = $derived(holds(people.roleOf({}, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted');
   /** Whether the reader may create entries in this collection, and why a row is not theirs to change. */
   const mayCreateHere = $derived(mayDo(myRole, 'create', false) === true);
   function changeRefusalOf(row: WorkItem): string | undefined {
@@ -1170,7 +1172,7 @@
 {/if}
 
 {#if container?.structure && mayShape}
-  <StructurePanel bind:isOpen={isShaping} {container} />
+  <StructurePanel bind:isOpen={isShaping} {container} {mayShapeWorkspace} />
 {/if}
 
 {#if container?.type === 'COLLECTION'}

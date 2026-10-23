@@ -223,8 +223,15 @@ export type ContainerMilestone = components['schemas']['ContainerMilestone'];
  * they went to - who gave kudos (UC-WRK-29 checks 5 and 6). Read online; never synchronised.
  */
 export type Kudos = components['schemas']['Kudos'];
-/** A starting point for a hub or collection: Hubtask's four, as this installation offers them. */
+/**
+ * A starting point for a hub or collection, with its origin: Hubtask's four by key, the
+ * workspace's and the reader's own by id and name (UC-WRK-30).
+ */
 export type Preset = components['schemas']['Preset'];
+/** A hub's or collection's structure saved as a preset. */
+export type PresetCreate = components['schemas']['PresetCreate'];
+/** A saved preset renamed, copied again or changed. */
+export type PresetUpdate = components['schemas']['PresetUpdate'];
 
 /**
  * Who holds which role at one scope, and the shapes around it.

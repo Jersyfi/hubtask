@@ -85,6 +85,14 @@ test('a preset replaces the values, keeps the locked ones, and is sent as itself
   assert.deepEqual(changeOf(after, project, list), { preset: 'LIST', settings: { celebration: 'ALL' } });
 });
 
+test('a saved preset is chosen by its id and sent as preset_id (UC-WRK-30 check 2)', () => {
+  const saved = { ...list, key: undefined, origin: 'OWN', id: '01a0e2e0-0000-7000-8000-0000000000f1', name: 'Client project' } as unknown as Preset;
+  const draft = choosePreset(startDraft(project), project, saved);
+  assert.equal(draft.preset, saved.id);
+  assert.deepEqual(changeOf(draft, project, saved), { preset_id: saved.id });
+  assert.equal(countOf(changeOf(draft, project, saved)), 1);
+});
+
 test('a reset sends the setting back; a locked setting is never sent', () => {
   const draft = resetSetting(startDraft(project), project, 'completion');
   assert.deepEqual(changeOf(draft, project, undefined), { reset: ['completion'] });

@@ -520,7 +520,7 @@ export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collec
  */
 export const SHAPE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Errands', order_key: 'a3', version: 1, structure: DEFAULT_STRUCTURE };
 const own = (extra = {}) => ({ levels: 'COLLECTION', fields: 'COLLECTION', views: 'COLLECTION', counts: 'COLLECTION', completion: 'COLLECTION', capture: 'COLLECTION', celebration: 'COLLECTION', automation: 'DEFAULT', ...extra });
-const PRESET_SETTINGS = {
+export const PRESET_SETTINGS = {
   LIST: {
     levels: [{ type: 'TASK', name: null }],
     fields: { TASK: { capabilities: ['COMPLETION', 'HISTORY', 'CUSTOM_FIELDS'] } },
@@ -545,7 +545,7 @@ const PRESET_SETTINGS = {
   },
 };
 /** Hubtask's four presets, as `GET /presets` answers them. */
-export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ key, settings }));
+export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ origin: 'HUBTASK', key, settings }));
 export const SHAPES = {
   list: {
     id: '01a0e2e0-0000-7000-8000-000000000082', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Shopping', order_key: 'a0', version: 1,
