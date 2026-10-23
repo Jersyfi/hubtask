@@ -31,7 +31,7 @@ const (
 	SettingCapture StructureSetting = "capture"
 	// SettingCelebration is how success is shown.
 	SettingCelebration StructureSetting = "celebration"
-	// SettingAutomation is what runs by itself.
+	// SettingAutomation is what the collection applies by itself.
 	SettingAutomation StructureSetting = "automation"
 )
 
@@ -121,13 +121,22 @@ var celebrationStyles = [...]CelebrationStyle{CelebrationAll, CelebrationSubtle}
 // CelebrationStyles is the declared set.
 func CelebrationStyles() []CelebrationStyle { return celebrationStyles[:] }
 
-// AutomationBehaviour is something that runs by itself in a collection. The set is closed and
-// empty until a behaviour exists that a collection may switch on: a value accepted now would be a
-// setting nothing honours.
+// AutomationBehaviour is something a collection applies by itself. The set is closed: a value is
+// declared only once something honours it, because a value accepted before that would be a setting
+// nothing keeps.
 type AutomationBehaviour string
 
+const (
+	// AutomationRequiredBeyondFirstColumn lets an entry enter a column after the board's first
+	// only with every required custom field of its type set (UC-WRK-31 check 2). The server
+	// applies it on every writer that places an entry in a column (`FlowGate`).
+	AutomationRequiredBeyondFirstColumn AutomationBehaviour = "REQUIRED_BEYOND_FIRST_COLUMN"
+)
+
+var automationBehaviours = [...]AutomationBehaviour{AutomationRequiredBeyondFirstColumn}
+
 // AutomationBehaviours is the declared set.
-func AutomationBehaviours() []AutomationBehaviour { return nil }
+func AutomationBehaviours() []AutomationBehaviour { return automationBehaviours[:] }
 
 // MaxLevelNameLength bounds a level's own name, in code points.
 const MaxLevelNameLength = 60
@@ -540,7 +549,15 @@ func (b StructureBound) Clip(values StructureValues) StructureValues {
 		values.Fields = clipped
 	}
 	if values.Automation != nil {
-		values.Automation = []AutomationBehaviour{}
+		// Every declared behaviour is within every installation's bound; what is dropped is only a
+		// value this build no longer declares.
+		kept := make([]AutomationBehaviour, 0, len(values.Automation))
+		for _, behaviour := range values.Automation {
+			if slices.Contains(automationBehaviours[:], behaviour) && !slices.Contains(kept, behaviour) {
+				kept = append(kept, behaviour)
+			}
+		}
+		values.Automation = kept
 	}
 	return values
 }
@@ -634,10 +651,18 @@ func (b StructureBound) Validate(values StructureValues, form text.Normalizer) (
 	if values.Celebration != "" && !slices.Contains(celebrationStyles[:], values.Celebration) {
 		return StructureValues{}, settingInvalid(string(SettingCelebration), "")
 	}
-	if len(values.Automation) > 0 {
-		// Nothing runs by itself yet that a collection may switch on: asking for a behaviour is
-		// asking for more than this installation offers.
-		return StructureValues{}, widens(SettingAutomation, "", "")
+	if values.Automation != nil {
+		seen := map[AutomationBehaviour]bool{}
+		for _, behaviour := range values.Automation {
+			if !slices.Contains(automationBehaviours[:], behaviour) {
+				// A behaviour this installation does not have is asking for more than it offers.
+				return StructureValues{}, widens(SettingAutomation, "", "")
+			}
+			if seen[behaviour] {
+				return StructureValues{}, settingInvalid(string(SettingAutomation), "")
+			}
+			seen[behaviour] = true
+		}
 	}
 	return values, nil
 }

@@ -68,6 +68,9 @@ type UpdateWorkItem struct {
 	DueDates DueDateWriter
 	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Flow refuses an entry entering a column past the first without its required fields, where
+	// the collection applies that (FlowGate).
+	Flow FlowGate
 	// Structure resolves the collection's structure in force, which decides whether it offers an
 	// amount (ensureAmountOffered).
 	Structure StructureResolver
@@ -160,6 +163,11 @@ func (h UpdateWorkItem) Execute(
 		wanted, changes, err := item.Updated(cmd.Attributes, profile, h.Text, now)
 		if err != nil {
 			return err
+		}
+		if wanted.BucketID != item.BucketID {
+			if err := h.Flow.ensureMayEnter(ctx, h.Gate.Structure, collection, wanted, wanted.BucketID); err != nil {
+				return err
+			}
 		}
 
 		// The due trio resolves against the stored one before anything is written, so that a

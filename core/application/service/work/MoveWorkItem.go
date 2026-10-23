@@ -47,7 +47,10 @@ type PlacementWriter struct {
 	Profiles   metarepo.CapabilityProfiles
 	// Gate is what the entry's collection offers it: the refusal before a write of what it
 	// hides, and the mark on the answer (domain-model.md §2).
-	Gate       EntryGate
+	Gate EntryGate
+	// Flow refuses an entry moved into a column past the first without its required fields, where
+	// the destination applies that (FlowGate).
+	Flow       FlowGate
 	Authorizer Authorizer
 	Events     outbox.Events
 	Changes    changelog.ChangeLog
@@ -443,7 +446,14 @@ func (w PlacementWriter) ensureBucketAt(
 				Path: "/target_bucket_id", Code: "items.bucket_not_at_top_level",
 			})
 	}
-	return ensureBucketOnBoard(ctx, w.Buckets, plan.destination.ID, plan.command.TargetBucketID)
+	if err := ensureBucketOnBoard(ctx, w.Buckets, plan.destination.ID, plan.command.TargetBucketID); err != nil {
+		return err
+	}
+	if plan.command.TargetBucketID == plan.item.BucketID && plan.destination.ID == plan.item.CollectionID {
+		// Within its own column: the entry enters nothing.
+		return nil
+	}
+	return w.Flow.ensureMayEnter(ctx, w.Gate.Structure, plan.destination, plan.item, plan.command.TargetBucketID)
 }
 
 // profileFor reads the capability profile in force for one type, through the hierarchy the move

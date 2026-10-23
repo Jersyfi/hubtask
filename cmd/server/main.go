@@ -787,8 +787,11 @@ func run() error {
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
 	// reorder is a move that keeps its parent (work.PlacementWriter).
+	// The one gate every writer placing an entry in a column asks (UC-WRK-31 check 2).
+	flowGate := work.FlowGate{Buckets: buckets, Fields: customFields}
 	placement := work.PlacementWriter{
 		Gate:  entryGate,
+		Flow:  flowGate,
 		Items: items, Buckets: buckets, Containers: containers, Profiles: profiles,
 		Authorizer: authorizer, Events: outbox, Changes: changes, Audit: auditSink,
 		Activity: journal, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
@@ -2047,9 +2050,11 @@ func run() error {
 			CustomFields: setCustomField,
 			Text:         forms,
 			Structure:    structures,
+			Flow:         flowGate,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Gate:       entryGate,
+			Flow:       flowGate,
 			Items:      items,
 			Buckets:    buckets,
 			Containers: containers,

@@ -9,7 +9,8 @@
  *   (check 2), and the server refuses progress typed for one level (`structure.figure_not_offered`).
  * * **DUE** only where some offered level carries a due date: no level, no date to be due.
  * * **FIELD_SUM** only where the top level carries custom fields and a number field is offered.
- * * **FLOW** offered, marked: its figure is counted once flows have their columns.
+ * * **FLOW** always: it counts the board's columns and what is completed, which every collection
+ *   has (UC-WRK-31 check 4).
  *
  * And what the control has to explain: a lock (the value shown, not editable), and a progress the
  * layers set that the levels clip to open entries.
@@ -27,8 +28,6 @@ export interface FigureOffer {
   readonly figures: readonly FigureKind[];
   /** The number fields a sum may name: a key is what a person reads for a field (no label is stored). */
   readonly fields: readonly { readonly key: string; readonly name: string }[];
-  /** FLOW is offered and counts nothing yet. */
-  readonly isFlowLater: boolean;
   /** Where the value comes from, when it is not this collection's own. */
   readonly source: string;
   /** The lock's origin, where what counts is locked; the control then edits nothing. */
@@ -60,7 +59,6 @@ export function figureOffer(structure: EffectiveStructure, definitions: readonly
   return {
     figures: ORDER.filter((kind) => offered.has(kind)),
     fields,
-    isFlowLater: true,
     source: structure.sources?.counts ?? 'DEFAULT',
     lockedBy: structure.locks?.counts?.origin,
     clippedFrom: (structure.counts_clipped?.from.figure as FigureKind | undefined) ?? undefined,

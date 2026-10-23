@@ -1729,4 +1729,6 @@ type WorkItem struct {
 	CalendarUid           *string
 	Amount                *string
 	CompletionCount       int32
+	FlowStartedAt         pgtype.Timestamptz
+	FlowFinishedAt        pgtype.Timestamptz
 }

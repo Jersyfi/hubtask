@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member, PE-child, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-10, P-12]
-state: partial
+state: verified
 tasks: [UX-24, UX-25, UX-26]
-checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs]
+checked_by: [core/domain/model/work/StructureResolve_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/StructureProgress_test.go, core/application/service/work/FigureReader_test.go, test/integration/figure_repository_test.go, test/integration/container_figure_test.go, cmd/hubctl/Structure_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/src/lib/data/figureOffer.test.ts, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Kudos_test.go, core/application/service/work/Milestones_test.go, core/application/service/work/Kudos_test.go, test/integration/milestones_test.go, test/integration/kudos_test.go, test/integration/celebrations_archive_test.go, apps/webapp/src/lib/data/kudos.test.ts, apps/webapp/e2e/celebrate.test.mjs, apps/webapp/e2e/flow.test.mjs]
 ---
 
 # See what counts in a hub or collection
@@ -34,7 +34,3 @@ The shopping list says "5 items · about €38", the household "3 due today", th
 
 * No points, experience, levels, badges for activity, streaks or leaderboards (design-system.md §7).
 * No figure is computed from what a person did not do.
-
-## Today
-
-* Check 1: not met — the flow figure is counted once a flow's columns are its states; the setting offers it and nothing is shown until then, tracked in #1658.

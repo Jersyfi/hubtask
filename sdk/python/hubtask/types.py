@@ -1554,7 +1554,7 @@ class ContainerPolicies(TypedDict, total=False):
 CompletionPolicy = Literal["MANUAL", "ROLLUP"]
 
 class StructureSettings(TypedDict, total=False):
-    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them."""
+    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them."""
     levels: list["StructureLevel"]
     fields: dict[str, Any]
     views: "StructureViews"
@@ -1562,7 +1562,7 @@ class StructureSettings(TypedDict, total=False):
     completion: "CompletionPolicy"
     capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
     celebration: Literal["ALL", "SUBTLE"]
-    automation: list[str]
+    automation: list[Literal["REQUIRED_BEYOND_FIRST_COLUMN"]]
 
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
@@ -1614,7 +1614,7 @@ StructureCountsClip = TypedDict("StructureCountsClip", {
 
 class CollectionFigure(TypedDict, total=False):
     """What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
-    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS"]]
+    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW"]]
     today: Required[str]
     unavailable: bool
     open: int
@@ -1625,6 +1625,9 @@ class CollectionFigure(TypedDict, total=False):
     week_start: str
     done: int
     total: int
+    completed: int
+    average_seconds: float | None
+    over_limit: int
 
 class StructureLock(TypedDict, total=False):
     origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]
