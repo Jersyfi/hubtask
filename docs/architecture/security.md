@@ -304,7 +304,7 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 | SG-10 | An SBOM produced and the image signed (release pipeline only) |
 | SG-11 | Auth negative tests: an expired/tampered/revoked token, the wrong issuer, a missing scope; the purchase platform's narrow scope admitting exactly its verbs, and the deletion's step-up waived for nobody but a registered service account (T-26) |
 | SG-12 | The upload matrix test (SVG, HTML, polyglot files, the wrong content type) |
-| SG-13 | Every writing use case declares its audit obligation, and every auditable action is in the `AuditableAction` registry ([audit.md](./audit.md) §7) |
+| SG-13 | Every writing use case declares its audit obligation, and every auditable action is in the `AuditableAction` registry ([audit.md](./audit.md) §7). The named exceptions, audited only when refused, are listed in the gate (`test/architecture/parity_test.go`) with their reason: *GiveKudos* and *TakeBackKudos*, because a trail of every give would let an auditor count who acknowledged whom (UC-WRK-29 check 6) |
 
 ---
 
