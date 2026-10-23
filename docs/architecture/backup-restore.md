@@ -502,9 +502,10 @@ defensible — a day of writes and an untested archive short of §8.5.
 ## 9. Import and export of existing systems
 
 **Importers write archive records, and the restore applies them** — one ingestion path.
-`POST /imports` names a file uploaded with `usage: IMPORT` and the hub the collections land under; a
-converter per kind (`infrastructure/importer`) turns it into `archive.Record`s in memory, and the
-applier lands them in `MERGE` mode with `skip`.
+`POST /imports` names a file uploaded with `usage: IMPORT` and the hub the collections land under -
+or, with `collection_id`, a collection of that hub the entries land in; a converter per kind
+(`infrastructure/importer`) turns it into `archive.Record`s in memory, and the applier lands them in
+`MERGE` mode with `skip`.
 
 | Kind | Source |
 |---|---|
@@ -515,8 +516,18 @@ applier lands them in `MERGE` mode with `skip`.
 
 Rules:
 
-* **Identities are derived** from the hub and the source's own identity (a CSV's digest, a board's
-  identifier), so importing the same source into the same hub twice is a no-op.
+* **Identities are derived** from the hub - or the target collection - and the source's own identity
+  (a CSV's digest, a board's identifier), so importing the same source into the same place twice is
+  a no-op.
+* **Into a collection**, the file's own collection is that one: no container is written, a board's
+  lists are its columns, and a file that keeps several lists (a CSV's `collection` column, Google
+  Tasks' or Microsoft To Do's lists) keeps them apart by a label each on the top-level entries. A
+  column or label is met by the name the collection's unique index compares (`lower(imm_unaccent)`),
+  in the file and in the collection, rather than written as a second one; what lands ranks after
+  what was there. It asks `STRUCTURE` on the collection, since it may add columns and labels, and is
+  read where it landed. Its job is `import.into_collection`, a kind of its own, so that a process of
+  a release without it never claims one; a collection that left the hub before the job ran fails
+  the run with `imports.not_in_hub`.
 * **A different file whose collection meets a name the hub already holds** is refused with
   `imports.collection_exists` and lands nothing; the applier answers a unique index as a conflict
   (`containers.name_taken`, `backup.row_conflicts`), never as a database error the queue would retry.
