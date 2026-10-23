@@ -90,7 +90,7 @@
   {#snippet actions()}
     <Inline gap="100">
       <Button tone="secondary" onclick={() => { isOpen = false; oncancel(); }}>{t('app.workspace.cancel')}</Button>
-      <Button onclick={() => onconfirm(narrowing)} isBusy={isSaving} data-narrowing-confirm>
+      <Button tone="primary" onclick={() => onconfirm(narrowing)} isBusy={isSaving} data-narrowing-confirm>
         {t(narrowing === 'FLATTEN' ? 'app.structure.narrowing.confirm_flatten' : 'app.structure.narrowing.confirm_hide')}
       </Button>
     </Inline>

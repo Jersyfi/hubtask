@@ -2818,7 +2818,7 @@
   "app.structure.narrowing.title": "Show less?",
   "app.structure.narrowing.intro": "After this change, these are no longer shown. Nothing is deleted.",
   "app.structure.narrowing.level": "{level}: {count, plural, one {# entry} other {# entries}}",
-  "app.structure.narrowing.field": "{field} on {count, plural, one {# {level}} other {# entries of {level}}}",
+  "app.structure.narrowing.field": "{level}: {field} on {count, plural, one {# entry} other {# entries}}",
   "app.structure.narrowing.view": "The view {view}",
   "app.structure.narrowing.automation": "{count, plural, one {One rule pauses} other {# rules pause}}",
   "app.structure.narrowing.keeping_intro": "These collections keep their own value and do not change:",

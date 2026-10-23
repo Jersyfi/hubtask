@@ -1120,7 +1120,7 @@
   "app.structure.narrowing.title": "Weniger zeigen?",
   "app.structure.narrowing.intro": "Nach dieser Änderung wird Folgendes nicht mehr gezeigt. Gelöscht wird nichts.",
   "app.structure.narrowing.level": "{level}: {count, plural, one {# Eintrag} other {# Einträge}}",
-  "app.structure.narrowing.field": "{field} bei {count, plural, one {# {level}} other {# Einträgen der Ebene {level}}}",
+  "app.structure.narrowing.field": "{level}: {field} bei {count, plural, one {# Eintrag} other {# Einträgen}}",
   "app.structure.narrowing.view": "Die Ansicht {view}",
   "app.structure.narrowing.automation": "{count, plural, one {Eine Regel pausiert} other {# Regeln pausieren}}",
   "app.structure.narrowing.keeping_intro": "Diese Sammlungen behalten ihren eigenen Wert und ändern sich nicht:",

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9), walked over the shared
+// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9) and switching it without
+// loss (UC-WRK-24 checks 1, 2, 4, 6, 7), walked over the shared
 // fixture's structure hub as three readers:
 //
 // * the owner opens a *List* collection and meets no board, no timeline, no twist and on an entry
@@ -9,6 +10,8 @@
 //   from, resets what is set here, and sends a preset as itself; creating a collection offers
 //   the presets; the list's one level, named "item", is "item" on an entry's badge and on every
 //   control that adds one, where an unnamed level keeps the catalogue's words;
+// * the owner narrows a project and a hub: a dialog first names what would no longer be shown, and for
+//   the hub the collections keeping their own value; *Hide* is the default, *Flatten* says it is final;
 // * an administrator meets a project whose views and task dates the workspace locked: the lock
 //   and who set it beside the setting, the controls readable and unavailable, and a preset chosen
 //   under the lock keeping the locked value;
@@ -161,7 +164,7 @@ test('chromium: the owner - a narrowing first shows what it would stop showing, 
   await dialog.waitFor({ timeout: 5_000 });
   assert.deepEqual(written, [], 'a narrowing was saved before it was confirmed');
   const said = await dialog.textContent();
-  for (const line of ['Work package: 4 entries', 'Activity: 11 entries', 'The view Board']) {
+  for (const line of ['Work package: 4 entries', 'Activity: 11 entries', 'Task: Dates on 9 entries', 'The view Board']) {
     assert.ok(said.includes(line), `the preview does not say "${line}": ${said}`);
   }
   assert.ok(said.includes('15 entries move to the top level'), 'Flatten does not say what it moves');
@@ -178,6 +181,29 @@ test('chromium: the owner - a narrowing first shows what it would stop showing, 
   await dialog.getByRole('button', { name: 'Flatten and save' }).click();
   await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.deepEqual(written, [{ preset: 'LIST', narrowing: 'FLATTEN' }]);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner - a hub that narrows names the collections keeping their own value (UC-WRK-24 check 7)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures, written } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
+  await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(600);
+  const panel = await openPanel(page, SHAPE_HUB.name);
+  await panel.getByRole('combobox', { name: 'Preset' }).selectOption('LIST');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  const dialog = page.getByRole('dialog', { name: 'Show less?' });
+  await dialog.waitFor({ timeout: 5_000 });
+  const said = await dialog.textContent();
+  assert.ok(said.includes('These collections keep their own value and do not change:'), `the preview does not name who keeps its own: ${said}`);
+  assert.ok(said.includes(`${SHAPES.list.name}: Levels, Views`), `the preview does not name ${SHAPES.list.name}: ${said}`);
+  await dialog.getByRole('button', { name: 'Hide and save' }).click();
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  assert.deepEqual(written, [{ preset: 'LIST', narrowing: 'HIDE' }]);
   assert.deepEqual(failures, []);
 });
 

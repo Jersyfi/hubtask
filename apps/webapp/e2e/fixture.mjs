@@ -591,7 +591,10 @@ function structureRoute(route, request, url, path) {
           narrows: true,
           levels: [{ type: 'WORK_PACKAGE', entries: 4 }, { type: 'ACTIVITY', entries: 11 }],
           fields: [{ type: 'TASK', capability: 'DUE_DATE', entries: 9 }],
-          views: ['KANBAN', 'TIMELINE'], automation: [], keeping: [], flatten: { entries: 15 },
+          views: ['KANBAN', 'TIMELINE'], automation: [],
+          // A hub names the collections that keep their own value (check 7): the list set its levels and views itself.
+          keeping: previewed.type === 'HUB' ? [{ container_id: SHAPES.list.id, name: SHAPES.list.name, settings: ['levels', 'views'] }] : [],
+          flatten: { entries: 15 },
         }
         : { narrows: false, levels: [], fields: [], views: [], automation: [], keeping: [], flatten: { entries: 0 } },
     });
