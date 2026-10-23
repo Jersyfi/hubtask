@@ -243,3 +243,93 @@ func TestAFlowEntryLeavesItsFirstColumnOnlyWithItsRequiredFields(t *testing.T) {
 		t.Errorf("with the field, REST answered %d %s", recorder.Code, recorder.Body)
 	}
 }
+
+// UC-WRK-31 check 4: the moments the figure measures by are recorded on every way an entry changes
+// column - its creation, a move, a device's push - and the first column's stays when it comes back.
+func TestAFlowEntryRecordsWhenItEntersTheFirstAndTheDoneColumn(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	registry := flowCatalogue(t)
+	actor := hiddenActor(tenantB, authorB)
+	collection := collectionFor(ctx, t, tenantB, authorB).String()
+	column := func(name string, done bool) string {
+		t.Helper()
+		out, err := registry.Invoke(ctx, "CreateBucket", actor, usecase.Input{
+			"collection_id": collection, "name": name, "is_done_bucket": done,
+		})
+		if err != nil {
+			t.Fatalf("the column %s: %v", name, err)
+		}
+		return out.String("id")
+	}
+	first, doing, done := column("New", false), column("In progress", false), column("Done", true)
+
+	arrived, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
+		"type": "TASK", "collection_id": collection, "title": "Printer jams", "bucket_id": first,
+	})
+	if err != nil {
+		t.Fatalf("creating in the first column: %v", err)
+	}
+	taskID := arrived.String("id")
+	type moments struct{ created, started, finished *time.Time }
+	read := func() moments {
+		t.Helper()
+		var m moments
+		if err := adminPool(ctx, t).QueryRow(ctx,
+			`SELECT created_at, flow_started_at, flow_finished_at FROM work_item WHERE id = $1`, taskID,
+		).Scan(&m.created, &m.started, &m.finished); err != nil {
+			t.Fatalf("reading the moments: %v", err)
+		}
+		return m
+	}
+	move := func(bucket string) {
+		t.Helper()
+		if _, err := registry.Invoke(ctx, "MoveWorkItem", actor, usecase.Input{
+			"item_id": taskID, "target_bucket_id": bucket,
+		}); err != nil {
+			t.Fatalf("moving: %v", err)
+		}
+	}
+
+	created := read()
+	if created.started == nil || !created.started.Equal(*created.created) || created.finished != nil {
+		t.Fatalf("created into the first column, recorded %+v", created)
+	}
+
+	// Through a move and back: the first column's moment stays.
+	move(doing)
+	move(first)
+	if back := read(); back.started == nil || !back.started.Equal(*created.started) || back.finished != nil {
+		t.Errorf("moved back, recorded %+v", back)
+	}
+
+	// A device's push into the done column.
+	push := syncservice.PushChanges{
+		Stream: streamFor(ctx, t), IDs: clockadapter.NewUUIDv7(portclock.Fixed(time.Now())),
+		Devices: postgres.NewDeviceRepository(), Ops: postgres.NewSyncOpLog(),
+		Tombstones: postgres.NewTombstoneRepository(), Catalogue: registry, Skew: 5 * time.Minute,
+		Clocks: postgres.NewChangeLog(),
+	}
+	device := freshID(t)
+	reading, _ := shared.NewHLC(time.Now().Add(time.Minute), 1, device.String())
+	pushed, err := push.Push(ctx, actor, syncservice.PushRequest{DeviceID: device, Mutations: []syncservice.Mutation{{
+		OpID: freshID(t), Kind: syncdomain.ItemPatch, ItemID: shared.ID(taskID),
+		Fields: map[string]syncservice.FieldChange{"bucket_id": {Value: done, HLC: reading.String()}},
+	}}})
+	if err != nil || pushed.Results[0].Result == syncdomain.Rejected {
+		t.Fatalf("pushing into the done column: %v %+v", err, pushed)
+	}
+	finished := read()
+	if finished.finished == nil || finished.finished.Before(*created.started) ||
+		!finished.started.Equal(*created.started) {
+		t.Fatalf("pushed into the done column, recorded %+v", finished)
+	}
+
+	// Out of the done column and in again: the last entry counts.
+	move(doing)
+	move(done)
+	if again := read(); again.finished == nil || again.finished.Before(*finished.finished) ||
+		!again.started.Equal(*created.started) {
+		t.Errorf("moved into the done column again, recorded %+v", again)
+	}
+}

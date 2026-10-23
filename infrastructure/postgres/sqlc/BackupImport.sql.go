@@ -2584,7 +2584,9 @@ INSERT INTO work_item (
   retention_action,
   retention_blocked_by,
   amount,
-  completion_count
+  completion_count,
+  flow_started_at,
+  flow_finished_at
 )
 SELECT
   r.id,
@@ -2632,7 +2634,9 @@ SELECT
   r.retention_blocked_by,
   r.amount,
   -- An archive written before migration 0189 carries no count, and the column takes no NULL.
-  coalesce(r.completion_count, 0)
+  coalesce(r.completion_count, 0),
+  r.flow_started_at,
+  r.flow_finished_at
 FROM jsonb_populate_record(
   NULL::work_item,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2681,7 +2685,9 @@ ON CONFLICT (id) DO UPDATE SET
   retention_action = EXCLUDED.retention_action,
   retention_blocked_by = EXCLUDED.retention_blocked_by,
   amount = EXCLUDED.amount,
-  completion_count = EXCLUDED.completion_count
+  completion_count = EXCLUDED.completion_count,
+  flow_started_at = EXCLUDED.flow_started_at,
+  flow_finished_at = EXCLUDED.flow_finished_at
 WHERE $2::boolean
 `
 
