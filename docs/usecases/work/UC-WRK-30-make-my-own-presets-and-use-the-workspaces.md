@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-06, P-07, P-10]
-state: partial
-tasks: [UX-27]
-checked_by: [core/domain/model/work/SavedPreset_test.go, test/integration/structure_preset_test.go, test/integration/presets_test.go, test/integration/starter_test.go, apps/webapp/src/lib/data/presetChoice.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/workspace/starterSet.test.ts, apps/webapp/e2e/presets.test.mjs, apps/webapp/e2e/starter.test.mjs]
+state: verified
+tasks: [UX-27, UX-28]
+checked_by: [core/domain/model/work/SavedPreset_test.go, test/integration/structure_preset_test.go, test/integration/installation_presets_offered_test.go, test/integration/presets_test.go, test/integration/starter_test.go, apps/webapp/src/lib/data/presetChoice.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/workspace/starterSet.test.ts, apps/webapp/e2e/presets.test.mjs, apps/webapp/e2e/starter.test.mjs]
 ---
 
 # Make my own presets and use the workspace's
@@ -31,7 +31,3 @@ The freelancer has tuned "Client A": two levels, a field "Hours" with a sum, a b
 ## Where it ends
 
 * Presets copy settings, not entries; entries come from templates ([UC-WRK-16](./UC-WRK-16-start-a-routine-from-a-template.md)).
-
-## Today
-
-* Check 2: not met — the installation's presets are not offered yet, tracked in #1660.

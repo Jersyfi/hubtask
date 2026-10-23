@@ -41,11 +41,15 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let busy = $state<string | undefined>(undefined);
 
-  /** The default as it is chosen: Hubtask's key or a workspace preset's id, or empty for none. */
+  /**
+   * The default as it is chosen: Hubtask's key or a workspace preset's id, or empty for none. Not
+   * the installation's: it can be withdrawn without the workspace knowing, and a default naming
+   * nothing would break every new hub - the server refuses it, so it is not offered.
+   */
   const defaultValue = $derived(structure?.default_preset ?? structure?.default_preset_id ?? '');
   const defaultOptions = $derived([
     { value: '', label: t('app.presets.default_none') },
-    ...presets.all.filter((preset) => preset.origin !== 'OWN').map((preset) => ({ value: presetValue(preset), label: presetName(preset) })),
+    ...presets.all.filter((preset) => preset.origin === 'HUBTASK' || preset.origin === 'WORKSPACE').map((preset) => ({ value: presetValue(preset), label: presetName(preset) })),
   ]);
 
   /** Names typed for a rename, by preset id. */

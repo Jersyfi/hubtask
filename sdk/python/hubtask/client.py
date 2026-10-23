@@ -791,6 +791,22 @@ class Client:
         """Remove a plan"""
         return self._call("DELETE", "/admin/plans/{planName}", {"planName": plan_name}, None, {}, None, "none", None, "void")
 
+    def list_installation_presets(self) -> dict[str, Any]:
+        """The installation's presets"""
+        return self._call("GET", "/admin/presets", {}, None, {}, None, "none", None, "json")
+
+    def create_installation_preset(self, body: "InstallationPresetCreate") -> "InstallationPreset":
+        """Create a preset of the installation"""
+        return self._call("POST", "/admin/presets", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_installation_preset(self, preset_id: str, body: "InstallationPresetUpdate", *, if_match: str | None = None) -> "InstallationPreset":
+        """Change a preset of the installation"""
+        return self._call("PATCH", "/admin/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def withdraw_installation_preset(self, preset_id: str, *, if_match: str | None = None) -> None:
+        """Withdraw a preset of the installation"""
+        return self._call("DELETE", "/admin/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
     def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
         """Put a workspace on another plan"""
         return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")

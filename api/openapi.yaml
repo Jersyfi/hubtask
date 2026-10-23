@@ -5232,6 +5232,111 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/presets:
+    get:
+      tags: [admin]
+      operationId: listInstallationPresets
+      summary: The installation's presets
+      description: >
+        The presets this installation offers every workspace, by name, each with its eight
+        settings, whether it is the default a new hub starts from where its workspace chose none,
+        and - on the default - the settings it locks for every workspace. Multi mode only; single
+        mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one
+        level there.
+      responses:
+        "200":
+          description: The installation's presets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    maxItems: 50
+                    items: { $ref: "#/components/schemas/InstallationPreset" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [admin]
+      operationId: createInstallationPreset
+      summary: Create a preset of the installation
+      description: >
+        A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION`
+        on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from
+        Hubtask's default, with `settings` on top, held to what the installation offers like a
+        layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is
+        refused with `presets.limit_reached`. Refused while a file enforces the installation's
+        level (`admin.instance_enforced_from_file`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstallationPresetCreate" }
+      responses:
+        "201":
+          description: The preset
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstallationPreset" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/presets/{presetId}:
+    parameters:
+      - $ref: "#/components/parameters/PresetId"
+    patch:
+      tags: [admin]
+      operationId: changeInstallationPreset
+      summary: Change a preset of the installation
+      description: >
+        Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top
+        (`settings`), makes it the default or not (`is_default`) and sets the settings it locks
+        (`locks`, the whole set). Only the default locks: locks on another preset are refused with
+        `presets.locks_need_default`, and making another preset the default lifts the former
+        default's locks. A lock fixes a setting - or one capability of one level,
+        `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection,
+        answered there with origin `INSTANCE`. Hubs and collections made from it keep their
+        settings. With `If-Match`, a change made on a preset somebody else changed since is
+        refused with `version_conflict`.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstallationPresetUpdate" }
+      responses:
+        "200":
+          description: The preset as it now stands
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstallationPreset" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [admin]
+      operationId: withdrawInstallationPreset
+      summary: Withdraw a preset of the installation
+      description: >
+        It is offered to no workspace any more; hubs and collections made from it keep their
+        settings. The default is refused with `presets.installation_default` until another preset
+        is the default or none is.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Withdrawn
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:move-plan:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -8213,10 +8318,11 @@ paths:
       summary: The presets a hub or collection can start from
       description: >
         The presets the caller can start a hub or collection from, each marked with its `origin`:
-        Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each
-        with its eight settings as this installation offers them. Hubtask's come first in a stable
-        order, then the workspace's and the caller's own by name. Another person's own presets are
-        never answered. A bounded list, not a page: the saved ones are bounded per origin.
+        Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the
+        caller's own, each with its eight settings as this installation offers them. Hubtask's come
+        first in a stable order, then the installation's, the workspace's and the caller's own, each
+        by name. Another person's own presets are never answered. A bounded list, not a page: the
+        saved ones are bounded per origin.
       responses:
         "200":
           description: The presets
@@ -8224,7 +8330,7 @@ paths:
             application/json:
               schema:
                 type: array
-                maxItems: 154
+                maxItems: 204
                 items:
                   $ref: "#/components/schemas/Preset"
         "4XX":
@@ -15795,8 +15901,8 @@ components:
           type: [string, "null"]
           format: uuid
           description: >
-            A saved preset to start from instead - the workspace's, or the caller's own; any other
-            is refused with `presets.unknown`. Naming it beside `preset` is refused with
+            A saved preset to start from instead - the workspace's, the installation's or the
+            caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with
             `presets.both_named`.
 
     ContainerUpdate:
@@ -15988,8 +16094,8 @@ components:
           type: string
           format: uuid
           description: >
-            A saved preset to copy instead - the workspace's, or the caller's own; any other is
-            refused with `presets.unknown`. Naming it beside `preset` is refused with
+            A saved preset to copy instead - the workspace's, the installation's or the caller's
+            own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with
             `presets.both_named`.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         reset:
@@ -16086,8 +16192,8 @@ components:
           type: string
           format: uuid
           description: >
-            A saved preset to copy instead - the workspace's, or the caller's own; any other is
-            refused with `presets.unknown`. Naming it beside `preset` is refused with
+            A saved preset to copy instead - the workspace's, the installation's or the caller's
+            own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with
             `presets.both_named`.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         reset:
@@ -16286,15 +16392,17 @@ components:
         A starting point for a hub or collection: values for all eight settings, held to what this
         installation offers. Choosing one copies its values; nothing follows a preset afterwards.
         One of Hubtask's carries its stable `key`, which a client translates; a saved one - the
-        workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
+        installation's, the workspace's or the caller's own - its `id`, the `name` given it and its
+        `version`.
       required: [origin, settings]
       properties:
         origin:
           type: string
-          enum: [HUBTASK, WORKSPACE, OWN]
+          enum: [HUBTASK, INSTALLATION, WORKSPACE, OWN]
           description: >
-            Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or
-            the caller's own (offered to them alone).
+            Where the preset comes from: Hubtask's, the installation's (offered in every workspace),
+            the workspace's (offered to everyone in it), or the caller's own (offered to them
+            alone).
         key:
           type: string
           enum: [LIST, TASKS, PROJECT, FLOW]
@@ -16311,6 +16419,79 @@ components:
           type: integer
           description: A saved preset's optimistic lock. Absent on one of Hubtask's.
         settings: { $ref: "#/components/schemas/StructureSettings" }
+
+    InstallationPreset:
+      type: object
+      description: >
+        A preset the installation offers every workspace: its eight settings, held to what the
+        installation offers; whether it is the default a hub starts from where its workspace chose
+        none; and, on the default, the settings it locks for every workspace.
+      required: [id, name, version, settings, is_default, locks]
+      properties:
+        id: { type: string, format: uuid }
+        name:
+          type: string
+          maxLength: 100
+          description: The operator's name for it, as every workspace sees it.
+        version:
+          type: integer
+          description: The optimistic lock, the same value as the `ETag`.
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        is_default:
+          type: boolean
+          description: >
+            Whether a hub created without a preset starts from it, in a workspace that chose no
+            default of its own. One preset at most.
+        locks:
+          type: array
+          items: { type: string }
+          description: >
+            What the default fixes in every workspace: a whole setting (`views`) or one capability
+            of one level (`fields.TASK.DUE_DATE`). Empty on every other preset.
+
+    InstallationPresetCreate:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        preset:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+          description: One of Hubtask's presets the settings start from; Hubtask's default without one.
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        is_default:
+          type: boolean
+          description: Makes it the default; the former default stops being one and loses its locks.
+        locks:
+          type: array
+          maxItems: 64
+          items: { type: string }
+          description: The settings the default locks; only with `is_default`.
+
+    InstallationPresetUpdate:
+      type: object
+      additionalProperties: false
+      description: >
+        Applied in this order - the name, Hubtask's preset copied again, the settings, the default,
+        the locks. A field left out is left as it is.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        preset:
+          type: string
+          enum: [LIST, TASKS, PROJECT, FLOW]
+          description: One of Hubtask's presets whose settings replace this one's.
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+        is_default:
+          type: boolean
+          description: >
+            True makes it the default, lifting the former default's locks; false makes none the
+            default and lifts its locks.
+        locks:
+          type: array
+          maxItems: 64
+          items: { type: string }
+          description: The whole set of locks; refused on a preset that is not the default.
 
     PresetCreate:
       type: object

@@ -44,13 +44,15 @@ func (k PresetKey) SavedID() (shared.ID, bool) {
 	return id, true
 }
 
-// PresetOrigin says where a preset comes from (UC-WRK-30 check 2). The installation's presets are
-// a further origin that arrives with their writer; nothing here assumes these are all there are.
+// PresetOrigin says where a preset comes from (UC-WRK-30 check 2, UC-INS-18 check 2).
 type PresetOrigin string
 
 const (
 	// PresetOriginHubtask is one of Hubtask's four, build data.
 	PresetOriginHubtask PresetOrigin = "HUBTASK"
+	// PresetOriginInstallation is the installation's: offered in every workspace, kept by its
+	// operator.
+	PresetOriginInstallation PresetOrigin = "INSTALLATION"
 	// PresetOriginWorkspace is the workspace's: offered to everyone in it, kept by whoever may
 	// change the workspace's shape.
 	PresetOriginWorkspace PresetOrigin = "WORKSPACE"
@@ -90,9 +92,9 @@ type Preset struct {
 }
 
 // BuiltInPresets are Hubtask's four presets, as build data rather than rows: nothing writes them,
-// and an installation's own presets arrive in a table of their own. Their values are held to the
-// installation's bound when they are offered (Offered), so a preset never offers what the
-// installation does not.
+// and an installation's own presets are rows of their own (InstallationPreset). Their values are
+// held to the installation's bound when they are offered (Offered), so a preset never offers what
+// the installation does not.
 //
 // Each type's fields are written out from the system matrix rather than derived, because a preset
 // is a decision about what a kind of collection needs - *List* has no date, person, label, note
@@ -194,12 +196,12 @@ type NewSavedPresetInput struct {
 	Text   text.Normalizer
 }
 
-// NewSavedPreset is a preset of the workspace's or of one person's own (UC-WRK-30 check 1). Its
-// values lose their categories: those name labels of one collection, which a preset offered for
-// every collection cannot name.
+// NewSavedPreset is a preset of the installation's, the workspace's or one person's own (UC-WRK-30
+// check 1, UC-INS-18 check 1). Its values lose their categories: those name labels of one
+// collection, which a preset offered for every collection cannot name.
 func NewSavedPreset(in NewSavedPresetInput) (Preset, error) {
 	switch in.Origin {
-	case PresetOriginWorkspace, PresetOriginOwn:
+	case PresetOriginInstallation, PresetOriginWorkspace, PresetOriginOwn:
 	default:
 		return Preset{}, shared.ErrValidation.
 			WithDetail("presets.origin_unknown").
@@ -258,8 +260,11 @@ func WithoutCategories(values StructureValues) StructureValues {
 // ErrPresetsLimitReached refuses a saved preset beyond the bound of its origin.
 func ErrPresetsLimitReached(origin PresetOrigin) error {
 	maximum := MaxWorkspacePresets
-	if origin == PresetOriginOwn {
+	switch origin {
+	case PresetOriginOwn:
 		maximum = MaxOwnPresets
+	case PresetOriginInstallation:
+		maximum = MaxInstallationPresets
 	}
 	return shared.ErrConflict.WithDetail("presets.limit_reached").
 		WithParams(map[string]string{"maximum": strconv.Itoa(maximum)})

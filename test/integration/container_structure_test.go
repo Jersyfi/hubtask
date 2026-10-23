@@ -53,6 +53,7 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 	resolver := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(),
 		Profiles: postgres.NewCapabilityProfileRepository(), Presets: postgres.NewPresetRepository(),
+		Installation: postgres.NewInstallationPresetRepository(),
 	}
 	desk := work.PresetDesk{
 		Presets: resolver.Presets, Structure: resolver, Authorizer: authoriser, Audit: sink,
@@ -78,7 +79,10 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
 			Labels: labelRepo(),
 		}.Descriptor(),
-		work.ListPresets{Profiles: resolver.Profiles, Presets: resolver.Presets, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListPresets{
+			Profiles: resolver.Profiles, Presets: resolver.Presets, Installation: resolver.Installation,
+			UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.SavePreset{Desk: desk}.Descriptor(),
 		work.ChangePreset{Desk: desk}.Descriptor(),
 		work.WithdrawPreset{Desk: desk}.Descriptor(),

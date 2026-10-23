@@ -169,12 +169,15 @@ func (h SetWorkspaceStructure) decide(
 	next := domain.WorkspaceStructure{
 		Layer: current.Layer, Locks: current.Locks, DefaultPreset: current.DefaultPreset,
 	}
+	// What the installation holds the workspace to: its default's locks (UC-INS-18 check 3).
+	installation := domain.ResolveStructure(bound, domain.WorkspaceStructure{})
 	if cmd.Preset != "" {
 		preset, err := reading.Preset(ctx, actor, cmd.Preset)
 		if err != nil {
 			return domain.WorkspaceStructure{}, err
 		}
-		next.Layer = domain.StructureLayer{Preset: cmd.Preset, Values: preset.Values}
+		values, _ := domain.KeepLocked(bound, installation, preset.Values)
+		next.Layer = domain.StructureLayer{Preset: cmd.Preset, Values: values}
 	}
 	if len(cmd.Settings.Decided()) > 0 {
 		validated, err := bound.Validate(cmd.Settings, h.Text)
@@ -183,6 +186,9 @@ func (h SetWorkspaceStructure) decide(
 		}
 		if err := refuseWorkspaceCategories(validated); err != nil {
 			return domain.WorkspaceStructure{}, err
+		}
+		if broken := domain.LockedAgainst(bound, installation, validated); len(broken) > 0 {
+			return domain.WorkspaceStructure{}, domain.ErrSettingLocked(broken[0], installation.Locks[broken[0]])
 		}
 		next.Layer.Values = next.Layer.Values.Overlay(validated)
 	}
@@ -196,6 +202,9 @@ func (h SetWorkspaceStructure) decide(
 			if err != nil {
 				return domain.WorkspaceStructure{}, err
 			}
+			if lock, held := lockAbove(installation, key); held {
+				return domain.WorkspaceStructure{}, domain.ErrSettingLocked(key, lock)
+			}
 			if by, held := current.Locks[key]; held {
 				locks[key] = by
 			} else {
@@ -208,17 +217,29 @@ func (h SetWorkspaceStructure) decide(
 		next.DefaultPreset = ""
 	} else if cmd.DefaultPreset != "" {
 		// The default is everyone's starting point: one of Hubtask's or the workspace's, never
-		// a person's own.
+		// a person's own - nor the installation's, which its operator may withdraw without the
+		// workspace knowing; without a default of its own, a workspace starts from the
+		// installation's.
 		preset, err := reading.Preset(ctx, actor, cmd.DefaultPreset)
 		if err != nil {
 			return domain.WorkspaceStructure{}, err
 		}
-		if preset.Origin == domain.PresetOriginOwn {
+		if preset.Origin == domain.PresetOriginOwn || preset.Origin == domain.PresetOriginInstallation {
 			return domain.WorkspaceStructure{}, domain.ErrPresetUnknown(cmd.DefaultPreset)
 		}
 		next.DefaultPreset = cmd.DefaultPreset
 	}
 	return next, nil
+}
+
+// lockAbove answers the installation's lock a workspace lock would repeat: the same key, or the
+// whole setting it is part of.
+func lockAbove(installation domain.EffectiveStructure, key domain.LockKey) (domain.StructureLock, bool) {
+	if lock, held := installation.Locks[key]; held {
+		return lock, true
+	}
+	lock, held := installation.Locks[domain.LockKey(key.Setting())]
+	return lock, held
 }
 
 func sameLocks(a, b map[domain.LockKey]shared.ID) bool {

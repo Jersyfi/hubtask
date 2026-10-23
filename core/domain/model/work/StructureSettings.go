@@ -411,6 +411,9 @@ type StructureBound struct {
 	order []ItemType
 	// parents are each type's system parents.
 	parents map[ItemType][]ItemType
+	// installation is what the installation holds every workspace to beside the profiles: its
+	// default preset and the settings that preset locks (InstallationPresets.go).
+	installation InstallationHold
 }
 
 // NewStructureBound builds the bound. A type the profiles in force no longer carry is not in it.
