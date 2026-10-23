@@ -699,6 +699,10 @@ func run() error {
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
 		Presets: presets,
 	}
+	starter := work.Starter{
+		Starts: postgres.NewStarterRepository(), Permits: authorizer, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+	}
 	presetDesk := work.PresetDesk{
 		Presets: presets, Structure: structures, Authorizer: authorizer, Audit: auditSink,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Text: forms,
@@ -1332,6 +1336,7 @@ func run() error {
 		Hosts: postgres.NewTenantHostRepository(),
 		// The workspace's structure, answered beside its sign-in rule.
 		Structure: work.WorkspaceStructureAnswer{Resolver: structures, UnitOfWork: unitOfWork},
+		Starter:   starter,
 		// The ways in beside the password, so that the last one cannot be switched off.
 		Providers:  postgres.NewIdentityProviderRepository(),
 		Authorizer: authorizer,
@@ -2092,6 +2097,7 @@ func run() error {
 		work.SavePreset{Desk: presetDesk}.Descriptor(),
 		work.ChangePreset{Desk: presetDesk}.Descriptor(),
 		work.WithdrawPreset{Desk: presetDesk}.Descriptor(),
+		work.CloseStarter{Starter: starter}.Descriptor(),
 		work.ListPrivateHubs{
 			Hubs: postgres.NewPrivateHubRepository(), Policies: lifecycleStore,
 			Authorizer: authorizer, UnitOfWork: unitOfWork,

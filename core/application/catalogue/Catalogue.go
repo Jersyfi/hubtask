@@ -57,6 +57,7 @@ func Descriptors() []usecase.Descriptor {
 		work.SavePreset{}.Descriptor(),
 		work.ChangePreset{}.Descriptor(),
 		work.WithdrawPreset{}.Descriptor(),
+		work.CloseStarter{}.Descriptor(),
 		work.SetHubPrivacy{}.Descriptor(),
 		work.ListPrivateHubs{}.Descriptor(),
 		work.OpenPrivateHub{}.Descriptor(),

@@ -1271,6 +1271,16 @@ type Presets interface {
 	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
 }
 
+// Starter keeps whether the workspace's first start was answered (UC-WRK-30 check 5).
+type Starter interface {
+	// Pending reports whether nobody has answered or skipped the first start's question and the
+	// workspace holds no hub.
+	Pending(ctx context.Context) (bool, error)
+
+	// Close records that the question was answered or skipped; closing it again changes nothing.
+	Close(ctx context.Context, at time.Time) error
+}
+
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
 // kind needs, over the entries that are neither trashed nor hidden. A collection with nothing to
 // count is answered with zeros, or not at all.

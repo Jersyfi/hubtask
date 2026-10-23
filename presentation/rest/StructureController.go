@@ -21,6 +21,7 @@ const (
 	savePresetUseCase            = "SavePreset"
 	changePresetUseCase          = "ChangePreset"
 	withdrawPresetUseCase        = "WithdrawPreset"
+	closeStarterUseCase          = "CloseStarter"
 )
 
 // ListPresets answers GET /presets.
@@ -279,6 +280,20 @@ func (c *RestController) WithdrawPreset(
 		in["expected_version"] = version
 	}
 	if _, err := c.UseCases.Invoke(r.Context(), withdrawPresetUseCase, actorOf(r), in); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// CloseStarter answers POST /tenant/starter:close.
+func (c *RestController) CloseStarter(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	if _, err := c.UseCases.Invoke(r.Context(), closeStarterUseCase, actorOf(r), usecase.Input{}); err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
