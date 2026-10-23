@@ -172,3 +172,21 @@ export function renameLevel(levels: StructureSettings['levels'], type: string, n
   const trimmed = name.trim();
   return (levels ?? []).map((level) => (level.type === type ? { ...level, name: trimmed === '' ? null : name } : level)) as NonNullable<StructureSettings['levels']>;
 }
+
+/**
+ * The fields after the panel's checkboxes for one level changed. The checkboxes speak only for the
+ * capabilities they draw: one the installation does not offer here stays as it is, and so does the
+ * rest of the level's entry - its `categories` (UX-12's grouping, chosen in its own dialog) above
+ * all. *Done or open* is always carried.
+ */
+export function chooseFieldsOf(
+  fields: StructureSettings['fields'],
+  type: string,
+  offered: readonly string[],
+  selected: readonly string[],
+): NonNullable<StructureSettings['fields']> {
+  const own = fields?.[type];
+  const beyond = (own?.capabilities ?? []).filter((capability) => !offered.includes(capability));
+  const capabilities = [...offered.filter((capability) => capability === 'COMPLETION' || selected.includes(capability)), ...beyond];
+  return { ...(fields ?? {}), [type]: { ...(own ?? {}), capabilities } } as NonNullable<StructureSettings['fields']>;
+}

@@ -10,6 +10,7 @@ import type { Capabilities, EffectiveStructure, Preset } from '@hubtask/sync-eng
 
 import {
   changeOf,
+  chooseFieldsOf,
   choosePreset,
   countOf,
   isOwn,
@@ -127,4 +128,14 @@ test('a level named, and its name taken away', () => {
   assert.equal(named[0]?.name, 'Item');
   assert.deepEqual(changeOf(setValue(startDraft(project), 'levels', named), project, undefined), { settings: { levels: named } });
   assert.equal(renameLevel(named, 'TASK', '  ')[0]?.name, null);
+});
+
+test('the fields checkboxes keep what they do not draw: the categories and an amount not offered here', () => {
+  const fields = { TASK: { capabilities: ['COMPLETION', 'NOTES', 'AMOUNT'], categories: ['l1', 'l2'] } } as never;
+  const next = chooseFieldsOf(fields, 'TASK', ['COMPLETION', 'DUE_DATE', 'NOTES'], ['DUE_DATE']);
+  assert.deepEqual(next.TASK, { capabilities: ['COMPLETION', 'DUE_DATE', 'AMOUNT'], categories: ['l1', 'l2'] });
+  // Offered and chosen, an amount is carried like any other field; *Done or open* always.
+  const offered = chooseFieldsOf(fields, 'TASK', ['COMPLETION', 'NOTES', 'AMOUNT'], ['AMOUNT']);
+  assert.deepEqual(offered.TASK?.capabilities, ['COMPLETION', 'AMOUNT']);
+  assert.deepEqual(offered.TASK?.categories, ['l1', 'l2']);
 });

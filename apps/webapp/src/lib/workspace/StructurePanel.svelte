@@ -26,6 +26,7 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { presets } from '../data/presets.svelte.ts';
+  import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -41,6 +42,7 @@
     lockOf,
     renameLevel,
     resetSetting,
+    chooseFieldsOf,
     setValue,
     startDraft,
     toggleLevel,
@@ -230,11 +232,22 @@
   function chooseFields(type: string, selected: readonly string[]) {
     if (!draft) return;
     const offered = manifest.value?.item_types?.find((entry) => entry.type === type)?.capabilities ?? [];
-    // What the level carries beyond this list, and whatever else the level's entry holds, stays as
-    // it is: this control speaks only for the capabilities it draws.
-    const beyond = (values.fields?.[type]?.capabilities ?? []).filter((capability) => !offered.includes(capability));
-    const capabilities = [...offered.filter((capability) => capability === 'COMPLETION' || selected.includes(capability)), ...beyond];
-    draft = setValue(draft, 'fields', { ...(values.fields ?? {}), [type]: { ...(values.fields?.[type] ?? {}), capabilities } });
+    draft = setValue(draft, 'fields', chooseFieldsOf(values.fields, type, offered, selected));
+  }
+
+  /**
+   * The level whose categories are being chosen, in UX-12's own dialog (UC-WRK-25 check 5). It
+   * writes at once against the collection's version, so it waits for a change in the panel to be
+   * saved or discarded, and the panel starts again from what it wrote.
+   */
+  let categoriesOf = $state<string | undefined>(undefined);
+  const categoriesWait = $derived(
+    lockReason('fields') ?? (changeCount > 0 ? t('app.structure.categories_save_first') : undefined),
+  );
+
+  function closeCategories() {
+    categoriesOf = undefined;
+    draft = undefined;
   }
 
   const viewOptions = $derived(
@@ -405,6 +418,14 @@
                   selected={carried(type)}
                   onChange={(selected) => chooseFields(type, selected)}
                 />
+                {#if !isHub}
+                  <Button
+                    size="sm"
+                    tone="secondary"
+                    disabledReason={categoriesWait}
+                    onclick={() => (categoriesOf = type)}
+                  >{t('app.structure.categories_of', { level: levelName(type) })}</Button>
+                {/if}
               {/each}
             {:else if setting === 'views'}
               <CheckboxGroup
@@ -495,6 +516,16 @@
     </form>
   {/if}
 </Drawer>
+
+{#if categoriesOf && structure}
+  <CategoriesDialog
+    collectionId={container.id}
+    version={container.version}
+    {structure}
+    itemType={categoriesOf}
+    onclose={closeCategories}
+  />
+{/if}
 
 <style>
   .panel { display: flex; flex-direction: column; gap: var(--sp-300); }

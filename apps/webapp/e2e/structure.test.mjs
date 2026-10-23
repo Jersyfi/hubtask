@@ -122,6 +122,13 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   assert.ok((await details.first().textContent()).includes('Set by this collection.'));
   await page.keyboard.press('Escape');
 
+  // The fields offer UX-12's categories, in its own dialog, which writes nothing here unless saved.
+  await panel.locator('[data-setting="fields"]').getByRole('button', { name: /^Categories of / }).first().click();
+  const categories = page.getByRole('dialog', { name: 'Categories' });
+  await categories.waitFor({ timeout: 5_000 });
+  await categories.getByRole('button', { name: 'Cancel' }).last().click();
+  await categories.waitFor({ state: 'hidden', timeout: 5_000 });
+
   // A reset, then a preset: one save each, the change said in the request.
   await panel.getByRole('button', { name: 'Reset Success' }).click();
   await panel.locator('[data-reset-pending]').waitFor();
