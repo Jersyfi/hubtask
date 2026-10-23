@@ -41,12 +41,49 @@ export function positionArea({ side, align: alignment }: Placement): string {
   return `${side} ${span}`;
 }
 
+/**
+ * The last resort, for a list taller than the room on either side of its trigger - a long menu
+ * opened from a row near the foot of a phone's screen. The overlay takes the side with more room,
+ * shrinks to it and scrolls inside it, and never runs past the viewport.
+ *
+ * Each line answers a way the plain flips fail:
+ *
+ * - `span-all` and `anchor-center`: a surface as wide as its longest item can be wider than the
+ *   room on either side of a trigger in the middle of a row. Every option that keeps one side then
+ *   overflows sideways, the engine finds none that fits and keeps the first - below, past the
+ *   foot - whatever the block size does. Across the whole width, centred on the trigger and
+ *   pushed back inside the viewport, the surface always fits sideways.
+ * - `stretch`: what resolves against the room beside the trigger. A percentage resolves against
+ *   the viewport, so `max-height: 100%` changes nothing.
+ * - The minimum chooses the side. It is half of what the trigger leaves of the viewport, less some
+ *   slack for the overlay's margin, so the smaller side cannot hold it and is refused, and the
+ *   other option takes the larger one. `position-try-order: most-block-size` would choose too,
+ *   but it sorts the overlay's own position with the rest and would open every short menu upwards
+ *   whenever there is more room above.
+ */
+const FIT = '--hbt-fit';
+const FIT_RULE = `@position-try ${FIT} {
+  position-area: block-end span-all;
+  justify-self: anchor-center;
+  max-block-size: -webkit-fill-available;
+  max-block-size: stretch;
+  min-block-size: calc((100dvh - anchor-size(block)) / 2 - var(--sp-200));
+}`;
+
+/**
+ * Five at most: Chromium tries no more than five fallbacks and ignores the rest, so a sixth that
+ * would fit is never reached and the overlay stays where it was put first. The shrunk option
+ * covers both sides and both inline directions, which is why two of it are enough.
+ */
+const FALLBACKS = `flip-block, flip-inline, flip-block flip-inline, ${FIT}, ${FIT} flip-block`;
+
 let sheet: CSSStyleSheet | undefined;
 let sequence = 0;
 
 function stylesheet(): CSSStyleSheet {
   if (!sheet) {
     sheet = new CSSStyleSheet();
+    sheet.insertRule(FIT_RULE);
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
   }
   return sheet;
@@ -128,8 +165,8 @@ export function anchorTo(trigger: HTMLElement, overlay: HTMLElement, { placement
   anchorRule.style.setProperty('anchor-name', `--${id}`);
   overlayRule.style.setProperty('position-anchor', `--${id}`);
   overlayRule.style.setProperty('position-area', positionArea(placement));
-  // `flip-block` and `flip-inline` are the two the sides above can need.
-  overlayRule.style.setProperty('position-try-fallbacks', 'flip-block, flip-inline');
+  // `flip-block` and `flip-inline` are the two the sides above can need; the shrunk one comes last.
+  overlayRule.style.setProperty('position-try-fallbacks', FALLBACKS);
 
   return () => {
     lower();
