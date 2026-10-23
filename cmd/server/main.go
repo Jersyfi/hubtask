@@ -2423,6 +2423,15 @@ func run() error {
 			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
 			Clock: clockadapter.System{},
 		}.Descriptor(),
+		work.ExportItems{
+			Query: work.QueryItems{
+				Gate:  entryGate,
+				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+			},
+			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{},
+		}.Descriptor(),
 		work.CreateCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),
 		work.ListCalendarFeeds{Writer: calendarFeedWriter}.Descriptor(),
 		work.RevokeCalendarFeed{Writer: calendarFeedWriter}.Descriptor(),

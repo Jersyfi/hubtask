@@ -264,14 +264,14 @@ test('chromium: 375 px — an action that opens a dialog takes focus into it and
   await checkbox.focus();
   await page.keyboard.press('Control+k');
   await page.getByRole('dialog', { name: 'Search or run a command' }).waitFor();
-  await page.keyboard.type('people');
-  await arrowTo(page, 'People');
+  await page.keyboard.type('save this view');
+  await arrowTo(page, 'Save this view…');
   await page.keyboard.press('Enter');
 
-  const people = page.getByRole('dialog').filter({ hasNotText: 'Search or run a command' }).last();
-  await people.waitFor();
+  const views = page.getByRole('dialog').filter({ hasNotText: 'Search or run a command' }).last();
+  await views.waitFor();
   await page.waitForTimeout(200);
-  assert.ok(await people.evaluate((node) => node.contains(document.activeElement)), 'focus is not inside the dialog the action opened');
+  assert.ok(await views.evaluate((node) => node.contains(document.activeElement)), 'focus is not inside the dialog the action opened');
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   assert.ok(await checkbox.evaluate((node) => node === document.activeElement), 'focus did not come back to where it was');

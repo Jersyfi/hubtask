@@ -131,6 +131,12 @@ async function common(page, width) {
     assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field is ${centred} px off centre`);
   }
   assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
+  // The tour's capture and palette steps (ux-inventory.md §E1): one capture control to point at on
+  // every width - the bar's, or the bottom bar's ＋ on a phone - and the palette's field where the
+  // bar draws it; a phone passes that step over.
+  const captureTargets = await page.locator('[data-tour="capture"]:visible, nav button[data-action]:visible').count();
+  assert.equal(captureTargets, 1, `${width}: the tour's capture step has ${captureTargets} targets`);
+  assert.equal(await page.locator('[data-tour="palette"]:visible').count(), width < 600 ? 0 : 1, `${width}: the tour's palette step`);
   const scroll = await page.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: window.innerWidth }));
   assert.equal(scroll.width, scroll.viewport, `${width}: the page scrolls sideways (${scroll.width} of ${scroll.viewport})`);
   assert.equal(await page.getByRole('link', { name: 'Skip to the content' }).count(), 1, `${width}: no skip link`);

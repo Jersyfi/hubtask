@@ -138,6 +138,7 @@ func Descriptors() []usecase.Descriptor {
 		work.UpdateCustomField{}.Descriptor(),
 		work.DeleteCustomField{}.Descriptor(),
 		work.ExportView{}.Descriptor(),
+		work.ExportItems{}.Descriptor(),
 		work.CreateCalendarFeed{}.Descriptor(),
 		work.ListCalendarFeeds{}.Descriptor(),
 		work.RevokeCalendarFeed{}.Descriptor(),

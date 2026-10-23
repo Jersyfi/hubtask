@@ -533,6 +533,8 @@ export type SavedViewUpdate = components['schemas']['SavedViewUpdate'];
 export type ViewExportDocument = components['schemas']['ViewExportDocument'];
 export type SavedViewShare = components['schemas']['SavedViewShare'];
 export type ViewExport = components['schemas']['ViewExport'];
+/** A query's result as a file without a saved view: `POST /items:export`. */
+export type ItemExport = components['schemas']['ItemExport'];
 
 /** One subscription: a token its owner holds, over one view, revocable. */
 export type CalendarFeed = components['schemas']['CalendarFeed'];
