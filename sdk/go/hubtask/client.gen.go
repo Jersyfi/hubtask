@@ -14435,7 +14435,7 @@ type ClientInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name and the avatar - and this is that minimum.
+	// the display name, from which a client draws the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -19674,7 +19674,7 @@ func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPass
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name and the avatar - and this is that minimum.
+// the display name, from which a client draws the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -47065,7 +47065,7 @@ type ClientWithResponsesInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name and the avatar - and this is that minimum.
+	// the display name, from which a client draws the avatar - and this is that minimum.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -70485,7 +70485,7 @@ func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.C
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name and the avatar - and this is that minimum.
+// the display name, from which a client draws the avatar - and this is that minimum.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level

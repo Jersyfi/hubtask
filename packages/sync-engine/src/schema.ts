@@ -542,6 +542,8 @@ export type CalendarFeedSecret = components['schemas']['CalendarFeedSecret'];
 
 /** Locale, time zone and the first day of the week. An empty value clears one. */
 export type AccountPreferences = components['schemas']['AccountPreferences'];
+/** What a person may change about their own account: the display name. */
+export type OwnAccountUpdate = components['schemas']['OwnAccountUpdate'];
 /**
  * One row per category and channel, with the effective value.
  *

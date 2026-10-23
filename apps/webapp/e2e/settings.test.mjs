@@ -70,7 +70,7 @@ async function open(browser, width = 1280) {
 
 /** The section's screens, and the word each puts at the end of its trail. */
 const SECTION = [
-  ['/profile', 'How the product speaks to you'],
+  ['/profile', 'You'],
   ['/profile/appearance', 'On this device'],
   ['/profile/notifications', 'What you are told about'],
   // Renamed with the sign-in work: the screen holds the password, the recovery codes and
@@ -122,6 +122,66 @@ test('chromium: 1280 px — the settings are a section, and every screen says wh
 
   assert.deepEqual(failures, []);
 });
+
+// *You* (ux-inventory.md §E7): the display name is the person's own, saved under the save bar with
+// the language, and the avatar the frame draws follows it. An emptied name is said at the field and
+// sent nowhere; a changed one is the one write `PATCH /accounts/me`, and the preferences are left.
+for (const width of [375, 1280]) {
+  test(`chromium: ${width} px — You: the name is changed under the save bar and the avatar follows`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const context = await browser.newContext({ viewport: { width, height: 900 } });
+    t.after(() => context.close());
+    let held = ACCOUNT;
+    const sent = [];
+    await context.route('**/api/v1/**', async (route) => {
+      const request = route.request();
+      const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+      if (path === '/accounts/me' && request.method() === 'PATCH') {
+        sent.push(['PATCH /accounts/me', request.postDataJSON()]);
+        held = { ...held, ...request.postDataJSON() };
+        return route.fulfill({ json: held });
+      }
+      if (path.endsWith('/preferences')) sent.push([`${request.method()} ${path}`]);
+      if (path === '/accounts/me') return route.fulfill({ json: held });
+      return answer(route);
+    });
+    await context.addInitScript(() => {
+      sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+      sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+    });
+    const page = await context.newPage();
+    const failures = [];
+    page.on('pageerror', (error) => failures.push(String(error)));
+    await page.goto(`${served.origin}/profile`);
+
+    const name = page.getByRole('textbox', { name: /^Your name/ });
+    await name.waitFor({ timeout: 15_000 });
+    assert.equal(await name.inputValue(), ACCOUNT.display_name);
+    assert.equal(await page.locator('main').getByRole('img', { name: ACCOUNT.display_name }).count(), 1, 'no avatar beside the name');
+
+    await name.fill('   ');
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Your name cannot be empty').waitFor({ timeout: 5_000 });
+    assert.deepEqual(sent, [], 'an empty name was sent');
+
+    await name.fill('Ada Lovelace');
+    // The avatar is made from the name as it is typed: what the others will see.
+    await page.locator('main').getByRole('img', { name: 'Ada Lovelace' }).waitFor({ timeout: 5_000 });
+    await page.getByText('1 change').first().waitFor({ timeout: 5_000 });
+    await page.getByRole('button', { name: 'Save', exact: true }).click();
+    await page.getByText('Saved.').first().waitFor({ timeout: 5_000 });
+
+    assert.deepEqual(sent, [['PATCH /accounts/me', { display_name: 'Ada Lovelace' }]], 'the save sent more or less than the name');
+    // The frame re-read the account: the bar's account button names the person as they now are
+    // (from medium up; a phone reaches the account through the bottom bar's *You*).
+    if (width >= 1280) {
+      await page.getByRole('banner').getByRole('button', { name: 'Ada Lovelace' }).waitFor({ timeout: 5_000 });
+    }
+    assert.equal(await page.getByRole('img', { name: ACCOUNT.display_name }).count(), 0, 'the old name is still drawn');
+    assert.deepEqual(failures, []);
+  });
+}
 
 test('chromium: 1280 px — what you are told about is a grid, and every row’s switches line up', async (t) => {
   const browser = await chromium.launch();
@@ -695,8 +755,8 @@ test('chromium: 1280 px — in a German session the settings menu is German thro
   const back = page.getByRole('treeitem', { name: 'Der Arbeitsbereich', exact: true });
   await back.waitFor({ timeout: 15_000 });
   const rows = (await page.getByRole('treeitem').allTextContents()).map((row) => row.trim());
-  for (const english of ['The workspace', 'Language and clock', 'Notifications', 'Signed in', 'Devices']) {
+  for (const english of ['The workspace', 'Name and language', 'Notifications', 'Signed in', 'Devices']) {
     assert.equal(rows.includes(english), false, `"${english}" is English in a German session: ${rows.join(', ')}`);
   }
-  assert.ok(rows.includes('Sprache und Uhr'), rows.join(', '));
+  assert.ok(rows.includes('Name und Sprache'), rows.join(', '));
 });
