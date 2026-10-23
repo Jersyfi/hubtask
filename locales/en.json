@@ -2634,6 +2634,7 @@
   "app.ai.kind_noop": "None",
   "app.ai.base_url_label": "Address",
   "app.ai.base_url_hint": "Where the provider is reached. Leave it empty for the provider’s own default.",
+  "app.ai.base_url_hint_required": "Where the provider is reached. An offered model needs one: every workspace that chooses it is sent there.",
   "app.ai.completion_model_label": "Model for proposals",
   "app.ai.completion_model_hint": "The model that writes titles, notes, breakdowns and summaries, named as the provider names it.",
   "app.ai.embedding_model_label": "Model for meaning",

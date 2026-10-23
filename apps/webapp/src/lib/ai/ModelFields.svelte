@@ -76,7 +76,7 @@
   />
   <Input
     label={t('app.ai.base_url_label')}
-    hint={t('app.ai.base_url_hint')}
+    hint={isAddressRequired ? t('app.ai.base_url_hint_required') : t('app.ai.base_url_hint')}
     bind:value={draft.baseUrl}
     error={errors?.get('/base_url')}
     type="url"

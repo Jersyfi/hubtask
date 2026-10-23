@@ -131,6 +131,8 @@ test('chromium: a model is offered in the one model form a workspace uses too', 
   assert.deepEqual([...found].sort((a, b) => a - b), found, 'in the one form\'s order');
   // A model that calls nothing is no model to offer.
   assert.equal(await dialog.getByLabel(/^Provider/).locator('option', { hasText: 'None' }).count(), 0);
+  // The address is required here, and its hint does not say it may be left empty.
+  assert.doesNotMatch(await dialog.textContent() ?? '', /Leave it empty for the provider/);
 });
 
 test('chromium: the defaults say in words which AI workspaces may use', async (t) => {

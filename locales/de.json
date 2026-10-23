@@ -941,6 +941,7 @@
   "app.ai.kind_noop": "Keiner",
   "app.ai.base_url_label": "Adresse",
   "app.ai.base_url_hint": "Wo der Anbieter erreicht wird. Leer lassen für die Vorgabe des Anbieters.",
+  "app.ai.base_url_hint_required": "Wo der Anbieter erreicht wird. Ein angebotenes Modell braucht sie: Jeder Arbeitsbereich, der es wählt, wird dorthin geschickt.",
   "app.ai.completion_model_label": "Modell für Vorschläge",
   "app.ai.completion_model_hint": "Das Modell, das Titel, Notizen, Aufteilungen und Zusammenfassungen schreibt, benannt, wie der Anbieter es benennt.",
   "app.ai.embedding_model_label": "Modell für Bedeutung",
