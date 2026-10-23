@@ -73,6 +73,7 @@ switched on *Prepare proposals for new jumble entries*, when something arrives i
 | Decomposition | An entry's title and notes | A suggested tree of work packages and activities |
 | Rule drafting | The person's sentence; the names of the people, collections, hubs and labels it names that they may see; the rule vocabulary | A suggested rule, switched off until somebody saves and switches it on |
 | Asking the workspace | The person's question; today's date; of the entries they may read that the question points to (at most 30), each one's title, the first 300 characters of its notes, its place, whether it is open or done and when it is due, and its assignee's name; the names of the people, hubs, collections and labels the question names that they may see. Nothing of anybody who keeps their content out | A proposed answer: text, up to five of those entries, and a filter of the places, people and labels shown |
+| Entries from text | The text the person pasted, without the names and addresses of people who keep their content out; which fields an entry of the collection carries; today's date where it carries a due date | Suggested entries with those fields, created only as the person takes them |
 | Automation AI actions | The fields the rule names | A suggestion, or a value the rule applies |
 | Semantic search | Titles and notes, as text to embed; the words somebody searches for | A vector |
 | Duplicates of a title being typed | The words of the title, as text to embed | A vector, compared with the stored ones |

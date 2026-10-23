@@ -75,6 +75,8 @@ type Material struct {
 	Kept integration.KeptOut
 	// Rule is what a rule drafted from this material may name; nil for every other question.
 	Rule *RuleSets
+	// Entries is what entries made from a pasted text may be; nil for every other question.
+	Entries *EntriesShape
 	// Answer is what an answer to a question may name; nil for every other question.
 	Answer *AnswerSets
 }
@@ -270,6 +272,9 @@ var promptFields = map[string]map[string]bool{
 	// it decides - the name, `run_as`, the throttle, what a failure does - and what it could not
 	// draft, which is told rather than applied (`toldKeys`). What each part may hold is `ruleFrom`'s.
 	draftRulePrompt: {"scope": true, "trigger": true, "conditions": true, "actions": true, notDraftedKey: true},
+	// Entries made from a pasted text: one key at the answer's level, and what an entry may carry
+	// is `entriesFrom`'s business - a title, and only the fields the collection carries.
+	makeEntriesPrompt: {entriesKey: true},
 	// An answer to a question: the text, the entries it rests on and the filter it implies, each
 	// narrowed to what the material showed (`answerFrom`). All three are told: nothing applies an
 	// answer.
@@ -317,6 +322,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	"decompose":            {domain.TargetWorkItem: domain.KindDecomposition},
 	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
 	draftRulePrompt:        {domain.TargetAccount: domain.KindRule},
+	makeEntriesPrompt:      {domain.TargetAccount: domain.KindEntries},
 	answerPrompt:           {domain.TargetAccount: domain.KindAnswer},
 }
 
@@ -451,6 +457,7 @@ var defaultPrompts = map[domain.Kind]string{
 	domain.KindDecomposition: "decompose",
 	domain.KindTemplate:      templatePrompt,
 	domain.KindRule:          draftRulePrompt,
+	domain.KindEntries:       makeEntriesPrompt,
 	domain.KindAnswer:        answerPrompt,
 }
 
@@ -518,9 +525,10 @@ func (h Produce) ask(
 				"prompt": promptID, "target_type": string(request.TargetType),
 			})
 	}
-	if request.Apply && request.Kind == domain.KindRule {
+	if request.Apply && (request.Kind == domain.KindRule || request.Kind == domain.KindEntries) {
 		// An AI answer never becomes a rule without a person: a draft is saved by somebody, and a
-		// rule that drafted and saved rules would be exactly what UC-AUT-10 check 3 rules out.
+		// rule that drafted and saved rules would be exactly what UC-AUT-10 check 3 rules out. Nor
+		// does pasted text become entries before somebody takes them (UC-AI-09 check 3).
 		return Outcome{}, shared.ErrInternal.WithDetail("ai.apply_not_for_kind").
 			WithParams(map[string]string{"kind": string(request.Kind)})
 	}
@@ -604,7 +612,13 @@ func (h Produce) ask(
 	// Prompt.Ask is the only place the instruction and the content are put together, and it puts
 	// them in two messages with two roles. That is ai-first.md §1.3 as a shape rather than as a
 	// rule somebody remembers: this code cannot merge them if it tries.
-	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material, h.today(actor, promptID))))
+	today := h.today(actor, promptID)
+	if material.Entries != nil && material.Entries.Fields[dueKey] {
+		// Entries carry a due date only where their collection does, so the date travels only
+		// then - the allow list of the prompt is one key, and the field is the collection's.
+		today = h.dateLine(actor)
+	}
+	answer, err := provider.Complete(ctx, prompt.Ask(withOptions(material, today)))
 	if err != nil {
 		return Outcome{}, err
 	}
@@ -619,6 +633,8 @@ func (h Produce) ask(
 		payload, dropped, ok = templateFrom(answer.Text, material.Hierarchy, material.Shape, targetID)
 	case domain.KindRule:
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
+	case domain.KindEntries:
+		payload, dropped, ok = entriesFrom(answer.Text, material.Entries)
 	case domain.KindAnswer:
 		payload, dropped, ok = answerFrom(answer.Text, material.Answer)
 	default:
@@ -728,9 +744,10 @@ type Request struct {
 // any. A prompt that is asked with held words and has no line here is a defect in this build, and
 // the job fails by name rather than handing a model unlabelled text.
 var heldWords = map[string]string{
-	templatePrompt:  "What the template should be for, in the person's words:",
-	draftRulePrompt: "What the rule should do, in the person's words:",
-	answerPrompt:    "The person's question:",
+	templatePrompt:    "What the template should be for, in the person's words:",
+	draftRulePrompt:   "What the rule should do, in the person's words:",
+	makeEntriesPrompt: "The text the person pasted, to turn into entries:",
+	answerPrompt:      "The person's question:",
 }
 
 // answeredFromMaterial reports whether a prompt asked with words still needs material of the
@@ -874,6 +891,11 @@ func (h Produce) today(actor appshared.ActorContext, promptID string) string {
 	if !promptFields[promptID][dueKey] && promptID != answerPrompt {
 		return ""
 	}
+	return h.dateLine(actor)
+}
+
+// dateLine is today's date in the asker's zone, as the line the material carries.
+func (h Produce) dateLine(actor appshared.ActorContext) string {
 	// `LoadLocation("")` answers UTC without complaining, so an empty zone is spelled rather than
 	// loaded: a date resolved in UTC and labelled Europe/Berlin would be worse than one labelled
 	// what it is.

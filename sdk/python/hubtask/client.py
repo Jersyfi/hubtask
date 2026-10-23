@@ -1027,6 +1027,10 @@ class Client:
         """Ask AI how a collection stands"""
         return self._call("POST", "/containers/{containerId}:summarize", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
 
+    def make_entries(self, container_id: str, body: "EntriesText", *, idempotency_key: str | None = None) -> "JobRef":
+        """Ask AI to turn a piece of text into entries"""
+        return self._call("POST", "/containers/{containerId}:make-entries", {"containerId": container_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def suggest_duplicates(self, item_id: str) -> "Suggestion":
         """Which entries look like this one"""
         return self._call("POST", "/items/{itemId}:duplicates", {"itemId": item_id}, None, {}, None, "none", None, "json")

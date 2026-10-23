@@ -27,13 +27,18 @@ func (s *Shape) Offers(itemType work.ItemType) bool {
 	return s == nil || s.levels[itemType]
 }
 
-// Carries reports whether the collection offers the capability on the level.
+// Carries reports whether the collection offers the capability on the level. A level its structure
+// leaves out carries everything but what is opt-in - an amount is carried only where a layer names
+// it (Capability.OptIn, domain-model.md §2).
 func (s *Shape) Carries(itemType work.ItemType, capability work.Capability) bool {
 	if s == nil {
-		return true
+		return !capability.OptIn()
 	}
 	fields, decided := s.fields[itemType]
-	return !decided || fields[capability]
+	if !decided {
+		return !capability.OptIn()
+	}
+	return fields[capability]
 }
 
 // collectionShape reads a collection's shape through its own read, as the person asking: nil where the read

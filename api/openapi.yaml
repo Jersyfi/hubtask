@@ -6891,6 +6891,47 @@ paths:
         "503":
           $ref: "#/components/responses/Problem"
 
+  /containers/{containerId}:make-entries:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+    post:
+      tags: [suggestions]
+      operationId: makeEntries
+      summary: Ask AI to turn a piece of text into entries
+      description: >
+        Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an
+        e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+
+        The proposal carries only the fields the collection's structure offers its entries at their
+        level: a title always, and notes, an amount and a due date only where the collection carries
+        them. Nothing else is read for it: no entry of the collection and nobody else's content
+        travels, only the caller's own text and what the collection offers. A caller who keeps their
+        own content out of AI is refused with `ai.kept_out`.
+
+        Asynchronous and answered `202`, with the same refusal for a workspace that has no provider
+        or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES`
+        suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the
+        caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes
+        every entry, or those named in `take`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntriesText"
+      responses:
+        "202":
+          description: The provider will be asked by the job named here; the proposal appears under /suggestions, and a refusal the job meets is its error_code
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/JobRef" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+        "503":
+          $ref: "#/components/responses/Problem"
+
   /items/{itemId}:duplicates:
     parameters:
       - $ref: "#/components/parameters/ItemId"
@@ -7075,6 +7116,11 @@ paths:
         A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the
         overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the
         draft's whole.
+
+        An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created
+        in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED`
+        with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates
+        none of those taken. `:dismiss` turns down what is left.
       requestBody:
         required: false
         content:
@@ -11552,8 +11598,10 @@ components:
             could read when asked) and, where the question is a filter, `filter`: an object of
             `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`,
             `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only
-            where implied. It is data, never an instruction, and nothing acts on it until somebody
-            accepts.
+            where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are
+            created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount`
+            (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data,
+            never an instruction, and nothing acts on it until somebody accepts.
         source:
           type: string
           enum: [AI]
@@ -11728,7 +11776,18 @@ components:
           description: >
             Fields of the proposal to replace or add, key by key. A jumble suggestion needs the
             destination collection here, because a model cannot know which collections a workspace
-            has; a `RULE` draft needs `name` and `run_as`.
+            has; a `RULE` draft needs `name` and `run_as`. For an `ENTRIES` proposal they are laid
+            over every entry taken; its collection and level stay the proposal's.
+        take:
+          type: array
+          minItems: 1
+          maxItems: 50
+          uniqueItems: true
+          items: { type: string, minLength: 1, maxLength: 8 }
+          description: >
+            For an `ENTRIES` proposal only: the `key`s of the entries to create now. Absent takes
+            every entry left. A key the proposal does not hold is refused with
+            `suggestions.entry_unknown`.
 
     AcceptedSuggestion:
       description: >
@@ -11744,6 +11803,25 @@ components:
               description: >
                 What accepting created, where it created one thing; absent where it changed an
                 entry or created several.
+            created_ids:
+              type: array
+              items: { type: string, format: uuid }
+              description: >
+                The entries accepting an `ENTRIES` proposal created, in the proposal's order — what
+                an undo trashes. Absent for every other kind.
+
+    EntriesText:
+      type: object
+      description: The text to turn into entries.
+      required: [text]
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 8000
+          description: >
+            What was pasted, in the caller's own words. It travels to the provider as content,
+            never as instruction.
 
     RuleDescription:
       type: object
@@ -11791,12 +11869,13 @@ components:
         What the suggestion is about. `CONTAINER` is a collection rather than an entry: a
         summary of how it stands is about the collection, and nothing accepts one — a collection
         has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person
-        who asked, for a draft of something that does not exist yet — a rule — or for an answer to
-        their question: only that account lists, accepts or dismisses it.
+        who asked, for a draft of something that does not exist yet — a rule, or entries made from
+        pasted text — or for an answer to their question: only that account lists, accepts or
+        dismisses it.
 
     SuggestionKind:
       type: string
-      enum: [FIELDS, DECOMPOSITION, DUPLICATES, TEMPLATE, RULE, ANSWER]
+      enum: [FIELDS, DECOMPOSITION, DUPLICATES, TEMPLATE, RULE, ANSWER, ENTRIES]
       description: >
         What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values
         for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a
@@ -11811,6 +11890,9 @@ components:
 
         `ANSWER` is a proposed answer to a question, about the account that asked. Like
         `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+        `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted,
+        about the account that asked; accepting creates the entries taken — all, or some — with
+        `CreateWorkItem` performed by that person.
 
         `DUPLICATES` is the one kind nothing accepts. It says which entries look like this
         one, and what to do about that is a person's decision through the ordinary use cases —

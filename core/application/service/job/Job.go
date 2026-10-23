@@ -63,6 +63,7 @@ type Authorizer interface {
 // arrival's proposal, a backup - names nobody and stays the workspace's.
 var askedKinds = map[queue.Kind]bool{
 	queue.KindAiSuggest: true, queue.KindAiDraftRule: true, queue.KindAiAnswer: true,
+	queue.KindAiMakeEntries: true,
 }
 
 // isAsker answers whether the actor asked this job a question to AI and may still read what the

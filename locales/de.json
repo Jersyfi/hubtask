@@ -4723,6 +4723,12 @@
   "app.capture.jumbled": "Im Jumble abgelegt",
   "app.capture.dismissed": "Verworfen. Es bleibt unter „Verworfen“ im Jumble, bis es abläuft.",
   "app.capture.open": "Öffnen",
+  "app.capture.make_entries": "Einträge daraus machen",
+  "app.capture.entries_heading": "Vorgeschlagene Einträge",
+  "app.capture.entries_into": "Für {place}. Hinzugefügt wird erst, was du übernimmst.",
+  "app.capture.take": "Übernehmen",
+  "app.capture.take_one": "„{title}“ übernehmen",
+  "app.capture.take_all": "Alle übernehmen",
   "app.searchline.label_needs_collection": "Wähle eine Sammlung, um nach Label zu filtern — ein Label gehört zu einer Sammlung.",
   "app.searchmenu.field": "Alles durchsuchen",
   "app.searchline.and_more": "{first} +{more}"

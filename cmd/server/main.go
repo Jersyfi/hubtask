@@ -1875,6 +1875,11 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		suggestionservice.MakeEntries{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
 		suggestionservice.AskWorkspace{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
@@ -3573,6 +3578,7 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiMakeEntries:            worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiAnswer:                 worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		// Its own kind, which a process of the previous release leaves alone.
 		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
