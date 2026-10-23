@@ -4,7 +4,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
+import german from '../../../../locales/de.json' with { type: 'json' };
+
+import { SOURCE } from './i18n/catalogue.ts';
 import { startsAt, stepsFor } from './tour.ts';
+
+test('the layouts step names every layout a collection may offer, the timeline too', () => {
+  const de = german as Record<string, string>;
+  for (const layout of ['list', 'board', 'timeline']) assert.match(SOURCE['app.tour.layouts.body'] ?? '', new RegExp(layout));
+  for (const layout of ['Liste', 'Board', 'Zeitleiste']) assert.match(de['app.tour.layouts.body'] ?? '', new RegExp(layout));
+});
 
 test('a workspace with a collection and an entry is walked through every step, and led to add an entry', () => {
   const steps = stepsFor({ collectionId: 'col-1', itemId: 'it-1', hasJumble: true });
