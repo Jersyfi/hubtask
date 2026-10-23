@@ -4293,6 +4293,24 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangeNarrowing.
+const (
+	FLATTEN StructureChangeNarrowing = "FLATTEN"
+	HIDE    StructureChangeNarrowing = "HIDE"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangeNarrowing enum.
+func (e StructureChangeNarrowing) Valid() bool {
+	switch e {
+	case FLATTEN:
+		return true
+	case HIDE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureChangePreset.
 const (
 	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
@@ -10982,12 +11000,17 @@ type StepUpRequest struct {
 
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
-	Preset *StructureChangePreset  `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+	// Narrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+	Narrowing *StructureChangeNarrowing `json:"narrowing,omitempty"`
+	Preset    *StructureChangePreset    `json:"preset,omitempty"`
+	Reset     *[]StructureSettingName   `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
+
+// StructureChangeNarrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+type StructureChangeNarrowing string
 
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
@@ -11055,6 +11078,11 @@ type StructurePreview struct {
 		// Type Extensible; /meta/capabilities returns the valid values.
 		Type ItemType `json:"type"`
 	} `json:"fields"`
+
+	// Flatten What `narrowing: FLATTEN` would do: how many entries it would move to the top level. It cannot be undone by switching back.
+	Flatten struct {
+		Entries int `json:"entries"`
+	} `json:"flatten"`
 
 	// Keeping For a hub: the collections that follow it but keep their own value of a setting the change moves, and which settings. Empty for a collection.
 	Keeping []struct {
@@ -16832,13 +16860,13 @@ type ClientInterface interface {
 	// SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// PreviewContainerStructureWithBody performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
@@ -24478,7 +24506,7 @@ func (c *Client) SetHubPrivacy(ctx context.Context, containerId ContainerId, par
 // SetContainerStructureWithBody performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequestWithBody(c.Server, containerId, params, contentType, body)
 	if err != nil {
@@ -24494,7 +24522,7 @@ func (c *Client) SetContainerStructureWithBody(ctx context.Context, containerId 
 // SetContainerStructure performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *Client) SetContainerStructure(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetContainerStructureRequest(c.Server, containerId, params, body)
 	if err != nil {
@@ -49461,7 +49489,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 	// with any type of body and a specified content type.
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
@@ -49469,7 +49497,7 @@ type ClientWithResponsesInterface interface {
 	// SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
-	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+	// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 	SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error)
 
 	// PreviewContainerStructureWithBodyWithResponse performs a POST /containers/{containerId}/structure:preview (the `PreviewContainerStructure` operationId) request,
@@ -74255,7 +74283,7 @@ func (c *ClientWithResponses) SetHubPrivacyWithResponse(ctx context.Context, con
 // SetContainerStructureWithBodyWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request,
 // with any type of body and a specified content type.
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
@@ -74269,7 +74297,7 @@ func (c *ClientWithResponses) SetContainerStructureWithBodyWithResponse(ctx cont
 // SetContainerStructureWithResponse performs a PATCH /containers/{containerId}/structure (the `SetContainerStructure` operationId) request.
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
-// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
+// Changes how much structure a hub or collection has: `preset` copies a preset's eight settings into it, replacing its own; `settings` sets settings one by one on top; `reset` names settings that go back to what the hub or the workspace says. A value beyond what the installation offers is refused with `capability_not_supported` (`structure.widens`); a setting the workspace locked is refused with `structure.setting_locked` - except that a preset chosen under a lock is accepted with the locked setting kept, named in `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing that brings the two together is accepted, `counts` shown as `OPEN` and named in `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN` moves the entries the change hides by level to the top level instead. Needs the right to change the workspace's shape where the container sits. Writing what is stored changes nothing.
 func (c *ClientWithResponses) SetContainerStructureWithResponse(ctx context.Context, containerId ContainerId, params *SetContainerStructureParams, body SetContainerStructureJSONRequestBody, reqEditors ...RequestEditorFn) (*SetContainerStructureResult, error) {
 	rsp, err := c.SetContainerStructure(ctx, containerId, params, body, reqEditors...)
 	if err != nil {

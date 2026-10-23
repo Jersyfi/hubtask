@@ -968,6 +968,49 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 	return items, nil
 }
 
+const flattenWorkItem = `-- name: FlattenWorkItem :execrows
+UPDATE work_item SET
+  type       = $1,
+  parent_id  = NULL,
+  path       = $2,
+  depth      = 1,
+  order_key  = $3,
+  updated_at = $4,
+  version    = version + 1
+WHERE tenant_id = current_tenant_id()
+  AND id = $5::uuid
+  AND version = $6
+`
+
+type FlattenWorkItemParams struct {
+	Type            ItemType
+	Path            string
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Makes an entry a top-level entry of another type (UC-WRK-24 check 6): the one statement that
+// changes an entry's type, which a move never does. The parent goes, the path and the depth are
+// the top level's, the rank is the caller's; under the optimistic lock every write to the row
+// takes. Whatever still lies under it - only trashed entries, since a flatten moves the deepest
+// first - follows through MoveWorkItemSubtree.
+func (q *Queries) FlattenWorkItem(ctx context.Context, arg FlattenWorkItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, flattenWorkItem,
+		arg.Type,
+		arg.Path,
+		arg.OrderKey,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const hubsOpenedFor = `-- name: HubsOpenedFor :many
 SELECT DISTINCT hub_id
 FROM private_hub_access

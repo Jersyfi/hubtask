@@ -8283,7 +8283,8 @@ paths:
         `kept_by_lock`. Setting `counts` to `PROGRESS` where the levels in force after the change
         are one is refused with `structure.figure_not_offered`; a preset, a reset or a narrowing
         that brings the two together is accepted, `counts` shown as `OPEN` and named in
-        `clipped_by_levels`. Nothing an entry holds is changed or removed. Needs the right to change
+        `clipped_by_levels`. Nothing an entry holds is changed or removed; `narrowing: FLATTEN`
+        moves the entries the change hides by level to the top level instead. Needs the right to change
         the workspace's shape where the container sits. Writing what is stored changes nothing.
       parameters:
         - $ref: "#/components/parameters/IfMatch"
@@ -15673,6 +15674,17 @@ components:
           type: array
           maxItems: 8
           items: { $ref: "#/components/schemas/StructureSettingName" }
+        narrowing:
+          type: string
+          enum: [HIDE, FLATTEN]
+          description: >
+            What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where
+            they are, stored and marked hidden, and switching back shows them again. `FLATTEN`
+            moves each of them, deepest first, to the top level of its collection as an entry of
+            the top level's type, puts a label named after its former parent's title on it (a
+            label of the collection, created where none has that name), and records the move in
+            its history; switching back does not undo it. For a hub, it applies to every
+            collection that follows it.
 
     StructurePreview:
       type: object
@@ -15680,8 +15692,16 @@ components:
         What a change of structure would stop showing. Nothing it names is deleted by the change:
         hidden entries and values stay stored and come back when the structure offers them again.
         Trashed entries are not counted.
-      required: [narrows, levels, fields, views, automation, keeping]
+      required: [narrows, levels, fields, views, automation, keeping, flatten]
       properties:
+        flatten:
+          type: object
+          description: >
+            What `narrowing: FLATTEN` would do: how many entries it would move to the top level.
+            It cannot be undone by switching back.
+          required: [entries]
+          properties:
+            entries: { type: integer, minimum: 0 }
         narrows:
           type: boolean
           description: Whether anything shown now would no longer be shown.

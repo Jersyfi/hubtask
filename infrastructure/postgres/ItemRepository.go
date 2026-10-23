@@ -138,6 +138,50 @@ func (r ItemRepository) TypesOf(ctx context.Context, ids []shared.ID) (map[share
 	return types, nil
 }
 
+// Flatten makes an entry a top-level entry of another type, and moves the paths of the trashed
+// entries still under it along.
+func (r ItemRepository) Flatten(ctx context.Context, flattening repository.Flattening) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	item := flattening.Item
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	collection, err := uuidOf(item.CollectionID)
+	if err != nil {
+		return err
+	}
+	placed, err := queries.FlattenWorkItem(ctx, sqlc.FlattenWorkItemParams{
+		Type: sqlc.ItemType(item.Type), Path: item.Path, OrderKey: item.OrderKey,
+		UpdatedAt: timestampOf(item.UpdatedAt), ID: id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(flattening.ExpectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("flattening %s: %w", item.ID, err))
+	}
+	if err := versionConflictIfUntouched(placed, item.ID, flattening.ExpectedVersion); err != nil {
+		return err
+	}
+	if _, err := queries.MoveWorkItemSubtree(ctx, sqlc.MoveWorkItemSubtreeParams{
+		CollectionID: collection, NewPrefix: item.Path, OldPrefix: flattening.OldPath,
+		//nolint:gosec // G115: a depth delta is bounded by the profile's MaxDepth
+		DepthDelta: int32(flattening.DepthDelta),
+		UpdatedAt:  timestampOf(item.UpdatedAt),
+		ItemID:     id,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving what lies under %s: %w", item.ID, err))
+	}
+	return nil
+}
+
 // EntriesBelow answers the live entries under each entry among ids, in one recursive statement.
 // Another tenant's entries are absent, by the predicate and row level security.
 func (r ItemRepository) EntriesBelow(ctx context.Context, ids []shared.ID) ([]repository.EntriesBelow, error) {

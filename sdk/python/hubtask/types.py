@@ -1588,9 +1588,11 @@ class StructureChange(TypedDict, total=False):
     preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
+    narrowing: Literal["HIDE", "FLATTEN"]
 
 class StructurePreview(TypedDict, total=False):
     """What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted."""
+    flatten: Required[dict[str, Any]]
     narrows: Required[bool]
     levels: Required[list[dict[str, Any]]]
     fields: Required[list[dict[str, Any]]]

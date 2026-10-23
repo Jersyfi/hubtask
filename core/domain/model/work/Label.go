@@ -6,6 +6,7 @@ package work
 import (
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/text"
@@ -225,4 +226,15 @@ func (l Label) EnsureEditable() error {
 			WithParams(map[string]string{"label_id": l.ID.String()})
 	}
 	return nil
+}
+
+// LabelNameFrom is the name of a label made from an entry's title, as a flatten makes one from a
+// former parent's (UC-WRK-24 check 6): one line, at most as long as a label's name may be.
+func LabelNameFrom(title string) string {
+	name := strings.Join(strings.FieldsFunc(title, func(r rune) bool { return unicode.IsControl(r) }), " ")
+	name = strings.TrimSpace(name)
+	if runes := []rune(name); len(runes) > MaxStructureNameLength {
+		name = strings.TrimSpace(string(runes[:MaxStructureNameLength]))
+	}
+	return name
 }

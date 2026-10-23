@@ -596,6 +596,50 @@ func TestEntriesBelowAnswersOnlyTheCallersEntries(t *testing.T) {
 	}
 }
 
+// The cross-tenant negative test for Flatten: tenant A cannot make B's work package a task, and B
+// can - the row changes type, loses its parent and stands at the top level.
+func TestFlattenWritesOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+	taskID, packID := freshID(t), freshID(t)
+	task := taskIn(tenantB, authorB, collectionB, taskID, "B's", "a0")
+	pack := taskIn(tenantB, authorB, collectionB, packID, "Pack", "a0")
+	pack.Type, pack.ParentID, pack.Path, pack.Depth = work.ItemWorkPackage, taskID, task.ChildPath(packID), 2
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := repo.Insert(ctx, task); err != nil {
+			return err
+		}
+		return repo.Insert(ctx, pack)
+	}); err != nil {
+		t.Fatalf("writing B's entries: %v", err)
+	}
+	flat := pack
+	flat.Type, flat.ParentID, flat.Path, flat.Depth, flat.OrderKey = work.ItemTask, "", work.RootPath(packID), 1, "a1"
+	flattening := repository.Flattening{Item: flat, OldPath: pack.Path, DepthDelta: -1, ExpectedVersion: pack.Version}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return repo.Flatten(ctx, flattening)
+	}); err == nil {
+		t.Fatal("tenant A flattened B's work package")
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return repo.Flatten(ctx, flattening)
+	}); err != nil {
+		t.Fatalf("B flattening its own: %v", err)
+	}
+	var stored work.WorkItem
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		stored, err = repo.Find(ctx, packID)
+		return err
+	}); err != nil {
+		t.Fatalf("reading it back: %v", err)
+	}
+	if stored.Type != work.ItemTask || !stored.ParentID.IsZero() || stored.Depth != 1 || stored.Path != flat.Path {
+		t.Errorf("stored %s under %q at %d (%s)", stored.Type, stored.ParentID, stored.Depth, stored.Path)
+	}
+}
+
 // The cross-tenant negative test for TypesOf: the types of the levels above an entry, read for the
 // hidden rule. Asked about one entry of each workspace, tenant B learns the type of its own and
 // nothing about A's.

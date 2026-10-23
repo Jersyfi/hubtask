@@ -42,6 +42,8 @@ type PreviewContainerStructure struct {
 type StructurePreview struct {
 	Narrowing domain.Narrowing
 	Keeping   []KeptOwnValue
+	// Flatten is how many entries narrowing FLATTEN would move to the top level.
+	Flatten int
 }
 
 // KeptOwnValue is a collection that follows a hub and keeps its own value of these settings.
@@ -158,6 +160,11 @@ func (h PreviewContainerStructure) count(ctx context.Context, cmd SetContainerSt
 		return StructurePreview{}, err
 	}
 	byCollection := entryShapesByCollection(shapes)
+	afters := make(map[shared.ID]domain.EffectiveStructure, len(changes))
+	for id, moved := range changes {
+		afters[id] = moved.after
+	}
+	preview.Flatten = flattenCount(bound, afters, shapes)
 	for _, id := range collections {
 		moved := changes[id]
 		preview.Narrowing = preview.Narrowing.Add(
@@ -275,5 +282,6 @@ func structurePreviewOutput(preview StructurePreview) usecase.Output {
 	return usecase.Output{
 		"narrows": n.Narrows(), "levels": levels, "fields": fields, "views": views,
 		"automation": automation, "keeping": keeping,
+		"flatten": map[string]any{"entries": preview.Flatten},
 	}
 }

@@ -161,6 +161,9 @@ func structureChangeInput(body openapi.StructureChange) (usecase.Input, error) {
 		}
 		in["reset"] = reset
 	}
+	if body.Narrowing != nil {
+		in["narrowing"] = string(*body.Narrowing)
+	}
 	return in, nil
 }
 

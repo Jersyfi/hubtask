@@ -490,6 +490,21 @@ type EntryShapes interface {
 	ShapesIn(ctx context.Context, collectionIDs []shared.ID, limit int) ([]EntryShape, error)
 }
 
+// Flattening is one entry made a top-level entry of another type: Item as it is after, with
+// its old path and how far its depth moved, for the trashed entries still under it.
+type Flattening struct {
+	Item            work.WorkItem
+	OldPath         string
+	DepthDelta      int
+	ExpectedVersion int
+}
+
+// ItemFlattener writes a flattening (UC-WRK-24 check 6): the only write that changes an entry's
+// type, and so its own interface - a move never does.
+type ItemFlattener interface {
+	Flatten(ctx context.Context, flattening Flattening) error
+}
+
 type Items interface {
 	// Find returns the item, or ErrNotFound if it does not exist *for this tenant*. Trashed and
 	// archived items come back as they are stored: whether one may take children is the domain's

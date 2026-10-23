@@ -766,6 +766,24 @@ UPDATE work_item SET
   version               = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 
+-- name: FlattenWorkItem :execrows
+-- Makes an entry a top-level entry of another type (UC-WRK-24 check 6): the one statement that
+-- changes an entry's type, which a move never does. The parent goes, the path and the depth are
+-- the top level's, the rank is the caller's; under the optimistic lock every write to the row
+-- takes. Whatever still lies under it - only trashed entries, since a flatten moves the deepest
+-- first - follows through MoveWorkItemSubtree.
+UPDATE work_item SET
+  type       = sqlc.arg('type'),
+  parent_id  = NULL,
+  path       = sqlc.arg('path'),
+  depth      = 1,
+  order_key  = sqlc.arg('order_key'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE tenant_id = current_tenant_id()
+  AND id = sqlc.arg('id')::uuid
+  AND version = sqlc.arg('expected_version');
+
 -- name: MoveWorkItemSubtree :execrows
 -- Rewrites the materialised path, the depth and the collection of an item and everything below it, in one
 -- statement (I-W2: the path and the depth stay consistent, and changes go through a move that updates the

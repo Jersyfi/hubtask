@@ -4287,6 +4287,24 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangeNarrowing.
+const (
+	FLATTEN StructureChangeNarrowing = "FLATTEN"
+	HIDE    StructureChangeNarrowing = "HIDE"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangeNarrowing enum.
+func (e StructureChangeNarrowing) Valid() bool {
+	switch e {
+	case FLATTEN:
+		return true
+	case HIDE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureChangePreset.
 const (
 	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
@@ -10976,12 +10994,17 @@ type StepUpRequest struct {
 
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
-	Preset *StructureChangePreset  `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+	// Narrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+	Narrowing *StructureChangeNarrowing `json:"narrowing,omitempty"`
+	Preset    *StructureChangePreset    `json:"preset,omitempty"`
+	Reset     *[]StructureSettingName   `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
+
+// StructureChangeNarrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+type StructureChangeNarrowing string
 
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
@@ -11049,6 +11072,11 @@ type StructurePreview struct {
 		// Type Extensible; /meta/capabilities returns the valid values.
 		Type ItemType `json:"type"`
 	} `json:"fields"`
+
+	// Flatten What `narrowing: FLATTEN` would do: how many entries it would move to the top level. It cannot be undone by switching back.
+	Flatten struct {
+		Entries int `json:"entries"`
+	} `json:"flatten"`
 
 	// Keeping For a hub: the collections that follow it but keep their own value of a setting the change moves, and which settings. Empty for a collection.
 	Keeping []struct {
