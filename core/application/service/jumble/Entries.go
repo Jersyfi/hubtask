@@ -111,7 +111,10 @@ func (h SubmitJumbleEntry) Execute(
 	now := w.Clock.Now()
 	entry, err := domain.NewEntry(domain.NewEntryInput{
 		ID: w.IDs.NewID(), TenantID: actor.TenantID, Channel: channel,
-		Sender: cmd.Sender, RawSubject: cmd.RawSubject, RawBody: cmd.RawBody,
+		// The account that submitted it, whoever it is - a person, a token, an agent, a rule's
+		// service account: what keeps a kept-out person's own capture out of AI (data-protection.md
+		// §4.1), which the caller-supplied sender cannot.
+		Sender: cmd.Sender, CreatedBy: actor.AccountID, RawSubject: cmd.RawSubject, RawBody: cmd.RawBody,
 		Attachments: cmd.Attachments, Now: now,
 	})
 	if err != nil {

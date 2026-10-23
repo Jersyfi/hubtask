@@ -95,7 +95,12 @@ type Entry struct {
 	// Sender is who the transport says it came from. Data, never an identity: a From header
 	// authenticates nothing - the intake token does - and the value is stored so a person can judge
 	// provenance, not so the system can trust it.
-	Sender     string
+	Sender string
+	// CreatedBy is the account that submitted the entry, where an account did - a capture, an API
+	// call, a tool, a rule - and zero for a mail or a webhook, which authenticate no person. Unlike
+	// the sender it is an identity: whose own content the entry is when a person keeps theirs out
+	// of AI (data-protection.md §4.1).
+	CreatedBy  shared.ID
 	RawSubject string
 	RawBody    string
 	// Attachments are media object identifiers, already stored through the upload pipeline with its
@@ -117,10 +122,12 @@ type Entry struct {
 
 // NewEntryInput is what an arrival needs.
 type NewEntryInput struct {
-	ID          shared.ID
-	TenantID    shared.ID
-	Channel     Channel
-	Sender      string
+	ID       shared.ID
+	TenantID shared.ID
+	Channel  Channel
+	Sender   string
+	// CreatedBy is the submitting account, zero where none submitted it.
+	CreatedBy   shared.ID
 	RawSubject  string
 	RawBody     string
 	Attachments []shared.ID
@@ -182,7 +189,7 @@ func NewEntry(in NewEntryInput) (Entry, error) {
 	copy(attachments, in.Attachments)
 	return Entry{
 		ID: in.ID, TenantID: in.TenantID, Channel: in.Channel,
-		Sender: sender, RawSubject: subject, RawBody: body,
+		Sender: sender, CreatedBy: in.CreatedBy, RawSubject: subject, RawBody: body,
 		Attachments: attachments,
 		Status:      StatusNew,
 		ReceivedAt:  in.Now.UTC(),
