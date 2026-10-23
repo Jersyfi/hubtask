@@ -34,12 +34,18 @@
   import CelebrationSlot from '../lib/entries/CelebrationSlot.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
+  import EntryActions from '../lib/entries/EntryActions.svelte';
+  import EntryMenu from '../lib/entries/EntryMenu.svelte';
+  import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
+  import { entryMenu } from '../lib/entries/entryMenu.ts';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { holdsHere, hubCreationHere } from '../lib/data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
+  import { archivalOfItem } from '../lib/data/lifecycle.ts';
+  import { people } from '../lib/data/people.svelte.ts';
   import { today } from '../lib/data/today.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -144,6 +150,67 @@
     }
   }
 
+  /**
+   * A row's menu: the one every surface draws (UC-WRK-28 check 1). *Today* mixes collections and
+   * holds no level, so, as on the search page, the role is read along each row's collection with
+   * the rows and the moves wait for the level read when the menu opens.
+   */
+  const rowPath = (item: WorkItem) => ({
+    hubId: containers.find(item.collection_id)?.parent_id ?? undefined,
+    collectionId: item.collection_id,
+  });
+  const shown = $derived([
+    ...bands.earlier,
+    ...bands.today,
+    ...bands.later,
+    ...projects.map((project) => today.stepOf(project.id)).filter((step): step is WorkItem => step !== undefined),
+  ]);
+  $effect(() => {
+    const paths = shown.map(rowPath);
+    untrack(() => {
+      for (const path of paths) people.open(path);
+    });
+  });
+
+  function menuOf(item: WorkItem) {
+    const role = people.roleOf(rowPath(item), actor.account?.id, roleOrder()) ?? undefined;
+    const isMine = item.assignee_id != null && item.assignee_id === actor.account?.id;
+    return entryMenu(
+      {
+        surface: 'today',
+        item: { title: item.title, isCompleted: isDone(item), hasDue: Boolean(item.due_at) },
+        archival: archivalOfItem(item, false),
+        isCollectionReadOnly: containers.find(item.collection_id)?.effective_archived ?? false,
+        mayChange: mayDo(role, 'change', isMine),
+        mayCreate: mayDo(role, 'create', isMine) === true,
+        mayShare: holds(role, 'MANAGE_MEMBERS').status === 'permitted',
+        carries: (capability) => supports(item.type, capability).status === 'permitted',
+        level: actions?.levelOf(item),
+      },
+      t,
+    );
+  }
+
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
+  let panels = $state<HTMLElement | null>(null);
+
+  function openMenu(id: string) {
+    const item = shown.find((each) => each.id === id);
+    if (item) actions?.readLevel(item);
+    menus[id]?.open(0);
+  }
+
+  // A right click, the context-menu key and a long press open the same menu as its ⋯.
+  $effect(() => {
+    const node = panels;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: (target) => (target as Element | null)?.closest?.('[data-entry-row]')?.getAttribute('data-entry-row') ?? undefined,
+      open: openMenu,
+    });
+  });
+
   const moment = $derived(celebration.current);
 
   const recentHref = (kind: string, id: string) => (kind === 'item' ? `/items/${id}` : kind === 'hub' ? `/hubs/${id}` : `/collections/${id}`);
@@ -153,16 +220,27 @@
   {#if moment && moment.item.id === item.id}
     <CelebrationSlot current={moment} />
   {/if}
-  <TaskRow
-    type={item.type}
-    title={item.title}
-    href={`/items/${item.id}`}
-    isCompleted={isDone(item)}
-    completeLabel={t('app.entries.complete', { title: item.title })}
-    onToggleComplete={() => void toggle(item)}
-  >
-    {#snippet trailing()}{#if hasPlace}<EntryPlace collectionId={item.collection_id} withHub />{/if}<DueMark {item} isPlain />{/snippet}
-  </TaskRow>
+  <div data-entry-row={item.id}>
+    <TaskRow
+      type={item.type}
+      title={item.title}
+      href={`/items/${item.id}`}
+      isCompleted={isDone(item)}
+      completeLabel={t('app.entries.complete', { title: item.title })}
+      onToggleComplete={() => void toggle(item)}
+    >
+      {#snippet trailing()}
+        {#if hasPlace}<EntryPlace collectionId={item.collection_id} withHub />{/if}<DueMark {item} isPlain />
+        <EntryMenu
+          bind:this={menus[item.id]}
+          title={item.title}
+          items={menuOf(item)}
+          onselect={(chosen) => void actions?.run(item, chosen)}
+          onopening={() => actions?.readLevel(item)}
+        />
+      {/snippet}
+    </TaskRow>
+  </div>
 {/snippet}
 
 {#snippet band(code: string, rows: readonly WorkItem[])}
@@ -192,7 +270,7 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <div class="panels">
+    <div class="panels" bind:this={panels}>
       <!-- What is on the reader, split where their own day divides it. -->
       <section class="panel mine" aria-labelledby="today-mine">
         <Stack gap="150">
@@ -316,6 +394,8 @@
     </div>
   {/if}
 </Stack>
+
+<EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
 
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
 

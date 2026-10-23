@@ -168,6 +168,19 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   await sent(page, 2);
   assert.deepEqual(dayCompletionsSoFar(), [`complete ${TODAYS.id}`, `reopen ${TODAYS.id}`]);
 
+  // The row carries the menu every surface draws, by its ⋯ and by a right click (UC-WRK-28 check 1).
+  const menu = page.getByRole('menu', { name: `Actions for ${TODAYS.title}` });
+  await mine.getByRole('button', { name: `Actions for ${TODAYS.title}`, exact: true }).click();
+  await menu.waitFor({ timeout: 5_000 });
+  const byButton = await menu.getByRole('menuitem').allTextContents();
+  assert.ok(byButton.some((label) => label.includes('Open')), `no Open: ${byButton}`);
+  await page.keyboard.press('Escape');
+  await menu.waitFor({ state: 'detached', timeout: 5_000 });
+  await mine.getByRole('link', { name: TODAYS.title }).click({ button: 'right' });
+  await menu.waitFor({ timeout: 5_000 });
+  assert.deepEqual(await menu.getByRole('menuitem').allTextContents(), byButton);
+  await page.keyboard.press('Escape');
+
   assert.deepEqual(failures, []);
   assert.deepEqual(unstubbed(), []);
 });
