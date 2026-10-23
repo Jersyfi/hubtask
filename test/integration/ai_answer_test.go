@@ -33,11 +33,9 @@ func TestAQuestionIsAnsweredOnlyFromEntriesTheAskerMayRead(t *testing.T) {
 	}); err != nil {
 		t.Fatalf("seeding the other workspace's entry: %v", err)
 	}
-	if _, err := adminPool(ctx, t).Exec(ctx, `
-		INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES ($1, $2, $3, 'TENANT', 'OWNER')`,
-		freshID(t).String(), tenantB.String(), authorB.String()); err != nil {
-		t.Fatalf("seeding the other workspace's owner: %v", err)
-	}
+	// The other workspace's owner comes from the suite's shared grants: a grant of its own would
+	// collide with theirs whichever test ran first.
+	seedMemberships(ctx, t)
 
 	sources := suggestion.CatalogueSources{Catalogue: askReaders{readerRegistry(ctx, t)}}
 	ask := func(actor appshared.ActorContext) suggestion.Material {
