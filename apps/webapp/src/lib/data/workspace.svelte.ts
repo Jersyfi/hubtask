@@ -110,6 +110,14 @@ class WorkspaceStore {
     return engine.mutate<WorkspaceStructure>('PATCH', `${PATH}/structure`, body, { ifMatch: etag, invalidates: [PATH] });
   }
 
+  /**
+   * Answers the first start's question for good, answered or skipped (UC-WRK-30 check 5). Called
+   * before the starter set is created, so an interruption never makes the set twice.
+   */
+  async closeStarter(): Promise<void> {
+    await engine.mutate<void>('POST', `${PATH}/starter:close`, undefined, { invalidates: [PATH] });
+  }
+
   async change(body: WorkspaceChange): Promise<Workspace> {
     const etag = this.#state.status === 'ready' ? this.#state.etag : undefined;
     return engine.mutate<Workspace>('PATCH', PATH, body, {

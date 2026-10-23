@@ -247,6 +247,8 @@ class Containers {
       private?: boolean;
       /** The preset it starts from (UC-WRK-23 check 1); absent follows the hub, or the workspace's default. */
       preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
+      /** A saved preset instead - the workspace's or the reader's own (UC-WRK-30 check 2). */
+      preset_id?: string;
     },
     idempotencyKey: string,
   ): Promise<Container> {
