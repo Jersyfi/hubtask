@@ -1,7 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // Import… on a hub: four steps in one dialog (design-system.md §11.8).
+  // Import… on a hub, or in a collection's add split: four steps in one dialog
+  // (design-system.md §11.8). On a hub the file becomes collections under it; in a collection its
+  // entries land there, and the dialog says so before the kind is chosen.
   //
   // **The kind, the file, the mapping, the run.** The kinds are the contract's enum, each with
   // one sentence saying what file it takes and where the source exports it. The file goes through
@@ -27,6 +29,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { engine } from '../data/engine.ts';
   import { imports } from '../data/imports.svelte.ts';
   import {
     CSV_FIELDS,
@@ -44,6 +47,7 @@
   import { isTerminal } from '../data/jobs.ts';
   import { media } from '../data/media.svelte.ts';
   import { isWithinUploadLimit, uploadLimitOf } from '../data/media.ts';
+  import { TOUCHES_ANY_ENTRY } from '../data/touches.ts';
   import { formatBytes } from '../i18n/bytes.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -52,13 +56,15 @@
 
   interface Props {
     isOpen?: boolean;
-    /** The hub the imported collections land under. */
+    /** The hub the imported collections land under, or the hub of the collection. */
     hubId: string;
+    /** The collection the entries land in, where the import starts from one. */
+    collection?: { readonly id: string; readonly name: string };
     /** Where a collection that landed is opened. */
     onnavigate: (path: string) => void;
   }
 
-  let { isOpen = $bindable(false), hubId, onnavigate }: Props = $props();
+  let { isOpen = $bindable(false), hubId, collection, onnavigate }: Props = $props();
 
   type Step = 'kind' | 'file' | 'mapping' | 'run';
   const STEPS: readonly Step[] = ['kind', 'file', 'mapping', 'run'];
@@ -120,9 +126,11 @@
           }),
   );
 
-  /** The collections that landed: under the hub now and not before the run. */
+  /** The collections that landed: under the hub now and not before the run. None into a collection. */
   const landed = $derived(
-    run?.status === 'SUCCEEDED' ? containers.collectionsOf(hubId).filter((each) => !before.has(each.id)) : [],
+    run?.status === 'SUCCEEDED' && collection === undefined
+      ? containers.collectionsOf(hubId).filter((each) => !before.has(each.id))
+      : [],
   );
 
   // Opening starts over: the dialog is about one file, and a report left on screen would be a
@@ -153,7 +161,12 @@
     void untrack(async () => {
       await imports.read(id);
       const done = imports.of(id);
-      if (done?.status === 'SUCCEEDED') await containers.refreshLevel(hubId);
+      if (done?.status === 'SUCCEEDED') {
+        // The job wrote without a change log entry, so what shows what landed is read again here:
+        // the hub's level, or the collection's entries, columns and labels.
+        if (collection === undefined) await containers.refreshLevel(hubId);
+        else engine.landed([...TOUCHES_ANY_ENTRY, `/containers/${collection.id}`]);
+      }
       announcer.say(done?.status === 'SUCCEEDED' ? t('app.import.done_announced') : t('app.import.failed_announced'));
     });
   });
@@ -218,6 +231,7 @@
         media_id: mediaId,
         kind,
         hub_id: hubId,
+        ...(collection ? { collection_id: collection.id } : {}),
         ...(sent ? { mapping: sent } : {}),
       });
       jobId = accepted.job_id;
@@ -245,6 +259,9 @@
     <h3 class="step" aria-live="polite">{heading}</h3>
 
     {#if step === 'kind'}
+      {#if collection}
+        <p class="quiet">{t('app.import.into', { name: collection.name })}</p>
+      {/if}
       <Radio
         label={t('app.import.kind')}
         bind:value={kind}

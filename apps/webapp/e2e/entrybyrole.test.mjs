@@ -174,6 +174,8 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
     await page.getByRole('button', { name: 'More ways to add an entry' }).click();
     assert.equal(await page.getByRole('menuitem', { name: 'From a template…' }).count(), 1, 'no way to the templates');
+    // An import may add the file's columns and labels: offered where the collection may be shaped.
+    assert.equal(await page.getByRole('menuitem', { name: 'Import…' }).count(), shapes ? 1 : 0, 'Import… in the add split');
     await page.keyboard.press('Escape');
     // The trash takes a subtree with it: the owner's alone.
     assert.equal(rows.includes('Move to the trash'), role === 'OWNER');

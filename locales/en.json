@@ -3122,6 +3122,7 @@
   "app.import.step_mapping": "Which column is which",
   "app.import.step_run": "The import",
   "app.import.kind": "Where does the file come from?",
+  "app.import.into": "The entries land in {name}. A Trello board's lists become its columns; where another file keeps several lists, each becomes a label. A column or label {name} already has is used, not doubled.",
   "app.import.kind_CSV": "A spreadsheet (CSV)",
   "app.import.kind_CSV_hint": "A header row and one entry per line, saved as CSV from any spreadsheet. Columns named title, notes, due, completed, labels, bucket or parent are taken as such; the next step lets you name the others.",
   "app.import.kind_TRELLO": "Trello",
