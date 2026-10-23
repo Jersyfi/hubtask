@@ -1419,9 +1419,13 @@
           <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
                already carries: the names come from the accounts cache rather than from an
                expansion this server does not serve. -->
-          <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+          <!-- Per the collection's profile (UC-WRK-23 check 4): a value the type does not carry
+               here stays stored and is not drawn. -->
+          {#if supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted'}
+            <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+          {/if}
           <!-- When it is wanted, with the word as well as the tone (rule 3). -->
-          <DueMark item={row.item} />
+          {#if supports(row.item.type, 'DUE_DATE').status === 'permitted'}<DueMark item={row.item} />{/if}
 
           <!-- Rule 3: an entry archived in its own right is not told apart by being dimmer. It
                says the word, so the state reads in greyscale and to a screen reader. In a
@@ -1454,6 +1458,7 @@
             <!-- A simple list keeps its rows to a tick and a title; a category is chosen from the
                  row's menu, other labels on the entry's page. -->
             {#if !isFrozen(row) && !isSimple}
+              <span class="on-hover">
               <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
                 {#snippet trigger(props)}
                   <Button size="sm" tone="subtle" icon="tag" {...props}>
@@ -1471,6 +1476,7 @@
                   onToggle={(labelId) => toggleLabel(row.item, labelId)}
                 />
               </Popover>
+              </span>
             {/if}
           {/if}
 
@@ -1480,6 +1486,7 @@
                  between them made a list of seven rows carry eight controls of that name,
                  seven of which do something else. Icon-only, so the row's controls stop
                  competing with its title for width. -->
+            <span class="on-hover">
             <IconButton
               icon="plus"
               label={childTypes(row.item.type).length === 1
@@ -1488,6 +1495,7 @@
               size="sm"
               onclick={() => startAdding(row.item.id)}
             />
+            </span>
           {/if}
 
           <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
@@ -1495,12 +1503,14 @@
                cannot be used rather than a control that goes grey for no stated cause. -->
           <!-- The entry menu every surface shares (UC-WRK-28 check 1); a simple list's still hold
                opens it, Select first (ADR-0088). -->
+          <span class="on-hover">
           <EntryMenu
             bind:this={menus[row.item.id]}
             title={row.item.title}
             items={menuItems(row)}
             onselect={(id) => chose(row, id)}
           />
+          </span>
         {/snippet}
       </TaskRow>
 
@@ -1707,6 +1717,30 @@
   .pick { display: flex; align-items: center; }
 
   .bulk-note { margin: 0 0 0 var(--sp-300); color: var(--text-danger); font-size: var(--fs-075); }
+
+  /* The row's tools - the grip, the labels, ＋ and ⋯ - where a pointer that hovers is pointing,
+     or the keyboard is (ux-inventory.md §E5); the chips stay, they are what the row says. Faded
+     rather than taken out: the row keeps its width, the tools stay in the tab order and a
+     right-click, Shift+F10 or a hold still opens the menu. A touch screen has no hover and keeps
+     them drawn. */
+  .on-hover { display: inline-flex; align-items: center; }
+
+  @media (hover: hover) {
+    .row .grip,
+    .row .on-hover {
+      opacity: 0;
+      transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+    }
+
+    .row:hover .grip,
+    .row:hover .on-hover,
+    .row:focus-within .grip,
+    .row:focus-within .on-hover,
+    .row:has(:global([aria-expanded='true'])) .on-hover,
+    .row[data-dragging] .grip {
+      opacity: 1;
+    }
+  }
 
   .grip {
     display: inline-flex;

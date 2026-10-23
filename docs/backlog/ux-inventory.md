@@ -172,15 +172,15 @@ Administration and installation, found by UX-05's sweep:
 
 ## E5 — List, board, timeline, selection
 
-- [ ] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover
-- [ ] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08)
+- [x] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover — the list's rows; the grip shows where the pointer or the focus is (UX-17)
+- [x] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08) — the list's rows: the chips always, *Labels*, ＋ and *⋯* where the pointer or the focus is; people and the date per the profile (UX-17)
 - [x] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo — done in UX-16: `EntryMenu` on the list and the subtree, labels undo on the chips
-- [ ] "Left some things behind" notice → kept
+- [x] "Left some things behind" notice → kept — after a move or a copy from the entry menu, and after a template is used (UX-17)
 - [x] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more* (UX-12: the capture line takes several lines and a leading amount; kind and language under *More*; a simple list keeps it open at its top)
-- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16 (ADR-0088)
+- [x] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16 (ADR-0088) — the list, the board and the frame (UX-17)
 - [x] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press — done in UX-16: `EntryMenu` on cards, Ctrl/⌘-click and the still long press (ADR-0088)
-- [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile
-- [ ] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3)
+- [x] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile — the layout switch's *Timeline*, offered where the structure offers it (UX-10, UX-17)
+- [x] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3) — above the list and the board in the selection mode; *Apply* stays pressable and a missing value is marked at its field (UX-17)
 
 ## E6 — The entry
 

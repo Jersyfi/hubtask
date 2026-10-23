@@ -1075,6 +1075,13 @@ rows carry the checkbox, the page head becomes the count and the bulk verbs, and
 Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
 
+**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`), the
+grip, the labels button, ＋ and *⋯* are faded until the pointer is over the row or the focus is in
+it, and while one of them is open; the chips - people, the date, the labels - always stand. Faded,
+not removed: the row keeps its width, the tools keep their place in the tab order, and a
+right-click, `Shift`+`F10` or a hold opens the menu as before. A touch screen draws them always. A
+mark the type does not carry in the collection (a date on a *List*) is not drawn.
+
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
 one that does not opens the entry. The card follows the pointer on both axes and the column under it
 is marked. The card menu's *move to column* stays as SC 2.5.7's alternative.

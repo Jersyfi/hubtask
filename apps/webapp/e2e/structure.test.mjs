@@ -95,6 +95,9 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   assert.equal(await page.getByRole('radio', { name: 'Timeline' }).count(), 0, 'a timeline is offered');
   assert.equal(await page.getByRole('button', { name: `Expand ${SHAPE_ITEMS[0].title}` }).count(), 0, 'a twist for children a list does not hold');
   assert.equal(await page.getByRole('button', { name: new RegExp(`inside ${SHAPE_ITEMS[0].title}`) }).count(), 0, 'a child is offered');
+  // A date and a person the entry holds from before stay stored and are not drawn on its row.
+  const kept = await page.locator(`[data-row="${SHAPE_ITEMS[0].id}"]`).first().textContent();
+  assert.ok(!kept.includes('2026') && !kept.includes('JW'), `the row draws what a list does not carry: ${kept}`);
   // ...and its filter asks about nothing a list does not carry: no due date to order by.
   await page.getByRole('button', { name: 'Filter and sort' }).click();
   const orderBy = page.getByRole('combobox', { name: 'Order by' });
