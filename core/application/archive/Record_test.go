@@ -250,9 +250,10 @@ func TestParentsComeBeforeChildren(t *testing.T) {
 	}
 }
 
-// The format writes media_objects after work_items, and work_item.cover_media_id is an immediate
-// foreign key into it. A restore applies the media first; everything else keeps the format's order.
-func TestARestoreAppliesTheMediaBeforeTheEntriesThatShowThem(t *testing.T) {
+// The format writes media_objects after accounts and work_items, and account.avatar_media_id and
+// work_item.cover_media_id are immediate foreign keys into it. A restore applies the media first;
+// everything else keeps the format's order.
+func TestARestoreAppliesTheMediaBeforeThoseThatShowThem(t *testing.T) {
 	var written, restored []string
 	for _, entity := range Entities() {
 		if _, kept := NotRestored()[entity.Table]; !kept {
@@ -263,8 +264,10 @@ func TestARestoreAppliesTheMediaBeforeTheEntriesThatShowThem(t *testing.T) {
 		restored = append(restored, entity.Name)
 	}
 
-	if slices.Index(restored, "media_objects") > slices.Index(restored, "work_items") {
-		t.Fatalf("a restore writes media_objects after work_items: %v", restored)
+	for _, showing := range []string{"accounts", "work_items"} {
+		if slices.Index(restored, "media_objects") > slices.Index(restored, showing) {
+			t.Fatalf("a restore writes media_objects after %s: %v", showing, restored)
+		}
 	}
 	moved := slices.DeleteFunc(slices.Clone(restored), func(name string) bool { return name == "media_objects" })
 	kept := slices.DeleteFunc(slices.Clone(written), func(name string) bool { return name == "media_objects" })

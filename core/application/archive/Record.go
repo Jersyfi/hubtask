@@ -339,7 +339,8 @@ var entities = []Entity{
 	// The tenant itself, so that a NEW_TENANT restore has something to create rather than
 	// something to fill in (backup-restore.md §8.2).
 	{Name: "tenants", Table: "tenant", Keys: []string{"id"}},
-	{Name: "accounts", Table: "account", Keys: []string{"id"}},
+	{Name: "accounts", Table: "account", Keys: []string{"id"},
+		References: []Reference{{Field: "avatar_media_id", Table: "media_object", Clearable: true}}},
 	// An account's passkeys (identity.md §23.5): a data backup keeps them, so a restore leaves
 	// people their way in; the exports lose the credential columns (tenant-export.md §9). Not
 	// duplicable: a passkey belongs to its account and its workspace's host.
@@ -542,9 +543,10 @@ func NotRestored() map[string]string { return maps.Clone(notRestored) }
 // RestoredEntities are the entities a restore writes, in the order it writes them: a row's parents
 // before the row, so that the files are applied in sequence without deferring a foreign key.
 //
-// The format's order with one change. `work_items` names `media_objects` in `cover_media_id`, a
-// reference the format writes forward (tenant-export.md §6) and the schema enforces immediately,
-// so the media are applied first - they reference nothing, which is what makes that free. The same
+// The format's order with one change. `work_items` names `media_objects` in `cover_media_id` and
+// `accounts` in `avatar_media_id`, references the format writes forward (tenant-export.md §6) and
+// the schema enforces immediately, so the media are applied first, after the tenant - they
+// reference nothing else, which is what makes that free. The same
 // order, reversed, is what a replace empties the tenant in, and there it takes the covered entries
 // out before the media their `ON DELETE RESTRICT` would hold.
 func RestoredEntities() []Entity {
@@ -554,10 +556,10 @@ func RestoredEntities() []Entity {
 		if _, kept := notRestored[entity.Table]; kept || entity.Table == media.Table {
 			continue
 		}
-		if entity.Table == "work_item" {
+		out = append(out, entity)
+		if entity.Table == "tenant" {
 			out = append(out, media)
 		}
-		out = append(out, entity)
 	}
 	return out
 }
