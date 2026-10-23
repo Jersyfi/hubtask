@@ -164,6 +164,10 @@ const (
 	// AiDraftRuleAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	AiDraftRuleAttempts = 20
 
+	// KindAiAnswer answers a person's question about the workspace (UC-AI-08), under a kind of its
+	// own for KindAiDraftRule's reason, and with its attempt budget.
+	KindAiAnswer Kind = "ai.answer_question"
+
 	// KindAiSuggestArrival asks for a proposal the workspace prepares about one jumble arrival
 	// (UC-JUM-07 check 10): the system acting for the workspace, not a person who asked. A kind of
 	// its own rather than a flag on KindAiSuggest, for KindEmergencyAccessEmail's reason: a process

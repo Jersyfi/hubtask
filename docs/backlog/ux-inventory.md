@@ -116,7 +116,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Skip link → kept
 - [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
 - [x] Wordmark → the mark (UX-06), leads to Today — the mark and the wordmark link to `/`, the start page UX-15 makes *Today*
-- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask*: UX-22
+- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask* — one question, a proposed answer with its sources, provenance, filter chips and *Save as view*, in the dialog *Ask the workspace* (UX-22)
 - [ ] Page *⋯* on phones → kept
 - [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
