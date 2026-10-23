@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-09, P-13]
 state: verified
 tasks: [UX-02]
-checked_by: [infrastructure/i18n/ScriptFaces_test.go, packages/design-system/test/fonts.test.js, apps/webapp/src/lib/i18n/locale.test.ts, apps/webapp/e2e/scripts.test.mjs, presentation/webui/Handler_test.go, docs/evidence/UX-02-2026-10-21.md]
+checked_by: [infrastructure/i18n/ScriptFaces_test.go, packages/design-system/test/fonts.test.js, apps/webapp/src/lib/i18n/locale.test.ts, apps/webapp/e2e/scripts.test.mjs, presentation/webui/Handler_test.go]
 ---
 
 # See Hubtask in my own script
