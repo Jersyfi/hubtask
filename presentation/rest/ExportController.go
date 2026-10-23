@@ -4,7 +4,10 @@
 package rest
 
 import (
+	"bytes"
 	"encoding/csv"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -87,6 +90,82 @@ func (c *RestController) ExportView(
 	case openapi.ViewExportFormatICS:
 		writeCalendar(w, r, calendar.Calendar{
 			Name:        out.String("view_name"),
+			GeneratedAt: timeValue(out["generated_at"]),
+			Events:      c.eventsOf(rows, zone),
+		})
+	default:
+		WriteProblem(w, exportFormatUnknown(string(body.Format)), requestID)
+	}
+}
+
+const exportItemsUseCase = "ExportItems"
+
+// ExportItems answers POST /items:export: a query's result as a file, without a saved view. The
+// query is read the way POST /items:query reads it (queryInput), so the grammar has one reader;
+// the rendering is the view export's.
+func (c *RestController) ExportItems(
+	w http.ResponseWriter, r *http.Request, _ openapi.ExportItemsParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_unreadable").WithCause(err), requestID)
+		return
+	}
+	var body openapi.ItemExport
+	if err := decodeFrom(bytes.NewReader(raw), &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	// The second, untyped reading: the filter and the sort are a grammar the domain reads, and
+	// they reach the use case as the documents they are (decodeQuery).
+	var document struct {
+		Query map[string]any `json:"query"`
+	}
+	if err := json.Unmarshal(raw, &document); err != nil {
+		WriteProblem(w, shared.ErrMalformedRequest.WithDetail("request.body_malformed").WithCause(err), requestID)
+		return
+	}
+
+	zone, err := exportZone(r, body.TimeZone)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	in := queryInput(body.Query, document.Query, false)
+	// What a walk decides for itself: every page, and rows rather than groups.
+	for _, part := range []string{"cursor", "size", "count", "group_by", "expand_labels"} {
+		delete(in, part)
+	}
+	out, err := c.UseCases.Invoke(r.Context(), exportItemsUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	rows, _ := out["rows"].([]usecase.Output)
+	if truncated, _ := out["truncated"].(bool); truncated {
+		w.Header().Set(exportTruncatedHeader, "true")
+	}
+
+	switch body.Format {
+	case openapi.ItemExportFormatJSON:
+		writeJSON(w, r, http.StatusOK, openapi.ItemExportDocument{
+			GeneratedAt: timeValue(out["generated_at"]),
+			Count:       out.Int("count"),
+			Truncated:   out["truncated"] == true,
+			Rows:        workItemResponses(rows),
+		})
+	case openapi.ItemExportFormatCSV:
+		writeCSV(w, r, rows, zone)
+	case openapi.ItemExportFormatICS:
+		writeCalendar(w, r, calendar.Calendar{
 			GeneratedAt: timeValue(out["generated_at"]),
 			Events:      c.eventsOf(rows, zone),
 		})

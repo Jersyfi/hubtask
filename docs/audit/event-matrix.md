@@ -345,6 +345,12 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.settings_read` | ReadInstanceSettings | `instance` | INFO | When refused |
 | `instance.usage_read` | ReadUsage | `instance` | INFO | When refused |
 
+## Items
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `items.exported` | ExportItems | `container` | INFO | Every time |
+
 ## Jumble
 
 | Action | Use case | Target | Severity | Recorded |

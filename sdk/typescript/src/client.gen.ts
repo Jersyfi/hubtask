@@ -1615,6 +1615,11 @@ export class HubtaskClient {
     return this.call("POST", "/items:query", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The result of a query, as a file */
+  exportItems(body: NonNullable<operations["exportItems"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<Response> {
+    return this.call("POST", "/items:export", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "raw", options.signal);
+  }
+
   /** Full-text search over the entries a caller may see */
   searchItems(body: NonNullable<operations["searchItems"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["searchItems"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/search", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);

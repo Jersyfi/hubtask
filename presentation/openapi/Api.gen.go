@@ -2370,6 +2370,27 @@ func (e ItemAccess) Valid() bool {
 	}
 }
 
+// Defines values for ItemExportFormat.
+const (
+	ItemExportFormatCSV  ItemExportFormat = "CSV"
+	ItemExportFormatICS  ItemExportFormat = "ICS"
+	ItemExportFormatJSON ItemExportFormat = "JSON"
+)
+
+// Valid indicates whether the value is a known member of the ItemExportFormat enum.
+func (e ItemExportFormat) Valid() bool {
+	switch e {
+	case ItemExportFormatCSV:
+		return true
+	case ItemExportFormatICS:
+		return true
+	case ItemExportFormatJSON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ItemQueryCount.
 const (
 	ItemQueryCountEstimated ItemQueryCount = "estimated"
@@ -8138,6 +8159,30 @@ type ItemAttachments struct {
 	MediaIds []openapi_types.UUID `json:"media_ids"`
 }
 
+// ItemExport What to render and how. The query decides which rows; the format decides what they become.
+type ItemExport struct {
+	// Format CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+	Format ItemExportFormat `json:"format"`
+	Query  ItemQuery        `json:"query"`
+
+	// TimeZone The zone the dates are written in. Defaults to the caller's own. It decides how a timestamp reads, never which rows are selected.
+	TimeZone *string `json:"time_zone,omitempty"`
+}
+
+// ItemExportFormat CSV for a spreadsheet, JSON for a script, ICS for a calendar. ICS renders only the entries that have a due date, because an entry with no date is not a calendar entry.
+type ItemExportFormat string
+
+// ItemExportDocument The JSON rendering - the query's rows, and what the export knows about itself.
+type ItemExportDocument struct {
+	// Count How many rows are in this document.
+	Count       int        `json:"count"`
+	GeneratedAt time.Time  `json:"generated_at"`
+	Rows        []WorkItem `json:"rows"`
+
+	// Truncated True when the result reached max_export_rows. The same statement the Export-Truncated header makes, in the one format that can carry it in the body.
+	Truncated bool `json:"truncated"`
+}
+
 // ItemLabels The labels one entry carries. Returned by adding and removing rather than the entry itself, because neither touches the entry's own row: a label lives beside it, and an entry whose version had moved would tell a client its title had changed too.
 type ItemLabels struct {
 	ItemId   openapi_types.UUID   `json:"item_id"`
@@ -13302,6 +13347,12 @@ type BulkUpdateWorkItemsParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// ExportItemsParams defines parameters for ExportItems.
+type ExportItemsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // CancelJobParams defines parameters for CancelJob.
 type CancelJobParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13982,6 +14033,9 @@ type BulkUpdateWorkItemsJSONRequestBody BulkUpdateWorkItemsJSONBody
 
 // FindDuplicatesByTitleJSONRequestBody defines body for FindDuplicatesByTitle for application/json ContentType.
 type FindDuplicatesByTitleJSONRequestBody = DuplicatesByTitleQuery
+
+// ExportItemsJSONRequestBody defines body for ExportItems for application/json ContentType.
+type ExportItemsJSONRequestBody = ItemExport
 
 // QueryItemsJSONRequestBody defines body for QueryItems for application/json ContentType.
 type QueryItemsJSONRequestBody = ItemQuery
@@ -14903,6 +14957,9 @@ type ServerInterface interface {
 	// FindDuplicatesByTitle Which entries look like a title that is not an entry yet
 	// (POST /items:duplicates)
 	FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request)
+	// ExportItems The result of a query, as a file
+	// (POST /items:export)
+	ExportItems(w http.ResponseWriter, r *http.Request, params ExportItemsParams)
 	// QueryItems The generic query - the basis for list, kanban, and timeline
 	// (POST /items:query)
 	QueryItems(w http.ResponseWriter, r *http.Request)
@@ -24769,6 +24826,47 @@ func (siw *ServerInterfaceWrapper) FindDuplicatesByTitle(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ExportItems operation middleware
+func (siw *ServerInterfaceWrapper) ExportItems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ExportItemsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ExportItems(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // QueryItems operation middleware
 func (siw *ServerInterfaceWrapper) QueryItems(w http.ResponseWriter, r *http.Request) {
 
@@ -28193,6 +28291,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}", wrapper.GetWorkItem)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}", wrapper.UpdateWorkItem)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:query", wrapper.QueryItems)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:export", wrapper.ExportItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search", wrapper.SearchItems)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/search:reindex", wrapper.ReindexSearch)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:complete", wrapper.CompleteWorkItem)

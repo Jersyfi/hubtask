@@ -1157,6 +1157,10 @@ func (pending) ExportView(w http.ResponseWriter, r *http.Request, _ openapi.View
 	notAvailable(w, r)
 }
 
+func (pending) ExportItems(w http.ResponseWriter, r *http.Request, _ openapi.ExportItemsParams) {
+	notAvailable(w, r)
+}
+
 // The relying party. RestController serves all five of its routes; these stand behind
 // them, as they do behind every operation this installation does serve.
 func (pending) StartOidcSignIn(w http.ResponseWriter, r *http.Request) {

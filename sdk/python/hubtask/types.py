@@ -2256,6 +2256,19 @@ class ItemQuery(TypedDict, total=False):
     include_trashed: bool
     count: Literal["none", "estimated", "exact"]
 
+class ItemExport(TypedDict, total=False):
+    """What to render and how. The query decides which rows; the format decides what they become."""
+    format: Required[Literal["CSV", "JSON", "ICS"]]
+    time_zone: str
+    query: Required["ItemQuery"]
+
+class ItemExportDocument(TypedDict, total=False):
+    """The JSON rendering - the query's rows, and what the export knows about itself."""
+    generated_at: Required[str]
+    count: Required[int]
+    truncated: Required[bool]
+    rows: Required[list["WorkItem"]]
+
 class ItemQueryGroup(TypedDict, total=False):
     """One column of a grouped result. Its `page` continues this group and nothing else: a client pages a column by asking again for that column - the key as a filter, this cursor as the cursor."""
     key: Required[str | None]

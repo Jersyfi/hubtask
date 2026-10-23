@@ -230,3 +230,91 @@ func TestTheRequestedZoneDecidesHowTheTimesRead(t *testing.T) {
 		t.Errorf("the due date came out as %q", records[1][10])
 	}
 }
+
+func postItemsExport(t *testing.T, registry UseCaseRegistry, body string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	controller := NewRestController()
+	controller.UseCases = registry
+	controller.BaseURL = "https://hubtask.example.com/"
+
+	ctx := appshared.ContextWithActor(t.Context(), appshared.ActorContext{
+		Kind: appshared.ActorUser, TenantID: shared.MustParseID("0192f000-0000-7000-8000-00000000000a"),
+		AccountID: shared.MustParseID("0192f000-0000-7000-8000-00000000000d"),
+		TimeZone:  "Europe/Berlin",
+	})
+	request := httptest.NewRequestWithContext(ctx, http.MethodPost,
+		APIBasePath+"/items:export", strings.NewReader(body))
+	request.Header.Set("Content-Type", "application/json")
+
+	recorder := httptest.NewRecorder()
+	controller.Routes().ServeHTTP(recorder, request)
+	return recorder
+}
+
+// A collection as it is filtered, exported without a saved view: the query reaches the use case
+// the way POST /items:query passes it, minus what the walk decides itself, and the file is the
+// view export's rendering.
+func TestAQueryExportPassesTheQueryAndRendersTheRows(t *testing.T) {
+	registry := &catalogue{out: exportedRows()}
+	recorder := postItemsExport(t, registry, `{"format":"CSV","query":{
+		"scope":{"container_id":"0192f000-0000-7000-8000-00000000000b"},
+		"filter":{"field":"is_completed","op":"EQ","value":false},
+		"sort":[{"field":"due_at","dir":"ASC"}],
+		"group_by":{"field":"assignee_id"},
+		"page":{"size":10}}}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != "ExportItems" {
+		t.Errorf("the controller invoked %q", registry.name)
+	}
+	if registry.in.String("scope_container_id") != "0192f000-0000-7000-8000-00000000000b" {
+		t.Errorf("the scope arrived as %+v", registry.in)
+	}
+	if _, ok := registry.in["filter"].(map[string]any); !ok {
+		t.Errorf("the filter arrived as %#v", registry.in["filter"])
+	}
+	if _, ok := registry.in["sort"].([]any); !ok {
+		t.Errorf("the sort arrived as %#v", registry.in["sort"])
+	}
+	for _, part := range []string{"group_by", "size", "cursor", "count"} {
+		if _, present := registry.in[part]; present {
+			t.Errorf("the walk's own %s was passed on", part)
+		}
+	}
+
+	records, err := csv.NewReader(recorder.Body).ReadAll()
+	if err != nil {
+		t.Fatalf("the file is not CSV: %v", err)
+	}
+	if len(records) != 4 || records[0][0] != "id" {
+		t.Errorf("the file is %d lines, starting %v", len(records), records[0])
+	}
+}
+
+// The JSON rendering names no view, and a truncation is said in the header and the body alike.
+func TestAQueryExportAsJSONSaysWhenItWasTruncated(t *testing.T) {
+	out := exportedRows()
+	out["truncated"] = true
+	recorder := postItemsExport(t, &catalogue{out: out},
+		`{"format":"JSON","query":{"scope":{"container_id":"0192f000-0000-7000-8000-00000000000b"}}}`)
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", recorder.Code, recorder.Body)
+	}
+	if recorder.Header().Get("Export-Truncated") != "true" {
+		t.Error("a truncated export did not say so in its header")
+	}
+	var document map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &document); err != nil {
+		t.Fatal(err)
+	}
+	if document["truncated"] != true || document["count"] != float64(3) {
+		t.Errorf("the document is %+v", document)
+	}
+	if _, named := document["view_id"]; named {
+		t.Error("an export without a view names one")
+	}
+}
