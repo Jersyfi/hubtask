@@ -3,7 +3,9 @@
 
 /**
  * What can be taken back, and how (UC-WRK-28 check 3): moving to the trash, archiving, taking a
- * label off an entry and deleting a label from a collection take effect at once and offer *Undo*.
+ * label off an entry and deleting a label from a collection take effect at once and offer *Undo*;
+ * so does a capture (UC-WRK-26 check 4), whose way back is the trash, or, for a jumble entry, its
+ * dismissal - an entry there is never deleted by hand and never undismissed (UC-JUM-06).
  *
  * Pure: which sentence the message says, and in which order a selection comes back. How long the
  * message stays, that a newer one does not push it out and that *Undo* waits for the network are
@@ -19,7 +21,9 @@ export type Act =
   | { readonly kind: 'label-removed'; readonly itemId: string; readonly labelId: string; readonly title: string }
   | { readonly kind: 'label-deleted'; readonly collectionId: string; readonly labelId: string; readonly name: string }
   | { readonly kind: 'bulk-trash'; readonly itemIds: readonly string[] }
-  | { readonly kind: 'bulk-label-removed'; readonly itemIds: readonly string[]; readonly labelId: string };
+  | { readonly kind: 'bulk-label-removed'; readonly itemIds: readonly string[]; readonly labelId: string }
+  | { readonly kind: 'captured'; readonly itemIds: readonly string[]; readonly place: string }
+  | { readonly kind: 'jumbled'; readonly entryId: string };
 
 /** What the message says about the act, as a code and its parameters. */
 export function sentenceOf(act: Act): { readonly code: string; readonly params: Record<string, string | number> } {
@@ -36,7 +40,16 @@ export function sentenceOf(act: Act): { readonly code: string; readonly params: 
       return { code: 'app.undo.bulk_trashed', params: { count: act.itemIds.length } };
     case 'bulk-label-removed':
       return { code: 'app.undo.bulk_label_removed', params: { count: act.itemIds.length } };
+    case 'captured':
+      return { code: 'app.capture.added', params: { count: String(act.itemIds.length), place: act.place } };
+    case 'jumbled':
+      return { code: 'app.capture.jumbled', params: {} };
   }
+}
+
+/** What the message says once the way back went through: a dismissed jumble entry is not gone. */
+export function takenBackCode(act: Act): string {
+  return act.kind === 'jumbled' ? 'app.capture.dismissed' : 'app.undo.done';
 }
 
 /**

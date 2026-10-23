@@ -231,7 +231,7 @@ permitted actions; global shortcuts (`Q`, `/`, `?`) and the shortcut list; quick
 
 ## UX-14 — Capture from anywhere
 
-*Depends on: UX-13, UX-09.* · issue #1646
+*Depends on: UX-13, UX-09, UX-04; UX-12 for the amount (its pull request wires it into the capture field).* · issue #1646
 
 **Use cases:** UC-WRK-26 (1, 2, 3, 4, 5, 6)
 

@@ -73,9 +73,14 @@ export function instantOf(date: string, time: string | undefined, zone: string):
   const wall = Date.parse(`${date}T${time ?? '00:00'}:00Z`);
   if (Number.isNaN(wall)) return undefined;
 
-  let guess = wall - offsetAt(wall, zone);
-  guess = wall - offsetAt(guess, zone);
-  return new Date(guess).toISOString();
+  const first = wall - offsetAt(wall, zone);
+  const guess = wall - offsetAt(first, zone);
+  if (asUTC(wallIn(guess, zone)) === wall) return new Date(guess).toISOString();
+  // In the gap neither offset reads the asked clock back. The two candidates sit either side of
+  // the jump; the later one is the clock moved forward by the gap, on the asked day - the earlier
+  // one would be the evening before where the gap is at midnight (America/Santiago).
+  const other = wall - offsetAt(guess, zone);
+  return new Date(Math.max(guess, other)).toISOString();
 }
 
 /**

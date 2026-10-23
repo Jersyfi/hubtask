@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ancestorsFirst, sentenceOf, type Act } from './undo.ts';
+import { ancestorsFirst, sentenceOf, takenBackCode, type Act } from './undo.ts';
 
 const ACTS: readonly Act[] = [
   { kind: 'trash', itemId: 'i1', title: 'Buy milk' },
@@ -22,6 +22,16 @@ test('every act has its sentence, with a count where it is several', () => {
   ]);
   assert.equal(sentenceOf(ACTS[4] as Act).params.count, 2);
   assert.equal(sentenceOf(ACTS[3] as Act).params.name, 'Urgent');
+});
+
+test('a capture says where it went, and a jumble capture taken back is dismissed, not gone', () => {
+  const captured: Act = { kind: 'captured', itemIds: ['i1', 'i2'], place: 'Groceries' };
+  const jumbled: Act = { kind: 'jumbled', entryId: 'e1' };
+  assert.deepEqual(sentenceOf(captured), { code: 'app.capture.added', params: { count: '2', place: 'Groceries' } });
+  assert.equal(sentenceOf(jumbled).code, 'app.capture.jumbled');
+  assert.equal(takenBackCode(jumbled), 'app.capture.dismissed');
+  assert.equal(takenBackCode(captured), 'app.undo.done');
+  assert.equal(takenBackCode(ACTS[0] as Act), 'app.undo.done');
 });
 
 test('a selection comes back ancestors first, otherwise in the order it was picked', () => {
