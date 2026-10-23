@@ -5822,6 +5822,12 @@
   "app.capture.jumbled": "Put in the jumble",
   "app.capture.dismissed": "Dismissed. It stays under Dismissed in the jumble until it ages out.",
   "app.capture.open": "Open",
+  "app.capture.make_entries": "Make entries",
+  "app.capture.entries_heading": "Suggested entries",
+  "app.capture.entries_into": "For {place}. Nothing is added until you take it.",
+  "app.capture.take": "Take",
+  "app.capture.take_one": "Take “{title}”",
+  "app.capture.take_all": "Take all",
   "app.searchline.label_needs_collection": "Choose a collection to filter by label — a label belongs to one collection.",
   "app.searchmenu.field": "Search everything",
   "app.searchline.and_more": "{first} +{more}"
