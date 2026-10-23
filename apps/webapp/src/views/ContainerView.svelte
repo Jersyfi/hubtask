@@ -38,6 +38,9 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
+  import ContainerMilestone from '../lib/entries/ContainerMilestone.svelte';
+  import { showsMilestone } from '../lib/data/kudos.ts';
+  import { celebration } from '../lib/celebration.svelte.ts';
   import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
@@ -846,9 +849,12 @@
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
   <!-- What counts in the collection, counted by the server on its read (UC-WRK-29). Absent on a
-       hub, offline, and where the collection counts nothing. -->
+       hub, offline, and where the collection counts nothing. Beside it the milestone of a
+       collection or hub, while the reader celebrates (checks 4 and 7). -->
+  {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
+    {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
   <Stack gap="300">
@@ -875,7 +881,7 @@
       primary={headPrimary}
       secondary={headSecondary}
       menu={headMenu}
-      figure={container.type === 'COLLECTION' && container.figure ? collectionFigure : undefined}
+      figure={(container.type === 'COLLECTION' && container.figure) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
       {#snippet notices()}

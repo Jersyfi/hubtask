@@ -1705,6 +1705,21 @@ export class HubtaskClient {
     return this.call("GET", "/items/{itemId}/activity", { "itemId": itemId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** GET /items/{itemId}/kudos */
+  readKudos(itemId: string, options: CallOptions = {}): Promise<operations["readKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** PUT /items/{itemId}/kudos */
+  giveKudos(itemId: string, options: CallOptions = {}): Promise<operations["giveKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** DELETE /items/{itemId}/kudos */
+  takeBackKudos(itemId: string, options: CallOptions = {}): Promise<operations["takeBackKudos"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/items/{itemId}/kudos", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** GET /containers/{containerId}/buckets */
   listBuckets(containerId: string, options: CallOptions = {}): Promise<operations["listBuckets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/containers/{containerId}/buckets", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

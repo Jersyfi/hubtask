@@ -6879,10 +6879,13 @@ type Container struct {
 	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
-	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
-	Name       string              `json:"name"`
-	OrderKey   *string             `json:"order_key,omitempty"`
-	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
+	KeptByLock *[]string `json:"kept_by_lock,omitempty"`
+
+	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.
+	Milestone *ContainerMilestone `json:"milestone,omitempty"`
+	Name      string              `json:"name"`
+	OrderKey  *string             `json:"order_key,omitempty"`
+	ParentId  *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
@@ -6915,6 +6918,12 @@ type ContainerCreate struct {
 
 // ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 type ContainerCreatePreset string
+
+// ContainerMilestone defines model for ContainerMilestone.
+type ContainerMilestone struct {
+	// ReachedAt When the completion that left nothing open reached the server.
+	ReachedAt time.Time `json:"reached_at"`
+}
 
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
@@ -8343,6 +8352,22 @@ type JumbleIntakeToken struct {
 
 	// Token The whole credential. Post to `/jumble/inbound/{token}`.
 	Token string `json:"token"`
+}
+
+// Kudos defines model for Kudos.
+type Kudos struct {
+	// From The kudos the reader received on this entry, oldest first. Empty for everybody but the person they were given to.
+	From []KudosFrom `json:"from"`
+
+	// Given Whether the reader gave kudos to the entry's current completion. False on an open entry.
+	Given  bool               `json:"given"`
+	ItemId openapi_types.UUID `json:"item_id"`
+}
+
+// KudosFrom defines model for KudosFrom.
+type KudosFrom struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	GivenAt   time.Time          `json:"given_at"`
 }
 
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
@@ -14653,6 +14678,15 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/due)
 	SetDueDate(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetDueDateParams)
+
+	// (DELETE /items/{itemId}/kudos)
+	TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (GET /items/{itemId}/kudos)
+	ReadKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (PUT /items/{itemId}/kudos)
+	GiveKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -22897,6 +22931,84 @@ func (siw *ServerInterfaceWrapper) SetDueDate(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// TakeBackKudos operation middleware
+func (siw *ServerInterfaceWrapper) TakeBackKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TakeBackKudos(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadKudos operation middleware
+func (siw *ServerInterfaceWrapper) ReadKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadKudos(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GiveKudos operation middleware
+func (siw *ServerInterfaceWrapper) GiveKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GiveKudos(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveLabel operation middleware
 func (siw *ServerInterfaceWrapper) RemoveLabel(w http.ResponseWriter, r *http.Request) {
 
@@ -27793,6 +27905,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.DeleteComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.EditComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/activity", wrapper.ListActivity)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.TakeBackKudos)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.ReadKudos)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.GiveKudos)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.DeleteBucket)

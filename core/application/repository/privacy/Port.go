@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // Requests stores the cases (data-protection.md §4).
@@ -183,6 +184,17 @@ type Subjects interface {
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
 }
 
+// OwnKudos is what a person's own copy of their data reads of the kudos (UC-WRK-29 checks 5 and 6).
+//
+// Its own port rather than a table of the archive: no workspace archive carries kudos, because an
+// administrator reads those, and the person's copy carries the ones about them as a section of its
+// own (data-protection.md §4).
+type OwnKudos interface {
+	// KudosOf hands every kudos the account gave or received to yield - and none between two
+	// other people.
+	KudosOf(ctx context.Context, accountID shared.ID, yield func(work.Kudos) error) error
+}
+
 // AccountStatuses is what a restriction and an erasure's kept account read before they write: the
 // status the account starts from.
 type AccountStatuses interface {
@@ -245,6 +257,10 @@ type Erasure interface {
 	// sentence, a suggestion about their own account - and the words they asked with that a job
 	// still holds.
 	DiscardAiDrafts(ctx context.Context, accountID shared.ID) (int, error)
+
+	// DiscardKudos removes the kudos the person gave and received: an acknowledgement between two
+	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
+	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
 	// CountIntake answers how much of the intake carries the person's address.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)

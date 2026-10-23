@@ -213,6 +213,16 @@ export type WorkspaceStructureChange = components['schemas']['WorkspaceStructure
  * read the replica answers carries none.
  */
 export type CollectionFigure = components['schemas']['CollectionFigure'];
+/**
+ * When a collection or hub was last left with nothing open (UC-WRK-29 check 4). Answered on a
+ * container's read; never in a change record.
+ */
+export type ContainerMilestone = components['schemas']['ContainerMilestone'];
+/**
+ * What one reader may know of an entry's kudos: whether they gave theirs, and - only to the person
+ * they went to - who gave kudos (UC-WRK-29 checks 5 and 6). Read online; never synchronised.
+ */
+export type Kudos = components['schemas']['Kudos'];
 /** A starting point for a hub or collection: Hubtask's four, as this installation offers them. */
 export type Preset = components['schemas']['Preset'];
 

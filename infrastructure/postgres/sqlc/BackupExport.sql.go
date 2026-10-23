@@ -551,6 +551,52 @@ func (q *Queries) ExportConsentRecords(ctx context.Context, arg ExportConsentRec
 	return items, nil
 }
 
+const exportContainerMilestones = `-- name: ExportContainerMilestones :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (x.container_id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(x) - 'tenant_id')::jsonb AS payload,
+         x.container_id AS key_1
+  FROM container_milestone x
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportContainerMilestonesParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportContainerMilestonesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Exported whole: a milestone goes with its container and leaves no deletion marker of its own.
+func (q *Queries) ExportContainerMilestones(ctx context.Context, arg ExportContainerMilestonesParams) ([]ExportContainerMilestonesRow, error) {
+	rows, err := q.db.Query(ctx, exportContainerMilestones, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportContainerMilestonesRow{}
+	for rows.Next() {
+		var i ExportContainerMilestonesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportContainers = `-- name: ExportContainers :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

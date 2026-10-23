@@ -1244,3 +1244,34 @@ type Structures interface {
 type Figures interface {
 	Count(ctx context.Context, requests []work.FigureRequest, window work.FigureWindow) (map[shared.ID]work.FigureCounts, error)
 }
+
+// Milestones records and reads the last moment a collection or hub was left with nothing open
+// (UC-WRK-29 check 4). Nothing open counts every entry neither archived nor trashed, at any level.
+type Milestones interface {
+	// LockHub is taken before asking whether a collection of the hub, or the hub, is finished, for
+	// the rest of the transaction: two completions finishing the last two entries at once must not
+	// each see the other's still open.
+	LockHub(ctx context.Context, hubID shared.ID) error
+	// RecordCollection records the moment when none of the collection's entries is open, and
+	// reports whether it did.
+	RecordCollection(ctx context.Context, collectionID shared.ID, at time.Time) (bool, error)
+	// RecordHub records the moment when no collection of the hub, neither archived nor trashed,
+	// holds an open entry, and reports whether it did.
+	RecordHub(ctx context.Context, hubID shared.ID, at time.Time) (bool, error)
+	// Of answers the milestones of the given containers; a container without one is absent.
+	Of(ctx context.Context, containerIDs []shared.ID) (map[shared.ID]time.Time, error)
+}
+
+// Kudos keeps one person's acknowledgement of another's completion (UC-WRK-29 checks 5 and 6).
+// Every read is one person's own side: what they gave, what they received - never a count.
+type Kudos interface {
+	// Give records the kudos and reports whether it did; kudos already given keep their moment.
+	Give(ctx context.Context, kudos work.Kudos) (bool, error)
+	// TakeBack removes the kudos the giver gave to this person's completion of the entry, and
+	// reports whether there were any.
+	TakeBack(ctx context.Context, itemID, givenBy, givenTo shared.ID) (bool, error)
+	// Given reports whether the giver gave kudos to this person's completion of the entry.
+	Given(ctx context.Context, itemID, givenBy, givenTo shared.ID) (bool, error)
+	// Received answers the kudos the person received on the entry, oldest first.
+	Received(ctx context.Context, itemID, givenTo shared.ID) ([]work.Kudos, error)
+}

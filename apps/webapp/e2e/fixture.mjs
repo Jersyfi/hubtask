@@ -479,6 +479,71 @@ function figureRoute(route, request, url, path) {
 }
 
 /**
+ * Milestones and kudos (UC-WRK-29 checks 4-7): a hub of its own, finished, whose one collection is
+ * finished too; an entry Mara completed, which the reader may give kudos for, and one the reader
+ * completed, which Mara gave kudos for. Shown where a walk asks for it (`showCelebrations`) or the
+ * preview is started with `HUBTASK_FIXTURE_CELEBRATIONS=1`; `showCelebrations({ celebrating: false })`
+ * answers the account with its celebrations switched off.
+ */
+const FINISHED_AT = '2026-10-20T16:30:00Z';
+export const FINISHED_HUB = { id: '01a0e2e0-0000-7000-8000-0000000025f1', type: 'HUB', parent_id: null, name: 'Garden', order_key: 'a3', version: 1, milestone: { reached_at: FINISHED_AT } };
+export const FINISHED = { id: '01a0e2e0-0000-7000-8000-0000000025f2', type: 'COLLECTION', parent_id: FINISHED_HUB.id, name: 'Spring planting', order_key: 'a0', version: 1, milestone: { reached_at: FINISHED_AT } };
+const finishedEntry = (n, title, by) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000025f${n}`, type: 'TASK', title, collection_id: FINISHED.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 2,
+  completion: { is_completed: true, completed_at: FINISHED_AT, completed_by: by }, labels: [], label_ids: [],
+});
+export const DONE_BY_OTHER = finishedEntry('3', 'Plant the tulips', OTHER.id);
+export const DONE_BY_ME = finishedEntry('4', 'Water the beds', ACCOUNT.id);
+
+let celebrationsShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_CELEBRATIONS === '1';
+let celebrating = true;
+let kudosGiven = false;
+/** Adds the finished hub to the tree, for this process; nothing given yet. */
+export function showCelebrations({ celebrating: on = true } = {}) {
+  celebrationsShown = true;
+  celebrating = on;
+  kudosGiven = false;
+}
+
+/** The finished hub's reads and the kudos; `undefined` where the general stub answers. */
+function celebrationRoute(route, request, url, path) {
+  if (!celebrationsShown) return undefined;
+  const method = request.method();
+  if (path.endsWith('/api/v1/accounts/me') || path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) {
+    return route.fulfill({ json: { ...ACCOUNT, celebrations: celebrating } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, FINISHED_HUB] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === FINISHED_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: [FINISHED] } });
+  }
+  if (path.endsWith(`/api/v1/containers/${FINISHED_HUB.id}`)) return route.fulfill({ json: FINISHED_HUB });
+  if (path.endsWith(`/api/v1/containers/${FINISHED.id}`)) return route.fulfill({ json: FINISHED });
+  // The replica holds them as their records carry them: without a milestone, the server's read alone.
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const records = [HUB, COLLECTION, FINISHED_HUB, FINISHED].map(({ milestone, ...c }) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  if (path.endsWith('/api/v1/items:query') && request.postDataJSON()?.scope?.container_id === FINISHED.id) {
+    const data = [DONE_BY_OTHER, DONE_BY_ME];
+    return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+  }
+  const entry = [DONE_BY_OTHER, DONE_BY_ME].find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && method === 'GET') return route.fulfill({ json: entry });
+  // Each reader's own view: the reader's toggle on Mara's entry, Mara's kudos on the reader's.
+  if (path.endsWith(`/api/v1/items/${DONE_BY_OTHER.id}/kudos`)) {
+    if (method === 'PUT') kudosGiven = true;
+    if (method === 'DELETE') kudosGiven = false;
+    return route.fulfill({ json: { item_id: DONE_BY_OTHER.id, given: kudosGiven, from: [] } });
+  }
+  if (path.endsWith(`/api/v1/items/${DONE_BY_ME.id}/kudos`)) {
+    return route.fulfill({ json: { item_id: DONE_BY_ME.id, given: false, from: [{ account_id: OTHER.id, given_at: '2026-10-21T08:00:00Z' }] } });
+  }
+  return undefined;
+}
+
+/**
  * Places in their own colour and symbol (UC-WRK-33): a hub with a colour and a symbol, a private
  * one with both, and under the first a collection with both and one with neither - plus two dated
  * entries from different collections, so the overview and search mix places. Shown where a walk
@@ -546,6 +611,8 @@ export function stub(route) {
   if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
   if (figured) return figured;
+  const celebrated = celebrationRoute(route, request, url, path);
+  if (celebrated) return celebrated;
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
   // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs

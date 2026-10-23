@@ -77,6 +77,8 @@
   import { reminders, series } from '../lib/data/reminders.svelte.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
   import CelebrationSlot from '../lib/entries/CelebrationSlot.svelte';
+  import EntryKudos from '../lib/entries/EntryKudos.svelte';
+  import { kudosOffer } from '../lib/data/kudos.ts';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
@@ -899,6 +901,11 @@
         {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
         {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
       </div>
+      <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
+           celebrations are off (check 7), or while the entry is open. -->
+      {#if kudosOffer(item, signedIn.account?.id, celebration.isOn) !== 'none'}
+        {#key `${item.id}:${item.completion?.completed_by}`}<EntryKudos {item} />{/key}
+      {/if}
       <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
            activity carries none (`domain-model.md` §2), and a field whose every save is refused
            is not a field. While the manifest has not been read, which type this is decides

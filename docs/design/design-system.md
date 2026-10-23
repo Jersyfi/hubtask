@@ -534,9 +534,12 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
   percentage.
 * **Rhythm** — the days of this week on which something was completed; it never resets to zero,
   never names a missed day, and weekends and absences cost nothing.
-* **Milestones** — a collection or hub with nothing open records the moment with its date on it.
+* **Milestones** — a collection or hub with nothing open records the moment with its date on it:
+  the server records it at the completion that left nothing open, and the head of the collection
+  or hub says "Everything done on" that day. It stays when entries are added afterwards.
 * **Kudos** — one person's acknowledgement of another's completed entry, seen by the one who
-  completed it; never counted per person.
+  completed it; never counted per person. The entry's page offers one toggle to everybody else,
+  and names the givers - never their number - to the one who completed it (domain-model.md §3.5).
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance

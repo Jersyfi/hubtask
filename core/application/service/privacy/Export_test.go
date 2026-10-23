@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/backupstorage"
 	"github.com/Jersyfi/hubtask/core/port/clock"
@@ -98,6 +99,49 @@ func TestOnlyThePersonsRowsGoIntoTheExport(t *testing.T) {
 	}
 	if counted != 4 {
 		t.Errorf("%d records were counted", counted)
+	}
+}
+
+// The person's kudos are a section of their copy alone, read by their own reader rather than from
+// the archive's source - which never carries any (UC-WRK-29 check 6).
+func TestThePersonsKudosAreTheirCopysOwnSection(t *testing.T) {
+	other := shared.MustParseID("0192f000-0000-7000-8000-0000000000f9")
+	third := shared.MustParseID("0192f000-0000-7000-8000-0000000000fa")
+	item := shared.MustParseID("0192f000-0000-7000-8000-0000000000fb")
+	inner := &rowsOfEntity{rows: map[string][]archive.Record{}}
+	counted := 0
+	source := subjectSource{inner: inner, subject: subjectID, counted: &counted, kudos: ownKudos{
+		{ItemID: item, GivenBy: subjectID, GivenTo: other, GivenAt: now},
+		{ItemID: item, GivenBy: other, GivenTo: subjectID, GivenAt: now},
+		{ItemID: item, GivenBy: other, GivenTo: third, GivenAt: now},
+	}}
+
+	var kept []archive.Record
+	if err := source.Records(t.Context(), kudosSection, time.Time{}, func(record archive.Record) error {
+		kept = append(kept, record)
+		return nil
+	}); err != nil {
+		t.Fatalf("reading the kudos: %v", err)
+	}
+	if len(kept) != 2 || counted != 2 {
+		t.Fatalf("the kudos came out as %v (%d counted)", kept, counted)
+	}
+	given := kept[0].Data
+	if given["given_by"] != subjectID.String() || given["given_to"] != other.String() ||
+		given["item_id"] != item.String() || given["given_at"] == nil {
+		t.Errorf("the kudos given came out as %v", given)
+	}
+	if len(inner.seen) != 0 {
+		t.Errorf("the section read the archive's source: %v", inner.seen)
+	}
+	if _, archived := archive.FindEntity(kudosSection.Name); archived {
+		t.Error("kudos are an entity of every archive, which an administrator reads")
+	}
+
+	// A copy that cannot read them is not written short.
+	if err := (subjectSource{inner: inner, subject: subjectID}).Records(t.Context(), kudosSection, time.Time{},
+		func(archive.Record) error { return nil }); err == nil {
+		t.Error("a copy without a reader for the kudos was written without them")
 	}
 }
 
@@ -359,10 +403,25 @@ func newExporter(target *memoryTarget, subjects *tenantsOf, sink *auditSink, sna
 			"comment": {{ID: "c1", Data: map[string]any{"author_id": subjectID.String()}}},
 			"bucket":  {{ID: "b1", Data: map[string]any{"name": "Doing"}}},
 		}},
-		Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
+		Kudos: ownKudos{}, Audit: sink, Snapshot: snapshot, UnitOfWork: &unitOfWork{},
 		Clock: clock.Fixed(now), IDs: &idSource{},
 		SchemaVersion: "44", ProductVersion: "0.4.5",
 	}
+}
+
+// ownKudos answers the person's kudos as the repository would: only those they gave or received.
+type ownKudos []work.Kudos
+
+func (o ownKudos) KudosOf(_ context.Context, accountID shared.ID, yield func(work.Kudos) error) error {
+	for _, kudos := range o {
+		if kudos.GivenBy != accountID && kudos.GivenTo != accountID {
+			continue
+		}
+		if err := yield(kudos); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func TestAnExportWritesOneArchiveAndRecordsIt(t *testing.T) {
