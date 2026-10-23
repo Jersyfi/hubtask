@@ -1084,6 +1084,11 @@ export function stub(route) {
   if (path.endsWith('/api/v1/admin/journal') && request.method() === 'GET') return route.fulfill({ json: journalAnswer(request.url()) });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
+  // A workspace that never configured its own model: the contract's `404`, which the AI screen
+  // draws as the empty form. Anything else here would be a provider without a kind.
+  if (path.endsWith('/api/v1/ai-provider') && request.method() === 'GET') {
+    return route.fulfill({ status: 404, json: { code: 'errors.not_found', status: 404, request_id: 'req_e2e' } });
+  }
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
