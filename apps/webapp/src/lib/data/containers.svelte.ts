@@ -214,6 +214,9 @@ class Containers {
     const reads: Promise<unknown>[] = [];
     for (const hubId of targets.hubs) {
       if (this.#levels[hubId] !== undefined) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
+      // The hub's own document carries its milestone, which the same completions move (UC-WRK-29
+      // check 4).
+      if (this.#single[hubId] !== undefined) reads.push(engine.refresh<Container>({ path: `/containers/${hubId}` }));
     }
     for (const id of targets.collections) {
       if (this.#single[id] !== undefined) reads.push(engine.refresh<Container>({ path: `/containers/${id}` }));

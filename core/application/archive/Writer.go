@@ -78,6 +78,12 @@ type Request struct {
 	// holds (backup-restore.md §5, §7).
 	IncludeMedia bool
 	IncludeAudit bool
+
+	// Sections are files one archive carries beyond the format's entities, written after them
+	// from the same source. Only a person's own copy of their data has one: what about them no
+	// workspace archive may carry, because an administrator reads those (data-protection.md §4).
+	// No restore reads a section - RestoredEntities never names one.
+	Sections []Entity
 }
 
 // The refusals of a run.
@@ -172,6 +178,15 @@ func (w *Writer) Write(ctx context.Context, request Request, source Source) (Man
 		}
 		manifest.Files = append(manifest.Files, file)
 		manifest.Counts[entity.Name] = file.Records
+	}
+
+	for _, section := range request.Sections {
+		file, err := w.writeData(ctx, request, source, section, func(Blob) {})
+		if err != nil {
+			return Manifest{}, err
+		}
+		manifest.Files = append(manifest.Files, file)
+		manifest.Counts[section.Name] = file.Records
 	}
 
 	if request.IncludeMedia {
@@ -436,6 +451,17 @@ func (r Request) validate() error {
 		return invalid("key_missing")
 	case !r.Encryption.IsEncrypted() && r.Key.Len() > 0:
 		return invalid("key_without_encryption")
+	}
+	named := map[string]bool{}
+	for _, entity := range entities {
+		named[entity.Name] = true
+	}
+	for _, section := range r.Sections {
+		// A section under an entity's name would be read as that entity's rows by a restore.
+		if section.Name == "" || named[section.Name] {
+			return invalid("section")
+		}
+		named[section.Name] = true
 	}
 	return nil
 }

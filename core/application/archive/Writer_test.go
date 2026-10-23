@@ -480,3 +480,41 @@ func TestAPrefixCannotClimbOut(t *testing.T) {
 		t.Fatal("a prefix leaving the archive's directory was accepted")
 	}
 }
+
+// A section is a file one archive carries beyond the format's entities - a person's own copy's - and
+// it is named in that archive's manifest like any member; one under an entity's name would be read
+// by a restore as that entity's rows, and is refused.
+func TestASectionIsWrittenOnlyWhereItIsAskedFor(t *testing.T) {
+	store, source := newStore(), newSource()
+	source.rows["kudos"] = []Record{
+		{ID: "i1/a1/a2", Op: OpUpsert, UpdatedAt: snapshot(), Data: map[string]any{"given_by": "a1"}},
+	}
+	section := Entity{Name: "kudos", Table: "kudos", Whole: true, Keys: []string{"item_id", "given_by", "given_to"}}
+
+	plain, err := NewWriter(newStore(), &reversible{}, newBlobs()).Write(t.Context(), request(), source)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if _, held := plain.Counts["kudos"]; held {
+		t.Error("an archive that asked for no section carries one")
+	}
+
+	asked := request()
+	asked.Sections = []Entity{section}
+	manifest, err := NewWriter(store, &reversible{}, newBlobs()).Write(t.Context(), asked, source)
+	if err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if manifest.Counts["kudos"] != 1 {
+		t.Errorf("counts: %v", manifest.Counts)
+	}
+	if _, found := store.object(asked.Prefix + "/" + DataName("kudos")); !found {
+		t.Error("no member for the section")
+	}
+
+	clash := request()
+	clash.Sections = []Entity{{Name: "containers", Table: "kudos"}}
+	if _, err := NewWriter(newStore(), &reversible{}, newBlobs()).Write(t.Context(), clash, source); err == nil {
+		t.Error("a section under an entity's name was written")
+	}
+}

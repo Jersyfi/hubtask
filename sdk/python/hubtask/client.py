@@ -1355,6 +1355,18 @@ class Client:
         """GET /items/{itemId}/activity"""
         return self._call("GET", "/items/{itemId}/activity", {"itemId": item_id}, query, {}, None, "none", None, "json")
 
+    def read_kudos(self, item_id: str) -> "Kudos":
+        """GET /items/{itemId}/kudos"""
+        return self._call("GET", "/items/{itemId}/kudos", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def give_kudos(self, item_id: str) -> "Kudos":
+        """PUT /items/{itemId}/kudos"""
+        return self._call("PUT", "/items/{itemId}/kudos", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
+    def take_back_kudos(self, item_id: str) -> "Kudos":
+        """DELETE /items/{itemId}/kudos"""
+        return self._call("DELETE", "/items/{itemId}/kudos", {"itemId": item_id}, None, {}, None, "none", None, "json")
+
     def list_buckets(self, container_id: str) -> dict[str, Any]:
         """GET /containers/{containerId}/buckets"""
         return self._call("GET", "/containers/{containerId}/buckets", {"containerId": container_id}, None, {}, None, "none", None, "json")

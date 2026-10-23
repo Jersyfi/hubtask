@@ -16,6 +16,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 	"github.com/Jersyfi/hubtask/infrastructure/security"
 )
@@ -41,6 +42,7 @@ var (
 	_ repository.Pseudonyms   = PrivacyRepository{}
 	_ repository.Erasure      = PrivacyRepository{}
 	_ repository.Restrictions = PrivacyRepository{}
+	_ repository.OwnKudos     = PrivacyRepository{}
 )
 
 // Insert records a new case.
@@ -668,6 +670,70 @@ func (r PrivacyRepository) DiscardAiDrafts(ctx context.Context, accountID shared
 		return 0, erasureFailed("removing the held AI requests of an account", err)
 	}
 	return int(drafts + asked), nil
+}
+
+// DiscardKudos removes the kudos the person gave and received.
+func (r PrivacyRepository) DiscardKudos(ctx context.Context, accountID shared.ID) (int, error) {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := queries.DeleteKudosOfAccount(ctx, id)
+	if err != nil {
+		return 0, erasureFailed("removing the kudos of an account", err)
+	}
+	return int(rows), nil
+}
+
+// kudosPage bounds one read of a person's kudos; the copy pages through all of them.
+const kudosPage = 500
+
+// KudosOf hands the kudos the person gave and received to yield, a page at a time.
+func (r PrivacyRepository) KudosOf(ctx context.Context, accountID shared.ID, yield func(work.Kudos) error) error {
+	queries, id, err := r.accountQuery(ctx, accountID)
+	if err != nil {
+		return err
+	}
+	var after []string
+	for {
+		rows, err := queries.KudosOfAccount(ctx, sqlc.KudosOfAccountParams{
+			AccountID: id,
+			AfterItem: cursorUUID(after, 0), AfterBy: cursorUUID(after, 1), AfterTo: cursorUUID(after, 2),
+			Batch: kudosPage,
+		})
+		if err != nil {
+			return erasureFailed("reading the kudos of an account", err)
+		}
+		for _, row := range rows {
+			kudos, err := kudosOf(row)
+			if err != nil {
+				return err
+			}
+			if err := yield(kudos); err != nil {
+				return err
+			}
+			after = []string{kudos.ItemID.String(), kudos.GivenBy.String(), kudos.GivenTo.String()}
+		}
+		if len(rows) < kudosPage {
+			return nil
+		}
+	}
+}
+
+func kudosOf(row sqlc.KudosOfAccountRow) (work.Kudos, error) {
+	itemID, err := idFrom(row.ItemID)
+	if err != nil {
+		return work.Kudos{}, err
+	}
+	givenBy, err := idFrom(row.GivenBy)
+	if err != nil {
+		return work.Kudos{}, err
+	}
+	givenTo, err := idFrom(row.GivenTo)
+	if err != nil {
+		return work.Kudos{}, err
+	}
+	return work.Kudos{ItemID: itemID, GivenBy: givenBy, GivenTo: givenTo, GivenAt: timeFrom(row.GivenAt)}, nil
 }
 
 // DiscardIntake removes what the person sent in by mail.

@@ -354,6 +354,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
 | `jumble.suggestion_asked` | SuggestFromJumbleEntry | `jumble_entry` | NOTICE | Every time |
 
+## Kudos
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `kudos.given` | GiveKudos | `item` | INFO | Every time |
+| `kudos.read` | ReadKudos | `item` | INFO | When refused |
+| `kudos.taken_back` | TakeBackKudos | `item` | INFO | Every time |
+
 ## Oauth
 
 | Action | Use case | Target | Severity | Recorded |

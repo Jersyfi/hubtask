@@ -68,7 +68,10 @@ type Exporter struct {
 	// account, so that their entries and comments - which name an account, not an address - are in
 	// the archive too.
 	Accounts Accounts
-	Targets  TargetStore
+	// Kudos is the one section a person's copy carries beyond the archive filtered: the kudos they
+	// gave and received, which no workspace archive holds (UC-WRK-29 check 6).
+	Kudos   repository.OwnKudos
+	Targets TargetStore
 	// Rows is the tenant's rows as the archive writer needs them - the same reader a backup uses,
 	// because this is the same archive.
 	Rows       backuprepo.Export
@@ -253,8 +256,14 @@ func (e Exporter) writeOne(
 			subject: in.subjectID,
 			email:   in.email,
 			counted: &written.Records,
+			kudos:   e.Kudos,
 		}
 		media := backupservice.ExportMedia{Export: e.Rows, Objects: e.Objects}
+		// A person known here only by an address gave and received no kudos: kudos name accounts.
+		var sections []archive.Entity
+		if !in.subjectID.IsZero() {
+			sections = []archive.Entity{kudosSection}
+		}
 
 		_, err := archive.NewWriter(store, e.Cipher, media).Write(snapshotCtx, archive.Request{
 			ArchiveID: e.IDs.NewID(), Prefix: prefix,
@@ -271,6 +280,7 @@ func (e Exporter) writeOne(
 			// The person's own audit entries are part of what is held about them, and they are
 			// personal data: an access request that left them out would be incomplete.
 			IncludeAudit: true,
+			Sections:     sections,
 		}, source)
 		return err
 	})

@@ -6888,10 +6888,13 @@ type Container struct {
 	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
-	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
-	Name       string              `json:"name"`
-	OrderKey   *string             `json:"order_key,omitempty"`
-	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
+	KeptByLock *[]string `json:"kept_by_lock,omitempty"`
+
+	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.
+	Milestone *ContainerMilestone `json:"milestone,omitempty"`
+	Name      string              `json:"name"`
+	OrderKey  *string             `json:"order_key,omitempty"`
+	ParentId  *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
@@ -6924,6 +6927,12 @@ type ContainerCreate struct {
 
 // ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 type ContainerCreatePreset string
+
+// ContainerMilestone defines model for ContainerMilestone.
+type ContainerMilestone struct {
+	// ReachedAt When the completion that left nothing open reached the server.
+	ReachedAt time.Time `json:"reached_at"`
+}
 
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
@@ -8352,6 +8361,22 @@ type JumbleIntakeToken struct {
 
 	// Token The whole credential. Post to `/jumble/inbound/{token}`.
 	Token string `json:"token"`
+}
+
+// Kudos defines model for Kudos.
+type Kudos struct {
+	// From The kudos the reader received on this entry, oldest first. Empty for everybody but the person they were given to.
+	From []KudosFrom `json:"from"`
+
+	// Given Whether the reader gave kudos to the entry's current completion. False on an open entry.
+	Given  bool               `json:"given"`
+	ItemId openapi_types.UUID `json:"item_id"`
+}
+
+// KudosFrom defines model for KudosFrom.
+type KudosFrom struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	GivenAt   time.Time          `json:"given_at"`
 }
 
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
@@ -17336,6 +17361,21 @@ type ClientInterface interface {
 	// Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 	SetDueDate(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// TakeBackKudos performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
+	//
+	// Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
+	TakeBackKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadKudos performs a GET /items/{itemId}/kudos (the `ReadKudos` operationId) request.
+	//
+	// What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.
+	ReadKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// GiveKudos performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
+	//
+	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
+	GiveKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveLabel performs a DELETE /items/{itemId}/labels/{labelId} (the `RemoveLabel` operationId) request.
 	//
 	// Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
@@ -25745,6 +25785,51 @@ func (c *Client) SetDueDateWithBody(ctx context.Context, itemId ItemId, params *
 // Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 func (c *Client) SetDueDate(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetDueDateRequest(c.Server, itemId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TakeBackKudos performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
+//
+// Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
+func (c *Client) TakeBackKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTakeBackKudosRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadKudos performs a GET /items/{itemId}/kudos (the `ReadKudos` operationId) request.
+//
+// What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.
+func (c *Client) ReadKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadKudosRequest(c.Server, itemId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// GiveKudos performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
+//
+// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
+func (c *Client) GiveKudos(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewGiveKudosRequest(c.Server, itemId)
 	if err != nil {
 		return nil, err
 	}
@@ -40195,6 +40280,108 @@ func NewSetDueDateRequestWithBody(server string, itemId ItemId, params *SetDueDa
 	return req, nil
 }
 
+// NewTakeBackKudosRequest constructs an http.Request for the TakeBackKudos method
+func NewTakeBackKudosRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/kudos", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewReadKudosRequest constructs an http.Request for the ReadKudos method
+func NewReadKudosRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/kudos", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewGiveKudosRequest constructs an http.Request for the GiveKudos method
+func NewGiveKudosRequest(server string, itemId ItemId) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/kudos", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRemoveLabelRequest constructs an http.Request for the RemoveLabel method
 func NewRemoveLabelRequest(server string, itemId ItemId, labelId LabelId) (*http.Request, error) {
 	var err error
@@ -49686,6 +49873,27 @@ type ClientWithResponsesInterface interface {
 	//
 	// Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 	SetDueDateWithResponse(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDueDateResult, error)
+
+	// TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
+	//
+	// Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	TakeBackKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*TakeBackKudosResult, error)
+
+	// ReadKudosWithResponse performs a GET /items/{itemId}/kudos (the `ReadKudos` operationId) request.
+	//
+	// What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	ReadKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadKudosResult, error)
+
+	// GiveKudosWithResponse performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
+	//
+	// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	GiveKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*GiveKudosResult, error)
 
 	// RemoveLabelWithResponse performs a DELETE /items/{itemId}/labels/{labelId} (the `RemoveLabel` operationId) request.
 	//
@@ -62956,6 +63164,150 @@ func (r SetDueDateResult) ContentType() string {
 	return ""
 }
 
+type TakeBackKudosResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Kudos
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TakeBackKudosResult) GetJSON200() *Kudos {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TakeBackKudosResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TakeBackKudosResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TakeBackKudosResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TakeBackKudosResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TakeBackKudosResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ReadKudosResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Kudos
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadKudosResult) GetJSON200() *Kudos {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadKudosResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadKudosResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadKudosResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadKudosResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadKudosResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type GiveKudosResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Kudos
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r GiveKudosResult) GetJSON200() *Kudos {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r GiveKudosResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r GiveKudosResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r GiveKudosResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r GiveKudosResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r GiveKudosResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveLabelResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -74671,6 +75023,45 @@ func (c *ClientWithResponses) SetDueDateWithResponse(ctx context.Context, itemId
 	return ParseSetDueDateResult(rsp)
 }
 
+// TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
+//
+// Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos not given succeed.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) TakeBackKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*TakeBackKudosResult, error) {
+	rsp, err := c.TakeBackKudos(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTakeBackKudosResult(rsp)
+}
+
+// ReadKudosWithResponse performs a GET /items/{itemId}/kudos (the `ReadKudos` operationId) request.
+//
+// What the reader may know of the kudos on this entry: whether they gave kudos to its current completion, and - only to the person they were given to - who gave theirs and when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person: an administrator reading somebody else's entry sees their own kudos and nothing more. Readable by whoever may read the entry.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) ReadKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*ReadKudosResult, error) {
+	rsp, err := c.ReadKudos(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadKudosResult(rsp)
+}
+
+// GiveKudosWithResponse performs a PUT /items/{itemId}/kudos (the `GiveKudos` operationId) request.
+//
+// Acknowledges the entry's completion to the person who completed it. Idempotent: kudos already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry: kudos change nothing of it, so the entry keeps its version and its history, and no event or change record is written. The audit trail records the act and the entry, never whom the kudos went to.
+//
+// Returns a wrapper object for the known response body format(s).
+func (c *ClientWithResponses) GiveKudosWithResponse(ctx context.Context, itemId ItemId, reqEditors ...RequestEditorFn) (*GiveKudosResult, error) {
+	rsp, err := c.GiveKudos(ctx, itemId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseGiveKudosResult(rsp)
+}
+
 // RemoveLabelWithResponse performs a DELETE /items/{itemId}/labels/{labelId} (the `RemoveLabel` operationId) request.
 //
 // Takes a label off an entry. Idempotent: an entry that does not carry it succeeds.
@@ -85759,6 +86150,105 @@ func ParseSetDueDateResult(rsp *http.Response) (*SetDueDateResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseTakeBackKudosResult parses an HTTP response from a TakeBackKudosWithResponse call
+func ParseTakeBackKudosResult(rsp *http.Response) (*TakeBackKudosResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TakeBackKudosResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Kudos
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadKudosResult parses an HTTP response from a ReadKudosWithResponse call
+func ParseReadKudosResult(rsp *http.Response) (*ReadKudosResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadKudosResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Kudos
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseGiveKudosResult parses an HTTP response from a GiveKudosWithResponse call
+func ParseGiveKudosResult(rsp *http.Response) (*GiveKudosResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &GiveKudosResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Kudos
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

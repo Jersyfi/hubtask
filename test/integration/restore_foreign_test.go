@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
 	"github.com/Jersyfi/hubtask/core/application/service/access"
@@ -52,7 +53,10 @@ type discardAudit struct{}
 
 func (discardAudit) Append(context.Context, audit.Entry) error { return nil }
 
-// foreignWorkspace seeds a workspace with a hub, a collection and a task, exports it to the store
+// foreignMilestone is when the exported workspace's collection was last finished.
+var foreignMilestone = time.Date(2026, 10, 20, 8, 0, 0, 0, time.UTC)
+
+// foreignWorkspace seeds a workspace with a hub, a collection with its milestone and a task, exports it to the store
 // as tenant-export.md writes an export, and answers its identifier and the archive's path there.
 func foreignWorkspace(
 	ctx context.Context, t *testing.T, store backupport.Store, title string,
@@ -78,6 +82,9 @@ func foreignWorkspace(
 		{`INSERT INTO work_item (id, tenant_id, collection_id, type, path, depth, title, order_key, created_by)
 		  VALUES ($1, $2, $3, 'TASK', $4, 1, $5, 'a0', $6)`,
 			[]any{item.String(), tenant.String(), collection.String(), "/" + item.String() + "/", title, account.String()}},
+		// The collection's milestone, which a restore brings back with its moment (UC-WRK-29 check 4).
+		{`INSERT INTO container_milestone (tenant_id, container_id, reached_at) VALUES ($1, $2, $3)`,
+			[]any{tenant.String(), collection.String(), foreignMilestone}},
 	} {
 		if _, err := admin.Exec(ctx, statement.sql, statement.args...); err != nil {
 			t.Fatalf("seeding the workspace: %v\n%s", err, statement.sql)
@@ -246,6 +253,14 @@ func TestAnOperatorRestoresAnExportFromAnotherInstallationAsANewWorkspace(t *tes
 	if err := admin.QueryRow(ctx, `SELECT count(*) FROM account WHERE tenant_id = $1`,
 		minted.String()).Scan(&people); err != nil || people != 1 {
 		t.Errorf("the new workspace holds %d accounts (%v), want the one exported", people, err)
+	}
+	// The collection's milestone arrives on the collection's new identity, with its moment.
+	var reached time.Time
+	if err := admin.QueryRow(ctx, `
+		SELECT m.reached_at FROM container_milestone m
+		JOIN container c ON c.tenant_id = m.tenant_id AND c.id = m.container_id AND c.type = 'COLLECTION'
+		WHERE m.tenant_id = $1`, minted.String()).Scan(&reached); err != nil || !reached.Equal(foreignMilestone) {
+		t.Errorf("the milestone arrived at %v (%v), want %v", reached, err, foreignMilestone)
 	}
 }
 
