@@ -174,7 +174,7 @@
       case 'celebration':
         return t(`app.structure.celebration.${settings.celebration ?? 'ALL'}`);
       case 'automation':
-        return t('app.structure.nothing');
+        return (settings.automation ?? []).map((behaviour) => t(`app.structure.automation.${behaviour}`)).join(', ') || t('app.structure.nothing');
     }
   }
 
@@ -291,6 +291,8 @@
   }
 
   const CAPTURE = ['LINES', 'AMOUNT', 'DATE', 'PERSON', 'LABEL'] as const;
+  /** What a collection may apply by itself; the server keeps it (UC-WRK-31 check 2). */
+  const AUTOMATION = ['REQUIRED_BEYOND_FIRST_COLUMN'] as const;
 
   // ---------------------------------------------------------------------------------------------
   // The preset, the resets, the save
@@ -449,9 +451,6 @@
                 options={figures.figures.map((kind) => ({ value: kind, label: t(`app.figure.option.${kind.toLowerCase()}`) }))}
                 bind:value={() => (figures.figures.includes(figure) ? figure : 'NONE'), (kind) => chooseFigure(kind)}
               />
-              {#if figure === 'FLOW'}
-                <p class="hint" data-figure-flow>{t('app.figure.option.flow_later')}</p>
-              {/if}
               {#if figure === 'FIELD_SUM'}
                 <Select
                   label={t('app.figure.field')}
@@ -495,7 +494,13 @@
                 bind:value={() => (values.celebration as string | undefined) ?? 'ALL', (choice) => draft && (draft = setValue(draft, 'celebration', choice as StructureSettings['celebration']))}
               />
             {:else if setting === 'automation'}
-              <p class="hint">{t('app.structure.automation_none')}</p>
+              <CheckboxGroup
+                label={t('app.structure.automation_label')}
+                disabledReason={lockReason('automation')}
+                options={AUTOMATION.map((behaviour) => ({ value: behaviour, label: t(`app.structure.automation.${behaviour}`) }))}
+                selected={(values.automation ?? []) as readonly string[]}
+                onChange={(selected) => draft && (draft = setValue(draft, 'automation', AUTOMATION.filter((behaviour) => selected.includes(behaviour))))}
+              />
             {/if}
           </section>
         {/each}

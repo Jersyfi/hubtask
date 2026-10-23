@@ -37,7 +37,6 @@ test('a project is offered all seven, in order', () => {
   const all = ['COMPLETION', 'DUE_DATE', 'CUSTOM_FIELDS'];
   const offer = figureOffer(structure(['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { TASK: all, WORK_PACKAGE: all, ACTIVITY: ['COMPLETION'] }), [number]);
   assert.deepEqual(offer.figures, ['OPEN', 'FIELD_SUM', 'DUE', 'RHYTHM', 'PROGRESS', 'FLOW', 'NONE']);
-  assert.equal(offer.isFlowLater, true);
 });
 
 test('due needs a level with a due date; a sum needs custom fields and a number field', () => {

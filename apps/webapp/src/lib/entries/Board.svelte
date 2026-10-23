@@ -363,19 +363,23 @@
    */
   async function moveTo(item: WorkItem, bucketId: string | null): Promise<WorkItem | undefined> {
     writeFailure = undefined;
+    const target = columns.find((column) => column.id === bucketId);
+    // A limit is advice: the move goes ahead, and is announced as going over it (UC-WRK-31 check 3).
+    const isOverLimit =
+      target?.wip_limit != null && item.bucket_id !== bucketId && (countOf(bucketId) ?? 0) + 1 > target.wip_limit;
     try {
       let moved = await items.setBucket(item.id, bucketId, item.version);
 
-      const target = columns.find((column) => column.id === bucketId);
       if (target?.is_done_bucket && !moved.completion?.is_completed) {
         moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
         // A card dropped into the done column is a completion, and a completion may be a moment.
         void celebration.celebrate(moved);
       }
       announcer.say(
-        t('app.board.moved', {
+        t(isOverLimit ? 'app.board.moved_over_limit' : 'app.board.moved', {
           title: item.title,
           name: target?.name ?? t('app.board.unbucketed'),
+          limit: String(target?.wip_limit ?? ''),
         }),
       );
       refocusId = item.id;
