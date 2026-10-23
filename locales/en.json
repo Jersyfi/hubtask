@@ -5753,6 +5753,7 @@
   "app.search.by_meaning": "Search by meaning as well as by words",
   "app.search.meaning_degraded": "Searching by meaning is not available right now: {reason} Words still work.",
   "app.search.ranked_by_meaning": "Ranked by words and by meaning.",
+  "app.search.found_by_meaning": "By meaning",
   "app.search.ranked_by_words": "Ranked by words only.",
   "app.ai.menu_title": "Ask AI about this entry",
   "app.ai.menu_notes": "Ask AI about the notes",

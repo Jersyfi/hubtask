@@ -22,7 +22,9 @@
   import { untrack } from 'svelte';
 
   import {
+    Badge,
     Button,
+    Checkbox,
     EmptyState,
     ErrorState,
     Inline,
@@ -35,6 +37,7 @@
     canCopy,
   } from '@hubtask/design-system/components';
 
+  import BulkBar from '../lib/entries/BulkBar.svelte';
   import EntryActions from '../lib/entries/EntryActions.svelte';
   import EntryMenu from '../lib/entries/EntryMenu.svelte';
   import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
@@ -42,7 +45,10 @@
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
 
-  import type { WorkItem } from '@hubtask/sync-engine';
+  import type { BulkOperation, BulkResult, WorkItem } from '@hubtask/sync-engine';
+
+  import { byItem, outcomeOf } from '../lib/data/bulk.ts';
+  import { selection } from '../lib/data/selection.svelte.ts';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { actor } from '../lib/data/account.svelte.ts';
@@ -456,6 +462,66 @@
     }
   }
 
+  /**
+   * The hits can be picked and acted on together, as a list's rows can (ADR-0063 decision 8): the
+   * same mode, the same bar. A search spans collections, so the bar offers what needs no list of
+   * one collection; and after it applies, the search is asked again, since a hit that was trashed
+   * or completed is no longer what the reader is looking at.
+   */
+  const hitIds = $derived(search.hits.map((hit) => hit.id));
+  $effect(() => {
+    const visible = hitIds;
+    untrack(() => selection.keepVisible(visible));
+  });
+
+  /** What the last bulk did, per hit, until the selection changes; shown at the row it concerns. */
+  let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
+
+  function bulkNote(id: string): string | undefined {
+    const result = lastResults.get(id);
+    if (!result || outcomeOf(result) === 'applied') return undefined;
+    return result.problem ? renderProblem(result.problem as never, messages).message : t('app.bulk.rolled_back');
+  }
+
+  function bulkDone(operations: readonly BulkOperation[], results: readonly BulkResult[]) {
+    lastResults = byItem(operations, results);
+    void search.run(asked);
+  }
+
+  // `Escape` leaves the mode from anywhere on the screen, unless an overlay takes it first.
+  $effect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || !selection.isOn) return;
+      if (document.querySelector('dialog[open], [role="dialog"], [role="menu"]')) return;
+      selection.stop();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
+  // A selection is about what is in front of somebody, so it does not survive the screen.
+  $effect(() => () => {
+    selection.clear();
+    lastResults = new Map();
+  });
+
+  // A modifier press on a hit picks it, as on a list's row - in the capture phase, because the row
+  // is a link and the router listens for the click after it.
+  $effect(() => {
+    const node = results;
+    if (!node) return;
+    const onClick = (event: MouseEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const id = (event.target as Element | null)?.closest?.('[data-hit]')?.getAttribute('data-hit');
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selection.pick(hitIds, id);
+    };
+    node.addEventListener('click', onClick, true);
+    return () => node.removeEventListener('click', onClick, true);
+  });
+
   // The bar carries the page's title on a phone (ADR-0061 decision 1); the head then reads its
   // heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.search.title')));
@@ -586,14 +652,37 @@
   {:else if search.hits.length === 0}
     <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
   {:else}
+    <BulkBar onresults={bulkDone} />
     <div class="results" bind:this={results}>
     <Stack gap="050">
-      {#if hasMeaning}
-        <p class="hint">{t(mode === 'LEXICAL' ? 'app.search.ranked_by_words' : 'app.search.ranked_by_meaning')}</p>
-      {/if}
+      <div class="head">
+        {#if hasMeaning}
+          <p class="hint">{t(mode === 'LEXICAL' ? 'app.search.ranked_by_words' : 'app.search.ranked_by_meaning')}</p>
+        {/if}
+        {#if !selection.isOn}
+          <Button size="sm" tone="subtle" icon="square-check" onclick={() => selection.start()}>
+            {t('app.bulk.select_mode')}
+          </Button>
+        {/if}
+      </div>
       {#each search.hits as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
-        <div data-hit={hit.id}>
+        <div class="hit" data-hit={hit.id} data-by-meaning={search.isByMeaning(hit.id) ? '' : undefined}>
+        {#if selection.isOn}
+          <span class="pick">
+            <Checkbox
+              label={t('app.bulk.select', { title: hit.title })}
+              isLabelHidden={true}
+              checked={selection.has(hit.id)}
+              onclick={(event: MouseEvent) => selection.pick(hitIds, hit.id, { range: event.shiftKey })}
+              onkeydown={(event: KeyboardEvent) => {
+                if (event.key !== ' ' && event.key !== 'Enter') return;
+                event.preventDefault();
+                selection.pick(hitIds, hit.id, { range: event.shiftKey });
+              }}
+            />
+          </span>
+        {/if}
         <TaskRow
           type={hit.type}
           title={hit.title}
@@ -607,6 +696,11 @@
         >
           <!-- Search mixes collections: each hit says where it lives (UC-WRK-33). -->
           {#snippet trailing()}
+            {#if search.isByMeaning(hit.id)}
+              <!-- None of the reader's words is in this entry: said, so it does not look like a
+                   wrong answer. -->
+              <Badge icon="sparkles">{t('app.search.found_by_meaning')}</Badge>
+            {/if}
             <EntryPlace collectionId={hit.collection_id} />
             <EntryMenu
               bind:this={menus[hit.id]}
@@ -618,6 +712,7 @@
           {/snippet}
         </TaskRow>
         </div>
+        {#if bulkNote(hit.id)}<p class="failure">{bulkNote(hit.id)}</p>{/if}
       {/each}
     </Stack>
     </div>
@@ -644,6 +739,14 @@
     color: var(--text-danger);
     font-size: var(--fs-075);
   }
+
+  .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
+
+  .hit { display: flex; align-items: center; gap: var(--sp-100); }
+
+  .hit > :global(:not(.pick)) { flex: 1 1 auto; min-width: 0; }
+
+  .pick { display: flex; flex: none; align-items: center; }
 
   .starts { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 

@@ -4487,6 +4487,7 @@
   "app.search.by_meaning": "Nach Bedeutung suchen, nicht nur nach Wörtern",
   "app.search.meaning_degraded": "Die Suche nach Bedeutung ist gerade nicht verfügbar: {reason} Wörter funktionieren weiter.",
   "app.search.ranked_by_meaning": "Sortiert nach Wörtern und nach Bedeutung.",
+  "app.search.found_by_meaning": "Nach Bedeutung",
   "app.search.ranked_by_words": "Nur nach Wörtern sortiert.",
   "app.ai.menu_title": "KI zu diesem Eintrag fragen",
   "app.ai.menu_notes": "KI zu den Notizen fragen",

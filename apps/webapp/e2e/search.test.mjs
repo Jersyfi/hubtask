@@ -34,6 +34,13 @@ const HUB = { id: '01a0e2e1-0000-7000-8000-000000000002', type: 'HUB', parent_id
 const COLLECTION = { id: '01a0e2e1-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', order_key: 'a0', version: 1 };
 const HIT = { id: '01a0e2e1-0000-7000-8000-000000000004', type: 'TASK', container_id: COLLECTION.id, parent_id: null, title: 'Buy milk', is_completed: false, order_key: 'a0', version: 1 };
 const PAGE = { data: [], items: [], page: { next_cursor: null, has_more: false } };
+/** A hit none of the words found: the server names it under `found_by_meaning`. */
+const MEANT = { ...HIT, id: '01a0e2e1-0000-7000-8000-000000000005', title: 'Dairy for the week', order_key: 'a1' };
+
+/** What `/search` answers; a walk that needs more than the one hit sets it and puts it back. */
+let answer = { ...PAGE, data: [HIT] };
+/** Every bulk the walk sent. */
+const bulks = [];
 
 /** Every search this walk makes, in the order the client made them. */
 const asked = [];
@@ -71,7 +78,12 @@ async function stub(route) {
   }
   if (path.endsWith('/api/v1/search')) {
     asked.push(route.request().postDataJSON());
-    return route.fulfill({ json: { ...PAGE, data: [HIT] } });
+    return route.fulfill({ json: answer });
+  }
+  if (path.endsWith('/api/v1/items:bulk')) {
+    const body = route.request().postDataJSON();
+    bulks.push(body);
+    return route.fulfill({ json: { results: body.operations.map((_, index) => ({ index, status: 200 })) } });
   }
   // The entry itself, because this walk opens one: the back button is half of what it proves. A
   // page envelope here would put `undefined` where the screen reads a type, and the entry screen
@@ -308,6 +320,53 @@ test('chromium: Enter with nothing typed does what the menu says it does', async
   await page.keyboard.press('Enter');
   await page.waitForURL(/\/search$/, { timeout: 5_000 });
   await page.getByRole('heading', { name: 'Search' }).waitFor({ timeout: 10_000 });
+
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a hit found by meaning is marked, and hits are picked and acted on together', async (t) => {
+  answer = { ...PAGE, data: [HIT, MEANT], found_by_meaning: [MEANT.id] };
+  t.after(() => {
+    answer = { ...PAGE, data: [HIT] };
+  });
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser, 1280);
+  t.after(close);
+  asked.length = 0;
+  bulks.length = 0;
+
+  await page.goto(`${served.origin}/search`);
+  await page.locator('main input[type="search"]').fill('milk');
+  await page.getByRole('link', { name: MEANT.title }).waitFor({ timeout: 10_000 });
+
+  // Only the hit none of the words found says so.
+  assert.equal(await page.locator(`[data-hit="${MEANT.id}"]`).getByText('By meaning').count(), 1);
+  assert.equal(await page.locator(`[data-hit="${HIT.id}"]`).getByText('By meaning').count(), 0);
+
+  // No checkboxes until somebody selects; then one per hit, and the bar.
+  assert.equal(await page.getByRole('checkbox', { name: `Select ${HIT.title}` }).count(), 0);
+  await page.getByRole('button', { name: 'Select entries' }).click();
+  await page.getByRole('checkbox', { name: `Select ${HIT.title}` }).click();
+  await page.getByText('1 selected').first().waitFor({ timeout: 5_000 });
+
+  // A selection across collections is offered only what needs no collection's own lists.
+  const offered = (await page.getByRole('combobox', { name: 'Do this' }).locator('option').allTextContents())
+    .map((each) => each.trim())
+    .filter((each) => each !== '');
+  assert.deepEqual(offered, ['Tick off', 'Reopen', 'Move to the trash']);
+
+  const before = asked.length;
+  await page.getByRole('button', { name: 'Apply' }).click();
+  for (let tries = 0; tries < 100 && bulks.length === 0; tries += 1) await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(bulks.length, 1, 'the bulk was not sent');
+  assert.deepEqual(bulks[0].operations.map((each) => [each.op, each.item_id]), [['COMPLETE_ITEM', HIT.id]]);
+  // And the search is asked again, since what it showed has changed.
+  await waitForAsked(before + 1);
+
+  // Escape leaves the mode.
+  await page.keyboard.press('Escape');
+  await page.getByRole('checkbox', { name: `Select ${HIT.title}` }).waitFor({ state: 'detached', timeout: 5_000 });
 
   assert.deepEqual(failures, []);
 });

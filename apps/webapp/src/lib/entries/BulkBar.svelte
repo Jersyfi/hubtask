@@ -55,14 +55,21 @@
   import { offerUndo, restoreOrder } from './undo.svelte.ts';
 
   interface Props {
-    collectionId: string;
+    /**
+     * The collection the entries are in. Absent where a selection spans collections - the search -
+     * and then only what needs no list of one collection is offered: complete, reopen, trash.
+     */
+    collectionId?: string;
     /** The path the assignee picker offers people from — the same one the entry screen composes. */
-    path: Path;
+    path?: Path;
     /** What comes back, handed up so the list and the board can mark their own rows. */
     onresults: (operations: readonly BulkOperation[], results: readonly BulkResult[]) => void;
   }
 
   const { collectionId, path, onresults }: Props = $props();
+
+  /** What a selection across collections can be given: nothing that names one collection's lists. */
+  const ACROSS_COLLECTIONS: ReadonlySet<BulkOp> = new Set(['COMPLETE_ITEM', 'REOPEN_ITEM', 'TRASH_ITEM']);
 
   const cap = $derived(bulkCapOf(manifest.value?.limits as Record<string, unknown> | undefined));
   const count = $derived(selection.count);
@@ -81,8 +88,8 @@
   let isValueMissing = $state(false);
   let bar = $state<HTMLElement | null>(null);
 
-  const collectionLabels = $derived(labels.of(collectionId));
-  const collectionBuckets = $derived(buckets.of(collectionId));
+  const collectionLabels = $derived(collectionId ? labels.of(collectionId) : []);
+  const collectionBuckets = $derived(collectionId ? buckets.of(collectionId) : []);
   /**
    * Where a move may go: the collections of the hub these entries are in.
    *
@@ -90,7 +97,7 @@
    * level at a time (`containers.svelte.ts`), so "all collections" is not a list this client has,
    * and inventing one from what happens to be cached would offer a different set on every screen.
    */
-  const collections = $derived(path.hubId ? containers.collectionsOf(path.hubId) : []);
+  const collections = $derived(path?.hubId ? containers.collectionsOf(path.hubId) : []);
   /**
    * The operations offered: one that needs a value from a list is not offered while the list is
    * empty - a label to add where the collection has none - since nothing could ever be chosen.
@@ -100,12 +107,13 @@
    * whose entries carry no labels or person is offered neither in bulk. Without a structure, the
    * installation's answer stands, as everywhere.
    */
-  const structureHere = $derived(containers.find(collectionId)?.structure?.settings);
+  const structureHere = $derived(collectionId ? containers.find(collectionId)?.structure?.settings : undefined);
   const offer = $derived(offerIn(structureHere));
   const carried = (capability: string): boolean =>
     !structureHere?.levels || structureHere.levels.some((level) => offer.supports(level.type as string, capability).status === 'permitted');
   const offered = $derived(
     BULK_OPERATIONS.filter((each) => {
+      if (!collectionId) return ACROSS_COLLECTIONS.has(each);
       if (each === 'ADD_LABEL' || each === 'REMOVE_LABEL') return collectionLabels.length > 0 && carried('LABELS');
       if (each === 'ASSIGN') return carried('ASSIGNMENT');
       if (each === 'UPDATE_ITEM') return collectionBuckets.length > 0 && carried('BUCKET');
@@ -114,7 +122,7 @@
     }),
   );
 
-  const candidateIds = $derived(people.candidates(path));
+  const candidateIds = $derived(path ? people.candidates(path) : []);
   const candidates = $derived(
     candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') })),
   );
@@ -161,6 +169,7 @@
   function operations(): readonly BulkOperation[] {
     // The one that is not about the selection. Everything else is one operation per picked entry.
     if (op === 'CREATE_ITEM') {
+      if (!collectionId) return [];
       return createOperations(titles, { collection_id: collectionId, type: 'TASK' });
     }
     return operationsFor(op, selection.ids, payloadFor());
