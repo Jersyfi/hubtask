@@ -21,6 +21,7 @@
   import { instance } from '../lib/data/instance.svelte.ts';
   import { rowsOf } from '../lib/instance/values.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -90,11 +91,11 @@
    * The areas this level will hold and does not yet.
    *
    * Held open rather than left out: a reader who cannot see that a thing is coming cannot tell it
-   * apart from a thing nobody thought of (P-11).
+   * apart from a thing nobody thought of (P-11). Only what is not built: a line for a screen that
+   * exists tells an operator something untrue.
    */
   const later = [
     { id: 'retention', code: 'app.instance.later_retention' },
-    { id: 'backup', code: 'app.instance.later_backup' },
   ];
 
   const reading = $derived(instance.overview);
@@ -108,7 +109,7 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.instance.overview')} isTitleInBar={viewport.isCompact} />
+  <PageHeader title={t('app.instance.overview')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail()} />
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="300">

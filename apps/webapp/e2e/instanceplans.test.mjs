@@ -126,7 +126,7 @@ test('chromium: the plans list says how many workspaces each holds, what each le
   assert.match(await family.textContent() ?? '', /family.*412.*webhooks, own providers/);
   assert.match(await page.getByRole('row').filter({ hasText: 'Business' }).textContent() ?? '', /business.*0.*–/);
   assert.equal(await page.getByTestId('without-plan').innerText(), 'Without a plan: 1 workspace. They have the installation\'s values and every feature.');
-  assert.equal(await page.locator('nav').getByText('Plans', { exact: true }).count(), 1, 'the navigation has no Plans row');
+  assert.equal(await page.locator('nav:not([aria-label="Where you are in the installation"])').getByText('Plans', { exact: true }).count(), 1, 'the navigation has no Plans row');
 });
 
 test('chromium: an operator creates a plan with a short name that stays, and lands in its editor', async (t) => {
@@ -169,7 +169,7 @@ test('chromium: a single installation offers no plans', async (t) => {
 
   await page.goto(`${served.origin}/instance/plans`);
   await page.getByText('Plans exist where an installation runs several workspaces', { exact: false }).waitFor({ timeout: 10_000 });
-  assert.equal(await page.locator('nav').getByText('Plans', { exact: true }).count(), 0);
+  assert.equal(await page.locator('nav:not([aria-label="Where you are in the installation"])').getByText('Plans', { exact: true }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'New plan' }).count(), 0);
 });
 

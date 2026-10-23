@@ -327,6 +327,24 @@ func TestEmptyingTheTrashAsksToDeleteAContainer(t *testing.T) {
 	}
 }
 
+// Somebody who may not delete a container is refused before anything is swept: the client leaving
+// the button out is a courtesy, this is the check (rule 2).
+func TestARefusedEmptyingRemovesNothing(t *testing.T) {
+	h := newPurgeHarness()
+	h.expired.items = []repository.ExpiredItem{expiredItem(taskID, now.Add(-120*24*time.Hour))}
+	h.authorizer.err = shared.ErrForbidden.WithDetail("access.not_permitted")
+
+	if _, err := h.empty().Execute(t.Context(), actor()); !errors.Is(err, shared.ErrForbidden) {
+		t.Fatalf("the refusal reported %v", err)
+	}
+	if len(h.removals.recorded) != 0 || len(h.audit.entries) != 0 {
+		t.Error("a refused emptying removed or recorded something")
+	}
+	if h.uow.writes != 0 {
+		t.Error("a refused emptying opened a write transaction")
+	}
+}
+
 // A hold does not fail the call: it is counted, so that emptying a trash with one held entry in it
 // still empties the rest.
 func TestEmptyingTheTrashKeepsWhatIsHeldAndSaysSo(t *testing.T) {

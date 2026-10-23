@@ -374,6 +374,8 @@ export const LEGAL_HOLDS = [
  * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5) -
  * and the operator's own (`WORKSPACE`), whose suspension or deletion ends the operator's session.
  */
+/** The installation at a glance, as the operator reads it: the counts `WORKSPACES` agrees with. */
+export const INSTANCE_OVERVIEW = { workspaces_active: 3, workspaces_suspended: 0, workspaces_pending_deletion: 1, accounts_active: 4, accounts_total: 5, workspaces_service_only: 0 };
 export const WORKSPACES = [
   { id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name, status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: WORKSPACE.created_at, purge_after: null, legal_hold: false },
   { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
@@ -796,6 +798,7 @@ export function stub(route) {
   if (path.endsWith(`/api/v1/automation/rules/${DRAFTED_RULE_ID}`)) return route.fulfill({ json: DRAFTED_RULE });
   if (path.endsWith('/api/v1/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: draftSaved ? [DRAFTED_RULE] : [] } });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
+  if (path.endsWith('/api/v1/admin/overview')) return route.fulfill({ json: INSTANCE_OVERVIEW });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
@@ -945,6 +948,9 @@ const ARRAYS = new Set([
   '/admin/identity-providers',
   // The installation's backup targets, read by its workspaces screen for the export.
   '/admin/backup-targets',
+  // The operator register, read by the installation's overview and its operators screen: a page
+  // envelope here has no length, and the overview printed "{count}".
+  '/admin/operators',
 ]);
 
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */

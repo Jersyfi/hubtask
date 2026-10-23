@@ -34,6 +34,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { check, focusFirst, isComplete, type Missing, type Requirement } from '../lib/forms/missing.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import PersonPicker from '../lib/people/PersonPicker.svelte';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -273,7 +274,13 @@
             hint={t('app.audit.action_hint')}
             bind:value={action}
           />
-          <Input label={t('app.audit.actor')} hint={t('app.audit.actor_hint')} bind:value={actorId} />
+          <PersonPicker
+            label={t('app.audit.actor')}
+            hint={t('app.audit.actor_hint')}
+            noneLabel={t('app.person_picker.anyone')}
+            known={entries.map((entry) => entry.actor?.id ?? '')}
+            bind:value={actorId}
+          />
           <Input
             label={t('app.audit.target_type')}
             hint={t('app.audit.target_type_hint')}

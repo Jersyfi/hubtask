@@ -175,21 +175,29 @@ export interface SectionGroup {
   readonly rows: readonly SectionRow[];
 }
 
-/** The marks come from the set ADR-0041 declares. */
+/**
+ * The marks come from the set ADR-0041 declares. The groups are the new order's
+ * (`ux-inventory.md` §E0): workspace and people · sign-in · automation · data · records · AI, under
+ * the way out and the overview. Every page is one row away, so it is reached in at most two steps
+ * from anywhere in the section (UC-ID-24 check 3).
+ */
 export const ADMINISTRATION: readonly SectionGroup[] = [
   // The way back, first and alone: a section a reader cannot leave is a trap, and the row that
-  // leads out is the one they look for at the top rather than at the foot.
+  // leads out is the one they look for at the top rather than at the foot. The overview beside
+  // it is the section's front door (UC-ID-24 check 1).
   {
     id: 'back',
     rows: [
       { id: 'back', icon: 'chevron-left', code: 'app.admin.back', path: '/', routes: [] },
+      { id: 'overview', icon: 'gauge', code: 'app.admin_overview.title', path: '/administration', routes: ['administration'] },
     ],
   },
   {
-    id: 'workspace',
-    code: 'app.admin.group_workspace',
+    id: 'people',
+    code: 'app.admin.group_people',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people'] },
       { id: 'groups', icon: 'users', code: 'app.admin.groups', path: '/administration/groups', routes: ['groups'] },
       { id: 'permissions', icon: 'shield', code: 'app.admin.permissions', path: '/administration/permissions', routes: ['permissions'] },
@@ -198,22 +206,28 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     ],
   },
   {
-    id: 'automatic',
-    code: 'app.admin.group_automatic',
+    id: 'sign-in',
+    code: 'app.admin.group_sign_in',
+    rows: [
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
+      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
+    ],
+  },
+  {
+    id: 'automation',
+    code: 'app.admin.group_automation',
     rows: [
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
-      // `rule-editor` was a name no route has, which is exactly what it said.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
       { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
     ],
   },
   {
-    id: 'holds',
-    code: 'app.admin.group_holds',
+    id: 'data',
+    code: 'app.admin.group_data',
     rows: [
-      { id: 'quotas', icon: 'gauge', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       // Drawn only where a private hub exists or more than one person is here (`administration`
       // below): the page is also where *Private hubs allowed* is set, and a workspace of one has
       // neither a hub to show nor anybody to keep one from.
@@ -224,19 +238,17 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     ],
   },
   {
-    id: 'record',
-    code: 'app.admin.group_record',
+    id: 'records',
+    code: 'app.admin.group_records',
     rows: [
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
       { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
     ],
   },
   {
-    id: 'entry',
-    code: 'app.admin.group_entry',
+    id: 'ai',
+    code: 'app.admin.group_ai',
     rows: [
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
-      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
   },
@@ -520,10 +532,9 @@ export function currentDestination(route: { readonly name: string | null; readon
 /**
  * The screen a section's own address opens (ADR-0065 decision 1).
  *
- * A section with a navigation column needs no overview, because the column *is* the overview: an
- * index beside it is the same list drawn twice, and arriving at it means arriving at a page of
- * links to where the reader was already going. So `/administration` answers with the section's
- * first screen.
+ * A section needs no index, because the column already lists every screen: an index beside it is
+ * the same list drawn twice. An overview is not an index - it says what needs attention - so the
+ * administration's and the installation's first rows are theirs (UC-ID-24, UC-INS-12).
  *
  * The first row with a route of its own, which is what skips the way back: that row leads out of
  * the section, and a front door that led out would be a door somebody falls through.

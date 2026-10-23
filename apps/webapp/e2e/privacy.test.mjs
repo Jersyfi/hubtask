@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, PRIVACY_REQUESTS, stub, forgetUnstubbed, unstubbedSoFar } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, PERMISSIONS, PRIVACY_REQUESTS, stub, forgetUnstubbed, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -52,7 +52,8 @@ async function open(browser, role = 'OWNER', options = {}) {
     const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
     // The workspace counts in Berlin, which is where a deadline named as a day ends.
     if (path === '/tenant' && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
-    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, roles: ROLES } });
+    // What the reader may do is the manifest's answer, a role held through a group included.
+    if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, roles: ROLES, workspace_permissions: PERMISSIONS[role] } });
     if (path === '/memberships' && new URL(request.url()).searchParams.get('scope_type') === 'TENANT') {
       return route.fulfill({ json: { data: [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }], page: { next_cursor: null, has_more: false } } });
     }

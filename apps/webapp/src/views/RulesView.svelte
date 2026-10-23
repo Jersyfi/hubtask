@@ -155,6 +155,14 @@
       title={t('app.rules.title')}
       subtitle={t('app.rules.intro')}
       isTitleInBar={viewport.isCompact}
+      breadcrumb={{
+        trail: [
+          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+          { id: 'screen', label: t('app.rules.title') },
+        ],
+        label: t('app.admin.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      }}
       primary={headPrimary}
     >
       {#snippet notices()}
