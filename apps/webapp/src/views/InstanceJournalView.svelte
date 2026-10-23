@@ -14,14 +14,18 @@
   //
   // The action is a code and is rendered here (ADR-0011): the server holds no display text, and an
   // action this build has no word for is shown as the code rather than as a blank.
-
+  //
+  // **Narrowed at the server, a page at a time** (ux-inventory §E8): what happened - a kind of act,
+  // as the action's prefix - and the workspace it was about, by the address the journal kept, which
+  // is also how a workspace that is gone is found. *Show more* walks on under the same narrowing;
+  // narrowing what one page held would hide entries the next page has.
   import { untrack } from 'svelte';
 
-  import { Banner, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Input, LoadMore, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { instance } from '../lib/data/instance.svelte.ts';
+  import { instance, type JournalFilter } from '../lib/data/instance.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
@@ -35,13 +39,48 @@
 
   const { onnavigate }: Props = $props();
 
+  /** The kinds of act, each the prefix its actions share; a single installation has no plans. */
+  const KINDS = [
+    { value: 'tenant.', code: 'app.instance.journal_kind_workspaces' },
+    { value: 'plan.', code: 'app.instance.journal_kind_plans' },
+    { value: 'instance.', code: 'app.instance.journal_kind_installation' },
+  ] as const;
+  let action = $state('');
+  let workspace = $state('');
+  const filter = $derived<JournalFilter>({ action: action || undefined, workspace: workspace.trim() || undefined });
+
   $effect(() => {
-    const stop = untrack(() => instance.openJournal());
-    return stop;
+    const current = filter;
+    return untrack(() => instance.openJournalOf(current));
+  });
+  const reading = $derived(instance.journalStateOf(filter));
+  const entries = $derived(instance.journalOf(filter));
+  const isNarrowed = $derived(Boolean(filter.action || filter.workspace));
+
+  /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new narrowing. */
+  let arrived = $state<string | undefined>(undefined);
+  let isLoadingMore = $state(false);
+  let moreFailed = $state<string | undefined>(undefined);
+  $effect(() => {
+    void filter;
+    arrived = undefined;
+    moreFailed = undefined;
   });
 
-  const reading = $derived(instance.journalState);
-  const entries = $derived(instance.journal);
+  async function more(): Promise<void> {
+    const current = filter;
+    const before = instance.journalOf(current).length;
+    moreFailed = undefined;
+    isLoadingMore = true;
+    try {
+      await instance.moreJournal(current);
+      arrived = t('app.instance.journal_arrived', { count: instance.journalOf(current).length - before });
+    } catch (error) {
+      moreFailed = renderProblem(error as never, messages).message;
+    } finally {
+      isLoadingMore = false;
+    }
+  }
   const unreadable = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
@@ -95,7 +134,29 @@
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="200">
       <p class="prose">{t(manifest.isSingleTenant ? 'app.instance.journal_intro_single' : 'app.instance.journal_intro')}</p>
-
+      <div class="narrow" role="search" aria-label={t('app.instance.journal_narrow')}>
+        <Select
+          label={t('app.instance.journal_kind')}
+          value={action}
+          onchange={(event) => (action = (event.currentTarget as HTMLSelectElement).value)}
+          options={[
+            { value: '', label: t('app.instance.journal_kind_all') },
+            ...KINDS.filter((kind) => !(manifest.isSingleTenant && kind.value === 'plan.')).map((kind) => ({ value: kind.value, label: t(kind.code) })),
+          ]}
+        />
+        {#if !manifest.isSingleTenant}
+          <!-- The address, typed: a workspace the journal names is usually gone, so there is no
+               list to pick it from. Applied when the field is left or Enter is pressed. -->
+          <Input
+            label={t('app.instance.journal_workspace')}
+            hint={t('app.instance.journal_workspace_hint')}
+            value={workspace}
+            onchange={(event) => (workspace = (event.currentTarget as HTMLInputElement).value)}
+            autocomplete="off"
+            spellcheck={false}
+          />
+        {/if}
+      </div>
       {#if reading.status === 'loading' || reading.status === 'idle'}
         <p class="quiet">
           <Spinner label={t('app.instance.reading')} />
@@ -106,7 +167,7 @@
           {#if unreadable.reference}{t('app.error_reference', { request_id: unreadable.reference })}{/if}
         </Banner>
       {:else if entries.length === 0}
-        <Banner tone="info">{t('app.instance.journal_empty')}</Banner>
+        <Banner tone="info">{t(isNarrowed ? 'app.instance.journal_none_narrowed' : 'app.instance.journal_empty')}</Banner>
       {:else}
         <Table label={t('app.instance.journal')} isLabelHidden columns={columns}>
           {#each entries as entry (entry.id)}
@@ -132,6 +193,15 @@
             </tr>
           {/each}
         </Table>
+        <LoadMore
+          label={t('app.instance.journal_more')}
+          busyLabel={t('app.instance.journal_loading_more')}
+          hasMore={Boolean(instance.journalMoreAfter(filter))}
+          isBusy={isLoadingMore}
+          arrivedLabel={arrived}
+          failedLabel={moreFailed}
+          onLoadMore={() => void more()}
+        />
       {/if}
     </Stack>
   </InstanceGate>
@@ -139,6 +209,12 @@
 
 <style>
   .prose { margin: 0; max-inline-size: 60ch; }
+  .narrow {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 32ch), 1fr));
+    gap: var(--sp-150);
+    max-inline-size: 80ch;
+  }
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .quiet-cell { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
   .action { display: block; font-weight: var(--fw-medium); }

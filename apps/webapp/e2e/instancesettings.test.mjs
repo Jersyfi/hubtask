@@ -54,6 +54,12 @@ const LEVEL = {
   is_enforced_from_file: false,
 };
 
+/** Opens the tab of an area, as an operator does: the defaults show one area at a time. */
+async function inArea(page, name) {
+  await page.getByRole('tab', { name, exact: true }).click();
+  await page.getByRole('tab', { name, exact: true, selected: true }).waitFor();
+}
+
 async function open(browser, { level = LEVEL, refuse = undefined, width = 1280 } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 } });
   const sent = [];
@@ -100,13 +106,49 @@ test('chromium: every value is named in words, and the lock says what a workspac
   const row = (name) => page.getByRole('row').filter({ hasText: name });
   assert.match(await row('Minimum length').textContent() ?? '', /14.*not change it/);
   assert.match(await row('Second factor').textContent() ?? '', /Owners and administrators.*make it stricter/i);
+  await inArea(page, 'Limits');
   assert.match(await row('Entries').textContent() ?? '', /Unlimited.*go higher/);
   assert.match(await row('Exports').textContent() ?? '', /3.*not go higher/);
+  await inArea(page, 'Legal information');
   assert.match(await row('Imprint').textContent() ?? '', /provider\.example.*not change it/);
   assert.match(await row('Accessibility').textContent() ?? '', /Each workspace decides.*use their own/);
   // A language is a default and never locked: its row says nothing about what a workspace may do.
+  await inArea(page, 'Language and time');
   const language = (await row('Language').textContent()) ?? '';
   assert.doesNotMatch(language, /stricter|change it|higher|their own/);
+});
+
+// ux-inventory §E8: the defaults are one area at a time, in tabs, the tab in the address; the
+// editor opens on the whole level, keeps what was changed on another tab, and its one save bar
+// counts every area's changes because the save replaces the whole level.
+test('chromium: the defaults are tabs per area, and the editor keeps every tab\'s changes', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, sent, close } = await open(browser);
+  t.after(close);
+
+  assert.deepEqual(
+    await page.getByRole('tab').allTextContents(),
+    // No AI tab: the fixture's installation is a private one, which offers no model (UC-AI-06 check 8).
+    ['Signing in', 'Legal information', 'Language and time', 'Limits'],
+  );
+  // One area's table at a time.
+  assert.equal(await page.getByRole('row').filter({ hasText: 'Entries' }).count(), 0);
+  await inArea(page, 'Limits');
+  assert.match(page.url(), /\/instance\/settings\?tab=quotas$/, 'the tab is not in the address');
+  assert.equal(await page.getByRole('row').filter({ hasText: 'Minimum length' }).count(), 0);
+
+  await page.getByRole('button', { name: 'Change these values' }).click();
+  const form = page.locator('form');
+  await form.locator('[data-value="quotas.items"]').getByRole('spinbutton').first().fill('500');
+  await inArea(page, 'Signing in');
+  await form.getByRole('spinbutton', { name: 'Digits, at least' }).fill('2');
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  await bar.getByText('2 changes').waitFor();
+  await form.getByRole('button', { name: 'Save' }).click();
+  await page.getByText('Saved.').first().waitFor({ timeout: 10_000 });
+  assert.equal(sent.at(-1).quotas.items.value, 500, 'the other tab\'s change was lost');
+  assert.equal(sent.at(-1).sign_in.min_digits.value, 2);
 });
 
 test('chromium: an undecided value is saved as its kind, every kind from its own control', async (t) => {
@@ -123,11 +165,13 @@ test('chromium: an undecided value is saved as its kind, every kind from its own
   await digits.fill('2');
   await form.getByRole('combobox', { name: 'Check against known breaches' }).selectOption('true');
   await form.getByRole('checkbox', { name: 'Password' }).check();
-  await form.getByRole('combobox', { name: 'The week starts on' }).selectOption('SUNDAY');
+  await inArea(page, 'Legal information');
   await form.getByRole('textbox', { name: 'Accessibility' }).fill('https://provider.example/a11y');
   // The statement's lock: a link is replaced by a workspace's own, or not.
   const locks = form.getByRole('combobox', { name: 'Workspaces may' });
   assert.ok(await locks.count() > 0);
+  await inArea(page, 'Language and time');
+  await form.getByRole('combobox', { name: 'The week starts on' }).selectOption('SUNDAY');
   // No lock for a language, a zone or a week start.
   assert.equal(await form.locator('[data-value="localisation.week_start"]').getByRole('combobox', { name: 'Workspaces may' }).count(), 0);
 
@@ -166,6 +210,7 @@ test("chromium: the terms' version follows its link, in place and in its lock", 
   t.after(close);
 
   await page.getByRole('button', { name: 'Change these values' }).click();
+  await inArea(page, 'Legal information');
   const form = page.locator('form');
   const order = await form.locator('[data-value^="legal."]').evaluateAll(
     (rows) => rows.map((row) => row.getAttribute('data-value')),
@@ -197,6 +242,7 @@ test('chromium: a refusal lands at the value it is about', async (t) => {
   // check 3).
   const bar = page.getByRole('region', { name: 'Unsaved changes' });
   assert.equal(await bar.count(), 0);
+  await inArea(page, 'Limits');
   const field = page.locator('[data-value="quotas.items"]');
   await field.getByRole('spinbutton').first().fill('123');
   await bar.getByText('1 change').waitFor();
@@ -266,20 +312,25 @@ test('chromium: a language is named and stored files are a size', async (t) => {
   t.after(close);
 
   const row = (name) => page.getByRole('row').filter({ hasText: name });
+  await inArea(page, 'Language and time');
   const language = (await row('Language').textContent()) ?? '';
   assert.match(language, /Deutsch/, language);
+  await inArea(page, 'Limits');
   const stored = (await row('Stored files').textContent()) ?? '';
   assert.match(stored, /10\.7\s?GB/, stored);
   assert.doesNotMatch(stored, /10737418240/, stored);
 
   await page.getByRole('button', { name: 'Change these values' }).click();
   const form = page.locator('form');
+  await inArea(page, 'Language and time');
   const options = await form.getByRole('combobox', { name: 'Language' }).locator('option').allTextContents();
   assert.ok(options.some((each) => /English/.test(each)) && options.some((each) => /Deutsch/.test(each)), options.join(' | '));
   assert.ok(!options.includes('en') && !options.includes('de'), options.join(' | '));
   // UC-ID-12 check 1, at the installation: the strictest choice covers sign-ins with a password.
+  await inArea(page, 'Signing in');
   const factor = await form.getByRole('combobox', { name: 'A second factor is required of' }).locator('option').allTextContents();
   assert.ok(factor.includes('Everyone signing in with a password'), factor.join(' | '));
+  await inArea(page, 'Limits');
   const field = await form.locator('[data-value="quotas.media_bytes"]').textContent() ?? '';
   assert.match(field, /That is 10\.7\s?GB/, field);
 });
@@ -295,12 +346,14 @@ test('chromium: the account link is drawn with what plans may, and without a loc
   };
   const { page, close } = await open(browser, { level: multi });
   t.after(close);
+  await inArea(page, 'Legal information');
   const row = page.getByRole('row').filter({ hasText: 'Provider\'s account page' });
   assert.match(await row.textContent() ?? '', /shop\.example\/account.*set their own \(plans\)/);
 
   const single = { ...LEVEL, legal: { ...LEVEL.legal, account_url: { set: false, locked: false, kind: 'LINK' } } };
   const second = await open(browser, { level: single });
   t.after(second.close);
+  await inArea(second.page, 'Legal information');
   const plain = (await second.page.getByRole('row').filter({ hasText: 'Provider\'s account page' }).textContent()) ?? '';
   assert.doesNotMatch(plain, /plans|their own|change it/);
 });

@@ -280,7 +280,7 @@ import ContainerView from './views/ContainerView.svelte';
       <InstancePlanView name={route.params.name ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
   {:else if route.name === 'instance-settings'}
-    <InstanceSettingsView onnavigate={(path) => router.navigate(path)} />
+    <InstanceSettingsView tab={route.query['tab']} onnavigate={(path) => router.navigate(path)} onreplace={(path) => router.replace(path)} />
   {:else if route.name === 'instance-providers'}
     <InstanceProvidersView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'instance-ai'}
