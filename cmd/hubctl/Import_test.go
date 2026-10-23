@@ -34,3 +34,16 @@ func TestImportRefusesAKindItDoesNotKnow(t *testing.T) {
 		t.Errorf("exit %d: %s", code, errOut)
 	}
 }
+
+// --collection names a collection of the hub to land in; a malformed one is refused before
+// anything is uploaded.
+func TestImportRefusesAMalformedCollectionBeforeUploading(t *testing.T) {
+	stub := serveJSON(t, http.StatusOK, `{}`)
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "import", "csv", "file.csv", "--hub", itemID, "--collection", "nope")
+	if code == exitOK || !strings.Contains(errOut, "--collection") {
+		t.Errorf("exit %d: %s", code, errOut)
+	}
+	if stub.body != "" {
+		t.Errorf("something was sent: %s", stub.body)
+	}
+}
