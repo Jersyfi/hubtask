@@ -1249,6 +1249,29 @@ func (q *Queries) RemoveGroupMember(ctx context.Context, arg RemoveGroupMemberPa
 	return err
 }
 
+const renameAccount = `-- name: RenameAccount :execrows
+UPDATE account SET
+  display_name = $1,
+  updated_at   = $2
+WHERE id = $3 AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+`
+
+type RenameAccountParams struct {
+	DisplayName string
+	UpdatedAt   pgtype.Timestamptz
+	ID          pgtype.UUID
+}
+
+// The display name and no other column, for the reason the preferences' query gives. An erased
+// account keeps the marker its erasure wrote: nobody is left to rename it.
+func (q *Queries) RenameAccount(ctx context.Context, arg RenameAccountParams) (int64, error) {
+	result, err := q.db.Exec(ctx, renameAccount, arg.DisplayName, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const restrictedAccounts = `-- name: RestrictedAccounts :many
 SELECT id
 FROM account a

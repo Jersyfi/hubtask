@@ -11,6 +11,7 @@
 
   import { Button, EmptyState, Stack, Table } from '@hubtask/design-system/components';
 
+  import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -39,6 +40,9 @@
     { id: 'scopes', label: t('app.grants.scopes_column') },
     { id: 'withdraw', label: t('app.grants.withdraw'), isLabelHidden: true },
   ]);
+
+  /** The app the reader is asked about: withdrawing is final - it has to be allowed again (§E0). */
+  let asking = $state<{ id: string; name: string } | undefined>(undefined);
 
   async function withdraw(grantId: string): Promise<void> {
     failure = undefined;
@@ -78,7 +82,7 @@
                    identifier where it does not — the same rule as the consent screen. -->
               <td class="scopes">{grant.scopes.join(', ')}</td>
               <td>
-                <Button size="sm" tone="danger" onclick={() => void withdraw(grant.id)}>
+                <Button size="sm" tone="danger" onclick={() => (asking = { id: grant.id, name: grant.client_name })}>
                   {t('app.grants.withdraw')}
                 </Button>
               </td>
@@ -90,6 +94,18 @@
       <p class="quiet small">{t('app.grants.next_request')}</p>
     </Stack>
   </Stack>
+
+  <FinalActDialog
+    isOpen={asking !== undefined}
+    title={t('app.grants.withdraw_confirm_title', { app: asking?.name ?? '' })}
+    body={t('app.grants.withdraw_confirm_body', { app: asking?.name ?? '' })}
+    confirmLabel={t('app.grants.withdraw')}
+    busyLabel={t('app.grants.withdrawing')}
+    onConfirm={async () => {
+      if (asking) await withdraw(asking.id);
+    }}
+    onClose={() => (asking = undefined)}
+  />
 {/if}
 
 <style>

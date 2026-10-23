@@ -66,6 +66,7 @@ export type {
   AccessToken,
   Account,
   AccountPreferences,
+  OwnAccountUpdate,
   AccountSummary,
   PrivateHubSummary,
   PrivateHubAccess,

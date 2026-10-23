@@ -132,10 +132,10 @@ Administration and installation, found by UX-05's sweep:
 ## E2 — Signing in, invitations, setup
 
 - [x] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette (UX-01, UX-06)
-- [ ] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept
-- [ ] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept
-- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27)
-- [ ] Consent "Allow this app?" · About "This installation" → kept
+- [x] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept — the sign-in card's steps (`SignInView`); walks `signin`, `keyfactor`, `passkeysignin`, `signinnames`, `terms` (UX-17)
+- [x] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept — `ResetView`, `RedeemView`, `ConfirmAddressView`, `OidcCallbackView` (back to sign-in, to the step-up's page, to *Password and sign-in*); walks `signin`, `terms`, `invitationlink`, `managedaddress`, `stepup` (UX-17)
+- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27) — kept checked in UX-17 (`SetupView`, walk `setup`); ticked with the starter question
+- [x] Consent "Allow this app?" · About "This installation" → kept — `ConsentView` at `/oauth/consent`, `InstallationView` from the account menu (UX-17)
 
 ## E3 — Today, search, jumble, archive, trash
 
@@ -194,12 +194,12 @@ Administration and installation, found by UX-05's sweep:
 
 ## E7 — Your settings
 
-- [ ] Language and clock: language, zone, week start, AI objection, address → kept
-- [ ] Missing: display name, avatar → new *You* page
-- [ ] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting)
+- [x] Language and clock: language, zone, week start, AI objection, address → kept — *You* (`/profile`), the row now *Name and language* (UX-17)
+- [x] Missing: display name, avatar → new *You* page — *You* (`/profile`): the name, changed by the person (`PATCH /accounts/me`), and the avatar its initials make; a picture of one's own needs storage it does not have, finding #1732 (UX-17)
+- [x] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting) — theme and motion on *On this device* (`/profile/appearance`), the moments' switch on *You* (`/profile`) (UX-17)
 - [x] Notifications table with always-on cells → kept; one note for always-on rows — UX-04
-- [ ] Password and sign-in (password, passkeys, providers, second factor) → kept; sections instead of disclosures
-- [ ] Signed in · devices · apps · access tokens → kept; withdraw with undo
+- [x] Password and sign-in (password, passkeys, providers, second factor) → kept; sections instead of disclosures — *Password and sign-in* (`/profile/security`): replacing the authenticator and turning the factor off are headed sections (UX-17)
+- [x] Signed in · devices · apps · access tokens → kept; withdrawing is a final act and asks in a dialog (§E0) — corrected from "with undo": an ended session or a withdrawn app or token cannot come back — *Signed in*, *Devices*, *Apps*, *Access tokens* (`/profile/sessions`, `/devices`, `/apps`, `/tokens`) (UX-17)
 
 ## E8 — Administration and installation
 

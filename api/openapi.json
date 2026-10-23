@@ -4041,6 +4041,39 @@
             "$ref": "#/components/responses/Problem"
           }
         }
+      },
+      "patch": {
+        "tags": [
+          "identity"
+        ],
+        "operationId": "updateOwnAccount",
+        "summary": "Change what the caller is called",
+        "description": "The display name a person gives themselves: what the other members of the workspace see\nbeside everything they do, and what the audit trail records next to their actions. Only\none's own - there is no account identifier in the path, so there is nothing to authorise\nbeyond being signed in as a person. A service account is named by whoever administers it\nand is refused here.\n\nThe name is trimmed and must keep at least one character; it is at most 200.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/merge-patch+json": {
+              "schema": {
+                "$ref": "#/components/schemas/OwnAccountUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The account",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Account"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
       }
     },
     "/accounts/{accountId}": {
@@ -4055,7 +4088,7 @@
         ],
         "operationId": "getAccount",
         "summary": "The name behind an account identifier",
-        "description": "Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries\nan identifier and no label, and says why: \"the account is one request away and this record\nis deleted with its entry, so there is nothing for a copy of somebody's name to outlive\".\nThis is that request.\n\n**What comes back is deliberately less than `/accounts/me`.** The display name and the kind,\nand not the email, the locale, the time zone or the first day of the week. Those are the\ncaller's own business or an administrator's; a name is what a workspace has to show to be\nreadable at all. What the other members of a workspace see of a profile is kept minimal -\nthe display name and the avatar - and this is that minimum.\n\nAny member of the tenant may make it. There is nothing narrower to authorise against: the\nidentifiers a client holds arrived in records it was already allowed to read, and row level\nsecurity bounds the answer to the caller's own tenant, so an identifier from elsewhere does\nnot resolve here rather than being refused here.\n\nAn erased account answers with the marker its erasure wrote where the name was, because that\nis what the row holds — the reading is not special-cased, and there is nothing left to leak.\n",
+        "description": "Every record that says *who* — an `ActivityEntry.actor`, an assignee, a member row — carries\nan identifier and no label, and says why: \"the account is one request away and this record\nis deleted with its entry, so there is nothing for a copy of somebody's name to outlive\".\nThis is that request.\n\n**What comes back is deliberately less than `/accounts/me`.** The display name and the kind,\nand not the email, the locale, the time zone or the first day of the week. Those are the\ncaller's own business or an administrator's; a name is what a workspace has to show to be\nreadable at all. What the other members of a workspace see of a profile is kept minimal -\nthe display name, from which a client draws the avatar - and this is that minimum.\n\nAny member of the tenant may make it. There is nothing narrower to authorise against: the\nidentifiers a client holds arrived in records it was already allowed to read, and row level\nsecurity bounds the answer to the caller's own tenant, so an identifier from elsewhere does\nnot resolve here rather than being refused here.\n\nAn erased account answers with the marker its erasure wrote where the name was, because that\nis what the row holds — the reading is not special-cased, and there is nothing left to leak.\n",
         "responses": {
           "200": {
             "description": "The account, as another member may see it",
@@ -14655,6 +14688,17 @@
               "string",
               "null"
             ],
+            "maxLength": 200
+          }
+        }
+      },
+      "OwnAccountUpdate": {
+        "type": "object",
+        "description": "What a person may change about their own account. A field left out is left as it is.",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "minLength": 1,
             "maxLength": 200
           }
         }

@@ -1678,6 +1678,10 @@ func run() error {
 			Accounts: accounts, Authorizer: authorizer, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
+		identity.UpdateOwnAccount{
+			Accounts: accounts, Names: accounts, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
+		}.Descriptor(),
 		identity.ListNotificationPreferences{
 			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,

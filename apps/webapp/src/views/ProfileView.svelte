@@ -1,8 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // How the product speaks to this reader — the first screen of Your settings (ADR-0065
-  // decision 3), and nothing else.
+  // *You*: the first screen of Your settings (ADR-0065 decision 3) and the bottom bar's *You* -
+  // what the others call this reader, and how the product speaks to them.
+  //
+  // **The name is the person's own** (`PATCH /accounts/me`), shown with the avatar it makes: the
+  // initials of the name, which is the whole avatar today - a picture of one's own needs media
+  // storage for accounts, which there is none of yet. It saves with the language under the one save
+  // bar, because both are a form somebody fills in and leaves.
   //
   // **The client reads these three, and this is the one screen that sets them.** It does the
   // setting only — the frame still applies the language and the
@@ -15,6 +20,9 @@
   //
   // **One more thing is the person's own here**: keeping their content out of AI, beside how the
   // product speaks to them, because it is a choice about themselves rather than about a device.
+  //
+  // **And the moments**: whether the product marks them is the person's, on every device, so the
+  // switch stands here and not with the theme.
   //
   // **Nothing else is under it.** The second factor, the sessions, the devices, the theme, the
   // notifications, the apps and the tokens are each a row of the section's column with an address
@@ -30,10 +38,11 @@
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
+  import { Avatar, EmptyState, Input, SaveBar, Select, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -58,16 +67,19 @@
   // set reads as "use the workspace's".
   const zones = $derived(zoneOptions(account?.time_zone));
 
+  let displayName = $state('');
   let locale = $state('');
   let zone = $state('');
   let weekStart = $state('');
   let isSaving = $state(false);
+  let nameError = $state<string | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** What the form was last seeded with - the account's values - which a change is counted against. */
-  let seeded = $state({ locale: '', zone: '', weekStart: '' });
+  let seeded = $state({ displayName: '', locale: '', zone: '', weekStart: '' });
   /** The fields that differ from what was seeded, by the name the write takes. */
   const changed = $derived(
     [
+      displayName.trim() !== seeded.displayName ? 'display_name' : undefined,
       locale !== seeded.locale ? 'locale' : undefined,
       zone !== seeded.zone ? 'time_zone' : undefined,
       weekStart !== seeded.weekStart ? 'week_start' : undefined,
@@ -79,15 +91,26 @@
   // throw the edit away. In an effect rather than a `$derived`, because these are what somebody is
   // typing into.
   $effect(() => {
-    const next = { locale: account?.locale ?? '', zone: account?.time_zone ?? '', weekStart: account?.week_start ?? '' };
+    const next = held();
     untrack(() => {
       if (changed.length > 0) return;
       seed(next);
     });
   });
 
-  function seed(values: { locale: string; zone: string; weekStart: string }) {
+  /** What the account holds, in the form's terms. */
+  function held() {
+    return {
+      displayName: account?.display_name ?? '',
+      locale: account?.locale ?? '',
+      zone: account?.time_zone ?? '',
+      weekStart: account?.week_start ?? '',
+    };
+  }
+
+  function seed(values: ReturnType<typeof held>) {
     seeded = values;
+    displayName = values.displayName;
     locale = values.locale;
     zone = values.zone;
     weekStart = values.weekStart;
@@ -95,24 +118,38 @@
 
   function discard() {
     failure = undefined;
-    seed({ locale: account?.locale ?? '', zone: account?.time_zone ?? '', weekStart: account?.week_start ?? '' });
+    nameError = undefined;
+    seed(held());
   }
 
   async function save() {
     if (!accountId) return;
     if (changed.length === 0) return;
-    isSaving = true;
     failure = undefined;
-    const sent = { locale, zone, weekStart };
+    // Said at the field and sent nowhere: an empty name is not a way back to a default, there is
+    // none, and the server would refuse it the same way.
+    nameError = displayName.trim() === '' ? t('app.profile.display_name_empty') : undefined;
+    if (nameError) return;
+    isSaving = true;
+    const sent = { displayName: displayName.trim(), locale, zone, weekStart };
+    const prefers = changed.some((field) => field !== 'display_name');
     try {
+      // The name first, through its own write: a name refused stops the save before the language
+      // changes under the reader's eyes.
+      if (changed.includes('display_name')) {
+        await actor.rename(sent.displayName);
+        seeded = { ...seeded, displayName: sent.displayName };
+      }
       // Only what changed: the write merges, and a field sent unchanged would overwrite another
       // device's change to it. The empty string, not null: it is what every server version clears
       // on, where a null was read as "not sent" before 0.9.0.
-      await preferences.setAccount(accountId, {
-        ...(changed.includes('locale') ? { locale: clearedOr(sent.locale) } : {}),
-        ...(changed.includes('time_zone') ? { time_zone: clearedOr(sent.zone) } : {}),
-        ...(changed.includes('week_start') ? { week_start: clearedOr(sent.weekStart) as never } : {}),
-      });
+      if (prefers) {
+        await preferences.setAccount(accountId, {
+          ...(changed.includes('locale') ? { locale: clearedOr(sent.locale) } : {}),
+          ...(changed.includes('time_zone') ? { time_zone: clearedOr(sent.zone) } : {}),
+          ...(changed.includes('week_start') ? { week_start: clearedOr(sent.weekStart) as never } : {}),
+        });
+      }
       seeded = sent;
       // The frame applies the language itself once the account re-reads; this only says it landed.
       toast.show({ text: t('app.profile.saved'), tone: 'success' });
@@ -134,6 +171,22 @@
          section's first screen, and what is on the next row of the column its sentence names. -->
     <form class="panel" data-tour="profile" onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="200">
+        <!-- The avatar the name makes, beside the field that makes it: what the others see. -->
+        <div class="who">
+          <Avatar name={displayName.trim() || account.display_name} />
+          <div class="name">
+            <Input
+              label={t('app.profile.display_name')}
+              hint={t('app.profile.display_name_hint')}
+              bind:value={displayName}
+              error={nameError}
+              maxlength={200}
+              autocomplete="name"
+              isRequired
+            />
+          </div>
+        </div>
+
         {#if locales.length > 0}
           <Select
             label={t('app.profile.language')}
@@ -193,6 +246,10 @@
       />
     </form>
 
+    <!-- The moments: the account's, so here rather than on *On this device* (ADR-0043). A switch
+         of its own outside the form, written at once as every switch outside a form is. -->
+    <CelebrationsSwitch />
+
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
          where there is nothing to choose (UC-PRV-05 check 8). -->
     <AiObjectionSection />
@@ -230,6 +287,16 @@
     background: var(--bg-surface);
     box-shadow: var(--shadow-raised);
   }
+
+  /* The avatar beside the field, at the field's own line, and above it where a phone has no room. */
+  .who {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-150);
+  }
+
+  .name { flex: 1 1 24ch; min-inline-size: 0; }
 
   .label { font-size: var(--fs-075); font-weight: var(--fw-semibold); }
 
