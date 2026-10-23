@@ -30,6 +30,8 @@
   import { palette } from '../palette/palette.svelte.ts';
   import { listenForShortcuts } from './keys.ts';
   import HelpDialog from './HelpDialog.svelte';
+  import AskDialog from '../ask/AskDialog.svelte';
+  import { offersAsk } from '../ask/answer.ts';
   import NoticeMark from './NoticeMark.svelte';
   import StepUpPrompt from './StepUpPrompt.svelte';
   import ToastStack from './ToastStack.svelte';
@@ -272,6 +274,24 @@
 
   /** *Help and shortcuts*, open: from the account group, the palette, or `?`. */
   let isHelpOpen = $state(false);
+
+  /**
+   * *Ask* in the palette (UC-AI-08): one row for the words typed, only where the workspace has
+   * consented to AI - without it nothing about asking is drawn (check 1, UC-AI-01).
+   */
+  let asking = $state<string | undefined>(undefined);
+  let isAskOpen = $state(false);
+  $effect(() =>
+    palette.provide('ask', {
+      rows: (words) =>
+        offersAsk(manifest.value?.features, words) && actor.account
+          ? [{ id: 'ask', label: t('app.ask.row', { words: words.trim() }), run: (typed) => {
+              asking = typed.trim();
+              isAskOpen = true;
+            } }]
+          : [],
+    }),
+  );
 
   /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
   function accountVerb(action: 'help' | 'sign-out') {
@@ -528,6 +548,11 @@
   {/if}
   {#if isHelpOpen}
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
+  {/if}
+  {#if isAskOpen && asking !== undefined && actor.account}
+    {#key asking}
+      <AskDialog bind:isOpen={isAskOpen} accountId={actor.account.id} words={asking} />
+    {/key}
   {/if}
 
   <!-- The proof a privileged action demands, rendered once. Any request may meet the refusal, so
