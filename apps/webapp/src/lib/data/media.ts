@@ -43,6 +43,18 @@ export function uploadLimitOf(capabilities: Capabilities | undefined): number | 
   return declared;
 }
 
+/**
+ * The most a picture of oneself may be: the server's own bound for usage `AVATAR` (5 MB), drawn
+ * small beside a name on every screen.
+ */
+export const AVATAR_LIMIT = 5_000_000;
+
+/** What a picture may be here: its own bound, or the installation's where that is lower. */
+export function pictureLimitOf(capabilities: Capabilities | undefined): number {
+  const installation = uploadLimitOf(capabilities);
+  return installation === undefined ? AVATAR_LIMIT : Math.min(installation, AVATAR_LIMIT);
+}
+
 /** Whether a file may be offered at all. No limit known means yes, and the server decides. */
 export function isWithinUploadLimit(size: number, limit: number | undefined): boolean {
   if (limit === undefined) return true;

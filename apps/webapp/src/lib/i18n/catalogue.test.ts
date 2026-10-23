@@ -90,7 +90,7 @@ test('a code the second catalogue lacks falls back to the source, and one it has
   const translated = Object.keys(withoutNotes).find((code) => SOURCE[code] !== undefined);
   assert.ok(translated, 'de.json translates nothing the source has');
   assert.equal(patternFor(translated, [withoutNotes, SOURCE]), withoutNotes[translated]);
-  const untranslated = Object.keys(SOURCE).find((code) => withoutNotes[code] === undefined);
-  assert.ok(untranslated, 'de.json is complete, so this test has nothing to fall back on');
-  assert.equal(patternFor(untranslated, [withoutNotes, SOURCE]), SOURCE[untranslated]);
+  // The gap is made here: de.json may be complete.
+  const { [translated]: _dropped, ...lacking } = withoutNotes;
+  assert.equal(patternFor(translated, [lacking, SOURCE]), SOURCE[translated]);
 });

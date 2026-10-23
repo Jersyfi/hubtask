@@ -262,6 +262,10 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
     t.after(close);
     await context.route(`**/api/v1/containers/${COLLECTION.id}`, (route) =>
       route.fulfill({ json: { ...COLLECTION, policies } }));
+    // The hub's level as well: the tree opens the hub of the entry's collection, and a list that
+    // served the collection without its policies would take them back.
+    await context.route(`**/api/v1/containers?parent_id=${HUB.id}*`, (route) =>
+      route.fulfill({ json: { data: [{ ...COLLECTION, policies }], page: { next_cursor: null, has_more: false } } }));
     await page.goto(`${served.origin}/items/${itemId}`);
     await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
     await page.locator('[data-detail="assignee"]').click();

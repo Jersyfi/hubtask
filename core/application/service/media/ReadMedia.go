@@ -62,6 +62,9 @@ type Reader interface {
 // picture they are already looking at. Its uploader may too, which is what makes the three-step
 // flow finishable - between the staging and the first attachment the object serves nothing, and
 // there would otherwise be a window in which not even the person who staged it can read it back.
+//
+// A person's picture is the one object that serves no entry: it stands beside their name, and every
+// member may read it as they may read the name (data-protection.md §9).
 type GetMedia struct {
 	Objects    repository.Objects
 	Containers workrepo.Containers
@@ -94,11 +97,11 @@ func (h GetMedia) Execute(
 		return ViewedMedia{}, mediaIDRequired()
 	}
 
-	object, paths, err := h.read(ctx, actor, query.MediaID)
+	object, served, err := h.read(ctx, actor, query.MediaID)
 	if err != nil {
 		return ViewedMedia{}, err
 	}
-	if err := h.ensureReadable(ctx, actor, object, paths); err != nil {
+	if err := h.ensureReadable(ctx, actor, object, served); err != nil {
 		return ViewedMedia{}, err
 	}
 	if object.Status != media.StatusReady {
@@ -114,15 +117,22 @@ func (h GetMedia) Execute(
 	return ViewedMedia{Object: object, Download: download}, nil
 }
 
+// reach is what the object serves, for the permission question: the paths of the entries it covers
+// or is attached to, or that somebody shows it as their picture.
+type reach struct {
+	paths    [][]identity.Scope
+	portrait bool
+}
+
 // read reads the object together with the entries it serves and the collections those sit in - one
 // read-only transaction, because the permission question needs all three and none of them decides
 // a write (multi-tenancy.md §7).
 func (h GetMedia) read(
 	ctx context.Context, actor appshared.ActorContext, mediaID shared.ID,
-) (media.Object, [][]identity.Scope, error) {
+) (media.Object, reach, error) {
 	var (
 		object media.Object
-		paths  [][]identity.Scope
+		served reach
 	)
 
 	err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
@@ -132,25 +142,32 @@ func (h GetMedia) read(
 		}
 		object = found
 
+		if found.Usage == media.UsageAvatar {
+			// Whoever is in the workspace: the transaction's tenant already bounds the question,
+			// so a picture of another workspace's member does not resolve here.
+			served.portrait, err = h.Objects.ServesAvatar(ctx, mediaID)
+			return err
+		}
+
 		items, err := h.Objects.ReferencingItems(ctx, mediaID)
 		if err != nil {
 			return err
 		}
-		paths, err = h.pathsOf(ctx, items)
+		served.paths, err = h.pathsOf(ctx, items)
 		return err
 	})
 	if err != nil {
 		if errors.Is(err, shared.ErrNotFound) {
-			return media.Object{}, nil, mediaNotFound(mediaID)
+			return media.Object{}, reach{}, mediaNotFound(mediaID)
 		}
-		return media.Object{}, nil, err
+		return media.Object{}, reach{}, err
 	}
 	if object.DeletedAt != nil {
 		// Marked for the reconciliation to remove. It serves nothing and is on its way out; saying
 		// so is the same answer an identifier that never existed gets (T-04).
-		return media.Object{}, nil, mediaNotFound(mediaID)
+		return media.Object{}, reach{}, mediaNotFound(mediaID)
 	}
-	return object, paths, nil
+	return object, served, nil
 }
 
 // pathsOf resolves the collections the referencing entries sit in, as the paths a membership is
@@ -188,19 +205,19 @@ func (h GetMedia) pathsOf(
 	return paths, nil
 }
 
-// ensureReadable answers the one permission question: the uploader, or somebody who may read an
-// entry the object serves.
+// ensureReadable answers the one permission question: the uploader, any member for a picture
+// somebody shows, or somebody who may read an entry the object serves.
 //
 // An object nobody may reach is reported missing rather than forbidden. Its identifier is one the
 // caller either guessed or was handed by something they may not read, and both deserve the same
 // answer as an identifier that names nothing (T-04, multi-tenancy.md §2).
 func (h GetMedia) ensureReadable(
-	ctx context.Context, actor appshared.ActorContext, object media.Object,
-	paths [][]identity.Scope,
+	ctx context.Context, actor appshared.ActorContext, object media.Object, served reach,
 ) error {
-	if object.CreatedBy == actor.AccountID {
+	if object.CreatedBy == actor.AccountID || served.portrait {
 		return nil
 	}
+	paths := served.paths
 	if len(paths) == 0 {
 		return mediaNotFound(object.ID)
 	}

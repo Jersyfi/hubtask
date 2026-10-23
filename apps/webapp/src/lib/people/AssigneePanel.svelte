@@ -89,7 +89,7 @@
   // reader's, under the collator for the resolved locale (i18n-l10n.md §6 line 3).
   const candidates = $derived(
     candidateIds
-      .map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') }))
+      .map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed'), src: accounts.pictureOf(id) }))
       .sort((left, right) => byName(messages.locale)(left.name, right.name)),
   );
 

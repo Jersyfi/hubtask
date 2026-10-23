@@ -39,7 +39,7 @@
   provideReasonGroup(() => ({ id: noteId, reason: note }));
 </script>
 
-<tr>
+<tr data-setting={`notify-${category}`}>
   <!-- A phrase per category the catalogue knows, and `humanise` for one it does not: an
        installation that tells people about something newer still reads readably rather than
        showing a key. -->

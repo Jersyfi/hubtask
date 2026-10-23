@@ -4,7 +4,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { CAPS, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate } from './rows.ts';
+import { CAPS, EMPTY_ACTIONS, groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate } from './rows.ts';
 import { QUICK as ALL_QUICK, type Quick } from '../data/searchquery.ts';
 
 const QUICK: readonly Quick[] = [
@@ -20,14 +20,45 @@ const board: Candidate = { kind: 'action', id: 'open-as:c1:KANBAN', label: 'Kitc
 const settings: Candidate = { kind: 'place', id: 'profile', label: 'Your settings' };
 const milk: Candidate = { kind: 'hit', id: 'i1', label: 'Buy milk' };
 
-test('the rows are ranked by match across kinds: the label start first, then a word start', () => {
+test('the rows come in groups, each ranked by match, the group with the best match first', () => {
   const ranked = rank([oldKitchen, newTask, board, garden, kitchen, settings], 'kitch');
   assert.deepEqual(
     ranked.map((each) => each.id),
-    // Grade 3: the two containers starting with it, then the action starting with it;
-    // grade 2: the containers and actions with a word starting with it.
-    ['c2', 'c1', 'open-as:c1:KANBAN', 'c3', 'new-in:c1'],
+    // The places: the two starting with it, then the one with a word starting with it; then the
+    // actions, likewise.
+    ['c2', 'c1', 'c3', 'open-as:c1:KANBAN', 'new-in:c1'],
   );
+  assert.deepEqual([...new Set(ranked.map((each) => groupOf(each.kind)))], ['places', 'actions']);
+});
+
+test('a group whose best row matches better comes before one with only weaker matches', () => {
+  const language: Candidate = { kind: 'setting', id: 'language', label: 'Language' };
+  const page: Candidate = { kind: 'place', id: 'languages', label: 'All languages' };
+  assert.deepEqual(rank([page, language], 'lang').map((each) => each.id), ['language', 'languages']);
+});
+
+test('a keyword finds a row in the reader\'s words, but below one that says them', () => {
+  const add: Candidate = { kind: 'action', id: 'add', label: 'Eintrag hinzufügen', keywords: 'anlegen neu hinzufügen erstellen' };
+  const hub: Candidate = { kind: 'action', id: 'hub', label: 'Hub anlegen', keywords: 'anlegen neu hinzufügen erstellen' };
+  const name: Candidate = { kind: 'setting', id: 'name', label: 'Dein Name' };
+  assert.deepEqual(rank([add, hub, name], 'anlegen', 'de').map((each) => each.id), ['add', 'hub']);
+  assert.deepEqual(rank([add, hub], 'anle', 'de').map((each) => each.id), ['add', 'hub']);
+  // The label's start outranks a keyword.
+  const create: Candidate = { kind: 'action', id: 'create', label: 'Create hub', keywords: 'create new add make' };
+  const capture: Candidate = { kind: 'action', id: 'capture', label: 'Capture', keywords: 'create new add make' };
+  assert.deepEqual(rank([capture, create], 'create').map((each) => each.id), ['create', 'capture']);
+});
+
+test('the places opened last are offered with an empty field only, after the actions', () => {
+  const recent: Candidate = { kind: 'recent', id: 'collection:c1', label: 'Kitchen' };
+  assert.deepEqual(rank([recent, board, kitchen], '').map((each) => each.id), ['open-as:c1:KANBAN', 'collection:c1']);
+  assert.deepEqual(rank([recent, kitchen], 'kitch').map((each) => each.id), ['c1']);
+});
+
+test('an empty field lists more actions than a typed answer, so the screen\'s own are not cut', () => {
+  const many: Candidate[] = Array.from({ length: 14 }, (_, index) => ({ kind: 'action', id: `a${index}`, label: `Act ${index}` }));
+  assert.equal(rank(many, '').length, EMPTY_ACTIONS);
+  assert.equal(rank(many, 'act').length, CAPS.action);
 });
 
 test('rows that match nothing are dropped, but an entry the server found is kept', () => {

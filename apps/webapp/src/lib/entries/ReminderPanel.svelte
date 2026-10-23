@@ -74,7 +74,7 @@
 
   const candidateIds = $derived(people.candidates(path));
   const candidateList = $derived(
-    candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') })),
+    candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed'), src: accounts.pictureOf(id) })),
   );
 
   let editing = $state<Reminder | undefined>(undefined);

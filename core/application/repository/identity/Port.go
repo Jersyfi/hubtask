@@ -223,6 +223,14 @@ type AccountNames interface {
 	Rename(ctx context.Context, account identity.Account, at time.Time) error
 }
 
+// AccountAvatars writes the picture a person shows beside their name, and nothing else. Its own
+// port for AccountNames' reason.
+type AccountAvatars interface {
+	// SetAvatar points the account at the media object, or at none for the zero ID. An account gone
+	// or erased in the meantime is an error wrapping shared.ErrNotFound.
+	SetAvatar(ctx context.Context, accountID, mediaID shared.ID, at time.Time) error
+}
+
 // ManagedAccounts is the side of the account table a managed account needs (ADR-0074): found by its
 // sign-in name, and written with the start password Hubtask drew. Its own port rather than three
 // more methods on Accounts, whose other users never meet a sign-in name.

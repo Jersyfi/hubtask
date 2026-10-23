@@ -55,12 +55,25 @@ const (
 	// UsageImport is a file for POST /imports: it attaches to nothing, covers nothing, and is
 	// deleted when the import's job ends.
 	UsageImport Usage = "IMPORT"
+	// UsageAvatar is a person's picture of themselves (PUT /accounts/me/avatar): read by every
+	// member of the workspace, so it is bounded tighter than an attachment and must be an image a
+	// browser renders inline.
+	UsageAvatar Usage = "AVATAR"
 )
+
+// MaxAvatarBytes is the most a picture of oneself may be, whatever the installation allows for an
+// attachment: it is drawn small beside a name on every screen the person appears on.
+const MaxAvatarBytes int64 = 5_000_000
+
+func knownUsage(usage Usage) bool {
+	return usage == UsageCover || usage == UsageAttachment || usage == UsageImport ||
+		usage == UsageAvatar
+}
 
 // ParseUsage reads a submitted usage.
 func ParseUsage(value string) (Usage, error) {
 	usage := Usage(value)
-	if usage != UsageCover && usage != UsageAttachment && usage != UsageImport {
+	if !knownUsage(usage) {
 		return "", shared.ErrValidation.
 			WithDetail("media.usage_unknown").
 			WithParams(map[string]string{"value": value}).
@@ -127,11 +140,14 @@ func NewPendingObject(input NewObjectInput) (Object, error) {
 	if input.SizeLimit > 0 && input.DeclaredSize > input.SizeLimit {
 		return Object{}, TooLarge(input.SizeLimit)
 	}
+	if input.Usage == UsageAvatar && input.DeclaredSize > MaxAvatarBytes {
+		return Object{}, TooLarge(MaxAvatarBytes)
+	}
 	fileName, err := validFileName(input.FileName, input.Text)
 	if err != nil {
 		return Object{}, err
 	}
-	if input.Usage != UsageCover && input.Usage != UsageAttachment && input.Usage != UsageImport {
+	if !knownUsage(input.Usage) {
 		return Object{}, shared.ErrValidation.
 			WithDetail("media.usage_unknown").
 			WithParams(map[string]string{"value": string(input.Usage)}).
@@ -190,6 +206,21 @@ func (o Object) Attachable(usage Usage) error {
 			WithDetail("media.usage_mismatch").
 			WithParams(map[string]string{"usage": string(o.Usage), "wanted": string(usage)}).
 			WithFields(shared.FieldError{Path: "/media_id", Code: "media.usage_mismatch"})
+	}
+	return nil
+}
+
+// Portrayable answers whether the object may be shown as a person's picture: confirmed, staged as
+// an avatar, and judged an image a browser renders without executing anything (T-11). Anything
+// else would be served as a download, and a download is not a picture.
+func (o Object) Portrayable() error {
+	if err := o.Attachable(UsageAvatar); err != nil {
+		return err
+	}
+	if DeliveryFor(o.ContentType) != DispositionInline {
+		return shared.ErrValidation.
+			WithDetail("media.avatar_not_an_image").
+			WithFields(shared.FieldError{Path: "/media_id", Code: "media.avatar_not_an_image"})
 	}
 	return nil
 }

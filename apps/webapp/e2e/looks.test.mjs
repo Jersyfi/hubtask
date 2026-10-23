@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { HUB, LOOK_COLLECTION, LOOK_HUB, LOOK_PRIVATE_HUB, PLAIN_COLLECTION, showLooks, signedIn } from './fixture.mjs';
+import { HUB, LOOK_COLLECTION, LOOK_HUB, LOOK_PRIVATE_HUB, PLAIN_COLLECTION, chooseNew, showLooks, signedIn } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -75,7 +75,7 @@ test('chromium: 1280 px — creating a hub offers the ten colours and the symbol
     if (request.method() === 'POST' && request.url().endsWith('/api/v1/containers')) sent.push(request.postDataJSON());
   });
 
-  await page.getByRole('button', { name: 'Create hub' }).first().click();
+  await chooseNew(page, 'Create hub');
   const dialog = page.getByRole('dialog', { name: 'Create hub' });
   await dialog.waitFor({ timeout: 5_000 });
 

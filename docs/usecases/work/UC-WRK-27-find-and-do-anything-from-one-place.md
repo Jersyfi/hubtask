@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-13]
 state: built
 tasks: [UX-13]
-checked_by: [apps/webapp/e2e/palette.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/search.test.mjs, apps/webapp/src/lib/palette/sources.test.ts, apps/webapp/src/lib/palette/rows.test.ts, apps/webapp/src/lib/palette/actions.test.ts, apps/webapp/src/lib/shortcuts.test.ts]
+checked_by: [apps/webapp/e2e/palette.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/search.test.mjs, apps/webapp/src/lib/palette/sources.test.ts, apps/webapp/src/lib/palette/rows.test.ts, apps/webapp/src/lib/palette/registry.test.ts, apps/webapp/src/lib/palette/actions.test.ts, apps/webapp/src/lib/shortcuts.test.ts]
 ---
 
 # Find and do anything from one place

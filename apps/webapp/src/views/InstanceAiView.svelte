@@ -26,6 +26,7 @@
   import { instance } from '../lib/data/instance.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
+  import { isOfferedAiReachable } from '../lib/instance/values.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -45,12 +46,21 @@
   let draft = $state(emptyModel('OPENAI_COMPATIBLE', 'EEA'));
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openOfferedAi());
+    return stop;
+  });
+
+  // The defaults too: an offer *Workspaces may use* leaves out is in no workspace's choice, and
+  // a screen that listed it without saying so would make the offer look done (P-05).
+  $effect(() => {
+    const stop = untrack(() => instance.openSettings());
     return stop;
   });
 
   const reading = $derived(instance.offeredAiState);
   const models = $derived(instance.offeredAi);
+  const isReachable = $derived(isOfferedAiReachable(instance.settings.status === 'ready' ? instance.settings.data : undefined));
   const unreadable = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   const columns = $derived([
@@ -136,6 +146,14 @@
         {#if models.length === 0}
           <Banner tone="info">{t('app.instance.ai_none')}</Banner>
         {:else}
+          {#if isReachable === false}
+            <Banner tone="warning" title={t('app.instance.ai_unreachable_title')}>
+              {t('app.instance.ai_unreachable_body', { setting: t('app.instance.setting.ai.sources') })}
+              {#snippet action()}
+                <Button size="sm" tone="secondary" onclick={() => onnavigate('/instance/settings?tab=ai')}>{t('app.instance.ai_unreachable_action')}</Button>
+              {/snippet}
+            </Banner>
+          {/if}
           <Table label={t('app.instance.ai')} isLabelHidden columns={columns}>
             {#each models as model (model.id)}
               <tr>

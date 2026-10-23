@@ -49,7 +49,7 @@
   const ids = $derived([...new Set([...people.candidates({}), ...known.filter((each) => each)])]);
   const candidates = $derived(
     ids
-      .map((each) => ({ id: each, name: accounts.nameOf(each) ?? t('app.people.unnamed') }))
+      .map((each) => ({ id: each, name: accounts.nameOf(each) ?? t('app.people.unnamed'), src: accounts.pictureOf(each) }))
       .sort((left, right) => byName(messages.locale)(left.name, right.name)),
   );
   $effect(() => {

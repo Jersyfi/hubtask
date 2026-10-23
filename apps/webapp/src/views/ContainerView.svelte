@@ -104,7 +104,6 @@
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { humanise } from '../lib/i18n/messages.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
@@ -1029,7 +1028,10 @@
           <button type="button" class="members" aria-label={t('app.people.title')} data-opener="members" onclick={() => (isManagingMembers = true)}>
             <span aria-hidden="true">
               <AvatarGroup
-                people={memberIds.map((accountId) => ({ name: accounts.nameOf(accountId) ?? t('app.people.unnamed') }))}
+                people={memberIds.map((accountId) => ({
+                  name: accounts.nameOf(accountId) ?? t('app.people.unnamed'),
+                  src: accounts.pictureOf(accountId),
+                }))}
                 size="sm"
                 max={4}
                 overflowLabel={t('app.people.more_members', { count: String(Math.max(memberIds.length - 4, 0)) })}
@@ -1159,7 +1161,7 @@
           {#key openItemId}
             <DetailPane
               title={openItem?.title ?? ''}
-              kind={openItem ? humanise(openItem.type.toLowerCase()) : undefined}
+              kind={openItem ? offer.level(openItem.type).label : undefined}
               dismissLabel={t('app.pane.close')}
               pageLabel={t('app.pane.open_page')}
               pageHref={`/items/${openItemId}`}

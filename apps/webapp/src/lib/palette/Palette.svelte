@@ -11,8 +11,9 @@
   //
   // **It lists, it does not decide.** Which places exist for this reader is the navigation's,
   // which actions the screen's head offers is the screen's (`commands.svelte.ts`), and what a
-  // collection matched by name offers is `sources.ts`'s, asking what its screen asks. Nothing here
-  // knows a role.
+  // collection matched by name offers is `sources.ts`'s, asking what its screen asks; the frame's
+  // own actions and the settings rows are `registry.ts`'s, over the questions the frame's controls
+  // ask. Nothing here decides a role's meaning.
   //
   // **The words still travel in memory, not in the address.** `/search` is a `POST` with no `GET`
   // so that a term never reaches an access log (`security.md` §9); the words are handed to the
@@ -29,14 +30,23 @@
 
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
-  import { indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Row } from './rows.ts';
+  import { groupOf, indexOfKey, keyOf, rank, rowId, rowsOf, step, type Candidate, type Group, type Row } from './rows.ts';
   import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
+  import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
+  import { land } from './landing.ts';
+  import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
+  import { capture } from '../capture/capture.svelte.ts';
+  import { mayCaptureHere } from '../capture/places.svelte.ts';
+  import { recents } from '../recents.svelte.ts';
   import { ariaKeysOf, drawnKeysOf } from '../shortcuts.ts';
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
-  import { holdsHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
+  import { holds, holdsHere, hubCreationHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { engine } from '../data/engine.ts';
+  import { itemPath } from '../data/item.svelte.ts';
+  import { categoriesOf } from '../data/preferences.ts';
   import { levelWords } from '../data/levels.ts';
   import { people } from '../data/people.svelte.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
@@ -53,9 +63,11 @@
     onnavigate: (path: string) => void;
     /** The account's verbs, which are the frame's. */
     onaccount: (action: 'help' | 'sign-out') => void;
+    /** Where the reader stands, as the route names it: what the frame's actions are offered for. */
+    here?: { readonly hub?: string; readonly collection?: string; readonly item?: string };
   }
 
-  const { host, onnavigate, onaccount }: Props = $props();
+  const { host, onnavigate, onaccount, here = {} }: Props = $props();
 
   let term = $state('');
   /** The highlighted row, held by identity (`rows.ts`). */
@@ -112,20 +124,99 @@
           .flatMap((candidate) => placed.filter((each) => each.container.id === candidate.id)),
   );
 
+  // ------------------------------------------------------------------------------------------
+  // Where the reader stands
+  // ------------------------------------------------------------------------------------------
+
+  /** The collection of the entry the reader is on, read through the entry page's own read. */
+  let itemCollectionId = $state<string | undefined>(undefined);
+  $effect(() => {
+    const id = here.item;
+    if (!isOpen || !id) {
+      itemCollectionId = undefined;
+      return;
+    }
+    return untrack(() =>
+      engine.subscribe<WorkItem>({ path: itemPath(id) }, (next) => {
+        if (next.status === 'ready') itemCollectionId = next.data.collection_id;
+      }),
+    );
+  });
+
+  const hereCollection = $derived.by(() => {
+    const id = here.collection ?? itemCollectionId;
+    return id ? containers.find(id) : undefined;
+  });
+  const hereHub = $derived.by(() => {
+    const id = here.hub ?? hereCollection?.parent_id ?? undefined;
+    return id ? containers.find(id) : undefined;
+  });
+  // The role on the hub, which decides *Create collection in …* as the tree's *New* asks it.
+  $effect(() => {
+    const hubId = isOpen ? hereHub?.id : undefined;
+    if (!hubId) return;
+    return untrack(() => people.open({ hubId }));
+  });
+
+  /**
+   * The collection whose acts are offered without being named: the one of the entry on view. On
+   * the collection's own page its head offers them already, and twice would be noise.
+   */
+  const standing = $derived<readonly Placed[]>(
+    here.item && hereCollection?.type === 'COLLECTION' ? [{ container: hereCollection, hub: hereHub }] : [],
+  );
+
+  /** The frame's actions: capture, a collection in this hub, a hub. */
+  const frameActs = $derived(
+    frameActionOffers(
+      {
+        hubCreation: hubCreationHere(),
+        hub: hereHub,
+        mayShapeHub:
+          hereHub !== undefined &&
+          holds(people.roleOf({ hubId: hereHub.id }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted',
+        isOnHubPage: here.hub !== undefined,
+        mayCapture: mayCaptureHere(),
+      },
+      t,
+    ),
+  );
+
+  /** The settings rows; no notification rows for an account mail cannot reach, whose screen draws none. */
+  const settings = $derived(
+    settingOffers(
+      { categories: actor.account?.kind === 'USER' && !actor.account.email ? [] : categoriesOf(manifest.value) },
+      t,
+    ),
+  );
+
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
     ...containerOffers(placed),
-    ...commands.all.map((act) => ({ kind: 'action' as const, id: act.id, label: act.label, shortcut: act.shortcut, run: act.run })),
-    ...matched.flatMap((each) =>
+    // The common actions first: with nothing typed they are what the list opens with.
+    ...frameActs,
+    ...commands.all.map((act) => ({
+      kind: 'action' as const,
+      id: act.id,
+      label: act.label,
+      // A head's plus makes something: found by the words that mean making, as the frame's own
+      // *Create …* rows are, so "anlegen" finds *Eintrag hinzufügen*.
+      keywords: act.icon === 'plus' ? t('app.palette.words_create') : undefined,
+      shortcut: act.shortcut,
+      run: act.run,
+    })),
+    ...[...standing, ...matched.filter((each) => !standing.some((stood) => stood.container.id === each.container.id))].flatMap((each) =>
       collectionOffers(each, placed, {
         role: people.roleOf(pathOf(each.container), actor.account?.id, roleOrder()),
         manifest: manifest.value,
         drawable: DRAWABLE,
         t,
-      }),
+      }).map((offer) => (offer.id.startsWith('new-in:') ? { ...offer, keywords: t('app.palette.words_create') } : offer)),
     ),
     ...placeOffers(reach, t),
+    ...settings,
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
+    ...recentOffers(recents.rows),
   ]);
 
   const byKey = $derived(new Map(offers.map((offer) => [`${offer.kind}:${offer.id}`, offer])));
@@ -159,7 +250,7 @@
   // The role along each matched collection's path: what decides *New … in X*. Kept open for the
   // session, as every `people.open` is (the search screen opens a named collection's the same way).
   $effect(() => {
-    for (const each of matched) untrack(() => people.open(pathOf(each.container)));
+    for (const each of [...standing, ...matched]) untrack(() => people.open(pathOf(each.container)));
   });
 
   /**
@@ -240,10 +331,27 @@
     palette.perform(run);
   }
 
+  /** The create dialog a row opened: held while it is open, so that moving on does not change it. */
+  let creating = $state<Extract<Target, { kind: 'create' }> | undefined>(undefined);
+  let isCreating = $state(false);
+
   function follow(target: Target) {
     if (target.kind === 'route') return finish(() => onnavigate(target.path));
     if (target.kind === 'account') return finish(() => onaccount(target.action));
     if (target.kind === 'search') return goSearch(target.line, { handOver: false });
+    if (target.kind === 'capture') return finish(() => capture.summon());
+    if (target.kind === 'create') {
+      return finish(() => {
+        creating = target;
+        isCreating = true;
+      });
+    }
+    if (target.kind === 'setting') {
+      return finish(() => {
+        onnavigate(target.path);
+        land(target.row);
+      });
+    }
     const container = containers.find(target.containerId);
     if (target.layout || target.add) commands.intend({ containerId: target.containerId, layout: target.layout, add: target.add });
     finish(() => onnavigate(container?.type === 'HUB' ? `/hubs/${target.containerId}` : `/collections/${target.containerId}`));
@@ -312,6 +420,8 @@
     if (row.kind === 'container') return containers.find(row.id)?.type === 'HUB' ? 'hub' : 'collection';
     if (row.kind === 'source') return 'sparkles';
     if (row.kind === 'place') return 'arrow-right';
+    if (row.kind === 'setting') return 'settings';
+    if (row.kind === 'recent') return 'clock';
     return 'zap';
   }
 
@@ -321,8 +431,22 @@
       return levelWords(hit ? containers.find(hit.collection_id)?.structure?.settings : undefined, hit?.type ?? '', t).label;
     }
     if (row.kind === 'container') return t('app.palette.kind', { kind: containers.find(row.id)?.type ?? '' });
+    // A place opened last says what it was: its id starts with its kind (`registry.ts`).
+    if (row.kind === 'recent') return t('app.palette.kind', { kind: row.id.slice(0, row.id.indexOf(':')).toUpperCase() });
     return t('app.palette.kind', { kind: row.kind });
   }
+
+  /** The match rows under their headings, in the order `rank` put them - which is the arrows' order. */
+  const groups = $derived.by(() => {
+    const drawn: { id: Group | 'source'; rows: Row[] }[] = [];
+    for (const row of matchRows) {
+      const id = row.kind === 'source' ? 'source' : groupOf(row.kind as Candidate['kind']);
+      const last = drawn.at(-1);
+      if (last?.id === id) last.rows.push(row);
+      else drawn.push({ id, rows: [row] });
+    }
+    return drawn;
+  });
 
   function labelOf(row: Row): string {
     if (row.kind === 'source') return sourcedByKey.get(row.id)?.label ?? '';
@@ -383,14 +507,14 @@
 
 {#snippet list()}
   <div class="menu" data-host={host} role="listbox" aria-label={t('app.searchmenu.label')} id="search-menu">
-    {#if matchRows.length > 0}
-      <div role="group" aria-labelledby={`${host}-palette-matches`}>
-        <p class="head" id={`${host}-palette-matches`}>{t(words === '' ? 'app.palette.here' : 'app.palette.matches')}</p>
-        {#each matchRows as row (keyOf(row))}
+    {#each groups as group (group.id)}
+      <div role="group" aria-labelledby={`${host}-palette-${group.id}`}>
+        <p class="head" id={`${host}-palette-${group.id}`}>{t('app.palette.group', { group: group.id })}</p>
+        {#each group.rows as row (keyOf(row))}
           {@render option(row)}
         {/each}
       </div>
-    {/if}
+    {/each}
     {#if words !== '' && searching}
       <p class="head"><Spinner size="sm" /> {t('app.searchmenu.searching')}</p>
     {:else if words !== '' && matchRows.length === 0}
@@ -496,6 +620,18 @@
       {@render list()}
     </form>
   </Dialog>
+{/if}
+
+<!-- The one create dialog, as the tree's *New* opens it, for a row that creates a hub or a
+     collection. Outside both drawings: the palette has closed by the time it opens. -->
+{#if creating}
+  <CreateContainerDialog
+    bind:isOpen={isCreating}
+    type={creating.type}
+    parentId={creating.parentId}
+    isPrivateOnly={creating.isPrivateOnly}
+    oncreated={(id) => onnavigate(creating?.type === 'HUB' ? `/hubs/${id}` : `/collections/${id}`)}
+  />
 {/if}
 
 <style>
