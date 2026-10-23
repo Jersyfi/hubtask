@@ -2,7 +2,7 @@
 --
 -- `container_milestone` holds the last moment a collection, or every collection of a hub, was left
 -- with nothing open: one row per container, moved by a later finish, gone with the container. It
--- names nobody - a milestone is the collection's, not a person's.
+-- names nobody - a milestone is the collection's, not a person's - and is archived with it.
 --
 -- `kudos` holds one person's acknowledgement of another's completion of an entry: who gave it, to
 -- whom, when. Personal data about both (data-catalog.md): read only by the person it was given to,

@@ -488,6 +488,16 @@ var entities = []Entity{
 			{Field: "opened_by", Table: "account"},
 		},
 	},
+	// When a collection or hub was last left with nothing open (UC-WRK-29 check 4). Archived
+	// although a later finish would record it again: until then a restore would take from the
+	// collection a date its members saw on it. It names nobody. Whole, because a milestone goes
+	// with its container by cascade and leaves no deletion marker an incremental chain could carry;
+	// duplicable, because a copy of a finished collection is finished too.
+	{
+		Name: "container_milestones", Table: "container_milestone", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"container_id"},
+		References: []Reference{{Field: "container_id", Table: "container"}},
+	},
 	{
 		Name: "set_elements", Table: "set_element", Whole: true, Duplicable: true,
 		Keys:       []string{"item_id", "set_name", "element_id"},
@@ -721,9 +731,6 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// them, and who acknowledged whom is the business of the person acknowledged alone. The same
 	// holds for the person's own copy, which is the archive filtered (data-protection.md §4).
 	"kudos": "who acknowledged whose completion is the acknowledged person's alone, and an archive is an administrator's to read (UC-WRK-29 check 6)",
-	// Derived from the entries' completions at the moment of a finish; the restored entries keep
-	// their completions, and the next finish records the milestone again.
-	"container_milestone": "a moment derived from completions; the next finish of a restored collection records it again",
 	// And the one row-level-secured table that is nobody's data: the system-defined capability
 	// profiles every tenant may read and none may write. They come with the installation, and a
 	// restore that carried its own copy would be a restore that could contradict it.

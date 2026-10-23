@@ -88,6 +88,7 @@ var notThePersons = map[string]string{
 	"template":                "a shape other people stamp out; it carries no author column",
 	"retention_policy":        "the workspace's periods",
 	"webhook_subscription":    "an integration of the workspace's",
+	"container_milestone":     "the moment a collection or hub was finished, which names nobody",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,

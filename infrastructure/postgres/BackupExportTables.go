@@ -458,6 +458,19 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"container_milestone": {
+		delta: false,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportContainerMilestones(ctx, sqlc.ExportContainerMilestonesParams{
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportContainerMilestonesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"set_element": {
 		delta: false,
 		keys:  3,
