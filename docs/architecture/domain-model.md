@@ -107,10 +107,13 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   applies on the collection's read: it counts the figure (`figure`, in the reader's day and week,
   leaving out trashed and hidden entries, in a read-only transaction of its own so that a figure
   that cannot be counted is marked `unavailable` and never fails the read) and the client draws
-  it. `FLOW` counts the top-level entries completed in the seven days up to the read, their
-  average time from creation to completion — a flow's entries start in its first column and its
-  done column completes them — and the board's columns holding more open entries than their limit
-  (UC-WRK-31). `automation` is a closed set the server applies: `REQUIRED_BEYOND_FIRST_COLUMN`
+  it. `FLOW` counts the top-level entries completed in the seven days up to the read, the average
+  time from first to last column of those that took that way — from when one first entered the
+  board's first column to when it last entered a done column, the moments
+  `work_item.flow_started_at` and `flow_finished_at` that every write changing an entry's column
+  records (migration 0194); one created into a later column or completed without entering a done
+  column is counted but not timed, and nothing recorded before that migration is — and the board's
+  columns holding more open entries than their limit (UC-WRK-31). `automation` is a closed set the server applies: `REQUIRED_BEYOND_FIRST_COLUMN`
   lets an entry enter a column after the board's first only with every required custom field of
   its type set, refused `items.required_fields_missing` with the keys named, on every writer that
   places an entry in a column (`FlowGate`: an edit, a move, a creation, and so a push or a rule).

@@ -108,6 +108,11 @@ test('UC-WRK-31 check 4: the flow says how many a week and how long on average',
     code: 'app.figure.flow_none',
     params: {},
   });
+  // Completed, but none from the first column to the last: the count, and no average.
+  assert.deepEqual(headMessage(of({ kind: 'FLOW', completed: 3, average_seconds: null, over_limit: 0 }), 'en'), {
+    code: 'app.figure.short.flow',
+    params: { count: 3 },
+  });
 });
 
 test('a duration under a day is told in hours, never as zero', () => {

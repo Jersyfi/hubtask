@@ -138,9 +138,15 @@ func TestAFigureAnswersTheNumbersOfItsKind(t *testing.T) {
 	if want := `"sum":38.10`; !strings.Contains(string(encoded), want) {
 		t.Errorf("encoded %s, want %s", encoded, want)
 	}
-	// The flow's average is null where nothing was completed, never zero (P-11: no figure invented).
+	// The flow's average is null where nothing was completed, never zero (P-11: no figure invented),
+	// and where entries were completed but none went from the first column to the last.
 	encoded, _ = json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFlow}))
 	if want := `"average_seconds":null`; !strings.Contains(string(encoded), want) {
+		t.Errorf("encoded %s, want %s", encoded, want)
+	}
+	encoded, _ = json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFlow,
+		Counts: domain.FigureCounts{Completed: 3}}))
+	if want := `"average_seconds":null,"completed":3`; !strings.Contains(string(encoded), want) {
 		t.Errorf("encoded %s, want %s", encoded, want)
 	}
 	average := 183600.0

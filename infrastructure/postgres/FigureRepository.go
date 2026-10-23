@@ -158,7 +158,7 @@ func (r FigureRepository) Count(
 		for _, row := range rows {
 			err := update(row.CollectionID, func(c *work.FigureCounts) {
 				c.Completed, c.OverLimit = int(row.Completed), int(row.OverLimit)
-				if row.Completed > 0 {
+				if row.Timed > 0 {
 					average := row.AverageSeconds
 					c.AverageSeconds = &average
 				}

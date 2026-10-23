@@ -315,8 +315,8 @@ func seedColumn(ctx context.Context, t *testing.T, tenant, collection shared.ID,
 	return id
 }
 
-// UC-WRK-31 checks 3 and 4: the flow counts a rolling week's completions at the top level with
-// their average time from first column to last, and the columns over their limit.
+// UC-WRK-31 checks 3 and 4: the flow counts a rolling week's completions at the top level, and the
+// columns over their limit. Entries completed without passing the board have no time through it.
 func TestTheFlowCountsTheWeeksCompletionsAndTheFullColumns(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -324,8 +324,8 @@ func TestTheFlowCountsTheWeeksCompletionsAndTheFullColumns(t *testing.T) {
 	in := func(row entryRow) *seededEntry { return seedEntry(ctx, t, tenantA, collection.ID, row) }
 
 	// The window: 15 October 10:00 to 22 October 10:00 UTC.
-	in(entryRow{createdAt: "2026-10-19T10:00:00Z", completedAt: "2026-10-21T10:00:00Z"})                 // 2 days
-	in(entryRow{createdAt: "2026-10-19T22:00:00Z", completedAt: "2026-10-20T10:00:00Z", archived: true}) // 12 hours, put away since
+	in(entryRow{createdAt: "2026-10-19T10:00:00Z", completedAt: "2026-10-21T10:00:00Z"})
+	in(entryRow{createdAt: "2026-10-19T22:00:00Z", completedAt: "2026-10-20T10:00:00Z", archived: true}) // put away since
 	in(entryRow{createdAt: "2026-10-01T10:00:00Z", completedAt: "2026-10-15T09:00:00Z"})                 // before the week
 	in(entryRow{createdAt: "2026-10-19T10:00:00Z", completedAt: "2026-10-21T10:00:00Z", trashed: true})  // trashed
 	parent := in(entryRow{})
@@ -346,8 +346,8 @@ func TestTheFlowCountsTheWeeksCompletionsAndTheFullColumns(t *testing.T) {
 
 	got := countFigures(ctx, t, tenantA, berlinWindow(t),
 		work.FigureRequest{CollectionID: collection.ID, Kind: work.FigureFlow, Offered: allLevels})[collection.ID]
-	if got.Completed != 2 || got.AverageSeconds == nil || *got.AverageSeconds != 108000 || got.OverLimit != 1 {
-		t.Errorf("counted %d completed, average %v, %d over the limit; want 2, 108000, 1",
+	if got.Completed != 2 || got.AverageSeconds != nil || got.OverLimit != 1 {
+		t.Errorf("counted %d completed, average %v, %d over the limit; want 2, none, 1",
 			got.Completed, got.AverageSeconds, got.OverLimit)
 	}
 
@@ -365,6 +365,93 @@ func TestTheFlowCountsTheWeeksCompletionsAndTheFullColumns(t *testing.T) {
 		work.FigureRequest{CollectionID: empty.ID, Kind: work.FigureFlow, Offered: allLevels})[empty.ID]
 	if !held || none.Completed != 0 || none.AverageSeconds != nil {
 		t.Errorf("an empty flow answered %+v (%v)", none, held)
+	}
+}
+
+// UC-WRK-31 check 4: the average time from first to last column - from when an entry first entered
+// the board's first column to when it last entered the done column, as the moves recorded them -
+// whatever happened between, and only for the entries that took that way.
+func TestTheFlowTimesEntriesFromTheFirstColumnToTheLast(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	_, collection := seedHubWithCollection(ctx, t, tenantA, authorA)
+	first := seedColumn(ctx, t, tenantA, collection.ID, "a0", 0, false)
+	doing := seedColumn(ctx, t, tenantA, collection.ID, "a1", 0, false)
+	done := seedColumn(ctx, t, tenantA, collection.ID, "a2", 0, false)
+	if _, err := adminPool(ctx, t).Exec(ctx, `UPDATE bucket SET is_done_bucket = true WHERE id = $1`,
+		done.String()); err != nil {
+		t.Fatalf("marking the done column: %v", err)
+	}
+	// A move as every path writes one: the column with the moment of the change.
+	move := func(entry *seededEntry, column shared.ID, at string) {
+		t.Helper()
+		if _, err := adminPool(ctx, t).Exec(ctx,
+			`UPDATE work_item SET bucket_id = $2, updated_at = $3 WHERE id = $1`,
+			entry.id.String(), column.String(), at); err != nil {
+			t.Fatalf("moving: %v", err)
+		}
+	}
+	completeAt := func(entry *seededEntry, at string) {
+		t.Helper()
+		if _, err := adminPool(ctx, t).Exec(ctx,
+			`UPDATE work_item SET is_completed = true, completed_at = $2, updated_at = $2 WHERE id = $1`,
+			entry.id.String(), at); err != nil {
+			t.Fatalf("completing: %v", err)
+		}
+	}
+	reopen := func(entry *seededEntry) {
+		t.Helper()
+		if _, err := adminPool(ctx, t).Exec(ctx,
+			`UPDATE work_item SET is_completed = false, completed_at = NULL WHERE id = $1`, entry.id.String()); err != nil {
+			t.Fatalf("reopening: %v", err)
+		}
+	}
+
+	// Straight from the first column to done: one day.
+	straight := seedEntry(ctx, t, tenantA, collection.ID, entryRow{createdAt: "2026-10-19T10:00:00Z", bucket: first})
+	move(straight, done, "2026-10-20T10:00:00Z")
+	completeAt(straight, "2026-10-20T10:00:00Z")
+
+	// Moved back to the first column, and out of done and in again: from its first arrival in the
+	// first column to its last in done, three days - not from creation, not to its first completion.
+	back := seedEntry(ctx, t, tenantA, collection.ID, entryRow{createdAt: "2026-10-17T10:00:00Z"})
+	move(back, first, "2026-10-18T10:00:00Z")
+	move(back, doing, "2026-10-18T22:00:00Z")
+	move(back, first, "2026-10-19T10:00:00Z")
+	move(back, done, "2026-10-20T10:00:00Z")
+	completeAt(back, "2026-10-20T10:00:00Z")
+	reopen(back)
+	move(back, doing, "2026-10-20T12:00:00Z")
+	move(back, done, "2026-10-21T10:00:00Z")
+	completeAt(back, "2026-10-21T10:00:00Z")
+
+	// Created into a later column: it never entered the first, so it has no time through the board.
+	later := seedEntry(ctx, t, tenantA, collection.ID, entryRow{createdAt: "2026-10-19T10:00:00Z", bucket: doing})
+	move(later, done, "2026-10-20T10:00:00Z")
+	completeAt(later, "2026-10-20T10:00:00Z")
+
+	// Completed without entering the done column: no time either.
+	ticked := seedEntry(ctx, t, tenantA, collection.ID, entryRow{createdAt: "2026-10-19T10:00:00Z", bucket: first})
+	completeAt(ticked, "2026-10-21T10:00:00Z")
+
+	got := countFigures(ctx, t, tenantA, berlinWindow(t),
+		work.FigureRequest{CollectionID: collection.ID, Kind: work.FigureFlow, Offered: allLevels})[collection.ID]
+	if want := (86400.0 + 3*86400.0) / 2; got.Completed != 4 || got.AverageSeconds == nil || *got.AverageSeconds != want {
+		t.Errorf("counted %d completed, average %v; want 4, %v", got.Completed, got.AverageSeconds, want)
+	}
+
+	// Taken to another collection, an entry starts over there.
+	_, other := seedHubWithCollection(ctx, t, tenantA, authorA)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`UPDATE work_item SET collection_id = $2, bucket_id = NULL, updated_at = $3 WHERE id = $1`,
+		straight.id.String(), other.ID.String(), "2026-10-21T12:00:00Z"); err != nil {
+		t.Fatalf("moving to another collection: %v", err)
+	}
+	var started, finished *time.Time
+	if err := adminPool(ctx, t).QueryRow(ctx,
+		`SELECT flow_started_at, flow_finished_at FROM work_item WHERE id = $1`, straight.id.String(),
+	).Scan(&started, &finished); err != nil || started != nil || finished != nil {
+		t.Errorf("in another collection, the moments are %v and %v (%v)", started, finished, err)
 	}
 }
 

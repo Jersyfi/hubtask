@@ -91,8 +91,10 @@ export function headMessage(figure: CollectionFigure, locale: string): FigureMes
     case 'FLOW': {
       const count = figure.completed ?? 0;
       const average = figure.average_seconds;
-      // No average is invented for a week with nothing completed (P-11).
-      if (count === 0 || average === undefined || average === null) return { code: 'app.figure.flow_none', params: {} };
+      // No average is invented (P-11): not for a week with nothing completed, and not where none
+      // of the week's completions went from the first column to the last - then the count alone.
+      if (count === 0) return { code: 'app.figure.flow_none', params: {} };
+      if (average === undefined || average === null) return { code: 'app.figure.short.flow', params: { count } };
       return { code: 'app.figure.flow', params: { count, duration: durationText(average, locale) } };
     }
   }

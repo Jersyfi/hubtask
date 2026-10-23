@@ -135,9 +135,10 @@ type FigureCounts struct {
 	// Days are the reader's dates this week with a completion.
 	Days []string
 	// Completed are the visible top-level entries completed since FlowSince, archived ones
-	// included; AverageSeconds is their average time from creation to completion - from the
-	// first column to the last, since a flow's entries start in its first column and its last
-	// completes them - nil where none was completed.
+	// included. AverageSeconds is the average time from first to last column of those among them
+	// whose moments are recorded - from when one first entered the board's first column to when
+	// it last entered a done column - nil where none is: one created into a later column, or
+	// completed without entering a done column, is completed but not timed.
 	Completed      int
 	AverageSeconds *float64
 	// OverLimit are the board's columns holding more open, visible entries than their limit.

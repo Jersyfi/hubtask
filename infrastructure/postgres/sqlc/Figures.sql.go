@@ -144,7 +144,8 @@ func (q *Queries) CountFigureDue(ctx context.Context, arg CountFigureDueParams) 
 const countFigureFlow = `-- name: CountFigureFlow :many
 SELECT w.collection_id::uuid AS collection_id,
        coalesce(done.completed, 0)::int AS completed,
-       -- Zero where none was completed; the count says whether there is an average at all.
+       coalesce(done.timed, 0)::int AS timed,
+       -- Zero where none was timed; the count says whether there is an average at all.
        coalesce(done.average_seconds, 0)::float8 AS average_seconds,
        (SELECT count(*)
           FROM bucket b
@@ -163,7 +164,9 @@ SELECT w.collection_id::uuid AS collection_id,
   ) w
   LEFT JOIN LATERAL (
     SELECT count(*) AS completed,
-           avg(extract(epoch FROM wi.completed_at - wi.created_at)) AS average_seconds
+           count(*) FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS timed,
+           avg(extract(epoch FROM wi.flow_finished_at - wi.flow_started_at))
+             FILTER (WHERE wi.flow_finished_at >= wi.flow_started_at) AS average_seconds
       FROM work_item wi
      WHERE wi.collection_id = w.collection_id AND wi.parent_id IS NULL
        AND wi.is_completed = true AND wi.deleted_at IS NULL
@@ -183,16 +186,20 @@ type CountFigureFlowParams struct {
 type CountFigureFlowRow struct {
 	CollectionID   pgtype.UUID
 	Completed      int32
+	Timed          int32
 	AverageSeconds float64
 	OverLimit      int32
 }
 
 // FLOW (UC-WRK-31 checks 3 and 4): per collection, the visible top-level entries completed since a
-// moment - archived ones included, as the rhythm counts them (`wi_figure_done_idx`) - with their
-// average time from creation to completion, and the board's columns holding more open, unarchived,
-// visible entries than their limit (`wi_board_idx`). A top-level entry has no ancestor, so the
-// hidden predicate is its own type alone. Every collection asked is answered, with zeros where
-// nothing counts, so that "nothing completed" and "not counted" stay two answers.
+// moment - archived ones included, as the rhythm counts them (`wi_figure_done_idx`) - with the
+// average time from first to last column of those whose moments are recorded: from when one first
+// entered the first column to when it last entered a done column (migration 0194). One created into
+// a later column, or completed without entering a done column, has no such time and counts only as
+// completed. And the board's columns holding more open, unarchived, visible entries than their limit
+// (`wi_board_idx`). A top-level entry has no ancestor, so the hidden predicate is its own type
+// alone. Every collection asked is answered, with zeros where nothing counts, so that "nothing
+// completed" and "not counted" stay two answers.
 func (q *Queries) CountFigureFlow(ctx context.Context, arg CountFigureFlowParams) ([]CountFigureFlowRow, error) {
 	rows, err := q.db.Query(ctx, countFigureFlow,
 		arg.CollectionIds,
@@ -210,6 +217,7 @@ func (q *Queries) CountFigureFlow(ctx context.Context, arg CountFigureFlowParams
 		if err := rows.Scan(
 			&i.CollectionID,
 			&i.Completed,
+			&i.Timed,
 			&i.AverageSeconds,
 			&i.OverLimit,
 		); err != nil {
