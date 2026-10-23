@@ -10,10 +10,10 @@ import type { JumbleEntry } from '../data/jumble.svelte.ts';
 
 import { instantOf } from '../i18n/zone.ts';
 import type { Reading } from './parse.ts';
-import { MAX_LINES, bodyOf, createAll, linesOf, trashOperations, undoOf, type CreateBody, type Writer } from './submit.ts';
+import { MAX_LINES, bodyOf, createAll, linesOf, type CreateBody, type Writer } from './submit.ts';
 
 /** A writer that records every call, and refuses what it is told to. */
-function fakeWriter(options: { refuseAt?: number; versionNow?: number } = {}) {
+function fakeWriter(options: { refuseAt?: number } = {}) {
   const calls: string[] = [];
   let made = 0;
   const writer: Writer = {
@@ -29,19 +29,6 @@ function fakeWriter(options: { refuseAt?: number; versionNow?: number } = {}) {
     async submitJumble(subject: string, key: string) {
       calls.push(`jumble ${subject} ${key}`);
       return { id: 'entry-1' } as unknown as JumbleEntry;
-    },
-    async versionOf(id: string) {
-      calls.push(`read ${id}`);
-      return options.versionNow ?? 1;
-    },
-    async trash(id: string, version: number) {
-      calls.push(`trash ${id} v${version}`);
-    },
-    async trashAll(ids: readonly string[], key: string) {
-      calls.push(`bulk-trash ${ids.join(',')} ${key}`);
-    },
-    async dismiss(id: string) {
-      calls.push(`dismiss ${id}`);
     },
   };
   return { writer, calls };
@@ -112,26 +99,4 @@ test('a refusal part-way keeps what was made and puts the rest back in the field
   assert.deepEqual(outcome.created.map((item) => item.title), ['a']);
   assert.ok(outcome.failure);
   assert.equal(outcome.rest, 'b\nc\nd');
-});
-
-test('undo of one entry reads it first and trashes the version the server holds now', async () => {
-  const { writer, calls } = fakeWriter({ versionNow: 3 });
-  const created = [{ id: 'item-1', version: 1 } as unknown as WorkItem];
-  await undoOf(writer, { kind: 'items', created, rest: '' }, () => 'key')();
-  // A rule that changed the entry after it was made (version 3) does not make the way back fail.
-  assert.deepEqual(calls, ['read item-1', 'trash item-1 v3']);
-});
-
-test('undo of several entries is one bulk, with a key of its own', async () => {
-  const { writer, calls } = fakeWriter();
-  const created = ['item-1', 'item-2'].map((id) => ({ id, version: 1 }) as unknown as WorkItem);
-  await undoOf(writer, { kind: 'items', created, rest: '' }, () => 'undo-key')();
-  assert.deepEqual(calls, ['bulk-trash item-1,item-2 undo-key']);
-  assert.deepEqual(trashOperations(['item-1']), [{ op: 'TRASH_ITEM', item_id: 'item-1' }]);
-});
-
-test('undo of a jumble capture dismisses it', async () => {
-  const { writer, calls } = fakeWriter();
-  await undoOf(writer, { kind: 'jumble', entry: { id: 'entry-1' } as unknown as JumbleEntry }, () => 'key')();
-  assert.deepEqual(calls, ['dismiss entry-1']);
 });

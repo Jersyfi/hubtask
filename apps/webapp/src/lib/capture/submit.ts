@@ -2,22 +2,18 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * What Enter writes, and what *Undo* writes back (UC-WRK-26 check 4; record D7, D9). Pure over a
+ * What Enter writes (UC-WRK-26 check 4; record D7). Pure over a
  * `Writer`, which the field binds to the stores: the tests drive it with a fake and see every
  * request it would make.
  *
  * **One key per Enter.** The idempotency key belongs to the intent - this Enter - and a retry of
  * it reuses the key, so a create that reached the server once is never made twice.
  *
- * **Undo is the inverse write, never a rollback.** An entry goes to the trash, read again first so
- * the trash states the version the server holds *now*: a rule that reacted to the new entry must
- * not make the way back fail. Several entries go in one bulk, all or nothing. A jumble capture is
- * dismissed - an entry there is never deleted by hand and never undismissed (UC-JUM-06), so the
- * message after it says *Dismissed*, not that it is gone. A notification the assignment already
- * sent is not called back.
+ * *Undo* is not here: a capture offers the way back every act offers (`entries/undo`), which trashes
+ * what one Enter made, or dismisses a jumble entry (record D9).
  */
 
-import type { BulkOperation, WorkItem } from '@hubtask/sync-engine';
+import type { WorkItem } from '@hubtask/sync-engine';
 
 import type { JumbleEntry } from '../data/jumble.svelte.ts';
 
@@ -31,12 +27,6 @@ export const MAX_LINES = 100;
 export interface Writer {
   createItem(body: CreateBody, idempotencyKey: string): Promise<WorkItem>;
   submitJumble(subject: string, idempotencyKey: string): Promise<JumbleEntry>;
-  /** The version the server holds now, or `undefined` where the entry is gone. */
-  versionOf(itemId: string): Promise<number | undefined>;
-  trash(itemId: string, version: number): Promise<void>;
-  /** All or nothing. */
-  trashAll(itemIds: readonly string[], idempotencyKey: string): Promise<void>;
-  dismiss(entryId: string): Promise<void>;
 }
 
 export interface CreateBody {
@@ -111,22 +101,4 @@ export async function createAll(
     }
   }
   return { kind: 'items', created, rest };
-}
-
-/** The way back from what one Enter made. */
-export function undoOf(writer: Writer, outcome: Outcome, newKey: () => string): () => Promise<void> {
-  if (outcome.kind === 'jumble') return () => writer.dismiss(outcome.entry.id);
-  const ids = outcome.created.map((item) => item.id);
-  if (ids.length === 1) {
-    return async () => {
-      const version = await writer.versionOf(ids[0]!);
-      if (version !== undefined) await writer.trash(ids[0]!, version);
-    };
-  }
-  return () => writer.trashAll(ids, newKey());
-}
-
-/** The bulk the way back sends for several entries. */
-export function trashOperations(itemIds: readonly string[]): readonly BulkOperation[] {
-  return itemIds.map((id) => ({ op: 'TRASH_ITEM', item_id: id }) as BulkOperation);
 }

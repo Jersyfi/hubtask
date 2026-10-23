@@ -5,8 +5,9 @@
   // The frame mounts it once; `Q`, the bar's *Capture* and the bottom bar's ＋ open it.
   //
   // **It reads, it does not decide.** What a line says is `parse.ts`'s, where it goes and what is
-  // read there `target.ts`'s, what Enter and *Undo* write `submit.ts`'s - all pure and tested. This
-  // binds them to the stores the screens already read, and draws.
+  // read there `target.ts`'s, what Enter writes `submit.ts`'s - all pure and tested - and *Undo* is
+  // the one way back every act offers (`entries/undo`). This binds them to the stores the screens
+  // already read, and draws.
   //
   // **The target line is the field's hint**, so it is the field's description too: a reader hears
   // where the entry goes with the field, and again whenever typing pauses, through the frame's one
@@ -20,13 +21,12 @@
   import { capture } from './capture.svelte.ts';
   import { NOTHING, literalKey, readLine, readTargets, type Chip, type Context, type Named, type Reading } from './parse.ts';
   import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn } from './places.svelte.ts';
-  import { bodyOf, createAll, linesOf, trashOperations, undoOf, type Outcome, type Writer } from './submit.ts';
+  import { bodyOf, createAll, linesOf, type Writer } from './submit.ts';
   import { recognitionOf, resolveTarget, rulesOf, topLevelOf, type Target } from './target.ts';
   import { vocabularyOf } from './words.ts';
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
-  import { allApplied, outcomeOf } from '../data/bulk.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { itemAccess } from '../data/capability.ts';
   import { rootTypes } from '../data/capability.svelte.ts';
@@ -38,7 +38,7 @@
   import { jumble } from '../data/jumble.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
-  import { toast } from '../frame/toasts.svelte.ts';
+  import { offerUndo } from '../entries/undo.svelte.ts';
   import { formatDue } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { instantOf } from '../i18n/zone.ts';
@@ -235,20 +235,6 @@
   const writer: Writer = {
     createItem: (body, key) => items.create(body, key),
     submitJumble: (subject, key) => jumble.capture(subject, '', key),
-    async versionOf(id) {
-      const state = await engine.refresh<WorkItem>({ path: `/items/${id}` });
-      return state.status === 'ready' ? state.data.version : undefined;
-    },
-    trash: (id, version) => items.trash(id, version),
-    async trashAll(ids, key) {
-      // All or nothing: the one refusal that rolled the rest back is what is said, as the list says
-      // a bulk's refusals (`EntryList`).
-      const results = await items.bulk(trashOperations(ids), true, key);
-      if (allApplied(results)) return;
-      const refused = results.find((result) => outcomeOf(result) === 'refused') ?? results.find((result) => result.problem);
-      throw refused?.problem ?? new Error('bulk not applied');
-    },
-    dismiss: (id) => jumble.dismiss(id),
   };
 
   const keysFor = (sent: string, count: number): readonly string[] => {
@@ -258,19 +244,6 @@
   };
 
   const say = (failure: unknown) => renderProblem(failure as TransportError, messages).message;
-
-  /** The way back, said in the toast's place when it is refused. */
-  function offerUndo(outcome: Outcome) {
-    const back = undoOf(writer, outcome, () => crypto.randomUUID());
-    return async () => {
-      try {
-        await back();
-        if (outcome.kind === 'jumble') toast.show({ text: t('app.capture.dismissed') });
-      } catch (failure) {
-        toast.show({ text: say(failure), tone: 'danger' });
-      }
-    };
-  }
 
   function finish(rest: string) {
     text = rest;
@@ -303,7 +276,7 @@
         }
         const entry = await writer.submitJumble(subject, keysFor(text, 1)[0]!);
         finish('');
-        toast.show({ text: t('app.capture.jumbled'), link: { label: t('app.capture.open'), href: '/jumble' }, undo: offerUndo({ kind: 'jumble', entry }) });
+        offerUndo({ kind: 'jumbled', entryId: entry.id }, undefined, { label: t('app.capture.open'), href: '/jumble' });
         return;
       }
 
@@ -328,11 +301,11 @@
       }
       if (outcome.created.length === 0) return;
       const only = outcome.created.length === 1 ? outcome.created[0] : undefined;
-      toast.show({
-        text: t('app.capture.added', { count: String(outcome.created.length), place: place.name }),
-        link: { label: t('app.capture.open'), href: only ? `/items/${only.id}` : `/collections/${place.id}` },
-        undo: offerUndo(outcome),
-      });
+      offerUndo(
+        { kind: 'captured', itemIds: outcome.created.map((item) => item.id), place: place.name },
+        undefined,
+        { label: t('app.capture.open'), href: only ? `/items/${only.id}` : `/collections/${place.id}` },
+      );
     } catch (failure) {
       error = say(failure);
     } finally {
