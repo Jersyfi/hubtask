@@ -1001,6 +1001,10 @@ archived container leaves the tree.
   reader may shape the collection — *Import*, which lands the file's entries there and says so
   before the kind is chosen; the filter is the secondary action with a count — inline from
   `expanded` up, a `Drawer` below.
+* **One add on a phone.** On `compact` the head pins its primary above the bottom bar, and the page
+  ends a control's height lower so its last row scrolls clear of it. A collection then draws no
+  second *Add entry* under its rows; a list of one level pins none, because its capture line at the
+  top is the add, and the submenu's ways join the page menu.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
 (name, description, colour and symbol, and a hub's default preset), move to another hub (a
@@ -1070,7 +1074,9 @@ between columns is the card's menu (§11.9).
 ([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
 the open entries under the collection's categories in their order, the entries ticked in the last 24
 hours under the collection's name for done entries (*Done* without one), and the older ones under
-*Recently*, most often completed first and narrowed by what the capture line holds. The capture line
+*Recently*, most often completed first and narrowed by what the capture line holds; while the line
+holds words, *Recently* stands right under it, before the open entries. A line is its box and its
+words, with no twist and no type mark: the list has one level. The capture line
 takes several lines as several entries and reads a leading amount where the collection offers one,
 showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
 the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still

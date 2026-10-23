@@ -884,12 +884,38 @@
           },
         ],
   );
+  /**
+   * Whether the head pins no add on this screen: a list of one level on a phone, where the capture
+   * line open at the top is the add and the bottom bar's *Capture* sits under it. A pinned *Add an
+   * entry* over the rows was a third way to do one thing; its other ways - a template, several
+   * lines - join the page menu, so nothing it offered is gone.
+   */
+  const isAddInList = $derived(
+    viewport.isCompact &&
+      container?.type === 'COLLECTION' &&
+      (container.structure?.settings?.levels?.length ?? 0) === 1 &&
+      layout !== 'KANBAN' &&
+      layout !== 'TIMELINE',
+  );
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
     items: pageMenu,
     onselect: choseFromMenu,
     opener: 'container-menu',
   });
+  /** The menu the head draws: the page menu, led by the add's other ways where no add is pinned. */
+  const headMenuShown = $derived(
+    isAddInList && headPrimary?.menu
+      ? {
+          ...headMenu,
+          items: [
+            ...headPrimary.menu.items.map((item) => ({ ...item, id: `add-${item.id}` })),
+            ...pageMenu.map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item)),
+          ],
+          onselect: (id: string) => (id.startsWith('add-') ? headPrimary.menu?.onselect(id.slice(4)) : choseFromMenu(id)),
+        }
+      : headMenu,
+  );
 
   /** The other layouts this collection is shown in, as the palette's *Show as …*. */
   const layoutActs = $derived<readonly Act[]>(
@@ -990,9 +1016,9 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      primary={headPrimary}
+      primary={isAddInList ? undefined : headPrimary}
       secondary={headSecondary}
-      menu={headMenu}
+      menu={headMenuShown}
       figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >

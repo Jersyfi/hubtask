@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-08, P-10, P-12]
 state: built
 tasks: [G-10, F4-12, G-13]
-checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs]
+checked_by: [core/application/service/jumble/Entries_test.go, test/integration/jumble_test.go, apps/webapp/e2e/workspacereach.test.mjs, apps/webapp/e2e/capture.test.mjs]
 ---
 
 # Jot something down before deciding what it is
@@ -19,8 +19,8 @@ collection, a type or a date. Deciding what it becomes comes later, in the jumbl
 
 ## Story
 
-On the *Jumble* screen the person types a subject, a longer text if they want one, and presses
-*Capture*. The entry appears at the top of the list as *Undecided*. From a terminal,
+On the *Jumble* screen the person presses *Capture*, types a subject and, on the lines after it, a
+longer text if they want one, and presses Enter. The entry appears at the top of the list as *Undecided*. From a terminal,
 `hubctl jumble submit` does the same; a script does it over the API, an agent through MCP — and
 either may carry files it has already uploaded. Nothing is a task yet.
 

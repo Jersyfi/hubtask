@@ -39,7 +39,6 @@
     Select,
     Spinner,
     Stack,
-    Textarea,
   } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -67,8 +66,6 @@
   let converting = $state<string | undefined>(undefined);
   let destination = $state('');
   let title = $state('');
-  let capturedSubject = $state('');
-  let capturedBody = $state('');
   let minted = $state<IntakeToken | undefined>(undefined);
   let rotating = $state(false);
   let failure = $state<string | undefined>(undefined);
@@ -251,15 +248,6 @@
     });
   }
 
-  async function capture(event: SubmitEvent): Promise<void> {
-    event.preventDefault();
-    if (!capturedSubject.trim() && !capturedBody.trim()) return;
-    await attempt(async () => {
-      await jumble.capture(capturedSubject.trim(), capturedBody.trim());
-      capturedSubject = '';
-      capturedBody = '';
-    }, t('app.jumble.captured_announced'));
-  }
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.jumble.title')));
@@ -428,23 +416,6 @@
       </Stack>
     {/if}
 
-    {#if mayWrite}
-      <Stack gap="150">
-        <h2 class="section">{t('app.jumble.capture_title')}</h2>
-        <p class="quiet small">{t('app.jumble.capture_hint')}</p>
-        <form onsubmit={capture}>
-          <Stack gap="150">
-            <Input label={t('app.jumble.capture_subject')} bind:value={capturedSubject} />
-            <Textarea label={t('app.jumble.capture_body')} bind:value={capturedBody} rows={3} />
-            <div>
-              <Button type="submit" tone="primary" isBusy={isWorking} busyLabel={t('app.jumble.capturing')}>
-                {t('app.jumble.capture')}
-              </Button>
-            </div>
-          </Stack>
-        </form>
-      </Stack>
-    {/if}
 
     {#if mayRotate}
       <Stack gap="150">
@@ -507,6 +478,4 @@
   .selection { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .count { font-weight: var(--fw-semibold); margin-inline-end: var(--sp-100); }
-
-  form { margin: 0; }
 </style>

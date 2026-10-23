@@ -414,8 +414,15 @@
        would land there under another name: no toggle, no account, the mark alone. -->
   <!-- On a phone the bar carries the page's title where the page told the frame one
        (`page.svelte.ts`); the head then reads its heading rather than drawing it. -->
+  <!-- Only where there is room for it; on `compact` search is the bottom bar's. Handed over only
+       where it draws: a bar given a search slot shares its free space between the lead and the
+       end, and an empty slot squeezed the phone's title to nothing. -->
+  {#snippet barSearch()}
+    <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
+  {/snippet}
   <AppBar
     label={t('app.nav.bar')}
+    search={session.isSignedIn && !viewport.isCompact ? barSearch : undefined}
     title={viewport.isCompact ? page.title : undefined}
     toggle={!session.isSignedIn
       ? undefined
@@ -430,13 +437,6 @@
            at the end and the palette's field still centred between the two sides (§11.2). -->
       {#if isCaptureOffered && !viewport.isCompact && viewport.isBelowExpanded}
         <IconButton icon="plus" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
-      {/if}
-    {/snippet}
-    {#snippet search()}
-      <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
-           the reader reaches search through the bottom bar instead. -->
-      {#if session.isSignedIn && !viewport.isCompact}
-        <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
       {/if}
     {/snippet}
     {#snippet menu()}
@@ -733,6 +733,11 @@
     .frame[data-bottombar] { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
 
     main { padding: var(--sp-200); }
+
+    /* A page head pins its primary action above the bottom bar here (`PageHeader`), over the
+       page; the page ends a control's height and a gap further down, so its last row can be
+       scrolled out from under that button. */
+    main:not([data-filled]) .content { padding-block-end: calc(var(--density-control-md-min) + var(--sp-200)); }
   }
 
   .skip {

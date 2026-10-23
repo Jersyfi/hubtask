@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-10, P-13]
 state: verified
 tasks: [UX-12]
-checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/entries/simplelist.test.ts, apps/webapp/src/lib/entries/swipe.test.ts, apps/webapp/e2e/simplelist.test.mjs, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Amount_test.go, core/domain/model/work/Categories_test.go, core/domain/model/work/CompletionCount_test.go, core/application/service/work/AmountGate_test.go, core/application/service/work/StructureCategories_test.go, core/application/service/work/CompletionCount_test.go, test/integration/item_amount_test.go, test/integration/completion_count_test.go, test/integration/structure_categories_test.go, test/integration/list_devices_test.go]
+checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/entries/simplelist.test.ts, apps/webapp/src/lib/entries/swipe.test.ts, apps/webapp/e2e/simplelist.test.mjs, apps/webapp/e2e/listrows.test.mjs, apps/webapp/e2e/figure.test.mjs, core/domain/model/work/Amount_test.go, core/domain/model/work/Categories_test.go, core/domain/model/work/CompletionCount_test.go, core/application/service/work/AmountGate_test.go, core/application/service/work/StructureCategories_test.go, core/application/service/work/CompletionCount_test.go, test/integration/item_amount_test.go, test/integration/completion_count_test.go, test/integration/structure_categories_test.go, test/integration/list_devices_test.go]
 ---
 
 # Keep a simple list

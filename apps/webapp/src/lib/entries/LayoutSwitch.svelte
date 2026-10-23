@@ -77,7 +77,9 @@
 </script>
 
 <!-- `data-tour`: where the tour points for "the same entries, two ways". -->
-<div class="layout-switch" data-tour="layouts">
+<!-- Not drawn where it holds nothing: an empty box still takes a gap in the head's row, and put
+     *Views* a gap off the heading's edge. -->
+<div class="layout-switch" data-tour="layouts" data-empty={views.length > 1 || (isList(layout) && hasBothLists) ? undefined : ''}>
   <!-- One way to look at the entries is no choice: a list that offers only itself draws no switch. -->
   {#if views.length > 1}
     <ViewSwitcher label={t('app.view.label')} {views} {selected} onselect={choose} />
@@ -99,4 +101,6 @@
 
 <style>
   .layout-switch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-150); }
+
+  .layout-switch[data-empty] { display: none; }
 </style>

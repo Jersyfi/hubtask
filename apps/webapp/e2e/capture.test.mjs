@@ -188,6 +188,28 @@ test('chromium: the story — chips, the entry in the right place on the person�
   assert.deepEqual(failures, []);
 });
 
+// UC-JUM-01 checks 1 and 6 from the app: the jumble has no form of its own, so the capture field is
+// where a subject and a longer text are written - the first line the subject, the lines after it
+// the text, kept as typed. At a phone's width through the bottom bar's ＋, wider through the bar's.
+for (const width of [390, 1280]) {
+  test(`chromium: ${width} px — from the jumble, the first line is the subject and the rest its text`, async (t) => {
+    const browser = await chromium.launch();
+    t.after(() => browser.close());
+    const { context, page, failures } = await signedIn(browser, width);
+    t.after(() => context.close());
+    const writes = recordWrites(page);
+
+    await land(page, '/jumble');
+    assert.equal(await page.getByRole('main').getByRole('textbox').count(), 0, 'the jumble draws a capture form of its own');
+    await page.getByRole(width < 600 ? 'navigation' : 'banner').getByRole('button', { name: 'Capture', exact: true }).click();
+    await fieldOf(page).fill('Call the plumber\nThe tap drips.\n\n  Since Monday.');
+    await page.keyboard.press('Enter');
+    const submitted = await sent(page, writes, 'POST /jumble/entries');
+    assert.deepEqual(submitted.body, { channel: 'QUICK_CAPTURE', raw_subject: 'Call the plumber', raw_body: 'The tap drips.\n\n  Since Monday.' });
+    assert.deepEqual(failures, []);
+  });
+}
+
 test('chromium: without a collection the jumble, and its Undo dismisses (check 4)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

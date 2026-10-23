@@ -28,6 +28,7 @@
     Input,
     LabelChip,
     LabelPicker,
+    ListRow,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -79,6 +80,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
 
   interface Props {
     collectionId: string;
@@ -465,6 +467,8 @@
     addingUnder === 'root' ? parseLine(draftTitle.split(/\r?\n/u)[0] ?? '', captureRules).title : '',
   );
   const recentlyShown = $derived(sections ? narrow(sections.recently, askedTitle) : []);
+  /** Whether *Recently* stands under the capture line rather than at the list's end. */
+  const isRecentlyAtCapture = $derived(askedTitle !== '' && recentlyShown.length > 0);
 
   /** The rows of one section: ranked among their own group, so a drag and a rank stay in it. */
   function sectionRows(entries: readonly WorkItem[], section: 'open' | 'done' | 'recently'): Row[] {
@@ -1252,6 +1256,16 @@
           <!-- The simple arrangement (UC-WRK-25): what is still to get, under its categories in
                their order; what was ticked in the last 24 hours, under the collection's name for
                it; and what was ticked before, most used first. -->
+          {#snippet recentlySection()}
+            <h2 class="section-head" data-section="recently">{t('app.entries.recently')}</h2>
+            {#each recentlyShown as entry (entry.id)}
+              {@const row = rowById.get(entry.id)}
+              {#if row}{@render entryRow(row)}{/if}
+            {/each}
+          {/snippet}
+          <!-- While the capture line holds words, what they match under *Recently* stands right
+               under it: one tap brings an entry back where its name was being typed. -->
+          {#if isRecentlyAtCapture}{@render recentlySection()}{/if}
           {#each sections.open as group (group.category ?? '')}
             {#if group.category !== null || sections.open.length > 1}
               <h2 class="section-head">{categoryName(group.category)}</h2>
@@ -1289,13 +1303,7 @@
               {#if row}{@render entryRow(row)}{/if}
             {/each}
           {/if}
-          {#if recentlyShown.length > 0}
-            <h2 class="section-head" data-section="recently">{t('app.entries.recently')}</h2>
-            {#each recentlyShown as entry (entry.id)}
-              {@const row = rowById.get(entry.id)}
-              {#if row}{@render entryRow(row)}{/if}
-            {/each}
-          {/if}
+          {#if recentlyShown.length > 0 && !isRecentlyAtCapture}{@render recentlySection()}{/if}
         {:else}
           {#each rows as row (row.item.id)}
             {@render entryRow(row)}
@@ -1308,7 +1316,11 @@
           <!-- Drawn at the top. -->
         {:else if addingUnder === 'root'}
           {@render addForm()}
-        {:else}
+        {:else if addingUnder === null && !(viewport.isCompact && !root)}
+          <!-- Not on a phone's collection: the head pins the same *Add an entry* above the bottom
+               bar there, and a second one under the rows was one add too many on one screen. Not
+               while a row's form is open either: under it, a top-level add read as that form's
+               second button. -->
           <Inline gap="100">
             {#each addControls as control (control.label)}
               <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>
@@ -1378,6 +1390,137 @@
              where the parent is not on this screen. -->
         <CelebrationSlot current={moment} />
       {/if}
+      {#snippet rowEnd()}
+        <!-- What a row that takes children holds, done of total, once its level has been
+             read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
+        {#if row.takesChildren}
+          {@const progress = progressOf(row.item.id)}
+          {#if progress && progress.total > 0}
+            <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
+          {/if}
+        {/if}
+        <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
+             believes it lost. The server counts it; the replica derives the same number. -->
+        {#if (row.item.hidden?.below ?? 0) > 0}
+          {@const below = row.item.hidden?.below ?? 0}
+          <span class="hidden-below" title={t('app.entries.hidden_below_title', { count: below })}>{t('app.entries.hidden_below', { count: below })}</span>
+        {/if}
+        <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
+             already carries: the names come from the accounts cache rather than from an
+             expansion this server does not serve. -->
+        <!-- Per the collection's profile (UC-WRK-23 check 4): a value the type does not carry
+             here stays stored and is not drawn. -->
+        {#if supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted'}
+          <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
+        {/if}
+        <!-- When it is wanted, with the word as well as the tone (rule 3). -->
+        {#if supports(row.item.type, 'DUE_DATE').status === 'permitted'}<DueMark item={row.item} />{/if}
+
+        <!-- Rule 3: an entry archived in its own right is not told apart by being dimmer. It
+             says the word, so the state reads in greyscale and to a screen reader. In a
+             read-only list the page's notice says it once instead, and no row repeats it. -->
+        {#if row.archival === 'archived' && !isReadOnly}
+          <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+        {/if}
+
+        <!-- The labels this entry carries, and a way to change them — but only for a type
+             whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
+             §2 says a field whose capability is off is refused rather than ignored, so it is
+             not offered here at all. -->
+        {#if supports(row.item.type, 'LABELS').status === 'permitted'}
+          {#each (row.item.label_ids ?? []) as labelId (labelId)}
+            {@const entry = available.find((each) => each.id === labelId)}
+            <!-- In a simple list a category is the heading the entry sits under, not a chip. -->
+            {#if entry && !(isSimple && categories.includes(labelId))}
+              <LabelChip
+                name={entry.name}
+                colorToken={entry.colorToken}
+                description={entry.description}
+                removeLabel={isFrozen(row)
+                  ? undefined
+                  : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
+                onRemove={() => toggleLabel(row.item, labelId)}
+              />
+            {/if}
+          {/each}
+
+          <!-- A simple list keeps its rows to a tick and a title; a category is chosen from the
+               row's menu, other labels on the entry's page. -->
+          {#if !isFrozen(row) && !isSimple}
+            <span class="on-hover">
+            <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
+              {#snippet trigger(props)}
+                <Button size="sm" tone="subtle" icon="tag" {...props}>
+                  {t('app.labels.choose')}
+                </Button>
+              {/snippet}
+              <LabelPicker
+                label={t('app.labels.on_entry', { title: row.item.title })}
+                labels={available}
+                selected={row.item.label_ids ?? []}
+                filterLabel={t('app.labels.filter')}
+                locale={messages.locale}
+                emptyLabel={t('app.labels.none_yet')}
+                noMatchLabel={t('app.labels.no_match')}
+                onToggle={(labelId) => toggleLabel(row.item, labelId)}
+              />
+            </Popover>
+            </span>
+          {/if}
+        {/if}
+
+        {#if row.archival === 'active' && mayCreate && row.takesChildren}
+          <!-- The label names what it adds. The control at the end of the list adds to the
+               collection and this one adds inside this entry; sharing "Add an entry"
+               between them made a list of seven rows carry eight controls of that name,
+               seven of which do something else. Icon-only, so the row's controls stop
+               competing with its title for width. -->
+          <span class="on-hover">
+          <IconButton
+            icon="plus"
+            label={childTypes(row.item.type).length === 1
+              ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
+              : t('app.entries.add_child', { title: row.item.title })}
+            size="sm"
+            onclick={() => startAdding(row.item.id)}
+          />
+          </span>
+        {/if}
+
+        <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
+             first: every position a drag can reach is an item here, each with the reason it
+             cannot be used rather than a control that goes grey for no stated cause. -->
+        <!-- The entry menu every surface shares (UC-WRK-28 check 1); a simple list's still hold
+             opens it, Select first (ADR-0088). -->
+        <span class="on-hover">
+        <EntryMenu
+          bind:this={menus[row.item.id]}
+          title={row.item.title}
+          items={menuItems(row)}
+          onselect={(id) => chose(row, id)}
+        />
+        </span>
+      {/snippet}
+      {#if isSimple}
+        <!-- A line of a list is a box and its words: no twist, because nothing is inside it, and no
+             type mark, because a list has one level and a second box beside the first said nothing. -->
+        {@const lineTitle = row.item.amount ? t('app.entries.amount_title', { amount: row.item.amount, title: row.item.title }) : row.item.title}
+        <div class="line" data-completed={row.item.completion?.is_completed ? '' : undefined}>
+          <ListRow trailing={rowEnd}>
+            {#snippet leading()}
+              <Checkbox
+                label={t(row.item.completion?.is_completed ? 'app.entries.reopen' : 'app.entries.complete', { title: row.item.title })}
+                isLabelHidden
+                checked={row.item.completion?.is_completed ?? false}
+                disabledReason={frozenReason(row)}
+                onchange={() => toggleComplete(row.item)}
+              />
+            {/snippet}
+            <span class="title">{lineTitle}</span>
+            {#if queue.isPending(row.item.id)}<span class="pending">{t('app.sync.pending_entry')}</span>{/if}
+          </ListRow>
+        </div>
+      {:else}
       <TaskRow
         type={row.item.type}
         title={row.item.amount ? t('app.entries.amount_title', { amount: row.item.amount, title: row.item.title }) : row.item.title}
@@ -1406,119 +1549,9 @@
           (expanded = expanded.includes(row.item.id)
             ? expanded.filter((id) => id !== row.item.id)
             : [...expanded, row.item.id])}
-      >
-        {#snippet trailing()}
-          <!-- What a row that takes children holds, done of total, once its level has been
-               read (ADR-0061 decision 4): a closed branch still says how much is inside. -->
-          {#if row.takesChildren}
-            {@const progress = progressOf(row.item.id)}
-            {#if progress && progress.total > 0}
-              <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
-            {/if}
-          {/if}
-          <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
-               believes it lost. The server counts it; the replica derives the same number. -->
-          {#if (row.item.hidden?.below ?? 0) > 0}
-            {@const below = row.item.hidden?.below ?? 0}
-            <span class="hidden-below" title={t('app.entries.hidden_below_title', { count: below })}>{t('app.entries.hidden_below', { count: below })}</span>
-          {/if}
-          <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
-               already carries: the names come from the accounts cache rather than from an
-               expansion this server does not serve. -->
-          <!-- Per the collection's profile (UC-WRK-23 check 4): a value the type does not carry
-               here stays stored and is not drawn. -->
-          {#if supports(row.item.type, 'ASSIGNMENT').status === 'permitted' || supports(row.item.type, 'MEMBERS').status === 'permitted'}
-            <PeopleMarks assigneeId={row.item.assignee_id} memberIds={row.item.member_ids ?? []} />
-          {/if}
-          <!-- When it is wanted, with the word as well as the tone (rule 3). -->
-          {#if supports(row.item.type, 'DUE_DATE').status === 'permitted'}<DueMark item={row.item} />{/if}
-
-          <!-- Rule 3: an entry archived in its own right is not told apart by being dimmer. It
-               says the word, so the state reads in greyscale and to a screen reader. In a
-               read-only list the page's notice says it once instead, and no row repeats it. -->
-          {#if row.archival === 'archived' && !isReadOnly}
-            <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
-          {/if}
-
-          <!-- The labels this entry carries, and a way to change them — but only for a type
-               whose profile has LABELS. The manifest answers that; an ACTIVITY has none, and
-               §2 says a field whose capability is off is refused rather than ignored, so it is
-               not offered here at all. -->
-          {#if supports(row.item.type, 'LABELS').status === 'permitted'}
-            {#each (row.item.label_ids ?? []) as labelId (labelId)}
-              {@const entry = available.find((each) => each.id === labelId)}
-              <!-- In a simple list a category is the heading the entry sits under, not a chip. -->
-              {#if entry && !(isSimple && categories.includes(labelId))}
-                <LabelChip
-                  name={entry.name}
-                  colorToken={entry.colorToken}
-                  description={entry.description}
-                  removeLabel={isFrozen(row)
-                    ? undefined
-                    : t('app.labels.remove_from', { name: entry.name, title: row.item.title })}
-                  onRemove={() => toggleLabel(row.item, labelId)}
-                />
-              {/if}
-            {/each}
-
-            <!-- A simple list keeps its rows to a tick and a title; a category is chosen from the
-                 row's menu, other labels on the entry's page. -->
-            {#if !isFrozen(row) && !isSimple}
-              <span class="on-hover">
-              <Popover label={t('app.labels.on_entry', { title: row.item.title })}>
-                {#snippet trigger(props)}
-                  <Button size="sm" tone="subtle" icon="tag" {...props}>
-                    {t('app.labels.choose')}
-                  </Button>
-                {/snippet}
-                <LabelPicker
-                  label={t('app.labels.on_entry', { title: row.item.title })}
-                  labels={available}
-                  selected={row.item.label_ids ?? []}
-                  filterLabel={t('app.labels.filter')}
-                  locale={messages.locale}
-                  emptyLabel={t('app.labels.none_yet')}
-                  noMatchLabel={t('app.labels.no_match')}
-                  onToggle={(labelId) => toggleLabel(row.item, labelId)}
-                />
-              </Popover>
-              </span>
-            {/if}
-          {/if}
-
-          {#if row.archival === 'active' && mayCreate && row.takesChildren}
-            <!-- The label names what it adds. The control at the end of the list adds to the
-                 collection and this one adds inside this entry; sharing "Add an entry"
-                 between them made a list of seven rows carry eight controls of that name,
-                 seven of which do something else. Icon-only, so the row's controls stop
-                 competing with its title for width. -->
-            <span class="on-hover">
-            <IconButton
-              icon="plus"
-              label={childTypes(row.item.type).length === 1
-                ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
-                : t('app.entries.add_child', { title: row.item.title })}
-              size="sm"
-              onclick={() => startAdding(row.item.id)}
-            />
-            </span>
-          {/if}
-
-          <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
-               first: every position a drag can reach is an item here, each with the reason it
-               cannot be used rather than a control that goes grey for no stated cause. -->
-          <!-- The entry menu every surface shares (UC-WRK-28 check 1); a simple list's still hold
-               opens it, Select first (ADR-0088). -->
-          <span class="on-hover">
-          <EntryMenu
-            bind:this={menus[row.item.id]}
-            title={row.item.title}
-            items={menuItems(row)}
-            onselect={(id) => chose(row, id)}
-          />
-          </span>
-        {/snippet}
-      </TaskRow>
+        trailing={rowEnd}
+      />
+      {/if}
 
     </div>
 
@@ -1527,7 +1560,10 @@
     {/if}
 
     {#if addingUnder === row.item.id}
-      {@render addForm()}
+      <!-- Indented as the rows it adds will be: a form the page's width read as a top-level add. -->
+      <div class="under" data-under={row.item.id} style:--depth={row.depth + 1}>
+        {@render addForm()}
+      </div>
     {/if}
 {/snippet}
 
@@ -1680,6 +1716,37 @@
   .level[data-simple] .row { touch-action: pan-y; cursor: pointer; }
 
   .section-row { display: flex; align-items: center; gap: var(--sp-050); }
+
+  /* A row's add form starts where its children's boxes do: their indent (`TaskRow`'s step) after
+     the grip's and the twist's columns. */
+  .under { padding-inline-start: calc(var(--depth) * var(--sp-300) + 2 * var(--sp-400) + var(--sp-050)); }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a container query cannot read a custom property. */
+  @container (inline-size < 600px) {
+    .under { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200) + 2 * var(--sp-400) + var(--sp-050)); }
+  }
+
+  /* A list's line, as `TaskRow` draws a title: a few lines at most, and a ticked one struck as
+     well as faded, so it reads in greyscale (rule 3). */
+  .line .title {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+
+  .line[data-completed] .title {
+    color: var(--text-subtle);
+    text-decoration: line-through;
+  }
+
+  .line .pending {
+    margin-inline-start: var(--sp-100);
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
 
   .section-head {
     margin: var(--sp-150) 0 0;

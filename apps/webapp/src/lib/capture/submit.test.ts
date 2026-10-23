@@ -27,7 +27,7 @@ function fakeWriter(options: { refuseAt?: number } = {}) {
       calls.push(`create ${body.title} ${key}`);
       return { id: `item-${made}`, version: 1, title: body.title } as unknown as WorkItem;
     },
-    async submitJumble(subject: string, key: string) {
+    async submitJumble(subject: string, _body: string, key: string) {
       calls.push(`jumble ${subject} ${key}`);
       return { id: 'entry-1' } as unknown as JumbleEntry;
     },
