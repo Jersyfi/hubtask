@@ -3243,6 +3243,45 @@ func (e PresetKey) Valid() bool {
 	}
 }
 
+// Defines values for PresetOrigin.
+const (
+	PresetOriginHUBTASK   PresetOrigin = "HUBTASK"
+	PresetOriginOWN       PresetOrigin = "OWN"
+	PresetOriginWORKSPACE PresetOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PresetOrigin enum.
+func (e PresetOrigin) Valid() bool {
+	switch e {
+	case PresetOriginHUBTASK:
+		return true
+	case PresetOriginOWN:
+		return true
+	case PresetOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PresetCreateOrigin.
+const (
+	PresetCreateOriginOWN       PresetCreateOrigin = "OWN"
+	PresetCreateOriginWORKSPACE PresetCreateOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PresetCreateOrigin enum.
+func (e PresetCreateOrigin) Valid() bool {
+	switch e {
+	case PresetCreateOriginOWN:
+		return true
+	case PresetCreateOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -6976,6 +7015,9 @@ type ContainerCreate struct {
 	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
+	// PresetId A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
+
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
 	Private *bool         `json:"private,omitempty"`
 	Type    ContainerType `json:"type"`
@@ -7354,6 +7396,9 @@ type EffectiveStructure struct {
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
+
+	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
@@ -9763,16 +9808,55 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
-// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
 type Preset struct {
-	Key PresetKey `json:"key"`
+	// Id A saved preset's id. Absent on one of Hubtask's.
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// Key One of Hubtask's presets. Absent on a saved one.
+	Key *PresetKey `json:"key,omitempty"`
+
+	// Name A saved preset's name. Absent on one of Hubtask's, which a client names.
+	Name *string `json:"name,omitempty"`
+
+	// Origin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+	Origin PresetOrigin `json:"origin"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
+
+	// Version A saved preset's optimistic lock. Absent on one of Hubtask's.
+	Version *int `json:"version,omitempty"`
 }
 
-// PresetKey defines model for Preset.Key.
+// PresetKey One of Hubtask's presets. Absent on a saved one.
 type PresetKey string
+
+// PresetOrigin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+type PresetOrigin string
+
+// PresetCreate defines model for PresetCreate.
+type PresetCreate struct {
+	// ContainerId The hub or collection whose structure in force is saved.
+	ContainerId openapi_types.UUID `json:"container_id"`
+	Name        string             `json:"name"`
+
+	// Origin For the workspace, or for the caller alone.
+	Origin PresetCreateOrigin `json:"origin"`
+}
+
+// PresetCreateOrigin For the workspace, or for the caller alone.
+type PresetCreateOrigin string
+
+// PresetUpdate Applied in this order - the name, the structure copied again, the settings.
+type PresetUpdate struct {
+	// ContainerId A hub or collection whose structure in force replaces the preset's settings.
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
 
 // PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
 type PrivateHubAccess struct {
@@ -11047,8 +11131,11 @@ type StepUpRequest struct {
 
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
-	Preset *StructureChangePreset  `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+	Preset *StructureChangePreset `json:"preset,omitempty"`
+
+	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
+	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
@@ -12160,6 +12247,9 @@ type Workspace struct {
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
+	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, the workspace holds no hub, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
+	StarterOffered *bool `json:"starter_offered,omitempty"`
+
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 	Status WorkspaceStatus `json:"status"`
 
@@ -12218,8 +12308,14 @@ type WorkspaceQuestion struct {
 type WorkspaceStructure struct {
 	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
 	DefaultPreset *WorkspaceStructureDefaultPreset `json:"default_preset"`
-	Locks         map[string]StructureLock         `json:"locks"`
-	Preset        *WorkspaceStructurePreset        `json:"preset"`
+
+	// DefaultPresetId The workspace preset a hub created without one starts from, where the default is a saved one; `default_preset` is then null.
+	DefaultPresetId *openapi_types.UUID       `json:"default_preset_id,omitempty"`
+	Locks           map[string]StructureLock  `json:"locks"`
+	Preset          *WorkspaceStructurePreset `json:"preset"`
+
+	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
@@ -12237,10 +12333,16 @@ type WorkspaceStructureChange struct {
 	// DefaultPreset The preset a hub created without one starts from; null removes it.
 	DefaultPreset *WorkspaceStructureChangeDefaultPreset `json:"default_preset,omitempty"`
 
+	// DefaultPresetId A workspace preset as the one a hub created without one starts from instead; null removes it, as does `default_preset: null`. A person's own preset is refused with `presets.unknown`; naming it beside `default_preset` with `presets.both_named`.
+	DefaultPresetId *openapi_types.UUID `json:"default_preset_id,omitempty"`
+
 	// Locks The whole set of locks after the change. Omitted leaves them as they are; an empty list removes them all. A lock kept keeps who set it.
 	Locks  *[]string                       `json:"locks,omitempty"`
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
+
+	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
+	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
@@ -12374,6 +12476,9 @@ type ParentId = openapi_types.UUID
 
 // PasskeyId defines model for PasskeyId.
 type PasskeyId = openapi_types.UUID
+
+// PresetId defines model for PresetId.
+type PresetId = openapi_types.UUID
 
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
@@ -13489,6 +13594,18 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// WithdrawPresetParams defines parameters for WithdrawPreset.
+type WithdrawPresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangePresetParams defines parameters for ChangePreset.
+type ChangePresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListConsentsParams defines parameters for ListConsents.
 type ListConsentsParams struct {
 	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
@@ -14086,6 +14203,12 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
+
+// SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
+type SavePresetJSONRequestBody = PresetCreate
+
+// ChangePresetJSONRequestBody defines body for ChangePreset for application/json ContentType.
+type ChangePresetJSONRequestBody = PresetUpdate
 
 // GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
 type GiveConsentJSONRequestBody = ConsentGrant
@@ -15088,6 +15211,15 @@ type ServerInterface interface {
 	// ListPresets The presets a hub or collection can start from
 	// (GET /presets)
 	ListPresets(w http.ResponseWriter, r *http.Request)
+	// SavePreset Saves a hub's or collection's structure as a preset
+	// (POST /presets)
+	SavePreset(w http.ResponseWriter, r *http.Request)
+	// WithdrawPreset Withdraws a saved preset
+	// (DELETE /presets/{presetId})
+	WithdrawPreset(w http.ResponseWriter, r *http.Request, presetId PresetId, params WithdrawPresetParams)
+	// ChangePreset Renames or changes a saved preset
+	// (PATCH /presets/{presetId})
+	ChangePreset(w http.ResponseWriter, r *http.Request, presetId PresetId, params ChangePresetParams)
 	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
 	// (GET /privacy/ai-objection)
 	ReadOwnAiPosition(w http.ResponseWriter, r *http.Request)
@@ -15214,6 +15346,9 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// CloseStarter Answers the first start's question for good
+	// (POST /tenant/starter:close)
+	CloseStarter(w http.ResponseWriter, r *http.Request)
 
 	// (PATCH /tenant/structure)
 	SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params SetWorkspaceStructureParams)
@@ -26118,6 +26253,120 @@ func (siw *ServerInterfaceWrapper) ListPresets(w http.ResponseWriter, r *http.Re
 	handler.ServeHTTP(w, r)
 }
 
+// SavePreset operation middleware
+func (siw *ServerInterfaceWrapper) SavePreset(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SavePreset(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawPreset operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawPreset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "presetId" -------------
+	var presetId PresetId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "presetId", r.PathValue("presetId"), &presetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "presetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WithdrawPresetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawPreset(w, r, presetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePreset operation middleware
+func (siw *ServerInterfaceWrapper) ChangePreset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "presetId" -------------
+	var presetId PresetId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "presetId", r.PathValue("presetId"), &presetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "presetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangePresetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePreset(w, r, presetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ReadOwnAiPosition operation middleware
 func (siw *ServerInterfaceWrapper) ReadOwnAiPosition(w http.ResponseWriter, r *http.Request) {
 
@@ -27463,6 +27712,20 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// CloseStarter operation middleware
+func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CloseStarter(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // SetWorkspaceStructure operation middleware
 func (siw *ServerInterfaceWrapper) SetWorkspaceStructure(w http.ResponseWriter, r *http.Request) {
 
@@ -28305,8 +28568,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/groups/{groupId}", wrapper.DeleteGroup)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/groups/{groupId}", wrapper.GetGroup)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/presets", wrapper.SavePreset)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/presets/{presetId}", wrapper.WithdrawPreset)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/presets/{presetId}", wrapper.ChangePreset)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers", wrapper.ListContainers)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers", wrapper.CreateContainer)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}", wrapper.TrashContainer)

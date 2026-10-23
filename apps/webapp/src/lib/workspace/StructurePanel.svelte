@@ -11,8 +11,9 @@
   // the setting's name and the control still there, readable and unavailable with its reason
   // (cases 2 and 6); a value set above names where it comes from and whom to ask.
   //
-  // The sections are a list, so the panel's further parts - the presets of one's own, switching
-  // a level with its preview - join it without a second panel.
+  // The sections are a list, so the panel's further parts - switching a level with its preview -
+  // join it without a second panel. *Save as preset* (UC-WRK-30 check 1) sits beside the preset
+  // picker and saves what is in force, not the draft.
 
   import { untrack, type Snippet } from 'svelte';
 
@@ -26,8 +27,9 @@
   import { customFields } from '../data/customfields.svelte.ts';
   import { countsChange, figureOffer, isComplete, type FigureKind } from '../data/figureOffer.ts';
   import { levelWords } from '../data/levels.ts';
-  import { presets } from '../data/presets.svelte.ts';
+  import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
+  import SavePresetDialog from './SavePresetDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -62,13 +64,16 @@
   interface Props {
     isOpen: boolean;
     container: Container;
+    /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
+    mayShapeWorkspace?: boolean;
     /** The collection's further parts, as tabs after *Settings*; none for a panel of settings alone. */
     tabs?: readonly StructureTab[];
     /** The open tab's id, `settings` first. Bindable, so a way in can open the panel on its tab. */
     tab?: string;
   }
 
-  let { isOpen = $bindable(), container, tabs = [], tab = $bindable('settings') }: Props = $props();
+  let { isOpen = $bindable(), container, mayShapeWorkspace = false, tabs = [], tab = $bindable('settings') }: Props = $props();
+  let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
   const isHub = $derived(container.type === 'HUB');
@@ -307,7 +312,12 @@
   // The preset, the resets, the save
   // ---------------------------------------------------------------------------------------------
 
-  const presetOptions = $derived(presets.all.map((preset) => ({ value: preset.key as string, label: t(`app.structure.preset.${preset.key}`) })));
+  // Each marked with where it comes from (UC-WRK-30 check 2).
+  const presetOptions = $derived(
+    presets.all.map((preset) => ({ value: presetValue(preset), label: t('app.structure.preset_option', { name: presetName(preset), origin: presetOrigin(preset) }) })),
+  );
+  /** The name of the preset the layer was copied from, where it is still offered. */
+  const startedFrom = $derived(presets.nameOf(structure?.preset ?? structure?.preset_id));
 
   function choosePresetKey(key: string) {
     const preset = presets.find(key);
@@ -364,14 +374,25 @@
           <Select
             label={t('app.structure.preset_label')}
             hint={draft.preset
-              ? t('app.structure.preset_chosen', { preset: t(`app.structure.preset.${draft.preset}`) })
-              : structure.preset
-                ? t('app.structure.preset_from', { preset: t(`app.structure.preset.${structure.preset}`) })
+              ? t('app.structure.preset_chosen', { preset: presets.nameOf(draft.preset) ?? '' })
+              : startedFrom
+                ? t('app.structure.preset_from', { preset: startedFrom })
                 : t('app.structure.preset_hint')}
             placeholder={t('app.structure.preset_choose')}
             options={presetOptions}
             bind:value={() => draft?.preset ?? '', (key) => choosePresetKey(key)}
           />
+          <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
+          <div class="save-as">
+          <Button
+            size="sm"
+            tone="subtle"
+            disabledReason={changeCount > 0 ? t('app.presets.save_first') : undefined}
+            onclick={() => (isSavingPreset = true)}
+          >
+            {t('app.presets.save_as')}
+          </Button>
+          </div>
         </section>
 
         {#each SETTINGS as setting (setting)}
@@ -551,6 +572,8 @@
   {/if}
 </Drawer>
 
+<SavePresetDialog bind:isOpen={isSavingPreset} containerId={container.id} {mayShapeWorkspace} />
+
 {#if categoriesOf && structure}
   <CategoriesDialog
     collectionId={container.id}
@@ -567,6 +590,7 @@
   .head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
   .head h3 { margin: 0; font-size: var(--fs-100); font-weight: var(--fw-semibold); }
   .names { display: grid; gap: var(--sp-150); }
+  .save-as { align-self: flex-start; }
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
 </style>

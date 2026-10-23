@@ -47,6 +47,7 @@ test('the administration area is exactly these screens, by name', () => {
     'machines',
     'people',
     'permissions',
+    'presets',
     'privacy',
     'private-hubs',
     'quotas',

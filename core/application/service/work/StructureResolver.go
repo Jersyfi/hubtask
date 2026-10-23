@@ -22,6 +22,9 @@ type StructureResolver struct {
 	Containers repository.Containers
 	Structures repository.Structures
 	Profiles   metarepo.CapabilityProfiles
+	// Presets reads the saved presets a layer can be copied from. A build without it offers
+	// Hubtask's presets alone.
+	Presets repository.Presets
 }
 
 // Wired reports whether the resolver has what it needs. A handler built without one - in a test

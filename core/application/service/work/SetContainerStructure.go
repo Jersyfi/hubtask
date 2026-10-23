@@ -145,7 +145,7 @@ func (h SetContainerStructure) write(
 		return StructureResult{}, err
 	}
 
-	layer, kept, err := h.decide(ctx, reading, container, cmd)
+	layer, kept, err := h.decide(ctx, reading, actor, container, cmd)
 	if err != nil {
 		return StructureResult{}, err
 	}
@@ -204,12 +204,13 @@ func (h SetContainerStructure) write(
 // decide is the container's new own layer: a preset chosen replaces it, held to the locks; the
 // settings sent are set on top, refused against a lock; the settings reset go to the layer above.
 func (h SetContainerStructure) decide(
-	ctx context.Context, reading *layerReading, container domain.Container, cmd SetContainerStructureCommand,
+	ctx context.Context, reading *layerReading, actor appshared.ActorContext, container domain.Container,
+	cmd SetContainerStructureCommand,
 ) (domain.StructureLayer, []domain.LockKey, error) {
 	layer := container.Structure
 	var kept []domain.LockKey
 	if cmd.Preset != "" {
-		chosen, keptBy, err := choosePreset(ctx, reading, container, cmd.Preset)
+		chosen, keptBy, err := choosePreset(ctx, reading, actor, container, cmd.Preset)
 		if err != nil {
 			return domain.StructureLayer{}, nil, err
 		}
@@ -394,6 +395,7 @@ func (h SetContainerStructure) Descriptor() usecase.Descriptor {
 				},
 				Description: "A preset to copy, replacing the container's own values.",
 			},
+			presetIDField("preset_id", "preset"),
 			{
 				Name: "settings", Kind: usecase.KindObject,
 				Description: "Settings to set, each on its own, as StructureSettings: levels, fields, " +
@@ -429,9 +431,12 @@ func (h SetContainerStructure) invoke(
 	if err != nil {
 		return nil, err
 	}
+	preset, err := presetFrom(in, "preset", "preset_id")
+	if err != nil {
+		return nil, err
+	}
 	cmd := SetContainerStructureCommand{
-		ContainerID: containerID, Preset: domain.PresetKey(in.String("preset")),
-		ExpectedVersion: in.Int("expected_version"),
+		ContainerID: containerID, Preset: preset, ExpectedVersion: in.Int("expected_version"),
 	}
 	if raw, held := in["settings"].(map[string]any); held {
 		if cmd.Settings, err = structureValuesFrom(raw); err != nil {

@@ -134,7 +134,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
     if (request.method() === 'PATCH' && request.url().endsWith('/structure')) resolve(request.postDataJSON());
   }));
   await list.dialog.getByRole('combobox', { name: 'Show' }).selectOption('DUE');
-  await list.page.locator('dialog[open]').getByRole('button', { name: 'Save' }).click();
+  await list.page.locator('dialog[open]').getByRole('button', { name: 'Save', exact: true }).click();
   assert.deepEqual(await written, { settings: { counts: { figure: 'DUE' } } });
   await list.context.close();
 

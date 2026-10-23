@@ -8155,6 +8155,22 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /tenant/starter:close:
+    post:
+      tags: [meta]
+      operationId: closeStarter
+      summary: Answers the first start's question for good
+      description: >
+        Records that the workspace's first start was answered or skipped, so `starter_offered` is
+        false from now on for everyone. A client closes it before it creates the starter set, so an
+        interruption never makes the set twice. Needs the right to change the workspace's shape.
+        Closing it again changes nothing.
+      responses:
+        "204":
+          description: Closed
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/structure:
     patch:
       tags: [meta]
@@ -8196,8 +8212,11 @@ paths:
       operationId: listPresets
       summary: The presets a hub or collection can start from
       description: >
-        Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as
-        this installation offers them. A bounded list, not a page: there are four.
+        The presets the caller can start a hub or collection from, each marked with its `origin`:
+        Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each
+        with its eight settings as this installation offers them. Hubtask's come first in a stable
+        order, then the workspace's and the caller's own by name. Another person's own presets are
+        never answered. A bounded list, not a page: the saved ones are bounded per origin.
       responses:
         "200":
           description: The presets
@@ -8205,9 +8224,88 @@ paths:
             application/json:
               schema:
                 type: array
-                maxItems: 4
+                maxItems: 154
                 items:
                   $ref: "#/components/schemas/Preset"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [containers]
+      operationId: savePreset
+      summary: Saves a hub's or collection's structure as a preset
+      description: >
+        Saves the eight settings in force on `container_id` under a name - its categories left out,
+        which name one collection's labels - as the caller's own preset (`OWN`) or as the
+        workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset
+        to everyone in the workspace and needs the right to change the workspace's shape. Reading
+        the container needs `READ` on it. Beyond the bound of its origin it is refused with
+        `presets.limit_reached`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresetCreate"
+      responses:
+        "201":
+          description: Saved
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preset"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /presets/{presetId}:
+    parameters:
+      - $ref: "#/components/parameters/PresetId"
+    patch:
+      tags: [containers]
+      operationId: changePreset
+      summary: Renames or changes a saved preset
+      description: >
+        Renames a saved preset, copies a hub's or collection's structure in force into it again
+        (`container_id`), or sets settings on top (`settings`, held to what the installation offers
+        like a layer's). Hubs and collections made from it keep their settings: a preset is copied,
+        never followed. An own preset is changed by its owner alone - another person's is not
+        found -, a workspace preset by whoever may change the workspace's shape. Writing what is
+        stored changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PresetUpdate"
+      responses:
+        "200":
+          description: Updated
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preset"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [containers]
+      operationId: withdrawPreset
+      summary: Withdraws a saved preset
+      description: >
+        Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep
+        their settings. A workspace preset that is the workspace's default is refused with
+        `presets.workspace_default` until another default is chosen or none. Rights as for a change.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      responses:
+        "204":
+          description: Withdrawn
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -10618,6 +10716,11 @@ components:
       in: path
       required: true
       schema: { type: string, format: uuid }
+    PresetId:
+      name: presetId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
     CustomFieldId:
       name: fieldId
       in: path
@@ -12494,6 +12597,14 @@ components:
             drew eighteen rows it could not save would be a screen that lies about what it offers.
         structure:
           $ref: "#/components/schemas/WorkspaceStructure"
+        starter_offered:
+          type: boolean
+          readOnly: true
+          description: >
+            Whether a client asks the reader, once, what the workspace is used for and offers a
+            starter set of hubs and collections on matching presets: nobody has answered or skipped
+            it yet, the workspace holds no hub, and the reader may change the workspace's shape.
+            `POST /tenant/starter:close` answers it for good.
         hosts:
           type: array
           readOnly: true
@@ -15648,6 +15759,13 @@ components:
             The preset the new hub or collection starts from; its values are copied. A collection
             given its hub's preset, or none, follows its hub instead and stores nothing of its own. A
             hub given none starts from the workspace's default preset where one is set.
+        preset_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            A saved preset to start from instead - the workspace's, or the caller's own; any other
+            is refused with `presets.unknown`. Naming it beside `preset` is refused with
+            `presets.both_named`.
 
     ContainerUpdate:
       type: object
@@ -15834,6 +15952,13 @@ components:
         preset:
           type: string
           enum: [LIST, TASKS, PROJECT, FLOW]
+        preset_id:
+          type: string
+          format: uuid
+          description: >
+            A saved preset to copy instead - the workspace's, or the caller's own; any other is
+            refused with `presets.unknown`. Naming it beside `preset` is refused with
+            `presets.both_named`.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         reset:
           type: array
@@ -15849,6 +15974,13 @@ components:
         preset:
           type: string
           enum: [LIST, TASKS, PROJECT, FLOW]
+        preset_id:
+          type: string
+          format: uuid
+          description: >
+            A saved preset to copy instead - the workspace's, or the caller's own; any other is
+            refused with `presets.unknown`. Naming it beside `preset` is refused with
+            `presets.both_named`.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         reset:
           type: array
@@ -15865,6 +15997,13 @@ components:
           type: [string, "null"]
           enum: [LIST, TASKS, PROJECT, FLOW, null]
           description: The preset a hub created without one starts from; null removes it.
+        default_preset_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            A workspace preset as the one a hub created without one starts from instead; null
+            removes it, as does `default_preset: null`. A person's own preset is refused with
+            `presets.unknown`; naming it beside `default_preset` with `presets.both_named`.
 
     StructureSettingName:
       type: string
@@ -15883,6 +16022,12 @@ components:
         preset:
           type: [string, "null"]
           enum: [LIST, TASKS, PROJECT, FLOW, null]
+        preset_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The saved preset the nearest layer's values were copied from, where it was one; `preset`
+            is then null. Provenance only: the preset may have been changed or withdrawn since.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         sources:
           type: object
@@ -16003,6 +16148,12 @@ components:
         preset:
           type: [string, "null"]
           enum: [LIST, TASKS, PROJECT, FLOW, null]
+        preset_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The saved preset the nearest layer's values were copied from, where it was one; `preset`
+            is then null. Provenance only: the preset may have been changed or withdrawn since.
         settings: { $ref: "#/components/schemas/StructureSettings" }
         sources:
           type: object
@@ -16014,18 +16165,70 @@ components:
           type: [string, "null"]
           enum: [LIST, TASKS, PROJECT, FLOW, null]
           description: The preset a hub created without one starts from. Collections follow their hub.
+        default_preset_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The workspace preset a hub created without one starts from, where the default is a
+            saved one; `default_preset` is then null.
 
     Preset:
       type: object
       description: >
         A starting point for a hub or collection: values for all eight settings, held to what this
         installation offers. Choosing one copies its values; nothing follows a preset afterwards.
-        The key is stable; a client translates it.
-      required: [key, settings]
+        One of Hubtask's carries its stable `key`, which a client translates; a saved one - the
+        workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
+      required: [origin, settings]
       properties:
+        origin:
+          type: string
+          enum: [HUBTASK, WORKSPACE, OWN]
+          description: >
+            Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or
+            the caller's own (offered to them alone).
         key:
           type: string
           enum: [LIST, TASKS, PROJECT, FLOW]
+          description: One of Hubtask's presets. Absent on a saved one.
+        id:
+          type: string
+          format: uuid
+          description: A saved preset's id. Absent on one of Hubtask's.
+        name:
+          type: string
+          maxLength: 100
+          description: A saved preset's name. Absent on one of Hubtask's, which a client names.
+        version:
+          type: integer
+          description: A saved preset's optimistic lock. Absent on one of Hubtask's.
+        settings: { $ref: "#/components/schemas/StructureSettings" }
+
+    PresetCreate:
+      type: object
+      additionalProperties: false
+      required: [name, origin, container_id]
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        origin:
+          type: string
+          enum: [WORKSPACE, OWN]
+          description: For the workspace, or for the caller alone.
+        container_id:
+          type: string
+          format: uuid
+          description: The hub or collection whose structure in force is saved.
+
+    PresetUpdate:
+      type: object
+      additionalProperties: false
+      description: Applied in this order - the name, the structure copied again, the settings.
+      properties:
+        name: { type: string, minLength: 1, maxLength: 100 }
+        container_id:
+          type: string
+          format: uuid
+          description: A hub or collection whose structure in force replaces the preset's settings.
         settings: { $ref: "#/components/schemas/StructureSettings" }
 
     AutoAssignPolicy:

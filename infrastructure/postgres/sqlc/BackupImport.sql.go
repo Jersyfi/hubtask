@@ -363,6 +363,18 @@ func (q *Queries) ClearSetElement(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearStructurePreset = `-- name: ClearStructurePreset :execrows
+DELETE FROM structure_preset
+`
+
+func (q *Queries) ClearStructurePreset(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearStructurePreset)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearTemplate = `-- name: ClearTemplate :execrows
 DELETE FROM template
 `
@@ -713,6 +725,17 @@ SELECT EXISTS (SELECT 1 FROM set_element WHERE item_id = ($1::jsonb->>'item_id')
 
 func (q *Queries) HoldsSetElement(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsSetElement, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsStructurePreset = `-- name: HoldsStructurePreset :one
+SELECT EXISTS (SELECT 1 FROM structure_preset WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsStructurePreset(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsStructurePreset, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2333,6 +2356,56 @@ type ImportSetElementParams struct {
 
 func (q *Queries) ImportSetElement(ctx context.Context, arg ImportSetElementParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSetElement, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importStructurePreset = `-- name: ImportStructurePreset :execrows
+INSERT INTO structure_preset (
+  tenant_id,
+  id,
+  origin,
+  owner_id,
+  name,
+  settings,
+  created_at,
+  version
+)
+SELECT
+  r.tenant_id,
+  r.id,
+  r.origin,
+  r.owner_id,
+  r.name,
+  r.settings,
+  r.created_at,
+  r.version
+FROM jsonb_populate_record(
+  NULL::structure_preset,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+WHERE r.owner_id IS NULL OR EXISTS (SELECT 1 FROM account a WHERE a.id = r.owner_id)
+ON CONFLICT (tenant_id, id) DO UPDATE SET
+  origin = EXCLUDED.origin,
+  owner_id = EXCLUDED.owner_id,
+  name = EXCLUDED.name,
+  settings = EXCLUDED.settings,
+  created_at = EXCLUDED.created_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportStructurePresetParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A person's own preset whose account the restore did not bring back belongs to nobody, and is
+// skipped rather than refused by the foreign key.
+func (q *Queries) ImportStructurePreset(ctx context.Context, arg ImportStructurePresetParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importStructurePreset, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

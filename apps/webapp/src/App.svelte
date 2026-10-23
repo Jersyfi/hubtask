@@ -65,6 +65,7 @@ import ContainerView from './views/ContainerView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
+  import PresetsView from './views/PresetsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
   import RedeemView from './views/RedeemView.svelte';
@@ -296,6 +297,8 @@ import ContainerView from './views/ContainerView.svelte';
     <AdministrationOverviewView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
+  {:else if route.name === 'presets'}
+    <PresetsView />
   {:else if route.name === 'people'}
     <PeopleView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'machines'}

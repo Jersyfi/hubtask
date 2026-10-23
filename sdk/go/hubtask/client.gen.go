@@ -3249,6 +3249,45 @@ func (e PresetKey) Valid() bool {
 	}
 }
 
+// Defines values for PresetOrigin.
+const (
+	PresetOriginHUBTASK   PresetOrigin = "HUBTASK"
+	PresetOriginOWN       PresetOrigin = "OWN"
+	PresetOriginWORKSPACE PresetOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PresetOrigin enum.
+func (e PresetOrigin) Valid() bool {
+	switch e {
+	case PresetOriginHUBTASK:
+		return true
+	case PresetOriginOWN:
+		return true
+	case PresetOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for PresetCreateOrigin.
+const (
+	PresetCreateOriginOWN       PresetCreateOrigin = "OWN"
+	PresetCreateOriginWORKSPACE PresetCreateOrigin = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the PresetCreateOrigin enum.
+func (e PresetCreateOrigin) Valid() bool {
+	switch e {
+	case PresetCreateOriginOWN:
+		return true
+	case PresetCreateOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for ProcessingStateStatus.
 const (
 	ProcessingStateStatusACTIVE     ProcessingStateStatus = "ACTIVE"
@@ -6982,6 +7021,9 @@ type ContainerCreate struct {
 	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
+	// PresetId A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
+
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
 	Private *bool         `json:"private,omitempty"`
 	Type    ContainerType `json:"type"`
@@ -7360,6 +7402,9 @@ type EffectiveStructure struct {
 	// Locks The locks in force, keyed by a setting (`views`) or by one capability of one type (`fields.TASK.DUE_DATE`). Empty where nothing is locked.
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
+
+	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
@@ -9769,16 +9814,55 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
-// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. The key is stable; a client translates it.
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
 type Preset struct {
-	Key PresetKey `json:"key"`
+	// Id A saved preset's id. Absent on one of Hubtask's.
+	Id *openapi_types.UUID `json:"id,omitempty"`
+
+	// Key One of Hubtask's presets. Absent on a saved one.
+	Key *PresetKey `json:"key,omitempty"`
+
+	// Name A saved preset's name. Absent on one of Hubtask's, which a client names.
+	Name *string `json:"name,omitempty"`
+
+	// Origin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+	Origin PresetOrigin `json:"origin"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
+
+	// Version A saved preset's optimistic lock. Absent on one of Hubtask's.
+	Version *int `json:"version,omitempty"`
 }
 
-// PresetKey defines model for Preset.Key.
+// PresetKey One of Hubtask's presets. Absent on a saved one.
 type PresetKey string
+
+// PresetOrigin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+type PresetOrigin string
+
+// PresetCreate defines model for PresetCreate.
+type PresetCreate struct {
+	// ContainerId The hub or collection whose structure in force is saved.
+	ContainerId openapi_types.UUID `json:"container_id"`
+	Name        string             `json:"name"`
+
+	// Origin For the workspace, or for the caller alone.
+	Origin PresetCreateOrigin `json:"origin"`
+}
+
+// PresetCreateOrigin For the workspace, or for the caller alone.
+type PresetCreateOrigin string
+
+// PresetUpdate Applied in this order - the name, the structure copied again, the settings.
+type PresetUpdate struct {
+	// ContainerId A hub or collection whose structure in force replaces the preset's settings.
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
+	Name        *string             `json:"name,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
 
 // PrivateHubAccess One opening of a private hub by the workspace's owner (the emergency access): who, when, until when, and why.
 type PrivateHubAccess struct {
@@ -11053,8 +11137,11 @@ type StepUpRequest struct {
 
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
-	Preset *StructureChangePreset  `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName `json:"reset,omitempty"`
+	Preset *StructureChangePreset `json:"preset,omitempty"`
+
+	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
+	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
@@ -12166,6 +12253,9 @@ type Workspace struct {
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
+	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, the workspace holds no hub, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
+	StarterOffered *bool `json:"starter_offered,omitempty"`
+
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 	Status WorkspaceStatus `json:"status"`
 
@@ -12224,8 +12314,14 @@ type WorkspaceQuestion struct {
 type WorkspaceStructure struct {
 	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
 	DefaultPreset *WorkspaceStructureDefaultPreset `json:"default_preset"`
-	Locks         map[string]StructureLock         `json:"locks"`
-	Preset        *WorkspaceStructurePreset        `json:"preset"`
+
+	// DefaultPresetId The workspace preset a hub created without one starts from, where the default is a saved one; `default_preset` is then null.
+	DefaultPresetId *openapi_types.UUID       `json:"default_preset_id,omitempty"`
+	Locks           map[string]StructureLock  `json:"locks"`
+	Preset          *WorkspaceStructurePreset `json:"preset"`
+
+	// PresetId The saved preset the nearest layer's values were copied from, where it was one; `preset` is then null. Provenance only: the preset may have been changed or withdrawn since.
+	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
@@ -12243,10 +12339,16 @@ type WorkspaceStructureChange struct {
 	// DefaultPreset The preset a hub created without one starts from; null removes it.
 	DefaultPreset *WorkspaceStructureChangeDefaultPreset `json:"default_preset,omitempty"`
 
+	// DefaultPresetId A workspace preset as the one a hub created without one starts from instead; null removes it, as does `default_preset: null`. A person's own preset is refused with `presets.unknown`; naming it beside `default_preset` with `presets.both_named`.
+	DefaultPresetId *openapi_types.UUID `json:"default_preset_id,omitempty"`
+
 	// Locks The whole set of locks after the change. Omitted leaves them as they are; an empty list removes them all. A lock kept keeps who set it.
 	Locks  *[]string                       `json:"locks,omitempty"`
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
-	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
+
+	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
+	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
@@ -12380,6 +12482,9 @@ type ParentId = openapi_types.UUID
 
 // PasskeyId defines model for PasskeyId.
 type PasskeyId = openapi_types.UUID
+
+// PresetId defines model for PresetId.
+type PresetId = openapi_types.UUID
 
 // ProviderId defines model for ProviderId.
 type ProviderId = openapi_types.UUID
@@ -13495,6 +13600,18 @@ type RegisterOauthClientParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// WithdrawPresetParams defines parameters for WithdrawPreset.
+type WithdrawPresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangePresetParams defines parameters for ChangePreset.
+type ChangePresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListConsentsParams defines parameters for ListConsents.
 type ListConsentsParams struct {
 	Purpose ConsentPurpose `form:"purpose" json:"purpose"`
@@ -14092,6 +14209,12 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
+
+// SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
+type SavePresetJSONRequestBody = PresetCreate
+
+// ChangePresetJSONRequestBody defines body for ChangePreset for application/json ContentType.
+type ChangePresetJSONRequestBody = PresetUpdate
 
 // GiveConsentJSONRequestBody defines body for GiveConsent for application/json ContentType.
 type GiveConsentJSONRequestBody = ConsentGrant
@@ -18460,10 +18583,53 @@ type ClientInterface interface {
 
 	// ListPresets The presets a hub or collection can start from
 	//
-	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 	//
 	// Corresponds with GET /presets (the `ListPresets` operationId).
 	ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SavePresetWithBody Saves a hub's or collection's structure as a preset
+	//
+	// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /presets (the `SavePreset` operationId).
+	SavePresetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SavePreset Saves a hub's or collection's structure as a preset
+	//
+	// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /presets (the `SavePreset` operationId).
+	SavePreset(ctx context.Context, body SavePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WithdrawPreset Withdraws a saved preset
+	//
+	// Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.
+	//
+	// Corresponds with DELETE /presets/{presetId} (the `WithdrawPreset` operationId).
+	WithdrawPreset(ctx context.Context, presetId PresetId, params *WithdrawPresetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePresetWithBody Renames or changes a saved preset
+	//
+	// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+	ChangePresetWithBody(ctx context.Context, presetId PresetId, params *ChangePresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangePreset Renames or changes a saved preset
+	//
+	// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+	ChangePreset(ctx context.Context, presetId PresetId, params *ChangePresetParams, body ChangePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadOwnAiPosition The caller's own view of keeping their content out of AI
 	//
@@ -19239,6 +19405,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CloseStarter Answers the first start's question for good
+	//
+	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+	//
+	// Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
+	CloseStarter(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetWorkspaceStructureWithBody performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
@@ -28049,11 +28222,104 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 
 // ListPresets The presets a hub or collection can start from
 //
-// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 //
 // Corresponds with GET /presets (the `ListPresets` operationId).
 func (c *Client) ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewListPresetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SavePresetWithBody Saves a hub's or collection's structure as a preset
+//
+// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /presets (the `SavePreset` operationId).
+func (c *Client) SavePresetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSavePresetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SavePreset Saves a hub's or collection's structure as a preset
+//
+// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /presets (the `SavePreset` operationId).
+func (c *Client) SavePreset(ctx context.Context, body SavePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSavePresetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WithdrawPreset Withdraws a saved preset
+//
+// Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.
+//
+// Corresponds with DELETE /presets/{presetId} (the `WithdrawPreset` operationId).
+func (c *Client) WithdrawPreset(ctx context.Context, presetId PresetId, params *WithdrawPresetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWithdrawPresetRequest(c.Server, presetId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePresetWithBody Renames or changes a saved preset
+//
+// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+func (c *Client) ChangePresetWithBody(ctx context.Context, presetId PresetId, params *ChangePresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePresetRequestWithBody(c.Server, presetId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangePreset Renames or changes a saved preset
+//
+// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+func (c *Client) ChangePreset(ctx context.Context, presetId PresetId, params *ChangePresetParams, body ChangePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangePresetRequest(c.Server, presetId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -29439,6 +29705,23 @@ func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CloseStarter Answers the first start's question for good
+//
+// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+//
+// Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
+func (c *Client) CloseStarter(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCloseStarterRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -44413,6 +44696,157 @@ func NewListPresetsRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewSavePresetRequest calls the generic SavePreset builder with application/json body
+func NewSavePresetRequest(server string, body SavePresetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSavePresetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSavePresetRequestWithBody constructs an http.Request for the SavePreset method, with any body, and a specified content type
+func NewSavePresetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/presets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewWithdrawPresetRequest constructs an http.Request for the WithdrawPreset method
+func NewWithdrawPresetRequest(server string, presetId PresetId, params *WithdrawPresetParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "presetId", presetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/presets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewChangePresetRequest calls the generic ChangePreset builder with application/json body
+func NewChangePresetRequest(server string, presetId PresetId, params *ChangePresetParams, body ChangePresetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangePresetRequestWithBody(server, presetId, params, "application/json", bodyReader)
+}
+
+// NewChangePresetRequestWithBody constructs an http.Request for the ChangePreset method, with any body, and a specified content type
+func NewChangePresetRequestWithBody(server string, presetId PresetId, params *ChangePresetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "presetId", presetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/presets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewReadOwnAiPositionRequest constructs an http.Request for the ReadOwnAiPosition method
 func NewReadOwnAiPositionRequest(server string) (*http.Request, error) {
 	var err error
@@ -46369,6 +46803,33 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	}
 
 	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCloseStarterRequest constructs an http.Request for the CloseStarter method
+func NewCloseStarterRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/starter:close")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -51589,12 +52050,57 @@ type ClientWithResponsesInterface interface {
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
-	// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with GET /presets (the `ListPresets` operationId).
 	ListPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListPresetsResult, error)
+
+	// SavePresetWithBodyWithResponse Saves a hub's or collection's structure as a preset
+	//
+	// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /presets (the `SavePreset` operationId).
+	SavePresetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SavePresetResult, error)
+
+	// SavePresetWithResponse Saves a hub's or collection's structure as a preset
+	//
+	// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /presets (the `SavePreset` operationId).
+	SavePresetWithResponse(ctx context.Context, body SavePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*SavePresetResult, error)
+
+	// WithdrawPresetWithResponse Withdraws a saved preset
+	//
+	// Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /presets/{presetId} (the `WithdrawPreset` operationId).
+	WithdrawPresetWithResponse(ctx context.Context, presetId PresetId, params *WithdrawPresetParams, reqEditors ...RequestEditorFn) (*WithdrawPresetResult, error)
+
+	// ChangePresetWithBodyWithResponse Renames or changes a saved preset
+	//
+	// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+	ChangePresetWithBodyWithResponse(ctx context.Context, presetId PresetId, params *ChangePresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePresetResult, error)
+
+	// ChangePresetWithResponse Renames or changes a saved preset
+	//
+	// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+	ChangePresetWithResponse(ctx context.Context, presetId PresetId, params *ChangePresetParams, body ChangePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePresetResult, error)
 
 	// ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
 	//
@@ -52422,6 +52928,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// CloseStarterWithResponse Answers the first start's question for good
+	//
+	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
+	CloseStarterWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CloseStarterResult, error)
 
 	// SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
 	// with any type of body and a specified content type.
@@ -67785,6 +68300,157 @@ func (r ListPresetsResult) ContentType() string {
 	return ""
 }
 
+// SavePresetResult201Headers the declared response headers of an HTTP 201 response for SavePreset
+type SavePresetResult201Headers struct {
+	ETag *string
+}
+
+type SavePresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Preset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *SavePresetResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r SavePresetResult) GetJSON201() *Preset {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SavePresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SavePresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SavePresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SavePresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SavePresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WithdrawPresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WithdrawPresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WithdrawPresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WithdrawPresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WithdrawPresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WithdrawPresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ChangePresetResult200Headers the declared response headers of an HTTP 200 response for ChangePreset
+type ChangePresetResult200Headers struct {
+	ETag *string
+}
+
+type ChangePresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Preset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ChangePresetResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangePresetResult) GetJSON200() *Preset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangePresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangePresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangePresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangePresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangePresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ReadOwnAiPositionResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -69850,6 +70516,47 @@ func (r CountAccountsWithoutProviderResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CountAccountsWithoutProviderResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CloseStarterResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CloseStarterResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CloseStarterResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CloseStarterResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CloseStarterResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CloseStarterResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -77682,7 +78389,7 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 
 // ListPresetsWithResponse The presets a hub or collection can start from
 //
-// Hubtask's four presets - List, Tasks, Project and Flow - each with its eight settings as this installation offers them. A bounded list, not a page: there are four.
+// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -77693,6 +78400,81 @@ func (c *ClientWithResponses) ListPresetsWithResponse(ctx context.Context, reqEd
 		return nil, err
 	}
 	return ParseListPresetsResult(rsp)
+}
+
+// SavePresetWithBodyWithResponse Saves a hub's or collection's structure as a preset
+//
+// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /presets (the `SavePreset` operationId).
+func (c *ClientWithResponses) SavePresetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SavePresetResult, error) {
+	rsp, err := c.SavePresetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSavePresetResult(rsp)
+}
+
+// SavePresetWithResponse Saves a hub's or collection's structure as a preset
+//
+// Saves the eight settings in force on `container_id` under a name - its categories left out, which name one collection's labels - as the caller's own preset (`OWN`) or as the workspace's (`WORKSPACE`). An own preset is offered to the caller alone; a workspace preset to everyone in the workspace and needs the right to change the workspace's shape. Reading the container needs `READ` on it. Beyond the bound of its origin it is refused with `presets.limit_reached`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /presets (the `SavePreset` operationId).
+func (c *ClientWithResponses) SavePresetWithResponse(ctx context.Context, body SavePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*SavePresetResult, error) {
+	rsp, err := c.SavePreset(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSavePresetResult(rsp)
+}
+
+// WithdrawPresetWithResponse Withdraws a saved preset
+//
+// Withdraws a saved preset: it is offered no longer. Hubs and collections made from it keep their settings. A workspace preset that is the workspace's default is refused with `presets.workspace_default` until another default is chosen or none. Rights as for a change.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /presets/{presetId} (the `WithdrawPreset` operationId).
+func (c *ClientWithResponses) WithdrawPresetWithResponse(ctx context.Context, presetId PresetId, params *WithdrawPresetParams, reqEditors ...RequestEditorFn) (*WithdrawPresetResult, error) {
+	rsp, err := c.WithdrawPreset(ctx, presetId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWithdrawPresetResult(rsp)
+}
+
+// ChangePresetWithBodyWithResponse Renames or changes a saved preset
+//
+// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+func (c *ClientWithResponses) ChangePresetWithBodyWithResponse(ctx context.Context, presetId PresetId, params *ChangePresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangePresetResult, error) {
+	rsp, err := c.ChangePresetWithBody(ctx, presetId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePresetResult(rsp)
+}
+
+// ChangePresetWithResponse Renames or changes a saved preset
+//
+// Renames a saved preset, copies a hub's or collection's structure in force into it again (`container_id`), or sets settings on top (`settings`, held to what the installation offers like a layer's). Hubs and collections made from it keep their settings: a preset is copied, never followed. An own preset is changed by its owner alone - another person's is not found -, a workspace preset by whoever may change the workspace's shape. Writing what is stored changes nothing.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /presets/{presetId} (the `ChangePreset` operationId).
+func (c *ClientWithResponses) ChangePresetWithResponse(ctx context.Context, presetId PresetId, params *ChangePresetParams, body ChangePresetJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePresetResult, error) {
+	rsp, err := c.ChangePreset(ctx, presetId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangePresetResult(rsp)
 }
 
 // ReadOwnAiPositionWithResponse The caller's own view of keeping their content out of AI
@@ -78886,6 +79668,21 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseCountAccountsWithoutProviderResult(rsp)
+}
+
+// CloseStarterWithResponse Answers the first start's question for good
+//
+// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/starter:close (the `CloseStarter` operationId).
+func (c *ClientWithResponses) CloseStarterWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CloseStarterResult, error) {
+	rsp, err := c.CloseStarter(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCloseStarterResult(rsp)
 }
 
 // SetWorkspaceStructureWithBodyWithResponse performs a PATCH /tenant/structure (the `SetWorkspaceStructure` operationId) request,
@@ -90119,6 +90916,127 @@ func ParseListPresetsResult(rsp *http.Response) (*ListPresetsResult, error) {
 	return response, nil
 }
 
+// ParseSavePresetResult parses an HTTP response from a SavePresetWithResponse call
+func ParseSavePresetResult(rsp *http.Response) (*SavePresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SavePresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Preset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers SavePresetResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseWithdrawPresetResult parses an HTTP response from a WithdrawPresetWithResponse call
+func ParseWithdrawPresetResult(rsp *http.Response) (*WithdrawPresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WithdrawPresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangePresetResult parses an HTTP response from a ChangePresetWithResponse call
+func ParseChangePresetResult(rsp *http.Response) (*ChangePresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangePresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Preset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ChangePresetResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
 // ParseReadOwnAiPositionResult parses an HTTP response from a ReadOwnAiPositionWithResponse call
 func ParseReadOwnAiPositionResult(rsp *http.Response) (*ReadOwnAiPositionResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -91563,6 +92481,35 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCloseStarterResult parses an HTTP response from a CloseStarterWithResponse call
+func ParseCloseStarterResult(rsp *http.Response) (*CloseStarterResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CloseStarterResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

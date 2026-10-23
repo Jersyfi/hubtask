@@ -76,6 +76,15 @@ type WorkspaceWriter struct {
 	// Structure answers the workspace's structure beside its sign-in rule (domain-model.md §2).
 	// Nil answers none.
 	Structure WorkspaceStructureReader
+	// Starter decides starter_offered: whether a client asks this reader what the workspace is
+	// used for (UC-WRK-30 check 5). Nil asks nobody.
+	Starter StarterReader
+}
+
+// StarterReader answers whether the first start's question is offered to the reader. Declared here
+// and answered by the work context, like WorkspaceStructureReader.
+type StarterReader interface {
+	StarterOffered(ctx context.Context, actor appshared.ActorContext) (bool, error)
 }
 
 // WorkspaceStructureReader answers the workspace's own structure, its locks and the preset a new
@@ -127,6 +136,14 @@ func (w WorkspaceWriter) answer(
 			return nil, err
 		}
 		out["structure"] = structure
+	}
+	out["starter_offered"] = false
+	if w.Starter != nil {
+		offered, err := w.Starter.StarterOffered(ctx, actor)
+		if err != nil {
+			return nil, err
+		}
+		out["starter_offered"] = offered
 	}
 	return out, nil
 }

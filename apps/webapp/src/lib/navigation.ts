@@ -196,6 +196,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     code: 'app.admin.group_people',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
       { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'] },

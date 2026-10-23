@@ -111,6 +111,8 @@ export type {
   ContainerMilestone,
   Kudos,
   Preset,
+  PresetCreate,
+  PresetUpdate,
   StructureChange,
   StructureSettings,
   WorkspaceStructure,

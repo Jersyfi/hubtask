@@ -1006,6 +1006,18 @@ saved views that apply here, each opened by its row with its query and layout, t
 on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
 calendar subscriptions; the page menu carries none of them.
 
+**Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
+*Structure* panel's picker — each is marked with where it comes from: Hubtask's, the workspace's,
+yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
+unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
+workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
+change. The workspace's presets have their own administration view, *Presets*: each to rename or
+withdraw — the default's *Withdraw* unavailable with its reason —, the preset a new hub starts
+from, and the whole settings locked for every hub and collection, a lock from the installation or
+the plan unavailable with where it comes from. A new workspace asks its first person once, on Home,
+what it is used for, and sets up a hub and collections they can rename, change or remove; *Skip*
+and dismissing the dialog both close the question for good.
+
 Below `medium` the board shows one column with the columns as a strip above it; moving a card
 between columns is the card's menu (§11.9).
 

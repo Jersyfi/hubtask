@@ -134,7 +134,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette (UX-01, UX-06)
 - [x] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept — the sign-in card's steps (`SignInView`); walks `signin`, `keyfactor`, `passkeysignin`, `signinnames`, `terms` (UX-17)
 - [x] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept — `ResetView`, `RedeemView`, `ConfirmAddressView`, `OidcCallbackView` (back to sign-in, to the step-up's page, to *Password and sign-in*); walks `signin`, `terms`, `invitationlink`, `managedaddress`, `stepup` (UX-17)
-- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27) — kept checked in UX-17 (`SetupView`, walk `setup`); ticked with the starter question
+- [x] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27) — asked on Home after the setup; kept checked in UX-17 (`SetupView`, walk `setup`)
 - [x] Consent "Allow this app?" · About "This installation" → kept — `ConsentView` at `/oauth/consent`, `InstallationView` from the account menu (UX-17)
 
 ## E3 — Today, search, jumble, archive, trash
@@ -219,7 +219,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period — *Administration → Records → The trail*
 - [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
 - [x] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget — *Administration → AI*
-- [ ] New: *Presets* (UX-27)
+- [x] New: *Presets* (UX-27) — *Administration → Workspace and people → Presets*
 - [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
 - [x] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu — *Installation → Workspaces*
 - [x] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display — *Installation → Plans*, *Defaults*

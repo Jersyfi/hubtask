@@ -1203,6 +1203,10 @@ class Client:
         """Delete a group"""
         return self._call("DELETE", "/groups/{groupId}", {"groupId": group_id}, None, {"X-Hubtask-Step-Up": step_up}, None, "none", None, "void")
 
+    def close_starter(self) -> None:
+        """Answers the first start's question for good"""
+        return self._call("POST", "/tenant/starter:close", {}, None, {}, None, "none", None, "void")
+
     def set_workspace_structure(self, body: "WorkspaceStructureChange", *, if_match: str | None = None) -> "WorkspaceStructure":
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
@@ -1210,6 +1214,18 @@ class Client:
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
         return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")
+
+    def save_preset(self, body: "PresetCreate") -> "Preset":
+        """Saves a hub's or collection's structure as a preset"""
+        return self._call("POST", "/presets", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_preset(self, preset_id: str, body: "PresetUpdate", *, if_match: str | None = None) -> "Preset":
+        """Renames or changes a saved preset"""
+        return self._call("PATCH", "/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
+    def withdraw_preset(self, preset_id: str, *, if_match: str | None = None) -> None:
+        """Withdraws a saved preset"""
+        return self._call("DELETE", "/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
     def list_containers(self, *, query: dict[str, Any] | None = None) -> "ContainerPage":
         """GET /containers"""

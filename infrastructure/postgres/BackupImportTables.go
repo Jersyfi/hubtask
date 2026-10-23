@@ -337,6 +337,17 @@ var importers = map[string]importer{
 			return queries.ClearContainerMilestone(ctx)
 		},
 	},
+	"structure_preset": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportStructurePreset(ctx, sqlc.ImportStructurePresetParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsStructurePreset(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearStructurePreset(ctx)
+		},
+	},
 	"retention_policy": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportRetentionPolicy(ctx, sqlc.ImportRetentionPolicyParams{Payload: payload, Overwrite: overwrite})
