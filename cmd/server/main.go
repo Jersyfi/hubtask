@@ -782,7 +782,7 @@ func run() error {
 	// (work.KudosDesk).
 	kudosDesk := work.KudosDesk{
 		Kudos: postgres.NewKudosRepository(), Items: items, Containers: containers,
-		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Audit: auditSink,
+		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
@@ -1868,6 +1868,11 @@ func run() error {
 			Queue: jobs,
 		}.Descriptor(),
 		suggestionservice.DescribeRule{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
+		suggestionservice.AskWorkspace{
 			Cases: suggestionCases,
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
@@ -3563,6 +3568,7 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiAnswer:                 worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		// Its own kind, which a process of the previous release leaves alone.
 		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{

@@ -104,6 +104,9 @@ func labelColorToken(raw string) (string, error) {
 			WithDetail("labels.color_token_empty").
 			WithFields(shared.FieldError{Path: "/color_token", Code: "labels.color_token_empty"})
 	}
+	if err := knownColorToken(token, "labels.color_token_unknown"); err != nil {
+		return "", err
+	}
 	return token, nil
 }
 
@@ -146,7 +149,8 @@ func (l Label) Updated(attributes LabelAttributes, form text.Normalizer) (Label,
 		}
 	}
 
-	if attributes.ColorToken != nil {
+	// The colour it already has is no change, and is not checked again (knownColorToken).
+	if attributes.ColorToken != nil && strings.TrimSpace(*attributes.ColorToken) != l.ColorToken {
 		token, err := labelColorToken(*attributes.ColorToken)
 		if err != nil {
 			return Label{}, nil, err

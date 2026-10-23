@@ -30,3 +30,10 @@ export const outside: Story = {
     'Right-click “Buy milk”, or focus it and press the context-menu key or Shift+F10: the same menu opens at its button with the first item focused, and Escape gives focus back to the row. A right click with Shift keeps the browser’s own menu. A long press on touch opens it the same way (design-system.md §11.9).',
   args: { mode: 'outside' },
 };
+
+export const foot: Story = {
+  name: 'At the foot of a phone’s screen',
+  about:
+    'Set the width to compact or the window to a phone, and open the menu on the last row: neither the room above its button nor the room below holds all fifteen items. The menu opens towards the larger room, shrinks to it and scrolls inside, so every item is reachable without scrolling the page.',
+  args: { mode: 'foot' },
+};

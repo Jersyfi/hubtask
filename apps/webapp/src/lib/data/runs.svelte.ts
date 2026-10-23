@@ -64,7 +64,8 @@ export interface Run {
 
 interface RunPage {
   readonly data?: readonly Run[];
-  readonly next_cursor?: string | null;
+  // The contract puts the next page's cursor under `page` (PageInfo), never beside `data`.
+  readonly page?: { readonly next_cursor?: string | null; readonly has_more?: boolean };
 }
 
 /** One action of a rule, with whether it would have run. Both arms of every branch appear. */
@@ -115,7 +116,7 @@ class Runs {
       this.#pages = { ...this.#pages, [key]: next };
       if (next.status === 'ready') {
         this.#held = { ...this.#held, [key]: next.data.data ?? [] };
-        this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+        this.#cursors = { ...this.#cursors, [key]: next.data.page?.next_cursor ?? undefined };
       }
     });
   }
@@ -131,7 +132,7 @@ class Runs {
     if (next.status === 'failed') throw next.error;
     if (next.status !== 'ready') return;
     this.#held = { ...this.#held, [key]: [...(this.#held[key] ?? []), ...(next.data.data ?? [])] };
-    this.#cursors = { ...this.#cursors, [key]: next.data.next_cursor ?? undefined };
+    this.#cursors = { ...this.#cursors, [key]: next.data.page?.next_cursor ?? undefined };
   }
 
   /**

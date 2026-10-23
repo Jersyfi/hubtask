@@ -1437,13 +1437,19 @@ func TestTheShapesNothingAcceptsSayWhyRatherThanNotBuilt(t *testing.T) {
 			s.Payload = map[string]any{"duplicates": []any{}}
 			return s
 		}, "suggestions.decided_by_hand"},
+		{"an answer to a question", func(s domain.Suggestion) domain.Suggestion {
+			s.TargetType, s.TargetID, s.Kind = domain.TargetAccount, accountID, domain.KindAnswer
+			s.Payload = map[string]any{"answer": "Two entries are open."}
+			s.InputDigest = domain.Digest(accountID.String(), "")
+			return s
+		}, "suggestions.nothing_to_apply"},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
 			cases, world := newWorld()
 			world.store.proposals[proposalID] = testCase.shape(proposal())
 
 			_, err := (AcceptSuggestion{Cases: cases}).
-				Execute(context.Background(), person(), proposalID, nil)
+				Execute(context.Background(), drafter(), proposalID, nil)
 			if err == nil {
 				t.Fatal("it was accepted")
 			}

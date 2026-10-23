@@ -23,9 +23,11 @@
 import type { ChangeRecord } from '@hubtask/sync-engine';
 
 import { platform } from '../platform/index.ts';
+import { manifest } from './capabilities.svelte.ts';
 import { engine } from './engine.ts';
 import { figures } from './figures.svelte.ts';
 import { pathsFor, revokedContainerOf } from './live.ts';
+import { fetchStructureAfresh } from './replica.ts';
 
 /**
  * Where the connection stands, for the notice a reader sees.
@@ -111,6 +113,9 @@ class Live {
           // and the stream and every read work without it.
         }
       }
+      // Before the stream opens, so that its first catch-up takes the snapshot rather than a
+      // reconnect; the manifest's own arrival asks too, where it comes later (replica.ts).
+      await fetchStructureAfresh(engine, manifest.value?.features).catch(() => false);
       if (stopped) return;
       stopListening = engine.listen({
         pathsFor,

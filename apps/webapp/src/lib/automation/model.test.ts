@@ -399,7 +399,7 @@ test('what a draft could not draft is read as quotes and draft codes, and nothin
 });
 
 test('the step that drafts rules is not a block', () => {
-  assert.deepEqual(offeredBlocks(['ADD_LABEL', 'DESCRIBE_RULE', 'AI_CLASSIFY']), ['ADD_LABEL', 'AI_CLASSIFY']);
+  assert.deepEqual(offeredBlocks(['ADD_LABEL', 'DESCRIBE_RULE', 'AI_CLASSIFY', 'ASK_WORKSPACE']), ['ADD_LABEL', 'AI_CLASSIFY']);
 });
 
 // *Describe it* is offered exactly where asking could succeed: a new rule, AI available to this
