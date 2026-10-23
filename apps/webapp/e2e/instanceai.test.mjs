@@ -112,6 +112,27 @@ test('chromium: an operator offers a model, and withdraws one knowing what it co
   assert.match(sent[1].path, /0000000006a1$/);
 });
 
+// UX-18 (§E8): one model form for the workspace and the installation - the same fields in the same
+// order, the installation adding only the name and processor before them.
+test('chromium: a model is offered in the one model form a workspace uses too', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await open(browser);
+  t.after(close);
+
+  await page.goto(`${served.origin}/instance/ai`);
+  await page.getByRole('button', { name: 'Offer a model' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Offer a model' });
+  await dialog.waitFor();
+  const labels = await dialog.locator('label').allInnerTexts();
+  const order = ['Name', 'Processor', 'Provider', 'Address', 'Model for proposals', 'Model for meaning', 'API key', 'Where the provider processes'];
+  const found = order.map((name) => labels.findIndex((label) => label.startsWith(name)));
+  assert.ok(found.every((index) => index >= 0), `every field of the one form is drawn: ${labels.join(' | ')}`);
+  assert.deepEqual([...found].sort((a, b) => a - b), found, 'in the one form\'s order');
+  // A model that calls nothing is no model to offer.
+  assert.equal(await dialog.getByLabel(/^Provider/).locator('option', { hasText: 'None' }).count(), 0);
+});
+
 test('chromium: the defaults say in words which AI workspaces may use', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

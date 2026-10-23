@@ -29,8 +29,10 @@
 
   import { Banner, Button, Input, PageHeader, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
   import { TransportError } from '@hubtask/sync-engine';
-  import type { AiJurisdiction, AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
+  import type { AiProviderKind, AiSourceChoice, AiSourceKind, AiSources } from '@hubtask/sync-engine';
 
+  import ModelFields from '../lib/ai/ModelFields.svelte';
+  import { emptyModel, modelBody, modelOf } from '../lib/ai/model.ts';
   import { aiProvider } from '../lib/data/aiprovider.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
@@ -46,12 +48,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
 
-  let kind = $state<AiProviderKind | ''>('');
-  let baseUrl = $state('');
-  let completionModel = $state('');
-  let embeddingModel = $state('');
-  let apiKey = $state('');
-  let jurisdiction = $state<AiJurisdiction | ''>('');
+  let draft = $state(emptyModel('', ''));
   let processingAllowed = $state(false);
   let confirmingRemoval = $state(false);
   let isWorking = $state(false);
@@ -140,28 +137,13 @@
     const current = provider;
     if (!current || filled) return;
     filled = true;
-    kind = current.kind;
-    baseUrl = current.base_url ?? '';
-    completionModel = current.completion_model ?? '';
-    embeddingModel = current.embedding_model ?? '';
-    jurisdiction = current.jurisdiction;
+    draft = modelOf(current);
     processingAllowed = current.processing_allowed;
   });
 
-  // The two closed sets are the contract's own enums. Written here as options for the pickers,
-  // which is not a hard-coded list of what the installation supports: a kind the server refuses
-  // comes back as `ai.kind_unknown`, rendered like any refusal.
-  const kinds: { value: AiProviderKind; label: string }[] = [
-    { value: 'OPENAI_COMPATIBLE', label: t('app.ai.kind_openai_compatible') },
-    { value: 'OLLAMA', label: t('app.ai.kind_ollama') },
-    { value: 'NOOP', label: t('app.ai.kind_noop') },
-  ];
-  const allJurisdictions: { value: AiJurisdiction; label: string }[] = [
-    { value: 'SELF_HOSTED', label: t('app.ai.jurisdiction_self_hosted') },
-    { value: 'EEA', label: t('app.ai.jurisdiction_eea') },
-    { value: 'ADEQUACY', label: t('app.ai.jurisdiction_adequacy') },
-    { value: 'THIRD_COUNTRY', label: t('app.ai.jurisdiction_third_country') },
-  ];
+  // The contract's own enum, which is not a hard-coded list of what the installation supports: a
+  // kind the server refuses comes back as `ai.kind_unknown`, rendered like any refusal.
+  const KINDS: readonly AiProviderKind[] = ['OPENAI_COMPATIBLE', 'OLLAMA', 'NOOP'];
 
   /** Who set a rule, in words: the installation or the plan. */
   const setBy = (origin: string | undefined): string =>
@@ -218,33 +200,19 @@
   // UC-AI-03 check 2: the consent names who receives the content and where, in words, from what the
   // form holds now - the sentence changes with the address and the jurisdiction it is about.
   const consentLabel = $derived.by(() => {
-    const host = hostOf(baseUrl);
-    return host && jurisdiction
-      ? t('app.ai.consent_label_named', { host, where: jurisdiction })
+    const host = hostOf(draft.baseUrl);
+    return host && draft.jurisdiction
+      ? t('app.ai.consent_label_named', { host, where: draft.jurisdiction })
       : t('app.ai.consent_label');
   });
-
-  /**
-   * The declarations the installation's minimum admits (UC-AI-06 check 4). A looser one is not
-   * offered, because the server refuses it (P-05); the sentence beside the field says why the list
-   * is shorter. A stored declaration below the minimum stays in the list, so the form can show it.
-   */
-  const RANK: Record<AiJurisdiction, number> = { THIRD_COUNTRY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
-  const MINIMUM_RANK: Record<string, number> = { ANY: 0, ADEQUACY: 1, EEA: 2, SELF_HOSTED: 3 };
-  const jurisdictions = $derived(
-    allJurisdictions.filter(
-      (each) =>
-        RANK[each.value] >= (MINIMUM_RANK[source?.min_jurisdiction ?? 'ANY'] ?? 0) || each.value === provider?.jurisdiction,
-    ),
-  );
 
   async function save(event: SubmitEvent): Promise<void> {
     event.preventDefault();
     // Never switched off for an empty choice: pressed, the missing choice is marked and focused
     // (UC-WRK-32 check 3).
     missing = check([
-      { kind: 'field', key: 'kind', code: 'app.ai.kind_needed', isFilled: kind !== '' },
-      { kind: 'field', key: 'jurisdiction', code: 'app.ai.jurisdiction_needed', isFilled: jurisdiction !== '' },
+      { kind: 'field', key: 'kind', code: 'app.ai.kind_needed', isFilled: draft.kind !== '' },
+      { kind: 'field', key: 'jurisdiction', code: 'app.ai.jurisdiction_needed', isFilled: draft.jurisdiction !== '' },
     ]);
     if (!isComplete(missing)) {
       void tick().then(() => focusFirst(ownForm));
@@ -253,21 +221,11 @@
     isWorking = true;
     failure = undefined;
     try {
-      await aiProvider.configure({
-        kind: kind as AiProviderKind,
-        ...(baseUrl.trim() ? { base_url: baseUrl.trim() } : {}),
-        ...(completionModel.trim() ? { completion_model: completionModel.trim() } : {}),
-        ...(embeddingModel.trim() ? { embedding_model: embeddingModel.trim() } : {}),
-        // Absent keeps the sealed key; a value replaces it. The field is never sent empty from
-        // here, because "clear the key" is a different intent from "I typed nothing" and this
-        // screen offers the first as the removal below.
-        ...(apiKey ? { api_key: apiKey } : {}),
-        jurisdiction: jurisdiction as AiJurisdiction,
-        processing_allowed: processingAllowed,
-      });
+      // Clearing the key is the removal below, never an empty field.
+      await aiProvider.configure({ ...modelBody(draft), processing_allowed: processingAllowed });
       // Out of the component's state at once: a key kept for a second submission is a key sitting
       // in a form for as long as the tab is open.
-      apiKey = '';
+      draft.apiKey = '';
       toast.show({ text: t('app.ai.saved'), tone: 'success' });
     } catch (cause) {
       failure = problemOf(cause);
@@ -283,12 +241,7 @@
       await aiProvider.remove();
       confirmingRemoval = false;
       filled = false;
-      kind = '';
-      baseUrl = '';
-      completionModel = '';
-      embeddingModel = '';
-      apiKey = '';
-      jurisdiction = '';
+      draft = emptyModel('', '');
       processingAllowed = false;
     } catch (cause) {
       failure = problemOf(cause);
@@ -399,34 +352,25 @@
       {#if choosing}<h2 class="section">{t('app.ai.own_title')}</h2>{/if}
       <form class="panel" bind:this={ownForm} onsubmit={save}>
         <Stack gap="200">
-          <Select label={t('app.ai.kind_label')} hint={t('app.ai.kind_hint')} bind:value={kind} placeholder={t('app.ai.kind_choose')} options={kinds} error={missing.kind && !kind ? t(missing.kind) : undefined} />
-          <Input
-            label={t('app.ai.base_url_label')}
-            hint={t('app.ai.base_url_hint')}
-            bind:value={baseUrl}
-            type="url"
-            autocomplete="off"
-            spellcheck={false}
-          />
-          <Input label={t('app.ai.completion_model_label')} hint={t('app.ai.completion_model_hint')} bind:value={completionModel} autocomplete="off" spellcheck={false} />
-          <Input label={t('app.ai.embedding_model_label')} hint={t('app.ai.embedding_model_hint')} bind:value={embeddingModel} autocomplete="off" spellcheck={false} />
-          <Input
-            label={t('app.ai.api_key_label')}
-            hint={provider?.has_api_key ? t('app.ai.api_key_kept') : t('app.ai.api_key_hint')}
-            bind:value={apiKey}
-            type="password"
-            autocomplete="off"
-            spellcheck={false}
-          />
-          <Select label={t('app.ai.jurisdiction_label')} hint={t('app.ai.jurisdiction_hint')} bind:value={jurisdiction} placeholder={t('app.ai.jurisdiction_choose')} options={jurisdictions} error={missing.jurisdiction && !jurisdiction ? t(missing.jurisdiction) : undefined} />
-          {#if source && source.min_jurisdiction !== 'ANY'}
-            <p class="quiet">
-              {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
-              <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
-            </p>
-          {/if}
-          <!-- The consent, as its own switch, naming who receives the content and where. -->
-          <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
+          <ModelFields
+            bind:draft
+            kinds={KINDS}
+            minimum={source?.min_jurisdiction ?? 'ANY'}
+            stored={provider?.jurisdiction}
+            hasKey={provider?.has_api_key === true}
+            {missing}
+          >
+            {#snippet more()}
+              {#if source && source.min_jurisdiction !== 'ANY'}
+                <p class="quiet">
+                  {t('app.ai.minimum', { minimum: source.min_jurisdiction, by: setBy(source.min_jurisdiction_origin) })}
+                  <ValueSource source={source.min_jurisdiction_origin} lock={source.min_jurisdiction_lock} value={source.min_jurisdiction} />
+                </p>
+              {/if}
+              <!-- The consent, as its own switch, naming who receives the content and where. -->
+              <Switch label={consentLabel} hint={t('app.ai.consent_hint')} bind:checked={processingAllowed} />
+            {/snippet}
+          </ModelFields>
           <WriteOnly>
             <div>
               <Button

@@ -11,15 +11,17 @@
   // **What a workspace sees is the name, the processor and where.** The address, the models and the
   // key stay the operator's; the form says so where they are typed.
   //
-  // **The key is written and never read.** Sealed on the way in; leaving it empty on a change keeps
-  // the sealed one.
+  // **The fields are the one model form** (`ModelFields`), a workspace's own model's too; the
+  // installation adds the name and the processor a workspace chooses by.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Dialog, Input, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Banner, Button, Dialog, Input, PageHeader, Spinner, Stack, Table } from '@hubtask/design-system/components';
   import type { AiJurisdiction, AiProviderKind, OfferedAiModel } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
+  import ModelFields from '../lib/ai/ModelFields.svelte';
+  import { emptyModel, modelBody, modelOf } from '../lib/ai/model.ts';
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import { instance } from '../lib/data/instance.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -40,12 +42,7 @@
 
   let displayName = $state('');
   let processor = $state('');
-  let kind = $state<AiProviderKind>('OPENAI_COMPATIBLE');
-  let baseUrl = $state('');
-  let completionModel = $state('');
-  let embeddingModel = $state('');
-  let apiKey = $state('');
-  let jurisdiction = $state<AiJurisdiction>('EEA');
+  let draft = $state(emptyModel('OPENAI_COMPATIBLE', 'EEA'));
 
   $effect(() => {
     const stop = untrack(() => instance.openOfferedAi());
@@ -63,20 +60,11 @@
     { id: 'actions', label: t('app.instance.column_actions'), isLabelHidden: true },
   ]);
 
-  const kinds: { value: AiProviderKind; label: string }[] = [
-    { value: 'OPENAI_COMPATIBLE', label: t('app.ai.kind_openai_compatible') },
-    { value: 'OLLAMA', label: t('app.ai.kind_ollama') },
-  ];
-  const jurisdictions: { value: AiJurisdiction; label: string }[] = [
-    { value: 'SELF_HOSTED', label: t('app.ai.jurisdiction_self_hosted') },
-    { value: 'EEA', label: t('app.ai.jurisdiction_eea') },
-    { value: 'ADEQUACY', label: t('app.ai.jurisdiction_adequacy') },
-    { value: 'THIRD_COUNTRY', label: t('app.ai.jurisdiction_third_country') },
-  ];
+  /** A model that calls nothing is no model to offer. */
+  const KINDS: readonly AiProviderKind[] = ['OPENAI_COMPATIBLE', 'OLLAMA'];
 
   /** Where a model processes content, in words - never the contract's value. */
-  const where = (value: AiJurisdiction): string =>
-    jurisdictions.find((each) => each.value === value)?.label ?? '';
+  const where = (value: AiJurisdiction): string => t(`app.ai.jurisdiction_${value.toLowerCase()}`);
 
   function open(next: 'add' | 'change' | 'remove', model?: OfferedAiModel): void {
     acting = { kind: next, model };
@@ -84,22 +72,12 @@
     if (next === 'add') {
       displayName = '';
       processor = '';
-      kind = 'OPENAI_COMPATIBLE';
-      baseUrl = '';
-      completionModel = '';
-      embeddingModel = '';
-      apiKey = '';
-      jurisdiction = 'EEA';
+      draft = emptyModel('OPENAI_COMPATIBLE', 'EEA');
     }
     if (next === 'change' && model) {
       displayName = model.display_name;
       processor = model.processor;
-      kind = model.kind;
-      baseUrl = model.base_url ?? '';
-      completionModel = model.completion_model ?? '';
-      embeddingModel = model.embedding_model ?? '';
-      apiKey = '';
-      jurisdiction = model.jurisdiction;
+      draft = modelOf(model);
     }
   }
 
@@ -109,7 +87,7 @@
     try {
       await call();
       acting = undefined;
-      apiKey = '';
+      draft.apiKey = '';
     } catch (cause) {
       failure =
         cause instanceof TransportError
@@ -121,17 +99,8 @@
   }
 
   function body(): Parameters<typeof instance.configureOfferedAi>[0] {
-    return {
-      display_name: displayName.trim(),
-      processor: processor.trim(),
-      kind,
-      base_url: baseUrl.trim(),
-      ...(completionModel.trim() ? { completion_model: completionModel.trim() } : {}),
-      ...(embeddingModel.trim() ? { embedding_model: embeddingModel.trim() } : {}),
-      // Absent keeps the sealed key; the field is never sent empty from here.
-      ...(apiKey ? { api_key: apiKey } : {}),
-      jurisdiction,
-    };
+    // The address is required here, so it is always sent.
+    return { display_name: displayName.trim(), processor: processor.trim(), ...modelBody(draft), base_url: draft.baseUrl.trim() };
   }
 
   $effect(() => page.entitle(t('app.instance.ai')));
@@ -219,22 +188,21 @@
       </Banner>
     {/if}
     <p class="prose">{t('app.instance.ai_form_intro')}</p>
-    <Input label={t('app.instance.ai_name_label')} hint={t('app.instance.ai_name_hint')} bind:value={displayName} error={failure?.fields.get('/display_name')} autocomplete="off" isRequired />
-    <Input label={t('app.instance.ai_processor_label')} hint={t('app.instance.ai_processor_hint')} bind:value={processor} error={failure?.fields.get('/processor')} autocomplete="off" isRequired />
-    <Select label={t('app.instance.ai_jurisdiction_label')} hint={t('app.instance.ai_jurisdiction_hint')} bind:value={jurisdiction} options={jurisdictions} />
-    <p class="quiet-line">{t('app.instance.ai_operator_only')}</p>
-    <Select label={t('app.ai.kind_label')} bind:value={kind} options={kinds} />
-    <Input label={t('app.ai.base_url_label')} bind:value={baseUrl} error={failure?.fields.get('/base_url')} type="url" autocomplete="off" spellcheck={false} isRequired />
-    <Input label={t('app.ai.completion_model_label')} hint={t('app.ai.completion_model_hint')} bind:value={completionModel} autocomplete="off" spellcheck={false} />
-    <Input label={t('app.ai.embedding_model_label')} hint={t('app.instance.ai_embedding_hint')} bind:value={embeddingModel} autocomplete="off" spellcheck={false} />
-    <Input
-      label={t('app.ai.api_key_label')}
-      hint={acting?.kind === 'change' && acting.model?.has_api_key ? t('app.ai.api_key_kept') : t('app.ai.api_key_hint')}
-      bind:value={apiKey}
-      type="password"
-      autocomplete="off"
-      spellcheck={false}
-    />
+    <ModelFields
+      bind:draft
+      kinds={KINDS}
+      hasKey={acting?.kind === 'change' && acting.model?.has_api_key === true}
+      isAddressRequired
+      errors={failure?.fields}
+    >
+      {#snippet before()}
+        <Input label={t('app.instance.ai_name_label')} hint={t('app.instance.ai_name_hint')} bind:value={displayName} error={failure?.fields.get('/display_name')} autocomplete="off" isRequired />
+        <Input label={t('app.instance.ai_processor_label')} hint={t('app.instance.ai_processor_hint')} bind:value={processor} error={failure?.fields.get('/processor')} autocomplete="off" isRequired />
+      {/snippet}
+      {#snippet more()}
+        <p class="quiet-line">{t('app.instance.ai_operator_only')}</p>
+      {/snippet}
+    </ModelFields>
   </Stack>
 </Dialog>
 
