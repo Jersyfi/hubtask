@@ -134,7 +134,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette (UX-01, UX-06)
 - [ ] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept
 - [ ] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept
-- [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27)
+- [x] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27) — asked on Home after the setup
 - [ ] Consent "Allow this app?" · About "This installation" → kept
 
 ## E3 — Today, search, jumble, archive, trash
@@ -219,7 +219,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period
 - [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
 - [ ] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget
-- [ ] New: *Presets* (UX-27)
+- [x] New: *Presets* (UX-27) — *Administration → Workspace and people → Presets*
 - [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
 - [ ] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu
 - [ ] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display

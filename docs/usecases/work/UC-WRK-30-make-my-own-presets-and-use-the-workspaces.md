@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-owner, PE-admin]
 deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-06, P-07, P-10]
-state: specified
+state: partial
 tasks: [UX-27]
-checked_by: []
+checked_by: [core/domain/model/work/SavedPreset_test.go, test/integration/structure_preset_test.go, test/integration/presets_test.go, test/integration/starter_test.go, apps/webapp/src/lib/data/presetChoice.test.ts, apps/webapp/src/lib/workspace/structureDraft.test.ts, apps/webapp/src/lib/workspace/starterSet.test.ts, apps/webapp/e2e/presets.test.mjs, apps/webapp/e2e/starter.test.mjs]
 ---
 
 # Make my own presets and use the workspace's
@@ -34,8 +34,4 @@ The freelancer has tuned "Client A": two levels, a field "Hours" with a sum, a b
 
 ## Today
 
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
+* Check 2: not met — the installation's presets are not offered yet, tracked in #1660.
