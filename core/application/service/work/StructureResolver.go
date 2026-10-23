@@ -25,6 +25,9 @@ type StructureResolver struct {
 	// Presets reads the saved presets a layer can be copied from. A build without it offers
 	// Hubtask's presets alone.
 	Presets repository.Presets
+	// Installation reads the installation's presets: offered to everyone, and its default's hold
+	// on every workspace. A build without it has neither.
+	Installation repository.InstallationPresets
 }
 
 // Wired reports whether the resolver has what it needs. A handler built without one - in a test
@@ -56,6 +59,15 @@ func (s *layerReading) Bound(ctx context.Context) (domain.StructureBound, error)
 		bound, err := structureBound(ctx, s.resolver.Profiles)
 		if err != nil {
 			return domain.StructureBound{}, err
+		}
+		if s.resolver.Installation != nil {
+			standing, held, err := s.resolver.Installation.Default(ctx)
+			if err != nil {
+				return domain.StructureBound{}, err
+			}
+			if held {
+				bound = bound.WithInstallation(standing.Hold())
+			}
 		}
 		s.bound = &bound
 	}

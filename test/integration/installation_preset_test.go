@@ -37,7 +37,7 @@ func installationPresetIn(t *testing.T) domain.InstallationPreset {
 // every test in the run, and one default at most may stand.
 func withdrawnAtEnd(ctx context.Context, t *testing.T, id shared.ID) {
 	t.Cleanup(func() {
-		_ = asInstallation(context.Background(), t, true, func(ctx context.Context) error {
+		_ = asInstallation(context.WithoutCancel(ctx), t, true, func(ctx context.Context) error {
 			return postgres.NewInstallationPresetRepository().Delete(ctx, id, nil)
 		})
 	})

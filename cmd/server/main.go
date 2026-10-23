@@ -695,9 +695,10 @@ func run() error {
 	// One resolver of the structure in force, for every reader and writer of one (domain-model.md
 	// §2): a value read on one door is the value written on another.
 	presets := postgres.NewPresetRepository()
+	installationPresets := postgres.NewInstallationPresetRepository()
 	structures := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
-		Presets: presets,
+		Presets: presets, Installation: installationPresets,
 	}
 	starter := work.Starter{
 		Starts: postgres.NewStarterRepository(), Permits: authorizer, Authorizer: authorizer,
@@ -2199,7 +2200,9 @@ func run() error {
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
-		work.ListPresets{Profiles: profiles, Presets: presets, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListPresets{
+			Profiles: profiles, Presets: presets, Installation: installationPresets, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.ListJumbleDestinations{
 			Collections: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork,
