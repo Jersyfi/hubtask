@@ -616,6 +616,16 @@ export class HubtaskClient {
     return this.call("PATCH", "/accounts/me", {  }, undefined, {  }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** Show a picture of one's own beside one's name */
+  setOwnAvatar(body: NonNullable<operations["setOwnAvatar"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setOwnAvatar"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/accounts/me/avatar", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Go back to the initials */
+  removeOwnAvatar(options: CallOptions = {}): Promise<operations["removeOwnAvatar"]['responses'][200]['content']["application/json"]> {
+    return this.call("DELETE", "/accounts/me/avatar", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The name behind an account identifier */
   getAccount(accountId: string, options: CallOptions = {}): Promise<operations["getAccount"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/{accountId}", { "accountId": accountId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

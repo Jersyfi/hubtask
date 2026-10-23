@@ -360,6 +360,21 @@ func (q *Queries) MarkMediaOrphans(ctx context.Context, arg MarkMediaOrphansPara
 	return result.RowsAffected(), nil
 }
 
+const mediaServesAvatar = `-- name: MediaServesAvatar :one
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE avatar_media_id = $1::uuid AND deleted_at IS NULL
+)::boolean AS serves
+`
+
+// Whether somebody shows the object as their picture, for GetMedia's authorisation: a picture is
+// read by every member, as the name beside it is.
+func (q *Queries) MediaServesAvatar(ctx context.Context, mediaID pgtype.UUID) (bool, error) {
+	row := q.db.QueryRow(ctx, mediaServesAvatar, mediaID)
+	var serves bool
+	err := row.Scan(&serves)
+	return serves, err
+}
+
 const recountMediaReferences = `-- name: RecountMediaReferences :exec
 UPDATE media_object m SET
   ref_count = c.total,
@@ -373,7 +388,9 @@ FROM (
     + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id)
     -- A jumble entry's attachments are references too: an object a mail brought in must
     -- not be reclaimed while the entry that carries it is still readable.
-    + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments)) AS total
+    + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
+    -- A person's picture: reclaimed only once nobody shows it any more.
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c

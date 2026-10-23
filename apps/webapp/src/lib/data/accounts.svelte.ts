@@ -21,7 +21,9 @@
 
 import type { AccountSummary } from '@hubtask/sync-engine';
 
+import { actor } from './account.svelte.ts';
 import { engine } from './engine.ts';
+import { media } from './media.svelte.ts';
 
 class Accounts {
   #names = $state<Record<string, string>>({});
@@ -45,6 +47,11 @@ class Accounts {
    * condition for a new start password and an address, so a screen offers both exactly there.
    */
   #managed = $state<Record<string, true>>({});
+  /**
+   * The picture each person shows beside their name, by media identifier. The URL is minted per
+   * read and expires, so it is the media cache that holds it, not this one.
+   */
+  #pictures = $state<Record<string, string>>({});
   /** Asked for and not answered yet, so a second caller does not ask again. */
   #asking = new Set<string>();
   /** Asked for and refused, so nobody asks again at all. */
@@ -63,6 +70,20 @@ class Accounts {
   /** Whether the account is known to be managed. Unknown reads as not: nothing is offered. */
   isManaged(id: string | null | undefined): boolean {
     return id ? this.#managed[id] === true : false;
+  }
+
+  /**
+   * Where to draw the person's picture from, or `undefined` for the initials — no picture, not read
+   * yet, or one this reader is not handed. Safe on every render, as `media.coverUrl` is.
+   *
+   * The reader's own picture is read off their own account, which a change of it re-reads: the
+   * summary cached here would still show the one before.
+   */
+  pictureOf(id: string | null | undefined, now: number = Date.now()): string | undefined {
+    if (!id) return undefined;
+    const own = actor.account;
+    const mediaId = own?.id === id ? (own.avatar_media_id ?? undefined) : this.#pictures[id];
+    return media.coverUrl(mediaId, now);
   }
 
   /** The account's standing — `ACTIVE`, `INVITED`, `DISABLED` — where it is known. */
@@ -92,6 +113,7 @@ class Accounts {
         if (state.data.status) this.#statuses = { ...this.#statuses, [id]: state.data.status };
         if (state.data.has_address === false) this.#addressless = { ...this.#addressless, [id]: true };
         if (state.data.managed === true) this.#managed = { ...this.#managed, [id]: true };
+        if (state.data.avatar_media_id) this.#pictures = { ...this.#pictures, [id]: state.data.avatar_media_id };
       } else {
         this.#unknown.add(id);
       }

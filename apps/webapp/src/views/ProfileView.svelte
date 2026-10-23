@@ -4,10 +4,10 @@
   // *You*: the first screen of Your settings (ADR-0065 decision 3) and the bottom bar's *You* -
   // what the others call this reader, and how the product speaks to them.
   //
-  // **The name is the person's own** (`PATCH /accounts/me`), shown with the avatar it makes: the
-  // initials of the name, which is the whole avatar today - a picture of one's own needs media
-  // storage for accounts, which there is none of yet. It saves with the language under the one save
-  // bar, because both are a form somebody fills in and leaves.
+  // **The name is the person's own** (`PATCH /accounts/me`), shown with the avatar: the picture the
+  // person chose, or the initials of the name. The name saves with the language under the one save
+  // bar, because both are a form somebody fills in and leaves; the picture is written the moment it
+  // is chosen (PictureField).
   //
   // **The client reads these three, and this is the one screen that sets them.** It does the
   // setting only — the frame still applies the language and the
@@ -42,10 +42,12 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import PictureField from '../lib/profile/PictureField.svelte';
   import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
+  import { accounts } from '../lib/data/accounts.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { preferences } from '../lib/data/preferences.svelte.ts';
   import { WEEK_STARTS, clearedOr, zoneOptions, localesOf, withWorkspaceChoice } from '../lib/data/preferences.ts';
@@ -171,9 +173,10 @@
          section's first screen, and what is on the next row of the column its sentence names. -->
     <form class="panel" data-tour="profile" onsubmit={(event) => { event.preventDefault(); void save(); }}>
       <Stack gap="200">
-        <!-- The avatar the name makes, beside the field that makes it: what the others see. -->
+        <!-- The avatar beside the field: what the others see - the picture, or the initials the
+             name makes. -->
         <div class="who">
-          <Avatar name={displayName.trim() || account.display_name} />
+          <Avatar name={displayName.trim() || account.display_name} src={accounts.pictureOf(account.id)} />
           <div class="name">
             <Input
               label={t('app.profile.display_name')}
@@ -186,6 +189,8 @@
             />
           </div>
         </div>
+
+        <PictureField />
 
         {#if locales.length > 0}
           <Select

@@ -293,6 +293,26 @@ func (r MediaRepository) ReferencingItems(
 	return refs, nil
 }
 
+// ServesAvatar answers whether some account shows the object as its picture.
+func (r MediaRepository) ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(mediaID)
+	if err != nil {
+		return false, err
+	}
+
+	serves, err := queries.MediaServesAvatar(ctx, id)
+	if err != nil {
+		return false, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("asking whether %s is a picture: %w", mediaID, err))
+	}
+	return serves, nil
+}
+
 // ListForItem returns one page of an item's attachments as media objects.
 func (r MediaRepository) ListForItem(
 	ctx context.Context, itemID shared.ID, page repository.Page,

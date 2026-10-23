@@ -130,7 +130,7 @@ func (h GetAccount) invoke(
 // business. Written out rather than derived by deleting keys: a projection that starts from
 // everything and removes what must not travel leaks a field the day somebody adds one.
 func accountSummaryOutput(account domain.Account) usecase.Output {
-	return usecase.Output{
+	out := usecase.Output{
 		"id":           account.ID.String(),
 		"kind":         string(account.Kind),
 		"display_name": account.DisplayName,
@@ -141,4 +141,9 @@ func accountSummaryOutput(account domain.Account) usecase.Output {
 		// §6): the full condition, so a screen never offers what the server refuses.
 		"managed": account.OnlyThePasswordReaches(),
 	}
+	// The picture beside the name, which every member sees as they see the name (§9's minimum).
+	if !account.AvatarMediaID.IsZero() {
+		out["avatar_media_id"] = account.AvatarMediaID.String()
+	}
+	return out
 }

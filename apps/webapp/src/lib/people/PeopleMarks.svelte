@@ -35,11 +35,11 @@
 {#if assigneeId || others.length > 0}
   <span class="marks">
     {#if assigneeId}
-      <Avatar name={nameOf(assigneeId)} size="sm" />
+      <Avatar name={nameOf(assigneeId)} src={accounts.pictureOf(assigneeId)} size="sm" />
     {/if}
     {#if others.length > 0}
       <AvatarGroup
-        people={others.map((id) => ({ name: nameOf(id) }))}
+        people={others.map((id) => ({ name: nameOf(id), src: accounts.pictureOf(id) }))}
         size="sm"
         max={3}
         overflowLabel={t('app.people.more_members', { count: String(Math.max(others.length - 3, 0)) })}
