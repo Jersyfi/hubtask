@@ -464,3 +464,127 @@ test('the first server answer after a reconnect replaces the replica\'s state', 
   assert.equal(seen.at(-1), 'server:Buy milk (server)');
   assert.equal(transport.calls.filter((c) => c.path === `/items/${ITEM}`).length - reads, 1, 'read again exactly once');
 });
+
+// ---------------------------------------------------------------------------------------------
+// A fresh snapshot, once (offline-sync.md §4.2: a container held from before the server answered
+// `structure`). Which copy needs one is the application's question; these hold the engine's half.
+// ---------------------------------------------------------------------------------------------
+
+const STRUCTURE = { preset: 'LIST', settings: { levels: [{ type: 'TASK' }] }, sources: {}, locks: {} };
+/** The workspace as a server that answers `structure` sends it. */
+const STRUCTURED: readonly ChangeRecord[] = WORKSPACE.map((record) =>
+  record.entity === 'container' ? ({ ...record, payload: { ...(record.payload as object), structure: STRUCTURE } } as ChangeRecord) : record);
+
+/** A store synchronised before the server answered `structure`: its containers hold none. */
+async function heldFromBefore(): Promise<MemoryStorage> {
+  const storage = new MemoryStorage();
+  const transport = new FakeTransport().snapshotSessions({ records: WORKSPACE, cursor: 'c-100' }).streamSessions({ open: true });
+  transport.answer('/sync:pull', { changes: [], cursor: 'c-100', has_more: false });
+  const { engine } = await attached(transport, storage);
+  const stop = engine.listen({ pathsFor });
+  await settle();
+  stop();
+  return storage;
+}
+
+/**
+ * The server today: one entry deleted since the copy was taken, so the delta from the held cursor
+ * carries its deletion and the snapshot no longer lists it; every container with its structure.
+ */
+const today = () => new FakeTransport()
+  .snapshotSessions({ records: STRUCTURED.filter((record) => record.entity_id !== OTHER_ITEM), cursor: 'c-300' })
+  .streamSessions({ open: true })
+  .answerEach('/sync:pull', [
+    { changes: [{ op: 'DELETE', entity: 'item', entity_id: OTHER_ITEM, container_id: OTHER_COLLECTION }], cursor: 'c-200', has_more: false },
+    { changes: [], cursor: 'c-300', has_more: false },
+  ]);
+
+test('a fresh snapshot asked for is taken once, after the delta, and the copy holds every structure', async () => {
+  const storage = await heldFromBefore();
+  const transport = today();
+  const { engine } = await attached(transport, storage);
+  assert.equal(await engine.resynchronise('structure'), true);
+  assert.equal(await engine.resynchronise('structure'), false, 'asked once');
+  const stop = engine.listen({ pathsFor });
+  await settle(30);
+  stop();
+
+  assert.equal(transport.snapshots.length, 1, 'one snapshot');
+  const pulls = transport.calls.filter((c) => c.path === '/sync:pull').map((c) => (c.body as { cursor: unknown }).cursor);
+  assert.deepEqual(pulls, ['c-100', 'c-300'], 'the delta from the held cursor first, then from the snapshot\'s');
+  assert.deepEqual((await held(storage, 'container', COLLECTION))?.document.structure, STRUCTURE);
+  assert.equal(await held(storage, 'item', OTHER_ITEM), undefined, 'a deletion since the held cursor is not written back');
+  assert.deepEqual(await storage.get(META, 'resynchronisations'), { structure: 'done' });
+  assert.equal(transport.streams[0]?.lastEventId, 'c-300');
+});
+
+test('a second start after the fresh snapshot takes none, and the reason cannot be asked again', async () => {
+  const storage = await heldFromBefore();
+  const first = await attached(today(), storage);
+  await first.engine.resynchronise('structure');
+  const stopFirst = first.engine.listen({ pathsFor });
+  await settle(30);
+  stopFirst();
+
+  const transport = today();
+  const second = await attached(transport, storage);
+  assert.equal(await second.engine.resynchronise('structure'), false, 'once per device, across a reload');
+  const stop = second.engine.listen({ pathsFor });
+  await settle(30);
+  stop();
+  assert.equal(transport.snapshots.length, 0, 'no snapshot on a second start');
+});
+
+test('without a request no fresh snapshot is taken', async () => {
+  const storage = await heldFromBefore();
+  const transport = today();
+  const { engine } = await attached(transport, storage);
+  const stop = engine.listen({ pathsFor });
+  await settle(30);
+  stop();
+  assert.equal(transport.snapshots.length, 0);
+  assert.equal((await held(storage, 'container', COLLECTION))?.document.structure, undefined);
+});
+
+test('a request made while the stream is open reconnects and takes the snapshot now', async () => {
+  const storage = await heldFromBefore();
+  const transport = today();
+  const { engine } = await attached(transport, storage);
+  const stop = engine.listen({ pathsFor });
+  await settle(30);
+  assert.equal(transport.snapshots.length, 0);
+  assert.equal(transport.streams.length, 1);
+
+  await engine.resynchronise('structure');
+  await settle(30);
+  stop();
+  assert.equal(transport.snapshots.length, 1, 'taken without waiting for the server to close the stream');
+  assert.equal(transport.streams.length, 2, 'one reconnect');
+  assert.deepEqual((await held(storage, 'container', HUB))?.document.structure, STRUCTURE);
+});
+
+test('offline the request waits in the store and is taken once the server answers', async () => {
+  const storage = await heldFromBefore();
+  const offline = new FakeTransport().fail('/sync:pull', new TransportError('offline'));
+  const away = await attached(offline, storage);
+  await away.engine.resynchronise('structure');
+  const stopAway = away.engine.listen({ pathsFor });
+  await settle(10);
+  stopAway();
+  assert.equal(offline.snapshots.length, 0, 'nothing taken while the server cannot be reached');
+  assert.deepEqual(await storage.get(META, 'resynchronisations'), { structure: 'pending' });
+  assert.equal((await held(storage, 'item', ITEM))?.document.title, 'Buy milk', 'and the copy is kept for the offline reads');
+
+  const transport = today();
+  const back = await attached(transport, storage);
+  const stop = back.engine.listen({ pathsFor });
+  await settle(30);
+  stop();
+  assert.equal(transport.snapshots.length, 1);
+  assert.deepEqual(await storage.get(META, 'resynchronisations'), { structure: 'done' });
+});
+
+test('without a store there is nothing to take a snapshot into', async () => {
+  const engine = new SyncEngine({ transport: new FakeTransport(), clock: new FixedClock() });
+  assert.equal(await engine.resynchronise('structure'), false);
+});
