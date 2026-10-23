@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { stepsFor } from './tour.ts';
+import { startsAt, stepsFor } from './tour.ts';
 
 test('a workspace with a collection and an entry is walked through every step, and led to add an entry', () => {
   const steps = stepsFor({ collectionId: 'col-1', itemId: 'it-1', hasJumble: true });
@@ -30,4 +30,9 @@ test('a collection without an entry keeps the list step and drops the entry step
 
 test('somebody the jumble is not drawn for is not toured through it', () => {
   assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'search', 'profile', 'make']);
+});
+
+test('the tour starts on the overview only, so an address opened by link keeps its screen', () => {
+  assert.equal(startsAt('/'), true);
+  for (const path of ['/profile/security', '/profile/sessions', '/collections/c', '/search', '/sign-in']) assert.equal(startsAt(path), false, path);
 });

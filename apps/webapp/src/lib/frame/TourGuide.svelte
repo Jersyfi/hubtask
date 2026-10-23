@@ -10,12 +10,15 @@
   import { actor } from '../data/account.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
   import { tour } from '../tour.svelte.ts';
+  import { startsAt } from '../tour.ts';
 
   interface Props {
+    /** The address the frame is drawing, which decides whether the tour may start here. */
+    path: string;
     onnavigate: (path: string) => void;
   }
 
-  const { onnavigate }: Props = $props();
+  const { path, onnavigate }: Props = $props();
 
   $effect(() => {
     tour.attach(onnavigate);
@@ -28,7 +31,7 @@
   $effect(() => {
     const account = actor.account;
     if (!account || startedFor === account.id || tour.isOpen) return;
-    if (!tour.shouldStart()) return;
+    if (!startsAt(path) || !tour.shouldStart()) return;
     startedFor = account.id;
     void tour.start();
   });
