@@ -50,12 +50,9 @@ import ContainerView from './views/ContainerView.svelte';
   import SearchView from './views/SearchView.svelte';
   import MyTokensView from './views/MyTokensView.svelte';
   import TrashView from './views/TrashView.svelte';
-  import AppsView from './views/AppsView.svelte';
+  import MachinesView from './views/MachinesView.svelte';
   import ConsentView from './views/ConsentView.svelte';
-  import GroupsView from './views/GroupsView.svelte';
   import PeopleView from './views/PeopleView.svelte';
-  import PermissionsView from './views/PermissionsView.svelte';
-  import ServiceAccountsView from './views/ServiceAccountsView.svelte';
   import QuotasView from './views/QuotasView.svelte';
   import PrivateHubsView from './views/PrivateHubsView.svelte';
   import BackupView from './views/BackupView.svelte';
@@ -300,15 +297,9 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
   {:else if route.name === 'people'}
-    <PeopleView />
-  {:else if route.name === 'groups'}
-    <GroupsView />
-  {:else if route.name === 'permissions'}
-    <PermissionsView />
-  {:else if route.name === 'service-accounts'}
-    <ServiceAccountsView />
-  {:else if route.name === 'apps'}
-    <AppsView />
+    <PeopleView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.name === 'machines'}
+    <MachinesView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'rules'}
     <RulesView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'rule-new'}

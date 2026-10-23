@@ -93,10 +93,10 @@ const ROUTES = [
   '/profile', '/profile/appearance', '/profile/notifications', '/profile/security',
   '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
   '/administration', '/administration/workspace', '/administration/people',
-  '/administration/groups', '/administration/permissions', '/administration/service-accounts',
+  '/administration/people?tab=groups', '/administration/people?tab=permissions', '/administration/machines',
   // `/administration/rules/:id` is not here: the editor is a canvas with a stub of its own in
   // `rules.test.mjs`, and what it would add to a walk of the bar is a second copy of that stub.
-  '/administration/apps', '/administration/rules', '/administration/runs', '/administration/webhooks', '/administration/quotas', '/administration/private-hubs',
+  '/administration/machines?tab=apps', '/administration/rules', '/administration/runs', '/administration/webhooks', '/administration/quotas', '/administration/private-hubs',
   '/administration/backup', '/administration/retention', '/administration/restore',
   '/administration/audit', '/administration/privacy', '/administration/sign-in', '/administration/legal',
   '/administration/ai',
@@ -149,9 +149,9 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   // The way out is the first row, and the row the reader is on is announced as current.
   const rows = (await section.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
-  // Twenty, the overview and "Sign-in" beside the identity provider among them: the
-  // number moves when the section gains a screen, which is what this assertion is for.
-  assert.equal(rows.length, 20, `the section holds ${rows.length} rows`);
+  // Seventeen, the overview, "Sign-in" and "Machines and apps" among them: the number moves when
+  // the section gains a screen, which is what this assertion is for.
+  assert.equal(rows.length, 17, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
@@ -168,10 +168,7 @@ const SECTION = [
   ['/administration', 'Administration'],
   ['/administration/workspace', 'Workspace'],
   ['/administration/people', 'People'],
-  ['/administration/groups', 'Groups'],
-  ['/administration/permissions', 'What each role means'],
-  ['/administration/service-accounts', 'Service accounts'],
-  ['/administration/apps', 'Third-party apps'],
+  ['/administration/machines', 'Machines and apps'],
   ['/administration/rules', 'Automation'],
   ['/administration/rules/new', 'New rule'],
   ['/administration/runs', 'What the rules did'],

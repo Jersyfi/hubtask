@@ -44,6 +44,7 @@ test('the administration area is exactly these screens, by name', () => {
     'groups',
     'identity-provider',
     'legal',
+    'machines',
     'people',
     'permissions',
     'privacy',
@@ -178,6 +179,10 @@ test('the addresses this application publishes resolve to their screens', () => 
 test('an address whose screen became a tab replaces itself with that tab, and no other moves', () => {
   // A bookmark or a link in a mail keeps working (ux-inventory §E9); every other address stays.
   assert.equal(movedTo(resolve(ROUTES, '/administration/identity-provider').name), '/administration/sign-in?tab=ways');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/groups').name), '/administration/people?tab=groups');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/permissions').name), '/administration/people?tab=permissions');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/service-accounts').name), '/administration/machines');
+  assert.equal(movedTo(resolve(ROUTES, '/administration/apps').name), '/administration/machines?tab=apps');
   for (const route of ROUTES) {
     const target = movedTo(route.name);
     if (target === undefined) continue;
@@ -187,6 +192,7 @@ test('an address whose screen became a tab replaces itself with that tab, and no
     assert.equal(movedTo(landing.name), undefined, `${route.name} moves twice`);
   }
   assert.equal(movedTo(resolve(ROUTES, '/administration/sign-in').name), undefined);
+  assert.equal(movedTo(resolve(ROUTES, '/administration/people').name), undefined);
   assert.equal(movedTo(null), undefined);
 });
 

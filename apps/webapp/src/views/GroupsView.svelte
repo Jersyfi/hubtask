@@ -3,6 +3,8 @@
 <script lang="ts">
   // The workspace's groups: a name, the people in it, and what happens when it goes.
   //
+  // Drawn as *People*'s *Groups* tab, which carries the head, the trail and the title.
+  //
   // **A group is a way to grant a role once instead of eleven times.** That is also why deleting
   // one is not a tidy-up: what the group granted, nobody holds afterwards. The screen says that
   // before it offers the button rather than in the dialog after it — somebody deciding whether to
@@ -26,7 +28,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, Select, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, Select, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -38,8 +40,6 @@
   import { check, focusFirst, isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -144,25 +144,9 @@
   async function setMembers(groupId: string, members: readonly string[]): Promise<void> {
     await attempt(() => groups.update(groupId, { members }), t('app.groups.members_announced'));
   }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.groups.title')));
 </script>
 
 <Stack gap="300">
-  <PageHeader
-    title={t('app.groups.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'groups', label: t('app.groups.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
     <Stack gap="300">
     <p class="quiet">{t('app.groups.intro')}</p>
 

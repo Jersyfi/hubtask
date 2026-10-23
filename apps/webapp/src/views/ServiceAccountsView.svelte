@@ -3,6 +3,8 @@
 <script lang="ts">
   // The accounts that are nothing but access (`security.md` §5).
   //
+  // Drawn as *Machines and apps*' first tab, which carries the head, the trail and the title.
+  //
   // **What a service account is for, in the catalogue's words**: the integration that must outlive
   // the person who wrote it. A rule that runs as somebody dies with their departure; a rule that
   // runs as a service account does not.
@@ -17,7 +19,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, Input, PageHeader, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Banner, Button, Input, RoleBadge, Spinner, Stack } from '@hubtask/design-system/components';
 
   import TokensView from './TokensView.svelte';
   import { holdsHere } from '../lib/data/capability.svelte.ts';
@@ -30,8 +32,6 @@
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
-  import { page } from '../lib/frame/page.svelte.ts';
-  import { viewport } from '../lib/frame/viewport.svelte.ts';
 
   const TENANT = { scopeType: 'TENANT' } as const;
 
@@ -83,25 +83,9 @@
       isWorking = false;
     }
   }
-  // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
-  // reads its heading rather than drawing it, so the screen keeps one heading.
-  $effect(() => page.entitle(t('app.service_accounts.title')));
 </script>
 
 <Stack gap="300">
-  <PageHeader
-    title={t('app.service_accounts.title')}
-    isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'administration', label: t('app.admin.title'), href: '/administration' },
-        { id: 'service-accounts', label: t('app.service_accounts.title') },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
-  />
-
     <Stack gap="300">
     <p class="quiet">{t('app.service_accounts.intro')}</p>
 

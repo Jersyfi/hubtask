@@ -58,8 +58,12 @@ export const ROUTES: readonly Route[] = [
   { name: 'administration', pattern: '/administration', area: 'administration' },
   { name: 'workspace-settings', pattern: '/administration/workspace', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },
+  // Kept as addresses that moved (`movedTo`): the groups and the roles are tabs of *People* now.
   { name: 'groups', pattern: '/administration/groups', area: 'administration' },
   { name: 'permissions', pattern: '/administration/permissions', area: 'administration' },
+  // The service accounts and the third-party apps: one screen, two tabs. Their old addresses
+  // moved there (`movedTo`).
+  { name: 'machines', pattern: '/administration/machines', area: 'administration' },
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
@@ -134,6 +138,10 @@ export const ADMINISTRATION_PREFIX = '/administration';
  */
 const MOVED: Readonly<Record<string, string>> = {
   'identity-provider': '/administration/sign-in?tab=ways',
+  groups: '/administration/people?tab=groups',
+  permissions: '/administration/people?tab=permissions',
+  'service-accounts': '/administration/machines',
+  apps: '/administration/machines?tab=apps',
 };
 
 /** Where an address that moved now is, or nothing for one that did not. */
