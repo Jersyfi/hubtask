@@ -21195,7 +21195,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.\n"
           },
           "private": {
             "type": "boolean",
@@ -21242,7 +21243,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.\n"
           }
         }
       },
@@ -25015,7 +25017,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.\n"
           }
         }
       },
@@ -25043,7 +25046,8 @@
             "type": [
               "string",
               "null"
-            ]
+            ],
+            "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.\n"
           }
         }
       },
@@ -25139,7 +25143,8 @@
           },
           "color_token": {
             "type": "string",
-            "minLength": 1
+            "minLength": 1,
+            "description": "One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `labels.color_token_unknown`; a value stored before that check is kept until it is changed.\n"
           },
           "description": {
             "type": [
@@ -25217,7 +25222,7 @@
           "color_token": {
             "type": "string",
             "minLength": 1,
-            "description": "Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one.\n"
+            "description": "Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one. One of the ten label colours, as on creation; any other name is refused with `labels.color_token_unknown`.\n"
           },
           "description": {
             "type": [

@@ -468,9 +468,12 @@ one above its own layer. A number at a call site is the failure this prevents.
 positioning (`anchor-name`, `position-area`, `position-try-fallbacks`) through `src/anchor.ts`
 alone. No component measures anything, no positioning library, no offset as an inline style. Every
 engine on the support row ([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor
-positioning, which the `engines` job proves, so there is no JavaScript fallback. Where the browser
-has it, an anchored overlay is raised into the **top layer**, so no transformed, filtered or
-`contain` ancestor clips it; the scale still decides for everything in the flow.
+positioning, which the `engines` job proves, so there is no JavaScript fallback. An overlay
+flips to the side with room; where neither side holds it — a long menu at the foot of a phone's
+screen — it takes the larger side, shrinks to it and scrolls inside, and never runs past the
+viewport. Where the browser has it, an anchored overlay is raised into the **top layer**, so no
+transformed, filtered or `contain` ancestor clips it; the scale still decides for everything in the
+flow.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)

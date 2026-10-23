@@ -38,7 +38,7 @@ func TestNewBucketKeepsWhatItWasGiven(t *testing.T) {
 	in := baseBucket
 	in.WipLimit = &limit
 	in.IsDoneBucket = true
-	in.ColorToken = "  surface.green  "
+	in.ColorToken = "  green  "
 
 	bucket := newBucket(t, in)
 
@@ -49,7 +49,7 @@ func TestNewBucketKeepsWhatItWasGiven(t *testing.T) {
 		t.Errorf("wip limit %v", bucket.WipLimit)
 	case !bucket.IsDoneBucket:
 		t.Error("the done marker was dropped")
-	case bucket.ColorToken != "surface.green":
+	case bucket.ColorToken != "green":
 		t.Errorf("colour token %q, want it trimmed", bucket.ColorToken)
 	case bucket.Version != 1:
 		t.Errorf("version %d, want 1", bucket.Version)
@@ -168,6 +168,34 @@ func TestNewBucketRefusesAControlCharacterInTheColour(t *testing.T) {
 	assertDetail(t, err, shared.ErrValidation, "buckets.color_token_malformed")
 }
 
+// A bucket's colour is optional, and one that is set is one of the ten label colours.
+func TestNewBucketTakesOnlyOneOfTheTenColours(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "none", input: "", want: ""},
+		{name: "one of the ten", input: "teal", want: ""},
+		{name: "a name outside the ten", input: "raspberry", want: "buckets.color_token_unknown"},
+		{name: "a token of another palette", input: "surface.green", want: "buckets.color_token_unknown"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			in := baseBucket
+			in.ColorToken = c.input
+
+			_, err := work.NewBucket(in)
+			if c.want == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				return
+			}
+			assertDetail(t, err, shared.ErrValidation, c.want)
+		})
+	}
+}
+
 // The identifiers and the rank come from ports. Missing means the use case was wired wrong, which
 // is a defect rather than something a caller can fix.
 func TestNewBucketReportsIncompleteIdentityAsADefect(t *testing.T) {
@@ -194,12 +222,12 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 	limit := 3
 	in := baseBucket
 	in.WipLimit = &limit
-	in.ColorToken = "surface.blue"
+	in.ColorToken = "blue"
 	bucket := newBucket(t, in)
 
 	t.Run("a change that changes nothing writes nothing", func(t *testing.T) {
 		unchanged, changes, err := bucket.Updated(work.BucketAttributes{
-			Name: pointerTo("Doing"), WipLimit: pointerTo(3), ColorToken: pointerTo("surface.blue"),
+			Name: pointerTo("Doing"), WipLimit: pointerTo(3), ColorToken: pointerTo("blue"),
 		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("an update to the stored values was refused: %v", err)
@@ -228,7 +256,7 @@ func TestBucketUpdatedReportsOnlyWhatMoved(t *testing.T) {
 		if changes[1].Field != work.FieldIsDoneBucket || changes[1].To != "true" {
 			t.Errorf("the done marker change is wrong: %+v", changes[1])
 		}
-		if updated.ColorToken != "surface.blue" || *updated.WipLimit != 3 {
+		if updated.ColorToken != "blue" || *updated.WipLimit != 3 {
 			t.Errorf("an untouched field moved: %+v", updated)
 		}
 	})
@@ -285,11 +313,30 @@ func TestBucketUpdatedChecksWhatItIsGiven(t *testing.T) {
 			attributes: work.BucketAttributes{ColorToken: pointerTo("a\u0085b")},
 			detailCode: "buckets.color_token_malformed",
 		},
+		{
+			name:       "a colour outside the ten",
+			attributes: work.BucketAttributes{ColorToken: pointerTo("raspberry")},
+			detailCode: "buckets.color_token_unknown",
+		},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			_, _, err := bucket.Updated(c.attributes, text.Composing{})
 			assertDetail(t, err, shared.ErrValidation, c.detailCode)
 		})
+	}
+}
+
+// A colour stored before the ten were checked survives a change that leaves it alone.
+func TestABucketKeepsAColourFromBeforeTheCheckUntilItIsChanged(t *testing.T) {
+	bucket := newBucket(t, baseBucket)
+	bucket.ColorToken = "surface.green"
+
+	_, changes, err := bucket.Updated(work.BucketAttributes{ColorToken: pointerTo("surface.green")}, text.Composing{})
+	if err != nil {
+		t.Fatalf("the stored colour sent back unchanged was refused: %v", err)
+	}
+	if len(changes) != 0 {
+		t.Errorf("changes reported for an update that moved nothing: %+v", changes)
 	}
 }
 

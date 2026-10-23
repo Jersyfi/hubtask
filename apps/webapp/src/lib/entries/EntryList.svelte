@@ -1211,7 +1211,7 @@
       {#if addingUnder === 'root'}
         {@render addForm()}
       {:else}
-        <EmptyState kind="unused" title={t('app.entries.none')} icon="task">
+        <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} icon="task">
           {#snippet action()}
             {#if !isReadOnly && mayCreate && topTypes().length > 0}
               {#each addControls as control (control.label)}

@@ -39,9 +39,9 @@ const labelsOf = (menu) =>
     items.map((item) => (item.querySelector('.label')?.textContent ?? '').trim().replace(/…$/, '').replace(/^(Move inside).*$/, '$1')));
 
 /** A signed-in tab with every write recorded, at a width and maybe with a touch screen. */
-async function open(browser, path, { width = 1280, hasTouch = false } = {}) {
+async function open(browser, path, { width = 1280, height = 900, hasTouch = false } = {}) {
   const written = [];
-  const { page, failures, context, unstubbed } = await signedIn(browser, width, 900, { hasTouch });
+  const { page, failures, context, unstubbed } = await signedIn(browser, width, height, { hasTouch });
   await context.unroute('**/api/v1/**');
   await context.route('**/api/v1/**', async (route) => {
     const request = route.request();
@@ -191,6 +191,44 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
   await page.waitForTimeout(300);
   await stillHold(page, context, card.locator('.title'));
   await page.getByRole('menu', { name: `Actions for ${ITEMS[2].title}` }).waitFor({ timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: 375 × 812 — the menu of the last row on screen stays on screen, every item reachable', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser, `/collections/${COLLECTION.id}`, { width: 375, height: 812 });
+  t.after(() => context.close());
+  await page.locator('[data-row] a').first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(600);
+
+  // The last ⋯ wholly on screen: the row nearest the foot, where the room below is the least.
+  const triggers = page.getByRole('button', { name: /^Actions for / });
+  const boxes = await triggers.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
+  const last = boxes.findLastIndex((box) => box.height > 0 && box.bottom <= 812);
+  assert.ok(last >= 0, 'no row with a ⋯ on screen');
+  assert.ok(boxes[last].top > 812 / 2, `the last row on screen is in the upper half (${boxes[last].top})`);
+  const scrolled = await page.evaluate(() => scrollY);
+  await triggers.nth(last).click();
+  const menu = page.getByRole('menu');
+  await menu.waitFor({ timeout: 5_000 });
+  await page.waitForTimeout(300);
+
+  const surface = await menu.evaluate((list) => list.parentElement.getBoundingClientRect().toJSON());
+  assert.ok(surface.top >= 0 && surface.bottom <= 812, `the menu runs past the viewport: ${surface.top}–${surface.bottom}`);
+  assert.ok(surface.bottom <= boxes[last].top, 'the menu did not open above its ⋯, where the room is larger');
+  // Every item comes into view inside the menu, and the page does not move for it.
+  const items = menu.getByRole('menuitem');
+  const count = await items.count();
+  assert.ok(count >= COMMON.length, `the menu has ${count} items`);
+  for (let index = 0; index < count; index += 1) {
+    const box = await items.nth(index).evaluate((item) => {
+      item.scrollIntoView({ block: 'nearest' });
+      return item.getBoundingClientRect().toJSON();
+    });
+    assert.ok(box.top >= surface.top - 1 && box.bottom <= surface.bottom + 1, `item ${index} is outside the menu: ${box.top}–${box.bottom}`);
+  }
+  assert.equal(await page.evaluate(() => scrollY), scrolled, 'reaching the items scrolled the page');
   assert.deepEqual(failures, []);
 });
 

@@ -16,7 +16,6 @@ import (
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
-	"github.com/Jersyfi/hubtask/core/shared/correlation"
 )
 
 const (
@@ -24,9 +23,9 @@ const (
 	GiveKudosName     = "GiveKudos"
 	TakeBackKudosName = "TakeBackKudos"
 
-	// The audit codes. Giving and taking back are written to the trail as every write is (gate
-	// SG-13): the act, its actor and the entry, never whom the kudos went to and never a count.
-	// Reading writes an entry only when refused.
+	// The audit codes. All three are written to the trail only when refused, by the authorisation
+	// service: a trail of every give would let an auditor count who acknowledged whom (UC-WRK-29
+	// check 6), so giving and taking back are a named exception to gate SG-13 (security.md §13).
 	KudosReadAction      audit.Action = "kudos.read"
 	KudosGivenAction     audit.Action = "kudos.given"
 	KudosTakenBackAction audit.Action = "kudos.taken_back"
@@ -44,8 +43,8 @@ const kudosExempt = "kudos are seen only by the person who completed the entry, 
 // as a member may. Nothing is announced: no event (a webhook or a rule would carry who acknowledged
 // whom out of the product) and no change record.
 //
-// The trail gets the act, as it gets every write (audit.md §7), and nothing more: its target is the
-// entry, its changes are empty, and no reader of the trail is answered a figure.
+// The trail gets a refusal and nothing else (audit.md §7): a refused give still leaves a trace of
+// misuse, a successful one none an auditor could count.
 type KudosDesk struct {
 	Kudos      repository.Kudos
 	Items      repository.Items
@@ -53,7 +52,6 @@ type KudosDesk struct {
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
-	Audit      audit.Sink
 }
 
 // ReadKudos answers what the reader may know of an entry's kudos.
@@ -140,28 +138,22 @@ func (d KudosDesk) act(
 		if err != nil {
 			return err
 		}
-		changed := false
 		switch act {
 		case kudosGiving:
 			to, err := domain.KudosTo(item, actor.AccountID)
 			if err != nil {
 				return err
 			}
-			if changed, err = d.Kudos.Give(ctx, domain.Kudos{
+			if _, err = d.Kudos.Give(ctx, domain.Kudos{
 				ItemID: item.ID, GivenBy: actor.AccountID, GivenTo: to, GivenAt: d.Clock.Now(),
 			}); err != nil {
 				return err
 			}
 		case kudosTakingBack:
 			if to, err := domain.KudosTo(item, actor.AccountID); err == nil {
-				if changed, err = d.Kudos.TakeBack(ctx, item.ID, actor.AccountID, to); err != nil {
+				if _, err = d.Kudos.TakeBack(ctx, item.ID, actor.AccountID, to); err != nil {
 					return err
 				}
-			}
-		}
-		if changed {
-			if err := d.record(ctx, actor, item, act); err != nil {
-				return err
 			}
 		}
 		view, err = d.view(ctx, actor, item)
@@ -171,24 +163,6 @@ func (d KudosDesk) act(
 		return domain.KudosView{}, err
 	}
 	return view, nil
-}
-
-// record writes the act to the trail: its actor and the entry, with no changes - never whom the
-// kudos went to, which the trail's readers are not to learn (UC-WRK-29 check 6).
-func (d KudosDesk) record(ctx context.Context, actor appshared.ActorContext, item domain.WorkItem, act kudosAct) error {
-	return d.Audit.Append(ctx, audit.Entry{
-		TenantID:   item.TenantID,
-		OccurredAt: d.Clock.Now(),
-		Action:     act.action(),
-		Outcome:    audit.OutcomeSuccess,
-		Severity:   audit.SeverityInfo,
-		ActorKind:  actor.Kind,
-		ActorID:    actor.AccountID,
-		ActorLabel: actor.AccountName,
-		TargetType: itemTarget,
-		TargetID:   item.ID,
-		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-	})
 }
 
 // view is the reader's own side and nothing more: whether they gave kudos to the current
@@ -254,13 +228,13 @@ func (h GiveKudos) Descriptor() usecase.Descriptor {
 		Summary: "Acknowledges an entry's completion to the person who completed it. Idempotent. " +
 			"Refused on an open entry and on the caller's own completion. Needs only the right to " +
 			"read the entry.",
-		SideEffects: "Records the kudos, seen only by the person who completed the entry, and the act " +
-			"in the audit trail. The entry, its version and its history are untouched; nothing is " +
-			"announced.",
+		SideEffects: "Records the kudos, seen only by the person who completed the entry. The audit " +
+			"trail records only a refusal. The entry, its version and its history are untouched; " +
+			"nothing is announced.",
 		TokenScope: itemsWrite,
 		Input:      kudosInput(),
 		Audit: usecase.AuditDeclaration{
-			Action: KudosGivenAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: true,
+			Action: KudosGivenAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: false,
 		},
 		Activity: usecase.ActivityDeclaration{Exempt: kudosExempt},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -274,12 +248,12 @@ func (h TakeBackKudos) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:    TakeBackKudosName,
 		Summary: "Takes back the caller's kudos on an entry's current completion. Idempotent.",
-		SideEffects: "Removes the caller's kudos and records the act in the audit trail. The entry, " +
+		SideEffects: "Removes the caller's kudos. The audit trail records only a refusal. The entry, " +
 			"its version and its history are untouched; nothing is announced.",
 		TokenScope: itemsWrite,
 		Input:      kudosInput(),
 		Audit: usecase.AuditDeclaration{
-			Action: KudosTakenBackAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: true,
+			Action: KudosTakenBackAction, TargetType: itemTarget, Severity: audit.SeverityInfo, Required: false,
 		},
 		Activity: usecase.ActivityDeclaration{Exempt: kudosExempt},
 		Handler: usecase.HandlerFunc(func(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
