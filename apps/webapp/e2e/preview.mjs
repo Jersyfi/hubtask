@@ -29,9 +29,12 @@ if (!existsSync(join(dist, 'index.html'))) {
 
 /** The fixture speaks Playwright's route; this is the least of one a plain request can be. */
 function route(request, response, url, body) {
+  // A promise, as Playwright's `fulfill` answers: a route that returns `undefined` for "the general
+  // stub answers" (the structure and figure hubs) would otherwise answer twice.
   const send = ({ status = 200, contentType, body: text, json }) => {
     response.writeHead(status, { 'content-type': json === undefined ? contentType : 'application/json' });
     response.end(json === undefined ? text : JSON.stringify(json));
+    return Promise.resolve();
   };
   return {
     request: () => ({ url: () => url.href, method: () => request.method, postDataJSON: () => (body ? JSON.parse(body) : null) }),

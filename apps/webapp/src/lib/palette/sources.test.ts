@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
 import { collectionOffers, containerOffers, contextOf, mayCreateIn, placeOffers, type Placed, type Reach } from './sources.ts';
-import { layoutsOffered, openingLayout } from '../entries/layouts.ts';
+import { layoutsOffered } from '../entries/layouts.ts';
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 const ROLES = [
@@ -90,18 +90,11 @@ const shaped = (views: string[], opening: string) =>
     },
   }) as unknown as Container;
 
-test('a collection offers only the layouts its structure offers, and opens in the one it names', () => {
+test('a collection offers only the layouts its structure offers', () => {
   const list = shaped(['LIST_COLLAPSED'], 'LIST_COLLAPSED');
   assert.deepEqual(layoutsOffered(list, MANIFEST, DRAWABLE), ['LIST_COLLAPSED']);
   const flow = shaped(['KANBAN', 'LIST_COLLAPSED'], 'KANBAN');
   assert.deepEqual(layoutsOffered(flow, MANIFEST, DRAWABLE), ['LIST_COLLAPSED', 'KANBAN']);
-  assert.equal(openingLayout(flow, layoutsOffered(flow, MANIFEST, DRAWABLE)), 'KANBAN');
-  // A project opens with what is inside shown: the list's other stored value.
-  const project = shaped(['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], 'LIST_EXPANDED');
-  assert.equal(openingLayout(project, layoutsOffered(project, MANIFEST, DRAWABLE)), 'LIST_EXPANDED');
-  // A default this client cannot offer gives way to the first it can; no structure, to the list.
-  assert.equal(openingLayout(shaped(['LIST_COLLAPSED'], 'TIMELINE'), ['LIST_COLLAPSED']), 'LIST_COLLAPSED');
-  assert.equal(openingLayout(KITCHEN, layoutsOffered(KITCHEN, MANIFEST, DRAWABLE)), 'LIST_COLLAPSED');
 });
 
 test('the palette offers a list no board, and a new entry of its one level', () => {

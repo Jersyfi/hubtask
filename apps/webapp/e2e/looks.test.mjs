@@ -141,19 +141,22 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — the overview and search say where each entry lives, in the place’s colour', async (t) => {
+test('chromium: 1280 px — Today and search say where each entry lives, in the place’s colour', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures } = await at(browser, 1280, '/');
   t.after(() => context.close());
 
-  const mine = page.locator('section[aria-labelledby="overview-mine"]');
+  // Today names the hub first, in the hub's colour, then the collection in its own
+  // (UC-WRK-34 check 1, UC-WRK-33 check 1).
+  const mine = page.locator('section[aria-labelledby="today-mine"]');
+  const tokens = (place) => place.locator('[data-token]').evaluateAll((marks) => marks.map((mark) => mark.getAttribute('data-token')));
   const clients = mine.locator('.place', { hasText: LOOK_COLLECTION.name });
   await clients.first().waitFor({ timeout: 10_000 });
-  assert.equal(await clients.first().locator('[data-token]').getAttribute('data-token'), 'amber');
+  assert.deepEqual(await tokens(clients.first()), ['violet', 'amber']);
   const invoices = mine.locator('.place', { hasText: PLAIN_COLLECTION.name });
   await invoices.first().waitFor({ timeout: 5_000 });
-  assert.equal(await invoices.first().locator('[data-token]').count(), 0, 'a collection without a colour draws none');
+  assert.deepEqual(await tokens(invoices.first()), ['violet'], 'a collection without a colour draws one');
 
   await page.goto(`${served.origin}/search`);
   await page.getByRole('searchbox', { name: 'Search the entries you can see' }).or(page.getByRole('textbox', { name: 'Search the entries you can see' })).first().fill('offer');

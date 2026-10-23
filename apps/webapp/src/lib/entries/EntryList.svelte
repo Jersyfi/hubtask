@@ -28,7 +28,6 @@
     Input,
     LabelChip,
     LabelPicker,
-    Menu,
     Popover,
     provideReasonGroup,
     rankIntent,
@@ -42,7 +41,7 @@
   } from '@hubtask/design-system/components';
   import type { BulkResult, EffectiveStructure, WorkItem } from '@hubtask/sync-engine';
 
-  import { capture, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
+  import { capture, captureRulesOf, parseLine, unitsOf, type CaptureRules, type CapturedLine } from './capture.ts';
   import { narrow, partition, type Sections } from './simplelist.ts';
   import { classify, edgeInset, HOLD_MS as GESTURE_HOLD_MS, startsAtEdge, swipeThreshold, type Point } from './swipe.ts';
 
@@ -498,8 +497,6 @@
     return available.find((label) => label.id === category)?.name ?? t('app.entries.no_category');
   }
 
-  /** The row whose menu is open because a still hold opened it (ADR-0088). */
-  let menuOpenFor = $state<string | undefined>(undefined);
   /** The row whose amount is being changed from its menu. */
   let amending = $state<Row | undefined>(undefined);
   let draftAmount = $state('');
@@ -575,18 +572,13 @@
     (structure?.settings?.fields?.[type]?.capabilities ?? []).includes('AMOUNT');
 
   /**
-   * What the capture line recognises (UC-WRK-25 checks 1, 2): several lines are several entries in
-   * a collection of one level or one that says `LINES`; a leading amount is read where the
-   * collection says `AMOUNT` and the type carries one. Only at the top of the collection: a line
-   * added inside an entry is that entry's one child.
+   * What the capture line recognises (UC-WRK-25 checks 1, 2): the one rule every capture field reads
+   * a collection by (`captureRulesOf`). Lines split only at the top of the collection: a line added
+   * inside an entry is that entry's one child.
    */
-  const captureRules = $derived<CaptureRules>({
-    splitsLines:
-      !root &&
-      addingUnder === 'root' &&
-      ((structure?.settings?.levels?.length ?? 0) === 1 || (structure?.settings?.capture ?? []).includes('LINES')),
-    readsAmount: (structure?.settings?.capture ?? []).includes('AMOUNT') && offersAmount(draftType),
-    units: unitsOf(t('app.entries.capture_units')),
+  const captureRules = $derived.by((): CaptureRules => {
+    const rules = captureRulesOf(structure, draftType, unitsOf(t('app.entries.capture_units')));
+    return { ...rules, splitsLines: rules.splitsLines && !root && addingUnder === 'root' };
   });
 
   /** The person took the amount back into the title for this submit, from the chip. */
@@ -608,12 +600,16 @@
 
   /**
    * What the control at the end of the top level says: "Add an entry" in a collection; in a
-   * subtree the name of what it adds, in the catalogue's words for the manifest's type, because
-   * "Add a work package" under a task says which level the reader is adding to.
+   * subtree the name of what it adds, because "Add a work package" under a task says which level
+   * the reader is adding to. A collection whose one top level carries a name a person gave it says
+   * that name - "Add item" - since "entry" would be the one place the level went unnamed
+   * (UC-WRK-23 check 6).
    */
-  const addLabel = $derived(
-    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: topTypes()[0] ?? '' }) : t('app.entries.add'),
-  );
+  const addLabel = $derived.by(() => {
+    if (topTypes().length !== 1) return t('app.entries.add');
+    const words = offer.level(topTypes()[0] ?? '');
+    return root || words.name !== undefined ? words.add : t('app.entries.add');
+  });
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
   let draftLanguage = $state('');
@@ -654,7 +650,7 @@
    */
   const addControls = $derived(
     root && topTypes().length > 1
-      ? topTypes().map((type) => ({ type, label: t('app.entries.add_typed', { type }) }))
+      ? topTypes().map((type) => ({ type, label: offer.level(type).add }))
       : [{ type: undefined, label: addLabel }],
   );
 
@@ -829,7 +825,7 @@
     const verdict = acceptsChild(target.type, row.item.type, row.depth);
     if (verdict.status === 'permitted') return undefined;
     // The server's own code where there is one, so a prediction and a refusal read the same way.
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.move.moving');
+    return verdict.status === 'refused' ? offer.refusal(verdict) : t('app.move.moving');
   }
 
   /** The entry a row moves out to: its parent's parent, or `null` for the collection's top level. */
@@ -861,14 +857,18 @@
       row.item.type,
       above === null ? null : above?.depth === undefined ? undefined : { type: above.type, depth: above.depth },
     );
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
+    return verdict.status === 'refused' ? offer.refusal(verdict) : undefined;
   }
 
-  /** The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. */
+  /**
+   * The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. A
+   * simple list's adds its amount and its category, which its still hold opens with *Select* first
+   * (ADR-0088).
+   */
   function menuItems(row: Row) {
-    const every = entryMenu(
+    return entryMenu(
       {
-        surface: root ? 'subtree' : isSelectable ? 'list' : 'subtree',
+        surface: root ? 'subtree' : isSimple ? 'simple' : isSelectable ? 'list' : 'subtree',
         item: {
           title: row.item.title,
           isCompleted: row.item.completion?.is_completed ?? false,
@@ -887,41 +887,13 @@
           insideReason: insideReason(row),
           outReason: outReason(row),
         },
+        simple: {
+          amount: offersAmount(row.item.type),
+          category: categories.length > 0 && supports(row.item.type, 'LABELS').status === 'permitted',
+        },
       },
       t,
     );
-    if (!isSimple) return every;
-    // A simple list keeps its own head - *Select* first, *Open*, the amount and the category - and
-    // has no levels to move inside or out of; a done entry is not ranked among the open ones.
-    const head = simpleItems(row).filter((each) => !isRoleRefused(row) || each.id === 'select' || each.id === 'open');
-    const taken = new Set(head.map((each) => each.id));
-    return [
-      ...head,
-      ...every
-        .filter((each) => !taken.has(each.id) && each.id !== 'inside' && each.id !== 'out')
-        .filter((each) => row.section === 'open' || !RANK_IDS.has(each.id)),
-    ];
-  }
-
-  const RANK_IDS = new Set(['up', 'down', 'top', 'bottom']);
-
-  /**
-   * What a simple list's row menu adds: *Select* first, because a still hold opens this menu
-   * rather than selecting (ADR-0088); *Open*, because the title is not a link there; the amount
-   * and the category, where the collection offers them.
-   */
-  function simpleItems(row: Row) {
-    const offers = [
-      { id: 'select', label: t('app.entries.select_entry') },
-      { id: 'open', label: t('app.entries.open_entry') },
-    ];
-    if (offersAmount(row.item.type) && !isFrozen(row)) {
-      offers.push({ id: 'amount', label: t('app.entries.change_amount') });
-    }
-    if (categories.length > 0 && supports(row.item.type, 'LABELS').status === 'permitted' && !isFrozen(row)) {
-      offers.push({ id: 'category', label: t('app.entries.choose_category') });
-    }
-    return offers;
   }
 
   /** The menus of the rows, so a right click, a key or a long press can open one. */
@@ -983,7 +955,7 @@
    * A simple list's row under a finger and a pointer (UC-WRK-25 check 6, ADR-0088): a tap anywhere
    * on the row but its controls ticks it, so the target is the whole row and never only the small
    * box; a swipe towards the inline end ticks an open entry and reopens a done one; a still hold
-   * opens the row's menu when the finger lifts, *Select* first, and ticks nothing. The grip still
+   * opens the entry menu when the finger lifts, *Select* first, and ticks nothing. The grip still
    * drags, and `Ctrl`/`Cmd`-click still selects. A tap on the checkbox itself is the checkbox's,
    * and the row lets it be, so nothing is ticked twice.
    */
@@ -1021,12 +993,32 @@
     };
     const onUp = (event: PointerEvent) => {
       if (press && !press.acted && event.timeStamp - press.start.at >= GESTURE_HOLD_MS) {
-        menuOpenFor = press.id;
+        menus[press.id]?.open(0);
         swallowsClick = true;
       }
       press = undefined;
     };
     const onCancel = () => (press = undefined);
+    // A right click and the context-menu key open the same menu, as on every surface
+    // (`entryGestures.ts`); a finger's long press is the release's, not the browser's menu.
+    const onContextMenu = (event: MouseEvent) => {
+      const id = idAt(event.target);
+      if (!id) return;
+      if ((event as PointerEvent).pointerType === 'touch' || press !== undefined) {
+        event.preventDefault();
+        return;
+      }
+      if (event.shiftKey) return;
+      event.preventDefault();
+      menus[id]?.open(0);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'ContextMenu' && !(event.key === 'F10' && event.shiftKey)) return;
+      const id = idAt(event.target);
+      if (!id) return;
+      event.preventDefault();
+      menus[id]?.open(0);
+    };
     // The capture phase, so that a press a gesture already answered reaches no control.
     const onClick = (event: MouseEvent) => {
       const id = idAt(event.target);
@@ -1054,12 +1046,16 @@
     node.addEventListener('pointerup', onUp);
     node.addEventListener('pointercancel', onCancel);
     node.addEventListener('click', onClick, true);
+    node.addEventListener('contextmenu', onContextMenu);
+    node.addEventListener('keydown', onKey);
     return () => {
       node.removeEventListener('pointerdown', onDown);
       node.removeEventListener('pointermove', onMove);
       node.removeEventListener('pointerup', onUp);
       node.removeEventListener('pointercancel', onCancel);
       node.removeEventListener('click', onClick, true);
+      node.removeEventListener('contextmenu', onContextMenu);
+      node.removeEventListener('keydown', onKey);
     };
   });
 
@@ -1129,7 +1125,7 @@
       void rankTo(row, to);
     },
     // A finger held still on the grip and lifted asks for the menu, as anywhere else on the row.
-    onhold: (id) => (isSimple ? (menuOpenFor = id) : menus[id]?.open(0)),
+    onhold: (id) => menus[id]?.open(0),
   });
 
   $effect(() => {
@@ -1483,7 +1479,7 @@
             <IconButton
               icon="plus"
               label={childTypes(row.item.type).length === 1
-                ? t('app.entries.add_typed_inside', { type: childTypes(row.item.type)[0] ?? '', title: row.item.title })
+                ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
                 : t('app.entries.add_child', { title: row.item.title })}
               size="sm"
               onclick={() => startAdding(row.item.id)}
@@ -1493,34 +1489,14 @@
           <!-- The single-pointer alternative SC 2.5.7 asks for, and the path that was built
                first: every position a drag can reach is an item here, each with the reason it
                cannot be used rather than a control that goes grey for no stated cause. -->
-          <!-- A simple list keeps its own row menu, which its still hold opens (ADR-0088); every
-               other list draws the entry menu every surface shares (UC-WRK-28 check 1). -->
-          {#if isSimple}
-          {#if !isReadOnly && menuItems(row).length > 0}
-            <Menu
-              label={t('app.rank.actions', { title: row.item.title })}
-              items={menuItems(row)}
-              onselect={(id) => chose(row, id)}
-              bind:isOpen={() => menuOpenFor === row.item.id, (open) => (menuOpenFor = open ? row.item.id : undefined)}
-            >
-              {#snippet trigger(props)}
-                <IconButton
-                  icon="ellipsis"
-                  label={t('app.rank.actions', { title: row.item.title })}
-                  size="sm"
-                  {...props}
-                />
-              {/snippet}
-            </Menu>
-          {/if}
-          {:else}
-            <EntryMenu
-              bind:this={menus[row.item.id]}
-              title={row.item.title}
-              items={menuItems(row)}
-              onselect={(id) => chose(row, id)}
-            />
-          {/if}
+          <!-- The entry menu every surface shares (UC-WRK-28 check 1); a simple list's still hold
+               opens it, Select first (ADR-0088). -->
+          <EntryMenu
+            bind:this={menus[row.item.id]}
+            title={row.item.title}
+            items={menuItems(row)}
+            onselect={(id) => chose(row, id)}
+          />
         {/snippet}
       </TaskRow>
 
@@ -1574,7 +1550,7 @@
         label={t('app.entries.type_label')}
         size="sm"
         bind:value={draftType}
-        options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
+        options={offeredTypes.map((type) => ({ value: type, label: offer.level(type).label }))}
       />
     {/if}
     <!-- The language is what a quick capture rarely needs, so it waits under *More*

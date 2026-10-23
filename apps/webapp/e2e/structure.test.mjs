@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 7, 9), walked over the shared
+// How much structure a collection has (UC-WRK-23 checks 1, 3, 4, 6, 7, 9), walked over the shared
 // fixture's structure hub as three readers:
 //
 // * the owner opens a *List* collection and meets no board, no timeline, no twist and on an entry
 //   no date, person, label, notes or child; the Structure panel names where each setting comes
 //   from, resets what is set here, and sends a preset as itself; creating a collection offers
-//   the presets;
+//   the presets; the list's one level, named "item", is "item" on an entry's badge and on every
+//   control that adds one, where an unnamed level keeps the catalogue's words;
 // * an administrator meets a project whose views and task dates the workspace locked: the lock
 //   and who set it beside the setting, the controls readable and unavailable, and a preset chosen
 //   under the lock keeping the locked value;
@@ -139,6 +140,33 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForFunction(() => document.querySelector('[data-save-bar] .bar') === null, null, { timeout: 5_000 });
   assert.deepEqual(written, [{ reset: ['celebration'] }, { preset: 'PROJECT' }]);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the owner - a level is named by the name given to it, and by its type without one (check 6)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'OWNER');
+  t.after(() => context.close());
+
+  // The list named its one level "item": the head's add says so (a list adds at its end by typing).
+  await openCollection(page, SHAPES.list);
+  await page.getByText(SHAPE_ITEMS[0].title).first().waitFor();
+  const said = await page.locator('[data-opener="add-entry"]').evaluateAll((controls) => controls.map((control) => control.textContent.trim()));
+  assert.ok(said.length >= 1, `add controls: ${said}`);
+  assert.ok(said.every((text) => text === 'Add item'), `add controls read ${JSON.stringify(said)}`);
+  assert.equal(await page.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add left unnamed');
+
+  // An entry's badge names its level by that name.
+  await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
+  await page.getByRole('heading', { name: SHAPE_ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
+  await page.waitForTimeout(600);
+  assert.equal((await page.locator('.marks .badge').first().textContent()).trim(), 'item');
+
+  // Without a name, the catalogue's words: the project adds "an entry", and no name leaks into it.
+  await openCollection(page, SHAPES.locked);
+  assert.ok((await page.getByRole('button', { name: 'Add an entry', exact: true }).count()) > 0, 'the unnamed project lost its add');
+  assert.equal(await page.getByRole('button', { name: 'Add item', exact: true }).count(), 0, 'a name leaked into another collection');
   assert.deepEqual(failures, []);
 });
 

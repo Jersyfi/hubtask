@@ -24,7 +24,7 @@
   import AdministrationOverviewView from './views/AdministrationOverviewView.svelte';
   import ArchiveView from './views/ArchiveView.svelte';
 import ContainerView from './views/ContainerView.svelte';
-  import HomeView from './views/HomeView.svelte';
+  import TodayView from './views/TodayView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
@@ -243,7 +243,7 @@ import ContainerView from './views/ContainerView.svelte';
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
     <ConsentView />
   {:else if route.name === 'home'}
-    <HomeView onnavigate={(path) => router.navigate(path)} />
+    <TodayView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
     <InstallationView />
   {:else if route.name === 'profile'}

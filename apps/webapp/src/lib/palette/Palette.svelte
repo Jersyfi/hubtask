@@ -37,6 +37,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
+  import { levelWords } from '../data/levels.ts';
   import { people } from '../data/people.svelte.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { queryFields } from '../data/query.ts';
@@ -315,7 +316,10 @@
   }
 
   function kindOf(row: Row): string {
-    if (row.kind === 'hit') return t('app.item.type_name', { type: hitById.get(row.id)?.type ?? '' });
+    if (row.kind === 'hit') {
+      const hit = hitById.get(row.id);
+      return levelWords(hit ? containers.find(hit.collection_id)?.structure?.settings : undefined, hit?.type ?? '', t).label;
+    }
     if (row.kind === 'container') return t('app.palette.kind', { kind: containers.find(row.id)?.type ?? '' });
     return t('app.palette.kind', { kind: row.kind });
   }

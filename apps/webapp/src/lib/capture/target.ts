@@ -142,15 +142,12 @@ export interface Rules {
   readonly date: boolean;
   readonly person: boolean;
   readonly label: boolean;
-  /**
-   * Several lines are several entries: one level in force, or `LINES` recognised. The one rule
-   * both capture fields use; UX-12 moves it into `entries/capture.ts` as `captureRulesOf`, which
-   * this function then gives way to.
-   */
-  readonly splitsLines: boolean;
 }
 
-/** What a capture into this collection recognises (record D4): its `capture` ∩ what its top level carries. */
+/**
+ * What a capture into this collection recognises (record D4): its `capture` ∩ what its top level
+ * carries. Lines and amounts are read by the rule both capture fields share, `captureRulesOf`.
+ */
 export function rulesOf(
   settings: StructureSettings | undefined,
   roots: readonly string[],
@@ -163,8 +160,6 @@ export function rulesOf(
     date: capture.includes('DATE') && has('DUE_DATE'),
     person: capture.includes('PERSON') && has('ASSIGNMENT'),
     label: capture.includes('LABEL') && has('LABELS'),
-    // No levels answered is Hubtask's default, every type the installation has - not one level.
-    splitsLines: settings?.levels?.length === 1 || capture.includes('LINES'),
   };
 }
 

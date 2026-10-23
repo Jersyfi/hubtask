@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 
 import type { Container, StructureSettings } from '@hubtask/sync-engine';
 
+import { captureRulesOf } from '../entries/capture.ts';
 import { NOTHING } from './parse.ts';
 import { mayCapture, recognitionOf, resolveTarget, rulesOf, topLevelOf, type Admits, type Where } from './target.ts';
 
@@ -124,17 +125,20 @@ const OFFERED: Readonly<Record<string, readonly string[]>> = {
 };
 const offered = (type: string) => OFFERED[type] ?? [];
 const ROOTS = ['TASK'];
+const UNITS = ['g', 'kg'];
 
-test('Tasks recognises a day, a person and a label, and keeps lines together', () => {
-  assert.deepEqual(rulesOf(settingsOf('TASKS'), ROOTS, offered), { date: true, person: true, label: true, splitsLines: false });
+test('Tasks recognises a day, a person and a label, keeps lines together and reads no amount', () => {
+  assert.deepEqual(rulesOf(settingsOf('TASKS'), ROOTS, offered), { date: true, person: true, label: true });
+  assert.deepEqual(captureRulesOf({ settings: settingsOf('TASKS') }, 'TASK', UNITS), { splitsLines: false, readsAmount: false, units: UNITS });
 });
 
-test('a List takes no date, person or label, and splits lines (one level in force)', () => {
-  assert.deepEqual(rulesOf(settingsOf('LIST'), ROOTS, offered), { date: false, person: false, label: false, splitsLines: true });
+test('a List takes no date, person or label, and reads lines and amounts (UC-WRK-26 check 3)', () => {
+  assert.deepEqual(rulesOf(settingsOf('LIST'), ROOTS, offered), { date: false, person: false, label: false });
+  assert.deepEqual(captureRulesOf({ settings: settingsOf('LIST') }, 'TASK', UNITS), { splitsLines: true, readsAmount: true, units: UNITS });
 });
 
 test('Flow has one level, so lines split there too - the rule both capture fields share', () => {
-  assert.equal(rulesOf(settingsOf('FLOW'), ROOTS, offered).splitsLines, true);
+  assert.equal(captureRulesOf({ settings: settingsOf('FLOW') }, 'TASK', UNITS).splitsLines, true);
 });
 
 test('capture holds DATE but the top level lacks DUE_DATE: no date', () => {
@@ -145,12 +149,12 @@ test('capture holds DATE but the top level lacks DUE_DATE: no date', () => {
 
 test('a type the fields leave out carries what the installation offers it', () => {
   const settings = { levels: [{ type: 'TASK' }, { type: 'ACTIVITY' }], fields: {}, capture: ['DATE', 'PERSON', 'LABEL'] } as unknown as StructureSettings;
-  assert.deepEqual(rulesOf(settings, ROOTS, offered), { date: true, person: true, label: true, splitsLines: false });
+  assert.deepEqual(rulesOf(settings, ROOTS, offered), { date: true, person: true, label: true });
 });
 
 test('no structure answered: Hubtask’s default, the installation’s first root', () => {
   assert.equal(topLevelOf(undefined, ROOTS), 'TASK');
-  assert.deepEqual(rulesOf(undefined, ROOTS, offered), { date: true, person: true, label: true, splitsLines: false });
+  assert.deepEqual(rulesOf(undefined, ROOTS, offered), { date: true, person: true, label: true });
 });
 
 test('only a collection recognises anything: the jumble, pending and nowhere read nothing', () => {

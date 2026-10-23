@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// UC-WRK-25 checks 1 and 2: lines become entries, a leading amount becomes the entry's amount.
+// UC-WRK-25 checks 1 and 2: lines become entries, a leading amount becomes the entry's amount; and
+// the one rule both capture fields read a collection by (UC-WRK-26 check 3).
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { capture, MAX_CAPTURE_LINES, parseLine, unitsOf, type CaptureRules } from './capture.ts';
+import { capture, captureRulesOf, MAX_CAPTURE_LINES, parseLine, unitsOf, type CaptureRules } from './capture.ts';
 
 const en = unitsOf('g kg mg l ml cl dl oz lb pcs');
 const de = unitsOf('g kg mg l ml cl dl oz lb Stk Pkg Bund Dose EL TL');
@@ -74,4 +75,30 @@ test('a collection that does not split lines takes one entry', () => {
     { title: 'milk and bread', amount: '2' },
   ]);
   assert.deepEqual(capture('  \n ', list).lines, []);
+});
+
+test('one rule for every capture field: lines split at one level or LINES, amounts where AMOUNT is offered (D7)', () => {
+  const structure = (settings: Record<string, unknown> | undefined) =>
+    (settings === undefined ? undefined : { settings }) as Parameters<typeof captureRulesOf>[0];
+  const withAmount = { TASK: { capabilities: ['COMPLETION', 'AMOUNT'] } };
+  const withoutAmount = { TASK: { capabilities: ['COMPLETION', 'DUE_DATE'] } };
+  const one = [{ type: 'TASK' }];
+  const two = [{ type: 'TASK' }, { type: 'ACTIVITY' }];
+  const cases: readonly (readonly [string, Record<string, unknown>, boolean, boolean])[] = [
+    ['a list: one level, LINES and AMOUNT', { levels: one, fields: withAmount, capture: ['LINES', 'AMOUNT'] }, true, true],
+    ['one level without LINES still splits', { levels: one, fields: withAmount, capture: ['DATE'] }, true, false],
+    ['two levels with LINES split', { levels: two, fields: withAmount, capture: ['LINES'] }, true, false],
+    ['two levels without LINES do not', { levels: two, fields: withAmount, capture: ['DATE', 'AMOUNT'] }, false, true],
+    ['AMOUNT recognised, the type without it', { levels: one, fields: withoutAmount, capture: ['AMOUNT'] }, true, false],
+    ['the type with AMOUNT, AMOUNT not recognised', { levels: one, fields: withAmount, capture: ['LINES'] }, true, false],
+    ['no levels answered is every type, not one level', { fields: withAmount, capture: ['DATE'] }, false, false],
+    ['no capture answered recognises neither', { levels: two, fields: withAmount }, false, false],
+  ];
+  for (const [name, settings, splitsLines, readsAmount] of cases) {
+    assert.deepEqual(captureRulesOf(structure(settings), 'TASK', en), { splitsLines, readsAmount, units: en }, name);
+  }
+  assert.deepEqual(captureRulesOf(undefined, 'TASK', de), { splitsLines: false, readsAmount: false, units: de }, 'no structure read yet');
+  // The type the capture creates decides the amount: another type's AMOUNT is not this one's.
+  const amounted = structure({ levels: one, fields: withAmount, capture: ['AMOUNT'] });
+  assert.equal(captureRulesOf(amounted, 'ACTIVITY', en).readsAmount, false);
 });

@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-09, P-10, P-12, P-13]
 state: partial
 tasks: [F10-04]
-checked_by: [apps/webapp/e2e/overview.test.mjs]
+checked_by: [apps/webapp/e2e/today.test.mjs, apps/webapp/e2e/workspacereach.test.mjs]
 ---
 
 # See what is on me when I arrive
@@ -51,5 +51,4 @@ the page holds a single sentence and *Create hub*.
 
 ## Today
 
-* Check 3: not met for a person scoped below the workspace — the jumble is read at the workspace, so the read is refused, and the panel is drawn anyway and says nothing is waiting.
 * Check 6: not met for a person whose role reaches no hub — the empty state says "No hubs yet" to them too, not that nothing has been shared with them yet; in no milestone yet.
