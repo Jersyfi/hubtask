@@ -896,9 +896,15 @@ operators — with one anatomy:
 * **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
   signed in*); nothing else about them may.
 * **A screen of several views of one subject is `Tabs`** (*Sign-in*: passwords, sessions, ways and
-  providers), the tab in the address as `?tab=` so a reload or a link keeps it, and **one save bar
-  per tab** that counts and sends that tab's rows only. An address whose screen became a tab
-  replaces itself with that tab (`movedTo` in `routes.ts`), so bookmarks keep working.
+  providers; *People*: people, groups, roles and permissions; *Machines and apps*: service
+  accounts, third-party apps; *AI*: source, consent and people, budget), the tab in the address as
+  `?tab=` so a reload or a link keeps it, and **one save bar per tab** that counts and sends that
+  tab's rows only. The tabs stand outside the permission gate, so a reader who may change nothing
+  still reads each one. An address whose screen became a tab replaces itself with that tab
+  (`movedTo` in `routes.ts`), so bookmarks keep working.
+* **One primary action per screen, even with several ways to do it**: the ways are the primary's
+  own list (*People*: *Add people* invites, and lists the account without an address and a role
+  for somebody already here); a way chosen opens its form above the list, one at a time.
 
 The sections' groups and rows are `navigation.ts`'s. Where somebody is signed in and which devices
 hold a copy are tables, newest first. The rules list is the way into automation and
