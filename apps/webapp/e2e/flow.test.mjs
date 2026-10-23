@@ -81,6 +81,10 @@ test('chromium: UC-WRK-31 check 1 — a flow opens on the board, its states the 
   const done = page.locator(`[data-column-zone="${BUCKETS[2].id}"] .done`);
   assert.equal(await done.getAttribute('title'), 'Entries moved here are marked as done.');
   assert.equal(await page.locator(`[data-column-zone="${BUCKETS[0].id}"] .done`).count(), 0);
+  // And an entry put in it is completed.
+  const completed = page.waitForRequest((request) => request.method() === 'POST' && request.url().endsWith(`/items/${ACCEPTED.id}:complete`));
+  await moveByMenu(page, ACCEPTED, BUCKETS[2].name);
+  await completed;
   assert.deepEqual(failures, []);
 });
 
