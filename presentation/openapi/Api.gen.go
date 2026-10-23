@@ -2220,6 +2220,54 @@ func (e InstallationDefaultsWeekStart) Valid() bool {
 	}
 }
 
+// Defines values for InstallationPresetCreatePreset.
+const (
+	InstallationPresetCreatePresetFLOW    InstallationPresetCreatePreset = "FLOW"
+	InstallationPresetCreatePresetLIST    InstallationPresetCreatePreset = "LIST"
+	InstallationPresetCreatePresetPROJECT InstallationPresetCreatePreset = "PROJECT"
+	InstallationPresetCreatePresetTASKS   InstallationPresetCreatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the InstallationPresetCreatePreset enum.
+func (e InstallationPresetCreatePreset) Valid() bool {
+	switch e {
+	case InstallationPresetCreatePresetFLOW:
+		return true
+	case InstallationPresetCreatePresetLIST:
+		return true
+	case InstallationPresetCreatePresetPROJECT:
+		return true
+	case InstallationPresetCreatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstallationPresetUpdatePreset.
+const (
+	InstallationPresetUpdatePresetFLOW    InstallationPresetUpdatePreset = "FLOW"
+	InstallationPresetUpdatePresetLIST    InstallationPresetUpdatePreset = "LIST"
+	InstallationPresetUpdatePresetPROJECT InstallationPresetUpdatePreset = "PROJECT"
+	InstallationPresetUpdatePresetTASKS   InstallationPresetUpdatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the InstallationPresetUpdatePreset enum.
+func (e InstallationPresetUpdatePreset) Valid() bool {
+	switch e {
+	case InstallationPresetUpdatePresetFLOW:
+		return true
+	case InstallationPresetUpdatePresetLIST:
+		return true
+	case InstallationPresetUpdatePresetPROJECT:
+		return true
+	case InstallationPresetUpdatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InstanceSettingKind.
 const (
 	InstanceSettingKindCHOICE   InstanceSettingKind = "CHOICE"
@@ -3245,15 +3293,18 @@ func (e PresetKey) Valid() bool {
 
 // Defines values for PresetOrigin.
 const (
-	PresetOriginHUBTASK   PresetOrigin = "HUBTASK"
-	PresetOriginOWN       PresetOrigin = "OWN"
-	PresetOriginWORKSPACE PresetOrigin = "WORKSPACE"
+	PresetOriginHUBTASK      PresetOrigin = "HUBTASK"
+	PresetOriginINSTALLATION PresetOrigin = "INSTALLATION"
+	PresetOriginOWN          PresetOrigin = "OWN"
+	PresetOriginWORKSPACE    PresetOrigin = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PresetOrigin enum.
 func (e PresetOrigin) Valid() bool {
 	switch e {
 	case PresetOriginHUBTASK:
+		return true
+	case PresetOriginINSTALLATION:
 		return true
 	case PresetOriginOWN:
 		return true
@@ -7951,6 +8002,64 @@ type InstallationDefaults struct {
 // InstallationDefaultsWeekStart defines model for InstallationDefaults.WeekStart.
 type InstallationDefaultsWeekStart string
 
+// InstallationPreset A preset the installation offers every workspace: its eight settings, held to what the installation offers; whether it is the default a hub starts from where its workspace chose none; and, on the default, the settings it locks for every workspace.
+type InstallationPreset struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// IsDefault Whether a hub created without a preset starts from it, in a workspace that chose no default of its own. One preset at most.
+	IsDefault bool `json:"is_default"`
+
+	// Locks What the default fixes in every workspace: a whole setting (`views`) or one capability of one level (`fields.TASK.DUE_DATE`). Empty on every other preset.
+	Locks []string `json:"locks"`
+
+	// Name The operator's name for it, as every workspace sees it.
+	Name string `json:"name"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+
+	// Version The optimistic lock, the same value as the `ETag`.
+	Version int `json:"version"`
+}
+
+// InstallationPresetCreate defines model for InstallationPresetCreate.
+type InstallationPresetCreate struct {
+	// IsDefault Makes it the default; the former default stops being one and loses its locks.
+	IsDefault *bool `json:"is_default,omitempty"`
+
+	// Locks The settings the default locks; only with `is_default`.
+	Locks *[]string `json:"locks,omitempty"`
+	Name  string    `json:"name"`
+
+	// Preset One of Hubtask's presets the settings start from; Hubtask's default without one.
+	Preset *InstallationPresetCreatePreset `json:"preset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// InstallationPresetCreatePreset One of Hubtask's presets the settings start from; Hubtask's default without one.
+type InstallationPresetCreatePreset string
+
+// InstallationPresetUpdate Applied in this order - the name, Hubtask's preset copied again, the settings, the default, the locks. A field left out is left as it is.
+type InstallationPresetUpdate struct {
+	// IsDefault True makes it the default, lifting the former default's locks; false makes none the default and lifts its locks.
+	IsDefault *bool `json:"is_default,omitempty"`
+
+	// Locks The whole set of locks; refused on a preset that is not the default.
+	Locks *[]string `json:"locks,omitempty"`
+	Name  *string   `json:"name,omitempty"`
+
+	// Preset One of Hubtask's presets whose settings replace this one's.
+	Preset *InstallationPresetUpdatePreset `json:"preset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// InstallationPresetUpdatePreset One of Hubtask's presets whose settings replace this one's.
+type InstallationPresetUpdatePreset string
+
 // InstallationSetUp defines model for InstallationSetUp.
 type InstallationSetUp struct {
 	// Code The setup code the server printed at start. Case and the dashes between its groups do not matter.
@@ -9808,7 +9917,7 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
-// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
 	Id *openapi_types.UUID `json:"id,omitempty"`
@@ -9819,7 +9928,7 @@ type Preset struct {
 	// Name A saved preset's name. Absent on one of Hubtask's, which a client names.
 	Name *string `json:"name,omitempty"`
 
-	// Origin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+	// Origin Where the preset comes from: Hubtask's, the installation's (offered in every workspace), the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
 	Origin PresetOrigin `json:"origin"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
@@ -9832,7 +9941,7 @@ type Preset struct {
 // PresetKey One of Hubtask's presets. Absent on a saved one.
 type PresetKey string
 
-// PresetOrigin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+// PresetOrigin Where the preset comes from: Hubtask's, the installation's (offered in every workspace), the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
 type PresetOrigin string
 
 // PresetCreate defines model for PresetCreate.
@@ -12624,6 +12733,18 @@ type ChangePlanParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// WithdrawInstallationPresetParams defines parameters for WithdrawInstallationPreset.
+type WithdrawInstallationPresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeInstallationPresetParams defines parameters for ChangeInstallationPreset.
+type ChangeInstallationPresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // WriteInstanceSettingsParams defines parameters for WriteInstanceSettings.
 type WriteInstanceSettingsParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -13841,6 +13962,12 @@ type CreatePlanJSONRequestBody = PlanCreate
 // ChangePlanJSONRequestBody defines body for ChangePlan for application/json ContentType.
 type ChangePlanJSONRequestBody = PlanChange
 
+// CreateInstallationPresetJSONRequestBody defines body for CreateInstallationPreset for application/json ContentType.
+type CreateInstallationPresetJSONRequestBody = InstallationPresetCreate
+
+// ChangeInstallationPresetJSONRequestBody defines body for ChangeInstallationPreset for application/json ContentType.
+type ChangeInstallationPresetJSONRequestBody = InstallationPresetUpdate
+
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
 
@@ -14428,6 +14555,18 @@ type ServerInterface interface {
 	// ChangePlan Replace a plan's values
 	// (PUT /admin/plans/{planName})
 	ChangePlan(w http.ResponseWriter, r *http.Request, planName string, params ChangePlanParams)
+	// ListInstallationPresets The installation's presets
+	// (GET /admin/presets)
+	ListInstallationPresets(w http.ResponseWriter, r *http.Request)
+	// CreateInstallationPreset Create a preset of the installation
+	// (POST /admin/presets)
+	CreateInstallationPreset(w http.ResponseWriter, r *http.Request)
+	// WithdrawInstallationPreset Withdraw a preset of the installation
+	// (DELETE /admin/presets/{presetId})
+	WithdrawInstallationPreset(w http.ResponseWriter, r *http.Request, presetId PresetId, params WithdrawInstallationPresetParams)
+	// ChangeInstallationPreset Change a preset of the installation
+	// (PATCH /admin/presets/{presetId})
+	ChangeInstallationPreset(w http.ResponseWriter, r *http.Request, presetId PresetId, params ChangeInstallationPresetParams)
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	// (GET /admin/settings)
 	ReadInstanceSettings(w http.ResponseWriter, r *http.Request)
@@ -16830,6 +16969,134 @@ func (siw *ServerInterfaceWrapper) ChangePlan(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ChangePlan(w, r, planName, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListInstallationPresets operation middleware
+func (siw *ServerInterfaceWrapper) ListInstallationPresets(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListInstallationPresets(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateInstallationPreset operation middleware
+func (siw *ServerInterfaceWrapper) CreateInstallationPreset(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateInstallationPreset(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// WithdrawInstallationPreset operation middleware
+func (siw *ServerInterfaceWrapper) WithdrawInstallationPreset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "presetId" -------------
+	var presetId PresetId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "presetId", r.PathValue("presetId"), &presetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "presetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params WithdrawInstallationPresetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.WithdrawInstallationPreset(w, r, presetId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeInstallationPreset operation middleware
+func (siw *ServerInterfaceWrapper) ChangeInstallationPreset(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "presetId" -------------
+	var presetId PresetId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "presetId", r.PathValue("presetId"), &presetId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "presetId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeInstallationPresetParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeInstallationPreset(w, r, presetId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28465,6 +28732,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.RemovePlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ReadPlan)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/admin/plans/{planName}", wrapper.ChangePlan)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/presets", wrapper.ListInstallationPresets)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/presets", wrapper.CreateInstallationPreset)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.WithdrawInstallationPreset)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.ChangeInstallationPreset)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)

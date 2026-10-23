@@ -999,6 +999,26 @@ export class HubtaskClient {
     return this.call("DELETE", "/admin/plans/{planName}", { "planName": planName }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The installation's presets */
+  listInstallationPresets(options: CallOptions = {}): Promise<operations["listInstallationPresets"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Create a preset of the installation */
+  createInstallationPreset(body: NonNullable<operations["createInstallationPreset"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createInstallationPreset"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/admin/presets", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change a preset of the installation */
+  changeInstallationPreset(presetId: string, body: NonNullable<operations["changeInstallationPreset"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeInstallationPreset"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/admin/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Withdraw a preset of the installation */
+  withdrawInstallationPreset(presetId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
+    return this.call("DELETE", "/admin/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
   /** Put a workspace on another plan */
   moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);

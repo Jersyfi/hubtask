@@ -1583,6 +1583,26 @@ func (pending) WithdrawPreset(
 	notAvailable(w, r)
 }
 
+func (pending) ListInstallationPresets(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) CreateInstallationPreset(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}
+
+func (pending) ChangeInstallationPreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.ChangeInstallationPresetParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) WithdrawInstallationPreset(
+	w http.ResponseWriter, r *http.Request, _ openapi.PresetId, _ openapi.WithdrawInstallationPresetParams,
+) {
+	notAvailable(w, r)
+}
+
 func (pending) CloseStarter(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 // AI where its subject is (UC-AI-04 checks 7 and 9).

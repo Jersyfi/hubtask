@@ -1666,13 +1666,37 @@ class WorkspaceStructure(TypedDict, total=False):
     default_preset_id: str | None
 
 class Preset(TypedDict, total=False):
-    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`."""
-    origin: Required[Literal["HUBTASK", "WORKSPACE", "OWN"]]
+    """A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`."""
+    origin: Required[Literal["HUBTASK", "INSTALLATION", "WORKSPACE", "OWN"]]
     key: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
     id: str
     name: str
     version: int
     settings: Required["StructureSettings"]
+
+class InstallationPreset(TypedDict, total=False):
+    """A preset the installation offers every workspace: its eight settings, held to what the installation offers; whether it is the default a hub starts from where its workspace chose none; and, on the default, the settings it locks for every workspace."""
+    id: Required[str]
+    name: Required[str]
+    version: Required[int]
+    settings: Required["StructureSettings"]
+    is_default: Required[bool]
+    locks: Required[list[str]]
+
+class InstallationPresetCreate(TypedDict, total=False):
+    name: Required[str]
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    is_default: bool
+    locks: list[str]
+
+class InstallationPresetUpdate(TypedDict, total=False):
+    """Applied in this order - the name, Hubtask's preset copied again, the settings, the default, the locks. A field left out is left as it is."""
+    name: str
+    preset: Literal["LIST", "TASKS", "PROJECT", "FLOW"]
+    settings: "StructureSettings"
+    is_default: bool
+    locks: list[str]
 
 class PresetCreate(TypedDict, total=False):
     name: Required[str]
