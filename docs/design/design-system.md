@@ -370,13 +370,13 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (5)
-AppBar · NavDrawer · BottomBar · PageHeader · DetailPane
+### Wave 5 — the shell (6)
+AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo
 
-The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)); how
-the product uses them is §11.
+The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
+the mark the bar carries; how the product uses them is §11.
 
-* **`AppBar`** — on every width: the navigation toggle at the start, the wordmark or the page title,
+* **`AppBar`** — on every width: the navigation toggle at the start, the mark and the wordmark or the page title,
   a slot for search in the middle, the controls at the end, and a slot for the page's folded menu.
   **No slot for a page action.** Sticky on `layer.sticky`, a `<header>` landmark, a hairline and no
   shadow; the title is a span, never a heading; the top safe-area inset goes into its padding.
@@ -391,6 +391,11 @@ the product uses them is §11.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
   `aside` landmark with its own heading; it takes no focus and is not a dialog.
+* **`Logo`** — the Hubtask mark of §9, alone or with the wordmark, in four size steps of the space
+  scale: `sm` draws the reduced form, every larger step the full one. `color` draws the `brand.*`
+  tokens, `mono` the colour of the text around it. Not an `Icon` — an icon is `currentColor` only
+  (§12). The wordmark is the caller's resolved text, lowered by the stylesheet and never
+  translated; with it the text is the accessible name, without it `label` is.
 
 ---
 
@@ -529,9 +534,12 @@ says counts ([UC-WRK-29](../usecases/work/UC-WRK-29-see-what-counts.md)):
   percentage.
 * **Rhythm** — the days of this week on which something was completed; it never resets to zero,
   never names a missed day, and weekends and absences cost nothing.
-* **Milestones** — a collection or hub with nothing open records the moment with its date on it.
+* **Milestones** — a collection or hub with nothing open records the moment with its date on it:
+  the server records it at the completion that left nothing open, and the head of the collection
+  or hub says "Everything done on" that day. It stays when entries are added afterwards.
 * **Kudos** — one person's acknowledgement of another's completed entry, seen by the one who
-  completed it; never counted per person.
+  completed it; never counted per person. The entry's page offers one toggle to everybody else,
+  and names the givers - never their number - to the one who completed it (domain-model.md §3.5).
 
 **Figures about one person are that person's.** No administrator, auditor or report sees them, and
 a team's figures count the collection, not people: per-person figures in a company are performance
@@ -594,6 +602,14 @@ screenshots.
   completion); the wordmark is IBM Plex Sans Condensed 700 in lower case. A trademark search and a
   graphic refinement precede its final release. The mark is never a symbol of a level: levels are
   presets a collection changes, and a fixed symbol would claim what the settings may no longer be.
+  **Built provisionally** as `Logo` (§4, wave 5): the geometry lives in
+  `packages/design-system/src/mark.ts`, the reduced form below 24 pixels (`sm`) has a heavier
+  outline, no core and a larger spark. Each part draws a semantic token — outline `brand.outline`
+  (indigo), plane `brand.plane` (raspberry), core `brand.core` and spark `brand.spark` (amber);
+  the outline holds 3:1 against every surface. The build generates the tab icon
+  (`dist/mark/favicon.svg`, the reduced mark, light and dark by the system's scheme) and the
+  installed apps' icon source (`dist/mark/app-icon.svg`, the full mark at 72 % on a `brand.tile`
+  square with a white outline, one form for light and dark launchers).
 - **The system conventions of the installed clients** — the back gesture and swipe as history, the
   share sheet, the keyboard's accessory row, the status bar's colour, and the administration row as
   [ADR-0032](../adr/ADR-0032-client-capability-matrix.md)'s affordance in a build that excludes the
@@ -705,8 +721,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
   [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
@@ -735,6 +751,15 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `places` | Overview, Search, Jumble | At the top. Search is here on every width |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
+
+**A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
+under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
+`build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
+its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
+in a list that mixes collections (the overview, search). It is the place's, never a level's (§6),
+and never says anything alone: the name stands beside it. A place nobody chose for keeps its type's
+mark and no tile; a private hub with a symbol of its own says *Private* at the end of its row
+instead of wearing the lock. A value the client does not offer is read as none chosen.
 
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
 on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
@@ -930,7 +955,9 @@ between columns is the card's menu (§11.9).
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
    A set cover is drawn above the title; no room is taken for an absent one.
-2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag. Every
+2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
+   carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
+   *Select*, since no bulk bar acts there. Every
    level carries its checkbox, type mark, twist and "done of total" count; the section heading is the
    manifest's name for the child type; a "+ <child type>" ends every level the manifest lets take
    one, gated by `add_child`. Direct children open, deeper levels closed, "expand all" in the section
@@ -939,6 +966,21 @@ between columns is the card's menu (§11.9).
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
    `DetailPane`.
 4. **Comments and activity**, as tabs.
+
+**A simple list** is how the list layout draws a collection whose levels in force are one
+([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
+the open entries under the collection's categories in their order, the entries ticked in the last 24
+hours under the collection's name for done entries (*Done* without one), and the older ones under
+*Recently*, most often completed first and narrowed by what the capture line holds. The capture line
+takes several lines as several entries and reads a leading amount where the collection offers one,
+showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
+the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still
+hold opens the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
+and the grip drags within its section. The title is not a link there: *Open* is in the row's menu,
+beside the amount and the category. For somebody who may change the shape, the *Done* heading can be
+renamed and *Categories* chosen and ordered where the list is used; the *Structure* panel opens the
+same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
+swipe included.
 
 **One way to edit.** No edit form. Title, notes and completion are edited in place; every other
 field is a details row opening its editor in a `Popover` from `medium` up and a `Drawer` below. An
@@ -999,6 +1041,7 @@ write falls back in silence where storage is refused.
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
 | What was opened last, for the overview | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
+| The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |
 | A resizable sheet's size | wherever its caller keeps it — the rule editor uses `localStorage` | the caller, never `Drawer` |
 | The last sign-in method used | `localStorage` | `lib/signin/lastMethod.ts` |
@@ -1025,6 +1068,8 @@ week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
 * **The stroke scales with the box**: 1.5 at 24 px, 2.25 at 16 px.
 * Every icon carries an accessible name or is marked decorative (§10, 1.1.1). A directional mark is
   in the mirrored set and turns under `[dir='rtl']` (§3).
+* **A place's own symbols are a group of their own** in `build/icons.js`: nouns a person names an
+  area of life or work by, never the mark of a level or of a container type (§11.3).
 * **A mark joins the list when it names a concept the product repeats**, not to decorate one row;
   otherwise the row takes the nearest existing mark. It is added by naming it in `build/icons.js`
   under the group that asks for it and running `make icons`; an upstream rename stops the build

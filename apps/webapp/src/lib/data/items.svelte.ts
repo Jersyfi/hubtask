@@ -257,6 +257,8 @@ class Items {
       parent_id?: string | null;
       title: string;
       notes?: string | null;
+      /** How much of it, where the collection carries AMOUNT (UC-WRK-25 check 2). */
+      amount?: string | null;
       /** BCP-47, the language the title and the notes are in. Omitted takes the creator's locale. */
       content_language?: string | null;
       /** The three due fields, together or not at all (`due.ts`, `dueInputFor`). */
@@ -282,7 +284,13 @@ class Items {
     // `start_at` is a plain scalar on the patch on purpose: a start is one
     // instant with nothing qualifying it, while a due date is three fields that only mean
     // something together and therefore has a writer of its own.
-    body: { title?: string; notes?: string | null; start_at?: string | null; content_language?: string | null },
+    body: {
+      title?: string;
+      notes?: string | null;
+      amount?: string | null;
+      start_at?: string | null;
+      content_language?: string | null;
+    },
     version: number,
   ): Promise<WorkItem> {
     return engine.mutate<WorkItem>('PATCH', `/items/${id}`, body, {

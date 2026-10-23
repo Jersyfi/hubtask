@@ -22,6 +22,7 @@
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
+  import { chosenSymbol, markOf } from '../workspace/look.ts';
 
   import { actor } from '../data/account.svelte.ts';
   import { holdsHere, hubCreationHere } from '../data/capability.svelte.ts';
@@ -109,8 +110,12 @@
       .map((hub) => ({
       id: hub.id,
       label: hub.name,
-      // A private hub wears the lock its own page explains (UC-ID-16).
-      icon: hub.private ? ('lock' as const) : ('hub' as const),
+      // Its own symbol and colour where its people chose them (UC-WRK-33). A private hub nobody
+      // chose a symbol for wears the lock its own page explains (UC-ID-16); one with a symbol says
+      // it in words at the end of the row, so the choice does not cost the fact.
+      icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
+      colorToken: hub.color_token ?? undefined,
+      meta: hub.private && chosenSymbol(hub) ? t('app.nav.private') : undefined,
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
       // carries one, and **loses it once the level has been read and is empty**: a
@@ -128,7 +133,8 @@
           return {
             id: collection.id,
             label: collection.name,
-            icon: 'collection' as const,
+            icon: markOf(collection),
+            colorToken: collection.color_token ?? undefined,
             meta: figure ? t(figure.code, figure.params) : undefined,
           };
         }),

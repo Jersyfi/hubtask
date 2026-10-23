@@ -21,8 +21,8 @@
 import type { IconNode } from './node.ts';
 
 export const CUSTOM_ICONS = {
-  // The hierarchy, outermost first. Three nested planes, which is the wordmark's idea: a hub is
-  // the thing everything else sits inside.
+  // The hierarchy, outermost first. Three nested planes: a hub is the thing everything else sits
+  // inside.
   hub: [
     ['rect', { x: '3', y: '3', width: '18', height: '18', rx: '3' }],
     ['rect', { x: '7', y: '7', width: '10', height: '10', rx: '2' }],

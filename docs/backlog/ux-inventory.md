@@ -115,14 +115,14 @@ Administration and installation, found by UX-05's sweep:
 
 - [ ] Skip link → kept
 - [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
-- [ ] Wordmark → the mark (UX-06), leads to Today
+- [x] Wordmark → the mark (UX-06), leads to Today — the mark and the wordmark link to `/`, the start page UX-15 makes *Today*
 - [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask*: UX-22
 - [ ] Page *⋯* on phones → kept
 - [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
 - [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
 - [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
-- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
+- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24 — colour and symbol done by UX-07); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
 - [ ] Archive, Trash band → kept
 - [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You — ＋: UX-14 (a button opening the capture field); *Today*: UX-15
 - [ ] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone
@@ -131,7 +131,7 @@ Administration and installation, found by UX-05's sweep:
 
 ## E2 — Signing in, invitations, setup
 
-- [ ] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette
+- [x] Sign-in card (address or name, password, forgot, passkey, providers, link by mail, legal footer) → kept, new mark and palette (UX-01, UX-06)
 - [ ] Forgot · second factor (code, recovery, key, switching) · enforced second factor · forced change · provider link · terms · notices → kept
 - [ ] Reset · redeem (terms checkbox) · confirm address · OIDC callback (three ways back) → kept
 - [ ] Setup (code, workspace, short name, name, address, password, Create) → kept; then the starter question (UX-27)
@@ -150,7 +150,7 @@ Administration and installation, found by UX-05's sweep:
 
 ## E4 — Hub and collection
 
-- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); collections as cards with their figure
+- [ ] Hub: create collection, import, people avatars; menu rename, archive, move up/down, people, make private / share, trash → kept; rename becomes *Edit* (name, description, colour, symbol, default preset); *Colour and symbol…* in the menu until the *Edit* dialog takes it (UX-07); collections as cards with their figure
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
@@ -160,7 +160,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept
 - [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs
 - [ ] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes
-- [ ] Detail pane: close, open as page → kept; also from board and timeline
+- [x] Detail pane: close, open as page → kept; also from board and timeline — done in UX-16: `/collections/:id?item=` from list, board and timeline
 - [ ] Labels dialog: rename, delete (no confirmation), name, colour, create → *Structure → Labels*; delete with undo
 - [ ] Custom fields dialog: list, change, take out of use, key, kind, values, required, carried by → *Structure → Fields*
 - [ ] Templates dialog: use, edit, delete, define, generate from a description, stamp it out, editor per step → *Structure → Templates*; *From template* in capture; AI drafts land in the same panel
@@ -168,17 +168,17 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
-- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol
+- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol done (UX-07)
 
 ## E5 — List, board, timeline, selection
 
 - [ ] Row: selection, grip, twist, checkbox, title link, pending mark → kept; grip on hover
 - [ ] Row trailing: progress, people, due, archived, label chips with remove, labels popover, ＋ inside, *⋯* → chips kept; labels, ＋ and *⋯* on hover; ＋ offers work package and activity (UX-08)
-- [ ] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo
+- [x] Row *⋯*: move up/down/top/bottom, inside, out, to another collection, archive, set a due date, duplicate, trash (no confirmation) → the entry menu (UX-16); plus share, person, labels; trash with undo — done in UX-16: `EntryMenu` on the list and the subtree, labels undo on the chips
 - [ ] "Left some things behind" notice → kept
-- [ ] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more*
-- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16, which ticks the row
-- [ ] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press
+- [x] Add form: kind, title, written in, create, cancel; empty state; button under the list → capture line at top and bottom; language under *more* (UX-12: the capture line takes several lines and a leading amount; kind and language under *More*; a simple list keeps it open at its top)
+- [ ] Keyboard and pointer: Alt+arrows, Alt+Shift+arrows, space/shift in selection, Ctrl-click, drag, hold on touch, long-press → kept; global `Q`, `⌘K`, `/`, `?` — `⌘K`, `/`, `?`: UX-13; `Q`: UX-14; long-press: UX-16 (ADR-0088)
+- [x] Board: columns, no column, WIP, done column, column menu (edit, delete), create column, bucket dialog, card, card *⋯* (move, to column, duplicate), drag, Alt keys, one column on phones with swipe → kept; card gets the entry menu; selection by Ctrl-click and long-press — done in UX-16: `EntryMenu` on cards, Ctrl/⌘-click and the still long press (ADR-0088)
 - [ ] Timeline: earlier, today, later, scale, drag bar, start and end handles, "no dates yet" → kept; offered per profile
 - [ ] Bulk bar: select all on screen, count, nine operations, value, all or nothing, apply, clear, done → kept; apply enabled, missing value marked (D.1 3)
 

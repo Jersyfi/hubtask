@@ -14,6 +14,7 @@
 // exists to avoid needing (the webapp's check-csp.js reasons the same way).
 
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 
 /** Everything that would make a document dynamic or inline-styled. Empty when clean. */
@@ -63,6 +64,14 @@ if (process.argv[1] === new URL(import.meta.url).pathname) {
     console.error('static: no documents in dist/ - the prerender produced nothing');
     process.exit(1);
   }
+  // The tab icon every document links: the design system's generated file, byte for byte, so the
+  // site's icon cannot drift from the mark the web app ships (UC-WRK-33 check 4).
+  const icon = path.join(dist, 'favicon.svg');
+  const generated = createRequire(import.meta.url).resolve('@hubtask/design-system/mark/favicon.svg');
+  if (!fs.existsSync(icon) || !fs.readFileSync(icon).equals(fs.readFileSync(generated))) {
+    failures++;
+    console.error('static: favicon.svg is missing or is not the design system\'s generated tab icon');
+  }
   if (failures > 0) process.exit(1);
-  console.log(`static: ${documents} document(s), plain static`);
+  console.log(`static: ${documents} document(s), plain static, the generated tab icon`);
 }

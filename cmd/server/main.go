@@ -698,6 +698,7 @@ func run() error {
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
 	}
 	// What counts in a collection, counted on its read (UC-WRK-29).
+	milestones := postgres.NewMilestoneRepository()
 	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
@@ -774,7 +775,14 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Structure: structures,
+		Structure: structures, Milestones: milestones,
+	}
+
+	// The three kudos use cases share one desk: the same entry read, the same permission question
+	// (work.KudosDesk).
+	kudosDesk := work.KudosDesk{
+		Kudos: postgres.NewKudosRepository(), Items: items, Containers: containers,
+		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Audit: auditSink,
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a
@@ -2033,6 +2041,7 @@ func run() error {
 			Covers:       coverWriter,
 			CustomFields: setCustomField,
 			Text:         forms,
+			Structure:    structures,
 		}.Descriptor(),
 		work.UpdateWorkItem{
 			Gate:       entryGate,
@@ -2051,11 +2060,13 @@ func run() error {
 			HLC:        hybrid,
 			DueDates:   dueDateWriter,
 			Text:       forms,
+			Structure:  structures,
 		}.Descriptor(),
 		work.RenameContainer{Writer: containerWriter}.Descriptor(),
 		work.UpdateContainerPolicies{Writer: containerWriter}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
+			Labels: labels,
 		}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: structures, Authorizer: authorizer, Changes: changes,
@@ -2130,6 +2141,7 @@ func run() error {
 		}.Descriptor(),
 		work.UpdateLabel{Writer: labelWriter}.Descriptor(),
 		work.DeleteLabel{Writer: labelWriter}.Descriptor(),
+		work.RestoreLabel{Writer: labelWriter}.Descriptor(),
 		work.AddLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.RemoveLabel{Writer: itemLabelWriter}.Descriptor(),
 		work.AssignWorkItem{Assignment: assignment}.Descriptor(),
@@ -2142,14 +2154,14 @@ func run() error {
 		work.RemoveMember{Writer: itemMemberWriter}.Descriptor(),
 		work.GetContainer{
 			Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
-			Structure: structures, Figures: figures,
+			Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
 		// The authorisation service twice, under two names: Authorize for the level a client named,
 		// Permitted for the hub level, which is anchored to nothing and is narrowed to what the actor
 		// may see rather than refused outright (ReadContainers.Execute).
 		work.ListContainers{
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
-			UnitOfWork: unitOfWork, Structure: structures, Figures: figures,
+			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
 		work.ListPresets{Profiles: profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.ListJumbleDestinations{
@@ -2215,6 +2227,9 @@ func run() error {
 		}.Descriptor(),
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),
 		work.ReopenWorkItem{Completion: completion}.Descriptor(),
+		work.ReadKudos{Desk: kudosDesk}.Descriptor(),
+		work.GiveKudos{Desk: kudosDesk}.Descriptor(),
+		work.TakeBackKudos{Desk: kudosDesk}.Descriptor(),
 
 		work.MoveWorkItem{Placement: placement}.Descriptor(),
 		work.BulkUpdateWorkItems{
@@ -3289,7 +3304,7 @@ func run() error {
 	}
 	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
-		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
+		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts, Kudos: privacyStore,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,

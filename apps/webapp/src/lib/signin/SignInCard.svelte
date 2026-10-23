@@ -6,7 +6,7 @@
   // **There is no shell here.** ADR-0061 draws the bar for a page that has navigation; signed out
   // there is nowhere to go, so a bar with a wordmark and nothing else is a row of furniture that
   // pushes the form down - on a phone, by exactly the height that decides whether the button is
-  // under the keyboard. The wordmark moves onto the card, where it is also the thing that says
+  // under the keyboard. The mark moves onto the card, where it is also the thing that says
   // which product this is.
   //
   // **The host is named, and it is not a field.** Which workspace somebody is signing in to is
@@ -26,7 +26,7 @@
 
   import type { Snippet } from 'svelte';
 
-  import { Stack } from '@hubtask/design-system/components';
+  import { Logo, Stack } from '@hubtask/design-system/components';
 
   import { signInRules } from '../data/signinrules.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -54,7 +54,7 @@
     <section class="card">
       <div class="brand">
         <!-- A name rather than a message: the product is called Hubtask in every language. -->
-        <span class="wordmark">Hubtask</span>
+        <Logo size="md" wordmark="Hubtask" />
         <span class="host">{t('app.sign_in.to_workspace', { host })}</span>
       </div>
 
@@ -140,16 +140,9 @@
   .brand {
     display: flex;
     flex-wrap: wrap;
-    align-items: baseline;
+    align-items: center;
     justify-content: space-between;
     gap: var(--sp-100);
-  }
-
-  .wordmark {
-    font-family: var(--font-display);
-    font-size: var(--fs-200);
-    font-weight: var(--fw-bold);
-    color: var(--text-primary);
   }
 
   .host {

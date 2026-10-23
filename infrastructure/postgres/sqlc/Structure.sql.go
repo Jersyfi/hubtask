@@ -543,6 +543,45 @@ func (q *Queries) ListLabelsOfItems(ctx context.Context, itemIds []pgtype.UUID) 
 	return items, nil
 }
 
+const listLabelsWithDeleted = `-- name: ListLabelsWithDeleted :many
+SELECT
+  id, tenant_id, collection_id, name, color_token, description, deleted_at, version
+FROM label
+WHERE collection_id = $1
+ORDER BY name COLLATE hubtask_name, id
+`
+
+// The vocabulary and what was taken out of it, for a client that offers to bring a label back.
+// Same order as ListLabels; a deleted label sorts among the others by its name.
+func (q *Queries) ListLabelsWithDeleted(ctx context.Context, collectionID pgtype.UUID) ([]Label, error) {
+	rows, err := q.db.Query(ctx, listLabelsWithDeleted, collectionID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Label{}
+	for rows.Next() {
+		var i Label
+		if err := rows.Scan(
+			&i.ID,
+			&i.TenantID,
+			&i.CollectionID,
+			&i.Name,
+			&i.ColorToken,
+			&i.Description,
+			&i.DeletedAt,
+			&i.Version,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listSetElements = `-- name: ListSetElements :many
 SELECT element_id, add_tag, remove_tag
 FROM set_element
@@ -825,6 +864,30 @@ type SetLabelDeletedParams struct {
 // without having to remember who wore it.
 func (q *Queries) SetLabelDeleted(ctx context.Context, arg SetLabelDeletedParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setLabelDeleted, arg.DeletedAt, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setLabelRestored = `-- name: SetLabelRestored :execrows
+UPDATE label SET
+  deleted_at = NULL,
+  version    = version + 1
+WHERE id = $1::uuid AND version = $2
+`
+
+type SetLabelRestoredParams struct {
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Clears the deletion stamp. Conditional on the version the writer read, as every label write is;
+// whether the name is still free is decided by label_name_uq, which counts the label again the
+// moment its stamp is gone - the index rather than a check first, so a create racing the restore
+// loses to whichever commits first.
+func (q *Queries) SetLabelRestored(ctx context.Context, arg SetLabelRestoredParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setLabelRestored, arg.ID, arg.ExpectedVersion)
 	if err != nil {
 		return 0, err
 	}

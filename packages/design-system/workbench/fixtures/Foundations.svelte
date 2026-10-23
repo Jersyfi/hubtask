@@ -16,7 +16,11 @@
   // the +40 % pseudo-locale, 200 % zoom and the reduced-motion axis - the matrix of ADR-0037,
   // applied to the foundations themselves.
 
+  import appIconUrl from '../../dist/mark/app-icon.svg?url';
+  import faviconUrl from '../../dist/mark/favicon.svg?url';
   import { labelTokens, layout, primitive, tokens } from '../../dist/tokens.ts';
+  import Logo from '../../src/Logo.svelte';
+  import type { LogoSize } from '../../src/mark.ts';
 
   interface Props {
     /** Which half of the foundations to show. One page holding all of it scrolls past reading. */
@@ -24,6 +28,16 @@
   }
 
   const { section = 'colour' }: Props = $props();
+
+  /** The mark's parts, outermost first, each with what it stands for. */
+  const markParts = [
+    { name: 'Outline', meaning: 'the hub', token: 'brand.outline', value: tokens.brand.outline },
+    { name: 'Plane', meaning: 'the collection', token: 'brand.plane', value: tokens.brand.plane },
+    { name: 'Core', meaning: 'the task', token: 'brand.core', value: tokens.brand.core },
+    { name: 'Spark', meaning: 'the moment of completion', token: 'brand.spark', value: tokens.brand.spark },
+  ];
+  const logoSizes: LogoSize[] = ['sm', 'md', 'lg', 'xl'];
+  const appIconSteps = ['400', '600', '800', '1600'];
 
   /** `Object.entries` with the shape the loops below want, and the token name kept. */
   const entries = (group: Record<string, string>) => Object.entries(group);
@@ -262,20 +276,51 @@
   </section>
 {:else}
   <section class="block">
-    <h2>The wordmark, unfinished</h2>
+    <h2>The mark</h2>
     <p class="note">
-      Three nested planes, the innermost in the signature bordeaux. It is <strong>not a finished
-      mark</strong> — `design-system.md` §9 lists it as missing, and a brand mark is design work
-      with an owner rather than a session's output. It is here because it is the only drawn record
-      of the idea.
+      Provisional (<code>design-system.md</code> §9): an open outline around a plane and a core, a spark at
+      the outline's open end. One geometry in <code>src/mark.ts</code> draws <code>Logo</code> and the two generated
+      files below; every colour is a <code>brand.*</code> token. It never stands for a level.
     </p>
-    <div class="logo">
-      <svg class="logo-mark" viewBox="0 0 24 24" aria-hidden="true">
-        <rect x="1" y="1" width="22" height="22" rx="6" fill="var(--accent-primary-hover)" />
-        <rect x="5" y="5" width="14" height="14" rx="4" fill="var(--accent-primary)" opacity=".8" />
-        <rect x="8.5" y="8.5" width="7" height="7" rx="2.2" fill="var(--accent-signature)" />
-      </svg>
-      <span class="logo-word">Hubtask</span>
+    <dl class="parts">
+      {#each markParts as part (part.token)}
+        <div class="part">
+          <dt><span class="swatch" style:background={part.value}></span>{part.name}</dt>
+          <dd>{part.meaning} · <code>{part.token}</code></dd>
+        </div>
+      {/each}
+    </dl>
+    <Logo size="xl" wordmark="Hubtask" />
+    <h3>The steps — reduced at sm, full from md</h3>
+    <div class="marks">
+      {#each logoSizes as size (size)}
+        <Logo {size} label="Hubtask" />
+      {/each}
+    </div>
+    <h3>Mono</h3>
+    <div class="marks">
+      {#each logoSizes as size (size)}
+        <Logo {size} variant="mono" label="Hubtask" />
+      {/each}
+    </div>
+    <h3>The tab icon, generated</h3>
+    <p class="note">
+      <code>dist/mark/favicon.svg</code>: the reduced mark. It follows the system's colour scheme, not the
+      theme axis — a tab strip is the browser's chrome.
+    </p>
+    <div class="marks">
+      <img class="file" data-step="200" src={faviconUrl} alt="The tab icon at the smallest step" />
+      <img class="file" data-step="400" src={faviconUrl} alt="The tab icon at twice that" />
+    </div>
+    <h3>The installed apps' icon source, generated</h3>
+    <p class="note">
+      <code>dist/mark/app-icon.svg</code>: the full mark on the brand tile, one form for light and dark
+      launchers. The shells' icon sets are rendered from it.
+    </p>
+    <div class="marks">
+      {#each appIconSteps as step (step)}
+        <img class="file" data-step={step} src={appIconUrl} alt="The app icon source" />
+      {/each}
     </div>
   </section>
 {/if}
@@ -461,15 +506,19 @@
     to { transform: translateX(var(--travel)); }
   }
 
-  .logo { display: flex; align-items: center; gap: var(--sp-150); }
+  .parts { display: grid; gap: var(--sp-100); margin: 0; }
+  .part { display: flex; flex-wrap: wrap; gap: var(--sp-100); align-items: center; }
+  .part dt { display: flex; align-items: center; gap: var(--sp-100); font-weight: var(--fw-semibold); }
+  .part dd { margin: 0; color: var(--text-secondary); }
 
-  .logo-mark { inline-size: var(--sp-400); block-size: var(--sp-400); flex: none; }
+  .marks { display: flex; flex-wrap: wrap; align-items: end; gap: var(--sp-300); }
 
-  .logo-word {
-    font-family: var(--font-display);
-    font-size: var(--fs-400);
-    font-weight: var(--fw-semibold);
-  }
+  .file { display: block; }
+  .file[data-step='200'] { inline-size: var(--sp-200); block-size: var(--sp-200); }
+  .file[data-step='400'] { inline-size: var(--sp-400); block-size: var(--sp-400); }
+  .file[data-step='600'] { inline-size: var(--sp-600); block-size: var(--sp-600); }
+  .file[data-step='800'] { inline-size: var(--sp-800); block-size: var(--sp-800); }
+  .file[data-step='1600'] { inline-size: var(--sp-1600); block-size: var(--sp-1600); }
 
   @media (prefers-reduced-motion: reduce) {
     .mover { animation-name: none; }

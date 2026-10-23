@@ -18,10 +18,13 @@
   // themes, which is what a colour wheel could not promise - so the choice is a list of the ten
   // rather than a picker, and `labelTokens` is where the ten are.
 
+  import { untrack } from 'svelte';
+
   import { labelTokens } from '@hubtask/design-system';
   import { Button, Dialog, IconButton, Inline, Input, LabelChip, Stack } from '@hubtask/design-system/components';
 
   import { labels } from '../data/labels.svelte.ts';
+  import { offerUndo } from './undo.svelte.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -43,6 +46,27 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   const existing = $derived(labels.of(collectionId));
+  /**
+   * What was taken out of the vocabulary, with the way back (UC-WRK-28 check 3): a deletion's
+   * *Undo* stands only as long as its message, so the labels themselves are the place it stays.
+   */
+  const deleted = $derived(labels.deletedOf(collectionId));
+
+  $effect(() => {
+    if (!isOpen) return;
+    const wanted = collectionId;
+    return untrack(() => labels.openDeleted(wanted));
+  });
+
+  async function restore(label: Label) {
+    failure = undefined;
+    try {
+      await labels.restore(collectionId, label.id, crypto.randomUUID());
+      announcer.say(t('app.labels.restored_announced', { name: label.name }));
+    } catch (error) {
+      failure = renderProblem(error as never, messages);
+    }
+  }
 
   // Opening starts from nothing. Closing leaves the fields alone: they are re-read on the next
   // open, and clearing them here would blank the dialog while it is still fading out.
@@ -107,7 +131,8 @@
     failure = undefined;
     try {
       await labels.remove(collectionId, label.id, label.version);
-      announcer.say(t('app.labels.removed_announced'));
+      // At once, with the way back (UC-WRK-28 check 3): the entries that carried it carry it again.
+      offerUndo({ kind: 'label-deleted', collectionId, labelId: label.id, name: label.name });
       if (editing?.id === label.id) reset();
     } catch (error) {
       failure = renderProblem(error as never, messages);
@@ -139,6 +164,22 @@
           </Inline>
         {/each}
       </Stack>
+    {/if}
+
+    {#if deleted.length > 0}
+      <section class="deleted" aria-labelledby="labels-deleted">
+        <h3 id="labels-deleted" class="heading">{t('app.labels.deleted_heading')}</h3>
+        <Stack gap="050">
+          {#each deleted as label (label.id)}
+            <Inline gap="100">
+              <LabelChip name={label.name} colorToken={label.color_token} />
+              <Button size="sm" tone="secondary" onclick={() => restore(label)}>
+                {t('app.labels.restore', { name: label.name })}
+              </Button>
+            </Inline>
+          {/each}
+        </Stack>
+      </section>
     {/if}
 
     <div bind:this={form}>
@@ -185,6 +226,8 @@
 
 <style>
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
+  .deleted { display: flex; flex-direction: column; gap: var(--sp-100); }
+  .heading { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-medium); }
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
   .colours {

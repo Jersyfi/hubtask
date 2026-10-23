@@ -62,6 +62,10 @@ function* filesEndingIn(dir, suffix) {
   }
 }
 
+// An SVG file is not scanned: the tab icon carries its own style element on purpose (its dark
+// form), and an SVG loaded as an image runs no script and cannot style the page - the policy's
+// "no inline style" protects the document.
+//
 // The CLI half: scan every document in dist/. Run as `node build/check-csp.js` after the build;
 // a missing dist/ is a failure rather than a silent pass, because a check that can be skipped by
 // not building is not a check.

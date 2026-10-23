@@ -219,6 +219,11 @@ const (
 	// are not, so listing them would make the payload unbounded; a consumer that renders chips
 	// drops this label from all of them, which is what the deletion means.
 	LabelDeleted Type = "de.hubtask.work.label.deleted.v1"
+	// LabelRestored announces that a deleted label is back in a collection's vocabulary, and with it
+	// on every entry that carried it: the deletion never rewrote them. Its own type rather than an
+	// update, for the reason ItemRestored is not ItemUpdated - a consumer that dropped the chip on
+	// the deletion needs to know it may draw it again.
+	LabelRestored Type = "de.hubtask.work.label.restored.v1"
 	// ItemLabelAdded announces that an entry now carries a label. Consumers: automation.
 	//
 	// One of the two events domain-model.md §4 names by hand, and the payload it names is `labelId`.
@@ -322,7 +327,7 @@ var types = [...]Type{
 	ItemDueSoon, ItemOverdue, RecurrenceOccurrenceCreated, TemplateInstantiated,
 	ItemArchived, ItemUnarchived, ItemTrashed, ItemRestored, ItemPurged,
 	BucketCreated, BucketUpdated, BucketReordered, BucketDeleted,
-	LabelCreated, LabelUpdated, LabelDeleted,
+	LabelCreated, LabelUpdated, LabelDeleted, LabelRestored,
 	ItemLabelAdded, ItemLabelRemoved,
 	AttachmentAdded, AttachmentRemoved,
 	CommentCreated, CommentUpdated, CommentDeleted,

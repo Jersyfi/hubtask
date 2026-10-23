@@ -220,10 +220,14 @@ func TestEachJudgementAtAnArrivalsRunAgainstTheDatabase(t *testing.T) {
 	second, third := w.arrive(ctx, t, event.Actor{Kind: shared.ActorSystem}, "Order 2"),
 		w.arrive(ctx, t, event.Actor{Kind: shared.ActorSystem}, "Order 3")
 	w.seedRound(ctx, t)
-	for entry, want := range map[shared.ID]string{second: suggestion.OutcomeProposed, third: suggestion.OutcomeArrivalCapReached} {
-		job, _ := w.queuedFor(ctx, t, entry)
-		if result, err := w.runner(ctx, t, &recordingProvider{}).Run(ctx, job); err != nil || result.Outcome != want {
-			t.Errorf("under a cap of one: %+v, %v; want %s", result, err, want)
+	// In order: a map's random order would let the third take the one place.
+	for _, run := range []struct {
+		entry shared.ID
+		want  string
+	}{{second, suggestion.OutcomeProposed}, {third, suggestion.OutcomeArrivalCapReached}} {
+		job, _ := w.queuedFor(ctx, t, run.entry)
+		if result, err := w.runner(ctx, t, &recordingProvider{}).Run(ctx, job); err != nil || result.Outcome != run.want {
+			t.Errorf("under a cap of one: %+v, %v; want %s", result, err, run.want)
 		}
 	}
 

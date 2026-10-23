@@ -25,10 +25,7 @@
     AssigneeControl,
     Button,
     Checkbox,
-    Dialog,
-    Inline,
     Select,
-    Stack,
     Textarea,
   } from '@hubtask/design-system/components';
   import type { BulkOperation, BulkResult } from '@hubtask/sync-engine';
@@ -44,8 +41,8 @@
   import {
     BULK_OPERATIONS,
     createOperations,
-    isDestructive,
     operationsFor,
+    outcomeOf,
     tallyOf,
     type BulkOp,
   } from '../data/bulk.ts';
@@ -54,6 +51,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import { focusFirst } from '../forms/missing.ts';
+  import { offerUndo, restoreOrder } from './undo.svelte.ts';
 
   interface Props {
     collectionId: string;
@@ -77,7 +75,6 @@
   let titles = $state('');
   let atomic = $state(false);
   let isApplying = $state(false);
-  let confirming = $state(false);
   let failure = $state<string | undefined>(undefined);
   /** *Apply* was pressed without the value its operation needs: said at that field. */
   let isValueMissing = $state(false);
@@ -158,14 +155,14 @@
     return operationsFor(op, selection.ids, payloadFor());
   }
 
+  /**
+   * Applies the operation. Nothing asks first: the trash is reversible, so it is at once and offers
+   * *Undo* (UC-WRK-28 check 3) - one atomic bulk that brings the selection back, ancestors first.
+   */
   function apply() {
     if (!ready) {
       isValueMissing = true;
       queueMicrotask(() => focusFirst(bar));
-      return;
-    }
-    if (isDestructive(op)) {
-      confirming = true;
       return;
     }
     void send();
@@ -174,13 +171,23 @@
   async function send() {
     const sent = operations();
     if (sent.length === 0) return;
+    // Read before the write: once in the trash an entry's depth is no longer on screen to read.
+    const backOrder = op === 'TRASH_ITEM' ? restoreOrder(selection.ids) : [];
+    const removedLabel = labelId;
 
     isApplying = true;
     failure = undefined;
-    confirming = false;
     try {
       const results = await items.bulk(sent, atomic, crypto.randomUUID());
       onresults(sent, results);
+      const applied = new Set(
+        results.filter((result) => outcomeOf(result) === 'applied').map((result) => sent[result.index ?? -1]?.item_id),
+      );
+      if (op === 'TRASH_ITEM' && applied.size > 0) {
+        offerUndo({ kind: 'bulk-trash', itemIds: backOrder.filter((id) => applied.has(id)) });
+      } else if (op === 'REMOVE_LABEL' && applied.size > 0) {
+        offerUndo({ kind: 'bulk-label-removed', itemIds: sent.map((each) => each.item_id ?? '').filter((id) => applied.has(id)), labelId: removedLabel });
+      }
 
       const tally = tallyOf(results);
       // What happened, in one sentence, in the live region — because the rows change under
@@ -326,22 +333,6 @@
 </div>
 {/if}
 
-<Dialog
-  bind:isOpen={confirming}
-  title={t('app.bulk.trash_title', { count: String(count) })}
-  dismissLabel={t('app.workspace.cancel')}
->
-  <Stack gap="150">
-    <p class="hint">{t('app.bulk.trash_explains')}</p>
-    <Inline gap="100">
-      <Button tone="danger" isBusy={isApplying} busyLabel={t('app.workspace.saving')} onclick={() => void send()}>
-        {t('app.bulk.op_TRASH_ITEM')}
-      </Button>
-      <Button tone="secondary" onclick={() => (confirming = false)}>{t('app.workspace.cancel')}</Button>
-    </Inline>
-  </Stack>
-</Dialog>
-
 <style>
   /* Pushed to the end of the row, because it is the way out rather than one of the verbs. */
   .done { margin-inline-start: auto; }
@@ -388,8 +379,6 @@
   }
 
   .count { align-self: center; font-size: var(--fs-075); font-weight: var(--fw-semibold); }
-
-  .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 
   .failure { margin: 0; width: 100%; color: var(--text-danger); font-size: var(--fs-075); }
 </style>

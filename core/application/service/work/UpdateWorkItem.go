@@ -68,6 +68,9 @@ type UpdateWorkItem struct {
 	DueDates DueDateWriter
 	// Text brings a changed title or notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Structure resolves the collection's structure in force, which decides whether it offers an
+	// amount (ensureAmountOffered).
+	Structure StructureResolver
 }
 
 // UpdateCommand is the input, typed.
@@ -137,6 +140,15 @@ func (h UpdateWorkItem) Execute(
 		profile, err := h.Gate.gatedProfile(ctx, h.Profiles, collection, item)
 		if err != nil {
 			return err
+		}
+
+		// An amount is written only where the collection offers one - clearing included, since a
+		// value the collection hides is kept rather than changed (domain-model.md §2). Clearing an
+		// amount the entry never had asks for the state it is already in.
+		if amount := cmd.Attributes.Amount; amount != nil && (*amount != "" || item.Amount != "") {
+			if err := ensureAmountOffered(ctx, h.Structure, collection, item.Type); err != nil {
+				return err
+			}
 		}
 
 		if cmd.Attributes.BucketID != nil && !cmd.Attributes.BucketID.IsZero() {
@@ -378,6 +390,12 @@ func (h UpdateWorkItem) Descriptor() usecase.Descriptor {
 					"carries NOTES - on an activity this is refused.",
 			},
 			{
+				Name: "amount", Kind: usecase.KindString,
+				Description: "How much of it - \"2\", \"1 kg\" - beside the title: one line, at most " +
+					"40 characters. Empty clears it, omitted leaves it as it is. Only where the " +
+					"collection's structure carries AMOUNT for the type; elsewhere it is refused.",
+			},
+			{
 				Name: "bucket_id", Kind: usecase.KindID,
 				Description: "The column of the collection's board to put the entry in. Empty takes " +
 					"it off the board, omitted leaves it where it is. The column has to be on this " +
@@ -446,6 +464,7 @@ func (h UpdateWorkItem) invoke(
 		ItemID: itemID,
 		Attributes: domain.ItemAttributes{
 			Title: in.OptionalString("title"), Notes: in.OptionalString("notes"),
+			Amount:          in.OptionalString("amount"),
 			ContentLanguage: in.OptionalString("content_language"),
 		},
 		ExpectedVersion: in.Int("expected_version"),

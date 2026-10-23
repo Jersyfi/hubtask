@@ -74,6 +74,9 @@ type CreateWorkItemCommand struct {
 	ParentID     shared.ID
 	Title        string
 	Notes        string
+	// Amount is how much of it, empty for none: only where the collection's structure in force
+	// carries AMOUNT for the type (ensureAmountOffered).
+	Amount string
 	// BucketID is the column of the collection's board the entry starts in, empty for none.
 	BucketID shared.ID
 	// AssigneeID creates the entry already on somebody: the same checks and the same
@@ -179,6 +182,9 @@ type CreateWorkItem struct {
 	CustomFields SetCustomField
 	// Text brings the title and the notes to normal form C on the way in (i18n-l10n.md §5).
 	Text text.Normalizer
+	// Structure resolves the collection's structure in force, which decides whether it offers an
+	// amount (ensureAmountOffered).
+	Structure StructureResolver
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -601,6 +607,12 @@ func (h CreateWorkItem) build(
 	}
 	profile = offer.narrow(profile)
 
+	if strings.TrimSpace(cmd.Amount) != "" {
+		if err := ensureAmountOffered(ctx, h.Structure, collection, cmd.Type); err != nil {
+			return domain.WorkItem{}, err
+		}
+	}
+
 	if !cmd.BucketID.IsZero() {
 		// Checked against the collection the entry is being created in, before the constructor
 		// checks the capability: a column of another collection's board is a reference nothing
@@ -631,6 +643,7 @@ func (h CreateWorkItem) build(
 		ParentID:     placement.ParentID,
 		Title:        cmd.Title,
 		Notes:        cmd.Notes,
+		Amount:       cmd.Amount,
 		BucketID:     cmd.BucketID,
 		// The creator's locale where the client said nothing, which is what i18n-l10n.md §5 asks
 		// for. A guess rather than knowledge, and the honest kind: somebody writing in their own
@@ -861,6 +874,9 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"path":          item.Path,
 		"depth":         item.Depth,
 		"title":         item.Title,
+		// Always present, as null for an entry with none: a list draws the amount before every
+		// title, and a key that appeared only once somebody typed one is a special case.
+		"amount": stringOrNil(item.Amount),
 		// Read off the item rather than written out as three nulls. A create never produces a
 		// completed item, and the read side returns this same projection for one that is
 		// - a completion that reported itself open would be a lie a client acts on.
@@ -869,6 +885,8 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 			"completed_at": timeOrNil(item.Completion.CompletedAt),
 			"completed_by": idOrNil(item.Completion.CompletedBy),
 		},
+		// How often it went from open to done, which a list ranks what it can bring back by.
+		"completion_count": item.CompletionCount,
 		// Always present, as null for an entry on no board. A field that appeared only once
 		// somebody had dragged the card into a column is one a client cannot read unconditionally.
 		"bucket_id": idOrNil(item.BucketID),
@@ -1011,6 +1029,12 @@ func (h CreateWorkItem) Descriptor() usecase.Descriptor {
 				Description: "Markdown, not rendered by the server. Only for types whose profile " +
 					"carries the NOTES capability; on one that does not, sending it is refused " +
 					"rather than ignored.",
+			},
+			{
+				Name: "amount", Kind: usecase.KindString,
+				Description: "How much of it - \"2\", \"1 kg\" - beside the title: one line, at most " +
+					"40 characters, empty for none. Only where the collection's structure carries " +
+					"AMOUNT for the type; elsewhere it is refused rather than ignored.",
 			},
 			{
 				Name: "bucket_id", Kind: usecase.KindID,
@@ -1172,6 +1196,7 @@ func (h CreateWorkItem) invoke(
 		ParentID:        parentID,
 		Title:           in.String("title"),
 		Notes:           in.String("notes"),
+		Amount:          in.String("amount"),
 		BucketID:        bucketID,
 		AssigneeID:      assigneeID,
 		AutoAssign:      in.Bool("auto_assign"),

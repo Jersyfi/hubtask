@@ -127,7 +127,7 @@ a plan, in both modes; the inventory rows ticked.
 
 ## UX-06 — The mark
 
-*Depends on: nothing.* · issue #1638
+*Depends on: UX-01.* · issue #1638
 
 **Use cases:** UC-WRK-33 (4)
 
@@ -209,7 +209,7 @@ a flatten test with history; an engine walk of the preview.
 
 ## UX-12 — Keep a simple list
 
-*Depends on: UX-09.* · issue #1644
+*Depends on: UX-09, UX-24.* · issue #1644
 
 **Use cases:** UC-WRK-25 (1, 2, 3, 4, 5, 6, 7)
 

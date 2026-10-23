@@ -21,7 +21,7 @@ func bundle() fstest.MapFS {
 		"index.html":                {Data: []byte("<!DOCTYPE html><title>Hubtask</title>")},
 		"assets/index-CBRxRnMw.js":  {Data: []byte("console.log(1)")},
 		"assets/index-DIwrknDs.css": {Data: []byte(":root{}")},
-		"favicon.ico":               {Data: []byte("icon")},
+		"favicon.svg":               {Data: []byte("<svg/>")},
 	}
 }
 
@@ -60,10 +60,17 @@ func TestAFileWithAStableNameIsNeverImmutable(t *testing.T) {
 	t.Parallel()
 
 	// A year of `immutable` on a name that does not change is a file nobody can take back for a
-	// year - which is how a wrong logo becomes permanent.
-	got := get(t, handler(t), "/favicon.ico").Header().Get("Cache-Control")
-	if strings.Contains(got, "immutable") {
-		t.Errorf("favicon.ico Cache-Control = %q, want revalidation", got)
+	// year - which is how a wrong logo becomes permanent. The tab icon is the file that ships
+	// under such a name.
+	answer := get(t, handler(t), "/favicon.svg")
+	if got := answer.Header().Get("Cache-Control"); got != "no-cache" {
+		t.Errorf("favicon.svg Cache-Control = %q, want no-cache", got)
+	}
+	if answer.Header().Get("Etag") == "" {
+		t.Error("favicon.svg has no Etag - revalidation without a validator re-downloads every time")
+	}
+	if got := answer.Header().Get("Content-Type"); got != "image/svg+xml" {
+		t.Errorf("favicon.svg Content-Type = %q, want image/svg+xml", got)
 	}
 }
 

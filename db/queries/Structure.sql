@@ -180,6 +180,15 @@ FROM label
 WHERE collection_id = $1 AND deleted_at IS NULL
 ORDER BY name COLLATE hubtask_name, id;
 
+-- name: ListLabelsWithDeleted :many
+-- The vocabulary and what was taken out of it, for a client that offers to bring a label back.
+-- Same order as ListLabels; a deleted label sorts among the others by its name.
+SELECT
+  id, tenant_id, collection_id, name, color_token, description, deleted_at, version
+FROM label
+WHERE collection_id = $1
+ORDER BY name COLLATE hubtask_name, id;
+
 -- name: InsertLabel :exec
 INSERT INTO label (
   id, tenant_id, collection_id, name, color_token, description, version
@@ -202,6 +211,16 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 -- without having to remember who wore it.
 UPDATE label SET
   deleted_at = sqlc.arg('deleted_at'),
+  version    = version + 1
+WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: SetLabelRestored :execrows
+-- Clears the deletion stamp. Conditional on the version the writer read, as every label write is;
+-- whether the name is still free is decided by label_name_uq, which counts the label again the
+-- moment its stamp is gone - the index rather than a check first, so a create racing the restore
+-- loses to whichever commits first.
+UPDATE label SET
+  deleted_at = NULL,
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 

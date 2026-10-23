@@ -1,0 +1,12 @@
+1-list-375-light.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+1-list-375-dark.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+1-list-768-light.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+1-list-768-dark.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+1-list-1280-light.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+1-list-1280-dark.png: sections Produce | Dairy | Bakery | Other | In the trolley | Recently; failures 0
+2-capture-chip-375.png: typed "2 lemons" and "1 kg flour"; the chip reads "Amount 2: keep it in the title"
+3-ticked-into-trolley-375.png: a tap on "salt" moved it under "In the trolley"
+row target of "milk": 343 x 72 px
+4-hold-opens-menu-375.png: a still hold on "milk" opened its menu: Select, Open, Amount, Category
+5-categories-dialog-1280.png: the categories in the shop's order, each with up and down
+6-entry-amount-row-1280.png: the entry page of "milk" has an Amount row reading 2

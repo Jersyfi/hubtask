@@ -1198,6 +1198,9 @@ func TestTheLabelChangeEventsMatchTheirSchemas(t *testing.T) {
 			gone.DeletedAt = &deleted
 			return event.NewLabelDeleted(eventID, gone, by, deleted, event.Cause{})
 		},
+		event.LabelRestored: func() (event.Envelope, error) {
+			return event.NewLabelRestored(eventID, label, by, deleted, event.Cause{})
+		},
 	} {
 		t.Run(string(eventType), func(t *testing.T) {
 			envelope, err := build()

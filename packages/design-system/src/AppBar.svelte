@@ -53,7 +53,7 @@
     toggle?: NavigationToggle;
     /** The page's title, shown in place of the brand: what the bar says on a phone. */
     title?: string;
-    /** The brand - the wordmark link. Rendered when there is no title. */
+    /** The brand - the mark and the wordmark, as a link. Rendered when there is no title. */
     brand?: Snippet;
     /**
      * The search field, between the lead and the end (design-system.md §11.4).

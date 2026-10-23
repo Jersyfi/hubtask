@@ -714,7 +714,7 @@ func (pending) DeleteBucket(w http.ResponseWriter, r *http.Request, _ openapi.Co
 
 // ListLabels and CreateLabel are overridden by RestController, for the reason given at
 // CreateContainer.
-func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId) {
+func (pending) ListLabels(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.ListLabelsParams) {
 	notAvailable(w, r)
 }
 
@@ -730,6 +730,10 @@ func (pending) DeleteLabel(w http.ResponseWriter, r *http.Request, _ openapi.Con
 	notAvailable(w, r)
 }
 
+func (pending) RestoreLabel(w http.ResponseWriter, r *http.Request, _ openapi.ContainerId, _ openapi.LabelId, _ openapi.RestoreLabelParams) {
+	notAvailable(w, r)
+}
+
 // AddLabel and RemoveLabel are overridden by RestController, for the reason given at
 // CreateContainer.
 func (pending) AddLabel(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.LabelId) {
@@ -737,6 +741,20 @@ func (pending) AddLabel(w http.ResponseWriter, r *http.Request, _ openapi.ItemId
 }
 
 func (pending) RemoveLabel(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.LabelId) {
+	notAvailable(w, r)
+}
+
+// ReadKudos, GiveKudos and TakeBackKudos are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) ReadKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) GiveKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
+	notAvailable(w, r)
+}
+
+func (pending) TakeBackKudos(w http.ResponseWriter, r *http.Request, _ openapi.ItemId) {
 	notAvailable(w, r)
 }
 

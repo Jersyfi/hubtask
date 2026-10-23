@@ -185,9 +185,11 @@ func itemPayload(item work.WorkItem) map[string]any {
 		"depth":         item.Depth,
 		"title":         item.Title,
 		"completion":    completionPayload(item.Completion),
-		"order_key":     item.OrderKey,
-		"created_at":    item.CreatedAt.UTC(),
-		"created_by":    item.CreatedBy.String(),
+		// How often it went from open to done, so a rule can tell a first completion from a habit.
+		"completion_count": item.CompletionCount,
+		"order_key":        item.OrderKey,
+		"created_at":       item.CreatedAt.UTC(),
+		"created_by":       item.CreatedBy.String(),
 		// updated_at travels because the completion events are about a change, and a consumer ordering
 		// two changes to the same item needs to know when each happened. It is on the created event too:
 		// one builder, and a field that appeared on two of three events would be a field a subscriber
@@ -200,6 +202,9 @@ func itemPayload(item work.WorkItem) map[string]any {
 	}
 	if item.Notes != "" {
 		payload["notes"] = item.Notes
+	}
+	if item.Amount != "" {
+		payload["amount"] = item.Amount
 	}
 	return payload
 }

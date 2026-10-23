@@ -21,6 +21,14 @@
   interface Props {
     title: string;
     href?: string;
+    /**
+     * What a plain press on the title does instead of following `href`: opening the entry beside
+     * the board (ADR-0061 decision 4), as `TaskRow` does in a list. The link keeps its address for
+     * a new tab, and a press with a modifier is the browser's.
+     */
+    onOpen?: () => void;
+    /** Whether this card is the one open beside the board. Announced as current, not only tinted. */
+    isCurrent?: boolean;
     isCompleted?: boolean;
     /** `COLOR` paints the strip from a token; `IMAGE` shows the picture behind it. */
     coverKind?: 'COLOR' | 'IMAGE' | null;
@@ -39,6 +47,8 @@
   const {
     title,
     href,
+    onOpen,
+    isCurrent = false,
     pendingLabel,
     isCompleted = false,
     coverKind,
@@ -54,7 +64,7 @@
   );
 </script>
 
-<article class="card" data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined}>
+<article class="card" data-completed={isCompleted ? '' : undefined} data-pending={pendingLabel !== undefined ? '' : undefined} data-current={isCurrent ? '' : undefined}>
   {#if hasCover}
     {#if coverKind === 'IMAGE'}
       <!-- `alt` is the caller's: a cover that means something is described, and one that is
@@ -67,7 +77,16 @@
 
   <div class="body">
     {#if href}
-      <a class="title" {href}>{title}</a>
+      <a
+        class="title"
+        {href}
+        aria-current={isCurrent ? 'true' : undefined}
+        onclick={(event) => {
+          if (!onOpen || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          onOpen();
+        }}>{title}</a
+      >
     {:else}
       <span class="title">{title}</span>
     {/if}
@@ -92,6 +111,16 @@
   }
 
   .card:hover { border-color: var(--border-default); }
+
+  /* Rule 3, as a list row marks it: the open card carries the rail as well as the border. */
+  .card[data-current] {
+    border-color: var(--accent-primary);
+    box-shadow: var(--shadow-raised), inset var(--bw-thick) 0 0 0 var(--accent-primary);
+  }
+
+  :global([dir='rtl']) .card[data-current] {
+    box-shadow: var(--shadow-raised), inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary);
+  }
 
   /* A change waiting to be sent: the `pending` role on the mark, opacity only, stilled
      under reduced motion; the word carries it too (rule 3). */
