@@ -42,6 +42,12 @@ class ItemSearchQuery(TypedDict, total=False):
 
 SearchMode = Literal["AUTO", "LEXICAL"]
 
+class ItemSearchPage(TypedDict, total=False):
+    """One page of a search: the hits in rank order, and which of them were found by meaning alone."""
+    data: Required[list["WorkItem"]]
+    page: Required["PageInfo"]
+    found_by_meaning: list[str]
+
 class WorkItemPage(TypedDict, total=False):
     data: Required[list["WorkItem"]]
     page: Required["PageInfo"]

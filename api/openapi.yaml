@@ -8821,7 +8821,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/WorkItemPage"
+                $ref: "#/components/schemas/ItemSearchPage"
         "422":
           $ref: "#/components/responses/Problem"
         "4XX":
@@ -10927,6 +10927,27 @@ components:
         which is what a caller in a loop - an automation, an import, a client's own type-ahead -
         wants. There is deliberately no `SEMANTIC`: an installation may not have it, and a mode the
         server cannot promise is a mode that would have to fail.
+
+    ItemSearchPage:
+      type: object
+      required: [data, page]
+      description: >
+        One page of a search: the hits in rank order, and which of them were found by meaning alone.
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/WorkItem"
+        page:
+          $ref: "#/components/schemas/PageInfo"
+        found_by_meaning:
+          type: array
+          items: { type: string, format: uuid }
+          description: >
+            The hits on this page that share no word with `q` and were found because they are about
+            the same subject. A client marks them, so that a reader is not left wondering why an
+            entry without any of their words is listed. Empty where the search was by words only -
+            `LEXICAL`, no words, or an installation without search by meaning.
 
     WorkItemPage:
       type: object

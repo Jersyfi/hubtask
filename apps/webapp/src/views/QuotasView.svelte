@@ -34,7 +34,7 @@
   import { viewport } from '../lib/frame/viewport.svelte.ts';
   import { sorting } from '../lib/sorting.svelte.ts';
   import AccountLink from '../lib/workspace/AccountLink.svelte';
-  import ValueSource from '../lib/workspace/ValueSource.svelte';
+  import LimitSource from '../lib/workspace/LimitSource.svelte';
 
   $effect(() => untrack(() => quotas.open()));
   // The plan's name rides on the workspace read the sign-in rule already answers (UC-INS-10
@@ -91,12 +91,6 @@
 
   const nameOf = (quota: string) => (KNOWN.has(quota) ? t(`app.quotas.name.${quota}`) : quota);
 
-  /**
-   * The level a limit's chip names (UC-WRK-32 check 5): the server's source, except that a single
-   * installation names no operator (deployments.md D1) - its exception is the workspace's own.
-   */
-  const chipSource = (standing: Standing): string | undefined =>
-    standing.source === 'EXCEPTION' && manifest.isSingleTenant ? 'WORKSPACE' : standing.source;
 
   /**
    * Who set a limit, in words, for a server that answers no source (UC-INS-10 check 1): a lock says who locked it unless the operator's
@@ -236,11 +230,7 @@
               {#if standing.source === undefined}
                 {setBy(standing)}
               {:else}
-                <ValueSource
-                  source={chipSource(standing)}
-                  lock={standing.lock}
-                  value={standing.limit === 0 ? t('app.quotas.unlimited') : amount(standing.quota, standing.limit)}
-                />
+                <LimitSource {standing} />
               {/if}
             </td>
           </tr>

@@ -143,10 +143,10 @@ Administration and installation, found by UX-05's sweep:
 - [x] "What is on you": overdue, due next, "search for the rest" → Today (UX-15); its checkbox now completes — *On you*: *Earlier*, *Today*, *Coming up*, the link to the search
 - [x] "In the jumble" (three + open) → Today's jumble tile — *In the jumble* on *Today* (UX-15)
 - [x] "What you had open" → Today's recently opened — *Recently opened* on *Today* (UX-15)
-- [ ] Search page: field, meaning switch, filter chips (status, kind, due, assigned, collection, label), More (last changed, created, starts, on it, created by, archive, trash), text mode with tokens, show the request, edit as text/controls, copy link, clear, result notes → kept; results gain the entry menu and selection; meaning hits marked
-- [ ] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target — the capture field puts a line without a collection into the jumble (UX-14); the jumble's own "Jot something down" still names the same act, renamed with UX-17 (P-12)
-- [ ] Archive: hubs and collections, bring back → kept; archived entries listed with a filter
-- [ ] Trash: restore, delete for good, empty, summary → kept; *Empty* gated by permission (§E8)
+- [x] Search page: field, meaning switch, filter chips (status, kind, due, assigned, collection, label), More (last changed, created, starts, on it, created by, archive, trash), text mode with tokens, show the request, edit as text/controls, copy link, clear, result notes → kept; results gain the entry menu and selection; meaning hits marked — *Search*: *Select entries* and the bulk bar (complete, reopen, trash across collections), *By meaning* at a hit only its meaning found
+- [x] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target — the capture field puts a line without a collection into the jumble (UX-14); the jumble's own "Jot something down" still names the same act, renamed with UX-17 (P-12) — *Jumble*: *Capture* with *Capture into the jumble*, an arrival *Captured*
+- [x] Archive: hubs and collections, bring back → kept; archived entries listed with a filter — *Archive*: hubs and collections; *Entries* leads to the search with `is:archived`
+- [x] Trash: restore, delete for good, empty, summary → kept; *Empty* gated by permission (§E8) — *Trash*: *Empty the trash* only with deleting hubs and collections (UX-18)
 
 ## E4 — Hub and collection
 
@@ -210,8 +210,8 @@ Administration and installation, found by UX-05's sweep:
 - [x] Service accounts with tokens, third-party apps → *Machines and apps* — *Administration → Workspace and people → Machines and apps*
 - [x] Sign-in (passwords, second factor, ways switching immediately inside the form, accounts without mail, sessions, legal links, new password from everyone) → tabs; legal links on their own page; one save per tab; source chips — *Administration → Sign-in*, *Legal links*
 - [x] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation — *Sign-in → Ways and providers*
-- [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
-- [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
+- [x] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor) — *Administration → Automation*: the editor's probe and *Start now* (every rule, unavailable with its reason unless somebody starts it and it is on); *Runs* is the log
+- [x] Limits (read-only, "set by") → the overview and beside each feature; source chips — *Administration → Overview* and *Limits*; beside the feature with the same chip: *Runs* (the hour's runs), *AI → The budget* (each source's budget)
 - [x] Private hubs (allowed switch, table, emergency access) → *Data* — *Administration → Data → Private hubs*
 - [x] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms — *Administration → Data → Backup*
 - [ ] Restore → *Data*; the operator's path named with where to go

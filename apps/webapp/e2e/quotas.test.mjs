@@ -185,3 +185,22 @@ test('chromium: a reached people limit says nobody new comes in and nobody here 
   await room.close();
   assert.doesNotMatch(roomy, /limit for people is reached/, roomy);
 });
+
+// ux-inventory.md §E8: a limit is also shown beside the feature it bounds, with the same chip as
+// on *Limits* - the hour's runs under the runs' strip, set by the plan and locked there.
+test('chromium: a limit beside its feature says who set it, as Limits does', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, close } = await openLimits(browser, [
+    { quota: 'automation_runs_per_hour', limit: 500, used: 34, ratio: 0.068, configured: false, locked: false, source: 'PLAN', lock: 'PLAN' },
+  ], { tenancy: 'multi' });
+  t.after(close);
+  const onLimits = await page.getByRole('row').nth(1).locator('[data-source]').getAttribute('data-source');
+
+  await page.goto(`${served.origin}/administration/runs`);
+  const hourly = page.locator('[data-hourly]');
+  await hourly.waitFor({ timeout: 15_000 });
+  assert.match(await hourly.textContent() ?? '', /This hour: 34 of 500 runs/);
+  assert.equal(await hourly.locator('[data-source]').getAttribute('data-source'), 'PLAN-locked');
+  assert.equal(onLimits, 'PLAN-locked', 'Limits and the feature disagree');
+});

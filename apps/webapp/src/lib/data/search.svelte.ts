@@ -27,7 +27,7 @@
  * is still in the contract and is simply not sent.
  */
 
-import type { TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
+import type { ItemSearchPage, TransportError, WorkItem, WorkItemPage } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { keyFor, keysIn } from './searchhandle.ts';
@@ -72,6 +72,8 @@ export interface SearchAsked {
 
 class Search {
   #hits = $state<readonly WorkItem[]>([]);
+  /** The hits only their meaning found: marked on screen, since none of the reader's words is in them. */
+  #byMeaning = $state<ReadonlySet<string>>(new Set());
   #status = $state<'idle' | 'searching' | 'done' | 'failed'>('idle');
   #error = $state<TransportError | undefined>(undefined);
   /** Whether the walk stopped at `MAX_PAGES` rather than at the end of the results. */
@@ -89,6 +91,11 @@ class Search {
 
   get hits(): readonly WorkItem[] {
     return this.#hits;
+  }
+
+  /** Whether a hit is on the page because of its meaning alone. */
+  isByMeaning(id: string): boolean {
+    return this.#byMeaning.has(id);
   }
 
   get status(): 'idle' | 'searching' | 'done' | 'failed' {
@@ -173,6 +180,7 @@ class Search {
   reset(): void {
     this.#generation += 1;
     this.#hits = [];
+    this.#byMeaning = new Set();
     this.#status = 'idle';
     this.#error = undefined;
     this.#isPartial = false;
@@ -203,7 +211,8 @@ class Search {
     try {
       const found = await this.#ask(term, asked, mine);
       if (found === undefined) return;
-      this.#hits = found;
+      this.#hits = found.hits;
+      this.#byMeaning = found.byMeaning;
       this.#status = 'done';
     } catch (error) {
       if (mine !== this.#generation) return;
@@ -252,12 +261,17 @@ class Search {
    * answer nobody is waiting for any more, and the caller stops rather than writing it to the
    * screen.
    */
-  async #ask(term: string, asked: SearchAsked, mine: number): Promise<WorkItem[] | undefined> {
+  async #ask(
+    term: string,
+    asked: SearchAsked,
+    mine: number,
+  ): Promise<{ hits: WorkItem[]; byMeaning: Set<string> } | undefined> {
     const found: WorkItem[] = [];
+    const byMeaning = new Set<string>();
     let cursor: string | null | undefined;
 
     for (let page = 0; page < MAX_PAGES; page += 1) {
-      const answer = await engine.mutate<WorkItemPage>(
+      const answer = await engine.mutate<ItemSearchPage>(
         'POST',
         '/search',
         {
@@ -282,16 +296,17 @@ class Search {
       if (mine !== this.#generation) return undefined;
 
       found.push(...(answer.data ?? []));
+      for (const id of answer.found_by_meaning ?? []) byMeaning.add(id);
       cursor = answer.page?.next_cursor;
       // `has_more`, not the length of the page. This is the one read where a short page means
       // "some of what is here is not yours to see" rather than "that was the last of it".
-      if (!answer.page?.has_more || !cursor) return found;
+      if (!answer.page?.has_more || !cursor) return { hits: found, byMeaning };
     }
 
     // The walk hit its own bound rather than the end of the results, and the screen says so
     // instead of presenting a partial answer as a complete one.
     this.#isPartial = true;
-    return found;
+    return { hits: found, byMeaning };
   }
 }
 

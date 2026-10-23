@@ -14,14 +14,14 @@
   // `include_archived` on both: the hubs, and each hub's collections. One request per hub, which is
   // what the API's shape costs and what the tree already pays for the hubs somebody opens.
   //
-  // **Entries are not in here**, and the screen says so rather than leaving a reader to wonder.
-  // `POST /items:query` requires a scope — there is no workspace-wide read of entries at all — so
-  // "every archived entry" is a question this contract cannot answer without a collection. Where
-  // they are, they are visible.
+  // **Entries are listed by the search, and this screen leads there.** An archived entry stays in
+  // its list and says so; every archived entry at once is the workspace-wide read `POST /search`
+  // answers with the archive filter (`is:archived`), so the search's list - with its selection,
+  // its menu and its narrowing - is the one place they are listed, rather than a second list here.
 
   import { untrack } from 'svelte';
 
-  import { Badge, Button, Callout, EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
+  import { Badge, Button, EmptyState, ErrorState, Icon, ListRow, PageHeader, Skeleton, Stack } from '@hubtask/design-system/components';
   import type { Container } from '@hubtask/sync-engine';
 
   import { announcer } from '../lib/announce.svelte.ts';
@@ -59,6 +59,9 @@
   }
 
   const pathOf = (container: Container) => (container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}`);
+
+  /** The search, narrowed to what is archived: the narrowing travels in the address, no words. */
+  const ARCHIVED_ENTRIES = `/search?${new URLSearchParams({ f: 'is:archived' }).toString()}`;
 </script>
 
 <Stack gap="300">
@@ -106,10 +109,21 @@
     </Stack>
   {/if}
 
-  <!-- Said rather than left to be wondered about: this place is for what leaves the navigation. -->
-  <Callout tone="info">{t('app.archive.entries')}</Callout>
+  <!-- Entries: they stay in their lists, and the search lists all of them with the archive filter. -->
+  <Stack gap="100">
+    <h2 class="section">{t('app.archive.entries_title')}</h2>
+    <p class="quiet">{t('app.archive.entries')}</p>
+    <ListRow href={ARCHIVED_ENTRIES} onactivate={() => onnavigate?.(ARCHIVED_ENTRIES)}>
+      {#snippet leading()}<Icon name="search" size="sm" />{/snippet}
+      {t('app.archive.entries_search')}
+    </ListRow>
+  </Stack>
 </Stack>
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
+
+  .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
+
+  .quiet { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>
