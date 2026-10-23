@@ -185,6 +185,9 @@ type CreateWorkItem struct {
 	// Structure resolves the collection's structure in force, which decides whether it offers an
 	// amount (ensureAmountOffered).
 	Structure StructureResolver
+	// Flow refuses an entry created into a column past the first without its required fields,
+	// where the collection applies that (FlowGate).
+	Flow FlowGate
 }
 
 // Execute creates the item and returns it, together with what automatic assignment did when it
@@ -377,7 +380,9 @@ func (h CreateWorkItem) Execute(
 				return err
 			}
 		}
-		return nil
+		// Last, with every value the request carried already on the entry: a creation into a
+		// column past the first passes with its required fields and is refused whole without them.
+		return h.Flow.ensureMayEnter(ctx, h.Gate.Structure, collection, created, created.BucketID)
 	})
 	if err != nil {
 		return domain.WorkItem{}, nil, err
