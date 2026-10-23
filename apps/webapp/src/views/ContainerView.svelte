@@ -25,6 +25,7 @@
     Inline,
     Input,
     ListRow,
+    Menu,
     PageHeader,
     ReadOnlyNotice,
     Skeleton,
@@ -67,6 +68,7 @@
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
+  import { queryOf } from '../lib/data/views.ts';
   import { queryFieldsFor } from '../lib/data/customfields.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
@@ -479,6 +481,12 @@
   let isChangingLook = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
+  /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
+  let viewsIntent = $state<'save' | 'manage'>('manage');
+  /** The question of the view opened last, which the filter's controls take over. */
+  let appliedView = $state<ItemsQuery | undefined>(undefined);
+  /** The collection as it is filtered, being exported without a saved view. */
+  let isExportingFiltered = $state(false);
   /**
    * The hub's or the collection's *Structure* panel (UC-WRK-23), and its open tab: the settings,
    * or one of the collection's parts - labels, fields, templates, automation, people
@@ -715,11 +723,9 @@
           // The labels, the fields, the templates, the automation and the people are *Structure*'s
           // tabs (ux-inventory.md §E4), offered to whom the shape belongs; everybody reaches the
           // people by the faces in the head and a template by the add button's *From a template*
-          // (UC-WRK-09 check 7). The views are the head's *Views* menu.
+          // (UC-WRK-09 check 7). The views, the export and the subscriptions are the head's *Views*
+          // menu, and only there (ux-inventory.md §E9).
           ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
-          ...(container.type === 'COLLECTION'
-            ? [{ id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape || structureRow.length === 0 }]
-            : []),
           ...(privacyControl
             ? [
                 {
@@ -742,6 +748,42 @@
         ],
   );
 
+  /**
+   * The *Views* menu (ux-inventory.md §E4): the saved views that apply here, each opened by its
+   * row, then saving what is on screen, changing a view, exporting the list as it is filtered and
+   * the calendar subscriptions.
+   */
+  const heldViews = $derived(container?.type === 'COLLECTION' ? savedViews.of(container.id) : []);
+  const viewsMenu = $derived<MenuItem[]>(container?.type !== 'COLLECTION' ? [] : [
+    ...heldViews.map((view) => ({ id: `open:${view.id}`, label: t('app.views.open_named', { name: view.name }), icon: 'saved-view' as const })),
+    { id: 'save', label: t('app.views.menu_save'), icon: 'star' as const, hasSeparatorBefore: heldViews.length > 0 },
+    ...(heldViews.length > 0 ? [{ id: 'manage', label: t('app.views.menu_manage'), icon: 'pencil' as const }] : []),
+    { id: 'export', label: t('app.views.menu_export'), icon: 'file-text' as const, hasSeparatorBefore: true },
+    { id: 'feeds', label: t('app.views.menu_feeds'), icon: 'calendar' as const },
+  ]);
+
+  function choseView(id: string) {
+    if (id.startsWith('open:')) {
+      const view = heldViews.find((each) => `open:${each.id}` === id);
+      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name);
+    } else if (id === 'save' || id === 'manage') {
+      viewsIntent = id;
+      isManagingViews = true;
+    } else if (id === 'export') isExportingFiltered = true;
+    else if (id === 'feeds') {
+      subscribing = undefined;
+      isManagingFeeds = true;
+    }
+  }
+
+  /** Opens a view: its query and its layout together - the half only a client knows what to do with is the layout. */
+  function applyView(asked: ItemsQuery, appliedLayout: string, name: string) {
+    query = asked;
+    appliedView = asked;
+    chooseLayout(appliedLayout);
+    announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
+  }
+
   function choseFromMenu(id: string) {
     if (id === 'select') selection.start();
     else if (id === 'rename') startRename();
@@ -750,7 +792,6 @@
     else if (id === 'archive') void toggleArchived();
     else if (id === 'up') void moveBy(-1);
     else if (id === 'down') void moveBy(1);
-    else if (id === 'views') isManagingViews = true;
     else if (id === 'structure') openStructure('settings');
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
@@ -838,8 +879,13 @@
       })),
   );
 
-  // What the palette may list here: the head's own lists, then the layouts.
-  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...layoutActs]));
+  /** The *Views* menu's rows, as the palette lists them: the menu is the head's, so is the palette's. */
+  const viewActs = $derived<readonly Act[]>(
+    viewsMenu.map((item) => ({ id: `page:views-${item.id}`, label: item.label, icon: item.icon, run: () => choseView(item.id) })),
+  );
+
+  // What the palette may list here: the head's own lists, then the views, then the layouts.
+  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...viewActs, ...layoutActs]));
 
   // A wish the palette left for this collection - a layout, or the add form - taken once and acted
   // on only where this screen's own answers allow it. It wins over any layout this screen would
@@ -966,11 +1012,15 @@
       {/snippet}
       {#snippet views()}
         {#if container.type === 'COLLECTION'}
-          <!-- The three layouts, with "show what is inside" within the list; the star beside them
-               is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
-               opens. -->
+          <!-- The three layouts, with "show what is inside" within the list; beside them the one
+               *Views* menu (design-system.md §11.8): the saved views, saving, the export and the
+               calendar subscriptions. -->
           <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
-          <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
+          <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
+            {#snippet trigger(props)}
+              <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
+            {/snippet}
+          </Menu>
         {/if}
         {#if memberIds.length === 0}
           <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
@@ -1064,11 +1114,11 @@
            `expanded`, a drawer from the bottom below it. -->
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <QueryPanel {layout} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
         </Drawer>
       {:else}
         <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
         </div>
       {/if}
 
@@ -1217,6 +1267,7 @@
 {#if container?.type === 'COLLECTION'}
   <ViewsPanel
     bind:isOpen={isManagingViews}
+    intent={viewsIntent}
     collectionId={container.id}
     hubId={container.parent_id ?? undefined}
     mayShapeAt={(scope) => {
@@ -1227,13 +1278,7 @@
     {query}
     {layout}
     role={structureRole}
-    onapply={(asked, appliedLayout, name) => {
-      // Both halves: the query the server validated, and the layout only a client knows what to do
-      // with — which is what the `layout` field is for, declared uninterpreted.
-      query = asked;
-      chooseLayout(appliedLayout);
-      announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
-    }}
+    onapply={applyView}
     onexport={(view) => {
       isManagingViews = false;
       exporting = view;
@@ -1245,6 +1290,10 @@
     }}
   />
   <ExportDialog view={exporting} onclose={() => (exporting = undefined)} />
+  <ExportDialog
+    filtered={isExportingFiltered ? { collectionId: container.id, name: container.name, query } : undefined}
+    onclose={() => (isExportingFiltered = false)}
+  />
   <FeedsDialog bind:isOpen={isManagingFeeds} view={subscribing} collectionId={container.id} />
   <TemplatesDialog
     bind:isOpen={isUsingTemplates}

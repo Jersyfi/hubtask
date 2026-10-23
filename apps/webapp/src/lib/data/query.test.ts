@@ -17,6 +17,7 @@ import type { Capabilities } from '@hubtask/sync-engine';
 import {
   bothOf,
   fieldNamed,
+  conditionsOf,
   filterOf,
   filterableFields,
   groupOf,
@@ -259,4 +260,18 @@ test('the reader’s question and the window’s are both kept', () => {
   assert.deepEqual(bothOf(undefined, window), window);
   assert.deepEqual(bothOf(reader, undefined), reader);
   assert.equal(bothOf(undefined, undefined), undefined);
+});
+
+test('a saved filter comes back as the conditions it was built from, or not at all', () => {
+  // The shape `filterOf` writes: one leaf, or AND over leaves - and a list's value as the text
+  // the input reads back.
+  assert.deepEqual(conditionsOf({ op: 'EQ', field: 'is_completed', value: false }), [{ field: 'is_completed', op: 'EQ', value: 'false' }]);
+  assert.deepEqual(
+    conditionsOf({ op: 'AND', nodes: [{ op: 'IN', field: 'type', value: ['TASK', 'ACTIVITY'] }, { op: 'IS_NULL', field: 'due_at' }] }),
+    [{ field: 'type', op: 'IN', value: 'TASK, ACTIVITY' }, { field: 'due_at', op: 'IS_NULL', value: '' }],
+  );
+  assert.deepEqual(conditionsOf(undefined), []);
+  // A tree the editor cannot draw is said to be one, so the caller keeps it whole.
+  assert.equal(conditionsOf({ op: 'OR', nodes: [{ op: 'EQ', field: 'type', value: 'TASK' }] }), undefined);
+  assert.equal(conditionsOf({ op: 'AND', nodes: [{ op: 'NOT', nodes: [{ op: 'EQ', field: 'type', value: 'TASK' }] }] }), undefined);
 });

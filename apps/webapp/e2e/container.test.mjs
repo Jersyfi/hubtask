@@ -28,7 +28,7 @@ const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => ite
 // "Select entries" first: it is the way into the selection mode, which is a mode and not
 // a column on every row (ADR-0063 decision 8). A hub does not have it — it holds collections, and
 // nothing acts on those in bulk.
-const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Saved views', 'Move to the trash'];
+const MENU = ['Select entries', 'Rename', 'Colour and symbol', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Structure', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -66,7 +66,7 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
     .catch(async () => assert.fail(`focus did not return to the menu but sits on ${await page.evaluate(() => document.activeElement?.outerHTML.slice(0, 80))}`));
 
   // Every dialog the toolbar opened opens from the menu, and Escape brings focus back.
-  for (const [item, title] of [['Structure', `Structure of ${COLLECTION.name}`], ['Saved views', 'Saved views'], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
+  for (const [item, title] of [['Structure', `Structure of ${COLLECTION.name}`], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
     await trigger.focus();
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: item }).click();
@@ -95,9 +95,11 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await page.keyboard.press('Escape');
   await structurePanel.waitFor({ state: 'hidden', timeout: 5_000 });
 
-  // The daily ways: the star opens the views, the faces open the people, the split opens the templates.
-  await page.getByRole('button', { name: 'Saved views' }).click();
-  await page.locator('dialog[open]').getByRole('heading', { name: /Saved views/ }).waitFor({ timeout: 5_000 });
+  // The daily ways: the *Views* menu saves a view, the faces open the people, the split opens the
+  // templates.
+  await page.getByRole('button', { name: 'Views' }).click();
+  await page.getByRole('menuitem', { name: 'Save this view…' }).click();
+  await page.locator('dialog[open]').getByRole('heading', { name: /Save this view/ }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: 'People' }).click();
   await page.locator('dialog[open]').getByRole('heading', { name: /People/ }).waitFor({ timeout: 5_000 });

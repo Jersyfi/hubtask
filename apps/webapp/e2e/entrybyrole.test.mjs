@@ -167,8 +167,10 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
-    // Used by everybody: the views in the menu, the templates in the add split, who is here in the faces.
-    assert.ok(rows.includes('Saved views'), `Saved views missing from ${rows}`);
+    // Used by everybody: the views in their own menu, the templates in the add split, who is here
+    // in the faces.
+    assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
+    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the head');
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
     await page.getByRole('button', { name: 'More ways to add an entry' }).click();
     assert.equal(await page.getByRole('menuitem', { name: 'From a template…' }).count(), 1, 'no way to the templates');

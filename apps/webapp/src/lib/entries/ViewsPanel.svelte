@@ -48,6 +48,11 @@
 
   interface Props {
     isOpen: boolean;
+    /**
+     * Which act of the *Views* menu opened this: saving what is on screen, or renaming, sharing
+     * and deleting the views that apply here. One act per opening, so the dialog says one thing.
+     */
+    intent?: 'save' | 'manage';
     collectionId: string;
     /** The hub the collection sits in: what a view saved at hub scope names. */
     hubId?: string;
@@ -68,7 +73,7 @@
     onsubscribe: (view: SavedView) => void;
   }
 
-  let { isOpen = $bindable(), collectionId, hubId, mayShapeAt, query, layout, role, onapply, onexport, onsubscribe }: Props =
+  let { isOpen = $bindable(), intent = 'manage', collectionId, hubId, mayShapeAt, query, layout, role, onapply, onexport, onsubscribe }: Props =
     $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
@@ -147,7 +152,8 @@
         } as never,
         crypto.randomUUID(),
       );
-      reset();
+      // Saved: the view is now a row of the *Views* menu, which is where it is opened.
+      isOpen = false;
     }, t('app.views.saved_announced'));
   }
 
@@ -201,9 +207,11 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.views.title')} dismissLabel={t('app.workspace.cancel')}>
+<Dialog bind:isOpen title={intent === 'save' ? t('app.views.save_title') : t('app.views.title')} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
-    {#if held.length === 0}
+    {#if intent === 'save'}
+      <!-- Saving only: the views already held are the menu's own rows. -->
+    {:else if held.length === 0}
       <p class="quiet">{t('app.views.none')}</p>
     {:else}
       <ul class="list">
@@ -284,7 +292,7 @@
           <Button tone="secondary" onclick={reset}>{t('app.workspace.cancel')}</Button>
         </Inline>
       </Stack>
-    {:else}
+    {:else if intent === 'save'}
       <div bind:this={saveForm}>
       <Stack gap="150">
         <Input

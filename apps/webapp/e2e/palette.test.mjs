@@ -264,8 +264,8 @@ test('chromium: 375 px — an action that opens a dialog takes focus into it and
   await checkbox.focus();
   await page.keyboard.press('Control+k');
   await page.getByRole('dialog', { name: 'Search or run a command' }).waitFor();
-  await page.keyboard.type('views');
-  await arrowTo(page, 'Saved views');
+  await page.keyboard.type('save this view');
+  await arrowTo(page, 'Save this view…');
   await page.keyboard.press('Enter');
 
   const views = page.getByRole('dialog').filter({ hasNotText: 'Search or run a command' }).last();

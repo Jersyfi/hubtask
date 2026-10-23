@@ -53,7 +53,8 @@ test('chromium: a view saved at hub scope names the hub', async (t) => {
 
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.locator('[data-opener="views"]').click();
-  const dialog = page.getByRole('dialog', { name: 'Saved views' });
+  await page.getByRole('menuitem', { name: 'Save this view…' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Save this view' });
   await dialog.getByLabel('Name').fill('Everything in the house');
   await dialog.getByLabel('Where it lives').selectOption('HUB');
   await dialog.getByRole('button', { name: 'Save what is on screen' }).click();

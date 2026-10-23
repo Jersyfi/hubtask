@@ -1000,8 +1000,11 @@ component that is a dialog elsewhere (`PanelOrDialog`).
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
 (`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
-also reachable where it is used — saved views from a star beside the layout switch, templates from
-the primary action's submenu, people from the member avatars — opening the same dialog.
+also reachable where it is used — templates from the primary action's submenu, people from the
+member avatars — opening the same dialog. Beside the layout switch is the one *Views* menu: the
+saved views that apply here, each opened by its row with its query and layout, then saving what is
+on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
+calendar subscriptions; the page menu carries none of them.
 
 Below `medium` the board shows one column with the columns as a strip above it; moving a card
 between columns is the card's menu (§11.9).
