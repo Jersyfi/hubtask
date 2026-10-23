@@ -58,8 +58,15 @@ func (r AccountRepository) Find(ctx context.Context, accountID shared.ID) (ident
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("reading account %s: %w", accountID, err))
 	}
-	return accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName, row.Status,
-		row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
+	account, err := accountFrom(row.ID, row.TenantID, row.Kind, row.Email, row.SignInName, row.DisplayName,
+		row.Status, row.Locale, row.TimeZone, row.WeekStart, row.Celebrations, row.OnboardingCompletedAt)
+	if err != nil || !row.AvatarMediaID.Valid {
+		return account, err
+	}
+	// Read by Find alone: it is what every projection of an account reads through, and the other
+	// lookups serve sign-in, which draws no picture.
+	account.AvatarMediaID, err = idFrom(row.AvatarMediaID)
+	return account, err
 }
 
 func (r AccountRepository) FindByEmail(ctx context.Context, email string) (identity.Account, error) {
@@ -389,6 +396,41 @@ func (r AccountRepository) Rename(ctx context.Context, account identity.Account,
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("renaming %s: %w", account.ID, err))
+	}
+	if affected == 0 {
+		return shared.ErrNotFound.WithDetail("accounts.not_found")
+	}
+	return nil
+}
+
+var _ repository.AccountAvatars = AccountRepository{}
+
+// SetAvatar writes the picture alone; the zero ID clears it.
+func (r AccountRepository) SetAvatar(
+	ctx context.Context, accountID, mediaID shared.ID, at time.Time,
+) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(accountID)
+	if err != nil {
+		return err
+	}
+	var picture pgtype.UUID
+	if !mediaID.IsZero() {
+		if picture, err = uuidOf(mediaID); err != nil {
+			return err
+		}
+	}
+
+	affected, err := queries.SetAccountAvatar(ctx, sqlc.SetAccountAvatarParams{
+		AvatarMediaID: picture, UpdatedAt: timestampOf(at), ID: id,
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("setting the picture of %s: %w", accountID, err))
 	}
 	if affected == 0 {
 		return shared.ErrNotFound.WithDetail("accounts.not_found")
