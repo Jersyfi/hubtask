@@ -51,8 +51,10 @@ test('chromium: 1280 px — the archive holds what the tree does not, and brings
     `nothing was unarchived: ${JSON.stringify(written)}`,
   );
 
-  // Entries are named rather than left to be wondered about: they stay where they are.
+  // Entries stay where they are, and the search lists them all with the archive filter.
   assert.equal(await page.locator('main').getByText(/Archived entries stay in the list/).count(), 1);
+  const toSearch = page.locator('main').getByRole('link', { name: 'Archived entries in the search' });
+  assert.equal(await toSearch.getAttribute('href'), '/search?f=is%3Aarchived');
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
