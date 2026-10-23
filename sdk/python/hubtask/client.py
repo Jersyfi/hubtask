@@ -1391,9 +1391,9 @@ class Client:
         """POST /containers/{containerId}/buckets/{bucketId}:reorder"""
         return self._call("POST", "/containers/{containerId}/buckets/{bucketId}:reorder", {"containerId": container_id, "bucketId": bucket_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
-    def list_labels(self, container_id: str) -> dict[str, Any]:
+    def list_labels(self, container_id: str, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
         """GET /containers/{containerId}/labels"""
-        return self._call("GET", "/containers/{containerId}/labels", {"containerId": container_id}, None, {}, None, "none", None, "json")
+        return self._call("GET", "/containers/{containerId}/labels", {"containerId": container_id}, query, {}, None, "none", None, "json")
 
     def create_label(self, container_id: str, body: "LabelCreate") -> "Label":
         """POST /containers/{containerId}/labels"""
@@ -1406,6 +1406,10 @@ class Client:
     def delete_label(self, container_id: str, label_id: str, *, if_match: str | None = None) -> None:
         """DELETE /containers/{containerId}/labels/{labelId}"""
         return self._call("DELETE", "/containers/{containerId}/labels/{labelId}", {"containerId": container_id, "labelId": label_id}, None, {"If-Match": if_match}, None, "none", None, "void")
+
+    def restore_label(self, container_id: str, label_id: str, *, idempotency_key: str | None = None) -> "Label":
+        """POST /containers/{containerId}/labels/{labelId}:restore"""
+        return self._call("POST", "/containers/{containerId}/labels/{labelId}:restore", {"containerId": container_id, "labelId": label_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
     def add_label(self, item_id: str, label_id: str) -> "ItemLabels":
         """PUT /items/{itemId}/labels/{labelId}"""

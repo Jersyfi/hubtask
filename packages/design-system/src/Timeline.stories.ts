@@ -50,3 +50,10 @@ export const empty: Story = {
     'voice-and-tone.md §4.1: name the next step rather than report emptiness.',
   args: { mode: 'empty' },
 };
+
+export const actions: Story = {
+  name: 'A menu on every row, and the one open beside',
+  about:
+    'Each row carries the entry’s menu at the end of its title, on the axis and in the tray, in a place the title keeps for it: the columns the axis rules are the same with or without it. The row open beside the timeline (*Electrics first fix*) is announced as current and drawn with the rail a list row has. On touch, a finger held still on a row and lifted asks for the same menu; a hold that moves drags the bar instead, and the lift opens nothing else (design-system.md §11.9).',
+  args: { mode: 'actions' },
+};

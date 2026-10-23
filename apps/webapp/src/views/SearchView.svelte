@@ -35,10 +35,19 @@
     canCopy,
   } from '@hubtask/design-system/components';
 
+  import EntryActions from '../lib/entries/EntryActions.svelte';
+  import EntryMenu from '../lib/entries/EntryMenu.svelte';
+  import { attachEntryGestures } from '../lib/entries/entryGestures.ts';
+  import { entryMenu } from '../lib/entries/entryMenu.ts';
   import FilterBar from '../lib/search/FilterBar.svelte';
   import SearchLine from '../lib/search/SearchLine.svelte';
 
+  import type { WorkItem } from '@hubtask/sync-engine';
+
   import { announcer } from '../lib/announce.svelte.ts';
+  import { actor } from '../lib/data/account.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
@@ -359,6 +368,82 @@
    */
   let writeFailure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
+  /**
+   * Where a hit sits, for the reader's role there: its collection and that collection's hub. The
+   * role is read along the collection as the collection's own list reads it, so a hit and its row
+   * answer the same question the same way - and one read per collection, not per hit.
+   */
+  const hitPath = (hit: WorkItem) => ({
+    hubId: containers.find(hit.collection_id)?.parent_id ?? undefined,
+    collectionId: hit.collection_id,
+  });
+
+  // The roles along every collection the results come from, read with the results.
+  $effect(() => {
+    const paths = search.hits.map(hitPath);
+    untrack(() => {
+      for (const path of paths) people.open(path);
+    });
+  });
+
+  /**
+   * Why a hit cannot be ticked off from here, or nothing: what stops its row in the list stops it
+   * here too - the entry archived, its collection archived, or a role that may not change it.
+   */
+  function completeReason(hit: WorkItem): string | undefined {
+    if (hit.archived_at) return t('app.entries.archived');
+    if (containers.find(hit.collection_id)?.effective_archived) return t('app.entries.read_only');
+    const role = people.roleOf(hitPath(hit), actor.account?.id, roleOrder());
+    const code = changeRefusalCode(role, hit.assignee_id != null && hit.assignee_id === actor.account?.id);
+    return code ? t(code) : undefined;
+  }
+
+  /** The reader's role where a hit sits, once the memberships there have been read. */
+  const roleAt = (hit: WorkItem) => people.roleOf(hitPath(hit), actor.account?.id, roleOrder());
+
+  /**
+   * A hit's menu: the one every surface draws (UC-WRK-28 check 1). Search holds no level, so the
+   * moves wait for the one read when the menu opens (D6); the role is read with the hits.
+   */
+  function menuOf(hit: WorkItem) {
+    const role = roleAt(hit);
+    const isMine = hit.assignee_id != null && hit.assignee_id === actor.account?.id;
+    const change = mayDo(role ?? undefined, 'change', isMine);
+    return entryMenu(
+      {
+        surface: 'search',
+        item: { title: hit.title, isCompleted: hit.completion?.is_completed ?? false, hasDue: Boolean(hit.due_at) },
+        archival: archivalOfItem(hit, false),
+        isCollectionReadOnly: containers.find(hit.collection_id)?.effective_archived ?? false,
+        mayChange: change,
+        mayCreate: mayDo(role ?? undefined, 'create', isMine) === true,
+        mayShare: holds(role ?? undefined, 'MANAGE_MEMBERS').status === 'permitted',
+        carries: (capability) => supports(hit.type, capability).status === 'permitted',
+        level: actions?.levelOf(hit),
+      },
+      t,
+    );
+  }
+
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
+  let results = $state<HTMLElement | null>(null);
+
+  function openMenu(id: string) {
+    const hit = search.hits.find((each) => each.id === id);
+    if (hit) actions?.readLevel(hit);
+    menus[id]?.open(0);
+  }
+
+  $effect(() => {
+    const node = results;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: (target) => (target as Element | null)?.closest?.('[data-hit]')?.getAttribute('data-hit') ?? undefined,
+      open: openMenu,
+    });
+  });
+
   async function toggleComplete(id: string, title: string, isCompleted: boolean) {
     writeFailure = undefined;
     try {
@@ -501,25 +586,42 @@
   {:else if search.hits.length === 0}
     <EmptyState kind="filtered" title={t('app.search.none')} icon="search" />
   {:else}
+    <div class="results" bind:this={results}>
     <Stack gap="050">
       {#if hasMeaning}
         <p class="hint">{t(mode === 'LEXICAL' ? 'app.search.ranked_by_words' : 'app.search.ranked_by_meaning')}</p>
       {/if}
       {#each search.hits as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
+        <div data-hit={hit.id}>
         <TaskRow
           type={hit.type}
           title={hit.title}
           href={`/items/${hit.id}`}
           {isCompleted}
           completeLabel={t(isCompleted ? 'app.entries.reopen' : 'app.entries.complete', { title: hit.title })}
-          onToggleComplete={() => toggleComplete(hit.id, hit.title, isCompleted)}
+          completeDisabledReason={completeReason(hit)}
+          onToggleComplete={() => {
+            if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
+          }}
         >
           <!-- Search mixes collections: each hit says where it lives (UC-WRK-33). -->
-          {#snippet trailing()}<EntryPlace collectionId={hit.collection_id} />{/snippet}
+          {#snippet trailing()}
+            <EntryPlace collectionId={hit.collection_id} />
+            <EntryMenu
+              bind:this={menus[hit.id]}
+              title={hit.title}
+              items={menuOf(hit)}
+              onselect={(chosen) => void actions?.run(hit, chosen)}
+              onopening={() => actions?.readLevel(hit)}
+            />
+          {/snippet}
         </TaskRow>
+        </div>
       {/each}
     </Stack>
+    </div>
+    <EntryActions bind:this={actions} onopen={(id) => onnavigate?.(`/items/${id}`)} {onnavigate} />
     {#if search.isPartial}
       <p class="hint">{t('app.search.partial')}</p>
     {/if}

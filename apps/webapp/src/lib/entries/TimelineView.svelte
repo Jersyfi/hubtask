@@ -36,8 +36,15 @@
   import { Button, Select, Skeleton, Timeline, type TimelineCarry, type TimelineRow } from '@hubtask/design-system/components';
   import type { WorkItem } from '@hubtask/sync-engine';
 
+  import EntryActions from './EntryActions.svelte';
+  import EntryMenu from './EntryMenu.svelte';
+  import { attachEntryGestures } from './entryGestures.ts';
+  import { entryMenu } from './entryMenu.ts';
+
   import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { supports } from '../data/capability.svelte.ts';
+  import { archivalOfItem } from '../data/lifecycle.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { addDays, dueInputFor, shift, type Window } from '../data/due.ts';
@@ -62,9 +69,74 @@
      * will take the dates, and for a viewer or somebody else's entry it will not (P-05).
      */
     changeRefusal: (item: WorkItem) => string | undefined;
+    /** The entry open beside the timeline, so its row is announced as current. */
+    currentId?: string;
+    /** Where a link the timeline cannot follow itself leads: a copy made from an entry. */
+    onnavigate?: (path: string) => void;
+    /** Whether the reader may create entries here, which is what a copy is. */
+    mayCreate?: boolean;
+    /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
+    mayShare?: boolean;
   }
 
-  const { collectionId, query, onopen, isReadOnly = false, changeRefusal }: Props = $props();
+  const {
+    collectionId,
+    query,
+    onopen,
+    isReadOnly = false,
+    changeRefusal,
+    currentId,
+    onnavigate,
+    mayCreate = false,
+    mayShare = false,
+  }: Props = $props();
+
+  /**
+   * An entry's menu on the timeline: the one every surface draws (UC-WRK-28 check 1). The
+   * timeline holds no level, so the moves wait for the one read when the menu opens (D6).
+   */
+  function menuOf(entry: WorkItem) {
+    return entryMenu(
+      {
+        surface: 'timeline',
+        item: { title: entry.title, isCompleted: entry.completion?.is_completed ?? false, hasDue: Boolean(entry.due_at) },
+        archival: archivalOfItem(entry, false),
+        isCollectionReadOnly: isReadOnly,
+        mayChange: changeRefusal(entry) === undefined,
+        mayCreate,
+        mayShare,
+        carries: (capability) => supports(entry.type, capability).status === 'permitted',
+        level: actions?.levelOf(entry),
+      },
+      t,
+    );
+  }
+
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
+  let section = $state<HTMLElement | null>(null);
+
+  // A right click and the context-menu key on a row; the long press is the timeline's own
+  // (`onHold`), which tells a hold from a drag.
+  $effect(() => {
+    const node = section;
+    if (!node) return;
+    return attachEntryGestures(node, {
+      idAt: (target) => (target as Element | null)?.closest?.('[data-row]')?.getAttribute('data-row') ?? undefined,
+      open: (id) => openMenu(id),
+      ignore: '[data-row]',
+    });
+  });
+
+  function openMenu(id: string) {
+    const entry = entries.find((each) => each.id === id);
+    if (entry) actions?.readLevel(entry);
+    menus[id]?.open(0);
+  }
+
+  function chose(entry: WorkItem, id: string) {
+    void actions?.run(entry, id);
+  }
 
   const zone = $derived(actor.zone);
   const today = $derived(todayIn(zone));
@@ -262,7 +334,7 @@
   {:else}
     <!-- The window the timeline scrolls in. On a phone it has an edge of its own, so a bar that
          runs past the screen visibly ends at a frame rather than at the glass (ADR-0061). -->
-    <div class="window">
+    <div class="window" bind:this={section}>
       <Timeline
         label={t('app.timeline.label')}
         from={current.from}
@@ -278,11 +350,27 @@
         dueHandleLabel={t('app.timeline.move_due')}
         onSelect={onopen}
         onCarry={(carry) => void carried(carry)}
-      />
+        {currentId}
+        onHold={openMenu}
+      >
+        {#snippet rowAction(id: string)}
+          {@const entry = entries.find((each) => each.id === id)}
+          {#if entry}
+            <EntryMenu
+              bind:this={menus[id]}
+              title={entry.title}
+              items={menuOf(entry)}
+              onselect={(chosen) => chose(entry, chosen)}
+              onopening={() => actions?.readLevel(entry)}
+            />
+          {/if}
+        {/snippet}
+      </Timeline>
     </div>
   {/if}
 
   {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
+  <EntryActions bind:this={actions} {onopen} {onnavigate} />
 </div>
 
 <style>

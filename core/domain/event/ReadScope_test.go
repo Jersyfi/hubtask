@@ -50,6 +50,7 @@ func TestTheReadScopeFollowsTheEntityTheEventIsAbout(t *testing.T) {
 		{event.ContainerCreated, "containers:read"},
 		{event.BucketReordered, "containers:read"},
 		{event.LabelDeleted, "containers:read"},
+		{event.LabelRestored, "containers:read"},
 		{event.AttachmentAdded, "media:read"},
 		{event.TemplateInstantiated, "templates:read"},
 	}

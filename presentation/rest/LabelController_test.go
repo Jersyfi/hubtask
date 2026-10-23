@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -194,5 +195,53 @@ func TestDeletingALabelAnswers204(t *testing.T) {
 	}
 	if body := recorder.Body.String(); body != "" {
 		t.Errorf("a 204 carried a body: %q", body)
+	}
+}
+
+// A plain read leaves the flag out, so the catalogue's default is the one answer; asked for, the
+// deleted labels arrive with their stamp.
+func TestListingWithDeletedLabelsPassesTheFlagAndTheStamp(t *testing.T) {
+	gone := storedLabel("Urgent")
+	gone["deleted_at"] = time.Date(2026, 10, 21, 9, 0, 0, 0, time.UTC)
+	registry := &catalogue{out: usecase.Output{"data": []usecase.Output{gone}}}
+
+	plain := labelRequest(t, &catalogue{out: usecase.Output{"data": []usecase.Output{}}}, http.MethodGet,
+		"/containers/"+boardCollection+"/labels", "")
+	if plain.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", plain.Code, plain.Body)
+	}
+
+	recorder := labelRequest(t, registry, http.MethodGet,
+		"/containers/"+boardCollection+"/labels?include_deleted=true", "")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.in["include_deleted"] != true {
+		t.Errorf("include_deleted is %v", registry.in["include_deleted"])
+	}
+	if !strings.Contains(recorder.Body.String(), `"deleted_at":"2026-10-21T09:00:00Z"`) {
+		t.Errorf("the stamp is missing: %s", recorder.Body)
+	}
+}
+
+// A restoration answers the label and its new tag, and sends no version: its precondition is the
+// deletion, and a retry must not meet the version its own first attempt moved on.
+func TestRestoringALabelAnswers200WithTheLabel(t *testing.T) {
+	registry := &catalogue{out: storedLabel("Urgent")}
+
+	recorder := labelRequest(t, registry, http.MethodPost,
+		"/containers/"+boardCollection+"/labels/"+firstLabel+":restore", "")
+
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != restoreLabelUseCase {
+		t.Errorf("the handler invoked %q", registry.name)
+	}
+	if registry.in["label_id"] != firstLabel || len(registry.in) != 1 {
+		t.Errorf("unexpected input: %v", registry.in)
+	}
+	if tag := recorder.Header().Get("ETag"); tag != `"1"` {
+		t.Errorf("ETag is %q", tag)
 	}
 }

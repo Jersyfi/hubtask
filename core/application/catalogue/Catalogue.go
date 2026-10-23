@@ -74,6 +74,7 @@ func Descriptors() []usecase.Descriptor {
 		work.ListLabels{}.Descriptor(),
 		work.UpdateLabel{}.Descriptor(),
 		work.DeleteLabel{}.Descriptor(),
+		work.RestoreLabel{}.Descriptor(),
 		work.AddLabel{}.Descriptor(),
 		work.RemoveLabel{}.Descriptor(),
 		work.AssignWorkItem{}.Descriptor(),

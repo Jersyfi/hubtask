@@ -480,6 +480,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `label.created` | CreateLabel | `label` | INFO | Every time |
 | `label.deleted` | DeleteLabel | `label` | INFO | Every time |
 | `label.read` | ListLabels | `label` | INFO | When refused |
+| `label.restored` | RestoreLabel | `label` | INFO | Every time |
 | `label.updated` | UpdateLabel | `label` | INFO | Every time |
 
 ## Structure: custom fields

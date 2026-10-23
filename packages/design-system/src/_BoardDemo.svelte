@@ -8,7 +8,11 @@
   import ViewSwitcher, { type View } from './ViewSwitcher.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' | 'phone' } = $props();
+  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' | 'phone' | 'beside' } = $props();
+
+  // The card open beside the board: a plain press on a title opens it here rather than following
+  // the link; a press with a modifier still opens the link in a new tab.
+  let current = $state<string | undefined>('c');
 
   interface Card {
     id: string;
@@ -129,6 +133,8 @@
         <WorkItemCard
           title={card.title}
           href={`/items/${card.id}`}
+          onOpen={mode === 'beside' ? () => (current = card.id) : undefined}
+          isCurrent={mode === 'beside' && current === card.id}
           isCompleted={card.isDone ?? false}
           coverKind={card.cover?.kind ?? null}
           coverColorToken={card.cover?.token ?? null}

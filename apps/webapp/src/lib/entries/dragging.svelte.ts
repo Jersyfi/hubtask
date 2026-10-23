@@ -30,8 +30,9 @@
  *
  * **A coarse pointer starts on a hold, not on movement.** A finger that moves is scrolling the
  * board, so a drag that began on movement would take every scroll. 300 ms of stillness is what
- * says "this one", and it is the same hold the selection mode waits for, deliberately: one
- * gesture, one meaning.
+ * says "this one". What the hold becomes is decided **on release**, not when the timer fires
+ * (ADR-0088): a hold that then moves is the drag, and one lifted without moving is the entry's
+ * menu (`onhold`), so one gesture cannot both drag and open.
  *
  * The single-pointer alternative SC 2.5.7 asks for is the card's own menu, and it is a real one.
  */
@@ -71,6 +72,11 @@ export interface DragOptions {
   readonly levelAt?: (point: { x: number; y: number }) => DragLevel | null;
   /** Where it ended up. Called once, and only when the position actually changed. */
   readonly ondrop: (drop: { id: string; to: number; levelKey: string }) => void;
+  /**
+   * A coarse pointer held still past the hold and lifted without moving: the entry's menu. The
+   * click the lift sends is swallowed, so the card does not also open.
+   */
+  readonly onhold?: (id: string) => void;
 }
 
 /** What a drag looks like from the outside: enough for a template, and nothing about the DOM. */
@@ -135,9 +141,13 @@ export function createDrag(options: DragOptions): Drag {
     let hasBegun = false;
     /** A coarse pointer may not begin until it has been held: until then a move is a scroll. */
     let mayBegin = !isCoarse;
+    /** Whether the finger stayed still for the whole hold, so far. */
+    let isHeldStill = false;
     let held: ReturnType<typeof setTimeout> | undefined = isCoarse
       ? setTimeout(() => {
+          held = undefined;
           mayBegin = true;
+          isHeldStill = true;
         }, HOLD_MS)
       : undefined;
     let landed = { key: target.level.key, to: target.index };
@@ -153,6 +163,7 @@ export function createDrag(options: DragOptions): Drag {
         if (!hasLeftTheHandle(from, { x: move.clientX, y: move.clientY })) return;
         // A finger that moved before the hold was up is scrolling, and the board is what it is
         // scrolling. Let go of the gesture entirely rather than taking it.
+        isHeldStill = false;
         if (!mayBegin) {
           finish();
           return;
@@ -182,8 +193,14 @@ export function createDrag(options: DragOptions): Drag {
       window.removeEventListener('pointercancel', finish);
 
       const moved = hasBegun && (landed.key !== target.level.key || landed.to !== target.index);
-      hasJustDragged = hasBegun;
+      const isHold = isHeldStill && !hasBegun && options.onhold !== undefined;
+      // The click the lift sends belongs to the drag or to the hold, never to the card under it.
+      hasJustDragged = hasBegun || isHold;
       forget();
+      if (isHold) {
+        options.onhold?.(target.id);
+        return;
+      }
       // A drag that ends where it began writes nothing. It is the ordinary outcome of thinking
       // better of it, and a request for the position an entry already holds is a request that
       // changes nothing and still costs a round trip.

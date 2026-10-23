@@ -32,6 +32,8 @@ const TOUCHES = ['/containers', ENTRY_LISTS, ANY_ENTRY_DOCUMENT];
 
 class Labels {
   #levels = $state<Record<string, ResourceState<readonly Label[]>>>({});
+  /** The vocabulary with what was taken out of it, per collection, for the way back. */
+  #withDeleted = $state<Record<string, ResourceState<readonly Label[]>>>({});
 
   /** One collection's labels, empty until it has been read. */
   of(collectionId: string): readonly Label[] {
@@ -47,6 +49,22 @@ class Labels {
   open(collectionId: string): () => void {
     return engine.subscribe<readonly Label[]>({ path: labelsPath(collectionId) }, (next) => {
       this.#levels = { ...this.#levels, [collectionId]: next };
+    });
+  }
+
+  /**
+   * The labels taken out of one collection's vocabulary, each with its `deleted_at`: what the
+   * labels dialog offers to bring back. Read only where somebody may restore one.
+   */
+  deletedOf(collectionId: string): readonly Label[] {
+    const state = this.#withDeleted[collectionId];
+    return state?.status === 'ready' ? state.data.filter((label) => label.deleted_at) : [];
+  }
+
+  /** Starts the read with the deleted labels. **From `untrack`**, as `open`. */
+  openDeleted(collectionId: string): () => void {
+    return engine.subscribe<readonly Label[]>({ path: `${labelsPath(collectionId)}?include_deleted=true` }, (next) => {
+      this.#withDeleted = { ...this.#withDeleted, [collectionId]: next };
     });
   }
 
@@ -76,13 +94,25 @@ class Labels {
   /**
    * Deletes a label from the collection.
    *
-   * It comes off every entry that carried it, which is the server's doing and why `/items` is
-   * invalidated too — a row still showing a label that no longer exists would be the stale state
+   * The entries that carried it are not rewritten - the server stops showing the label on them
+   * because it is out of the vocabulary, which is what lets `restore` bring it back on all of them.
+   * `/items` is invalidated too: a row still showing a label that is gone would be the stale state
    * the seam's invalidation exists to prevent.
    */
   async remove(collectionId: string, labelId: string, version: number): Promise<void> {
     await engine.mutate<void>('DELETE', `/containers/${collectionId}/labels/${labelId}`, undefined, {
       ifMatch: `"${version}"`,
+      invalidates: TOUCHES,
+    });
+  }
+
+  /**
+   * Brings a deleted label back, onto every entry that carried it (UC-WRK-28 check 3). No version:
+   * a restore's precondition is the deletion, and a retry must not meet its own first attempt.
+   */
+  async restore(collectionId: string, labelId: string, idempotencyKey: string): Promise<Label> {
+    return engine.mutate<Label>('POST', `/containers/${collectionId}/labels/${labelId}:restore`, undefined, {
+      idempotencyKey,
       invalidates: TOUCHES,
     });
   }

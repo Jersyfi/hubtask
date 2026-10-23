@@ -1751,8 +1751,8 @@ export class HubtaskClient {
   }
 
   /** GET /containers/{containerId}/labels */
-  listLabels(containerId: string, options: CallOptions = {}): Promise<operations["listLabels"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/containers/{containerId}/labels", { "containerId": containerId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  listLabels(containerId: string, options: CallOptions & { readonly query?: NonNullable<operations["listLabels"]['parameters']['query']> } = {}): Promise<operations["listLabels"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/containers/{containerId}/labels", { "containerId": containerId }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** POST /containers/{containerId}/labels */
@@ -1768,6 +1768,11 @@ export class HubtaskClient {
   /** DELETE /containers/{containerId}/labels/{labelId} */
   deleteLabel(containerId: string, labelId: string, options: CallOptions & { readonly ifMatch?: string } = {}): Promise<void> {
     return this.call("DELETE", "/containers/{containerId}/labels/{labelId}", { "containerId": containerId, "labelId": labelId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** POST /containers/{containerId}/labels/{labelId}:restore */
+  restoreLabel(containerId: string, labelId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["restoreLabel"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}/labels/{labelId}:restore", { "containerId": containerId, "labelId": labelId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** PUT /items/{itemId}/labels/{labelId} */

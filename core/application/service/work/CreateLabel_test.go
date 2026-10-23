@@ -66,6 +66,21 @@ func (l *labels) List(_ context.Context, collection shared.ID) ([]domain.Label, 
 	return vocabulary, nil
 }
 
+func (l *labels) ListWithDeleted(_ context.Context, collection shared.ID) ([]domain.Label, error) {
+	if l.listErr != nil {
+		return nil, l.listErr
+	}
+
+	vocabulary := make([]domain.Label, 0, len(l.stored))
+	for _, label := range l.stored {
+		if label.CollectionID == collection {
+			vocabulary = append(vocabulary, label)
+		}
+	}
+	sortLabels(vocabulary)
+	return vocabulary, nil
+}
+
 func (l *labels) Insert(_ context.Context, label domain.Label) error {
 	if l.insertErr != nil {
 		return l.insertErr
@@ -81,6 +96,10 @@ func (l *labels) SetAttributes(_ context.Context, label domain.Label, expected i
 
 func (l *labels) SetDeleted(_ context.Context, label domain.Label, expected int) error {
 	return l.write("deleted", label, expected)
+}
+
+func (l *labels) SetRestored(_ context.Context, label domain.Label, expected int) error {
+	return l.write("restored", label, expected)
 }
 
 func (l *labels) write(method string, label domain.Label, expected int) error {
