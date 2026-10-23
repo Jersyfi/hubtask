@@ -184,7 +184,7 @@ Administration and installation, found by UX-05's sweep:
 
 ## E6 — The entry
 
-- [ ] Head menu: only "Share this entry" → the full entry menu
+- [x] Head menu: only "Share this entry" → the full entry menu — the entry page's head (and the pane's, and the bar's *⋯* on phones): the one entry menu without *Open*, *People* where the reader may not share (UX-17)
 - [ ] Conflict strip, celebration → kept
 - [ ] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title
 - [ ] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11)

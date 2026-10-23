@@ -106,7 +106,9 @@
   import CoverPanel from '../lib/media/CoverPanel.svelte';
   import AssigneePanel from '../lib/people/AssigneePanel.svelte';
   import CommentPanel from '../lib/people/CommentPanel.svelte';
-  import MembersDialog from '../lib/people/MembersDialog.svelte';
+  import EntryActions from '../lib/entries/EntryActions.svelte';
+  import { entryMenu as menuOfEntry } from '../lib/entries/entryMenu.ts';
+  import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { activityPath, itemPath } from '../lib/data/item.svelte.ts';
   import { resource } from '../lib/data/resource.svelte.ts';
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
@@ -141,7 +143,6 @@
 
   const item = $derived(entry.state.status === 'ready' ? entry.state.data : undefined);
 
-  let isSharing = $state(false);
 
   // The bar carries the title on a phone (ADR-0061 decision 2); on every width the head's `h1`
   // is read rather than drawn, because the title the reader sees is the field they edit it in.
@@ -354,18 +355,56 @@
   let subtree = $state<EntryList | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
-  /** The entry's own menu. What the head and the details rows do is not repeated in it. */
-  const entryMenu = $derived.by((): MenuItem[] => [
-    // *Share* where the reader may grant a role here; otherwise the same dialog, to read who has
-    // access - the offer to grant is absent rather than refused inside it (UC-WRK-21 check 7).
-    { id: 'share', label: t(mayShare() ? 'app.people.share' : 'app.people.title'), icon: 'users' },
-  ]);
+  /**
+   * The entry's own menu in its head: the one every place that shows an entry draws (UC-WRK-28
+   * check 2), without *Open*. *Share* where the reader may grant a role here; otherwise *People*,
+   * the same dialog, to read who has access - the offer to grant is absent rather than refused
+   * inside it (UC-WRK-21 check 7). What it does is `EntryActions`', as on every surface.
+   */
+  const entryMenu = $derived.by((): MenuItem[] =>
+    item
+      ? menuOfEntry(
+          {
+            surface: 'page',
+            item: { title: item.title, isCompleted: item.completion?.is_completed ?? false, hasDue: Boolean(item.due_at) },
+            archival: archivalOfItem(item, isCollectionArchived),
+            isCollectionReadOnly: isCollectionArchived,
+            mayChange: mayChangeHere,
+            mayCreate: mayCreateHere,
+            mayShare: mayShare(),
+            readsPeople: true,
+            carries,
+            level: actions?.levelOf(item),
+          },
+          t,
+        )
+      : [],
+  );
+  let actions = $state<EntryActions | undefined>(undefined);
+  // The moves need the entry's level, which a page does not otherwise hold. It is read when the
+  // reader reaches for the menu - its trigger in the head, the pane or the bar - as search reads a
+  // hit's (D6), not with the page: held open, every write here would read the level again.
+  $effect(() => {
+    const current = item;
+    const held = actions;
+    if (!current || !held) return;
+    const reach = (event: Event) => {
+      if (event.target instanceof Element && event.target.closest('[data-opener="entry-menu"]')) held.readLevel(current);
+    };
+    document.addEventListener('pointerdown', reach, true);
+    document.addEventListener('focusin', reach, true);
+    return () => {
+      document.removeEventListener('pointerdown', reach, true);
+      document.removeEventListener('focusin', reach, true);
+    };
+  });
   /**
    * Whether the reader may grant a role on this entry: the server's own answer of what they may
    * give there (`grantable_roles`), the one the members dialog offers from. Unknown reads as no.
    */
   function mayShare(): boolean {
     if (!item) return false;
+    if (mayShareHere) return true;
     return (people.grantableAt({ scopeType: 'ITEM', scopeId: item.id })?.length ?? 0) > 0;
   }
 
@@ -374,7 +413,7 @@
   const shownTab = $derived(activeTab === 'comments' && !carries('COMMENTS') ? 'activity' : activeTab);
 
   function chooseFromMenu(chosen: string) {
-    if (chosen === 'share') isSharing = true;
+    if (item) void actions?.run(item, chosen);
   }
 
   // What the palette may list for this entry: the head's menu, as the page's own or, in the detail
@@ -1205,13 +1244,15 @@
   {/if}
 {/snippet}
 
-<!-- The same copy the collection's list makes: a duplicate ends on the copy, which is a page. -->
+<!-- What the head's menu does, as on every surface: the dialogs once, the writes the same. A copy
+     ends on the copy, which is a page; the trash leaves for the collection, with its *Undo*. -->
 {#if item}
-  <MembersDialog
-    bind:isOpen={isSharing}
-    title={t('app.people.share_title')}
-    scope={{ scopeType: 'ITEM', scopeId: item.id }}
-    path={peoplePath}
+  {@const collectionId = item.collection_id}
+  <EntryActions
+    bind:this={actions}
+    onopen={(itemId) => onnavigate?.(`/items/${itemId}`)}
+    {onnavigate}
+    ontrashed={() => onnavigate?.(`/collections/${collectionId}`)}
   />
 {/if}
 

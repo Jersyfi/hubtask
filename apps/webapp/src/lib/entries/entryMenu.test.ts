@@ -166,3 +166,16 @@ test('the trash is last, alone and destructive', () => {
   assert.equal(last?.isDestructive, true);
   assert.equal(last?.hasSeparatorBefore, true);
 });
+
+test('the entry\'s own page: the same menu without Open and Select, People where the reader may not share (UC-WRK-28 check 2)', () => {
+  const page = idsOf(entryMenu(context({ surface: 'page' }), t));
+  assert.deepEqual(page, WRITER.filter((id) => id !== 'select' && id !== 'open'));
+  const reading = entryMenu(context({ surface: 'page', readsPeople: true }), t);
+  assert.deepEqual(idsOf(reading), [...WRITER.filter((id) => id !== 'select' && id !== 'open' && id !== 'copy-link' && id !== 'archive' && id !== 'trash'), 'share', 'copy-link', 'archive', 'trash']);
+  assert.equal(reading.find((item) => item.id === 'share')?.label, 'app.people.title');
+  const sharing = entryMenu(context({ surface: 'page', readsPeople: true, mayShare: true }), t);
+  assert.equal(sharing.find((item) => item.id === 'share')?.label, 'app.people.share');
+  // A reader: who has access and the link, nothing that writes.
+  assert.deepEqual(idsOf(entryMenu(context({ surface: 'page', readsPeople: true, mayChange: false, mayCreate: false }), t)), ['share', 'copy-link']);
+  assert.deepEqual(idsOf(entryMenu(context({ surface: 'page', readsPeople: true, archival: 'inherited', mayCreate: false }), t)), ['share', 'copy-link']);
+});

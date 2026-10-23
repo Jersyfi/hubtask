@@ -164,6 +164,41 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.deepEqual(search.failures, []);
 });
 
+test('chromium: 1280 px — the entry\'s own page carries the same menu in its head, without Open (UC-WRK-28 check 2)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const entry = await open(browser, `/items/${DATED.id}`);
+  t.after(() => entry.context.close());
+  await entry.page.getByRole('heading', { name: DATED.title }).first().waitFor({ timeout: 15_000 });
+  await entry.page.waitForTimeout(600);
+  const head = entry.page.locator('[data-opener="entry-menu"]').first();
+  await head.click();
+  const { read } = await readMenu(entry.page, DATED.title);
+  assert.deepEqual(read, COMMON.filter((label) => label !== 'Open'));
+
+  // The level was read when the menu was reached for: the second of five moves up.
+  await head.click();
+  await entry.page.waitForFunction(() => [...document.querySelectorAll('[role="menuitem"]')].find((each) => each.textContent?.includes('Move up'))?.getAttribute('aria-disabled') !== 'true', null, { timeout: 5_000 })
+    .catch(() => assert.fail('Move up stays unavailable on the page'));
+  await entry.page.keyboard.press('Escape');
+
+  // What it does is what every surface's menu does: archived at once, with its request.
+  await head.click();
+  await entry.page.getByRole('menuitem', { name: 'Archive' }).click();
+  await entry.page.waitForTimeout(300);
+  assert.ok(entry.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
+  // The trash leaves the page for the collection, where the entry was.
+  await entry.page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+  await entry.page.getByRole('heading', { name: ITEMS[0].title }).first().waitFor({ timeout: 15_000 });
+  await entry.page.waitForTimeout(600);
+  await entry.page.locator('[data-opener="entry-menu"]').first().click();
+  await entry.page.getByRole('menuitem', { name: 'Move to the trash' }).click();
+  await entry.page.waitForURL(`**/collections/${COLLECTION.id}`, { timeout: 5_000 });
+  assert.ok(entry.written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${ITEMS[0].id}`)), 'the trash sent no DELETE');
+  assert.deepEqual(entry.failures, []);
+  assert.deepEqual(entry.unstubbed(), []);
+});
+
 test('chromium: 390 px with a touch screen — a still long press opens the menu, Select first, and Select picks', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

@@ -1016,7 +1016,10 @@ between columns is the card's menu (§11.9).
 
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
    looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
-   A set cover is drawn above the title; no room is taken for an absent one.
+   A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
+   entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
+   may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
+   for its collection, with *Undo*.
 2. **The whole subtree**: `EntryList` with a `rootId` — no second flatten, row menu or drag; its rows
    carry the one entry menu every place that shows an entry carries (UC-WRK-28 check 1), without
    *Select*, since no bulk bar acts there. Every
