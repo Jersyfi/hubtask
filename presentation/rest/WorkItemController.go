@@ -382,7 +382,8 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		if capabilities == nil {
 			capabilities = []string{}
 		}
-		item.Hidden = &openapi.EntryHidden{Level: level, Capabilities: capabilities}
+		below, _ := mark["below"].(int)
+		item.Hidden = &openapi.EntryHidden{Level: level, Capabilities: capabilities, Below: below}
 	}
 	// Present exactly when automatic assignment ran: the outcome of an :auto-assign call,
 	// or of a create a policy applied to. Absent means it did not run, which is a different

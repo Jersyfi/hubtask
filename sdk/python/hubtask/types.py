@@ -2184,6 +2184,7 @@ class EntryHidden(TypedDict, total=False):
     """What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again."""
     level: Required[bool]
     capabilities: Required[list[str]]
+    below: Required[int]
 
 class WorkItemCreate(TypedDict, total=False):
     type: Required["ItemType"]

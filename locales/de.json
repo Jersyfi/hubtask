@@ -579,6 +579,8 @@
   "app.entries.add_typed_inside": "{type, select, TASK {Aufgabe} WORK_PACKAGE {Arbeitspaket} ACTIVITY {Aktivität} other {Eintrag}} in {title} hinzufügen",
   "app.entries.no_root_type": "Dieser Arbeitsbereich bietet keine Art von Eintrag an, die direkt in einer Sammlung angelegt werden kann.",
   "app.entries.progress": "{done} von {total} erledigt",
+  "app.entries.hidden_below": "{count} ausgeblendet",
+  "app.entries.hidden_below_title": "{count, plural, one {Ein Eintrag darunter wird auf den Ebenen dieser Sammlung nicht gezeigt; gelöscht wurde nichts.} other {# Einträge darunter werden auf den Ebenen dieser Sammlung nicht gezeigt; gelöscht wurde nichts.}}",
   "app.entries.new_title": "Titel",
   "app.entries.notes": "Notizen",
   "app.entries.edit": "Bearbeiten",

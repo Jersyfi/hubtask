@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { MemoryStorage, type StoredRecord } from '@hubtask/sync-engine';
 
-import { fetchStructureAfresh, hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type StructureShape } from './replica.ts';
+import { belowOf, fetchStructureAfresh, hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type HeldEntry, type StructureShape } from './replica.ts';
 
 const HUB = 'h-1';
 const COLLECTION = 'c-1';
@@ -233,7 +233,14 @@ interface HiddenCase {
 
 const hiddenFixture = JSON.parse(
   readFileSync(fileURLToPath(new URL('../../../../../api/fixtures/hidden-entries.json', import.meta.url)), 'utf8'),
-) as { bound: BoundType[]; cases: HiddenCase[] };
+) as { bound: BoundType[]; cases: HiddenCase[]; below: BelowCase[] };
+
+interface BelowCase {
+  readonly name: string;
+  readonly levels: readonly string[];
+  readonly entries: readonly { id: string; type: string; parent: string | null; trashed?: boolean }[];
+  readonly below: Readonly<Record<string, number>>;
+}
 
 test('the shared table holds cases', () => {
   assert.ok(hiddenFixture.cases.length > 0);
@@ -242,6 +249,24 @@ test('the shared table holds cases', () => {
 for (const tc of hiddenFixture.cases) {
   test(`hidden: ${tc.name}`, () => {
     assert.deepEqual(hiddenOf(tc.type, tc.ancestors, tc.structure, hiddenFixture.bound), tc.hidden);
+  });
+}
+
+for (const tc of hiddenFixture.below) {
+  test(`hidden below: ${tc.name}`, () => {
+    const structure: StructureShape = { levels: tc.levels.map((type) => ({ type })) };
+    const held = new Map(tc.entries.map((entry) => [entry.id, entry]));
+    const children = new Map<string, HeldEntry[]>();
+    for (const entry of tc.entries) {
+      if (!entry.parent) continue;
+      const row: HeldEntry = { id: entry.id, type: entry.type, parent_id: entry.parent, deleted_at: entry.trashed ? 'gone' : null };
+      children.set(entry.parent, [...(children.get(entry.parent) ?? []), row]);
+    }
+    for (const entry of tc.entries) {
+      const ancestors: string[] = [];
+      for (let at = held.get(entry.parent ?? ''); at; at = held.get(at.parent ?? '')) ancestors.push(at.type);
+      assert.equal(belowOf(entry, ancestors, children, structure, hiddenFixture.bound), tc.below[entry.id] ?? 0, entry.id);
+    }
   });
 }
 
@@ -264,6 +289,8 @@ test('offline, an entry is marked from its collection\'s structure and the level
     assert.equal(step.hidden.level, true, 'an activity under a hidden work package is hidden');
     const call = (await storeFor({ path: '/items/call' }, storage)) as { hidden: EntryHidden };
     assert.equal(call.hidden.level, false, 'an activity directly under a task is shown');
+    const task = (await storeFor({ path: '/items/task' }, storage)) as { hidden: EntryHidden };
+    assert.equal(task.hidden.below, 2, 'the task says the work package and its activity are hidden under it');
     const subtree = (await storeFor({
       path: '/items:query',
       body: { scope: { item_id: 'task', include_descendants: true }, include_archived: true, sort: [{ field: 'order_key', dir: 'ASC' }], expand: ['labels'], page: { size: 200 } },

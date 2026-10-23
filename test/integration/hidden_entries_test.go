@@ -348,6 +348,10 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		!slices.Contains(capabilities, "DUE_DATE") {
 		t.Errorf("the task is marked %v %v", level, capabilities)
 	}
+	// UC-WRK-24 check 4: the task says what List hides under it.
+	if below := read["hidden"].(map[string]any)["below"]; below != 2 {
+		t.Errorf("the task says %v entries hidden below it, want 2", below)
+	}
 	if read["notes"] != "Budget 400" || read["assignee_id"] != authorB.String() || read["due_at"] == nil {
 		t.Errorf("the read lost a hidden value: %v", read)
 	}
@@ -364,7 +368,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	// The REST answer carries the mark as the contract spells it.
 	fetched := restItem(ctx, t, registry, actor, http.MethodGet, "/items/"+taskID, "")
 	if fetched.Code != http.StatusOK || !strings.Contains(fetched.Body.String(), `"hidden":{`) ||
-		!strings.Contains(fetched.Body.String(), `"NOTES"`) {
+		!strings.Contains(fetched.Body.String(), `"NOTES"`) || !strings.Contains(fetched.Body.String(), `"below":2`) {
 		t.Errorf("REST read answered %d %s", fetched.Code, fetched.Body)
 	}
 

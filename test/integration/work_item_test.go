@@ -8,8 +8,10 @@ package integration
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
@@ -536,6 +538,61 @@ func TestFindManyAnswersOnlyTheCallersEntries(t *testing.T) {
 	}
 	if found[0].Title != "B's" || found[0].TenantID != tenantB {
 		t.Errorf("the entry came back as %q of tenant %s", found[0].Title, found[0].TenantID)
+	}
+}
+
+// The cross-tenant negative test for EntriesBelow: what lies under an entry, counted for the hidden
+// rule (UC-WRK-24 check 4). Tenant A, asking about B's task, learns nothing; B counts its own work
+// package and the activity under it, grouped by the types on their way down.
+func TestEntriesBelowAnswersOnlyTheCallersEntries(t *testing.T) {
+	ctx := context.Background()
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	repo := itemRepo()
+
+	taskID, packID, stepID := freshID(t), freshID(t), freshID(t)
+	task := taskIn(tenantB, authorB, collectionB, taskID, "B's", "a0")
+	pack := taskIn(tenantB, authorB, collectionB, packID, "Pack", "a0")
+	pack.Type, pack.ParentID, pack.Path, pack.Depth = work.ItemWorkPackage, taskID, task.ChildPath(packID), 2
+	step := taskIn(tenantB, authorB, collectionB, stepID, "Step", "a0")
+	step.Type, step.ParentID, step.Path, step.Depth = work.ItemActivity, packID, pack.ChildPath(stepID), 3
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		for _, item := range []work.WorkItem{task, pack, step} {
+			if err := repo.Insert(ctx, item); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("writing B's entries: %v", err)
+	}
+
+	var below []repository.EntriesBelow
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		var err error
+		below, err = repo.EntriesBelow(ctx, []shared.ID{taskID})
+		return err
+	}); err != nil {
+		t.Fatalf("A counting: %v", err)
+	}
+	if len(below) != 0 {
+		t.Fatalf("tenant A counted under B's task: %v", below)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		var err error
+		below, err = repo.EntriesBelow(ctx, []shared.ID{taskID})
+		return err
+	}); err != nil {
+		t.Fatalf("B counting: %v", err)
+	}
+	counted := map[string]int{}
+	for _, group := range below {
+		if group.Under != taskID {
+			t.Errorf("a group under %s, asked about %s", group.Under, taskID)
+		}
+		counted[fmt.Sprint(group.Seen)] += group.Entries
+	}
+	if len(counted) != 2 || counted["[WORK_PACKAGE]"] != 1 || counted["[WORK_PACKAGE ACTIVITY]"] != 1 {
+		t.Fatalf("B counted %v", counted)
 	}
 }
 

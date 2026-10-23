@@ -461,6 +461,17 @@ type ItemBatch interface {
 // needs it.
 type ItemTypes interface {
 	TypesOf(ctx context.Context, ids []shared.ID) (map[shared.ID]work.ItemType, error)
+	// EntriesBelow answers the live entries under each entry among ids, grouped by the types met
+	// from just under it down to each one; an entry with nothing below is absent.
+	EntriesBelow(ctx context.Context, ids []shared.ID) ([]EntriesBelow, error)
+}
+
+// EntriesBelow is a number of live entries under one entry, every one of which has the types Seen
+// on its way down (its own included) and no other.
+type EntriesBelow struct {
+	Under   shared.ID
+	Seen    []work.ItemType
+	Entries int
 }
 
 // EntryShape is one live entry as a preview of a structure change counts it: where it sits, its

@@ -138,6 +138,41 @@ func (r ItemRepository) TypesOf(ctx context.Context, ids []shared.ID) (map[share
 	return types, nil
 }
 
+// EntriesBelow answers the live entries under each entry among ids, in one recursive statement.
+// Another tenant's entries are absent, by the predicate and row level security.
+func (r ItemRepository) EntriesBelow(ctx context.Context, ids []shared.ID) ([]repository.EntriesBelow, error) {
+	if len(ids) == 0 {
+		return []repository.EntriesBelow{}, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.EntriesHiddenBelow(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the entries below work items: %w", err))
+	}
+	groups := make([]repository.EntriesBelow, 0, len(rows))
+	for _, row := range rows {
+		under, err := idFrom(row.RootID)
+		if err != nil {
+			return nil, err
+		}
+		seen := make([]work.ItemType, 0, len(row.Seen))
+		for _, itemType := range row.Seen {
+			seen = append(seen, work.ItemType(itemType))
+		}
+		groups = append(groups, repository.EntriesBelow{Under: under, Seen: seen, Entries: int(row.Entries)})
+	}
+	return groups, nil
+}
+
 // ShapesIn answers up to limit live entries of the collections, with the capabilities each holds
 // a value for. Another tenant's collection is absent, by the predicate and row level security.
 func (r ItemRepository) ShapesIn(

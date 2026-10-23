@@ -376,6 +376,32 @@ FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id()
   AND wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: EntriesHiddenBelow :many
+-- What a collection hides under each shown entry among ids (UC-WRK-24 check 4): every live entry
+-- below one, grouped by the types met from just under it down to it. Which of those types the
+-- collection hides is the domain's question (domain-model.md §2), so the statement needs no
+-- structure: a type met anywhere on the way hides the entry with it. Live means neither trashed
+-- nor archived, as a list shows them.
+WITH RECURSIVE below AS (
+  SELECT wi.parent_id AS root_id, wi.id, ARRAY[wi.type::text] AS seen
+  FROM work_item wi
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.parent_id = ANY(sqlc.arg('ids')::uuid[])
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+  UNION ALL
+  SELECT b.root_id, wi.id,
+    CASE WHEN wi.type::text = ANY(b.seen) THEN b.seen ELSE b.seen || wi.type::text END
+  FROM below b
+  JOIN work_item wi ON wi.parent_id = b.id
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+)
+SELECT b.root_id::uuid AS root_id, b.seen::text[] AS seen, count(*)::bigint AS entries
+FROM below b
+GROUP BY b.root_id, b.seen;
+
 -- name: CollectionEntryShapes :many
 -- What a preview of a structure change counts (UC-WRK-24 check 2): every live entry of the
 -- collections, its type and path, and whether it holds a value of each capability - never the

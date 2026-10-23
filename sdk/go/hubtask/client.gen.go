@@ -7381,6 +7381,9 @@ type EncryptionStoreCountStore string
 //
 // Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
 type EntryHidden struct {
+	// Below How many live entries under this one the collection hides by their level, or by the level of an entry between them and this one - the work packages and activities under a task in a collection that offers only tasks. Zero for an entry that is itself hidden by its level, whose whole subtree is hidden with it, and where nothing below is hidden.
+	Below int `json:"below"`
+
 	// Capabilities The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.
 	Capabilities []string `json:"capabilities"`
 

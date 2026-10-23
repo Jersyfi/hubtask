@@ -1741,6 +1741,8 @@
   "app.entries.add_typed_inside": "Add {type, select, TASK {a task} WORK_PACKAGE {a work package} ACTIVITY {an activity} other {an entry}} inside {title}",
   "app.entries.no_root_type": "This workspace offers no kind of entry that can be created directly in a collection.",
   "app.entries.progress": "{done} of {total} done",
+  "app.entries.hidden_below": "{count} hidden",
+  "app.entries.hidden_below_title": "{count, plural, one {One entry below is not shown at this collection's levels; nothing was deleted.} other {# entries below are not shown at this collection's levels; nothing was deleted.}}",
   "app.entries.new_title": "Title",
   "app.entries.notes": "Notes",
   "app.entries.edit": "Edit",
