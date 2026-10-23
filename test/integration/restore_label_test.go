@@ -108,7 +108,7 @@ func deletedLabelOn(ctx context.Context, t *testing.T, registry *usecase.Registr
 
 	actor := shaper(tenantB, authorB)
 	out, err := registry.Invoke(ctx, work.CreateLabelName, actor, usecase.Input{
-		"collection_id": collection.String(), "name": freshName(t), "color_token": "accent.red",
+		"collection_id": collection.String(), "name": freshName(t), "color_token": "red",
 	})
 	if err != nil {
 		t.Fatalf("creating the label: %v", err)
@@ -210,7 +210,7 @@ func TestARestorationIsRefusedWithItsStatus(t *testing.T) {
 			t.Fatalf("reading the name: %v", err)
 		}
 		if _, err := registry.Invoke(ctx, work.CreateLabelName, shaper(tenantB, authorB), usecase.Input{
-			"collection_id": collection.String(), "name": name, "color_token": "accent.amber",
+			"collection_id": collection.String(), "name": name, "color_token": "amber",
 		}); err != nil {
 			t.Fatalf("taking the name: %v", err)
 		}

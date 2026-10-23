@@ -848,6 +848,18 @@ in the field; below `medium` the same field and list open in a dialog.
   `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
 * **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
   they do not apply.
+* **Ask** (UC-AI-08, `apps/webapp/src/lib/ask/`). With words typed and AI consented to, one row
+  *Ask: “…”*; without AI there is no row and nothing of AI is drawn. Choosing it asks at once and
+  opens *Ask the workspace*: the question, editable and asked again with *Ask*, then the answer in
+  the AI proposal (§7) headed *Proposed answer* — the text, *Based on* the entries it rests on as
+  links (each read again, so one the reader can no longer open is left out), the provenance behind
+  one collapsed line, and *As a filter*: the chips the answer implies (a place, the state, a due
+  span, a person, labels), each removable and the state and due span changeable, framed rather than
+  pills because a select carries its label. *Save as view* saves what the chips hold as the reader's
+  own view; a view needs a place, so without one the place chip is marked on submit (§4, case 3).
+  While the question runs the proposal is pending with *Stop*, and the nearly-spent note stands
+  above it. *Dismiss* is the only decision about the answer; a new question carries nothing of the
+  last one.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and
@@ -874,7 +886,11 @@ operators — with one anatomy:
   workspace tree is not drawn.
 * **The first row leads out**, back to the workspace.
 * **The section's own address opens its first screen** (`firstScreen` in `navigation.ts`); there is
-  no index page.
+  no index page. The administration's and the installation's first screen is an overview of what
+  needs attention, each card linked to its page (UC-ID-24, UC-INS-12) — a reading, not a list of
+  the column's rows.
+* **The administration's groups** follow `ux-inventory.md` §E0: workspace and people · sign-in ·
+  automation · data · records · AI, under the way out and the overview; every page is one row away.
 * Every screen carries `PageHeader` with the trail *the section › this screen* and takes the region
   it is given (§11.1).
 * **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
@@ -961,8 +977,16 @@ archived container leaves the tree.
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — labels, fields, views, templates, policies, people;
-and trash, last and alone. An item unusable now stays with its reason. A set-up dialog used daily is
+move, archive, rank up, rank down; set it up — labels, fields, structure, views, templates,
+policies, people; and trash, last and alone. An item unusable now stays with its reason.
+
+**The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
+in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
+here, and a lock drawn as the chip's lock with the controls still readable and unavailable, their
+reason naming who set it (§4, cases 2 and 6). Only a reader who may change the shape is offered it.
+What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
+view or bulk operation for it — the installation's manifest narrowed to the structure in force
+(`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
 also reachable where it is used — saved views from a star beside the layout switch, templates from
 the primary action's submenu, people from the member avatars — opening the same dialog.
 

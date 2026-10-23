@@ -61,7 +61,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { changeRefusalCode, childTypes, declaresType, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -211,6 +211,12 @@
   });
   const collection = $derived(item ? containers.find(item.collection_id) : undefined);
   /**
+   * What the collection offers this entry (UC-WRK-23 check 4): its structure in force narrows the
+   * installation's answers - a field it does not offer has no row, a level it does not offer no
+   * subtree. What it hides stays stored (domain-model.md §2).
+   */
+  const offer = $derived(offerIn(collection?.structure?.settings));
+  /**
    * Whether the collection, or the hub above it, is archived: then nothing in it can be changed
    * (I-C3). The entry's own archive freezes the entry alone, never its children.
    */
@@ -282,7 +288,7 @@
    * (`domain-model.md` §2). A row is drawn only where the answer is `permitted`: a field the
    * profile refuses is answered with 422 by the server, and offering it is offering a refusal.
    */
-  const carries = $derived((capability: string) => (item ? supports(item.type, capability).status === 'permitted' : false));
+  const carries = $derived((capability: string) => (item ? offer.supports(item.type, capability).status === 'permitted' : false));
   /**
    * Whether `carries` is answering at all — and the reason this screen asks separately.
    *
@@ -341,7 +347,7 @@
    * "Under this entry" where it holds several - a task with work packages and activities side by
    * side is headed by neither name alone. Beside it, how much of it is done, counting every kind.
    */
-  const heldTypes = $derived(item ? childTypes(item.type) : []);
+  const heldTypes = $derived(item ? offer.childTypes(item.type) : []);
   /** A type as a name standing on its own - a heading, a badge - in the catalogue's words. */
   const typeName = (type: string) => t('app.item.type_name', { type });
   const subtreeHeading = $derived(heldTypes.length === 1 ? typeName(heldTypes[0] ?? '') : t('app.item.children'));
@@ -748,7 +754,7 @@
   // the reader to find them in the collection. The subtree is the one read the section below
   // makes, and this counts its first level; the acceptance's invalidation of the
   // lists brings them here without being asked.
-  const takesChildren = $derived(item ? childTypes(item.type).length > 0 : false);
+  const takesChildren = $derived(heldTypes.length > 0);
   $effect(() => {
     if (!takesChildren) return;
     return untrack(() => items.openSubtree(id));

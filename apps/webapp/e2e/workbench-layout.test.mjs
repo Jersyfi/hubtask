@@ -430,6 +430,19 @@ async function checkSaveBar(page, what) {
   await last.evaluate((node) => node.blur());
   await page.locator('.host [data-driver]').click();
   await bar.waitFor({ state: 'detached' });
+
+  // A field that already has focus when the first change brings the bar up - typed into at the
+  // foot of the scroll area, as on a phone - is scrolled clear of the bar as it arrives.
+  await page.locator('.host [data-scroll-area]').evaluate((area) => { area.scrollTop = area.scrollHeight; });
+  await last.focus();
+  await page.keyboard.type('x');
+  await bar.waitFor();
+  await page.waitForTimeout(100);
+  const [typed, arrived] = [await last.boundingBox(), await bar.boundingBox()];
+  assert.ok(typed.y + typed.height <= arrived.y + 0.5, `${what}: the field being typed into ends at ${typed.y + typed.height}, under the arriving bar from ${arrived.y}`);
+  await page.keyboard.press('Backspace');
+  await bar.waitFor({ state: 'detached' });
+  await last.evaluate((node) => node.blur());
 }
 
 const CHECKS = {

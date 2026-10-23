@@ -9,8 +9,28 @@ export const ACCOUNT = { id: '01a0e2e0-0000-7000-8000-000000000001', kind: 'USER
 export const OTHER = { id: '01a0e2e0-0000-7000-8000-000000000011', kind: 'USER', display_name: 'Mara Lind', email: 'm@example.invalid', status: 'ACTIVE', locale: 'en' };
 /** Somebody invited who has not arrived yet: the row an invitation is renewed from (UC-ID-14 check 5). */
 export const INVITED = { id: '01a0e2e0-0000-7000-8000-000000000012', kind: 'USER', display_name: 'Bert', email: 'bert@example.invalid', status: 'INVITED' };
-export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1 };
-export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1 };
+/**
+ * The structure a container answers where nobody chose one: Hubtask's default, every level and
+ * view of the installation (domain-model.md §2). A type left out of `fields` carries everything.
+ */
+export const DEFAULT_STRUCTURE = {
+  preset: null,
+  settings: {
+    levels: [{ type: 'TASK', name: null }, { type: 'WORK_PACKAGE', name: null }, { type: 'ACTIVITY', name: null }],
+    fields: {},
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'NONE', field_key: null },
+    completion: 'MANUAL',
+    capture: ['DATE', 'PERSON', 'LABEL'],
+    celebration: 'ALL',
+    automation: [],
+  },
+  sources: { levels: 'DEFAULT', fields: 'DEFAULT', views: 'DEFAULT', counts: 'DEFAULT', completion: 'DEFAULT', capture: 'DEFAULT', celebration: 'DEFAULT', automation: 'DEFAULT' },
+  locks: {},
+  counts_clipped: null,
+};
+export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
+export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
 /** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
 export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
@@ -210,6 +230,41 @@ export const DRAFTED_RULE = {
   on_error: 'STOP', failure_count: 0, version: 1, findings: [], last_run: null,
 };
 
+/**
+ * Asking the workspace (UC-AI-08): a question queues a job, and its answer stands in the asker's own
+ * listing as an `ANSWER` suggestion - the text, the entries it rests on, the filter it implies. The
+ * place it names and its two entries are records of their own, outside every tree and listing the
+ * other walks read; a third source is one the reader can no longer open (`/items/{id}` answers 404),
+ * so the dialog leaves it out. The first question asked implies a filter, the second does not.
+ */
+export const ASK_JOB = '01a0e2e0-0000-7000-8000-0000000007d1';
+export const ANSWER_IDS = ['01a0e2e0-0000-7000-8000-0000000007d2', '01a0e2e0-0000-7000-8000-0000000007d3'];
+export const ASK_PLACE = { id: '01a0e2e0-0000-7000-8000-0000000007d4', type: 'COLLECTION', parent_id: HUB.id, name: 'Müller GmbH', order_key: 'a9', version: 1 };
+export const ASK_SOURCES = [
+  { ...item('d5', 'Send the offer to Müller GmbH', { collection_id: ASK_PLACE.id, due_at: `${inDays(2)}T09:00:00Z`, assignee_id: OTHER.id }), id: '01a0e2e0-0000-7000-8000-0000000007d5' },
+  { ...item('d6', 'Call Müller GmbH about the delivery date', { collection_id: ASK_PLACE.id, due_at: `${inDays(4)}T09:00:00Z`, assignee_id: OTHER.id }), id: '01a0e2e0-0000-7000-8000-0000000007d6' },
+];
+export const ASK_GONE = '01a0e2e0-0000-7000-8000-0000000007d7';
+
+/** The answers asked for so far in this walk, newest last: a question is its job and its answer. */
+let answers = [];
+
+function answerTo(question, n) {
+  const now = new Date().toISOString();
+  const payload = n === 0
+    ? {
+        answer: 'Two entries are open for Müller GmbH this week: the offer to send and the call about the delivery date. Mara has both.',
+        source_ids: [ASK_SOURCES[0].id, ASK_SOURCES[1].id, ASK_GONE],
+        filter: { place_id: ASK_PLACE.id, place_type: 'COLLECTION', is_completed: false, due: 'next_7_days', assignee_id: OTHER.id },
+      }
+    : { answer: 'Nothing in the entries you can read says who painted the hallway.', source_ids: [] };
+  return {
+    id: ANSWER_IDS[n % ANSWER_IDS.length], target_type: 'ACCOUNT', target_id: ACCOUNT.id, kind: 'ANSWER', status: 'PROPOSED', payload,
+    source: 'AI', model: 'local-model-7b', prompt_id: 'answer-question', prompt_version: 'v1',
+    produced_at: now, created_at: now, version: 1, dropped_nodes: 0, question,
+  };
+}
+
 /** The workspace with AI available and the rule editor's vocabulary: what a drafting walk opens on. */
 export const AI_MANIFEST = {
   ...MANIFEST,
@@ -339,6 +394,8 @@ export const LEGAL_HOLDS = [
  * deletion under one, one with neither - the three rows a hold changes (data-protection.md §5) -
  * and the operator's own (`WORKSPACE`), whose suspension or deletion ends the operator's session.
  */
+/** The installation at a glance, as the operator reads it: the counts `WORKSPACES` agrees with. */
+export const INSTANCE_OVERVIEW = { workspaces_active: 3, workspaces_suspended: 0, workspaces_pending_deletion: 1, accounts_active: 4, accounts_total: 5, workspaces_service_only: 0 };
 export const WORKSPACES = [
   { id: WORKSPACE.id, slug: WORKSPACE.slug, display_name: WORKSPACE.display_name, status: 'ACTIVE', default_locale: 'en', default_time_zone: 'UTC', created_at: WORKSPACE.created_at, purge_after: null, legal_hold: false },
   { id: '01a0e2e0-0000-7000-8000-0000000004a1', slug: 'acme', display_name: 'Acme GmbH', status: 'ACTIVE', default_locale: 'de', default_time_zone: 'Europe/Berlin', created_at: '2026-08-01T08:00:00Z', purge_after: null, legal_hold: true },
@@ -411,7 +468,9 @@ export const FIGURE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000061', type: 'H
 const today = () => new Date().toISOString().slice(0, 10);
 const structureOf = (levels, counts, extra = {}) => ({
   preset: null,
+  // All eight settings, as a server answers them: the panel refuses a save that offers no view.
   settings: {
+    ...DEFAULT_STRUCTURE.settings,
     levels: levels.map((type) => ({ type, name: null })),
     fields: Object.fromEntries(levels.map((type) => [type, { capabilities: MANIFEST.item_types.find((t) => t.type === type).capabilities }])),
     counts,
@@ -441,6 +500,107 @@ export const FIGURES = {
 };
 /** A number field the sum may name. */
 export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collection_id: FIGURES.sum.id, key: 'amount', kind: 'NUMBER', options: [], is_required: false, applies_to: ['TASK'], version: 1 };
+
+/**
+ * How much structure a collection has (UC-WRK-23): a hub of its own with a *List* collection - one
+ * level, no dates, people, labels or notes, the list alone - and a *Project* whose views and task
+ * dates the workspace locked (Mara Lind set the locks). Shown where a walk asks for it
+ * (`showStructures`) or the preview is started with `HUBTASK_FIXTURE_STRUCTURES=1`.
+ */
+export const SHAPE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Errands', order_key: 'a3', version: 1, structure: DEFAULT_STRUCTURE };
+const own = (extra = {}) => ({ levels: 'COLLECTION', fields: 'COLLECTION', views: 'COLLECTION', counts: 'COLLECTION', completion: 'COLLECTION', capture: 'COLLECTION', celebration: 'COLLECTION', automation: 'DEFAULT', ...extra });
+const PRESET_SETTINGS = {
+  LIST: {
+    levels: [{ type: 'TASK', name: null }],
+    fields: { TASK: { capabilities: ['COMPLETION', 'HISTORY', 'CUSTOM_FIELDS'] } },
+    views: { offered: ['LIST_COLLAPSED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'OPEN', field_key: null }, completion: 'MANUAL', capture: ['LINES', 'AMOUNT'], celebration: 'SUBTLE', automation: [],
+  },
+  TASKS: {
+    levels: [{ type: 'TASK', name: null }, { type: 'ACTIVITY', name: null }],
+    fields: { TASK: { capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'] } },
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'DUE', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: [],
+  },
+  PROJECT: {
+    ...DEFAULT_STRUCTURE.settings,
+    views: { offered: ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'], default: 'LIST_EXPANDED' },
+    counts: { figure: 'PROGRESS', field_key: null }, completion: 'ROLLUP',
+  },
+  FLOW: {
+    levels: [{ type: 'TASK', name: null }], fields: {},
+    views: { offered: ['KANBAN', 'LIST_COLLAPSED'], default: 'KANBAN' },
+    counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: [],
+  },
+};
+/** Hubtask's four presets, as `GET /presets` answers them. */
+export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => ({ key, settings }));
+export const SHAPES = {
+  list: {
+    id: '01a0e2e0-0000-7000-8000-000000000082', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Shopping', order_key: 'a0', version: 1,
+    structure: { preset: 'LIST', settings: PRESET_SETTINGS.LIST, sources: own(), locks: {}, counts_clipped: null },
+  },
+  locked: {
+    id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Client project', order_key: 'a1', version: 1,
+    structure: {
+      preset: 'PROJECT', settings: PRESET_SETTINGS.PROJECT, sources: own({ views: 'WORKSPACE' }),
+      locks: { views: { origin: 'WORKSPACE', locked_by: OTHER.id }, 'fields.TASK.DUE_DATE': { origin: 'WORKSPACE', locked_by: OTHER.id } },
+      counts_clipped: null,
+    },
+  },
+};
+/** Two entries on the list, and what a write of the list's structure was sent. */
+export const SHAPE_ITEMS = [
+  item('84', 'Oat milk', { collection_id: SHAPES.list.id }),
+  item('85', 'Rye bread', { collection_id: SHAPES.list.id }),
+];
+
+/** What the structure writes made of the hub and its collections, so a read after a write agrees. */
+let shaped = new Map();
+const current = (container) => shaped.get(container.id) ?? container;
+
+let structuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_STRUCTURES === '1';
+/** Adds the structure hub to the tree, for this process. */
+export function showStructures() {
+  structuresShown = true;
+}
+
+/** The structure hub's reads and writes; `undefined` where the general stub answers. */
+function structureRoute(route, request, url, path) {
+  if (path.endsWith('/api/v1/presets')) return route.fulfill({ json: PRESETS });
+  if (!structuresShown) return undefined;
+  const collections = Object.values(SHAPES).map(current);
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, ...(figuresShown ? [FIGURE_HUB] : []), current(SHAPE_HUB)] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === SHAPE_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: collections } });
+  }
+  if (path.endsWith(`/api/v1/containers/${SHAPE_HUB.id}`)) return route.fulfill({ json: current(SHAPE_HUB) });
+  const structured = [current(SHAPE_HUB), ...collections].find((c) => path.endsWith(`/api/v1/containers/${c.id}/structure`));
+  if (structured && request.method() === 'PATCH') {
+    // The fixture agrees with whatever is sent: a preset copied, the settings laid on top, a reset
+    // back to Hubtask's default. What the server decides is its own tests' (UC-WRK-23 check 8).
+    const change = request.postDataJSON();
+    const settings = { ...structured.structure.settings, ...(change.preset ? PRESET_SETTINGS[change.preset] : {}), ...(change.settings ?? {}) };
+    for (const name of change.reset ?? []) settings[name] = DEFAULT_STRUCTURE.settings[name];
+    const kept = change.preset ? Object.keys(structured.structure.locks).filter((key) => !key.includes('.')) : [];
+    for (const key of kept) settings[key] = structured.structure.settings[key];
+    const written = { ...structured, version: structured.version + 1, structure: { ...structured.structure, preset: change.preset ?? structured.structure.preset, settings } };
+    shaped.set(structured.id, written);
+    return route.fulfill({ json: { ...written, kept_by_lock: kept, clipped_by_levels: [] } });
+  }
+  const one = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (one) return route.fulfill({ json: one });
+  if (path.endsWith('/api/v1/items:query')) {
+    const body = request.postDataJSON();
+    if (body.scope?.container_id === SHAPES.list.id) return route.fulfill({ json: { data: SHAPE_ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: SHAPE_ITEMS.length } });
+    if (body.scope?.container_id === SHAPES.locked.id) return route.fulfill({ json: { data: [], groups: [], page: { next_cursor: null, has_more: false }, total: 0 } });
+  }
+  const entry = SHAPE_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && request.method() === 'GET') return route.fulfill({ json: entry });
+  return undefined;
+}
 
 let figuresShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_FIGURES === '1';
 /** Adds the figure hub to the tree, for this process. */
@@ -702,6 +862,8 @@ export function stub(route) {
   const path = url.pathname;
   const day = todayRoute(route, request, url, path);
   if (day) return day;
+  const shaped = structureRoute(route, request, url, path);
+  if (shaped) return shaped;
   const looks = lookRoute(route, request, url, path);
   if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
@@ -824,8 +986,28 @@ export function stub(route) {
     return route.fulfill({ json: { job_id: DRAFT_JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed', progress: null, result_url: null, error_code: null, created_at: new Date().toISOString(), finished_at: new Date().toISOString() } });
   }
   if (path.endsWith('/api/v1/suggestions') && url.searchParams.get('target_type') === 'ACCOUNT') {
-    return route.fulfill({ json: { items: [ruleDraft()], has_more: false, next_cursor: null } });
+    const standing = answers.filter((each) => each.status === 'PROPOSED').map(({ question: _asked, ...answer }) => answer);
+    return route.fulfill({ json: { items: [ruleDraft(), ...standing], has_more: false, next_cursor: null } });
   }
+  // Asking the workspace: the question, its job (done at once), the answer dismissed, the place and
+  // the entries it rests on.
+  if (path.endsWith('/api/v1/ask') && request.method() === 'POST') {
+    answers.push(answerTo(request.postDataJSON().question, answers.length));
+    return route.fulfill({ status: 202, json: { job_id: ASK_JOB, status: 'QUEUED', progress: null, result_url: null } });
+  }
+  if (path.endsWith(`/api/v1/jobs/${ASK_JOB}`)) {
+    return route.fulfill({ json: { job_id: ASK_JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed', progress: null, result_url: null, error_code: null, created_at: new Date().toISOString(), finished_at: new Date().toISOString() } });
+  }
+  const dismissed = answers.find((each) => path.endsWith(`/api/v1/suggestions/${each.id}:dismiss`));
+  if (dismissed && request.method() === 'POST') {
+    dismissed.status = 'DISMISSED';
+    const { question: _asked, ...answer } = dismissed;
+    return route.fulfill({ json: answer });
+  }
+  if (path.endsWith(`/api/v1/containers/${ASK_PLACE.id}`)) return route.fulfill({ json: ASK_PLACE });
+  const source = ASK_SOURCES.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (source && request.method() === 'GET') return route.fulfill({ json: source });
+  if (path.endsWith(`/api/v1/items/${ASK_GONE}`)) return route.fulfill({ status: 404, json: { code: 'item.not_found' } });
   if (path.endsWith(`/api/v1/suggestions/${RULE_DRAFT_ID}:accept`) && request.method() === 'POST') {
     draftSaved = true;
     return route.fulfill({ json: { ...ruleDraft('ACCEPTED'), created_id: DRAFTED_RULE_ID } });
@@ -836,6 +1018,7 @@ export function stub(route) {
   if (path.endsWith(`/api/v1/automation/rules/${DRAFTED_RULE_ID}`)) return route.fulfill({ json: DRAFTED_RULE });
   if (path.endsWith('/api/v1/automation/rules') && request.method() === 'GET') return route.fulfill({ json: { ...PAGE, data: draftSaved ? [DRAFTED_RULE] : [] } });
   if (path.endsWith('/api/v1/admin/tenants') && request.method() === 'GET') return route.fulfill({ json: WORKSPACES });
+  if (path.endsWith('/api/v1/admin/overview')) return route.fulfill({ json: INSTANCE_OVERVIEW });
   if (path.endsWith('/api/v1/admin/ai-providers') && request.method() === 'GET') return route.fulfill({ json: OFFERED_AI });
   if (path.endsWith('/api/v1/ai-source') && request.method() === 'GET') return route.fulfill({ json: AI_SOURCE });
   if (path.endsWith('/api/v1/privacy/ai-objection') && request.method() === 'GET') return route.fulfill({ json: AI_OBJECTION });
@@ -985,6 +1168,9 @@ const ARRAYS = new Set([
   '/admin/identity-providers',
   // The installation's backup targets, read by its workspaces screen for the export.
   '/admin/backup-targets',
+  // The operator register, read by the installation's overview and its operators screen: a page
+  // envelope here has no length, and the overview printed "{count}".
+  '/admin/operators',
 ]);
 
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */
@@ -1000,12 +1186,14 @@ export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'Q
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  shaped = new Map();
   created = undefined;
   pushed.length = 0;
   looked = [];
   dayTicked = {};
   dayCompletions = [];
   draftSaved = false;
+  answers = [];
 }
 
 /** Every push a device sent, in order: what a walk offline reads back once the network returns. */

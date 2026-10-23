@@ -11,7 +11,8 @@
   // the bottom of the scroll area by `sticky`, and the bar is drawn over the content from there -
   // arriving in opacity, at once under reduced motion. While it shows, the page, or the caller's
   // scroll area marked `data-scroll-area`, keeps a padding of its height at the end, so a field
-  // focused below it scrolls clear of it rather than under it.
+  // focused below it scrolls clear of it rather than under it; and the field that has focus when
+  // the bar opens is moved clear of it then.
   //
   // **The count is announced, once per change**, through a status region that exists before it is
   // filled (known-traps.md: a live region created already filled is not announced).
@@ -57,20 +58,30 @@
     return document.scrollingElement ?? document.documentElement;
   }
 
+  /** Moves a field above the bar by exactly what the bar covers of it, where it covers any. */
+  function clear(field: EventTarget | null): void {
+    if (!(field instanceof HTMLElement) || !bar || bar.contains(field) || field === document.body) return;
+    const covered = field.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
+    if (covered > 0) scrollerOf(field).scrollBy({ top: covered });
+  }
+
   // A field that takes focus under the bar is brought above it. The scroll padding below does
   // this where focus honours it; WebKit scrolls a focused field into view without it, and the
   // bar may be taller than the padding where a font's metrics make it so - so the field is moved
   // by exactly what the bar still covers.
   $effect(() => {
     if (!isOpen) return;
-    const onFocus = (event: FocusEvent) => {
-      const field = event.target;
-      if (!(field instanceof HTMLElement) || !bar || bar.contains(field)) return;
-      const covered = field.getBoundingClientRect().bottom - bar.getBoundingClientRect().top;
-      if (covered > 0) scrollerOf(field).scrollBy({ top: covered });
-    };
+    const onFocus = (event: FocusEvent) => clear(event.target);
     document.addEventListener('focusin', onFocus);
     return () => document.removeEventListener('focusin', onFocus);
+  });
+
+  // The field being typed into when the first change brings the bar up already has focus, so no
+  // focus scroll happens and the bar would arrive over it - on a phone, over the very value being
+  // typed. It is moved clear as the bar opens, once the bar has its height.
+  $effect(() => {
+    if (!isOpen || !bar) return;
+    clear(document.activeElement);
   });
 </script>
 

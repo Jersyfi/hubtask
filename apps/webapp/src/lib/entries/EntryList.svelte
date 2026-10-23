@@ -64,7 +64,7 @@
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
   import CelebrationSlot from './CelebrationSlot.svelte';
-  import { acceptsChild, childTypes, placementOf, rootTypes, supports } from '../data/capability.svelte.ts';
+  import { offerIn } from '../data/capability.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { queue } from '../data/queue.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
@@ -228,6 +228,18 @@
   let now = $state(Date.now());
 
   provideReasonGroup(() => ({ id: readOnlyNoticeId ?? '', reason: isReadOnly && readOnlyNoticeId ? inheritedReason() : undefined }));
+
+  /**
+   * What this collection offers (UC-WRK-23 check 4): the twist, adding, moving and labelling follow
+   * its structure in force. A level it does not offer is hidden, never deleted (domain-model.md §2):
+   * a list draws no twist for children it does not hold.
+   */
+  const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
+  const childTypes = (type: string) => offer.childTypes(type);
+  const rootTypes = () => offer.rootTypes();
+  const supports = (type: string, capability: string) => offer.supports(type, capability);
+  const acceptsChild = (parentType: string, childType: string, parentDepth = 0) => offer.acceptsChild(parentType, childType, parentDepth);
+  const placementOf: typeof offer.placementOf = (type, destination) => offer.placementOf(type, destination);
 
   /** The types the top level of this list may hold: the collection's roots, or the root's children. */
   const topTypes = () => (root ? childTypes(root.type) : rootTypes());
@@ -411,7 +423,7 @@
     const rows: Row[] = [];
     parents.forEach((item, index) => {
       const archival = archivalOfItem(item, isUnderArchive);
-      // Whether it *may* hold children is the manifest's answer; whether it *does* is not known
+      // Whether it *may* hold children is the collection's answer; whether it *does* is not known
       // until it is opened, which is why the twist appears for any type that takes them.
       rows.push({
         item,

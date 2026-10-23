@@ -66,6 +66,11 @@
     if (mayReadPolicies) void untrack(() => retention.start());
   });
 
+  // Emptying sweeps hubs and collections along with entries, so the server asks the owner's
+  // DELETE_CONTAINER on the workspace for it (rule 2): somebody who may not delete a hub must not
+  // delete one by emptying the trash it is in. Offered only to a reader who holds it (P-05).
+  const mayEmpty = $derived(holdsHere('DELETE_CONTAINER') === true);
+
   const now = Date.now();
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
@@ -282,9 +287,11 @@
 
     {#if trash.isPartial}<p class="detail">{t('app.trash.partial')}</p>{/if}
 
-    <div>
-      <Button tone="danger" onclick={() => (isEmptying = true)}>{t('app.trash.empty_all')}</Button>
-    </div>
+    {#if mayEmpty}
+      <div>
+        <Button tone="danger" onclick={() => (isEmptying = true)}>{t('app.trash.empty_all')}</Button>
+      </div>
+    {/if}
   {/if}
 </Stack>
 
@@ -312,7 +319,7 @@
   </Dialog>
 {/if}
 
-{#if isEmptying}
+{#if isEmptying && mayEmpty}
   <Dialog
     bind:isOpen={isEmptying}
     title={t('app.trash.empty_title')}

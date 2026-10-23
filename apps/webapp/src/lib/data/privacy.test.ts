@@ -40,6 +40,9 @@ function aCase(over: Partial<Request> = {}): Request {
   };
 }
 
+const MANAGER = { mayManage: true, mayDestroy: false } as const;
+const OWNER = { mayManage: true, mayDestroy: true } as const;
+
 test('a deadline that has passed is overdue', () => {
   const standing = standingOf(aCase({ due_at: new Date(NOW - 1000).toISOString() }), NOW);
   assert.equal(standing, 'overdue');
@@ -110,15 +113,15 @@ test('every kind the contract names is offered, and erasure is last', () => {
 const DAY_MS = 24 * 3600 * 1000;
 
 test('the extension is offered exactly while the case answers a bound', () => {
-  assert.equal(canExtend(aCase({ extendable_until: '2026-12-11' })), true);
+  assert.equal(canExtend(aCase({ extendable_until: '2026-12-11' }), MANAGER), true);
   // Extended, closed, overdue: the server answers no bound, and the screen offers nothing.
-  assert.equal(canExtend(aCase()), false);
-  assert.equal(canExtend(aCase({ extendable_until: '' })), false);
+  assert.equal(canExtend(aCase(), MANAGER), false);
+  assert.equal(canExtend(aCase({ extendable_until: '' }), MANAGER), false);
 });
 
 test('an installation-wide case is never extended from this screen', () => {
   // The operator's, through the API or hubctl (UC-PRV-06), even where the server answers a bound.
-  assert.equal(canExtend(aCase({ scope: 'INSTALLATION', extendable_until: '2026-12-11' })), false);
+  assert.equal(canExtend(aCase({ scope: 'INSTALLATION', extendable_until: '2026-12-11' }), MANAGER), false);
 });
 
 test('an extended case names both dates, the one in force first', () => {
@@ -174,19 +177,28 @@ test('the payload carries three facts, each required, both days as days', () => 
 
 test('a row acts on this workspace\'s cases and on no installation-wide one', () => {
   // The operator's (UC-PRV-06/6): start, refuse, the mode and the extension all stay off the row.
-  assert.equal(canAct(aCase()), true);
-  assert.equal(canAct(aCase({ scope: 'TENANT' })), true);
-  assert.equal(canAct(aCase({ scope: 'INSTALLATION' })), false);
+  assert.equal(canAct(aCase(), MANAGER), true);
+  assert.equal(canAct(aCase({ scope: 'TENANT' }), MANAGER), true);
+  assert.equal(canAct(aCase({ scope: 'INSTALLATION' }), MANAGER), false);
+});
+
+test('a reader without the permission to manage people is offered no step on any case', () => {
+  // The server refuses each of them without MANAGE_MEMBERS (rule 2); a control that cannot
+  // succeed is not offered (P-05).
+  const reader = { mayManage: false, mayDestroy: true };
+  assert.equal(canAct(aCase(), reader), false);
+  assert.equal(canStart(aCase(), reader), false);
+  assert.equal(canExtend(aCase({ extendable_until: '2026-12-11' }), reader), false);
 });
 
 test('an erasure is started only by whom the server lets start it, and only after a confirmation', () => {
   // UC-PRV-03 checks 1 and 8, P-05: the owner's DELETE_CONTAINER, asked of an erasure alone.
   const erasure = aCase({ kind: 'ERASURE' });
-  assert.equal(canStart(erasure, true), true);
-  assert.equal(canStart(erasure, false), false);
-  assert.equal(canStart(aCase(), false), true);
-  assert.equal(canStart(aCase({ status: 'IN_PROGRESS' }), true), false);
-  assert.equal(canStart(aCase({ kind: 'ERASURE', scope: 'INSTALLATION' }), true), false);
+  assert.equal(canStart(erasure, OWNER), true);
+  assert.equal(canStart(erasure, MANAGER), false);
+  assert.equal(canStart(aCase(), MANAGER), true);
+  assert.equal(canStart(aCase({ status: 'IN_PROGRESS' }), OWNER), false);
+  assert.equal(canStart(aCase({ kind: 'ERASURE', scope: 'INSTALLATION' }), OWNER), false);
   assert.equal(confirmsStart(erasure), true);
   assert.equal(confirmsStart(aCase()), false);
 });

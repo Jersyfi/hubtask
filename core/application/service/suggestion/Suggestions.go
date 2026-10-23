@@ -136,8 +136,12 @@ func (h ListSuggestions) Execute(
 	if query.TargetType == domain.TargetAccount {
 		// A draft for the person who asked is theirs alone, wherever they hold their role: the
 		// check is that they are the account (`ownDraft`, read below as the target's digest), not a
-		// permission at the workspace a hub's administrator may not hold.
-		if err := ownDraft(actor, query.TargetID); err != nil {
+		// permission at the workspace a hub's administrator may not hold. Which kinds the page
+		// holds is the token's: each kind is read under its own scope (`ownScope`).
+		if err := ownAccount(actor, query.TargetID); err != nil {
+			return repository.Page{}, err
+		}
+		if err := actor.RequireAnyScope(automationScope, suggestionsRead); err != nil {
 			return repository.Page{}, err
 		}
 	} else if query.TargetType == domain.TargetWorkItem {
@@ -196,6 +200,9 @@ func (h ListSuggestions) Execute(
 			return err
 		}
 		page = found
+		if query.TargetType == domain.TargetAccount {
+			page.Items = ownKinds(actor, page.Items)
+		}
 		return c.narrowDestinations(ctx, page.Items)
 	})
 	if err != nil {
@@ -307,32 +314,66 @@ func (c Cases) decide(
 }
 
 // ownDraft is the one question about a draft made for the person who asked: are you that person,
-// holding the token scope drafting a rule needs. Anybody else - an owner, an auditor, another
-// workspace's account - is answered that there is no such suggestion, as for an entry they cannot
-// see.
-func ownDraft(actor appshared.ActorContext, accountID shared.ID) error {
+// holding the token scope its kind is answered under (`ownScope`). Anybody else - an owner, an
+// auditor, another workspace's account - is answered that there is no such suggestion, as for an
+// entry they cannot see.
+func ownDraft(actor appshared.ActorContext, accountID shared.ID, kind domain.Kind) error {
+	if err := ownAccount(actor, accountID); err != nil {
+		return err
+	}
+	return actor.RequireScope(ownScope(kind, suggestionsWrite))
+}
+
+// ownAccount is the first half of it: the account is the actor's own, or there is no such
+// suggestion.
+func ownAccount(actor appshared.ActorContext, accountID shared.ID) error {
 	if accountID.IsZero() || accountID != actor.AccountID {
 		return shared.ErrNotFound.WithDetail("suggestions.not_found")
 	}
-	return actor.RequireScope(automationScope)
+	return nil
+}
+
+// ownScope is the token scope a suggestion about its asker is read or answered under. A rule draft
+// is configuration, so it travels with automation's scope; anything else for the asker - an answer
+// to a question - is no configuration and travels with the suggestions' own scope.
+func ownScope(kind domain.Kind, suggestionsScope string) string {
+	if kind == domain.KindRule {
+		return automationScope
+	}
+	return suggestionsScope
+}
+
+// ownKinds keeps of a page about the asker the suggestions whose kind the token may read: a token
+// for automation sees its drafts and nothing else, a token for items its answers and no draft.
+func ownKinds(actor appshared.ActorContext, proposals []domain.Suggestion) []domain.Suggestion {
+	kept := proposals[:0]
+	for _, proposal := range proposals {
+		if actor.HasScope(ownScope(proposal.Kind, suggestionsRead)) {
+			kept = append(kept, proposal)
+		}
+	}
+	return kept
 }
 
 // targetOf answers what a suggestion is about, and whether it was found: which question decides
 // who may answer it depends on that, so it is read first. A suggestion that is not found answers
 // as before - the ordinary permission, and then the not-found of the read.
-func (c Cases) targetOf(ctx context.Context, actor appshared.ActorContext, id shared.ID) (domain.TargetType, shared.ID, bool) {
+func (c Cases) targetOf(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID,
+) (domain.TargetType, shared.ID, domain.Kind, bool) {
 	var targetType domain.TargetType
 	var target shared.ID
+	var kind domain.Kind
 	found := false
 	_ = c.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		proposal, err := c.Suggestions.Find(ctx, id)
 		if err != nil {
 			return err
 		}
-		targetType, target, found = proposal.TargetType, proposal.TargetID, true
+		targetType, target, kind, found = proposal.TargetType, proposal.TargetID, proposal.Kind, true
 		return nil
 	})
-	return targetType, target, found
+	return targetType, target, kind, found
 }
 
 func (c Cases) decideAs(
@@ -343,12 +384,12 @@ func (c Cases) decideAs(
 	if status == domain.StatusDismissed {
 		action = SuggestionDismissedAction
 	}
-	targetType, target, found := c.targetOf(ctx, actor, id)
+	targetType, target, kind, found := c.targetOf(ctx, actor, id)
 	// The fingerprint of an entry read for the permission question, so that it is not read twice
 	// before the answer's transaction.
 	var readDigest []byte
 	if found && targetType == domain.TargetAccount {
-		if err := ownDraft(actor, target); err != nil {
+		if err := ownDraft(actor, target, kind); err != nil {
 			return domain.Suggestion{}, err
 		}
 	} else if found && targetType == domain.TargetWorkItem {
@@ -526,6 +567,9 @@ var acceptance = map[applierKey]accepted{
 	// the other - and which of those somebody means is theirs to say, through the use case that
 	// owns it.
 	{domain.TargetWorkItem, domain.KindDuplicates}: {Refusal: "suggestions.decided_by_hand"},
+	// An answer to the asker's question performs no action (UC-AI-08 check 5): what it implies -
+	// a filter - is the person's to save as a view, through the use case that owns views.
+	{domain.TargetAccount, domain.KindAnswer}: {Refusal: "suggestions.nothing_to_apply"},
 }
 
 // draftableActions is what a rule drafted from a sentence may do (UC-AUT-10 check 2): entry-level

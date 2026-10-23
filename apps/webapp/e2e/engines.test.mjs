@@ -71,6 +71,8 @@ async function stub(route) {
   if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
     return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
   }
+  // A bare list, as the contract answers it - not a page: the create dialog reads it.
+  if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
 }
 

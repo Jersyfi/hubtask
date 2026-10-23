@@ -26,6 +26,7 @@
   import { announcer } from '../lib/announce.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { isComplete, type Missing } from '../lib/forms/missing.ts';
   import { marked } from '../lib/forms/press.ts';
@@ -147,7 +148,7 @@
 </script>
 
 <Stack gap="300">
-  <PageHeader title={t('app.instance.operators')} isTitleInBar={viewport.isCompact} />
+  <PageHeader title={t('app.instance.operators')} isTitleInBar={viewport.isCompact} breadcrumb={installationTrail({ id: 'screen', label: t('app.instance.operators') })} />
 
   <InstanceGate onleave={() => onnavigate('/')}>
     <Stack gap="200">

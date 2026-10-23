@@ -23,7 +23,7 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, ProgressBar, Select, Spinner, Stack, Switch } from '@hubtask/design-system/components';
 
   import { backup, type Archive, type Schedule } from '../lib/data/backup.svelte.ts';
   import { generations, readRule } from '../lib/data/backup.ts';
@@ -59,7 +59,10 @@
   let openedTarget = $state<string | undefined>(undefined);
   let startedJob = $state<string | undefined>(undefined);
   let verifying = $state<string | undefined>(undefined);
+  // Removing is final, so it confirms in a dialog - the one pattern for a final act (ux-inventory
+  // §E10); switching a schedule off is the reversible way and stays a switch.
   let removing = $state<string | undefined>(undefined);
+  let removingSchedule = $state<string | undefined>(undefined);
 
   $effect(() => untrack(() => backup.open()));
 
@@ -387,41 +390,13 @@
                 <Button
                   size="sm"
                   tone="danger"
-                  onclick={() => (removing = removing === target.id ? undefined : target.id)}
+                  onclick={() => (removing = target.id)}
                 >
                   {t('app.backup.remove')}
                 </Button>
                 {/if}
               </div>
 
-              {#if removing === target.id}
-                <!-- The one sentence somebody deleting a target needs: the archives stay where
-                     they are. Hubtask never deletes a file it did not write, and it does not
-                     delete the ones it did on the way out either. -->
-                <Banner tone="warning" title={t('app.backup.remove_title')}>
-                  <Stack gap="100">
-                    <span>{t('app.backup.remove_note')}</span>
-                    <div class="row">
-                      <Button
-                        size="sm"
-                        tone="danger"
-                        isBusy={isWorking}
-                        busyLabel={t('app.backup.removing')}
-                        onclick={() =>
-                          void attempt(async () => {
-                            await backup.deleteTarget(target.id);
-                            removing = undefined;
-                          }, t('app.backup.target_removed_announced'))}
-                      >
-                        {t('app.backup.remove_confirm')}
-                      </Button>
-                      <Button size="sm" tone="subtle" onclick={() => (removing = undefined)}>
-                        {t('app.workspace.cancel')}
-                      </Button>
-                    </div>
-                  </Stack>
-                </Banner>
-              {/if}
 
               {#if openedTarget === target.id}
                 {#if archives.status === 'loading'}
@@ -586,7 +561,7 @@
                 tone="danger"
                 isBusy={isWorking}
                 busyLabel={t('app.backup.removing')}
-                onclick={() => void attempt(() => backup.deleteSchedule(schedule.id), t('app.backup.schedule_removed_announced'))}
+                onclick={() => (removingSchedule = schedule.id)}
               >
                 {t('app.backup.remove_schedule')}
               </Button>
@@ -643,6 +618,63 @@
     </Stack>
     </Stack>
 </Stack>
+
+
+{#if removing}
+  {@const target = removing}
+  <Dialog
+    isOpen={true}
+    title={t('app.backup.remove_title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onClose={() => (removing = undefined)}
+  >
+    <!-- The one sentence somebody deleting a target needs: the archives stay where they are.
+         Hubtask never deletes a file it did not write, nor the ones it did on the way out. -->
+    <p>{t('app.backup.remove_note')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (removing = undefined)}>{t('app.workspace.cancel')}</Button>
+      <Button
+        tone="danger"
+        isBusy={isWorking}
+        busyLabel={t('app.backup.removing')}
+        onclick={async () => {
+          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
+          await attempt(() => backup.deleteTarget(target), t('app.backup.target_removed_announced'));
+          removing = undefined;
+        }}
+      >
+        {t('app.backup.remove_confirm')}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
+
+{#if removingSchedule}
+  {@const schedule = removingSchedule}
+  <Dialog
+    isOpen={true}
+    title={t('app.backup.remove_schedule_title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onClose={() => (removingSchedule = undefined)}
+  >
+    <p>{t('app.backup.remove_schedule_note')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (removingSchedule = undefined)}>{t('app.workspace.cancel')}</Button>
+      <Button
+        tone="danger"
+        isBusy={isWorking}
+        busyLabel={t('app.backup.removing')}
+        onclick={async () => {
+          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
+          await attempt(() => backup.deleteSchedule(schedule), t('app.backup.schedule_removed_announced'));
+          removingSchedule = undefined;
+        }}
+      >
+        {t('app.backup.remove_confirm')}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
 
 <style>
   /* A schedule's state where its switch is not offered: the name and the word, on one line. */

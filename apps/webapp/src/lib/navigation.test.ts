@@ -146,18 +146,36 @@ test('every screen under the administration is the administration destination', 
 });
 
 test('a section\u2019s address opens its first screen, which is never the way out', () => {
-  // ADR-0065 decision 1: the column is the overview, so the section's own address answers with a
-  // screen rather than with a list of the rows beside it. The way back is a row with no route of
-  // its own, and a front door that led out of the section would be a door somebody falls through.
+  // The way back is a row with no route of its own, and a front door that led out of the section
+  // would be a door somebody falls through. The administration's front door is its overview
+  // (UC-ID-24 check 1): what needs attention, not the first settings page.
   const front = firstScreen(ADMINISTRATION);
-  assert.equal(front, '/administration/workspace');
+  assert.equal(front, '/administration');
   const resolution = resolve(ROUTES, front);
-  assert.equal(resolution.name, 'workspace-settings');
+  assert.equal(resolution.name, 'administration');
   assert.equal(resolution.area, 'administration');
   // And it is a row of the list, so the column marks it current the moment the reader lands.
   const rows = ADMINISTRATION.flatMap((group) => group.rows);
   assert.ok(rows.some((row) => row.path === front && row.routes.includes(resolution.name as string)));
   assert.equal(rows.find((row) => row.path === front)?.id !== 'back', true);
+});
+
+test('the administration is grouped as the new order names it (ux-inventory.md \u00a7E0)', () => {
+  // workspace and people \u00b7 sign-in \u00b7 automation \u00b7 data \u00b7 records \u00b7 AI, under the way out and
+  // the overview; every page one row away, so reachable in at most two steps (UC-ID-24 check 3).
+  assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'people', 'sign-in', 'automation', 'data', 'records', 'ai']);
+  const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
+  assert.deepEqual(of('back'), ['back', 'overview']);
+  assert.deepEqual(of('people'), ['workspace', 'quotas', 'people', 'groups', 'permissions', 'service-accounts', 'apps']);
+  assert.deepEqual(of('sign-in'), ['sign-in-settings', 'identity-provider']);
+  assert.deepEqual(of('automation'), ['rules', 'runs', 'webhooks']);
+  assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore']);
+  assert.deepEqual(of('records'), ['audit', 'privacy']);
+  assert.deepEqual(of('ai'), ['ai']);
+  for (const group of ADMINISTRATION) {
+    if (group.code) assert.ok(group.code in SOURCE, group.code);
+    for (const row of group.rows) assert.ok(row.code in SOURCE, row.code);
+  }
 });
 
 test('every row of the section resolves to a route it claims, and every screen is reachable', () => {
@@ -172,7 +190,7 @@ test('every row of the section resolves to a route it claims, and every screen i
   // Every screen of the area has a row, so the column is the whole of the section (ADR-0065
   // decision 1): with the index gone, a screen nothing lists is a screen nobody can reach.
   const claimed = new Set(ADMINISTRATION.flatMap((group) => group.rows).flatMap((row) => row.routes));
-  const unlisted = ROUTES.filter((route) => route.area === 'administration' && route.name !== 'administration')
+  const unlisted = ROUTES.filter((route) => route.area === 'administration')
     .map((route) => route.name)
     .filter((name) => !claimed.has(name));
   assert.deepEqual(unlisted, [], `these screens are in the area and in nobody's list: ${unlisted.join(', ')}`);

@@ -66,6 +66,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// A rule drafted from a sentence: the sentences, steps and trigger inside are the
 		// draft's own shape, read by `ruleFrom`.
 		"draft-rule": {"scope", "trigger", "conditions", "actions", "not_drafted"},
+		// An answer to a question: the text, the entries it rests on, the filter it implies -
+		// each narrowed by `answerFrom`.
+		"answer-question": {"answer", "source_ids", "filter"},
 		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,
