@@ -217,7 +217,10 @@ are built.
     own act only. The newest record decides. Alone in a workspace, or with AI off, nothing is shown
     and a withdrawal keeps nothing out.
   * **What "authored" means.** The entries a person created (title and notes), their comments,
-    what they mailed into the inbox and the words they asked a template with. Structure the
+    what they captured into the jumble or mailed into it and the words they asked a template with.
+    A jumble entry an account submitted - a capture, an API call, a tool, a rule - records that
+    account (`jumble_entry.created_by`); one from a mail or a webhook records none and is theirs by
+    its sender address alone, as before. Structure the
     workspace named - collections, labels, columns - is the workspace's. How the exclusion is
     applied is [ai-first.md](./ai-first.md) §2.
   * **Nothing names who objected.** A question whose material is entirely kept out is answered as

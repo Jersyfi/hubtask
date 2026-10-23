@@ -134,8 +134,9 @@ func (h SuggestFromJumbleEntry) Ask(
 			if refused := kept.Refusal(actor.AccountID); refused != nil {
 				return refused
 			}
-			// What a kept-out person mailed in, and an entry with nothing in it, get one answer.
-			if kept.HasAddress(entry.Sender) ||
+			// What a kept-out person captured or mailed in, and an entry with nothing in it, get
+			// one answer.
+			if kept.Has(entry.CreatedBy) || kept.HasAddress(entry.Sender) ||
 				strings.TrimSpace(entry.RawSubject) == "" && strings.TrimSpace(entry.RawBody) == "" {
 				return integration.NothingToWorkWith()
 			}
