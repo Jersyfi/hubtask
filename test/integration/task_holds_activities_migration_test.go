@@ -74,7 +74,8 @@ func TestTheMigrationLetsATaskHoldActivitiesAndLeavesNarrowingsAlone(t *testing.
 	}
 	tenantsBefore := read(tenantRows)
 
-	if err := dbtest.Migrate(ctx, ownerDSN); err != nil {
+	// To 0185 alone: 0191 widens the first of these rows, and has its own test.
+	if err := dbtest.MigrateTo(ctx, ownerDSN, beforeTaskHoldsActivities+1); err != nil {
 		t.Fatalf("migrating: %v", err)
 	}
 

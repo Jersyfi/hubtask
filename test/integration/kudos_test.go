@@ -17,8 +17,8 @@ import (
 
 // Kudos against PostgreSQL as the application role (UC-WRK-29 checks 5 and 6): read by the person
 // they were given to and by nobody else - the workspace's owner and an auditor included - written
-// to the trail as an act naming nobody it went to, announced by no event; and another workspace
-// reads and writes none. Tenant B; the catalogue is milestones_test.go's.
+// to the trail only when refused, announced by no event; and another workspace reads and writes
+// none. Tenant B; the catalogue is milestones_test.go's.
 
 // seedPersonWithRole is an account in tenant B holding a role on the whole workspace.
 func seedPersonWithRole(ctx context.Context, t *testing.T, role string) shared.ID {
@@ -82,18 +82,29 @@ func TestKudosAreSeenOnlyByWhomTheyWereGivenTo(t *testing.T) {
 		t.Error("an auditor read an entry's kudos")
 	}
 
-	// The trail holds the act once - the repeat changed nothing - with no changes naming anybody;
-	// no event announces it.
-	var acts int
-	var changes string
-	if err := adminPool(ctx, t).QueryRow(ctx, `
-		SELECT count(*), coalesce(max(changes::text), '') FROM audit_log
-		WHERE tenant_id = $1 AND action = 'kudos.given' AND target_id = $2`,
-		tenantB.String(), entry.id.String()).Scan(&acts, &changes); err != nil {
+	// Nor gives any: refused, and the refusal is the one give or take-back in the trail (UC-WRK-29 check
+	// 6) - Ben's give, which succeeded, left none an auditor could count. No event announces it.
+	if _, err := invokeAs(ctx, t, registry, "GiveKudos", celebrant(auditor), entry.id); err == nil {
+		t.Error("an auditor gave kudos on an entry they may not read")
+	}
+	rows, err := adminPool(ctx, t).Query(ctx, `
+		SELECT outcome, actor_id::text FROM audit_log
+		WHERE tenant_id = $1 AND action IN ('kudos.given', 'kudos.taken_back') AND target_id = $2`,
+		tenantB.String(), entry.id.String())
+	if err != nil {
 		t.Fatalf("reading the trail: %v", err)
 	}
-	if acts != 1 || changes != "{}" {
-		t.Errorf("the trail holds %d kudos acts with changes %s, want one with none", acts, changes)
+	var trail []string
+	for rows.Next() {
+		var outcome, actor string
+		if err := rows.Scan(&outcome, &actor); err != nil {
+			t.Fatalf("reading the trail: %v", err)
+		}
+		trail = append(trail, outcome+" "+actor)
+	}
+	rows.Close()
+	if len(trail) != 1 || trail[0] != "DENIED "+auditor.String() {
+		t.Errorf("the trail holds %v, want the auditor's refusal alone", trail)
 	}
 	var announced int
 	if err := adminPool(ctx, t).QueryRow(ctx, `

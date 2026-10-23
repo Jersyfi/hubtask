@@ -115,6 +115,21 @@ test('chromium: rules a plan leaves out rest, readable, with nothing to create o
   assert.deepEqual(unstubbedSoFar().filter((read) => read.includes('automation')), []);
 });
 
+test('chromium: resting rules behind a first page are not counted as if the first page were all of them', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await onPlan(browser, ['AUTOMATION_RULES']);
+  t.after(() => context.close());
+  // The contract puts the next page's cursor under `page`; a later route is asked first.
+  await context.route('**/api/v1/automation/rules', (route) => route.fulfill({ json: { data: RULES, page: { next_cursor: 'p2', has_more: true } } }));
+
+  await page.goto(`${served.origin}/administration/rules`);
+  await page.getByText('Rules don\'t run in this plan.').waitFor({ timeout: 5_000 });
+  assert.ok(await page.getByText('Your rules rest and stay. When automation is included again, they run from then on.').isVisible());
+  assert.equal(await page.getByText('Your 3 rules rest and stay.', { exact: false }).count(), 0, 'the first page was counted as every rule');
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: included, the rules screen offers what it always did', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

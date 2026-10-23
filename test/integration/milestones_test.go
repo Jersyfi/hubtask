@@ -53,7 +53,7 @@ func celebrationCatalogue(ctx context.Context, t *testing.T) *usecase.Registry {
 	}
 	desk := work.KudosDesk{
 		Kudos: postgres.NewKudosRepository(), Items: itemRepo(), Containers: containers,
-		Authorizer: authoriser, UnitOfWork: unitOfWork, Clock: fixed, Audit: sink,
+		Authorizer: authoriser, UnitOfWork: unitOfWork, Clock: fixed,
 	}
 	registry, err := usecase.NewRegistry(nil,
 		work.CompleteWorkItem{Completion: completion}.Descriptor(),

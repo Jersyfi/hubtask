@@ -219,12 +219,32 @@ func contains(values []string, wanted string) bool {
 	return false
 }
 
+// auditedOnlyWhenRefused are the writing use cases gate SG-13 lets go without a trail entry on
+// success, each with its reason (security.md §13, audit.md §7). Each still names the action and the
+// target a refusal is recorded against. An exception is named here, never assumed.
+var auditedOnlyWhenRefused = map[string]string{
+	"GiveKudos": "UC-WRK-29 check 6: figures about one person are shown only to that person; a " +
+		"trail of every give would let an auditor count who acknowledged whom",
+	"TakeBackKudos": "UC-WRK-29 check 6, as GiveKudos",
+}
+
 // Gate SG-13: a use case with security or privacy relevance carries an audit declaration
 // (audit.md §7). The registry refuses an incomplete one at startup; this is the half that says
 // which use cases have to declare one at all.
 func TestEveryWritingUseCaseDeclaresItsAuditAction(t *testing.T) {
+	seen := map[string]bool{}
 	for _, descriptor := range useCaseCatalogue(t).All() {
 		if descriptor.ReadOnly {
+			continue
+		}
+		if _, excepted := auditedOnlyWhenRefused[descriptor.Name]; excepted {
+			seen[descriptor.Name] = true
+			if descriptor.Audit.Required {
+				t.Errorf("%s is named as audited only when refused and declares an obligation on success", descriptor.Name)
+			}
+			if descriptor.Audit.Action == "" || descriptor.Audit.TargetType == "" {
+				t.Errorf("%s names no action or target a refusal is recorded against", descriptor.Name)
+			}
 			continue
 		}
 		if !descriptor.Audit.Required {
@@ -233,6 +253,11 @@ func TestEveryWritingUseCaseDeclaresItsAuditAction(t *testing.T) {
 		}
 		if descriptor.Audit.Action == "" || descriptor.Audit.TargetType == "" {
 			t.Errorf("%s declares an audit obligation without an action or a target", descriptor.Name)
+		}
+	}
+	for name := range auditedOnlyWhenRefused {
+		if !seen[name] {
+			t.Errorf("%s is named as an exception to gate SG-13 and is no writing use case", name)
 		}
 	}
 }

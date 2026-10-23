@@ -170,11 +170,12 @@ export function offersDescribing(at: { isNew: boolean; aiAvailable: boolean; may
 }
 
 /**
- * The action kinds a block may be: every kind the manifest serves but the one that asks AI to draft
- * a rule - a step that drafts rules is a question for the editor, not something a rule does.
+ * The action kinds a block may be: every kind the manifest serves but the two that ask AI a person's
+ * question - drafting a rule is a question for the editor, and asking the workspace one for the
+ * palette; neither is something a rule does.
  */
 export function offeredBlocks(kinds: readonly string[]): string[] {
-  return kinds.filter((kind) => kind !== 'DESCRIBE_RULE');
+  return kinds.filter((kind) => kind !== 'DESCRIBE_RULE' && kind !== 'ASK_WORKSPACE');
 }
 
 function actionsFrom(steps: readonly Step[]): RuleAction[] {

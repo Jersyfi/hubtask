@@ -71,6 +71,9 @@ test('both ways to open the palette are drawn and declared', () => {
   assert.deepEqual(drawnKeysOf('nothing'), []);
 });
 
-test('capture is not listed until it exists', () => {
-  assert.ok(!SHORTCUTS.some((each) => each.id === 'capture'));
+test('capture is listed, on the key that opens it, everywhere (UC-WRK-26 check 1)', () => {
+  const capture = SHORTCUTS.find((each) => each.id === 'capture');
+  assert.equal(capture?.scope, 'everywhere');
+  assert.deepEqual(drawnKeysOf('capture'), ['Q']);
+  assert.deepEqual(ariaKeysOf('capture'), ['Q']);
 });

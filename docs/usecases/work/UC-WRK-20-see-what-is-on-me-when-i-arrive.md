@@ -52,4 +52,4 @@ the page holds a single sentence and *Create hub*.
 ## Today
 
 * Check 3: not met for a person scoped below the workspace — the jumble is read at the workspace, so the read is refused, and the panel is drawn anyway and says nothing is waiting.
-* Check 6: not met — the empty state and its *Create hub* are shown to everybody whose list of hubs is empty, also to a member who may not create hubs and to a person who holds no hub.
+* Check 6: not met for a person whose role reaches no hub — the empty state says "No hubs yet" to them too, not that nothing has been shared with them yet; in no milestone yet.

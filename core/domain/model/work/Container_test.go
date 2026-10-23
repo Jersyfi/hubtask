@@ -209,6 +209,41 @@ func TestNewContainerRefusesAnUnknownType(t *testing.T) {
 	assertDetail(t, err, shared.ErrValidation, "containers.type_unknown")
 }
 
+// A hub's or a collection's colour is optional, and one that is set is one of the ten label
+// colours (domain-model.md §3): a client draws the ten and nothing else.
+func TestNewContainerTakesOnlyOneOfTheTenColours(t *testing.T) {
+	for _, c := range []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{name: "none", input: "  ", want: ""},
+		{name: "one of the ten", input: " violet ", want: ""},
+		{name: "a name outside the ten", input: "raspberry", want: "containers.color_token_unknown"},
+		{name: "a token of another palette", input: "accent.red", want: "containers.color_token_unknown"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			in := baseColl
+			in.ColorToken = c.input
+
+			container, err := work.NewContainer(in)
+			if c.want == "" {
+				if err != nil {
+					t.Fatalf("refused: %v", err)
+				}
+				if container.ColorToken != strings.TrimSpace(c.input) {
+					t.Errorf("colour %q, want it trimmed", container.ColorToken)
+				}
+				return
+			}
+			assertDetail(t, err, shared.ErrValidation, c.want)
+			if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/color_token" {
+				t.Errorf("the finding does not point at /color_token: %+v", fields)
+			}
+		})
+	}
+}
+
 // What comes from a port rather than from a client fails as a defect, not as a validation error:
 // nothing the caller sends could have prevented it.
 func TestNewContainerRefusesAnIncompleteIdentity(t *testing.T) {

@@ -468,9 +468,12 @@ one above its own layer. A number at a call site is the failure this prevents.
 positioning (`anchor-name`, `position-area`, `position-try-fallbacks`) through `src/anchor.ts`
 alone. No component measures anything, no positioning library, no offset as an inline style. Every
 engine on the support row ([`support-matrix.md`](../architecture/support-matrix.md) §5) has anchor
-positioning, which the `engines` job proves, so there is no JavaScript fallback. Where the browser
-has it, an anchored overlay is raised into the **top layer**, so no transformed, filtered or
-`contain` ancestor clips it; the scale still decides for everything in the flow.
+positioning, which the `engines` job proves, so there is no JavaScript fallback. An overlay
+flips to the side with room; where neither side holds it — a long menu at the foot of a phone's
+screen — it takes the larger side, shrinks to it and scrolls inside, and never runs past the
+viewport. Where the browser has it, an anchored overlay is raised into the **top layer**, so no
+transformed, filtered or `contain` ancestor clips it; the scale still decides for everything in the
+flow.
 
 What paints over what and what `Escape` reaches are **different lists**. A tooltip paints above a
 dialog and is not in the register: it closes on the `Escape` pressed while it shows (WCAG 1.4.13)
@@ -721,16 +724,22 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
 
-* **No page action in the bar.** Its only page control is the page's folded menu on `compact`.
+* **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
+  [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
+  folded menu on `compact`. *Capture* is no page's action but the product's: it opens the capture
+  field wherever the reader is (UC-WRK-26), from `medium` up here and on `compact` as the bottom
+  bar's ＋ (§11.3). On `medium` it is its mark alone, beside the wordmark: the end has no room for
+  one more control with the palette's field still centred between the two sides. It is drawn only where the reader may create somewhere — in the jumble or in a
+  collection they see — and absent otherwise (P-05).
 * **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
   bar's *Search* opens the palette in a dialog.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
   `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
   `compact` the account group is *You* in the bottom bar.
-* The two marks are §11.6. Nothing else moves into the bar.
+* The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
 
 ### 11.3 One navigation list
 
@@ -771,7 +780,7 @@ section is never a client decision.
 
 | Width | Drawing |
 |---|---|
-| `compact` | `BottomBar`: the `places` destinations and *You*. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
+| `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
 | `medium` | `NavDrawer`: one `SideNav` with all three bands |
 | ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10) |
 
@@ -814,7 +823,8 @@ proxies and history ([`security.md`](../architecture/security.md) §9):
 * **Sharing and keeping a search is a saved view**, under the workspace's permissions.
 
 **One palette for everything** (UC-WRK-27, `apps/webapp/src/lib/palette/`). `⌘K` and `Ctrl K`
-open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*. One palette, two
+open it on every framed page, and so does `/`; `?` opens *Help and shortcuts*; `Q` opens the capture
+field (UC-WRK-26), where the reader may capture at all. One palette, two
 drawings: from `medium` up the bar's field is its input and the list opens under it, focus staying
 in the field; below `medium` the same field and list open in a dialog.
 
@@ -838,6 +848,18 @@ in the field; below `medium` the same field and list open in a dialog.
   `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
 * **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
   they do not apply.
+* **Ask** (UC-AI-08, `apps/webapp/src/lib/ask/`). With words typed and AI consented to, one row
+  *Ask: “…”*; without AI there is no row and nothing of AI is drawn. Choosing it asks at once and
+  opens *Ask the workspace*: the question, editable and asked again with *Ask*, then the answer in
+  the AI proposal (§7) headed *Proposed answer* — the text, *Based on* the entries it rests on as
+  links (each read again, so one the reader can no longer open is left out), the provenance behind
+  one collapsed line, and *As a filter*: the chips the answer implies (a place, the state, a due
+  span, a person, labels), each removable and the state and due span changeable, framed rather than
+  pills because a select carries its label. *Save as view* saves what the chips hold as the reader's
+  own view; a view needs a place, so without one the place chip is marked on submit (§4, case 3).
+  While the question runs the proposal is pending with *Stop*, and the nearly-spent note stands
+  above it. *Dismiss* is the only decision about the answer; a new question carries nothing of the
+  last one.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and

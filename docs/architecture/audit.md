@@ -255,6 +255,12 @@ exists. The journal is the floor under the trail, not a copy of it.
 * The use case registry carries an `audit` declaration per use case (mandatory/optional, the action
   code, the target type, the classification). A use case with security or privacy relevance and no
   declaration fails the build (gate SG-13).
+* A writing use case is audited on success unless the gate names it as an exception, with its
+  reason. Such a use case is audited only when refused - it still declares the action and the
+  target the refusal is recorded against. The one exception today is kudos (*GiveKudos*,
+  *TakeBackKudos*): figures about one person are shown only to that person (UC-WRK-29 check 6),
+  and a trail of every give would let an auditor count who acknowledged whom; a refused give still
+  leaves a trace of misuse.
 * Denied access is recorded in the `AuthorizationService`, the one place authorisation happens, so
   `outcome=DENIED` is complete without anybody remembering it.
 * Writes stay cheap: one insert, no foreign keys on actor or target, monthly partitions, per-tenant

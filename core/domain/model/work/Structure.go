@@ -77,6 +77,22 @@ func colorToken(raw string, code string) (string, error) {
 	return token, nil
 }
 
+// knownColorToken refuses a set colour that is not one of the ten label tokens (domain-model.md §3):
+// a client draws the ten and nothing else, so another name would be drawn as each client's own
+// fallback, and two clients could disagree on it. The empty string is "not set" and passes; whether
+// it may be is the caller's question, as in colorToken.
+//
+// Checked only where a colour is new: a value stored before this check existed is not refused when
+// a change sends it back unchanged.
+func knownColorToken(token string, code string) error {
+	if token == "" || shared.IsLabelToken(token) {
+		return nil
+	}
+	return shared.ErrValidation.
+		WithDetail(code).
+		WithFields(shared.FieldError{Path: "/color_token", Code: code})
+}
+
 // Field names of a collection's structure, as the API spells them. They travel into the event's
 // change set and into the change log, where a client matches them against the members it sent - so
 // they are written once here rather than as a literal at each place that has to agree.

@@ -22,6 +22,16 @@ test('the instant is solved for, not guessed at, across a daylight-saving bounda
   assert.equal(instantOf('2026-03-29', '03:30', 'Europe/Berlin'), '2026-03-29T01:30:00.000Z');
 });
 
+test('a time the clock jumps over lands after the jump, on the day asked for', () => {
+  // 02:30 does not exist in Berlin on 29 March 2026; the clock reads 03:30 an hour after 01:30.
+  assert.equal(instantOf('2026-03-29', '02:30', 'Europe/Berlin'), '2026-03-29T01:30:00.000Z');
+  // Santiago springs forward at midnight on 6 September 2026: the day starts at 01:00. An all-day
+  // date for that day must not become the evening of the 5th.
+  const midnight = instantOf('2026-09-06', undefined, 'America/Santiago')!;
+  assert.equal(midnight, '2026-09-06T04:00:00.000Z');
+  assert.equal(dateIn(midnight, 'America/Santiago'), '2026-09-06');
+});
+
 test('an all-day date is midnight in its own zone', () => {
   // Not midnight UTC: an all-day date set in São Paulo and stored as midnight in Greenwich would
   // be the previous evening there, which is the defect the zone exists to prevent.

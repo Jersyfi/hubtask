@@ -172,6 +172,9 @@ func NewContainer(in NewContainerInput) (Container, error) {
 	if in.Private && in.Type != ContainerHub {
 		return Container{}, ErrPrivateOnlyHubs()
 	}
+	if err := knownColorToken(strings.TrimSpace(in.ColorToken), "containers.color_token_unknown"); err != nil {
+		return Container{}, err
+	}
 
 	// The identifiers and the rank come from ports, not from a client. Missing means the use case
 	// was wired wrong, which is a defect rather than something the caller can fix (security.md §9).
@@ -462,6 +465,11 @@ func (c Container) Renamed(
 				WithDetail("containers.field_malformed").
 				WithParams(map[string]string{"field": field.name}).
 				WithFields(shared.FieldError{Path: "/" + field.name, Code: "containers.field_malformed"})
+		}
+		if field.name == FieldColorToken {
+			if err := knownColorToken(wanted, "containers.color_token_unknown"); err != nil {
+				return Container{}, nil, err
+			}
 		}
 		changes = append(changes, FieldChange{Field: field.name, From: *field.value, To: wanted})
 		*field.value = wanted

@@ -210,6 +210,41 @@ export const DRAFTED_RULE = {
   on_error: 'STOP', failure_count: 0, version: 1, findings: [], last_run: null,
 };
 
+/**
+ * Asking the workspace (UC-AI-08): a question queues a job, and its answer stands in the asker's own
+ * listing as an `ANSWER` suggestion - the text, the entries it rests on, the filter it implies. The
+ * place it names and its two entries are records of their own, outside every tree and listing the
+ * other walks read; a third source is one the reader can no longer open (`/items/{id}` answers 404),
+ * so the dialog leaves it out. The first question asked implies a filter, the second does not.
+ */
+export const ASK_JOB = '01a0e2e0-0000-7000-8000-0000000007d1';
+export const ANSWER_IDS = ['01a0e2e0-0000-7000-8000-0000000007d2', '01a0e2e0-0000-7000-8000-0000000007d3'];
+export const ASK_PLACE = { id: '01a0e2e0-0000-7000-8000-0000000007d4', type: 'COLLECTION', parent_id: HUB.id, name: 'Müller GmbH', order_key: 'a9', version: 1 };
+export const ASK_SOURCES = [
+  { ...item('d5', 'Send the offer to Müller GmbH', { collection_id: ASK_PLACE.id, due_at: `${inDays(2)}T09:00:00Z`, assignee_id: OTHER.id }), id: '01a0e2e0-0000-7000-8000-0000000007d5' },
+  { ...item('d6', 'Call Müller GmbH about the delivery date', { collection_id: ASK_PLACE.id, due_at: `${inDays(4)}T09:00:00Z`, assignee_id: OTHER.id }), id: '01a0e2e0-0000-7000-8000-0000000007d6' },
+];
+export const ASK_GONE = '01a0e2e0-0000-7000-8000-0000000007d7';
+
+/** The answers asked for so far in this walk, newest last: a question is its job and its answer. */
+let answers = [];
+
+function answerTo(question, n) {
+  const now = new Date().toISOString();
+  const payload = n === 0
+    ? {
+        answer: 'Two entries are open for Müller GmbH this week: the offer to send and the call about the delivery date. Mara has both.',
+        source_ids: [ASK_SOURCES[0].id, ASK_SOURCES[1].id, ASK_GONE],
+        filter: { place_id: ASK_PLACE.id, place_type: 'COLLECTION', is_completed: false, due: 'next_7_days', assignee_id: OTHER.id },
+      }
+    : { answer: 'Nothing in the entries you can read says who painted the hallway.', source_ids: [] };
+  return {
+    id: ANSWER_IDS[n % ANSWER_IDS.length], target_type: 'ACCOUNT', target_id: ACCOUNT.id, kind: 'ANSWER', status: 'PROPOSED', payload,
+    source: 'AI', model: 'local-model-7b', prompt_id: 'answer-question', prompt_version: 'v1',
+    produced_at: now, created_at: now, version: 1, dropped_nodes: 0, question,
+  };
+}
+
 /** The workspace with AI available and the rule editor's vocabulary: what a drafting walk opens on. */
 export const AI_MANIFEST = {
   ...MANIFEST,
@@ -729,8 +764,28 @@ export function stub(route) {
     return route.fulfill({ json: { job_id: DRAFT_JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed', progress: null, result_url: null, error_code: null, created_at: new Date().toISOString(), finished_at: new Date().toISOString() } });
   }
   if (path.endsWith('/api/v1/suggestions') && url.searchParams.get('target_type') === 'ACCOUNT') {
-    return route.fulfill({ json: { items: [ruleDraft()], has_more: false, next_cursor: null } });
+    const standing = answers.filter((each) => each.status === 'PROPOSED').map(({ question: _asked, ...answer }) => answer);
+    return route.fulfill({ json: { items: [ruleDraft(), ...standing], has_more: false, next_cursor: null } });
   }
+  // Asking the workspace: the question, its job (done at once), the answer dismissed, the place and
+  // the entries it rests on.
+  if (path.endsWith('/api/v1/ask') && request.method() === 'POST') {
+    answers.push(answerTo(request.postDataJSON().question, answers.length));
+    return route.fulfill({ status: 202, json: { job_id: ASK_JOB, status: 'QUEUED', progress: null, result_url: null } });
+  }
+  if (path.endsWith(`/api/v1/jobs/${ASK_JOB}`)) {
+    return route.fulfill({ json: { job_id: ASK_JOB, status: 'SUCCEEDED', outcome_code: 'ai.proposed', progress: null, result_url: null, error_code: null, created_at: new Date().toISOString(), finished_at: new Date().toISOString() } });
+  }
+  const dismissed = answers.find((each) => path.endsWith(`/api/v1/suggestions/${each.id}:dismiss`));
+  if (dismissed && request.method() === 'POST') {
+    dismissed.status = 'DISMISSED';
+    const { question: _asked, ...answer } = dismissed;
+    return route.fulfill({ json: answer });
+  }
+  if (path.endsWith(`/api/v1/containers/${ASK_PLACE.id}`)) return route.fulfill({ json: ASK_PLACE });
+  const source = ASK_SOURCES.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (source && request.method() === 'GET') return route.fulfill({ json: source });
+  if (path.endsWith(`/api/v1/items/${ASK_GONE}`)) return route.fulfill({ status: 404, json: { code: 'item.not_found' } });
   if (path.endsWith(`/api/v1/suggestions/${RULE_DRAFT_ID}:accept`) && request.method() === 'POST') {
     draftSaved = true;
     return route.fulfill({ json: { ...ruleDraft('ACCEPTED'), created_id: DRAFTED_RULE_ID } });
@@ -840,7 +895,24 @@ export function fallback(route, request, path) {
     return route.fulfill({ json: { applied: results.length, failed: 0, results } });
   }
   if (read === '/items' && request.method() === 'POST') {
-    return route.fulfill({ status: 201, json: { ...ALL_ITEMS[0], id: '01a0e2e0-0000-7000-8000-0000000000ff', ...request.postDataJSON(), version: 1 } });
+    created = { ...ALL_ITEMS[0], id: CREATED_ID, ...request.postDataJSON(), version: 1 };
+    return route.fulfill({ status: 201, json: created });
+  }
+  // The entry a walk just made, read back and trashed again - what a capture's *Undo* does.
+  if (read === `/items/${CREATED_ID}` && request.method() === 'GET' && created) return route.fulfill({ json: created });
+  if (read === `/items/${CREATED_ID}` && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  // Several entries trashed at once, all or nothing: every operation applied.
+  if (read === '/items:bulk' && request.method() === 'POST') {
+    const operations = request.postDataJSON().operations ?? [];
+    return route.fulfill({ json: { results: operations.map(() => ({ status: 204 })) } });
+  }
+  // A capture into the jumble, and its *Undo*: the entry, then the same entry dismissed.
+  if (read === '/jumble/entries' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    return route.fulfill({ status: 201, json: { ...JUMBLED, raw_subject: body.raw_subject ?? null, channel: body.channel } });
+  }
+  if (read === `/jumble/entries/${JUMBLED.id}:dismiss` && request.method() === 'POST') {
+    return route.fulfill({ json: { ...JUMBLED, status: 'DISMISSED' } });
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
@@ -878,12 +950,21 @@ const ARRAYS = new Set([
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */
 let unstubbed = [];
 
+/** The id every create answers with, and the entry the last create made. */
+export const CREATED_ID = '01a0e2e0-0000-7000-8000-0000000000ff';
+let created;
+
+/** What a capture into the jumble makes. */
+export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'QUICK_CAPTURE', raw_subject: null, raw_body: null, attachments: [], status: 'NEW', received_at: '2026-10-21T08:00:00Z' };
+
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  created = undefined;
   pushed.length = 0;
   looked = [];
   draftSaved = false;
+  answers = [];
 }
 
 /** Every push a device sent, in order: what a walk offline reads back once the network returns. */

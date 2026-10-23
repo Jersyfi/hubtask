@@ -103,6 +103,9 @@ func NewBucket(in NewBucketInput) (Bucket, error) {
 	if err != nil {
 		return Bucket{}, err
 	}
+	if err := knownColorToken(token, "buckets.color_token_unknown"); err != nil {
+		return Bucket{}, err
+	}
 
 	// The identifiers and the rank come from ports, not from a client. Missing means the use case
 	// was wired wrong, which is a defect rather than something the caller can fix (security.md §9).
@@ -196,6 +199,10 @@ func (b Bucket) Updated(attributes BucketAttributes, form text.Normalizer) (Buck
 			return Bucket{}, nil, err
 		}
 		if token != b.ColorToken {
+			// Only a new colour is checked: the one it has is no change (knownColorToken).
+			if err := knownColorToken(token, "buckets.color_token_unknown"); err != nil {
+				return Bucket{}, nil, err
+			}
 			changes = append(changes,
 				FieldChange{Field: FieldColorToken, From: b.ColorToken, To: token})
 			b.ColorToken = token
