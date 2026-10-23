@@ -28,6 +28,7 @@ import {
   workspaceVerdict,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
+import { levelRefusal, levelWords, type LevelWords } from './levels.ts';
 import { narrowedTo, offerVerdict, offeredChild, offeredPlacement } from './offer.ts';
 import { t } from '../i18n/i18n.svelte.ts';
 
@@ -75,6 +76,10 @@ export interface Offer {
   placementOf(type: string, destination: { readonly type: string; readonly depth: number } | null | undefined): Verdict;
   /** The layouts the installation reports and the collection offers, in the installation's order. */
   readonly layouts: readonly string[];
+  /** A level's words here: its given name, or the catalogue's word for its type (`levels.ts`). */
+  level(type: string): LevelWords;
+  /** A refusal in words, its levels by the names this collection gave them. */
+  refusal(verdict: { readonly code: string; readonly params?: Record<string, string> }): string;
 }
 
 export function offerIn(settings: StructureSettings | undefined): Offer {
@@ -86,6 +91,8 @@ export function offerIn(settings: StructureSettings | undefined): Offer {
     acceptsChild: (parentType, childType, parentDepth = 0) => offeredChild(manifest.value, settings, parentType, childType, parentDepth),
     placementOf: (type, destination) => offeredPlacement(manifest.value, settings, type, destination),
     layouts: (narrowed?.view_layouts ?? []) as readonly string[],
+    level: (type) => levelWords(settings, type, t),
+    refusal: (verdict) => levelRefusal(settings, verdict, t),
   };
 }
 
