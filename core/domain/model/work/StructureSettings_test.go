@@ -161,8 +161,11 @@ func TestASettingNeverWidensTheInstallation(t *testing.T) {
 		}}, "structure.widens", shared.ErrCapabilityNotSupported},
 		{"a type the installation lacks", StructureValues{Levels: []Level{{Type: ItemTask}, {Type: "MILESTONE"}}},
 			"structure.widens", shared.ErrCapabilityNotSupported},
-		{"anything to run by itself", StructureValues{Automation: []AutomationBehaviour{"DONE_COLUMN_COMPLETES"}},
+		{"a behaviour this installation does not have", StructureValues{Automation: []AutomationBehaviour{"DONE_COLUMN_COMPLETES"}},
 			"structure.widens", shared.ErrCapabilityNotSupported},
+		{"a behaviour twice", StructureValues{Automation: []AutomationBehaviour{
+			AutomationRequiredBeyondFirstColumn, AutomationRequiredBeyondFirstColumn,
+		}}, "structure.setting_invalid", shared.ErrValidation},
 		{"a level without its parent", StructureValues{Levels: []Level{{Type: ItemTask}, {Type: ItemActivity}}},
 			"structure.levels_not_closed", shared.ErrValidation},
 		{"no top level", StructureValues{Levels: []Level{{Type: ItemWorkPackage}}},
