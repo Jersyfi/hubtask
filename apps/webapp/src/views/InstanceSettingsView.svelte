@@ -71,6 +71,7 @@
   let form = $state<HTMLFormElement | undefined>(undefined);
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openSettings());
     return stop;
   });

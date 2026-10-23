@@ -33,6 +33,7 @@
   const { onnavigate }: Props = $props();
 
   $effect(() => {
+    if (!instance.isElevated) return;
     // The digest below reads what the other screens read, which is why they are opened here: the
     // overview shows the *values* — the password minimum, the second factor, the providers offered —
     // rather than a list of links to go and find them.
