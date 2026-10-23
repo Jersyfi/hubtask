@@ -237,7 +237,7 @@
         {#each holders as holder (holder.membershipId)}
           <li class="row">
             {#if holder.accountId}
-              <Avatar name={accounts.nameOf(holder.accountId) ?? t('app.people.unnamed')} size="sm" />
+              <Avatar name={accounts.nameOf(holder.accountId) ?? t('app.people.unnamed')} src={accounts.pictureOf(holder.accountId)} size="sm" />
               <span class="who">{accounts.nameOf(holder.accountId) ?? t('app.people.unnamed')}</span>
             {:else}
               <!-- A group holds a role the same way a person does, and expanding it into its

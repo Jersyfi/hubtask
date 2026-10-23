@@ -252,11 +252,13 @@
 
   .lines { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--sp-100); }
 
+  /* Two columns rather than a wrapping row: a long name wraps inside its own column, and every
+     line's badge stays beside its name at the end - a row that wrapped put one badge beside its
+     label and the next one under its own. */
   .lines li {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: start;
     gap: var(--sp-100);
   }
 

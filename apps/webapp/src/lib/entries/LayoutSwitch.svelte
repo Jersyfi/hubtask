@@ -85,7 +85,8 @@
     <ViewSwitcher label={t('app.view.label')} {views} {selected} onselect={choose} />
   {/if}
   {#if isList(layout) && hasBothLists}
-    <Checkbox
+    <!-- `data-tour`: where the tour tells the levels in a workspace that holds no entry yet. -->
+    <span data-tour="levels-inside"><Checkbox
       label={t('app.view.show_inside')}
       checked={layout === EXPANDED}
       onclick={() => onlayout(layout === EXPANDED ? COLLAPSED : EXPANDED)}
@@ -94,7 +95,7 @@
         event.preventDefault();
         onlayout(layout === EXPANDED ? COLLAPSED : EXPANDED);
       }}
-    />
+    /></span>
   {/if}
 </div>
 

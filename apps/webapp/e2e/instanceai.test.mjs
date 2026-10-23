@@ -31,7 +31,7 @@ const LEVEL = {
   source: 'database', is_enforced_from_file: false,
 };
 
-async function open(browser, { tenancy = 'multi' } = {}) {
+async function open(browser, { tenancy = 'multi', level = LEVEL } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   const sent = [];
   let models = [...OFFERED_AI];
@@ -44,7 +44,7 @@ async function open(browser, { tenancy = 'multi' } = {}) {
     if (path === '/meta/capabilities') {
       return route.fulfill({ json: { ...MANIFEST, tenancy_mode: tenancy, instance: { reachable: true } } });
     }
-    if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: LEVEL });
+    if (path === '/admin/settings' && request.method() === 'GET') return route.fulfill({ json: level });
     if (path === '/admin/ai-providers' && request.method() === 'GET') return route.fulfill({ json: models });
     if (path === '/admin/ai-providers' && request.method() === 'POST') {
       const body = request.postDataJSON();
@@ -148,6 +148,32 @@ test('chromium: the defaults say in words which AI workspaces may use', async (t
   const minimum = page.getByRole('row').filter({ hasText: 'Their own model must process content' });
   assert.match(await minimum.textContent() ?? '', /In the EEA/);
   assert.doesNotMatch(await sources.textContent() ?? '', /OFFERED|ai\.sources/);
+});
+
+// An offer *Workspaces may use* leaves out reaches no workspace, and the screen says so with the
+// way to the setting (P-05); where the setting lets workspaces use it, nothing is said.
+test('chromium: an offered model no workspace may choose is said to be unreachable', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const reachable = await open(browser);
+  t.after(reachable.close);
+  const settled = reachable.page.waitForResponse((response) => response.url().endsWith('/api/v1/admin/settings'));
+  await reachable.page.goto(`${served.origin}/instance/ai`);
+  await settled;
+  await reachable.page.getByRole('row').filter({ hasText: 'Large (EU)' }).waitFor({ timeout: 15_000 });
+  assert.equal(await reachable.page.getByText('No workspace can choose these models yet').count(), 0, 'an offer workspaces may use is said to be unreachable');
+
+  // Undecided, the product's default holds: their own model only.
+  const { page, close } = await open(browser, { level: { ...LEVEL, ai: { ...LEVEL.ai, sources: { ...LEVEL.ai.sources, set: false, value: undefined, locked: false } } } });
+  t.after(close);
+  await page.goto(`${served.origin}/instance/ai`);
+  const banner = page.getByRole('alert').filter({ hasText: 'No workspace can choose these models yet' }).first();
+  await banner.waitFor({ timeout: 15_000 });
+  assert.match(await banner.textContent() ?? '', /"Workspaces may use" in the defaults leaves the offered model out/);
+  await banner.getByRole('button', { name: 'Change the default' }).click();
+  await page.waitForURL(/\/instance\/settings\?tab=ai$/);
+  await page.getByRole('row').filter({ hasText: 'Workspaces may use' }).waitFor({ timeout: 15_000 });
 });
 
 // UC-AI-06 check 8: a private installation (one workspace) has no model to offer, so neither the

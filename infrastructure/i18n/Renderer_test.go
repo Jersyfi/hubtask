@@ -6,6 +6,7 @@ package i18n_test
 import (
 	"strings"
 	"testing"
+	"testing/fstest"
 
 	port "github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/infrastructure/i18n"
@@ -35,12 +36,37 @@ func TestTheRendererSubstitutesInTheAskedForLocale(t *testing.T) {
 // The fallback chain of i18n-l10n.md §2, walked down to the source language: a locale with no
 // catalogue, and a locale whose catalogue lacks the key, both land on English - and none fails.
 func TestEveryLocaleResolvesToSomething(t *testing.T) {
-	const code = "notifications.no_address" // outside the families de.json translates
+	const code = "notifications.no_address"
 	english := renderer(t).Render("en", code, nil)
 
-	for _, locale := range []string{"de-AT", "de", "pt-BR", "zh-Hans", "", "  ", "nonsense"} {
+	for _, locale := range []string{"pt-BR", "zh-Hans", "", "  ", "nonsense"} {
 		if got := renderer(t).Render(locale, code, nil); got != english {
 			t.Errorf("%q rendered %q, want the source language %q", locale, got, english)
+		}
+	}
+}
+
+// A catalogue that lacks a code falls to the source for it, a regional tag through its language.
+// The catalogue is laid on here because the shipped ones may be complete.
+func TestALocaleLackingACodeFallsToTheSource(t *testing.T) {
+	overrides, err := i18n.LoadDirectory(fstest.MapFS{
+		"fr.json": {Data: []byte(`{"errors.forbidden": "Action non autorisée."}`)},
+	})
+	if err != nil {
+		t.Fatalf("loading the lacking catalogue: %v", err)
+	}
+	built, err := i18n.NewRendererWithOverrides(overrides)
+	if err != nil {
+		t.Fatalf("building the renderer: %v", err)
+	}
+	if got := built.Render("fr", "errors.forbidden", nil); got != "Action non autorisée." {
+		t.Fatalf("the laid-on catalogue is not read: %q", got)
+	}
+	const code = "notifications.no_address"
+	want := built.Render("en", code, nil)
+	for _, locale := range []string{"fr", "fr-CA"} {
+		if got := built.Render(locale, code, nil); got != want {
+			t.Errorf("%q rendered %q, want the source language %q", locale, got, want)
 		}
 	}
 }

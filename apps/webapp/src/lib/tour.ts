@@ -52,6 +52,10 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
     // The levels under an entry, where its type holds any; a list's entry holds none, and the step
     // is passed over there.
     steps.push({ id: 'levels', route: `/items/${workspace.itemId}`, selector: '[data-tour="levels"]', side: 'block-end' });
+  } else if (workspace.collectionId) {
+    // No entry yet - a fresh workspace: the levels are told at the list's "show what is inside",
+    // which is where they show before an entry holds any.
+    steps.push({ id: 'levels', route: `/collections/${workspace.collectionId}`, selector: '[data-tour="levels-inside"]', side: 'block-end' });
   }
   if (workspace.hasJumble) {
     steps.push({ id: 'jumble', route: '/jumble', selector: '[data-tour="jumble"]', side: 'block-end' });

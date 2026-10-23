@@ -50,6 +50,7 @@
     <Stack gap="150">
       <Switch
         label={t('app.profile.celebrations')}
+        data-setting="celebrations"
         hint={t('app.profile.celebrations_hint')}
         bind:checked={isOn}
         isBusy={isSaving}

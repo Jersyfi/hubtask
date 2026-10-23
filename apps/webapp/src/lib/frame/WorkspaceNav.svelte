@@ -24,10 +24,12 @@
   import ReplicaMark from './ReplicaMark.svelte';
   import { chosenSymbol, markOf } from '../workspace/look.ts';
 
+  import { announcer } from '../announce.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { live } from '../data/live.svelte.ts';
+  import { anchorFor } from '../data/rank.ts';
   import { people } from '../data/people.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
@@ -133,6 +135,50 @@
     if (hubId && !expanded.includes(hubId)) expanded = [...expanded, hubId];
   });
 
+  /** The hubs and a hub's collections as the tree draws them: the levels a rank position is in. */
+  const shownHubs = $derived(containers.hubs.filter((hub) => !live.hasLost(hub.id)));
+  const shownCollectionsOf = (hubId: string) => containers.collectionsOf(hubId).filter((collection) => !live.hasLost(collection.id));
+
+  // Each hub's people, so the tree knows where the reader may rank: `:reorder` and `:move` ask
+  // `STRUCTURE` on the container, as the page menu's *Move up/down* does.
+  $effect(() => {
+    const hubIds = shownHubs.map((hub) => hub.id);
+    untrack(() => {
+      for (const hubId of hubIds) people.open({ hubId });
+    });
+  });
+
+  /**
+   * Whether the reader may rank in this hub - the hub itself, or one of its collections. A grip
+   * where the role may not is absent, not refused (P-05); while the role is unread it is absent
+   * too. A collection is judged by its hub's role, so a grant on one collection alone keeps that
+   * collection's rank to its page menu.
+   */
+  const mayRankIn = (hubId: string) =>
+    holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted';
+
+  let rankFailure = $state<string | undefined>(undefined);
+
+  /**
+   * A drag or `Alt+↑/↓` in the tree: the same write the page menu's *Move up/down* sends - a hub
+   * by `:reorder`, a collection by `:move` into the hub it is already in - and the same sentence
+   * after it, because the tree rearranged itself and nothing focused changed its name.
+   */
+  async function rank(id: string, to: number) {
+    const container = containers.find(id);
+    const siblings = container?.type === 'HUB' ? shownHubs : container?.parent_id ? shownCollectionsOf(container.parent_id) : [];
+    if (!container || to < 0 || to >= siblings.length) return;
+    rankFailure = undefined;
+    try {
+      if (container.type === 'HUB') await containers.reorder(id, siblings, to, crypto.randomUUID());
+      else if (container.parent_id) await containers.move(id, container.parent_id, anchorFor(siblings, id, to), crypto.randomUUID());
+      announcer.say(t('app.rank.announced', { title: container.name, position: to + 1, count: siblings.length }));
+    } catch (error) {
+      rankFailure = renderProblem(error as never, messages).message;
+      announcer.say(rankFailure);
+    }
+  }
+
   /**
    * The tree, with what this reader has lost taken out of it.
    *
@@ -141,8 +187,7 @@
    * in the meantime — a row they can click and be refused by is worse than a row that has gone.
    */
   const hubNodes = $derived(
-    containers.hubs
-      .filter((hub) => !live.hasLost(hub.id))
+    shownHubs
       .map((hub) => ({
       id: hub.id,
       label: hub.name,
@@ -152,17 +197,15 @@
       icon: hub.private && !chosenSymbol(hub) ? ('lock' as const) : markOf(hub),
       colorToken: hub.color_token ?? undefined,
       meta: hub.private && chosenSymbol(hub) ? t('app.nav.private') : undefined,
+      isMovable: mayRankIn(hub.id),
       // A hub is a branch until its level says otherwise. Whether it has collections is not known
       // before it is opened, and a hub with no twist is a hub nobody can open to find out - so it
       // carries one, and **loses it once the level has been read and is empty**: a
       // twist that opens nothing is a promise the navigation cannot keep. The row still goes to
       // the hub, which is where a collection is made.
       isBranch:
-        containers.isLevelLoading(hub.id) ||
-        containers.collectionsOf(hub.id).filter((collection) => !live.hasLost(collection.id)).length > 0,
-      children: containers
-        .collectionsOf(hub.id)
-        .filter((collection) => !live.hasLost(collection.id))
+        containers.isLevelLoading(hub.id) || shownCollectionsOf(hub.id).length > 0,
+      children: shownCollectionsOf(hub.id)
         .map((collection) => {
           // What counts in it, short (UC-WRK-29): nothing where it counts nothing or nothing yet.
           const figure = collection.figure ? rowMessage(collection.figure, messages.locale) : undefined;
@@ -172,6 +215,7 @@
             icon: markOf(collection),
             colorToken: collection.color_token ?? undefined,
             meta: figure ? t(figure.code, figure.params) : undefined,
+            isMovable: mayRankIn(hub.id),
           };
         }),
     })),
@@ -257,7 +301,9 @@
     branchLabel={(name, isExpanded) => t(isExpanded ? 'app.nav.close_branch' : 'app.nav.open_branch', { name })}
     bind:expanded
     onnavigate={navigate}
+    onreorder={(id, to) => void rank(id, to)}
   />
+  {#if rankFailure && !isRail}<p class="failure">{rankFailure}</p>{/if}
   <!-- Folded, a sentence has nowhere to be drawn: what is waiting, what failed and what an empty
        workspace should do next are all words, and a column of marks has room for none of them
        (ADR-0063 decision 2). The rail draws the marks and the one control; the reader unfolds it
@@ -292,8 +338,11 @@
         {/if}
       {/snippet}
     </EmptyState>
-  {:else if newItems.length > 1}
-    <!-- More than one thing to make here: *＋ New* lists them, the hub first. -->
+  {:else if newItems.length > 0}
+    <!-- *＋ New* lists what can be made here, the hub first - one name on every page, even where
+         the list holds one row: a control that read "Create hub" on one page and "New" on the next
+         would be two controls. In a block of its own so that it keeps its width at the start of
+         the line; folded, it stands in the rail's one column with the marks above it. -->
     <div class="create" data-rail={isRail ? '' : undefined} data-new>
       <Menu label={t('app.nav.new')} items={newItems} onselect={chooseNew}>
         {#snippet trigger(props)}
@@ -304,20 +353,6 @@
           {/if}
         {/snippet}
       </Menu>
-    </div>
-  {:else if createLabel}
-    <!-- In a block of its own so that the control keeps its width at the start of the line
-         rather than stretching across the column with its label in the middle. Folded, it stands
-         in the rail's one column with the marks above it: everything drawn in a rail is in that
-         column, or it is the one thing in the navigation that is not. -->
-    <div class="create" data-rail={isRail ? '' : undefined}>
-      {#if isRail}
-        <IconButton icon="plus" label={createLabel} size="sm" onclick={() => (isCreatingHub = true)} />
-      {:else}
-        <Button tone="subtle" size="sm" icon="plus" onclick={() => (isCreatingHub = true)}>
-          {createLabel}
-        </Button>
-      {/if}
     </div>
   {/if}
 
@@ -350,6 +385,8 @@
     gap: var(--sp-100);
     min-block-size: 100%;
   }
+
+  .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 
   /* Folded, the control is in the rail's column like every mark above it. */
   .create[data-rail] { display: flex; justify-content: center; }

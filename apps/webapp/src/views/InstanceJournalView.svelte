@@ -50,6 +50,7 @@
   const filter = $derived<JournalFilter>({ action: action || undefined, workspace: workspace.trim() || undefined });
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const current = filter;
     return untrack(() => instance.openJournalOf(current));
   });

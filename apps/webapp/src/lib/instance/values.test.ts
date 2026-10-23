@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
-import { changesBetween, countOf, documentOf, draftEntry, lockCode, planBodyOf, rowsOf } from './values.ts';
+import { changesBetween, countOf, documentOf, draftEntry, isOfferedAiReachable, lockCode, planBodyOf, rowsOf } from './values.ts';
 
 const count = (extra: Partial<InstanceSetting> = {}): InstanceSetting => ({
   set: false, locked: false, kind: 'COUNT', minimum: 8, maximum: 128, workspace_may: 'TIGHTEN', ...extra,
@@ -101,4 +101,17 @@ test('the save bar counts each value a draft changes: a value, a lock, a decisio
   assert.equal(changesBetween(draft, read), 3);
   // A key the operator stops deciding is a change too.
   assert.equal(changesBetween({ ...read, sign_in: { max_repeat: count() } }, read), 1);
+});
+
+test('an offered model is reachable only where the installation lets workspaces use the offered model', () => {
+  const sources = (extra: Partial<InstanceSetting>): InstanceSettings => ({
+    ai: { sources: { set: false, locked: false, kind: 'CHOICE', options: ['EITHER', 'OFFERED', 'OWN', 'NONE'], ...extra } },
+  });
+  assert.equal(isOfferedAiReachable(undefined), undefined);
+  // Undecided: the product's default, their own model only.
+  assert.equal(isOfferedAiReachable(sources({})), false);
+  assert.equal(isOfferedAiReachable(sources({ set: true, value: 'OWN' })), false);
+  assert.equal(isOfferedAiReachable(sources({ set: true, value: 'NONE', locked: true })), false);
+  assert.equal(isOfferedAiReachable(sources({ set: true, value: 'OFFERED' })), true);
+  assert.equal(isOfferedAiReachable(sources({ set: true, value: 'EITHER' })), true);
 });

@@ -254,6 +254,38 @@ func TestAnObjectNobodyMayReachIsReportedMissing(t *testing.T) {
 	}
 }
 
+func TestEveryMemberReadsAPictureSomebodyShows(t *testing.T) {
+	handler, records, permission, targets := readingHarness()
+	picture := ready(strangerA)
+	picture.Usage = domain.UsageAvatar
+	records.stored[mintedID] = picture
+	records.avatars[mintedID] = true
+
+	viewed, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+	if err != nil {
+		t.Fatalf("a colleague's picture was refused: %v", err)
+	}
+	if viewed.Download.URL == "" || len(targets.downloads) != 1 {
+		t.Errorf("no download target for the picture: %+v", viewed.Download)
+	}
+	// Nothing to resolve along: a picture serves no entry, and the workspace is the bound.
+	if len(permission.asked) != 0 {
+		t.Errorf("the authorisation service was asked %v", permission.asked)
+	}
+}
+
+func TestAPictureNobodyShowsIsOnlyItsUploaders(t *testing.T) {
+	handler, records, _, _ := readingHarness()
+	picture := ready(strangerA)
+	picture.Usage = domain.UsageAvatar
+	records.stored[mintedID] = picture
+
+	_, err := handler.Execute(t.Context(), actor(mediaRead), MediaQuery{MediaID: mintedID})
+	if !errors.Is(err, shared.ErrNotFound) {
+		t.Fatalf("somebody else's unused picture answered %v, want not found", err)
+	}
+}
+
 func TestReadingNeedsTheReadScope(t *testing.T) {
 	handler, records, _, _ := readingHarness()
 	records.stored[mintedID] = ready(accountID)

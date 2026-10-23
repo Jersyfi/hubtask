@@ -239,9 +239,9 @@
   .size { unicode-bidi: isolate; }
 
   .size,
-  .hint,
+  .hint { color: var(--text-subtle); font-size: var(--fs-075); }
 
-  .hint,
+  .hint { margin: 0; }
 
   .over { margin: 0; color: var(--text-danger); font-size: var(--fs-075); }
 

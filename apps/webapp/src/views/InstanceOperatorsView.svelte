@@ -51,6 +51,7 @@
   let removing = $state<{ operator: Operator; step: 'first' | 'again' } | undefined>(undefined);
 
   $effect(() => {
+    if (!instance.isElevated) return;
     // The workspaces too: the form offers them by name rather than asking for a slug from memory,
     // and this screen is behind the same door that already read them. The service accounts are
     // the reader's own workspace's, read with the permission that manages its members.

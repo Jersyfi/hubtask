@@ -26,6 +26,8 @@
     destinations: readonly Destination[];
     name: string;
     email?: string | null;
+    /** The picture the person shows, drawn in place of the initials where there is one. */
+    picture?: string;
     /** A sheet from the bottom on `compact`; a menu behind the avatar above it. */
     isSheet: boolean;
     /** Whether the trigger carries the name beside the avatar. Only where there is room for it. */
@@ -35,7 +37,7 @@
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, isSheet, hasName = false, isSheetOpen = $bindable(false), onchoose }: Props = $props();
+  let { destinations, name, email, picture, isSheet, hasName = false, isSheetOpen = $bindable(false), onchoose }: Props = $props();
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
@@ -69,7 +71,7 @@
   <!-- `Menu` draws the hairline under its own head, so this draws one only in the sheet, where
        nothing else does: two rules under the name would be one too many. -->
   <div class="who" data-sheet={isSheet ? '' : undefined}>
-    <Avatar {name} size="md" />
+    <Avatar {name} src={picture} size="md" />
     <div class="names">
       <span class="name">{name}</span>
       {#if email && email !== name}<span class="email">{email}</span>{/if}
@@ -103,7 +105,7 @@
            control called "Jérôme Winkel Jérôme Winkel" is a control named twice. The name is drawn
            beside it only where there is room; the address never is. -->
       <button type="button" class="account" aria-label={hasName ? undefined : name} {...props}>
-        <span aria-hidden="true"><Avatar {name} size="sm" /></span>
+        <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
         {#if hasName}<span class="name">{name}</span>{/if}
       </button>
     {/snippet}

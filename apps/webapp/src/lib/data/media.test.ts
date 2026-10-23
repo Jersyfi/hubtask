@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import type { Capabilities, MediaObject } from '@hubtask/sync-engine';
 
 import {
+  AVATAR_LIMIT,
   acceptFor,
   colourCover,
   coverImageIdOf,
@@ -15,6 +16,7 @@ import {
   isReady,
   isUsable,
   isWithinUploadLimit,
+  pictureLimitOf,
   transferTimeoutFor,
   uploadLimitOf,
 } from './media.ts';
@@ -97,4 +99,10 @@ test('a cover document carries exactly one of the two fields', () => {
 test('the accept hint offers images for a cover and everything for an attachment', () => {
   assert.equal(acceptFor('COVER'), 'image/*');
   assert.equal(acceptFor('ATTACHMENT'), undefined);
+});
+
+test('a picture is bounded by its own limit, or by the installation’s where that is lower', () => {
+  assert.equal(pictureLimitOf(undefined), AVATAR_LIMIT);
+  assert.equal(pictureLimitOf(manifest({ max_upload_bytes: 100 * 1024 * 1024 })), AVATAR_LIMIT);
+  assert.equal(pictureLimitOf(manifest({ max_upload_bytes: 1024 })), 1024);
 });
