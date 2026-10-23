@@ -522,3 +522,16 @@ func TestTheAskerStopsTheDraftingOfTheirRule(t *testing.T) {
 		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
 	}
 }
+
+// An answer to its asker's question is theirs to stop, as a rule's draft is (UC-AI-08).
+func TestTheAskerStopsTheAnsweringOfTheirQuestion(t *testing.T) {
+	h := newHarness(domain.StateRunning)
+	h.jobs.asker = repository.Asker{Kind: "ai.answer_question", AskedBy: actorID, TargetType: "ACCOUNT", TargetID: actorID}
+
+	if _, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID}); err != nil {
+		t.Fatalf("stopping the answer: %v", err)
+	}
+	if len(h.authorizer.requests) != 0 || len(h.authorizer.permitted) != 0 {
+		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
+	}
+}

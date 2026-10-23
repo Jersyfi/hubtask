@@ -143,8 +143,11 @@ func (h AiSuggestion) Run(ctx context.Context, job queue.Job) (queue.Result, err
 		// A count, never what was dropped: the parts of a person's sentence are their content
 		// (rule 10).
 		counted := "nodes_dropped"
-		if kind == domain.KindRule {
+		switch kind {
+		case domain.KindRule:
 			counted = "parts_not_drafted"
+		case domain.KindAnswer:
+			counted = "references_dropped"
 		}
 		result.Counts = map[string]int{counted: outcome.Dropped}
 	}

@@ -5,9 +5,9 @@ context: suggestion
 actors: [PE-person, PE-member]
 deployments: [D1, D3, D4, D5, D6]
 serves: [P-05, P-12, P-14]
-state: specified
+state: verified
 tasks: [UX-22]
-checked_by: []
+checked_by: [core/application/service/suggestion/AskMaterial_test.go, core/application/service/suggestion/AnswerDraft_test.go, core/application/service/suggestion/AskWorkspace_test.go, core/application/service/suggestion/Suggestions_test.go, test/integration/ai_answer_test.go, test/architecture/promptanswers_test.go, apps/webapp/src/lib/ask/answer.test.ts, apps/webapp/e2e/ask.test.mjs, docs/evidence/UX-22-2026-10-23.md]
 ---
 
 # Ask the workspace a question
@@ -32,11 +32,3 @@ In the palette the person types the question and chooses *Ask*. A proposed answe
 
 * No assistant that acts (decision #1628).
 * No answers from outside the workspace.
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
