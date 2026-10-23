@@ -1438,6 +1438,11 @@ func run() error {
 	planWriter := adminservice.PlanWriter{
 		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
 	}
+	// The installation's presets (UC-INS-18), beside the plans and kept like them.
+	installationPresetWriter := adminservice.InstallationPresetWriter{
+		Instance: instanceWriter, Presets: postgres.NewInstallationPresetRepository(),
+		Profiles: postgres.NewCapabilityProfileRepository(), Tenancy: cfg.Tenancy, Text: textadapter.Forms{},
+	}
 	// One workspace, and the query a platform finds its workspaces with (multi-tenancy.md §4.3).
 	tenantReader := adminservice.TenantReader{Writer: planWriter, Finder: postgres.NewTenantQueryRepository(cursors)}
 
@@ -2532,6 +2537,10 @@ func run() error {
 		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
 		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
 		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ListInstallationPresets{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.CreateInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.ChangeInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.WithdrawInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
 		adminservice.ReadTenant{Reader: tenantReader}.Descriptor(),
 		adminservice.QueryTenants{Reader: tenantReader}.Descriptor(),
 		adminservice.UpdateTenant{

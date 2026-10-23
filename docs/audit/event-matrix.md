@@ -335,6 +335,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.platform_subscription_redelivered` | RedeliverPlatformSubscription | `platform_subscription` | NOTICE | Every time |
 | `instance.platform_subscription_removed` | DeletePlatformSubscription | `platform_subscription` | WARNING | Every time |
 | `instance.platform_subscription_rotated` | RotatePlatformSubscriptionSecret | `platform_subscription` | WARNING | Every time |
+| `instance.preset_changed` | ChangeInstallationPreset | `installation_preset` | INFO | Every time |
+| `instance.preset_created` | CreateInstallationPreset | `installation_preset` | INFO | Every time |
+| `instance.preset_withdrawn` | WithdrawInstallationPreset | `installation_preset` | INFO | Every time |
+| `instance.presets_read` | ListInstallationPresets | `installation_preset` | INFO | When refused |
 | `instance.provider_configured` | ConfigureInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
 | `instance.provider_read` | ListInstanceIdentityProviders | `identity_provider` | INFO | When refused |
 | `instance.provider_removed` | RemoveInstanceIdentityProvider | `identity_provider` | NOTICE | Every time |
