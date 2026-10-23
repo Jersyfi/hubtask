@@ -245,6 +245,8 @@ class Containers {
       color_token?: string | null;
       /** A hub only: reached by its members alone, not by the workspace's roles (UC-ID-16). */
       private?: boolean;
+      /** The preset it starts from (UC-WRK-23 check 1); absent follows the hub, or the workspace's default. */
+      preset?: 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW';
     },
     idempotencyKey: string,
   ): Promise<Container> {

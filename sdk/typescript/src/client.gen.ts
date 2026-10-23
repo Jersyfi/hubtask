@@ -1309,6 +1309,11 @@ export class HubtaskClient {
     return this.call("POST", "/items:duplicates", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Ask the workspace a question */
+  askWorkspace(body: NonNullable<operations["askWorkspace"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["askWorkspace"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/ask", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** What AI has proposed, and not done */
   listSuggestions(options: CallOptions & { readonly query?: NonNullable<operations["listSuggestions"]['parameters']['query']> } = {}): Promise<operations["listSuggestions"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/suggestions", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

@@ -19,8 +19,9 @@ every task is checked against. The format and the states are in [`README.md`](./
   only in `state: specified`, said so in the pull request body. `[owner]`
 * **No check a reviewer has to interpret.** Each check is one observable fact: a person does X and
   sees Y; a request without Z is refused with code W; in deployment D1 the screen does not show V.
-  "Works well", "is intuitive", "handles errors" are not checks. A check only a walk can confirm
-  names the screen and the persona. `[owner]`
+  "Works well", "is intuitive", "handles errors" are not checks. A check about a screen names the
+  screen and the persona, so that an engine walk (`apps/webapp/e2e/*.test.mjs`) can prove it.
+  `[owner]`
 * **No *Today* that says more than what is missing.** It lists only the checks not met yet, one line
   per check with where it is tracked, and it is absent once the state is `built` or `verified`.
   `[partial: gate-docs; open: narration after the check number]`
@@ -28,7 +29,7 @@ every task is checked against. The format and the states are in [`README.md`](./
 ## What you may change on your own
 
 `state:`, `tasks:` and `checked_by:` in the front matter, and *Today* — in the pull request that
-builds or proves a check, naming its evidence. A correction as above.
+builds or proves a check, naming the tests that prove it. A correction as above.
 
 ## How to check a change
 

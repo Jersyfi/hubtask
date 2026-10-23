@@ -10,7 +10,8 @@ import type { JumbleEntry } from '../data/jumble.svelte.ts';
 
 import { instantOf } from '../i18n/zone.ts';
 import type { Reading } from './parse.ts';
-import { MAX_LINES, bodyOf, createAll, linesOf, type CreateBody, type Writer } from './submit.ts';
+import { MAX_CAPTURE_LINES, type CaptureRules } from '../entries/capture.ts';
+import { bodyOf, createAll, readLinesOf, type CreateBody, type Writer } from './submit.ts';
 
 /** A writer that records every call, and refuses what it is told to. */
 function fakeWriter(options: { refuseAt?: number } = {}) {
@@ -36,17 +37,51 @@ function fakeWriter(options: { refuseAt?: number } = {}) {
 
 const reading = (title: string, chips: Reading['chips'] = []): Reading => ({ title, chips });
 
+const UNITS = ['g', 'kg', 'l'];
+const LIST: CaptureRules = { splitsLines: true, readsAmount: true, units: UNITS };
+const TASKS: CaptureRules = { splitsLines: false, readsAmount: false, units: UNITS };
+/** A stand-in for `readLine`: "tomorrow" is a date chip, the rest the title. */
+const read = (line: string): Reading => {
+  const at = line.indexOf('tomorrow');
+  if (at < 0) return reading(line);
+  const title = `${line.slice(0, at)}${line.slice(at + 'tomorrow'.length)}`.replace(/\s+/gu, ' ').trim();
+  return reading(title, [{ kind: 'date', text: 'tomorrow', start: at, end: at + 8, date: '2026-10-22' }]);
+};
+const summary = (text: string, rules: CaptureRules) => {
+  const { lines, rest } = readLinesOf(text, rules, read);
+  return { lines: lines.map((each) => [each.reading.title, each.amount ?? null, each.reading.chips.length]), rest };
+};
+
 test('one line where lines do not split: a pasted list is one entry, its lines joined', () => {
-  assert.deepEqual(linesOf('milk\neggs\n\nbread', false), { lines: ['milk eggs bread'], rest: '' });
-  assert.deepEqual(linesOf('   ', false), { lines: [], rest: '' });
+  assert.deepEqual(summary('milk\neggs\n\nbread', TASKS), { lines: [['milk eggs bread', null, 0]], rest: '' });
+  assert.deepEqual(summary('   ', TASKS), { lines: [], rest: '' });
+  // Without AMOUNT a leading number is the title's.
+  assert.deepEqual(summary('2 kg apples', TASKS).lines, [['2 kg apples', null, 0]]);
 });
 
-test('lines split where the collection says so, up to the bound, the rest kept', () => {
-  assert.deepEqual(linesOf('milk\n\n eggs \nbread', true), { lines: ['milk', 'eggs', 'bread'], rest: '' });
-  const many = Array.from({ length: MAX_LINES + 2 }, (_, index) => `line ${index}`).join('\n');
-  const split = linesOf(many, true);
-  assert.equal(split.lines.length, MAX_LINES);
-  assert.equal(split.rest, `line ${MAX_LINES}\nline ${MAX_LINES + 1}`);
+test('a list reads lines and amounts: one entry per line, the amount off what the chips leave (UC-WRK-26 check 3)', () => {
+  assert.deepEqual(summary('- 2 milk\n\n tomorrow 1 kg apples \nbread tomorrow', LIST), {
+    lines: [['milk', '2', 0], ['apples', '1 kg', 1], ['bread', null, 1]],
+    rest: '',
+  });
+  // The line that goes back into the field is the line as typed, without its bullet.
+  assert.deepEqual(readLinesOf('- 2 milk', LIST, read).lines.map((each) => each.line), ['2 milk']);
+  // Taken back from the chip, the number stays in the title.
+  assert.deepEqual(summary('2 milk', { ...LIST, readsAmount: false }).lines, [['2 milk', null, 0]]);
+});
+
+test('lines split up to the bound, the rest kept', () => {
+  const many = Array.from({ length: MAX_CAPTURE_LINES + 2 }, (_, index) => `line ${index}`).join('\n');
+  const split = readLinesOf(many, LIST, read);
+  assert.equal(split.lines.length, MAX_CAPTURE_LINES);
+  assert.equal(split.rest, `line ${MAX_CAPTURE_LINES}\nline ${MAX_CAPTURE_LINES + 1}`);
+});
+
+test('the amount is sent only where it was read', () => {
+  const place = { collectionId: 'c', type: 'TASK' };
+  const clock = { now: 0, zone: 'UTC' };
+  assert.equal(bodyOf(reading('milk'), place, clock, '2').amount, '2');
+  assert.equal('amount' in bodyOf(reading('milk'), place, clock), false);
 });
 
 test('the body carries exactly what the chips say, the due date in the person’s zone', () => {

@@ -22,12 +22,17 @@
   // Somebody without the right to shape the workspace may create *only* a private hub of their own
   // (UC-ID-16 check 1): for them the dialog is that and nothing else - no switch, the hub is private.
   // Whoever opens it decides which, from the manifest (`hubCreation`).
+  //
+  // *How much structure* (UC-WRK-23 check 1): one of the presets, or nothing chosen - a collection
+  // then follows its hub, now and later, and a hub starts from the workspace's default preset.
+  // Offered where the installation answers presets; without them the server decides as before.
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Input, Stack, Switch, Textarea } from '@hubtask/design-system/components';
+  import { Button, Dialog, Input, Radio, Stack, Switch, Textarea } from '@hubtask/design-system/components';
 
   import { containers } from '../data/containers.svelte.ts';
+  import { presets } from '../data/presets.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
@@ -58,6 +63,8 @@
   let name = $state('');
   let description = $state('');
   let isPrivate = $state(false);
+  /** The preset chosen, or empty for the hub's (a collection) or the workspace's default (a hub). */
+  let preset = $state('');
   let symbol = $state<PlaceSymbol | undefined>(undefined);
   let colour = $state<LabelToken | undefined>(undefined);
   let isSaving = $state(false);
@@ -70,6 +77,7 @@
     name = '';
     description = '';
     isPrivate = false;
+    preset = '';
     symbol = undefined;
     colour = undefined;
     failure = undefined;
@@ -77,6 +85,21 @@
   });
 
   const isHub = $derived(type === 'HUB');
+
+  $effect(() => {
+    if (!isOpen) return;
+    return untrack(() => presets.open());
+  });
+  const presetOptions = $derived(
+    presets.all.length === 0
+      ? []
+      : [
+          isHub
+            ? { value: '', label: t('app.structure.preset_workspace_default'), hint: t('app.structure.preset_workspace_default_about') }
+            : { value: '', label: t('app.structure.preset_follow_hub'), hint: t('app.structure.preset_follow_hub_about') },
+          ...presets.all.map((each) => ({ value: each.key as string, label: t(`app.structure.preset.${each.key}`), hint: t(`app.structure.preset_about.${each.key}`) })),
+        ],
+  );
 
   $effect(() => {
     if (!isOpen || type !== 'HUB' || isPrivateOnly) return;
@@ -111,6 +134,7 @@
           description: description.trim() === '' ? null : description.trim(),
           ...lookBody(symbol, colour),
           ...(isPrivateHubOnly || (isPrivacyOffered && isPrivate) ? { private: true } : {}),
+          ...(preset !== '' ? { preset: preset as 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' } : {}),
         },
         crypto.randomUUID(),
       );
@@ -144,6 +168,9 @@
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
     <LookFields {type} bind:symbol bind:colour />
+    {#if presetOptions.length > 0}
+      <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
+    {/if}
     {#if isPrivateHubOnly}
       <p class="private">{t('app.workspace.private_hint')}</p>
     {:else if isPrivacyOffered}

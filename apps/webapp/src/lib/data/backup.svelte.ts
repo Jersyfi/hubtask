@@ -218,12 +218,13 @@ class Backup {
    * `refresh` bypasses the server's cache, which is what a reader asks for after a run they
    * watched finish — the cached answer is from before it.
    */
-  async readArchives(targetId: string, refresh = false): Promise<void> {
+  async readArchives(targetId: string, refresh = false, withRuns = true): Promise<void> {
     const path = `${TARGETS}/${targetId}/backups${refresh ? '?refresh=true' : ''}`;
     this.#archives = { ...this.#archives, [targetId]: { status: 'loading' } };
     const answer = await engine.refresh<readonly Archive[]>({ path });
     this.#archives = { ...this.#archives, [targetId]: answer };
-    if (answer.status !== 'ready') return;
+    // The administration's overview reads only the newest archive's run, not one per archive.
+    if (answer.status !== 'ready' || !withRuns) return;
     for (const archive of answer.data) await this.readRun(archive.archive_id);
   }
 

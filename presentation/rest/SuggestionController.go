@@ -30,6 +30,7 @@ const (
 	aiGenerateTemplateUseCase   = "AiGenerateTemplate"
 	describeRuleUseCase         = "DescribeRule"
 	makeEntriesUseCase          = "MakeEntries"
+	askWorkspaceUseCase         = "AskWorkspace"
 )
 
 // The three actions automation.md §1.3 documents, served over REST as well because an automation
@@ -237,6 +238,29 @@ func (c *RestController) DescribeRule(
 	}
 	out, err := c.UseCases.Invoke(r.Context(), describeRuleUseCase, actorOf(r),
 		usecase.Input{"scope": scope, "description": body.Description})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusAccepted, acceptedAsk(out))
+}
+
+// AskWorkspace answers POST /ask: 202 with the job that answers the question.
+func (c *RestController) AskWorkspace(
+	w http.ResponseWriter, r *http.Request, _ openapi.AskWorkspaceParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.WorkspaceQuestion
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), askWorkspaceUseCase, actorOf(r),
+		usecase.Input{"question": body.Question})
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return

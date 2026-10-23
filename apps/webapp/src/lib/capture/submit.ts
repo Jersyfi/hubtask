@@ -18,10 +18,8 @@ import type { WorkItem } from '@hubtask/sync-engine';
 import type { JumbleEntry } from '../data/jumble.svelte.ts';
 
 import { dueInputFor } from '../data/due.ts';
+import { capture, parseLine, type CaptureRules } from '../entries/capture.ts';
 import { dueOf, type Reading } from './parse.ts';
-
-/** How many entries one Enter makes at most; the rest stays in the field. */
-export const MAX_LINES = 100;
 
 /** The stores, as far as a capture writes to them. */
 export interface Writer {
@@ -38,22 +36,37 @@ export interface CreateBody {
   readonly due_time_zone?: string;
   readonly assignee_id?: string;
   readonly label_ids?: readonly string[];
+  readonly amount?: string;
 }
 
-/** The lines one Enter makes into entries: each its own where lines split, else one line. */
-export function linesOf(text: string, splitsLines: boolean): { readonly lines: readonly string[]; readonly rest: string } {
-  const typed = text.split(/\r?\n/u);
-  if (!splitsLines) {
-    const line = typed.join(' ').replace(/\s+/gu, ' ').trim();
-    return { lines: line === '' ? [] : [line], rest: '' };
-  }
-  const lines: string[] = [];
-  let index = 0;
-  for (; index < typed.length && lines.length < MAX_LINES; index += 1) {
-    const line = (typed[index] ?? '').trim();
-    if (line !== '') lines.push(line);
-  }
-  return { lines, rest: typed.slice(index).filter((line) => line.trim() !== '').join('\n') };
+/** One line of a capture, as the target reads it: its chips, its title, its leading amount. */
+export interface ReadLine {
+  /** The line as it goes back into the field when it is not created. */
+  readonly line: string;
+  readonly reading: Reading;
+  readonly amount?: string;
+}
+
+/**
+ * The lines one Enter makes into entries, by the one rule both capture fields read a collection by
+ * (`captureRulesOf`): each its own where lines split, else one; each read by `read` - the chips -
+ * and then its leading amount off the title that is left, so "tomorrow 2 kg apples" and "2 kg
+ * apples tomorrow" both carry the amount.
+ */
+export function readLinesOf(
+  text: string,
+  rules: CaptureRules,
+  read: (line: string) => Reading,
+): { readonly lines: readonly ReadLine[]; readonly rest: string } {
+  const { lines, rest } = capture(text, { ...rules, readsAmount: false });
+  return {
+    lines: lines.map(({ title: line }) => {
+      const reading = read(line);
+      const { title, amount } = parseLine(reading.title, rules);
+      return { line, reading: { ...reading, title }, ...(amount ? { amount } : {}) };
+    }),
+    rest,
+  };
 }
 
 /** The create request for one read line. Only what the chips say is sent; nothing is guessed. */
@@ -61,6 +74,7 @@ export function bodyOf(
   reading: Reading,
   place: { readonly collectionId: string; readonly type: string },
   clock: { readonly now: number; readonly zone: string },
+  amount?: string,
 ): CreateBody {
   const due = dueOf(reading.chips, clock);
   const wire = due ? dueInputFor(due, clock.zone) : undefined;
@@ -73,6 +87,7 @@ export function bodyOf(
     ...(wire ?? {}),
     ...(assignee ? { assignee_id: assignee } : {}),
     ...(labels.length > 0 ? { label_ids: labels } : {}),
+    ...(amount ? { amount } : {}),
   };
 }
 

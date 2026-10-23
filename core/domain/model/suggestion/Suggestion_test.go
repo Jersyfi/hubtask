@@ -262,7 +262,7 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	if domain.TargetType("COMMENT").Valid() || domain.Status("PENDING").Valid() {
 		t.Error("an invented value reports itself valid")
 	}
-	if len(domain.Kinds()) != 6 || len(domain.TargetTypes()) != 4 || len(domain.Statuses()) != 3 {
+	if len(domain.Kinds()) != 7 || len(domain.TargetTypes()) != 4 || len(domain.Statuses()) != 3 {
 		t.Error("a value was added to a closed set without this test being told")
 	}
 	if domain.StatusProposed.Decided() {
@@ -270,6 +270,9 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	}
 	if !domain.KindRule.Valid() || !domain.TargetAccount.Valid() {
 		t.Error("a rule draft about its asker is not a suggestion this build can record")
+	}
+	if !domain.KindAnswer.Valid() {
+		t.Error("an answer to its asker is not a suggestion this build can record")
 	}
 }
 

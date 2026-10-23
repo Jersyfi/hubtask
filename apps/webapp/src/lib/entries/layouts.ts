@@ -10,6 +10,8 @@
 
 import type { Capabilities, Container } from '@hubtask/sync-engine';
 
+import { narrowedTo } from '../data/offer.ts';
+
 /** The layouts this client can actually draw. */
 export const DRAWABLE: readonly string[] = ['LIST_COLLAPSED', 'LIST_EXPANDED', 'KANBAN', 'TIMELINE'];
 
@@ -20,8 +22,9 @@ const LISTS = ['LIST_COLLAPSED', 'LIST_EXPANDED'];
 export const isListLayout = (layout: string): boolean => LISTS.includes(layout);
 
 /**
- * The layouts a collection can be shown in here: those the manifest reports **and** this client
- * draws, the list once (the collapsed value where reported). A hub has none.
+ * The layouts a collection can be shown in here: those the manifest reports, the collection's
+ * structure offers (UC-WRK-23 check 4) **and** this client draws, the list once (the collapsed
+ * value where offered). A hub has none.
  *
  * A layout reported and not drawable is drawn by the screen's switch with its reason; it is not in
  * this list, which is what may be chosen.
@@ -32,7 +35,7 @@ export function layoutsOffered(
   drawable: readonly string[] = DRAWABLE,
 ): readonly string[] {
   if (container.type !== 'COLLECTION') return [];
-  const reported = (manifest?.view_layouts ?? []) as readonly string[];
+  const reported = (narrowedTo(manifest, container.structure?.settings)?.view_layouts ?? []) as readonly string[];
   const offered = reported.filter((layout) => drawable.includes(layout));
   const list = offered.find((layout) => layout === 'LIST_COLLAPSED') ?? offered.find(isListLayout);
   const rest = offered.filter((layout) => !isListLayout(layout));

@@ -67,12 +67,11 @@ export interface Destination {
 }
 
 export const DESTINATIONS: readonly Destination[] = [
-  // The primary group: the three spaces one moves between. The word for the first is the
-  // workspace's own title rather than "Home", because the destination *is* the workspace.
-  // `app.nav.overview` and not `app.workspace.title`: since ADR-0063 decision 1 the first
-  // destination is the overview - what is on the reader - rather than a list of the hubs the tree
-  // below it lists. The workspace keeps its own name for what the workspace is called.
-  { id: 'workspace', group: 'primary', icon: 'workspace', code: 'app.nav.overview', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
+  // The primary group: the three spaces one moves between. The first is *Today* (UC-WRK-34):
+  // what is the reader's today across every hub, the page the app opens on - not a list of the
+  // hubs the tree below it lists (ADR-0063 decision 1). Its id stays `workspace`, the key the
+  // drawings and the walks know it by; the workspace keeps its own name for what it is called.
+  { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
   { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
   // Capture: the phone's ＋ between Search and the jumble (ux-inventory.md §E0). Only the bottom bar
   // draws it; from `medium` up the bar carries *Capture* as a button of its own, and the column
@@ -175,21 +174,29 @@ export interface SectionGroup {
   readonly rows: readonly SectionRow[];
 }
 
-/** The marks come from the set ADR-0041 declares. */
+/**
+ * The marks come from the set ADR-0041 declares. The groups are the new order's
+ * (`ux-inventory.md` §E0): workspace and people · sign-in · automation · data · records · AI, under
+ * the way out and the overview. Every page is one row away, so it is reached in at most two steps
+ * from anywhere in the section (UC-ID-24 check 3).
+ */
 export const ADMINISTRATION: readonly SectionGroup[] = [
   // The way back, first and alone: a section a reader cannot leave is a trap, and the row that
-  // leads out is the one they look for at the top rather than at the foot.
+  // leads out is the one they look for at the top rather than at the foot. The overview beside
+  // it is the section's front door (UC-ID-24 check 1).
   {
     id: 'back',
     rows: [
       { id: 'back', icon: 'chevron-left', code: 'app.admin.back', path: '/', routes: [] },
+      { id: 'overview', icon: 'gauge', code: 'app.admin_overview.title', path: '/administration', routes: ['administration'] },
     ],
   },
   {
-    id: 'workspace',
-    code: 'app.admin.group_workspace',
+    id: 'people',
+    code: 'app.admin.group_people',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
+      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people'] },
       { id: 'groups', icon: 'users', code: 'app.admin.groups', path: '/administration/groups', routes: ['groups'] },
       { id: 'permissions', icon: 'shield', code: 'app.admin.permissions', path: '/administration/permissions', routes: ['permissions'] },
@@ -198,22 +205,28 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     ],
   },
   {
-    id: 'automatic',
-    code: 'app.admin.group_automatic',
+    id: 'sign-in',
+    code: 'app.admin.group_sign_in',
+    rows: [
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
+      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
+    ],
+  },
+  {
+    id: 'automation',
+    code: 'app.admin.group_automation',
     rows: [
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
-      // `rule-editor` was a name no route has, which is exactly what it said.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
       { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
     ],
   },
   {
-    id: 'holds',
-    code: 'app.admin.group_holds',
+    id: 'data',
+    code: 'app.admin.group_data',
     rows: [
-      { id: 'quotas', icon: 'gauge', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
       // Drawn only where a private hub exists or more than one person is here (`administration`
       // below): the page is also where *Private hubs allowed* is set, and a workspace of one has
       // neither a hub to show nor anybody to keep one from.
@@ -224,19 +237,17 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     ],
   },
   {
-    id: 'record',
-    code: 'app.admin.group_record',
+    id: 'records',
+    code: 'app.admin.group_records',
     rows: [
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
       { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
     ],
   },
   {
-    id: 'entry',
-    code: 'app.admin.group_entry',
+    id: 'ai',
+    code: 'app.admin.group_ai',
     rows: [
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings'] },
-      { id: 'identity-provider', icon: 'globe', code: 'app.admin.identity_provider', path: '/administration/identity-provider', routes: ['identity-provider'] },
       { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
   },
@@ -520,10 +531,9 @@ export function currentDestination(route: { readonly name: string | null; readon
 /**
  * The screen a section's own address opens (ADR-0065 decision 1).
  *
- * A section with a navigation column needs no overview, because the column *is* the overview: an
- * index beside it is the same list drawn twice, and arriving at it means arriving at a page of
- * links to where the reader was already going. So `/administration` answers with the section's
- * first screen.
+ * A section needs no index, because the column already lists every screen: an index beside it is
+ * the same list drawn twice. An overview is not an index - it says what needs attention - so the
+ * administration's and the installation's first rows are theirs (UC-ID-24, UC-INS-12).
  *
  * The first row with a route of its own, which is what skips the way back: that row leads out of
  * the section, and a front door that led out would be a door somebody falls through.

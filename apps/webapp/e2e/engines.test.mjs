@@ -71,6 +71,8 @@ async function stub(route) {
   if (url.pathname.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
     return route.fulfill({ json: { ...EMPTY_PAGE, data: [HUB] } });
   }
+  // A bare list, as the contract answers it - not a page: the create dialog reads it.
+  if (url.pathname.endsWith('/api/v1/presets')) return route.fulfill({ json: [] });
   return route.fulfill({ json: EMPTY_PAGE });
 }
 
@@ -113,9 +115,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    // The workspace page's primary action; the tree at the side offers the same
-    // verb, which is why the name alone is not enough.
-    const createHub = page.locator('[data-opener="add-hub"]');
+    // *Today*, drawn: the page the app opens on, past the session and the manifest.
+    await page.getByRole('region', { name: 'On you' }).waitFor({ state: 'visible', timeout: 15_000 });
+    // The navigation's way to make a hub: the dialog this walk opens below.
+    const createHub = page.getByRole('button', { name: 'Create hub', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 

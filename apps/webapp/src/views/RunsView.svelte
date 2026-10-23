@@ -199,7 +199,19 @@
 
 <div class="screen">
   <Stack gap="300">
-    <PageHeader title={t('app.runs.title')} subtitle={t('app.runs.intro')} isTitleInBar={viewport.isCompact}>
+    <PageHeader
+      title={t('app.runs.title')}
+      subtitle={t('app.runs.intro')}
+      isTitleInBar={viewport.isCompact}
+      breadcrumb={{
+        trail: [
+          { id: 'administration', label: t('app.admin.title'), href: '/administration' },
+          { id: 'screen', label: t('app.runs.title') },
+        ],
+        label: t('app.admin.trail'),
+        expandLabel: t('app.admin.expand_trail'),
+      }}
+    >
       {#snippet notices()}
         {#if failure}
           <Banner tone="danger" title={failure.message}>

@@ -27,7 +27,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Input, PageHeader, SearchField, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, Input, PageHeader, SearchField, Select, Spinner, Stack, Textarea } from '@hubtask/design-system/components';
 
   import type { RetentionDataKind as DataKind, WorkItem } from '@hubtask/sync-engine';
 
@@ -56,6 +56,8 @@
 
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
+  /** The rule being asked about before it is withdrawn - final, so it confirms (ux-inventory §E10). */
+  let withdrawing = $state<string | undefined>(undefined);
 
   let draftKind = $state('');
   let draftDays = $state('30');
@@ -416,7 +418,7 @@
                   tone="subtle"
                   isBusy={isWorking}
                   busyLabel={t('app.retention.withdrawing')}
-                  onclick={() => void attempt(() => policies.withdraw(policy.id), t('app.retention.withdrawn_announced'))}
+                  onclick={() => (withdrawing = policy.id)}
                 >
                   {t('app.retention.withdraw')}
                 </Button>
@@ -692,6 +694,34 @@
     </Stack>
     </Stack>
 </Stack>
+
+
+{#if withdrawing}
+  {@const policy = withdrawing}
+  <Dialog
+    isOpen={true}
+    title={t('app.retention.withdraw_title')}
+    dismissLabel={t('app.workspace.cancel')}
+    onClose={() => (withdrawing = undefined)}
+  >
+    <p>{t('app.retention.withdraw_note')}</p>
+    {#snippet actions()}
+      <Button tone="secondary" onclick={() => (withdrawing = undefined)}>{t('app.workspace.cancel')}</Button>
+      <Button
+        tone="danger"
+        isBusy={isWorking}
+        busyLabel={t('app.retention.withdrawing')}
+        onclick={async () => {
+          // Closed either way: a refusal is said in the page's banner, not behind the dialog.
+          await attempt(() => policies.withdraw(policy), t('app.retention.withdrawn_announced'));
+          withdrawing = undefined;
+        }}
+      >
+        {t('app.retention.withdraw')}
+      </Button>
+    {/snippet}
+  </Dialog>
+{/if}
 
 <style>
   /* The screen takes the region it is given, and what needs a measure carries one: prose has the

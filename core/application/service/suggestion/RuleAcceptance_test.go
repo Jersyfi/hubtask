@@ -110,10 +110,21 @@ func TestADraftIsAnsweredOnlyByThePersonWhoAsked(t *testing.T) {
 
 	narrow := drafter()
 	narrow.Scopes = []string{suggestionsRead, suggestionsWrite}
-	if _, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), narrow, ListQuery{
+	if page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), narrow, ListQuery{
+		TargetType: domain.TargetAccount, TargetID: accountID,
+	}); err != nil || len(page.Items) != 0 {
+		t.Errorf("a token without automation:manage listed the draft: %v, %d", err, len(page.Items))
+	}
+	if _, err := (DismissSuggestion{Cases: cases}).Execute(context.Background(), narrow, draftID); shared.AsError(err) == nil ||
+		shared.AsError(err).DetailCode != "access.insufficient_scope" {
+		t.Errorf("a token without automation:manage dismissed the draft: %v", err)
+	}
+	none := drafter()
+	none.Scopes = []string{"hubs:read"}
+	if _, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), none, ListQuery{
 		TargetType: domain.TargetAccount, TargetID: accountID,
 	}); shared.AsError(err) == nil || shared.AsError(err).DetailCode != "access.insufficient_scope" {
-		t.Errorf("a token without automation:manage listed the draft: %v", err)
+		t.Errorf("a token with neither scope listed the suggestions about its account: %v", err)
 	}
 
 	page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), drafter(), ListQuery{
@@ -135,4 +146,34 @@ func TestADraftIsAnsweredOnlyByThePersonWhoAsked(t *testing.T) {
 func notFound(err error) bool {
 	detail := shared.AsError(err)
 	return detail != nil && detail.DetailCode == "suggestions.not_found"
+}
+
+// Anything about the asker other than a rule draft is no configuration: a token holding the
+// suggestions' scope lists and answers it without automation's, and a token for automation alone
+// does not see it.
+func TestASuggestionForTheAskerOtherThanARuleIsReadUnderTheSuggestionsScope(t *testing.T) {
+	cases, w := newWorld()
+	other := ruleDraftFor(accountID)
+	other.Kind = domain.KindDuplicates
+	w.store.proposals[draftID] = other
+
+	automationOnly := drafter()
+	automationOnly.Scopes = []string{automationScope}
+	if page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), automationOnly, ListQuery{
+		TargetType: domain.TargetAccount, TargetID: accountID,
+	}); err != nil || len(page.Items) != 0 {
+		t.Errorf("a token for automation alone listed it: %v, %d", err, len(page.Items))
+	}
+
+	items := drafter()
+	items.Scopes = []string{suggestionsRead, suggestionsWrite}
+	page, err := (ListSuggestions{Cases: cases}).Execute(context.Background(), items, ListQuery{
+		TargetType: domain.TargetAccount, TargetID: accountID,
+	})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("a token with the suggestions' scope does not see it: %v, %d", err, len(page.Items))
+	}
+	if _, err := (DismissSuggestion{Cases: cases}).Execute(context.Background(), items, draftID); err != nil {
+		t.Errorf("a token with the suggestions' scope could not dismiss it: %v", err)
+	}
 }

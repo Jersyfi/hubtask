@@ -127,6 +127,10 @@ const (
 	// KindRule proposes an automation rule drafted from a sentence. Its own kind by the rule above:
 	// accepting it writes a rule, switched off, rather than an entry or a template.
 	KindRule Kind = "RULE"
+	// KindAnswer is a proposed answer to a person's question about the workspace, about the
+	// account that asked. Its own kind by the rule above: like a duplicate, accepting it would do
+	// nothing - an answer performs no action - and `:dismiss` is what closes it.
+	KindAnswer Kind = "ANSWER"
 	// KindEntries proposes entries for a collection, made from a piece of text the asker pasted,
 	// about the account that asked. Its own kind by the rule above: accepting creates entries side
 	// by side in a collection rather than changing one or growing a tree under one - and, alone of
@@ -134,7 +138,7 @@ const (
 	KindEntries Kind = "ENTRIES"
 )
 
-var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate, KindRule, KindEntries}
+var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate, KindRule, KindAnswer, KindEntries}
 
 // Kinds is the closed set, in the contract's order.
 func Kinds() []Kind { return slices.Clone(kinds) }

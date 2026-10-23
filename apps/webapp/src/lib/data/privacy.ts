@@ -158,12 +158,23 @@ export interface Phrase {
 }
 
 /**
+ * What the reader holds on the workspace, as the server asks it of a case's steps: `MANAGE_MEMBERS`
+ * for every step, the owner's `DELETE_CONTAINER` for starting an erasure (data-protection.md §4).
+ * A prediction from the manifest; the server decides (rule 2).
+ */
+export interface Reader {
+  readonly mayManage: boolean;
+  readonly mayDestroy: boolean;
+}
+
+/**
  * Whether the row offers any control that moves the case: start, complete, refuse, the erasure
  * mode, the extension. Not on an installation-wide case, which is the operator's (UC-PRV-06/6):
  * a control the server refuses without `admin:tenants` is a control that cannot succeed (P-05).
+ * Nor for a reader without `MANAGE_MEMBERS`, for the same reason.
  */
-export function canAct(request: Request): boolean {
-  return request.scope !== 'INSTALLATION';
+export function canAct(request: Request, reader: Reader): boolean {
+  return reader.mayManage && request.scope !== 'INSTALLATION';
 }
 
 /**
@@ -171,8 +182,8 @@ export function canAct(request: Request): boolean {
  * to the workspace as much as to the person, so the server asks the owner's `DELETE_CONTAINER` for
  * it (data-protection.md §4) - and a reader without it is not offered a start that is refused.
  */
-export function canStart(request: Request, mayDestroy: boolean): boolean {
-  return canAct(request) && request.status === 'RECEIVED' && (request.kind !== 'ERASURE' || mayDestroy);
+export function canStart(request: Request, reader: Reader): boolean {
+  return canAct(request, reader) && request.status === 'RECEIVED' && (request.kind !== 'ERASURE' || reader.mayDestroy);
 }
 
 /**
@@ -189,8 +200,8 @@ export function confirmsStart(request: Request): boolean {
  * The server says when: `extendable_until` is answered while the case is open, not yet extended
  * and before its deadline. And only where the row may act at all.
  */
-export function canExtend(request: Request): boolean {
-  return canAct(request) && typeof request.extendable_until === 'string' &&
+export function canExtend(request: Request, reader: Reader): boolean {
+  return canAct(request, reader) && typeof request.extendable_until === 'string' &&
     request.extendable_until !== '';
 }
 

@@ -29,6 +29,7 @@
   import { plans } from '../lib/data/plans.svelte.ts';
   import { localesOf, zoneOptions } from '../lib/data/preferences.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
+  import { installationTrail } from '../lib/instance/trail.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -191,14 +192,10 @@
   <PageHeader
     title={plan?.display_name ?? t('app.instance.plans')}
     isTitleInBar={viewport.isCompact}
-    breadcrumb={{
-      trail: [
-        { id: 'plans', label: t('app.instance.plans'), href: '/instance/plans' },
-        { id: 'plan', label: plan?.display_name ?? name },
-      ],
-      label: t('app.admin.trail'),
-      expandLabel: t('app.admin.expand_trail'),
-    }}
+    breadcrumb={installationTrail(
+      { id: 'plans', label: t('app.instance.plans'), href: '/instance/plans' },
+      { id: 'plan', label: plan?.display_name ?? name },
+    )}
   />
 
   <InstanceGate onleave={() => onnavigate('/')}>

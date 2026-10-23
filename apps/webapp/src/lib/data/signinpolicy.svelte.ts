@@ -21,6 +21,7 @@
 import { TransportError, type ResourceState, type WorkspacePasswordOpening } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { etagFor } from './etag.ts';
 import { stepUp } from './stepup.svelte.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
@@ -211,8 +212,8 @@ class SignInPolicyStore {
   /**
    * Writes the switches that changed.
    *
-   * Merge-patch, so an omitted switch is left alone - which is what makes it safe for two
-   * administrators to change two different things without one of them reverting the other.
+   * Merge-patch, so an omitted switch is left alone; and against the version read (`#patch`), so a
+   * second administrator's save made from an older reading is refused rather than winning.
    *
    * **Behind a step-up.** A workspace's sign-in rule is what decides whether a stolen tab can
    * weaken the way in, so the server demands a fresh proof for this one patch and for no other -
@@ -224,9 +225,7 @@ class SignInPolicyStore {
     this.#problem = undefined;
     this.#saved = false;
     try {
-      this.#workspace = await stepUp.around((stepUpToken) =>
-        engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes }, { stepUpToken }),
-      );
+      this.#workspace = await this.#patch(changes);
       this.#saved = true;
       return true;
     } catch (cause) {
@@ -250,14 +249,36 @@ class SignInPolicyStore {
    */
   async saveAtOnce(changes: Record<string, unknown>): Promise<RenderedProblem | undefined> {
     try {
-      this.#workspace = await stepUp.around((stepUpToken) =>
-        engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes }, { stepUpToken }),
-      );
+      this.#workspace = await this.#patch(changes);
       return undefined;
     } catch (cause) {
       return cause instanceof TransportError
         ? renderProblem(cause, messages)
         : { message: messages.t('errors.internal', {}), fields: new Map(), isServerFault: true };
+    }
+  }
+
+  /**
+   * One patch of the rule, against the version this reader holds (ADR-0025).
+   *
+   * `methods` travels whole, so without the version two administrators switching two different ways
+   * from the same reading would each write back the other's way as they read it. The version is the
+   * one the last answer carried - a save's answer replaces the read - so a switch made right after a
+   * save is not refused against the reader's own write. A stale one comes back as
+   * `workspace.version_conflict`, said where the save was made, and the rule is read again.
+   */
+  async #patch(changes: Record<string, unknown>): Promise<Workspace> {
+    try {
+      return await stepUp.around((stepUpToken) => {
+        const version = this.#workspace?.version;
+        return engine.mutate<Workspace>('PATCH', TENANT, { sign_in_policy: changes }, {
+          stepUpToken,
+          ifMatch: version === undefined ? undefined : etagFor(version),
+        });
+      });
+    } catch (cause) {
+      if (cause instanceof TransportError && cause.isVersionConflict) this.retry();
+      throw cause;
     }
   }
 

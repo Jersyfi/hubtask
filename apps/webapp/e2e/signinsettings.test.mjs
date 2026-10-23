@@ -876,3 +876,60 @@ test('chromium: passkeys switch on and off beside the password, which keeps them
   await new Promise((resolve) => setTimeout(resolve, 500));
   assert.deepEqual(patches[0], ['PASSWORD', 'OIDC', 'PASSKEY']);
 });
+
+// ADR-0025: every save of the rules states the version it was made from, so a way one
+// administrator switches cannot be written back by another who read before them. A switch made
+// after a save states the version that save answered, and a refusal is said at the switch.
+test('chromium: the rules and the ways are saved against the version they were read at', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const preconditions = [];
+  const offered = policy();
+  offered.methods = rule(['PASSWORD', 'OIDC'], ['PASSWORD', 'OIDC', 'PASSKEY']);
+  let version = WORKSPACE.version;
+  let refuseNext = false;
+  const { page, close } = await open(browser, (route, path) => {
+    const request = route.request();
+    if (path === '/tenant' && request.method() === 'GET') {
+      return route.fulfill({ json: { ...WORKSPACE, version, sign_in_policy: offered } });
+    }
+    if (path === '/tenant' && request.method() === 'PATCH') {
+      preconditions.push(request.headers()['if-match']);
+      if (refuseNext) {
+        return route.fulfill({
+          status: 409,
+          json: { code: 'version_conflict', detail_code: 'workspace.version_conflict', status: 409, request_id: 'r1' },
+        });
+      }
+      const changes = request.postDataJSON().sign_in_policy ?? {};
+      if (changes.methods) offered.methods = rule(changes.methods, ['PASSWORD', 'OIDC', 'PASSKEY'], { source: 'WORKSPACE' });
+      version += 1;
+      return route.fulfill({ json: { ...WORKSPACE, version, sign_in_policy: offered } });
+    }
+    if (path === '/identity-providers') {
+      return route.fulfill({ json: [provider('own', 'Contoso Entra ID', 'workspace')] });
+    }
+    return undefined;
+  });
+  t.after(close);
+
+  await page.goto(`${served.origin}/administration/sign-in`);
+  const field = page.getByLabel('End a session after, in days', { exact: true });
+  await field.waitFor();
+  await field.fill('20');
+  await field.press('Enter');
+  await page.getByText('The sign-in rules were saved.').first().waitFor();
+  assert.deepEqual(preconditions, ['"3"'], 'the rules were saved without the version they were read at');
+
+  const list = page.getByRole('list', { name: 'Ways to sign in' });
+  const passkeys = list.getByRole('listitem').filter({ hasText: 'Passkeys' }).locator('input');
+  await passkeys.check();
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.deepEqual(preconditions, ['"3"', '"4"'], 'a way was switched without the version the last save answered');
+
+  refuseNext = true;
+  await passkeys.uncheck();
+  const row = list.getByRole('listitem').filter({ hasText: 'Passkeys' });
+  await row.getByText('Somebody else changed the workspace.').waitFor();
+  assert.equal(preconditions.length, 3);
+});

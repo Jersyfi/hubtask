@@ -4532,6 +4532,7 @@ func (e SuggestionSource) Valid() bool {
 
 // Defines values for SuggestionKind.
 const (
+	ANSWER        SuggestionKind = "ANSWER"
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
 	ENTRIES       SuggestionKind = "ENTRIES"
@@ -4543,6 +4544,8 @@ const (
 // Valid indicates whether the value is a known member of the SuggestionKind enum.
 func (e SuggestionKind) Valid() bool {
 	switch e {
+	case ANSWER:
+		return true
 	case DECOMPOSITION:
 		return true
 	case DUPLICATES:
@@ -5396,14 +5399,14 @@ type AcceptedSuggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -5420,7 +5423,7 @@ type AcceptedSuggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -11089,14 +11092,14 @@ type Suggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -11113,7 +11116,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -11135,7 +11138,7 @@ type SuggestionAcceptance struct {
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 // `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-// `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
+// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 // `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -11149,7 +11152,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text: only that account lists, accepts or dismisses it.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -12122,6 +12125,12 @@ type WorkspacePasswordOpening struct {
 	Until time.Time `json:"until"`
 }
 
+// WorkspaceQuestion One question to the workspace.
+type WorkspaceQuestion struct {
+	// Question The question, in the caller's own words. It travels to the provider as content, never as instruction.
+	Question string `json:"question"`
+}
+
 // WorkspaceStructure The workspace's own structure: the values every hub and collection inherits unless it has its own, the locks that bind them all, and the preset a new hub starts from.
 type WorkspaceStructure struct {
 	// DefaultPreset The preset a hub created without one starts from. Collections follow their hub.
@@ -12508,6 +12517,12 @@ type ReadUsageParams struct {
 	Workspace *openapi_types.UUID `form:"workspace,omitempty" json:"workspace,omitempty"`
 	Cursor    *Cursor             `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size      *PageSize           `form:"size,omitempty" json:"size,omitempty"`
+}
+
+// AskWorkspaceParams defines parameters for AskWorkspace.
+type AskWorkspaceParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // ListAuditEntriesParams defines parameters for ListAuditEntries.
@@ -13664,6 +13679,9 @@ type ConfigureAiProviderJSONRequestBody = AiProviderConfiguration
 
 // ChooseAiSourceJSONRequestBody defines body for ChooseAiSource for application/json ContentType.
 type ChooseAiSourceJSONRequestBody = AiSourceChoice
+
+// AskWorkspaceJSONRequestBody defines body for AskWorkspace for application/json ContentType.
+type AskWorkspaceJSONRequestBody = WorkspaceQuestion
 
 // ConfigureAuditAnchoringJSONRequestBody defines body for ConfigureAuditAnchoring for application/json ContentType.
 type ConfigureAuditAnchoringJSONRequestBody = AuditAnchoringConfiguration
@@ -15434,6 +15452,26 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskWorkspaceWithBody Ask the workspace a question
+	//
+	// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+	// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /ask (the `AskWorkspace` operationId).
+	AskWorkspaceWithBody(ctx context.Context, params *AskWorkspaceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AskWorkspace Ask the workspace a question
+	//
+	// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+	// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /ask (the `AskWorkspace` operationId).
+	AskWorkspace(ctx context.Context, params *AskWorkspaceParams, body AskWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListAuditEntries Query audit entries
 	//
@@ -21653,6 +21691,46 @@ func (c *Client) ChooseAiSourceWithBody(ctx context.Context, contentType string,
 // Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 func (c *Client) ChooseAiSource(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChooseAiSourceRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskWorkspaceWithBody Ask the workspace a question
+//
+// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /ask (the `AskWorkspace` operationId).
+func (c *Client) AskWorkspaceWithBody(ctx context.Context, params *AskWorkspaceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskWorkspaceRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AskWorkspace Ask the workspace a question
+//
+// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /ask (the `AskWorkspace` operationId).
+func (c *Client) AskWorkspace(ctx context.Context, params *AskWorkspaceParams, body AskWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAskWorkspaceRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -33019,6 +33097,61 @@ func NewChooseAiSourceRequestWithBody(server string, contentType string, body io
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewAskWorkspaceRequest calls the generic AskWorkspace builder with application/json body
+func NewAskWorkspaceRequest(server string, params *AskWorkspaceParams, body AskWorkspaceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAskWorkspaceRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewAskWorkspaceRequestWithBody constructs an http.Request for the AskWorkspace method, with any body, and a specified content type
+func NewAskWorkspaceRequestWithBody(server string, params *AskWorkspaceParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/ask")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
 
 	return req, nil
 }
@@ -47884,6 +48017,26 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /ai-source (the `ChooseAiSource` operationId).
 	ChooseAiSourceWithResponse(ctx context.Context, body ChooseAiSourceJSONRequestBody, reqEditors ...RequestEditorFn) (*ChooseAiSourceResult, error)
 
+	// AskWorkspaceWithBodyWithResponse Ask the workspace a question
+	//
+	// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+	// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ask (the `AskWorkspace` operationId).
+	AskWorkspaceWithBodyWithResponse(ctx context.Context, params *AskWorkspaceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskWorkspaceResult, error)
+
+	// AskWorkspaceWithResponse Ask the workspace a question
+	//
+	// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+	// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /ask (the `AskWorkspace` operationId).
+	AskWorkspaceWithResponse(ctx context.Context, params *AskWorkspaceParams, body AskWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*AskWorkspaceResult, error)
+
 	// ListAuditEntriesWithResponse Query audit entries
 	//
 	// Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
@@ -55908,6 +56061,61 @@ func (r ChooseAiSourceResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChooseAiSourceResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AskWorkspaceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r AskWorkspaceResult) GetJSON202() *JobRef {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AskWorkspaceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r AskWorkspaceResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r AskWorkspaceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AskWorkspaceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AskWorkspaceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AskWorkspaceResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -71774,6 +71982,38 @@ func (c *ClientWithResponses) ChooseAiSourceWithResponse(ctx context.Context, bo
 	return ParseChooseAiSourceResult(rsp)
 }
 
+// AskWorkspaceWithBodyWithResponse Ask the workspace a question
+//
+// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ask (the `AskWorkspace` operationId).
+func (c *ClientWithResponses) AskWorkspaceWithBodyWithResponse(ctx context.Context, params *AskWorkspaceParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AskWorkspaceResult, error) {
+	rsp, err := c.AskWorkspaceWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskWorkspaceResult(rsp)
+}
+
+// AskWorkspaceWithResponse Ask the workspace a question
+//
+// Asks the workspace's AI provider one question in the caller's own words — "what is open for Müller GmbH this week?". The provider is shown only entries the caller may read, found through the ordinary search and listings as the caller; content of people who keep theirs out of AI is never among them. Anybody with a role in the workspace may ask, and a token needs `items:write`.
+// Each question stands alone: no history is kept and no follow-up refers to it. Asynchronous and answered `202`. The answer appears under `GET /suggestions` as an `ANSWER` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads or dismisses it. It performs no action: `:accept` refuses it. A workspace with no provider, or one that has not consented to AI processing, is answered `503` with the detail code `ai.unavailable`, and nothing is queued and nothing is sent.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /ask (the `AskWorkspace` operationId).
+func (c *ClientWithResponses) AskWorkspaceWithResponse(ctx context.Context, params *AskWorkspaceParams, body AskWorkspaceJSONRequestBody, reqEditors ...RequestEditorFn) (*AskWorkspaceResult, error) {
+	rsp, err := c.AskWorkspace(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAskWorkspaceResult(rsp)
+}
+
 // ListAuditEntriesWithResponse Query audit entries
 //
 // Requires the `audit:read` scope. Who sees what follows the audit trail's own rule rather
@@ -81025,6 +81265,46 @@ func ParseChooseAiSourceResult(rsp *http.Response) (*ChooseAiSourceResult, error
 			return nil, err
 		}
 		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAskWorkspaceResult parses an HTTP response from a AskWorkspaceWithResponse call
+func ParseAskWorkspaceResult(rsp *http.Response) (*AskWorkspaceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AskWorkspaceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
 
 	}
 

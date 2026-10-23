@@ -62,7 +62,8 @@ type Authorizer interface {
 // watch and to stop, wherever their role sits (UC-AI-04 check 9). Work the system starts - an
 // arrival's proposal, a backup - names nobody and stays the workspace's.
 var askedKinds = map[queue.Kind]bool{
-	queue.KindAiSuggest: true, queue.KindAiDraftRule: true, queue.KindAiMakeEntries: true,
+	queue.KindAiSuggest: true, queue.KindAiDraftRule: true, queue.KindAiAnswer: true,
+	queue.KindAiMakeEntries: true,
 }
 
 // isAsker answers whether the actor asked this job a question to AI and may still read what the
@@ -92,8 +93,8 @@ func isAsker(
 		return false, nil
 	}
 	if asker.TargetType == "ACCOUNT" {
-		// A rule drafted for its asker is about nobody's content but theirs: being the asker is
-		// the whole question.
+		// A rule drafted for its asker, or an answer to their question, is about nobody's content
+		// but theirs: being the asker is the whole question.
 		return asker.TargetID == actor.AccountID, nil
 	}
 	path := []identity.Scope{identity.TenantScope()}

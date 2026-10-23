@@ -78,6 +78,32 @@ test('the layouts are the reported ones this client draws, the list once', () =>
   assert.deepEqual(layoutsOffered(KITCHEN, undefined, DRAWABLE), []);
 });
 
+/** A collection whose structure offers one level and the views named (UC-WRK-23 check 4). */
+const shaped = (views: string[], opening: string) =>
+  ({
+    ...KITCHEN,
+    structure: {
+      preset: 'LIST',
+      settings: { levels: [{ type: 'TASK', name: null }], views: { offered: views, default: opening } },
+      sources: {},
+      locks: {},
+    },
+  }) as unknown as Container;
+
+test('a collection offers only the layouts its structure offers', () => {
+  const list = shaped(['LIST_COLLAPSED'], 'LIST_COLLAPSED');
+  assert.deepEqual(layoutsOffered(list, MANIFEST, DRAWABLE), ['LIST_COLLAPSED']);
+  const flow = shaped(['KANBAN', 'LIST_COLLAPSED'], 'KANBAN');
+  assert.deepEqual(layoutsOffered(flow, MANIFEST, DRAWABLE), ['LIST_COLLAPSED', 'KANBAN']);
+});
+
+test('the palette offers a list no board, and a new entry of its one level', () => {
+  const list = shaped(['LIST_COLLAPSED'], 'LIST_COLLAPSED');
+  const all = [placed(list, HOUSE)];
+  const offers = collectionOffers(all[0]!, all, { role: 'MEMBER', manifest: MANIFEST, drawable: DRAWABLE, t });
+  assert.deepEqual(ids(offers), ['search-in:c1', 'open-as:c1:LIST_COLLAPSED', 'new-in:c1']);
+});
+
 test('a member typing a collection\'s name is offered a search in it, its layouts and a new entry', () => {
   const all = [placed(KITCHEN, HOUSE)];
   const offers = collectionOffers(all[0]!, all, { role: 'MEMBER', manifest: MANIFEST, drawable: DRAWABLE, t });

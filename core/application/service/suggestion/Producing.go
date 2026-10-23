@@ -77,6 +77,8 @@ type Material struct {
 	Rule *RuleSets
 	// Entries is what entries made from a pasted text may be; nil for every other question.
 	Entries *EntriesShape
+	// Answer is what an answer to a question may name; nil for every other question.
+	Answer *AnswerSets
 }
 
 // Declared is one custom field definition, with the entry's own value beside it.
@@ -273,12 +275,17 @@ var promptFields = map[string]map[string]bool{
 	// Entries made from a pasted text: one key at the answer's level, and what an entry may carry
 	// is `entriesFrom`'s business - a title, and only the fields the collection carries.
 	makeEntriesPrompt: {entriesKey: true},
+	// An answer to a question: the text, the entries it rests on and the filter it implies, each
+	// narrowed to what the material showed (`answerFrom`). All three are told: nothing applies an
+	// answer.
+	answerPrompt: {answerKey: true, sourcesKey: true, filterKey: true},
 }
 
 // toldKeys are the answer keys a prompt keeps to show the person and never hands an applier: what a
 // rule draft could not draft is for the person reading it, and no use case declares it.
 var toldKeys = map[string]map[string]bool{
 	draftRulePrompt: {notDraftedKey: true},
+	answerPrompt:    {answerKey: true, sourcesKey: true, filterKey: true},
 }
 
 // ToldKeys is that map, for the gate that holds every kept key to an acceptance that applies it or
@@ -316,6 +323,7 @@ var promptTargets = map[string]map[domain.TargetType]domain.Kind{
 	templatePrompt:         {domain.TargetContainer: domain.KindTemplate},
 	draftRulePrompt:        {domain.TargetAccount: domain.KindRule},
 	makeEntriesPrompt:      {domain.TargetAccount: domain.KindEntries},
+	answerPrompt:           {domain.TargetAccount: domain.KindAnswer},
 }
 
 // PromptTargets is the map above, for the gate that reads it beside the registry.
@@ -450,6 +458,7 @@ var defaultPrompts = map[domain.Kind]string{
 	domain.KindTemplate:      templatePrompt,
 	domain.KindRule:          draftRulePrompt,
 	domain.KindEntries:       makeEntriesPrompt,
+	domain.KindAnswer:        answerPrompt,
 }
 
 // Execute asks, and records what came back.
@@ -575,7 +584,7 @@ func (h Produce) ask(
 			if err != nil {
 				return err
 			}
-			if question.Words != "" {
+			if question.Words != "" && (!answeredFromMaterial(promptID) || strings.TrimSpace(read.Content) != "") {
 				phrase, held := heldWords[promptID]
 				if !held {
 					return shared.ErrInternal.WithDetail("suggestions.held_words_unknown").
@@ -626,6 +635,8 @@ func (h Produce) ask(
 		payload, dropped, ok = ruleFrom(answer.Text, material.Rule, h.Conditions)
 	case domain.KindEntries:
 		payload, dropped, ok = entriesFrom(answer.Text, material.Entries)
+	case domain.KindAnswer:
+		payload, dropped, ok = answerFrom(answer.Text, material.Answer)
 	default:
 		payload, ok = payloadFrom(kind, promptID, answer.Text, h.applicable(request), material, h.Text)
 		payload = onlyAsked(payload, request.Fields)
@@ -736,7 +747,13 @@ var heldWords = map[string]string{
 	templatePrompt:    "What the template should be for, in the person's words:",
 	draftRulePrompt:   "What the rule should do, in the person's words:",
 	makeEntriesPrompt: "The text the person pasted, to turn into entries:",
+	answerPrompt:      "The person's question:",
 }
+
+// answeredFromMaterial reports whether a prompt asked with words still needs material of the
+// workspace: a question is answered from the entries it finds, and its words alone are nothing to
+// answer from - where a template's or a rule's description is the whole of what it is made from.
+func answeredFromMaterial(promptID string) bool { return promptID == answerPrompt }
 
 // The two ordinary reads that answer where the person who asked lives.
 //
@@ -871,7 +888,7 @@ func payloadFrom(
 // material and is therefore data like the rest of it, which is what keeps `Prompt.Ask`'s two roles
 // meaning what they say.
 func (h Produce) today(actor appshared.ActorContext, promptID string) string {
-	if !promptFields[promptID][dueKey] {
+	if !promptFields[promptID][dueKey] && promptID != answerPrompt {
 		return ""
 	}
 	return h.dateLine(actor)

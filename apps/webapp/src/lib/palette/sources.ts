@@ -19,6 +19,8 @@ import type { Capabilities, Container } from '@hubtask/sync-engine';
 import { itemPermitted, rootTypes } from '../data/capability.ts';
 import { archivalOf } from '../data/containers.ts';
 import { layoutsOffered } from '../entries/layouts.ts';
+import { levelWords } from '../data/levels.ts';
+import { narrowedTo } from '../data/offer.ts';
 import { KEEPING, SETTINGS, account, administrationFor, instanceSection, primary, type SectionGroup } from '../navigation.ts';
 import type { Area } from '../router.ts';
 import type { Candidate } from './rows.ts';
@@ -59,7 +61,7 @@ export function mayCreateIn(
 ): boolean {
   if (container.type !== 'COLLECTION') return false;
   if (archivalOf(container) !== 'active') return false;
-  if (rootTypes(manifest).length === 0) return false;
+  if (rootTypes(narrowedTo(manifest, container.structure?.settings)).length === 0) return false;
   return itemPermitted(manifest, role, 'create', false) === true;
 }
 
@@ -140,11 +142,11 @@ export function collectionOffers(
     });
   }
   if (mayCreateIn(container, input.role, input.manifest)) {
-    const roots = rootTypes(input.manifest);
+    const roots = rootTypes(narrowedTo(input.manifest, container.structure?.settings));
     offers.push({
       kind: 'action',
       id: `new-in:${container.id}`,
-      label: t('app.palette.new_in', { type: roots.length === 1 ? (roots[0] ?? '') : '', name }),
+      label: levelWords(container.structure?.settings, roots.length === 1 ? (roots[0] ?? '') : '', t).newIn(name),
       context,
       target: { kind: 'open', containerId: container.id, add: true },
     });

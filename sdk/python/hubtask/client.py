@@ -1039,6 +1039,10 @@ class Client:
         """Which entries look like a title that is not an entry yet"""
         return self._call("POST", "/items:duplicates", {}, None, {}, body, "json", "application/json", "json")
 
+    def ask_workspace(self, body: "WorkspaceQuestion", *, idempotency_key: str | None = None) -> "JobRef":
+        """Ask the workspace a question"""
+        return self._call("POST", "/ask", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def list_suggestions(self, *, query: dict[str, Any] | None = None) -> "SuggestionPage":
         """What AI has proposed, and not done"""
         return self._call("GET", "/suggestions", {}, query, {}, None, "none", None, "json")

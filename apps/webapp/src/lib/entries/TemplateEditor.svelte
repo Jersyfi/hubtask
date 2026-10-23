@@ -56,9 +56,11 @@
     /** A refusal from the last save, so a node-level field error lands on its node. */
     failure?: ReturnType<typeof renderProblem>;
     onnodes: (nodes: readonly TemplateNode[]) => void;
+    /** A level as the collection names it: its given name, or the catalogue's word for its type. */
+    levelLabel: (type: string) => string;
   }
 
-  const { template, nodes, path, failure, onnodes }: Props = $props();
+  const { template, nodes, path, failure, onnodes, levelLabel }: Props = $props();
 
   const cap = $derived(nodeCapOf(manifest.value?.limits as Record<string, unknown> | undefined));
   const count = $derived(countNodes(nodes));
@@ -216,7 +218,7 @@
                 disabledReason={mayAdd ? undefined : t('app.templates.at_cap')}
                 onclick={() => addChild(nodePath, type)}
               >
-                {t('app.templates.add_child')} · {type}
+                {t('app.templates.add_child')} · {levelLabel(type)}
               </Button>
             {/each}
             {#if offered.length === 0}
@@ -241,7 +243,7 @@
         disabledReason={mayAdd ? undefined : t('app.templates.at_cap')}
         onclick={() => addChild([], type)}
       >
-        {t('app.templates.add_root')} · {type}
+        {t('app.templates.add_root')} · {levelLabel(type)}
       </Button>
     {/each}
   </div>

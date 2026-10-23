@@ -67,6 +67,14 @@ func (s CatalogueSources) Material(
 		}
 		kept = read
 	}
+	if question.TargetType == domain.TargetAccount && question.PromptID == answerPrompt {
+		material, err := s.askMaterial(ctx, actor, question, kept)
+		if err != nil {
+			return Material{}, err
+		}
+		material.Kept = kept
+		return material, nil
+	}
 	if question.TargetType == domain.TargetAccount && question.PromptID == makeEntriesPrompt {
 		material, err := s.entriesMaterial(ctx, actor, question)
 		if err != nil {

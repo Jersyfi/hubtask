@@ -54,8 +54,9 @@ func (t EntryTargets) Digest(
 ) ([]byte, error) {
 	if targetType == domain.TargetAccount {
 		// A draft for the person who asked: theirs alone, and nothing to read - the digest is the
-		// account, and a draft is never stale, since the save checks everything again.
-		if err := ownDraft(actor, targetID); err != nil {
+		// account, and a draft is never stale, since the save checks everything again. The scope
+		// its kind is read under was asked by the caller, who knows the kind.
+		if err := ownAccount(actor, targetID); err != nil {
 			return nil, err
 		}
 		return domain.Digest(targetID.String(), ""), nil

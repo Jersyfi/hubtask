@@ -3,8 +3,8 @@
 
 /**
  * What a capture line becomes: one entry per line, and a leading amount read off each line
- * (UC-WRK-25 checks 1 and 2). Pure, so that the list's capture line and the global capture field
- * (UX-14) read a line the same way.
+ * (UC-WRK-25 checks 1 and 2, UC-WRK-26 checks 2 and 3). Pure, so that the list's capture line and
+ * the global capture field read a collection and a line the same way.
  *
  * **What counts as an amount** is deliberately narrow, because a wrong split is worse than none: a
  * number at the start - any script's decimal digits, one decimal comma or point with at most two
@@ -14,6 +14,8 @@
  * number alone stay in the title. The person sees the split as a chip before submitting and can
  * take it back.
  */
+
+import type { EffectiveStructure } from '@hubtask/sync-engine';
 
 /** How many lines one submit creates at most; the rest stay in the field, with a note. */
 export const MAX_CAPTURE_LINES = 100;
@@ -37,6 +39,28 @@ export interface Capture {
   readonly lines: readonly CapturedLine[];
   /** What stays in the field: the lines past the limit, as they were typed. */
   readonly rest: string;
+}
+
+/**
+ * The one rule every capture field reads a collection by (record D7): the list's capture line and
+ * the capture field that `Q` opens. Several lines split where the collection has one level in force
+ * - check 1 holds for every one-level collection, whichever field the lines are typed into - or
+ * where its structure recognises `LINES`; a leading amount is read where it recognises `AMOUNT` and
+ * the type carries `AMOUNT` there. No levels answered is Hubtask's default, every type the
+ * installation has, which is not one level.
+ */
+export function captureRulesOf(
+  structure: Pick<EffectiveStructure, 'settings'> | undefined,
+  itemType: string,
+  units: readonly string[],
+): CaptureRules {
+  const settings = structure?.settings;
+  const recognises = (token: 'LINES' | 'AMOUNT') => (settings?.capture ?? []).includes(token);
+  return {
+    splitsLines: settings?.levels?.length === 1 || recognises('LINES'),
+    readsAmount: recognises('AMOUNT') && (settings?.fields?.[itemType]?.capabilities ?? []).includes('AMOUNT'),
+    units,
+  };
 }
 
 /** The unit list as the catalogue writes it: words separated by spaces. */

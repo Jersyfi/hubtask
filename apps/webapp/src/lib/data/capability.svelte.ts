@@ -28,7 +28,11 @@ import {
   workspaceVerdict,
 } from './capability.ts';
 import { manifest } from './capabilities.svelte.ts';
+import { levelRefusal, levelWords, type LevelWords } from './levels.ts';
+import { narrowedTo, offerVerdict, offeredChild, offeredPlacement } from './offer.ts';
 import { t } from '../i18n/i18n.svelte.ts';
+
+import type { StructureSettings } from '@hubtask/sync-engine';
 
 /** Whether the type carries the capability, according to this installation. */
 export const supports = (type: string, capability: string): Verdict =>
@@ -58,6 +62,39 @@ export const typesWith = (capability: string): readonly string[] =>
 /** The child types the manifest permits under this one. */
 export const childTypes = (type: string): readonly string[] =>
   allowedChildTypes(manifest.value, type);
+
+/**
+ * What a collection offers: the answers above, narrowed to its structure in force (`offer.ts`,
+ * UC-WRK-23 check 4). Without a structure - a container read before the server answered one, or a
+ * screen with no collection - the installation's answers stand.
+ */
+export interface Offer {
+  supports(type: string, capability: string): Verdict;
+  childTypes(type: string): readonly string[];
+  rootTypes(): readonly string[];
+  acceptsChild(parentType: string, childType: string, parentDepth?: number): Verdict;
+  placementOf(type: string, destination: { readonly type: string; readonly depth: number } | null | undefined): Verdict;
+  /** The layouts the installation reports and the collection offers, in the installation's order. */
+  readonly layouts: readonly string[];
+  /** A level's words here: its given name, or the catalogue's word for its type (`levels.ts`). */
+  level(type: string): LevelWords;
+  /** A refusal in words, its levels by the names this collection gave them. */
+  refusal(verdict: { readonly code: string; readonly params?: Record<string, string> }): string;
+}
+
+export function offerIn(settings: StructureSettings | undefined): Offer {
+  const narrowed = narrowedTo(manifest.value, settings);
+  return {
+    supports: (type, capability) => offerVerdict(manifest.value, settings, type, capability),
+    childTypes: (type) => allowedChildTypes(narrowed, type),
+    rootTypes: () => rootTypesOf(narrowed),
+    acceptsChild: (parentType, childType, parentDepth = 0) => offeredChild(manifest.value, settings, parentType, childType, parentDepth),
+    placementOf: (type, destination) => offeredPlacement(manifest.value, settings, type, destination),
+    layouts: (narrowed?.view_layouts ?? []) as readonly string[],
+    level: (type) => levelWords(settings, type, t),
+    refusal: (verdict) => levelRefusal(settings, verdict, t),
+  };
+}
 
 /** Whether the role carries the permission unqualified. */
 export const holds = (role: string | undefined, permission: string): Verdict =>

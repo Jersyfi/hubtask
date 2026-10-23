@@ -751,7 +751,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 
 | Band | What is in it | Where |
 |---|---|---|
-| `places` | Overview, Search, Jumble | At the top. Search is here on every width |
+| `places` | Today, Search, Jumble | At the top. Search is here on every width |
 | `tree` | The hubs and their collections | Under a group label carrying the "+" that makes a hub |
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
@@ -759,7 +759,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 under *Colour and symbol…* in its menu: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
-in a list that mixes collections (the overview, search). It is the place's, never a level's (§6),
+in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
 and never says anything alone: the name stands beside it. A place nobody chose for keeps its type's
 mark and no tile; a private hub with a symbol of its own says *Private* at the end of its row
 instead of wearing the lock. A value the client does not offer is read as none chosen.
@@ -848,6 +848,18 @@ in the field; below `medium` the same field and list open in a dialog.
   `apps/webapp/src/lib/shortcuts.ts`, which *Help and shortcuts* draws.
 * **Other features add rows** through `palette.provide` — *Ask* (UC-AI-08) — and show nothing where
   they do not apply.
+* **Ask** (UC-AI-08, `apps/webapp/src/lib/ask/`). With words typed and AI consented to, one row
+  *Ask: “…”*; without AI there is no row and nothing of AI is drawn. Choosing it asks at once and
+  opens *Ask the workspace*: the question, editable and asked again with *Ask*, then the answer in
+  the AI proposal (§7) headed *Proposed answer* — the text, *Based on* the entries it rests on as
+  links (each read again, so one the reader can no longer open is left out), the provenance behind
+  one collapsed line, and *As a filter*: the chips the answer implies (a place, the state, a due
+  span, a person, labels), each removable and the state and due span changeable, framed rather than
+  pills because a select carries its label. *Save as view* saves what the chips hold as the reader's
+  own view; a view needs a place, so without one the place chip is marked on submit (§4, case 3).
+  While the question runs the proposal is pending with *Stop*, and the nearly-spent note stands
+  above it. *Dismiss* is the only decision about the answer; a new question carries nothing of the
+  last one.
 
 What the server answers — the workspace-wide read, its default order, word and prefix matching — is
 [`api-guidelines.md`](../architecture/api-guidelines.md) and
@@ -874,7 +886,11 @@ operators — with one anatomy:
   workspace tree is not drawn.
 * **The first row leads out**, back to the workspace.
 * **The section's own address opens its first screen** (`firstScreen` in `navigation.ts`); there is
-  no index page.
+  no index page. The administration's and the installation's first screen is an overview of what
+  needs attention, each card linked to its page (UC-ID-24, UC-INS-12) — a reading, not a list of
+  the column's rows.
+* **The administration's groups** follow `ux-inventory.md` §E0: workspace and people · sign-in ·
+  automation · data · records · AI, under the way out and the overview; every page is one row away.
 * Every screen carries `PageHeader` with the trail *the section › this screen* and takes the region
   it is given (§11.1).
 * **A row's word and a screen's heading may differ, only for room** (*Signed in*, *Where you are
@@ -919,13 +935,29 @@ The stage comes from the one constant in `apps/webapp/src/lib/maturity.ts`
 [`versioning-release.md`](../architecture/versioning-release.md)), never from `/meta/capabilities`.
 It is not dismissible. No banner above a page states the stage or the health report.
 
-### 11.7 The overview, the archive and the trash
+### 11.7 Today, the archive and the trash
 
-**The overview (`/`)** is what is on the reader: their overdue and next-due work, what waits in the
-jumble, what they opened last on this device, and for a workspace with no hub yet the one action that
-starts one. Its row's word is `app.nav.overview`. It uses only existing reads — the workspace-wide
-search with a filter ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)) and the jumble's
-count. What was opened last is the device's (§11.10) and sent nowhere.
+**Today (`/`)** is the page the app opens on and what is the reader's today across every hub
+([UC-WRK-34](../usecases/work/UC-WRK-34-see-my-day.md)). Its row's word is `app.nav.today`, and it
+carries no head action: a hub is made in the navigation, or from the empty workspace's one action.
+Top to bottom:
+
+* **On you** — the reader's open dated entries in three bands of their own day: *Earlier* (past
+  due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
+  checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
+  the collection's. What is past carries its date and no overdue word or tone: nothing on the page
+  says what the person did not do.
+* **Lists** — every collection whose figure is *open*, as one tile with the figure; its entries are
+  not rows in the bands.
+* **Projects** — every collection whose figure is *progress*, with the figure and the next due step,
+  which can be ticked off there.
+* **In the jumble** — how many wait and the first three, for a reader of the jumble.
+* **Recently opened** — what this device opened last (§11.10), sent nowhere.
+
+Every panel says something when it is empty; a list or project panel with nothing in it is not
+drawn. It uses only existing reads — the workspace-wide search with a filter
+([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
+one anchored query per project, and the jumble's first page.
 
 **The archive (`/archive`)** lists the archived containers and entries the reader may see, each with
 where it lives and the way back, from the container list and the collection's query with
@@ -945,8 +977,16 @@ archived container leaves the tree.
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), rename,
-move, archive, rank up, rank down; set it up — labels, fields, views, templates, policies, people;
-and trash, last and alone. An item unusable now stays with its reason. A set-up dialog used daily is
+move, archive, rank up, rank down; set it up — labels, fields, structure, views, templates,
+policies, people; and trash, last and alone. An item unusable now stays with its reason.
+
+**The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
+in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
+here, and a lock drawn as the chip's lock with the controls still readable and unavailable, their
+reason naming who set it (§4, cases 2 and 6). Only a reader who may change the shape is offered it.
+What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
+view or bulk operation for it — the installation's manifest narrowed to the structure in force
+(`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
 also reachable where it is used — saved views from a star beside the layout switch, templates from
 the primary action's submenu, people from the member avatars — opening the same dialog.
 
@@ -1042,7 +1082,7 @@ write falls back in silence where storage is refused.
 | The theme — System, Light or Dark | `localStorage` | `lib/theme.ts`, the one setter of `data-theme` ([ADR-0043](../adr/ADR-0043-theme-per-device.md)) |
 | Reduced motion | `localStorage` | `lib/motion.ts`, the one setter of `data-motion` (rule 6) |
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
-| What was opened last, for the overview | `localStorage` | `lib/recents.svelte.ts` |
+| What was opened last, for *Today* | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
 | The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
 | The words of a search | `sessionStorage`, under the address's handle | `lib/data/search.svelte.ts` |

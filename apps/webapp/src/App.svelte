@@ -14,7 +14,6 @@
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
   import { ROUTES, paneFor } from './lib/routes.ts';
-  import { ADMINISTRATION, firstScreen } from './lib/navigation.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -22,9 +21,10 @@
   import { live } from './lib/data/live.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
+  import AdministrationOverviewView from './views/AdministrationOverviewView.svelte';
   import ArchiveView from './views/ArchiveView.svelte';
 import ContainerView from './views/ContainerView.svelte';
-  import HomeView from './views/HomeView.svelte';
+  import TodayView from './views/TodayView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
@@ -122,19 +122,6 @@ import ContainerView from './views/ContainerView.svelte';
         ? holdsHere('READ')
         : true,
   );
-
-  /**
-   * A section's own address opens its first screen (ADR-0065 decision 1).
-   *
-   * `/administration` is linked from the account menu and from the trail of every screen under it,
-   * so it keeps its address; what it does not have is an index, which would be the column's list
-   * drawn a second time. `replace` rather than `navigate`, for the reason the pane's redirect uses it:
-   * the address the reader came from is the one the back button should return to, not the door
-   * they were sent through.
-   */
-  $effect(() => {
-    if (session.isSignedIn && route.name === 'administration' && reach === true) router.replace(firstScreen(ADMINISTRATION));
-  });
 
   /**
    * The one place the language is decided, because it is the one place that knows both halves:
@@ -256,7 +243,7 @@ import ContainerView from './views/ContainerView.svelte';
          arrives here signed out meets the sign-in screen first and lands back on this address. -->
     <ConsentView />
   {:else if route.name === 'home'}
-    <HomeView onnavigate={(path) => router.navigate(path)} />
+    <TodayView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'installation'}
     <InstallationView />
   {:else if route.name === 'profile'}
@@ -305,9 +292,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'instance-journal'}
     <InstanceJournalView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'administration'}
-    <!-- The section's front door (ADR-0065 decision 1). The effect above replaces the address with
-         the section's first screen, so nothing is drawn here - not even for the tick in between,
-         which is what a screen saying "not found" under a real address would be. -->
+    <AdministrationOverviewView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
   {:else if route.name === 'people'}

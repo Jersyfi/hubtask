@@ -38,10 +38,10 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
+  import StructurePanel from '../lib/workspace/StructurePanel.svelte';
   import ContainerMilestone from '../lib/entries/ContainerMilestone.svelte';
   import { showsMilestone } from '../lib/data/kudos.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
-  import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
@@ -62,7 +62,7 @@
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
-  import { changeRefusalCode, holds, mayDo, roleOrder, rootTypes } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -163,8 +163,13 @@
 
   const container = $derived(containers.find(id));
 
+  /** What this collection offers: the installation's answers, narrowed to its structure in force. */
+  const offer = $derived(offerIn(container?.structure?.settings));
+
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+  /** The list layout this collection offers, where the add form lives. */
+  const listLayout = $derived(offeredLayouts.find(isListLayout) ?? 'LIST_COLLAPSED');
 
   /**
    * What the opening layout is chosen from: what may be chosen here, the list's both values where
@@ -478,7 +483,8 @@
   let isManagingViews = $state(false);
   /** The collection's policies: how it works, as opposed to what it is called. */
   let isManagingPolicies = $state(false);
-  let isChoosingWhatCounts = $state(false);
+  /** The hub's or the collection's *Structure* panel (UC-WRK-23). */
+  let isShaping = $state(false);
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
@@ -624,7 +630,7 @@
   const addDisabledReason = $derived(
     isReadOnly
       ? readOnlyReason
-      : rootTypes().length === 0
+      : offer.rootTypes().length === 0
         ? t('app.entries.no_root_type')
         : undefined,
   );
@@ -632,7 +638,7 @@
   /** Creating from the head: on a board or the timeline, the list is where the form lives. */
   function addFromHead() {
     if (!container || addDisabledReason) return;
-    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
     // After the layout switch the list is mounted on the next tick.
     queueMicrotask(() => list?.addEntry());
   }
@@ -656,6 +662,15 @@
   function shaping<T>(rows: readonly T[]): readonly T[] {
     return mayShape ? rows : [];
   }
+
+  /**
+   * The *Structure* panel's row (UC-WRK-23 checks 1, 9): only where the container answers its
+   * structure, and - through `shaping` - only for a reader who may change the shape. What counts
+   * is one of its settings, no longer a row of its own.
+   */
+  const structureRow = $derived(
+    container?.structure ? [{ id: 'structure', label: t('app.structure.menu'), icon: 'settings' as const, disabledReason: readOnlyReason }] : [],
+  );
 
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
@@ -695,15 +710,17 @@
                 ...shaping([
                   { id: 'labels', label: t('app.labels.choose'), icon: 'tag' as const, hasSeparatorBefore: true, disabledReason: readOnlyReason },
                   { id: 'fields', label: t('app.fields.title'), disabledReason: readOnlyReason },
-                  // What counts in it (UC-WRK-29); the Structure panel takes it when there is one.
-                  { id: 'what_counts', label: t('app.figure.menu'), disabledReason: readOnlyReason },
+                  ...structureRow,
                 ]),
                 { id: 'views', label: t('app.views.title'), icon: 'star' as const, hasSeparatorBefore: !mayShape },
                 { id: 'templates', label: t('app.templates.title'), icon: 'layout-template' as const, disabledReason: readOnlyReason },
                 ...shaping([{ id: 'policies', label: t('app.policies.title'), disabledReason: readOnlyReason }]),
                 { id: 'people', label: t('app.people.title'), icon: 'users' as const },
               ]
-            : [{ id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: true }]),
+            : [
+                ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
+                { id: 'people', label: t('app.people.title'), icon: 'users' as const, hasSeparatorBefore: !mayShape || structureRow.length === 0 },
+              ]),
           ...(privacyControl
             ? [
                 {
@@ -739,7 +756,7 @@
     else if (id === 'views') isManagingViews = true;
     else if (id === 'templates') isUsingTemplates = true;
     else if (id === 'policies') isManagingPolicies = true;
-    else if (id === 'what_counts') isChoosingWhatCounts = true;
+    else if (id === 'structure') isShaping = true;
     else if (id === 'people') isManagingMembers = true;
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
@@ -751,6 +768,12 @@
    * what a hub is for - a collection - with import beside it; the collection's is an entry, with
    * the filter beside it and the templates as the verb's own list.
    */
+  /** "Add an entry", or "Add item" where the one top level carries a name a person gave it (UC-WRK-23 check 6). */
+  const addLabel = $derived.by(() => {
+    const tops = offer.rootTypes();
+    const only = tops.length === 1 ? offer.level(tops[0] ?? '') : undefined;
+    return only?.name !== undefined ? only.add : t('app.entries.add');
+  });
   const headPrimary = $derived<PageAction | undefined>(
     container === undefined
       ? undefined
@@ -764,7 +787,7 @@
           })
         : mayCreateHere
           ? {
-              label: t('app.entries.add'),
+              label: addLabel,
               icon: 'plus',
               onclick: addFromHead,
               disabledReason: addDisabledReason,
@@ -828,7 +851,7 @@
     untrack(() => {
       if (wish.layout && offeredLayouts.includes(wish.layout)) chooseLayout(wish.layout);
       if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
-        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
+        if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
         isAddWished = true;
       }
     });
@@ -946,7 +969,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={chooseLayout} />
+          <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}
@@ -1146,6 +1169,10 @@
   <ContainerLookDialog bind:isOpen={isChangingLook} {container} />
 {/if}
 
+{#if container?.structure && mayShape}
+  <StructurePanel bind:isOpen={isShaping} {container} />
+{/if}
+
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
   <CustomFieldsDialog
@@ -1159,9 +1186,6 @@
     path={containerPath}
     role={structureRole}
   />
-  {#if container.type === 'COLLECTION' && mayShape}
-    <WhatCountsDialog bind:isOpen={isChoosingWhatCounts} {container} />
-  {/if}
   <ViewsPanel
     bind:isOpen={isManagingViews}
     collectionId={container.id}

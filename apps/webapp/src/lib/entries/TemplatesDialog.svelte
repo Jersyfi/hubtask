@@ -32,7 +32,8 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { suggestions } from '../data/suggestions.svelte.ts';
   import { isPending } from '../data/suggestions.ts';
-  import { rootTypes } from '../data/capability.svelte.ts';
+  import { offerIn, rootTypes } from '../data/capability.svelte.ts';
+  import { containers } from '../data/containers.svelte.ts';
   import { templates } from '../data/templates.svelte.ts';
   import { scopeCodeOf } from '../data/templates.ts';
   import { type Path } from '../data/people.svelte.ts';
@@ -54,6 +55,10 @@
   }
 
   let { isOpen = $bindable(), collectionId, path, role, onopened }: Props = $props();
+
+  // The collection's levels by the names it gave them (UC-WRK-23 check 6), never the identifiers.
+  const offer = $derived(offerIn(containers.find(collectionId)?.structure?.settings));
+  const levelLabel = (type: string): string => offer.level(type).label;
 
   const structure = $derived(holds(role, 'STRUCTURE'));
   const writeItems = $derived(holds(role, 'WRITE_ITEMS'));
@@ -320,7 +325,7 @@
           <Select
             label={t('app.templates.root_type')}
             bind:value={rootType}
-            options={rootTypes().map((type) => ({ value: type, label: type }))}
+            options={rootTypes().map((type) => ({ value: type, label: levelLabel(type) }))}
           />
         {/if}
 
@@ -329,6 +334,7 @@
           {nodes}
           {path}
           {failure}
+          {levelLabel}
           onnodes={(next) => (nodes = next)}
         />
 

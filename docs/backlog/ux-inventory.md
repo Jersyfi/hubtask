@@ -116,7 +116,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Skip link → kept
 - [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
 - [x] Wordmark → the mark (UX-06), leads to Today — the mark and the wordmark link to `/`, the start page UX-15 makes *Today*
-- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask*: UX-22
+- [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask* — one question, a proposed answer with its sources, provenance, filter chips and *Save as view*, in the dialog *Ask the workspace* (UX-22)
 - [ ] Page *⋯* on phones → kept
 - [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
 - [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
@@ -139,10 +139,10 @@ Administration and installation, found by UX-05's sweep:
 
 ## E3 — Today, search, jumble, archive, trash
 
-- [ ] Overview "Create hub" primary → *＋ New* and the empty state (§E9)
-- [ ] "What is on you": overdue, due next, "search for the rest" → Today (UX-15); its checkbox now completes
-- [ ] "In the jumble" (three + open) → Today's jumble tile
-- [ ] "What you had open" → Today's recently opened
+- [x] Overview "Create hub" primary → *＋ New* and the empty state (§E9) — *Today* has no head action; the hub tree's create and the empty workspace's one action remain (UX-15)
+- [x] "What is on you": overdue, due next, "search for the rest" → Today (UX-15); its checkbox now completes — *On you*: *Earlier*, *Today*, *Coming up*, the link to the search
+- [x] "In the jumble" (three + open) → Today's jumble tile — *In the jumble* on *Today* (UX-15)
+- [x] "What you had open" → Today's recently opened — *Recently opened* on *Today* (UX-15)
 - [ ] Search page: field, meaning switch, filter chips (status, kind, due, assigned, collection, label), More (last changed, created, starts, on it, created by, archive, trash), text mode with tokens, show the request, edit as text/controls, copy link, clear, result notes → kept; results gain the entry menu and selection; meaning hits marked
 - [ ] Jumble: showing, make an entry (where, title), dismiss, ask AI, see what it became, show more, jot something down, address rotation with one-time secret → kept; proposals with destination and for a selection (UX-21); jotting = capture without target — the capture field puts a line without a collection into the jumble (UX-14); the jumble's own "Jot something down" still names the same act, renamed with UX-17 (P-12)
 - [ ] Archive: hubs and collections, bring back → kept; archived entries listed with a filter
@@ -154,11 +154,11 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Hub menu "Move to another hub…" (always unavailable) → removed (§E9)
 - [ ] Collection "Add an entry" + "From a template…" → *＋ Capture* + split: template, several lines, import (import now on collections too) — *＋ Capture* in the bar and `Q` reach the collection: UX-14; the split: UX-12, UX-17
 - [ ] Filter and sort (conditions, order by, direction, columns by, clear) → kept; fields per the effective profile
-- [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16)
+- [ ] Layout list/board/timeline, "Show what is inside" → views per the profile; remembered per collection and device (UX-16) — UX-10: the switch offers the views the structure offers and opens in its default; remembering is UX-16's
 - [ ] Star "Saved views" and menu "Saved views" → one *Views* menu with open, save, edit, share, delete, export, calendar subscription (§E9)
 - [ ] Avatars "People" and menu "People" → avatars and *Structure → People* (§E9)
 - [ ] Menu: select entries, rename, move to another hub, archive, move up/down, trash → kept
-- [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs
+- [ ] Menu: labels, custom fields, templates, policies → *Structure* tabs — UX-10: the *Structure* panel exists (preset, the eight settings) on hubs and collections and takes *What counts…*; the tabs are UX-17's
 - [ ] "Ask AI how this collection stands" → ✦ at the collection's figure, result keepable as notes
 - [x] Detail pane: close, open as page → kept; also from board and timeline — done in UX-16: `/collections/:id?item=` from list, board and timeline
 - [ ] Labels dialog: rename, delete (no confirmation), name, colour, create → *Structure → Labels*; delete with undo
@@ -168,7 +168,7 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Saved views panel, export dialog (CSV, JSON, ICS), feeds dialog (subscribe, CalDAV, revoke) → *Views* menu; export without a saved view
 - [ ] Import dialog (CSV, Trello, Google Tasks, Microsoft To Do, mapping, report) → capture's *Import*
 - [ ] Duplicate dialog · move dialog · members dialog (grant, invite, link, revoke) → kept
-- [ ] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol done (UX-07)
+- [x] Create-container dialog (name, description, private) → *＋ New*, with preset, colour and symbol — colour and symbol in UX-07; the preset in UX-10 (*Like its hub* or the workspace's default, and the four)
 
 ## E5 — List, board, timeline, selection
 
@@ -203,8 +203,8 @@ Administration and installation, found by UX-05's sweep:
 
 ## E8 — Administration and installation
 
-- [ ] `/administration` redirect → the overview (UX-18)
-- [ ] Workspace (name, address, language, zone, week start, save) → kept; save bar
+- [x] `/administration` redirect → the overview (UX-18) — *Administration → Overview*
+- [x] Workspace (name, address, language, zone, week start, save) → kept; save bar — *Administration → Workspace and people → Workspace*
 - [ ] People (table, renew invitation, start password, address, revoke, invite, without address, grant) → kept; one primary action with the three ways
 - [ ] Groups (rename without a permission check, take out, add, delete, new), permissions matrix → tabs of *People*; rename checked
 - [ ] Service accounts with tokens, third-party apps → *Machines and apps*
@@ -212,15 +212,15 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation
 - [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
 - [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
-- [ ] Private hubs (allowed switch, table, emergency access) → *Data*
-- [ ] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms
+- [x] Private hubs (allowed switch, table, emergency access) → *Data* — *Administration → Data → Private hubs*
+- [x] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms — *Administration → Data → Backup*
 - [ ] Restore → *Data*; the operator's path named with where to go
-- [ ] Retention (rules, preview, arm, withdraw without confirmation, write, in force, holds) → *Data*; withdraw confirms
+- [x] Retention (rules, preview, arm, withdraw without confirmation, write, in force, holds) → *Data*; withdraw confirms — *Administration → Data → Retention*
 - [ ] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period
-- [ ] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked
+- [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
 - [ ] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget
 - [ ] New: *Presets* (UX-27)
-- [ ] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed
+- [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
 - [ ] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu
 - [ ] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display
 - [ ] Providers, AI, backup targets, platform, keyring, operators, journal → kept; shared forms; journal filtered and paged; breadcrumbs

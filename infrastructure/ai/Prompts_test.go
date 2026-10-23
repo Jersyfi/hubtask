@@ -69,6 +69,9 @@ func TestAPromptSaysWhichKeysItAsksFor(t *testing.T) {
 		// Entries made from pasted text: what an entry carries is `entriesFrom`'s, held to the
 		// fields the collection carries.
 		"make-entries": {"entries"},
+		// An answer to a question: the text, the entries it rests on, the filter it implies -
+		// each narrowed by `answerFrom`.
+		"answer-question": {"answer", "source_ids", "filter"},
 		// The one prompt written for an agent rather than for this product's provider. It
 		// asks for prose, so there is no shape to read.
 		"weekly-review": nil,

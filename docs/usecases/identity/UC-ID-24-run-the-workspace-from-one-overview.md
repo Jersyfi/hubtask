@@ -5,9 +5,9 @@ context: identity
 actors: [PE-owner, PE-admin, PE-auditor]
 deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-11]
-state: specified
+state: verified
 tasks: [UX-18]
-checked_by: []
+checked_by: [apps/webapp/e2e/adminoverview.test.mjs, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/bar.test.mjs, apps/webapp/e2e/adminpickers.test.mjs]
 ---
 
 # Run the workspace from one overview
@@ -31,11 +31,3 @@ The club's admin opens *Administration*: one card says a rule has failed three t
 ## Where it ends
 
 * The installation's overview stays [UC-INS-12](../admin/UC-INS-12-see-the-installation-at-a-glance.md).
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
