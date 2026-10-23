@@ -965,7 +965,24 @@ export function fallback(route, request, path) {
     return route.fulfill({ json: { applied: results.length, failed: 0, results } });
   }
   if (read === '/items' && request.method() === 'POST') {
-    return route.fulfill({ status: 201, json: { ...ALL_ITEMS[0], id: '01a0e2e0-0000-7000-8000-0000000000ff', ...request.postDataJSON(), version: 1 } });
+    created = { ...ALL_ITEMS[0], id: CREATED_ID, ...request.postDataJSON(), version: 1 };
+    return route.fulfill({ status: 201, json: created });
+  }
+  // The entry a walk just made, read back and trashed again - what a capture's *Undo* does.
+  if (read === `/items/${CREATED_ID}` && request.method() === 'GET' && created) return route.fulfill({ json: created });
+  if (read === `/items/${CREATED_ID}` && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  // Several entries trashed at once, all or nothing: every operation applied.
+  if (read === '/items:bulk' && request.method() === 'POST') {
+    const operations = request.postDataJSON().operations ?? [];
+    return route.fulfill({ json: { results: operations.map(() => ({ status: 204 })) } });
+  }
+  // A capture into the jumble, and its *Undo*: the entry, then the same entry dismissed.
+  if (read === '/jumble/entries' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    return route.fulfill({ status: 201, json: { ...JUMBLED, raw_subject: body.raw_subject ?? null, channel: body.channel } });
+  }
+  if (read === `/jumble/entries/${JUMBLED.id}:dismiss` && request.method() === 'POST') {
+    return route.fulfill({ json: { ...JUMBLED, status: 'DISMISSED' } });
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
@@ -1003,10 +1020,18 @@ const ARRAYS = new Set([
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */
 let unstubbed = [];
 
+/** The id every create answers with, and the entry the last create made. */
+export const CREATED_ID = '01a0e2e0-0000-7000-8000-0000000000ff';
+let created;
+
+/** What a capture into the jumble makes. */
+export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'QUICK_CAPTURE', raw_subject: null, raw_body: null, attachments: [], status: 'NEW', received_at: '2026-10-21T08:00:00Z' };
+
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
   shaped = new Map();
+  created = undefined;
   pushed.length = 0;
   looked = [];
   draftSaved = false;

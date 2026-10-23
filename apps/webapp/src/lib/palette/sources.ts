@@ -209,9 +209,9 @@ export function placeOffers(reach: Reach, t: Translate): readonly Offer[] {
         // The one place-row with a key of its own: `?` opens help.
         shortcut: destination.id === 'help' ? 'help' : undefined,
         target:
-          destination.target.kind === 'route'
-            ? { kind: 'route', path: destination.target.path }
-            : { kind: 'account', action: destination.target.action },
+          destination.target.kind === 'action'
+            ? { kind: 'account', action: destination.target.action }
+            : { kind: 'route', path: destination.target.kind === 'route' ? destination.target.path : '/' },
       }),
     ),
     ...sectionOffers(SETTINGS, 'profile', t('app.nav.profile'), t),

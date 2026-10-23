@@ -9,11 +9,13 @@
  * the other ways back.
  */
 
-import type { BulkOperation } from '@hubtask/sync-engine';
+import type { BulkOperation, WorkItem } from '@hubtask/sync-engine';
 
-import { ancestorsFirst, sentenceOf, type Act } from './undo.ts';
+import { ancestorsFirst, sentenceOf, takenBackCode, type Act } from './undo.ts';
 
+import { engine } from '../data/engine.ts';
 import { items } from '../data/items.svelte.ts';
+import { jumble } from '../data/jumble.svelte.ts';
 import { labels } from '../data/labels.svelte.ts';
 import { toast } from '../frame/toasts.svelte.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -35,6 +37,19 @@ async function takeBack(act: Act): Promise<void> {
     case 'label-deleted':
       await labels.restore(act.collectionId, act.labelId, key);
       return;
+    case 'jumbled':
+      await jumble.dismiss(act.entryId);
+      return;
+    case 'captured':
+      if (act.itemIds.length === 1) {
+        // Read again first, so the trash states the version the server holds now: a rule that
+        // reacted to the new entry must not make the way back fail.
+        const id = act.itemIds[0]!;
+        const state = await engine.refresh<WorkItem>({ path: `/items/${id}` });
+        if (state.status === 'ready') await items.trash(id, state.data.version);
+        return;
+      }
+    // falls through: several entries go back in one bulk
     case 'bulk-trash':
     case 'bulk-label-removed': {
       // All or nothing, as the act was one decision: a selection half back from the trash is a
@@ -42,7 +57,9 @@ async function takeBack(act: Act): Promise<void> {
       const operations = act.itemIds.map((itemId) =>
         act.kind === 'bulk-trash'
           ? ({ op: 'RESTORE_ITEM', item_id: itemId, payload: {} } as BulkOperation)
-          : ({ op: 'ADD_LABEL', item_id: itemId, payload: { label_id: act.labelId } } as BulkOperation),
+          : act.kind === 'captured'
+            ? ({ op: 'TRASH_ITEM', item_id: itemId } as BulkOperation)
+            : ({ op: 'ADD_LABEL', item_id: itemId, payload: { label_id: act.labelId } } as BulkOperation),
       );
       const results = await items.bulk(operations, true, key);
       const refused = results.find((result) => result.problem);
@@ -51,16 +68,20 @@ async function takeBack(act: Act): Promise<void> {
   }
 }
 
-/** Says what happened, with *Undo*. `returnTo` is the control that did it, for the focus. */
-export function offerUndo(act: Act, returnTo?: string): void {
+/**
+ * Says what happened, with *Undo*. `returnTo` is the control that did it, for the focus; `link`
+ * leads to what was made, where there is something to open.
+ */
+export function offerUndo(act: Act, returnTo?: string, link?: { readonly label: string; readonly href: string }): void {
   const sentence = sentenceOf(act);
   toast.show({
     text: t(sentence.code, sentence.params),
     returnTo,
+    link,
     undo: async () => {
       try {
         await takeBack(act);
-        toast.show({ text: t('app.undo.done'), tone: 'success' });
+        toast.show({ text: t(takenBackCode(act)), tone: 'success' });
       } catch (error) {
         toast.show({ text: renderProblem(error as never, messages).message, tone: 'danger' });
       }
