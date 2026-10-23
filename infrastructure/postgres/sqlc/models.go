@@ -358,6 +358,7 @@ type Account struct {
 	TermsUrl              *string
 	TermsVersion          *string
 	TermsAgreedAt         pgtype.Timestamptz
+	AvatarMediaID         pgtype.UUID
 }
 
 type AccountGroup struct {

@@ -145,6 +145,19 @@ class Actor {
     return engine.mutate<Account>('PATCH', PATH, body, { invalidates: ['/accounts'] });
   }
 
+  /**
+   * Shows a picture the person uploaded (usage `AVATAR`, confirmed) beside their name
+   * (`PUT /accounts/me/avatar`). `/accounts` is invalidated for `rename`'s reason.
+   */
+  async setPicture(mediaId: string): Promise<Account> {
+    return engine.mutate<Account>('PUT', `${PATH}/avatar`, { media_id: mediaId }, { invalidates: ['/accounts'] });
+  }
+
+  /** Takes the picture away: the initials are the avatar again (`DELETE /accounts/me/avatar`). */
+  async removePicture(): Promise<Account> {
+    return engine.mutate<Account>('DELETE', `${PATH}/avatar`, undefined, { invalidates: ['/accounts'] });
+  }
+
   start(): () => void {
     if (platform.bearer() === undefined) {
       // Nobody is signed in, so nothing is known - including whatever a previous session read.

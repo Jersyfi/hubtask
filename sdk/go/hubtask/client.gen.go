@@ -2727,6 +2727,7 @@ func (e MediaObjectStatus) Valid() bool {
 // Defines values for MediaObjectUsage.
 const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
+	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
 	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
@@ -2735,6 +2736,8 @@ const (
 func (e MediaObjectUsage) Valid() bool {
 	switch e {
 	case MediaObjectUsageATTACHMENT:
+		return true
+	case MediaObjectUsageAVATAR:
 		return true
 	case MediaObjectUsageCOVER:
 		return true
@@ -2766,6 +2769,7 @@ func (e MediaTransferMethod) Valid() bool {
 // Defines values for MediaUploadRequestUsage.
 const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
+	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
 	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
@@ -2774,6 +2778,8 @@ const (
 func (e MediaUploadRequestUsage) Valid() bool {
 	switch e {
 	case MediaUploadRequestUsageATTACHMENT:
+		return true
+	case MediaUploadRequestUsageAVATAR:
 		return true
 	case MediaUploadRequestUsageCOVER:
 		return true
@@ -5665,6 +5671,9 @@ type Account struct {
 	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
 	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
 
+	// AvatarMediaId The picture the person shows beside their name, a media object any member of the workspace may read (`GET /media/{mediaId}`). Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -5748,6 +5757,9 @@ type AccountPreferencesWeekStart string
 
 // AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission.
 type AccountSummary struct {
+	// AvatarMediaId The picture the person shows beside their name, readable through `GET /media/{mediaId}` by any member. Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
 	DisplayName string `json:"display_name"`
 
@@ -6415,6 +6427,12 @@ type AutomationRuleUpdate struct {
 
 // AutomationRuleUpdateOnError defines model for AutomationRuleUpdate.OnError.
 type AutomationRuleUpdateOnError string
+
+// AvatarInput defines model for AvatarInput.
+type AvatarInput struct {
+	// MediaId A confirmed media object the caller staged with usage `AVATAR`.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
@@ -8299,6 +8317,9 @@ type InvitedAccount struct {
 	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
 	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
 
+	// AvatarMediaId The picture the person shows beside their name, a media object any member of the workspace may read (`GET /media/{mediaId}`). Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -8935,7 +8956,7 @@ type MediaObject struct {
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
-	// RefCount How many covers and attachments point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
+	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
 
 	// Size Declared while PENDING, measured once READY.
@@ -8980,11 +9001,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -14010,6 +14031,9 @@ type ShareSavedViewParams struct {
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
+// SetOwnAvatarJSONRequestBody defines body for SetOwnAvatar for application/json ContentType.
+type SetOwnAvatarJSONRequestBody = AvatarInput
+
 // CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
 type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 
@@ -14640,6 +14664,51 @@ type ClientInterface interface {
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemoveOwnAvatar Go back to the initials
+	//
+	// Takes the caller's picture away: the others see the initials of the name again. Idempotent -
+	// an account without a picture answers as it is. The picture itself is removed once nothing
+	// points at it.
+	//
+	// Corresponds with DELETE /accounts/me/avatar (the `RemoveOwnAvatar` operationId).
+	RemoveOwnAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAvatarWithBody Show a picture of one's own beside one's name
+	//
+	// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+	// wherever the person appears, in place of the initials of the name. The picture is staged
+	// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+	// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+	// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+	SetOwnAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetOwnAvatar Show a picture of one's own beside one's name
+	//
+	// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+	// wherever the person appears, in place of the initials of the name. The picture is staged
+	// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+	// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+	// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+	SetOwnAvatar(ctx context.Context, body SetOwnAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	//
 	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -14850,7 +14919,8 @@ type ClientInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name, from which a client draws the avatar - and this is that minimum.
+	// the display name and the avatar - and this is that minimum. The avatar is the initials of
+	// the name, or the picture the person set (`avatar_media_id`), which any member may read.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -18666,7 +18736,7 @@ type ClientInterface interface {
 
 	// GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, and by anybody who can read an entry it is attached to or covers.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
 	GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ConfirmMediaUpload performs a POST /media/{mediaId}:confirm (the `ConfirmMediaUpload` operationId) request.
@@ -19895,6 +19965,81 @@ func (c *Client) UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx conte
 	return c.Client.Do(req)
 }
 
+// RemoveOwnAvatar Go back to the initials
+//
+// Takes the caller's picture away: the others see the initials of the name again. Idempotent -
+// an account without a picture answers as it is. The picture itself is removed once nothing
+// points at it.
+//
+// Corresponds with DELETE /accounts/me/avatar (the `RemoveOwnAvatar` operationId).
+func (c *Client) RemoveOwnAvatar(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOwnAvatarRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAvatarWithBody Show a picture of one's own beside one's name
+//
+// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+// wherever the person appears, in place of the initials of the name. The picture is staged
+// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+func (c *Client) SetOwnAvatarWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAvatarRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetOwnAvatar Show a picture of one's own beside one's name
+//
+// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+// wherever the person appears, in place of the initials of the name. The picture is staged
+// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+func (c *Client) SetOwnAvatar(ctx context.Context, body SetOwnAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetOwnAvatarRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 //
 // Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -20235,7 +20380,8 @@ func (c *Client) StartPasskeyRegistration(ctx context.Context, params *StartPass
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name, from which a client draws the avatar - and this is that minimum.
+// the display name and the avatar - and this is that minimum. The avatar is the initials of
+// the name, or the picture the person set (`avatar_media_id`), which any member may read.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -28251,7 +28397,7 @@ func (c *Client) DeleteMedia(ctx context.Context, mediaId MediaId, reqEditors ..
 
 // GetMedia performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, and by anybody who can read an entry it is attached to or covers.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
 func (c *Client) GetMedia(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewGetMediaRequest(c.Server, mediaId)
 	if err != nil {
@@ -30498,6 +30644,73 @@ func NewUpdateOwnAccountRequestWithBody(server string, contentType string, body 
 	}
 
 	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewRemoveOwnAvatarRequest constructs an http.Request for the RemoveOwnAvatar method
+func NewRemoveOwnAvatarRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetOwnAvatarRequest calls the generic SetOwnAvatar builder with application/json body
+func NewSetOwnAvatarRequest(server string, body SetOwnAvatarJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetOwnAvatarRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetOwnAvatarRequestWithBody constructs an http.Request for the SetOwnAvatar method, with any body, and a specified content type
+func NewSetOwnAvatarRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/avatar")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -48170,6 +48383,53 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
 
+	// RemoveOwnAvatarWithResponse Go back to the initials
+	//
+	// Takes the caller's picture away: the others see the initials of the name again. Idempotent -
+	// an account without a picture answers as it is. The picture itself is removed once nothing
+	// points at it.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /accounts/me/avatar (the `RemoveOwnAvatar` operationId).
+	RemoveOwnAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnAvatarResult, error)
+
+	// SetOwnAvatarWithBodyWithResponse Show a picture of one's own beside one's name
+	//
+	// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+	// wherever the person appears, in place of the initials of the name. The picture is staged
+	// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+	// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+	// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+	SetOwnAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAvatarResult, error)
+
+	// SetOwnAvatarWithResponse Show a picture of one's own beside one's name
+	//
+	// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+	// wherever the person appears, in place of the initials of the name. The picture is staged
+	// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+	// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+	//
+	// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+	// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+	// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+	// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+	// the one it replaces is removed once nothing points at it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+	SetOwnAvatarWithResponse(ctx context.Context, body SetOwnAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAvatarResult, error)
+
 	// ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 	//
 	// Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -48390,7 +48650,8 @@ type ClientWithResponsesInterface interface {
 	// and not the email, the locale, the time zone or the first day of the week. Those are the
 	// caller's own business or an administrator's; a name is what a workspace has to show to be
 	// readable at all. What the other members of a workspace see of a profile is kept minimal -
-	// the display name, from which a client draws the avatar - and this is that minimum.
+	// the display name and the avatar - and this is that minimum. The avatar is the initials of
+	// the name, or the picture the person set (`avatar_media_id`), which any member may read.
 	//
 	// Any member of the tenant may make it. There is nothing narrower to authorise against: the
 	// identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -52570,7 +52831,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 	//
-	// The media object's record, with a download target when it is READY. Readable by its uploader, and by anybody who can read an entry it is attached to or covers.
+	// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error)
@@ -53914,6 +54175,102 @@ func (r UpdateOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveOwnAvatarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Account
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RemoveOwnAvatarResult) GetJSON200() *Account {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOwnAvatarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOwnAvatarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOwnAvatarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOwnAvatarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOwnAvatarResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetOwnAvatarResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Account
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetOwnAvatarResult) GetJSON200() *Account {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetOwnAvatarResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetOwnAvatarResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetOwnAvatarResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetOwnAvatarResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetOwnAvatarResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -72166,6 +72523,71 @@ func (c *ClientWithResponses) UpdateOwnAccountWithApplicationMergePatchPlusJSONB
 	return ParseUpdateOwnAccountResult(rsp)
 }
 
+// RemoveOwnAvatarWithResponse Go back to the initials
+//
+// Takes the caller's picture away: the others see the initials of the name again. Idempotent -
+// an account without a picture answers as it is. The picture itself is removed once nothing
+// points at it.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /accounts/me/avatar (the `RemoveOwnAvatar` operationId).
+func (c *ClientWithResponses) RemoveOwnAvatarWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnAvatarResult, error) {
+	rsp, err := c.RemoveOwnAvatar(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOwnAvatarResult(rsp)
+}
+
+// SetOwnAvatarWithBodyWithResponse Show a picture of one's own beside one's name
+//
+// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+// wherever the person appears, in place of the initials of the name. The picture is staged
+// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+func (c *ClientWithResponses) SetOwnAvatarWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetOwnAvatarResult, error) {
+	rsp, err := c.SetOwnAvatarWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAvatarResult(rsp)
+}
+
+// SetOwnAvatarWithResponse Show a picture of one's own beside one's name
+//
+// Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+// wherever the person appears, in place of the initials of the name. The picture is staged
+// and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+// `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+//
+// Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+// one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+// JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+// `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+// the one it replaces is removed once nothing points at it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /accounts/me/avatar (the `SetOwnAvatar` operationId).
+func (c *ClientWithResponses) SetOwnAvatarWithResponse(ctx context.Context, body SetOwnAvatarJSONRequestBody, reqEditors ...RequestEditorFn) (*SetOwnAvatarResult, error) {
+	rsp, err := c.SetOwnAvatar(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetOwnAvatarResult(rsp)
+}
+
 // ListEmergencyNoticesWithResponse The emergency accesses the caller was told of in the last 30 days
 //
 // Each time the workspace's owner opened a private hub the caller is a member of, within the last 30 days, whatever the mail about it did - so that a person without a mailbox, or one whose mail did not arrive, is told in the app. Newest first. Not a list of notifications: it answers this one kind of notice and nothing else.
@@ -72464,7 +72886,8 @@ func (c *ClientWithResponses) StartPasskeyRegistrationWithResponse(ctx context.C
 // and not the email, the locale, the time zone or the first day of the week. Those are the
 // caller's own business or an administrator's; a name is what a workspace has to show to be
 // readable at all. What the other members of a workspace see of a profile is kept minimal -
-// the display name, from which a client draws the avatar - and this is that minimum.
+// the display name and the avatar - and this is that minimum. The avatar is the initials of
+// the name, or the picture the person set (`avatar_media_id`), which any member may read.
 //
 // Any member of the tenant may make it. There is nothing narrower to authorise against: the
 // identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -79164,7 +79587,7 @@ func (c *ClientWithResponses) DeleteMediaWithResponse(ctx context.Context, media
 
 // GetMediaWithResponse performs a GET /media/{mediaId} (the `GetMedia` operationId) request.
 //
-// The media object's record, with a download target when it is READY. Readable by its uploader, and by anybody who can read an entry it is attached to or covers.
+// The media object's record, with a download target when it is READY. Readable by its uploader, by anybody who can read an entry it is attached to or covers, and - for a person's picture - by every member of the workspace.
 //
 // Returns a wrapper object for the known response body format(s).
 func (c *ClientWithResponses) GetMediaWithResponse(ctx context.Context, mediaId MediaId, reqEditors ...RequestEditorFn) (*GetMediaResult, error) {
@@ -81083,6 +81506,72 @@ func ParseUpdateOwnAccountResult(rsp *http.Response) (*UpdateOwnAccountResult, e
 	}
 
 	response := &UpdateOwnAccountResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOwnAvatarResult parses an HTTP response from a RemoveOwnAvatarWithResponse call
+func ParseRemoveOwnAvatarResult(rsp *http.Response) (*RemoveOwnAvatarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOwnAvatarResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Account
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetOwnAvatarResult parses an HTTP response from a SetOwnAvatarWithResponse call
+func ParseSetOwnAvatarResult(rsp *http.Response) (*SetOwnAvatarResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetOwnAvatarResult{
 		Body:         bodyBytes,
 		HTTPResponse: rsp,
 	}

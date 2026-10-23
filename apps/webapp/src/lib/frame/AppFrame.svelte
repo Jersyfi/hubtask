@@ -47,8 +47,10 @@
   import { viewport } from './viewport.svelte.ts';
 
   import { announcer } from '../announce.svelte.ts';
-  import { live } from '../data/live.svelte.ts';
+  import { live, type LiveState } from '../data/live.svelte.ts';
+  import { liveAnnouncement } from './liveannouncement.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { figures } from '../data/figures.svelte.ts';
   import { recents } from '../recents.svelte.ts';
@@ -183,7 +185,7 @@
   });
   const isCaptureOffered = $derived(session.isSignedIn && mayCaptureHere());
 
-  /** Where the reader stands, for the capture field's own collection. */
+  /** Where the reader stands: the capture field's own collection, and what the palette offers for it. */
   const captureHere = $derived({
     collection: route.name === 'collection' ? route.params.id : undefined,
     item: route.name === 'item' ? route.params.id : undefined,
@@ -204,9 +206,14 @@
   /**
    * The node the tree marks: the container the reader is in, or the destination they are on. On
    * the workspace page the workspace row; inside a collection the collection, not the row above it.
+   * On an entry's page its collection, and nothing until the entry says which - never the workspace.
    */
   const currentNode = $derived(
-    route.name === 'hub' || route.name === 'collection' ? route.params.id : destination,
+    route.name === 'hub' || route.name === 'collection'
+      ? route.params.id
+      : route.name === 'item'
+        ? page.place
+        : destination,
   );
   /**
    * The section the reader is inside, or nothing while they are in the workspace.
@@ -336,19 +343,17 @@
    *
    * Only on a change, and only these two: a badge that narrated every reconnection attempt would
    * be a screen reader reading a heartbeat. Becoming live is worth saying because it changes what
-   * the reader can trust; losing it is worth saying for the same reason.
+   * the reader can trust; losing it is worth saying for the same reason. Which ones, in
+   * `liveAnnouncement`: the first connection of a page is not a return.
    */
-  let announced = $state<string | undefined>(undefined);
+  let announced = $state<LiveState | undefined>(undefined);
+  let hasBeenLive = false;
   $effect(() => {
     const state = live.state;
     if (!session.isSignedIn || state === announced) return;
-    if (announced !== undefined) {
-      if (state === 'live') announcer.say(t('app.live.became_live'));
-      // Losing it is worth saying whichever half lost it: the stream cannot be reached, or the
-      // device says it has no network at all.
-      else if (state === 'reconnecting') announcer.say(t('app.live.lost'));
-      else if (state === 'offline') announcer.say(t('app.live.device_offline'));
-    }
+    const code = liveAnnouncement(announced, state, hasBeenLive);
+    if (code) announcer.say(t(code));
+    if (state === 'live') hasBeenLive = true;
     announced = state;
   });
 
@@ -431,7 +436,7 @@
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
            the reader reaches search through the bottom bar instead. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <Palette host="bar" onnavigate={go} onaccount={accountVerb} />
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
       {/if}
     {/snippet}
     {#snippet menu()}
@@ -466,7 +471,7 @@
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -590,11 +595,11 @@
         else go(bottomDestinations.find((each) => each.id === id)?.href ?? '/');
       }}
     />
-    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
+    <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
   {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
-    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} />
+    <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
   {#if isCaptureOffered && capture.isOpen}
@@ -614,7 +619,7 @@
   <StepUpPrompt />
   <!-- The tour: walks routes, so it lives where every route is. -->
   {#if session.isSignedIn}
-    <TourGuide {onnavigate} />
+    <TourGuide path={route.path} {onnavigate} />
   {/if}
 
   <!-- The application's one live region, and it is in the frame because two of them compete: a

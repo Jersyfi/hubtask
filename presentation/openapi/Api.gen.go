@@ -2721,6 +2721,7 @@ func (e MediaObjectStatus) Valid() bool {
 // Defines values for MediaObjectUsage.
 const (
 	MediaObjectUsageATTACHMENT MediaObjectUsage = "ATTACHMENT"
+	MediaObjectUsageAVATAR     MediaObjectUsage = "AVATAR"
 	MediaObjectUsageCOVER      MediaObjectUsage = "COVER"
 	MediaObjectUsageIMPORT     MediaObjectUsage = "IMPORT"
 )
@@ -2729,6 +2730,8 @@ const (
 func (e MediaObjectUsage) Valid() bool {
 	switch e {
 	case MediaObjectUsageATTACHMENT:
+		return true
+	case MediaObjectUsageAVATAR:
 		return true
 	case MediaObjectUsageCOVER:
 		return true
@@ -2760,6 +2763,7 @@ func (e MediaTransferMethod) Valid() bool {
 // Defines values for MediaUploadRequestUsage.
 const (
 	MediaUploadRequestUsageATTACHMENT MediaUploadRequestUsage = "ATTACHMENT"
+	MediaUploadRequestUsageAVATAR     MediaUploadRequestUsage = "AVATAR"
 	MediaUploadRequestUsageCOVER      MediaUploadRequestUsage = "COVER"
 	MediaUploadRequestUsageIMPORT     MediaUploadRequestUsage = "IMPORT"
 )
@@ -2768,6 +2772,8 @@ const (
 func (e MediaUploadRequestUsage) Valid() bool {
 	switch e {
 	case MediaUploadRequestUsageATTACHMENT:
+		return true
+	case MediaUploadRequestUsageAVATAR:
 		return true
 	case MediaUploadRequestUsageCOVER:
 		return true
@@ -5659,6 +5665,9 @@ type Account struct {
 	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
 	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
 
+	// AvatarMediaId The picture the person shows beside their name, a media object any member of the workspace may read (`GET /media/{mediaId}`). Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -5742,6 +5751,9 @@ type AccountPreferencesWeekStart string
 
 // AccountSummary An account as another member of the same tenant may see it: enough to render a name where a record carries an identifier, and nothing else. Deliberately not `Account` - that carries the email and the caller's own preferences, which are a different permission.
 type AccountSummary struct {
+	// AvatarMediaId The picture the person shows beside their name, readable through `GET /media/{mediaId}` by any member. Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// DisplayName An erased account carries the marker its erasure wrote here, so a reader sees that somebody acted without learning who they were.
 	DisplayName string `json:"display_name"`
 
@@ -6409,6 +6421,12 @@ type AutomationRuleUpdate struct {
 
 // AutomationRuleUpdateOnError defines model for AutomationRuleUpdate.OnError.
 type AutomationRuleUpdateOnError string
+
+// AvatarInput defines model for AvatarInput.
+type AvatarInput struct {
+	// MediaId A confirmed media object the caller staged with usage `AVATAR`.
+	MediaId openapi_types.UUID `json:"media_id"`
+}
 
 // BackupArchive Read from the manifest at the target, not from the database.
 type BackupArchive struct {
@@ -8293,6 +8311,9 @@ type InvitedAccount struct {
 	// AuthenticatorAppRemovable Whether turning the authenticator app off would be accepted now, answered on `GET /accounts/me` and on nothing else: the app is armed, and either the workspace's rule does not require a second factor of this person or a passkey or security key remains.
 	AuthenticatorAppRemovable *bool `json:"authenticator_app_removable,omitempty"`
 
+	// AvatarMediaId The picture the person shows beside their name, a media object any member of the workspace may read (`GET /media/{mediaId}`). Absent or null means the initials of the name are the avatar.
+	AvatarMediaId *openapi_types.UUID `json:"avatar_media_id,omitempty"`
+
 	// Celebrations Whether the moments are marked for this person - a small celebration when work is completed. Absent or null means the default, which is on.
 	Celebrations *bool                `json:"celebrations,omitempty"`
 	DisplayName  string               `json:"display_name"`
@@ -8929,7 +8950,7 @@ type MediaObject struct {
 	FileName *string            `json:"file_name,omitempty"`
 	Id       openapi_types.UUID `json:"id"`
 
-	// RefCount How many covers and attachments point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
+	// RefCount How many covers, attachments and avatars point at the object. Zero and READY means the reconciliation job will remove it after its grace period; deletion by hand is only possible at zero.
 	RefCount int `json:"ref_count"`
 
 	// Size Declared while PENDING, measured once READY.
@@ -8974,11 +8995,11 @@ type MediaUploadRequest struct {
 	// Size The exact size in bytes. Bounded by the installation's upload limit.
 	Size int64 `json:"size"`
 
-	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+	// Usage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
 	Usage MediaUploadRequestUsage `json:"usage"`
 }
 
-// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends.
+// MediaUploadRequestUsage What the object is for. `IMPORT` stages a file for `POST /imports` and nothing else: an object staged as an import cannot become a cover or an attachment, and it is deleted when the import's job ends. `AVATAR` stages a picture for `PUT /accounts/me/avatar`, at most 5 MB.
 type MediaUploadRequestUsage string
 
 // Membership defines model for Membership.
@@ -14004,6 +14025,9 @@ type ShareSavedViewParams struct {
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
+// SetOwnAvatarJSONRequestBody defines body for SetOwnAvatar for application/json ContentType.
+type SetOwnAvatarJSONRequestBody = AvatarInput
+
 // CompleteProviderConnectJSONRequestBody defines body for CompleteProviderConnect for application/json ContentType.
 type CompleteProviderConnectJSONRequestBody = ProviderConnectReturn
 
@@ -14519,6 +14543,12 @@ type ServerInterface interface {
 	// UpdateOwnAccount Change what the caller is called
 	// (PATCH /accounts/me)
 	UpdateOwnAccount(w http.ResponseWriter, r *http.Request)
+	// RemoveOwnAvatar Go back to the initials
+	// (DELETE /accounts/me/avatar)
+	RemoveOwnAvatar(w http.ResponseWriter, r *http.Request)
+	// SetOwnAvatar Show a picture of one's own beside one's name
+	// (PUT /accounts/me/avatar)
+	SetOwnAvatar(w http.ResponseWriter, r *http.Request)
 	// ListEmergencyNotices The emergency accesses the caller was told of in the last 30 days
 	// (GET /accounts/me/emergency-notices)
 	ListEmergencyNotices(w http.ResponseWriter, r *http.Request)
@@ -15653,6 +15683,34 @@ func (siw *ServerInterfaceWrapper) UpdateOwnAccount(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveOwnAvatar operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOwnAvatar(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOwnAvatar(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetOwnAvatar operation middleware
+func (siw *ServerInterfaceWrapper) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetOwnAvatar(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28791,6 +28849,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts:create-managed", wrapper.CreateManagedAccount)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me", wrapper.GetOwnAccount)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me", wrapper.UpdateOwnAccount)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/avatar", wrapper.RemoveOwnAvatar)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/accounts/me/avatar", wrapper.SetOwnAvatar)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/{accountId}", wrapper.GetAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:issue-start-password", wrapper.IssueStartPassword)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/{accountId}:add-address", wrapper.RequestAddress)

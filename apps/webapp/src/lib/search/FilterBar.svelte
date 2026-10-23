@@ -27,7 +27,6 @@
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
   import { KEYS, clear, has, parse, toggle, type Key } from '../data/searchquery.ts';
-  import { humanise } from '../i18n/messages.ts';
   import { t } from '../i18n/i18n.svelte.ts';
 
   interface Props {
@@ -66,7 +65,7 @@
   ]);
 
   const typeAnswers = $derived(
-    ['task', 'work_package', 'activity'].map((kind) => answer('type', kind, humanise(kind))),
+    ['task', 'work_package', 'activity'].map((kind) => answer('type', kind, t('app.item.type_name', { type: kind.toUpperCase() }))),
   );
 
   const whenAnswers = (key: Key) =>

@@ -6,7 +6,10 @@
 // * check 1 - `⌘K`, `Ctrl K` and the bar's field open it on every framed page; on a phone the
 //   shortcut and a tap on the bottom bar's *Search* open it in a dialog;
 // * check 2 - an action the role refuses is absent: a viewer is offered no *Add an entry*, no
-//   *Select entries* and no *New task in Kitchen*, a member is offered all three;
+//   *Select entries* and no *New task in Kitchen*, a member is offered all three; a member is
+//   offered no *Create collection* and no shared hub, an owner both; the frame's ways of making
+//   something and the settings rows - each landing on its row - are found by keyboard alone in
+//   English and German, and an empty palette offers the common actions and the places opened last;
 // * check 3 - a listed action shows its key, and `?` opens the list of every shortcut;
 // * check 5 - by keyboard alone: arrows and Enter perform the highlighted row, Escape closes and
 //   returns focus where it was; an action that opens a dialog hands focus into it and back.
@@ -51,12 +54,26 @@ async function arrowTo(page, name) {
   assert.fail(`no row named ${name}`);
 }
 
-/** A signed-in tab whose reader holds `role` on the workspace and nothing below it. */
-async function as(browser, role) {
+/** Presses ↓ until the highlighted row's name is `name`, in whichever field has focus - any language. */
+async function arrowToFocused(page, name) {
+  for (let presses = 0; presses < 40; presses += 1) {
+    await page.keyboard.press('ArrowDown');
+    const title = await page.evaluate(() => {
+      const active = document.activeElement?.getAttribute('aria-activedescendant');
+      return active ? document.getElementById(active)?.querySelector('.title')?.textContent?.trim() : undefined;
+    });
+    if (title === name) return;
+  }
+  assert.fail(`no row named ${name}`);
+}
+
+/** A signed-in tab whose reader holds `role` on the workspace and nothing below it, reading `locale`. */
+async function as(browser, role, { locale = 'en' } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
   await context.route('**/api/v1/**', async (route) => {
     const url = new URL(route.request().url());
     const path = url.pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/accounts/me') return route.fulfill({ json: { ...ACCOUNT, locale } });
     if (path === '/meta/capabilities') return route.fulfill({ json: { ...MANIFEST, workspace_permissions: PERMISSIONS[role] } });
     if (path === '/memberships') {
       const scope = url.searchParams.get('scope_type');
@@ -275,5 +292,134 @@ test('chromium: 375 px — an action that opens a dialog takes focus into it and
   await page.keyboard.press('Escape');
   await page.waitForTimeout(200);
   assert.ok(await checkbox.evaluate((node) => node === document.activeElement), 'focus did not come back to where it was');
+  assert.deepEqual(failures, []);
+});
+
+// ---------------------------------------------------------------------------------------------
+// Actions and settings beside the screen's own (check 2): the frame's ways of making something,
+// the rows of one's own settings, and the places opened last - by keyboard alone, in the
+// reader's language.
+// ---------------------------------------------------------------------------------------------
+
+/** Opens the palette by its key with focus on the page, and types the words. */
+async function ask(page, words) {
+  await page.locator('body').click({ position: { x: 1, y: 300 } });
+  await page.keyboard.press('Control+k');
+  await listOf(page).waitFor();
+  if (words) await page.keyboard.type(words);
+  await page.waitForTimeout(400);
+}
+
+/** The `data-setting` of the row focus is in. */
+const focusedSetting = (page) => page.evaluate(() => document.activeElement?.closest('[data-setting]')?.getAttribute('data-setting') ?? null);
+
+test('chromium: by keyboard alone, a setting opens its screen with focus on its row — English and German (check 2)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const walks = [
+    { locale: 'en', words: 'language', row: 'Language', setting: 'language', path: /\/profile$/ },
+    { locale: 'de', words: 'Sprache', row: 'Sprache', setting: 'language', path: /\/profile$/ },
+    // Found by a word the row does not say: "Design" means *Hell oder dunkel*.
+    { locale: 'de', words: 'Design', row: 'Hell oder dunkel', setting: 'theme', path: /\/profile\/appearance$/ },
+    { locale: 'en', words: 'password', row: 'Password', setting: 'password', path: /\/profile\/security$/ },
+  ];
+  for (const walk of walks) {
+    const { context, page, failures } = await as(browser, 'MEMBER', { locale: walk.locale });
+    t.after(() => context.close());
+    await onKitchen(page);
+    await page.waitForFunction((lang) => document.documentElement.lang === lang, walk.locale);
+    await ask(page, walk.words);
+    await arrowToFocused(page, walk.row);
+    await page.keyboard.press('Enter');
+    await page.waitForURL(walk.path);
+    await page.waitForFunction((id) => document.activeElement?.closest('[data-setting]')?.getAttribute('data-setting') === id, walk.setting, { timeout: 5_000 });
+    assert.equal(await focusedSetting(page), walk.setting, `${walk.locale} "${walk.words}" did not land on its row`);
+    assert.deepEqual(failures, []);
+  }
+});
+
+test('chromium: by keyboard alone, the ways of making something are found — English and German (check 2)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const words = { en: 'create', de: 'anlegen' };
+  const expected = {
+    en: ['Capture', 'Create collection in House', 'Create hub', 'Add an entry'],
+    de: ['Erfassen', 'Sammlung in House anlegen', 'Hub anlegen', 'Eintrag hinzufügen'],
+  };
+  for (const locale of ['en', 'de']) {
+    const { context, page, failures } = await as(browser, 'OWNER', { locale });
+    t.after(() => context.close());
+    await onKitchen(page);
+    await page.waitForFunction((lang) => document.documentElement.lang === lang, locale);
+    await ask(page, words[locale]);
+    const names = await rowNames(page);
+    for (const name of expected[locale]) assert.ok(names.includes(name), `${locale} "${words[locale]}" does not offer ${name}: ${names.join(' | ')}`);
+
+    // Enter on *Create collection in House* opens the create dialog, with focus inside it.
+    await arrowToFocused(page, expected[locale][1]);
+    await page.keyboard.press('Enter');
+    const dialog = page.getByRole('dialog').last();
+    await dialog.waitFor();
+    await page.waitForTimeout(200);
+    assert.ok(await dialog.evaluate((node) => node.contains(document.activeElement)), 'focus is not in the create dialog');
+    await page.keyboard.press('Escape');
+    await dialog.waitFor({ state: 'hidden' });
+
+    // Enter on *Capture* opens the capture field.
+    await ask(page, words[locale]);
+    await arrowToFocused(page, expected[locale][0]);
+    await page.keyboard.press('Enter');
+    await page.getByRole('dialog').last().waitFor();
+    assert.deepEqual(failures, []);
+  }
+});
+
+test('chromium: an action the role refuses is absent — a member is offered no collection and no shared hub (check 2)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+
+  const offered = {};
+  for (const role of ['OWNER', 'MEMBER']) {
+    const { context, page, failures } = await as(browser, role);
+    t.after(() => context.close());
+    await onKitchen(page);
+    await ask(page, 'create');
+    offered[role] = await rowNames(page);
+    assert.deepEqual(failures, []);
+  }
+  assert.ok(offered.OWNER.includes('Create collection in House'), 'an owner is offered a collection');
+  assert.ok(offered.OWNER.includes('Create hub'), 'an owner is offered a hub');
+  assert.ok(!offered.MEMBER.includes('Create collection in House'), 'a member was offered a collection');
+  assert.ok(!offered.MEMBER.includes('Create hub'), 'a member was offered a shared hub');
+  assert.ok(offered.MEMBER.includes('Create private hub'), 'a member is offered the private hub the workspace allows');
+});
+
+test('chromium: the empty palette offers the common actions and the places opened last; on an entry, its collection\'s acts', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await signedIn(browser, 1280);
+  t.after(() => context.close());
+
+  await onKitchen(page);
+  await page.goto(`${served.origin}/items/${ITEMS[0].id}`);
+  await page.getByRole('main').waitFor();
+  await page.waitForTimeout(600);
+  await ask(page, '');
+  const headings = await listOf(page).locator('[role="group"] > .head').allTextContents();
+  assert.ok(headings.includes('Actions'), `no actions group: ${headings.join(' | ')}`);
+  assert.ok(headings.includes('Recently opened'), `no recent group: ${headings.join(' | ')}`);
+  const names = await rowNames(page);
+  assert.ok(names.includes('Capture'), 'the empty palette does not offer capture');
+  assert.ok(names.includes('Kitchen'), 'the empty palette does not offer the collection opened last');
+
+  // Standing on one of its entries, the collection's acts are offered without naming it.
+  await page.keyboard.type('board');
+  await page.waitForTimeout(400);
+  await arrowToFocused(page, 'Open Kitchen as a board');
+  await page.keyboard.press('Enter');
+  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}`));
+  await page.getByRole('radio', { name: 'Board', checked: true }).waitFor();
   assert.deepEqual(failures, []);
 });

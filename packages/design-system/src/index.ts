@@ -158,6 +158,7 @@ export { comparing, nextSort, type Sort, type SortDirection } from './table.ts';
 export {
   collapseTrail,
   flattenTree,
+  levelOf,
   parentRow,
   treeIntent,
   type CollapsedTrail,

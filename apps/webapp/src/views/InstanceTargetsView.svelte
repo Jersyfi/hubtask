@@ -41,6 +41,7 @@
   let probes = $state<Record<string, Probe>>({});
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openTargets());
     return stop;
   });

@@ -85,3 +85,10 @@ export const colours: Story = {
     'A hub or a collection drawn with the symbol and the colour its people chose: the symbol in the label’s ink on the label’s tile, the measured pair, so it reads in both modes. The colour is the place’s, never a level’s — a place nobody chose for keeps its type’s mark and no tile — and it never says anything alone: the name beside it says which place it is. Folded, the tiles are what tells the hubs apart.',
   args: { mode: 'colours' },
 };
+
+export const reorder: Story = {
+  name: 'Ranked by drag or by key',
+  about:
+    'A node the caller marks movable carries a grip at the end of its row, faded until the pointer is over the row or the focus is in it, and drawn always on a touch screen. The grip drags it within its own level — a hub among the hubs, a collection among its hub’s collections — with the slot it would take outlined; a fine pointer starts once it has travelled, a finger after the hold. Alt+ArrowUp and Alt+ArrowDown on the focused row are the same command, Shift with them goes to the ends, and the focus stays with the node. The tree moves nothing itself: it names the position, and the caller writes the order and says it out loud — here, the line under the tree. Folded to the rail there is no grip.',
+  args: { mode: 'reorder' },
+};

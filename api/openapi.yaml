@@ -2974,6 +2974,55 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /accounts/me/avatar:
+    put:
+      tags: [identity]
+      operationId: setOwnAvatar
+      summary: Show a picture of one's own beside one's name
+      description: |
+        Makes an uploaded picture the caller's avatar: what every member of the workspace sees
+        wherever the person appears, in place of the initials of the name. The picture is staged
+        and confirmed like any other upload (`POST /media` with usage `AVATAR`, the bytes, then
+        `POST /media/{mediaId}:confirm`), and only by the caller themselves.
+
+        Refused with `media.not_ready` for an object not yet confirmed, `media.usage_mismatch` for
+        one staged for something else, `media.avatar_not_an_image` for bytes that are not a PNG,
+        JPEG, GIF or WebP image, `media.not_found` for an object somebody else uploaded, and
+        `accounts.picture_needs_a_person` for a service account. A picture already set is replaced;
+        the one it replaces is removed once nothing points at it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AvatarInput"
+      responses:
+        "200":
+          description: The account, carrying its picture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [identity]
+      operationId: removeOwnAvatar
+      summary: Go back to the initials
+      description: |
+        Takes the caller's picture away: the others see the initials of the name again. Idempotent -
+        an account without a picture answers as it is. The picture itself is removed once nothing
+        points at it.
+      responses:
+        "200":
+          description: The account, without a picture
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Account"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /accounts/{accountId}:
     parameters:
       - $ref: "#/components/parameters/AccountId"
@@ -2991,7 +3040,8 @@ paths:
         and not the email, the locale, the time zone or the first day of the week. Those are the
         caller's own business or an administrator's; a name is what a workspace has to show to be
         readable at all. What the other members of a workspace see of a profile is kept minimal -
-        the display name, from which a client draws the avatar - and this is that minimum.
+        the display name and the avatar - and this is that minimum. The avatar is the initials of
+        the name, or the picture the person set (`avatar_media_id`), which any member may read.
 
         Any member of the tenant may make it. There is nothing narrower to authorise against: the
         identifiers a client holds arrived in records it was already allowed to read, and row level
@@ -10599,7 +10649,8 @@ paths:
       operationId: getMedia
       description: >
         The media object's record, with a download target when it is READY. Readable by its
-        uploader, and by anybody who can read an entry it is attached to or covers.
+        uploader, by anybody who can read an entry it is attached to or covers, and - for a
+        person's picture - by every member of the workspace.
       responses:
         "200":
           description: The media object
@@ -11257,6 +11308,13 @@ components:
           description: >
             When the person finished or skipped the first-run tour. Absent or null means the tour
             has not been taken - or was asked for again.
+        avatar_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The picture the person shows beside their name, a media object any member of the
+            workspace may read (`GET /media/{mediaId}`). Absent or null means the initials of the
+            name are the avatar.
         has_second_factor:
           type: boolean
           description: >
@@ -11367,6 +11425,12 @@ components:
             True for a managed account: a sign-in name and no address. Only such an account takes a
             new start password or an address; an erased account has no address either and is not
             managed.
+        avatar_media_id:
+          type: [string, "null"]
+          format: uuid
+          description: >
+            The picture the person shows beside their name, readable through `GET /media/{mediaId}`
+            by any member. Absent or null means the initials of the name are the avatar.
 
     ManagedAccountCreate:
       type: object
@@ -11450,6 +11514,15 @@ components:
       properties:
         email: { type: string, format: email, maxLength: 254 }
         display_name: { type: [string, "null"], maxLength: 200 }
+
+    AvatarInput:
+      type: object
+      required: [media_id]
+      properties:
+        media_id:
+          type: string
+          format: uuid
+          description: A confirmed media object the caller staged with usage `AVATAR`.
 
     OwnAccountUpdate:
       type: object
@@ -17919,7 +17992,7 @@ components:
         checksum: { type: [string, "null"] }
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR]
         status:
           type: string
           enum: [PENDING, READY]
@@ -17929,7 +18002,7 @@ components:
         ref_count:
           type: integer
           description: >
-            How many covers and attachments point at the object. Zero and READY means the
+            How many covers, attachments and avatars point at the object. Zero and READY means the
             reconciliation job will remove it after its grace period; deletion by hand is only
             possible at zero.
         created_by: { type: string, format: uuid }
@@ -17978,11 +18051,12 @@ components:
           description: The exact size in bytes. Bounded by the installation's upload limit.
         usage:
           type: string
-          enum: [COVER, ATTACHMENT, IMPORT]
+          enum: [COVER, ATTACHMENT, IMPORT, AVATAR]
           description: >
             What the object is for. `IMPORT` stages a file for `POST /imports` and nothing
             else: an object staged as an import cannot become a cover or an attachment, and it is
-            deleted when the import's job ends.
+            deleted when the import's job ends. `AVATAR` stages a picture for
+            `PUT /accounts/me/avatar`, at most 5 MB.
 
     MediaPage:
       type: object

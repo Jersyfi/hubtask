@@ -148,3 +148,72 @@ func TestAFileNameIsStoredInNormalFormC(t *testing.T) {
 		t.Errorf("without a port the decomposed name was accepted: %v", err)
 	}
 }
+
+func TestAPictureOfOneselfIsBoundedTighterThanAnAttachment(t *testing.T) {
+	cases := []struct {
+		name  string
+		size  int64
+		limit int64
+		want  string
+	}{
+		{"within both", media.MaxAvatarBytes, 100 << 20, ""},
+		{"past the picture's own bound", media.MaxAvatarBytes + 1, 100 << 20, "media.too_large"},
+		{"past the installation's lower one", 2 << 20, 1 << 20, "media.too_large"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			input := staging()
+			input.Usage, input.ClaimedType = media.UsageAvatar, "image/png"
+			input.DeclaredSize, input.SizeLimit = tc.size, tc.limit
+			_, err := media.NewPendingObject(input)
+			if got := detailOf(err); got != tc.want {
+				t.Errorf("staging %d bytes under %d answered %v, want %q", tc.size, tc.limit, err, tc.want)
+			}
+		})
+	}
+	if usage, err := media.ParseUsage("AVATAR"); err != nil || usage != media.UsageAvatar {
+		t.Errorf("AVATAR parsed as %q, %v", usage, err)
+	}
+}
+
+func TestOnlyAConfirmedImageStagedAsAnAvatarIsAPicture(t *testing.T) {
+	ready := media.Object{Usage: media.UsageAvatar, Status: media.StatusReady, ContentType: "image/webp"}
+	marked := ready
+	marked.DeletedAt = &stagedAt
+	pending := ready
+	pending.Status = media.StatusPending
+	cover := ready
+	cover.Usage = media.UsageCover
+	svg := ready
+	svg.ContentType = "image/svg+xml"
+	pdf := ready
+	pdf.ContentType = "application/pdf"
+
+	cases := []struct {
+		name   string
+		object media.Object
+		want   string
+	}{
+		{"a confirmed WebP", ready, ""},
+		{"one on its way out", marked, "media.not_found"},
+		{"one not yet judged", pending, "media.not_ready"},
+		{"one staged as a cover", cover, "media.usage_mismatch"},
+		{"an SVG, which a browser may execute", svg, "media.avatar_not_an_image"},
+		{"a document", pdf, "media.avatar_not_an_image"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := tc.object.Portrayable()
+			if got := detailOf(err); got != tc.want {
+				t.Errorf("answered %v, want %q", err, tc.want)
+			}
+		})
+	}
+}
+
+func detailOf(err error) string {
+	if err == nil {
+		return ""
+	}
+	return shared.AsError(err).DetailCode
+}

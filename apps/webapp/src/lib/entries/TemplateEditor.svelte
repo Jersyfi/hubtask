@@ -69,7 +69,7 @@
 
   const candidateIds = $derived(people.candidates(path));
   const candidates = $derived(
-    candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed') })),
+    candidateIds.map((id) => ({ id, name: accounts.nameOf(id) ?? t('app.people.unnamed'), src: accounts.pictureOf(id) })),
   );
 
   /** The types a template's first node may be: the ones a collection takes directly. */

@@ -4,7 +4,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { stepsFor } from './tour.ts';
+import german from '../../../../locales/de.json' with { type: 'json' };
+
+import { SOURCE } from './i18n/catalogue.ts';
+import { startsAt, stepsFor } from './tour.ts';
+
+test('the layouts step names every layout a collection may offer, the timeline too', () => {
+  const de = german as Record<string, string>;
+  for (const layout of ['list', 'board', 'timeline']) assert.match(SOURCE['app.tour.layouts.body'] ?? '', new RegExp(layout));
+  for (const layout of ['Liste', 'Board', 'Zeitleiste']) assert.match(de['app.tour.layouts.body'] ?? '', new RegExp(layout));
+});
 
 test('a workspace with a collection and an entry is walked through every step, and led to add an entry', () => {
   const steps = stepsFor({ collectionId: 'col-1', itemId: 'it-1', hasJumble: true });
@@ -24,10 +33,19 @@ test('a fresh workspace leaves out what it cannot point at, and the last step le
   assert.equal(steps.at(-1)?.selector, '[data-tour="hubs"]');
 });
 
-test('a collection without an entry keeps the list step and drops the entry step', () => {
-  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: true }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'jumble', 'search', 'profile', 'make']);
+test('a collection without an entry keeps the list step, drops the entry step and tells the levels at the list', () => {
+  const steps = stepsFor({ collectionId: 'c', hasJumble: true });
+  assert.deepEqual(steps.map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'levels', 'jumble', 'search', 'profile', 'make']);
+  const levels = steps.find((s) => s.id === 'levels');
+  assert.equal(levels?.route, '/collections/c');
+  assert.equal(levels?.selector, '[data-tour="levels-inside"]');
 });
 
 test('somebody the jumble is not drawn for is not toured through it', () => {
-  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'search', 'profile', 'make']);
+  assert.deepEqual(stepsFor({ collectionId: 'c', hasJumble: false }).map((s) => s.id), ['hubs', 'capture', 'palette', 'layouts', 'levels', 'search', 'profile', 'make']);
+});
+
+test('the tour starts on the overview only, so an address opened by link keeps its screen', () => {
+  assert.equal(startsAt('/'), true);
+  for (const path of ['/profile/security', '/profile/sessions', '/collections/c', '/search', '/sign-in']) assert.equal(startsAt(path), false, path);
 });

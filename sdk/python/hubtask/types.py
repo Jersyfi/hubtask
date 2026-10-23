@@ -68,6 +68,7 @@ class Account(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
     has_authenticator_app: bool
@@ -89,6 +90,7 @@ class AccountSummary(TypedDict, total=False):
     status: Required[Literal["ACTIVE", "INVITED", "DISABLED", "RESTRICTED", "ANONYMIZED"]]
     has_address: bool
     managed: bool
+    avatar_media_id: str | None
 
 class ManagedAccountCreate(TypedDict, total=False):
     display_name: Required[str]
@@ -127,6 +129,7 @@ class InvitedAccount(TypedDict, total=False):
     week_start: Literal["MONDAY", "SUNDAY", "SATURDAY"] | None
     celebrations: bool | None
     onboarding_completed_at: str | None
+    avatar_media_id: str | None
     has_second_factor: bool
     recovery_codes_remaining: int
     has_authenticator_app: bool
@@ -139,6 +142,9 @@ class InvitedAccount(TypedDict, total=False):
 class AccountInvite(TypedDict, total=False):
     email: Required[str]
     display_name: str | None
+
+class AvatarInput(TypedDict, total=False):
+    media_id: Required[str]
 
 class OwnAccountUpdate(TypedDict, total=False):
     """What a person may change about their own account. A field left out is left as it is."""
@@ -2179,7 +2185,7 @@ class MediaObject(TypedDict, total=False):
     content_type: Required[str]
     size: Required[int]
     checksum: str | None
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR"]]
     status: Required[Literal["PENDING", "READY"]]
     ref_count: Required[int]
     created_by: Required[str]
@@ -2197,7 +2203,7 @@ class MediaUploadRequest(TypedDict, total=False):
     file_name: str | None
     content_type: str | None
     size: Required[int]
-    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT"]]
+    usage: Required[Literal["COVER", "ATTACHMENT", "IMPORT", "AVATAR"]]
 
 class MediaPage(TypedDict, total=False):
     data: Required[list["MediaObject"]]

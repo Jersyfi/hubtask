@@ -52,6 +52,10 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
     // The levels under an entry, where its type holds any; a list's entry holds none, and the step
     // is passed over there.
     steps.push({ id: 'levels', route: `/items/${workspace.itemId}`, selector: '[data-tour="levels"]', side: 'block-end' });
+  } else if (workspace.collectionId) {
+    // No entry yet - a fresh workspace: the levels are told at the list's "show what is inside",
+    // which is where they show before an entry holds any.
+    steps.push({ id: 'levels', route: `/collections/${workspace.collectionId}`, selector: '[data-tour="levels-inside"]', side: 'block-end' });
   }
   if (workspace.hasJumble) {
     steps.push({ id: 'jumble', route: '/jumble', selector: '[data-tour="jumble"]', side: 'block-end' });
@@ -68,6 +72,15 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
       : { id: 'make', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
   );
   return steps;
+}
+
+/**
+ * Whether the tour may start at this address: only on the overview, where its first step is.
+ * Its first step navigates, so a start anywhere else would replace an address somebody opened by
+ * link or bookmark with the overview; it starts instead when they first arrive there.
+ */
+export function startsAt(path: string): boolean {
+  return path === '/';
 }
 
 /** The key under which this tab remembers that the tour was walked to its end or skipped. */

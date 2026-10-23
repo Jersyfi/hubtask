@@ -77,6 +77,7 @@
   let confirmCount = $state('');
 
   $effect(() => {
+    if (!instance.isElevated) return;
     const stop = untrack(() => instance.openProviders());
     return stop;
   });

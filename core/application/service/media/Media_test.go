@@ -58,7 +58,9 @@ type objects struct {
 	// referenced are the objects MarkDeleted refuses to mark, which is what the repository does
 	// for an object something still points at.
 	referenced map[shared.ID]bool
-	marked     []shared.ID
+	// avatars are the objects some account shows as its picture.
+	avatars map[shared.ID]bool
+	marked  []shared.ID
 	// pages is what ListForItem answers, and asked records the page it was asked for - which is
 	// how a test says that the size was clamped rather than passed through.
 	pages    map[shared.ID]repository.ObjectPage
@@ -71,6 +73,7 @@ func newObjects() *objects {
 		stored:     map[shared.ID]domain.Object{},
 		refs:       map[shared.ID][]repository.ItemRef{},
 		referenced: map[shared.ID]bool{},
+		avatars:    map[shared.ID]bool{},
 		pages:      map[shared.ID]repository.ObjectPage{},
 		asked:      map[shared.ID]workrepo.Page{},
 	}
@@ -128,6 +131,10 @@ func (o *objects) TakeOrphans(context.Context, time.Time, int) ([]repository.Orp
 
 func (o *objects) ReferencingItems(_ context.Context, id shared.ID) ([]repository.ItemRef, error) {
 	return o.refs[id], nil
+}
+
+func (o *objects) ServesAvatar(_ context.Context, id shared.ID) (bool, error) {
+	return o.avatars[id], nil
 }
 
 func (o *objects) ListForItem(
@@ -695,7 +702,7 @@ func TestTheCatalogueRefusesAUsageNobodyDeclared(t *testing.T) {
 	staging, records, _, _ := stagingHarness()
 
 	_, err := staging.Descriptor().Handler.Invoke(t.Context(), actor(mediaWrite), map[string]any{
-		"usage": "AVATAR", "size": 32,
+		"usage": "BANNER", "size": 32,
 	})
 	if got := shared.AsError(err).DetailCode; got != "media.usage_unknown" {
 		t.Errorf("detail code %q, want media.usage_unknown", got)

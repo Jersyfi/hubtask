@@ -263,6 +263,41 @@ func TestTheOwnNameIsWrittenOnMe(t *testing.T) {
 	}
 }
 
+// The own picture is set and taken away on `me`, and the account answers carrying it - or not.
+func TestTheOwnPictureIsSetAndRemovedOnMe(t *testing.T) {
+	const pictureID = "0192f000-0000-7000-8000-0000000000c1"
+	withPicture := ownAccount()
+	withPicture["avatar_media_id"] = pictureID
+
+	registry := &catalogue{out: withPicture}
+	recorder := identityRequestWithBody(t, registry, http.MethodPut, "/accounts/me/avatar", `{"media_id": "`+pictureID+`"}`)
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != setOwnAvatarUseCase || registry.in["media_id"] != pictureID {
+		t.Fatalf("invoked %q with %v", registry.name, registry.in)
+	}
+	var answered map[string]any
+	if err := json.Unmarshal(recorder.Body.Bytes(), &answered); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if answered["avatar_media_id"] != pictureID {
+		t.Errorf("the account answered %v", answered["avatar_media_id"])
+	}
+
+	registry = &catalogue{out: ownAccount()}
+	recorder = identityRequest(t, registry, http.MethodDelete, "/accounts/me/avatar")
+	if recorder.Code != http.StatusOK {
+		t.Fatalf("status %d, want 200: %s", recorder.Code, recorder.Body)
+	}
+	if registry.name != removeOwnAvatarUseCase {
+		t.Fatalf("invoked %q", registry.name)
+	}
+	if strings.Contains(recorder.Body.String(), "avatar_media_id") {
+		t.Errorf("an account without a picture answered one: %s", recorder.Body)
+	}
+}
+
 func TestTheMomentsTravelAsWordsAndAnswerInTheirTypes(t *testing.T) {
 	registry := &catalogue{out: ownAccount()}
 	body := `{"celebrations": false, "onboarding_completed_at": "2026-09-17T10:00:00+02:00"}`

@@ -18,7 +18,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, MANIFEST, stub } from './fixture.mjs';
+import { ACCOUNT, MANIFEST, newRows, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -76,8 +76,9 @@ test('chromium: a person holding access below the workspace sees no notice, and 
   t.after(close);
 
   await page.goto(`${served.origin}/`);
-  await page.getByRole('button', { name: 'Create private hub' }).first().waitFor();
-  assert.equal(await page.getByRole('button', { name: 'Create hub', exact: true }).count(), 0, 'a shared hub offered to somebody holding nothing on the workspace');
+  await page.getByRole('button', { name: 'New', exact: true }).first().waitFor();
+  assert.deepEqual(await newRows(page), ['Create private hub'], 'a shared hub offered to somebody holding nothing on the workspace');
+  await page.keyboard.press('Escape');
   assert.equal(await page.getByText(NOTICE).count(), 0, 'the notice was drawn for a person with access');
   assert.deepEqual(failures, []);
 });

@@ -443,7 +443,7 @@ func (q *Queries) FindAccessTokenByHash(ctx context.Context, tokenHash []byte) (
 const findAccount = `-- name: FindAccount :one
 
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at
+  celebrations, onboarding_completed_at, avatar_media_id
 FROM account
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -461,6 +461,7 @@ type FindAccountRow struct {
 	WeekStart             *string
 	Celebrations          *bool
 	OnboardingCompletedAt pgtype.Timestamptz
+	AvatarMediaID         pgtype.UUID
 }
 
 // ============================== Accounts ==============================
@@ -483,6 +484,7 @@ func (q *Queries) FindAccount(ctx context.Context, id pgtype.UUID) (FindAccountR
 		&i.WeekStart,
 		&i.Celebrations,
 		&i.OnboardingCompletedAt,
+		&i.AvatarMediaID,
 	)
 	return i, err
 }
@@ -1374,6 +1376,29 @@ func (q *Queries) RolesHeldAnywhere(ctx context.Context, accountID pgtype.UUID) 
 		return nil, err
 	}
 	return items, nil
+}
+
+const setAccountAvatar = `-- name: SetAccountAvatar :execrows
+UPDATE account SET
+  avatar_media_id = $1,
+  updated_at      = $2
+WHERE id = $3 AND deleted_at IS NULL AND status <> 'ANONYMIZED'
+`
+
+type SetAccountAvatarParams struct {
+	AvatarMediaID pgtype.UUID
+	UpdatedAt     pgtype.Timestamptz
+	ID            pgtype.UUID
+}
+
+// The picture and no other column, for the reason the preferences' query gives. NULL takes it away.
+// An erased account has no picture to set: its anonymisation cleared it.
+func (q *Queries) SetAccountAvatar(ctx context.Context, arg SetAccountAvatarParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setAccountAvatar, arg.AvatarMediaID, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const sharedItemsInCollection = `-- name: SharedItemsInCollection :many

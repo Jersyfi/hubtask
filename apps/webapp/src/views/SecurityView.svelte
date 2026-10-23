@@ -155,7 +155,7 @@
   <Stack gap="300">
     <SettingsHead row="security" />
 
-    <div class="panel">
+    <div class="panel" data-setting="password">
       <Stack gap="150">
         <h2>{t('app.password.change_title')}</h2>
         {#if !actor.hasPassword}
@@ -239,7 +239,7 @@
          with the first one, they stop working when the last one goes, and a panel of their own
          suggested otherwise. The codes hang off any factor - the app or a passkey - and the app's
          own controls off the app alone. -->
-    <div class="panel">
+    <div class="panel" data-setting="second-factor">
       <Stack gap="150">
         <h2>{t('app.mfa.title')}</h2>
         <p class="quiet">{isOn ? t('app.mfa.on') : factor ? t('app.mfa.off_beside_key') : t('app.mfa.off')}</p>

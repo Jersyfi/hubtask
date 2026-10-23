@@ -99,6 +99,10 @@ type Objects interface {
 	// for the authorisation question.
 	ReferencingItems(ctx context.Context, mediaID shared.ID) ([]ItemRef, error)
 
+	// ServesAvatar answers whether some account shows the object as its picture - which makes it
+	// readable by every member, as the name beside it is.
+	ServesAvatar(ctx context.Context, mediaID shared.ID) (bool, error)
+
 	// ListForItem returns one page of an item's attachments as media objects.
 	ListForItem(ctx context.Context, itemID shared.ID, page repository.Page) (ObjectPage, error)
 }
