@@ -1416,6 +1416,12 @@
               <span class="progress" aria-label={t('app.entries.progress', { done: String(progress.done), total: String(progress.total) })}>{progress.done}/{progress.total}</span>
             {/if}
           {/if}
+          <!-- UC-WRK-24 check 4: what the collection's levels hide under this entry, so nobody
+               believes it lost. The server counts it; the replica derives the same number. -->
+          {#if (row.item.hidden?.below ?? 0) > 0}
+            {@const below = row.item.hidden?.below ?? 0}
+            <span class="hidden-below" title={t('app.entries.hidden_below_title', { count: below })}>{t('app.entries.hidden_below', { count: below })}</span>
+          {/if}
           <!-- Who it belongs to, and who else is on it. Drawn from the identifiers the entry
                already carries: the names come from the accounts cache rather than from an
                expansion this server does not serve. -->
@@ -1682,7 +1688,8 @@
     color: var(--text-subtle);
   }
 
-  .progress {
+  .progress,
+  .hidden-below {
     font-size: var(--fs-075);
     font-variant-numeric: tabular-nums;
     color: var(--text-subtle);

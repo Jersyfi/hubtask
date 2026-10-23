@@ -103,10 +103,46 @@ func (g EntryGate) marksIn(ctx context.Context, items []domain.WorkItem) (map[sh
 			return nil, err
 		}
 	}
+	shown := []shared.ID{}
 	for _, item := range items {
-		marks[item.ID] = offers[item.CollectionID].Hidden(item.Type, chains[item.ID])
+		offered := offers[item.CollectionID]
+		marks[item.ID] = offered.Hidden(item.Type, chains[item.ID])
+		if offered.HidesALevel() && !marks[item.ID].Level {
+			shown = append(shown, item.ID)
+		}
+	}
+	if err := g.countBelow(ctx, items, offers, shown, marks); err != nil {
+		return nil, err
 	}
 	return marks, nil
+}
+
+// countBelow adds to each shown entry's mark how many entries under it its collection hides: one
+// statement for every shown entry, asked only where a collection hides a level at all.
+func (g EntryGate) countBelow(
+	ctx context.Context, items []domain.WorkItem, offers map[shared.ID]domain.Offered, shown []shared.ID,
+	marks map[shared.ID]domain.EntryHidden,
+) error {
+	if len(shown) == 0 {
+		return nil
+	}
+	below, err := g.Types.EntriesBelow(ctx, shown)
+	if err != nil {
+		return err
+	}
+	collections := make(map[shared.ID]shared.ID, len(items))
+	for _, item := range items {
+		collections[item.ID] = item.CollectionID
+	}
+	for _, group := range below {
+		mark, held := marks[group.Under]
+		if !held || !offers[collections[group.Under]].HidesAnyOf(group.Seen) {
+			continue
+		}
+		mark.Below += group.Entries
+		marks[group.Under] = mark
+	}
+	return nil
 }
 
 // marksOf answers the marks in a read-only transaction of its own: after the permission question,
@@ -147,6 +183,6 @@ func withHidden(out usecase.Output, marks map[shared.ID]domain.EntryHidden, id s
 	for _, capability := range mark.Capabilities {
 		capabilities = append(capabilities, string(capability))
 	}
-	out["hidden"] = map[string]any{"level": mark.Level, "capabilities": capabilities}
+	out["hidden"] = map[string]any{"level": mark.Level, "capabilities": capabilities, "below": mark.Below}
 	return out
 }

@@ -21,7 +21,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
-  import { presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
+  import { isBuiltIn, presetChoice, presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -87,14 +87,12 @@
           ...(presetBefore === ''
             ? [{ value: '', label: t('app.structure.preset_workspace_default'), hint: t('app.structure.preset_workspace_default_about') }]
             : []),
-          // Saved presets too, each marked with where it comes from, as at creation (UC-WRK-30
-          // check 2): a saved one has no key, and keying the list by one drew them all as one.
+          // A saved preset - the workspace's or the reader's own - is chosen by its id and has no
+          // description of Hubtask's; every one is marked with where it comes from, as on the panel.
           ...presets.all.map((each) => ({
             value: presetValue(each),
-            label: presetName(each),
-            hint: each.key
-              ? t('app.structure.preset_marked', { origin: presetOrigin(each), about: t(`app.structure.preset_about.${each.key}`) })
-              : presetOrigin(each),
+            label: t('app.structure.preset_option', { name: presetName(each), origin: presetOrigin(each) }),
+            hint: isBuiltIn(each.key) ? t(`app.structure.preset_about.${each.key}`) : undefined,
           })),
         ],
   );

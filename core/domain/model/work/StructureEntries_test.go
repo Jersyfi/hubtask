@@ -189,3 +189,26 @@ func TestCountedTypesAnswerWhatHiddenAnswers(t *testing.T) {
 		}
 	}
 }
+
+func TestWhatLiesBelowIsHiddenWhereAnyTypeOnTheWayIs(t *testing.T) {
+	offered := NewOffered(testBound(), EffectiveStructure{Values: StructureValues{
+		Levels: []Level{{Type: ItemTask}, {Type: ItemActivity}},
+	}})
+	for _, tc := range []struct {
+		name  string
+		types []ItemType
+		want  bool
+	}{
+		{"nothing on the way", nil, false},
+		{"an offered activity directly under", []ItemType{ItemActivity}, false},
+		{"a work package", []ItemType{ItemWorkPackage}, true},
+		{"an activity under a work package", []ItemType{ItemActivity, ItemWorkPackage}, true},
+		{"in either order", []ItemType{ItemWorkPackage, ItemActivity}, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := offered.HidesAnyOf(tc.types); got != tc.want {
+				t.Errorf("HidesAnyOf(%v) = %v, want %v", tc.types, got, tc.want)
+			}
+		})
+	}
+}

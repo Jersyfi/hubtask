@@ -64,6 +64,18 @@ type EntryHidden struct {
 	// not offer, in the bound's order. They depend on the type and the collection, never on
 	// whether this entry holds a value: they are what a write is refused for.
 	Capabilities []Capability
+	// Below counts the live entries under a shown entry that its level, or a level between, hides
+	// (UC-WRK-24 check 4: nobody believes them lost). Zero for an entry hidden itself.
+	Below int
+}
+
+// HidesAnyOf reports whether an entry is hidden whose own type and the types between it and a
+// shown entry above are these, in any order: the question a count of what lies below asks.
+func (o Offered) HidesAnyOf(types []ItemType) bool {
+	if len(types) == 0 {
+		return false
+	}
+	return o.levelHidden(types[0], types[1:])
 }
 
 // levelHidden reports whether the type, or any type on its ancestor chain, is not offered. A type

@@ -126,7 +126,10 @@ test('chromium: UC-WRK-31 check 2 — the Structure panel says the flow keeps it
   await gate.uncheck();
   const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/containers/${FLOW.id}/structure`));
   await page.locator('dialog[open]').getByRole('button', { name: 'Save', exact: true }).click();
-  assert.deepEqual((await sent).postDataJSON(), { settings: { automation: [] } });
+  const patch = await sent;
+  assert.deepEqual(patch.postDataJSON(), { settings: { automation: [] } });
+  // The save previews first (UC-WRK-24); the write is recorded once its route has answered.
+  await patch.response();
   assert.equal(written.filter((each) => each.path.endsWith('/structure')).length, 1);
   assert.deepEqual(failures, []);
 });

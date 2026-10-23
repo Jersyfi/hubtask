@@ -4401,6 +4401,24 @@ func (e StepUpGrantMethod) Valid() bool {
 	}
 }
 
+// Defines values for StructureChangeNarrowing.
+const (
+	FLATTEN StructureChangeNarrowing = "FLATTEN"
+	HIDE    StructureChangeNarrowing = "HIDE"
+)
+
+// Valid indicates whether the value is a known member of the StructureChangeNarrowing enum.
+func (e StructureChangeNarrowing) Valid() bool {
+	switch e {
+	case FLATTEN:
+		return true
+	case HIDE:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureChangePreset.
 const (
 	StructureChangePresetFLOW    StructureChangePreset = "FLOW"
@@ -4488,6 +4506,30 @@ func (e StructureLockOrigin) Valid() bool {
 	case StructureLockOriginPLAN:
 		return true
 	case StructureLockOriginWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StructurePreviewViews.
+const (
+	StructurePreviewViewsKANBAN        StructurePreviewViews = "KANBAN"
+	StructurePreviewViewsLISTCOLLAPSED StructurePreviewViews = "LIST_COLLAPSED"
+	StructurePreviewViewsLISTEXPANDED  StructurePreviewViews = "LIST_EXPANDED"
+	StructurePreviewViewsTIMELINE      StructurePreviewViews = "TIMELINE"
+)
+
+// Valid indicates whether the value is a known member of the StructurePreviewViews enum.
+func (e StructurePreviewViews) Valid() bool {
+	switch e {
+	case StructurePreviewViewsKANBAN:
+		return true
+	case StructurePreviewViewsLISTCOLLAPSED:
+		return true
+	case StructurePreviewViewsLISTEXPANDED:
+		return true
+	case StructurePreviewViewsTIMELINE:
 		return true
 	default:
 		return false
@@ -7507,6 +7549,9 @@ type EntriesText struct {
 //
 // Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
 type EntryHidden struct {
+	// Below How many live entries under this one the collection hides by their level, or by the level of an entry between them and this one - the work packages and activities under a task in a collection that offers only tasks. Zero for an entry that is itself hidden by its level, whose whole subtree is hidden with it, and where nothing below is hidden.
+	Below int `json:"below"`
+
 	// Capabilities The capabilities of the entry's type the installation carries and the collection does not offer, whether or not this entry holds a value for them. Writing one is refused with the detail `items.capability_hidden`.
 	Capabilities []string `json:"capabilities"`
 
@@ -11240,7 +11285,9 @@ type StepUpRequest struct {
 
 // StructureChange A change of a hub's or collection's own structure. Applied in this order: the preset, the settings, the resets.
 type StructureChange struct {
-	Preset *StructureChangePreset `json:"preset,omitempty"`
+	// Narrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+	Narrowing *StructureChangeNarrowing `json:"narrowing,omitempty"`
+	Preset    *StructureChangePreset    `json:"preset,omitempty"`
 
 	// PresetId A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
@@ -11249,6 +11296,9 @@ type StructureChange struct {
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
+
+// StructureChangeNarrowing What happens to the entries the change hides by their level; absent is `HIDE`. `HIDE` keeps them where they are, stored and marked hidden, and switching back shows them again. `FLATTEN` moves each of them, deepest first, to the top level of its collection as an entry of the top level's type, puts a label named after its former parent's title on it (a label of the collection, created where none has that name), and records the move in its history; switching back does not undo it. For a hub, it applies to every collection that follows it.
+type StructureChangeNarrowing string
 
 // StructureChangePreset defines model for StructureChange.Preset.
 type StructureChangePreset string
@@ -11302,6 +11352,50 @@ type StructureLock struct {
 
 // StructureLockOrigin defines model for StructureLock.Origin.
 type StructureLockOrigin string
+
+// StructurePreview What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted.
+type StructurePreview struct {
+	// Automation What runs by itself now and would pause.
+	Automation []string `json:"automation"`
+
+	// Fields The capabilities whose values would no longer be shown on entries that stay shown, and on how many entries a value would be.
+	Fields []struct {
+		Capability string `json:"capability"`
+		Entries    int    `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"fields"`
+
+	// Flatten What `narrowing: FLATTEN` would do: how many entries it would move to the top level. It cannot be undone by switching back.
+	Flatten struct {
+		Entries int `json:"entries"`
+	} `json:"flatten"`
+
+	// Keeping For a hub: the collections that follow it but keep their own value of a setting the change moves, and which settings. Empty for a collection.
+	Keeping []struct {
+		ContainerId openapi_types.UUID     `json:"container_id"`
+		Name        string                 `json:"name"`
+		Settings    []StructureSettingName `json:"settings"`
+	} `json:"keeping"`
+
+	// Levels The levels whose entries would no longer be shown, and how many entries each - an entry counts under its own level when the change hides it or a level above it.
+	Levels []struct {
+		Entries int `json:"entries"`
+
+		// Type Extensible; /meta/capabilities returns the valid values.
+		Type ItemType `json:"type"`
+	} `json:"levels"`
+
+	// Narrows Whether anything shown now would no longer be shown.
+	Narrows bool `json:"narrows"`
+
+	// Views The views no longer offered.
+	Views []StructurePreviewViews `json:"views"`
+}
+
+// StructurePreviewViews defines model for StructurePreview.Views.
+type StructurePreviewViews string
 
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
@@ -14172,6 +14266,9 @@ type SetHubPrivacyJSONRequestBody = HubPrivacy
 // SetContainerStructureJSONRequestBody defines body for SetContainerStructure for application/json ContentType.
 type SetContainerStructureJSONRequestBody = StructureChange
 
+// PreviewContainerStructureJSONRequestBody defines body for PreviewContainerStructure for application/json ContentType.
+type PreviewContainerStructureJSONRequestBody = StructureChange
+
 // MakeEntriesJSONRequestBody defines body for MakeEntries for application/json ContentType.
 type MakeEntriesJSONRequestBody = EntriesText
 
@@ -14954,6 +15051,9 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId}/structure)
 	SetContainerStructure(w http.ResponseWriter, r *http.Request, containerId ContainerId, params SetContainerStructureParams)
+
+	// (POST /containers/{containerId}/structure:preview)
+	PreviewContainerStructure(w http.ResponseWriter, r *http.Request, containerId ContainerId)
 
 	// (POST /containers/{containerId}:archive)
 	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
@@ -21200,6 +21300,32 @@ func (siw *ServerInterfaceWrapper) SetContainerStructure(w http.ResponseWriter, 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetContainerStructure(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// PreviewContainerStructure operation middleware
+func (siw *ServerInterfaceWrapper) PreviewContainerStructure(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.PreviewContainerStructure(w, r, containerId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28852,6 +28978,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}", wrapper.RenameContainer)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/policies", wrapper.UpdateContainerPolicies)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/structure", wrapper.SetContainerStructure)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/structure:preview", wrapper.PreviewContainerStructure)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/containers/{containerId}/privacy", wrapper.SetHubPrivacy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:move", wrapper.MoveContainer)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:reorder", wrapper.ReorderContainer)

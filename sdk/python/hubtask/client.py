@@ -1271,6 +1271,10 @@ class Client:
         """PATCH /containers/{containerId}/structure"""
         return self._call("PATCH", "/containers/{containerId}/structure", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def preview_container_structure(self, container_id: str, body: "StructureChange") -> "StructurePreview":
+        """POST /containers/{containerId}/structure:preview"""
+        return self._call("POST", "/containers/{containerId}/structure:preview", {"containerId": container_id}, None, {}, body, "json", "application/json", "json")
+
     def set_hub_privacy(self, container_id: str, body: "HubPrivacy", *, if_match: str | None = None) -> "Container":
         """PUT /containers/{containerId}/privacy"""
         return self._call("PUT", "/containers/{containerId}/privacy", {"containerId": container_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")

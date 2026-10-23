@@ -114,6 +114,7 @@ export type {
   PresetCreate,
   PresetUpdate,
   StructureChange,
+  StructurePreview,
   StructureSettings,
   WorkspaceStructure,
   WorkspaceStructureChange,

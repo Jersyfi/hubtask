@@ -5,9 +5,11 @@ package work
 
 import (
 	"context"
+	"fmt"
 	"slices"
 	"testing"
 
+	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/work"
@@ -22,6 +24,37 @@ func (i *items) TypesOf(_ context.Context, ids []shared.ID) (map[shared.ID]domai
 		}
 	}
 	return types, nil
+}
+
+// EntriesBelow walks the stored entries under each of ids, as the recursive statement does.
+func (i *items) EntriesBelow(_ context.Context, ids []shared.ID) ([]repository.EntriesBelow, error) {
+	groups := []repository.EntriesBelow{}
+	for _, under := range ids {
+		counts := map[string]int{}
+		seenOf := map[string][]domain.ItemType{}
+		var walk func(parent shared.ID, seen []domain.ItemType)
+		walk = func(parent shared.ID, seen []domain.ItemType) {
+			for _, item := range i.stored {
+				if item.ParentID != parent || item.DeletedAt != nil || item.ArchivedAt != nil {
+					continue
+				}
+				next := slices.Clone(seen)
+				if !slices.Contains(next, item.Type) {
+					next = append(next, item.Type)
+				}
+				slices.Sort(next)
+				key := fmt.Sprint(next)
+				counts[key]++
+				seenOf[key] = next
+				walk(item.ID, next)
+			}
+		}
+		walk(under, nil)
+		for key, entries := range counts {
+			groups = append(groups, repository.EntriesBelow{Under: under, Seen: seenOf[key], Entries: entries})
+		}
+	}
+	return groups, nil
 }
 
 // matrixProfiles is the installation's matrix as domain-model.md §2 ships it, every capability of
@@ -184,5 +217,60 @@ func TestAnUnwiredGateMarksNothing(t *testing.T) {
 	}
 	if _, marked := out["hidden"]; marked {
 		t.Errorf("a build without the gate marked %v", out["hidden"])
+	}
+}
+
+// UC-WRK-24 check 4: a shown entry says how many entries under it its collection hides, so nobody
+// believes them lost; an entry hidden itself and an entry in a collection offering every level say
+// none.
+func TestAShownEntrySaysHowManyEntriesBelowItAreHidden(t *testing.T) {
+	store, containerStore := readFixture()
+	task := store.stored[readItemID]
+	packageID := shared.MustParseID("0192f000-0000-7000-8000-000000000313")
+	stepID := shared.MustParseID("0192f000-0000-7000-8000-000000000314")
+	callID := shared.MustParseID("0192f000-0000-7000-8000-000000000315")
+	gone := now
+	pack := domain.WorkItem{
+		ID: packageID, TenantID: tenantID, CollectionID: readCollectionID, Type: domain.ItemWorkPackage,
+		ParentID: readItemID, Path: task.ChildPath(packageID), Depth: 2, Title: "Pack", OrderKey: "a0",
+		CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1,
+	}
+	store.stored[packageID] = pack
+	store.stored[stepID] = domain.WorkItem{
+		ID: stepID, TenantID: tenantID, CollectionID: readCollectionID, Type: domain.ItemActivity,
+		ParentID: packageID, Path: pack.ChildPath(stepID), Depth: 3, Title: "Step", OrderKey: "a0",
+		CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1,
+	}
+	store.stored[callID] = domain.WorkItem{
+		ID: callID, TenantID: tenantID, CollectionID: readCollectionID, Type: domain.ItemActivity,
+		ParentID: readItemID, Path: task.ChildPath(callID), Depth: 2, Title: "Call", OrderKey: "a1",
+		CreatedBy: accountID, CreatedAt: now, UpdatedAt: now, Version: 1, DeletedAt: &gone,
+	}
+	read := GetWorkItem{
+		Items: store, Containers: containerStore, Authorizer: &authorizer{}, UnitOfWork: &unitOfWork{},
+		Gate: gateOver(store, containerStore),
+	}
+	below := func(id shared.ID) any {
+		t.Helper()
+		out, err := read.Descriptor().Handler.Invoke(t.Context(), actorFixture(), usecase.Input{"item_id": id.String()})
+		if err != nil {
+			t.Fatalf("reading %s: %v", id, err)
+		}
+		return out["hidden"].(map[string]any)["below"]
+	}
+
+	if got := below(readItemID); got != 0 {
+		t.Errorf("a collection offering every level hides %v under the task, want 0", got)
+	}
+	narrowTo(t, containerStore, readCollectionID, domain.PresetList)
+	if got := below(readItemID); got != 2 {
+		t.Errorf("List hides %v under the task, want 2 (the work package and its activity; the trashed one is not counted)", got)
+	}
+	if got := below(packageID); got != 0 {
+		t.Errorf("a hidden work package says %v below it, want 0", got)
+	}
+	widen(containerStore, readCollectionID)
+	if got := below(readItemID); got != 0 {
+		t.Errorf("widened again, the task says %v hidden below it, want 0", got)
 	}
 }

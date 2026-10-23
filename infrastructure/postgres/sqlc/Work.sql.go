@@ -166,6 +166,96 @@ func (q *Queries) ClaimOverdueItems(ctx context.Context, arg ClaimOverdueItemsPa
 	return items, nil
 }
 
+const collectionEntryShapes = `-- name: CollectionEntryShapes :many
+SELECT
+  wi.id, wi.collection_id, wi.type, wi.path,
+  (wi.due_at IS NOT NULL OR wi.start_at IS NOT NULL)::boolean AS has_due_date,
+  (wi.assignee_id IS NOT NULL)::boolean AS has_assignment,
+  (wi.bucket_id IS NOT NULL)::boolean AS has_bucket,
+  (coalesce(wi.notes, '') <> '')::boolean AS has_notes,
+  (wi.cover_kind IS NOT NULL)::boolean AS has_cover,
+  (wi.amount IS NOT NULL)::boolean AS has_amount,
+  (wi.recurrence_rule_id IS NOT NULL)::boolean AS has_recurrence,
+  (wi.custom_fields <> '{}'::jsonb)::boolean AS has_custom_fields,
+  EXISTS (SELECT 1 FROM item_label il WHERE il.item_id = wi.id)::boolean AS has_labels,
+  EXISTS (SELECT 1 FROM item_member im WHERE im.item_id = wi.id)::boolean AS has_members,
+  EXISTS (SELECT 1 FROM comment c WHERE c.item_id = wi.id AND c.deleted_at IS NULL)::boolean AS has_comments,
+  EXISTS (SELECT 1 FROM item_attachment ia WHERE ia.item_id = wi.id)::boolean AS has_attachments,
+  EXISTS (SELECT 1 FROM reminder r WHERE r.item_id = wi.id AND r.state = 'PENDING')::boolean AS has_reminder
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.collection_id = ANY($1::uuid[])
+  AND wi.deleted_at IS NULL
+ORDER BY wi.collection_id, wi.depth, wi.id
+LIMIT $2
+`
+
+type CollectionEntryShapesParams struct {
+	CollectionIds []pgtype.UUID
+	MaxRows       int32
+}
+
+type CollectionEntryShapesRow struct {
+	ID              pgtype.UUID
+	CollectionID    pgtype.UUID
+	Type            ItemType
+	Path            string
+	HasDueDate      bool
+	HasAssignment   bool
+	HasBucket       bool
+	HasNotes        bool
+	HasCover        bool
+	HasAmount       bool
+	HasRecurrence   bool
+	HasCustomFields bool
+	HasLabels       bool
+	HasMembers      bool
+	HasComments     bool
+	HasAttachments  bool
+	HasReminder     bool
+}
+
+// What a preview of a structure change counts (UC-WRK-24 check 2): every live entry of the
+// collections, its type and path, and whether it holds a value of each capability - never the
+// value. Bounded by the caller; ordered so that a bound cuts the same entries every time.
+func (q *Queries) CollectionEntryShapes(ctx context.Context, arg CollectionEntryShapesParams) ([]CollectionEntryShapesRow, error) {
+	rows, err := q.db.Query(ctx, collectionEntryShapes, arg.CollectionIds, arg.MaxRows)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CollectionEntryShapesRow{}
+	for rows.Next() {
+		var i CollectionEntryShapesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CollectionID,
+			&i.Type,
+			&i.Path,
+			&i.HasDueDate,
+			&i.HasAssignment,
+			&i.HasBucket,
+			&i.HasNotes,
+			&i.HasCover,
+			&i.HasAmount,
+			&i.HasRecurrence,
+			&i.HasCustomFields,
+			&i.HasLabels,
+			&i.HasMembers,
+			&i.HasComments,
+			&i.HasAttachments,
+			&i.HasReminder,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const containerOrderKeyNeighbours = `-- name: ContainerOrderKeyNeighbours :one
 WITH level AS (
   SELECT id, order_key
@@ -292,6 +382,59 @@ func (q *Queries) EmergencyNoticesFor(ctx context.Context, arg EmergencyNoticesF
 			&i.OpenedAt,
 			&i.EndsAt,
 		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const entriesHiddenBelow = `-- name: EntriesHiddenBelow :many
+WITH RECURSIVE below AS (
+  SELECT wi.parent_id AS root_id, wi.id, ARRAY[wi.type::text] AS seen
+  FROM work_item wi
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.parent_id = ANY($1::uuid[])
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+  UNION ALL
+  SELECT b.root_id, wi.id,
+    CASE WHEN wi.type::text = ANY(b.seen) THEN b.seen ELSE b.seen || wi.type::text END
+  FROM below b
+  JOIN work_item wi ON wi.parent_id = b.id
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+)
+SELECT b.root_id::uuid AS root_id, b.seen::text[] AS seen, count(*)::bigint AS entries
+FROM below b
+GROUP BY b.root_id, b.seen
+`
+
+type EntriesHiddenBelowRow struct {
+	RootID  pgtype.UUID
+	Seen    []string
+	Entries int64
+}
+
+// What a collection hides under each shown entry among ids (UC-WRK-24 check 4): every live entry
+// below one, grouped by the types met from just under it down to it. Which of those types the
+// collection hides is the domain's question (domain-model.md §2), so the statement needs no
+// structure: a type met anywhere on the way hides the entry with it. Live means neither trashed
+// nor archived, as a list shows them.
+func (q *Queries) EntriesHiddenBelow(ctx context.Context, ids []pgtype.UUID) ([]EntriesHiddenBelowRow, error) {
+	rows, err := q.db.Query(ctx, entriesHiddenBelow, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []EntriesHiddenBelowRow{}
+	for rows.Next() {
+		var i EntriesHiddenBelowRow
+		if err := rows.Scan(&i.RootID, &i.Seen, &i.Entries); err != nil {
 			return nil, err
 		}
 		items = append(items, i)
@@ -823,6 +966,49 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 		return nil, err
 	}
 	return items, nil
+}
+
+const flattenWorkItem = `-- name: FlattenWorkItem :execrows
+UPDATE work_item SET
+  type       = $1,
+  parent_id  = NULL,
+  path       = $2,
+  depth      = 1,
+  order_key  = $3,
+  updated_at = $4,
+  version    = version + 1
+WHERE tenant_id = current_tenant_id()
+  AND id = $5::uuid
+  AND version = $6
+`
+
+type FlattenWorkItemParams struct {
+	Type            ItemType
+	Path            string
+	OrderKey        string
+	UpdatedAt       pgtype.Timestamptz
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// Makes an entry a top-level entry of another type (UC-WRK-24 check 6): the one statement that
+// changes an entry's type, which a move never does. The parent goes, the path and the depth are
+// the top level's, the rank is the caller's; under the optimistic lock every write to the row
+// takes. Whatever still lies under it - only trashed entries, since a flatten moves the deepest
+// first - follows through MoveWorkItemSubtree.
+func (q *Queries) FlattenWorkItem(ctx context.Context, arg FlattenWorkItemParams) (int64, error) {
+	result, err := q.db.Exec(ctx, flattenWorkItem,
+		arg.Type,
+		arg.Path,
+		arg.OrderKey,
+		arg.UpdatedAt,
+		arg.ID,
+		arg.ExpectedVersion,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const hubsOpenedFor = `-- name: HubsOpenedFor :many

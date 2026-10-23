@@ -50,6 +50,8 @@ type SetContainerStructure struct {
 	Epochs changelog.Epochs
 	// Labels answers whether a category the write names is a label of the collection.
 	Labels repository.Labels
+	// Flatten moves what a change hides by level to the top level, where the caller asks for it.
+	Flatten StructureFlattener
 }
 
 // SetContainerStructureCommand is the input, typed.
@@ -64,6 +66,8 @@ type SetContainerStructureCommand struct {
 	Reset []domain.StructureSetting
 	// ExpectedVersion is from If-Match; zero accepts whatever is stored.
 	ExpectedVersion int
+	// Narrowing is what happens to the entries the change hides by their level; empty is HIDE.
+	Narrowing Narrowing
 }
 
 // StructureResult is a structure write's answer: the container, its structure in force, and the
@@ -194,8 +198,18 @@ func (h SetContainerStructure) write(
 			return StructureResult{}, err
 		}
 	}
+	extra := []audit.Change{}
+	if cmd.Narrowing == NarrowingFlatten {
+		flattened, err := h.flatten(ctx, actor, reading, updated, after, now)
+		if err != nil {
+			return StructureResult{}, err
+		}
+		extra = append(extra, audit.Change{
+			Field: "flattened", Classification: audit.Open, From: 0, To: flattened,
+		})
+	}
 	if err := recordStructureAudit(ctx, w.Audit, ContainerStructureUpdatedAction, actor, updated.ID,
-		container.Structure, layer, ownMoved, now); err != nil {
+		container.Structure, layer, ownMoved, now, extra...); err != nil {
 		return StructureResult{}, err
 	}
 	return StructureResult{Container: updated, Structure: after, KeptByLock: kept}, nil
@@ -323,8 +337,9 @@ func presetOrNil(key domain.PresetKey) any {
 func recordStructureAudit(
 	ctx context.Context, sink audit.Sink, action audit.Action, actor appshared.ActorContext,
 	targetID shared.ID, from, to domain.StructureLayer, moved []domain.StructureSetting, now time.Time,
+	extra ...audit.Change,
 ) error {
-	changes := make([]audit.Change, 0, len(moved)+1)
+	changes := make([]audit.Change, 0, len(moved)+1+len(extra))
 	for _, setting := range moved {
 		classification := audit.Open
 		if setting == domain.SettingLevels {
@@ -353,8 +368,52 @@ func recordStructureAudit(
 		TargetType: containerTarget,
 		TargetID:   targetID,
 		Context:    audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes:    audit.Changes(changes...),
+		Changes:    audit.Changes(append(changes, extra...)...),
 	})
+}
+
+// afterByCollection answers the collections a structure write reaches and the structure in force
+// of each after it: the collection itself, or every collection that follows the hub.
+func (h SetContainerStructure) afterByCollection(
+	ctx context.Context, reading *layerReading, container domain.Container, after domain.EffectiveStructure,
+) (map[shared.ID]domain.Container, map[shared.ID]domain.EffectiveStructure, error) {
+	collections := map[shared.ID]domain.Container{}
+	structures := map[shared.ID]domain.EffectiveStructure{}
+	if container.Type == domain.ContainerCollection {
+		collections[container.ID], structures[container.ID] = container, after
+		return collections, structures, nil
+	}
+	heirs, err := h.Structure.Structures.Heirs(ctx, container.ID, structureFanOutCeiling)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, heir := range heirs {
+		if heir.Type != domain.ContainerCollection {
+			continue
+		}
+		effective, err := reading.Of(ctx, heir)
+		if err != nil {
+			return nil, nil, err
+		}
+		collections[heir.ID], structures[heir.ID] = heir, effective
+	}
+	return collections, structures, nil
+}
+
+// flatten moves what the written structure hides by level to the top level (UC-WRK-24 check 6).
+func (h SetContainerStructure) flatten(
+	ctx context.Context, actor appshared.ActorContext, reading *layerReading, container domain.Container,
+	after domain.EffectiveStructure, now time.Time,
+) (int, error) {
+	bound, err := reading.Bound(ctx)
+	if err != nil {
+		return 0, err
+	}
+	collections, structures, err := h.afterByCollection(ctx, reading, container, after)
+	if err != nil {
+		return 0, err
+	}
+	return h.Flatten.flatten(ctx, actor, bound, collections, structures, now)
 }
 
 // settingText is one setting's own value as the trail records it, nil where the layer leaves it to
@@ -380,7 +439,9 @@ func (h SetContainerStructure) Descriptor() usecase.Descriptor {
 		SideEffects: "Writes the container's own structure, announces " +
 			string(event.ContainerPoliciesUpdated) + " with the settings that moved, records the " +
 			"structure in force for offline clients - for a hub, for each collection that follows " +
-			"it too - and writes an audit entry.",
+			"it too - and writes an audit entry. With narrowing FLATTEN, also moves every entry the " +
+			"new structure hides by level to the top level, as a move does, with a label named " +
+			"after its former parent.",
 		TokenScope: containersWrite,
 		Input: []usecase.Field{
 			{
@@ -407,6 +468,14 @@ func (h SetContainerStructure) Descriptor() usecase.Descriptor {
 				Description: "Names of settings that go back to the layer above. Applied last.",
 			},
 			{
+				Name: "narrowing", Kind: usecase.KindString,
+				Enum: []string{string(NarrowingHide), string(NarrowingFlatten)},
+				Description: "What happens to the entries the change hides by their level: HIDE (the " +
+					"default) keeps them where they are, FLATTEN moves each to the top level as the " +
+					"top level's type, labelled with its former parent's title. FLATTEN is not undone " +
+					"by switching back.",
+			},
+			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,
 				Description: "The version last read, from the If-Match header over REST.",
 			},
@@ -418,7 +487,8 @@ func (h SetContainerStructure) Descriptor() usecase.Descriptor {
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a container is not an item, and the history is an item's: `ActivityEntry` is " +
 				"keyed on `itemId` and `/items/{id}/activity` is its only reader. A container's " +
-				"own history has nowhere to be read from.",
+				"own history has nowhere to be read from. A flatten writes each moved entry's own " +
+				"history, as a move does.",
 		},
 		Handler: usecase.HandlerFunc(h.invoke),
 	}
@@ -437,6 +507,7 @@ func (h SetContainerStructure) invoke(
 	}
 	cmd := SetContainerStructureCommand{
 		ContainerID: containerID, Preset: preset, ExpectedVersion: in.Int("expected_version"),
+		Narrowing: Narrowing(in.String("narrowing")),
 	}
 	if raw, held := in["settings"].(map[string]any); held {
 		if cmd.Settings, err = structureValuesFrom(raw); err != nil {

@@ -163,13 +163,28 @@ them is refused as below; widening again shows them exactly as they were. Flatte
 leaf to the top level — is a separate, explicit operation with a preview, recorded in each entry's
 history.
 
+* **The preview.** A change of structure that would stop showing anything is previewed first
+  (`PreviewContainerStructure`, read-only, the same `STRUCTURE` permission as the change): the
+  levels it hides with how many entries each, the values on entries that stay shown with on how
+  many, the views it drops, the rules that would pause, and for a hub the sum over the collections
+  that follow it and the collections that keep their own value of a setting it moves (`keeping`).
+  A change that narrows nothing - a widening - is not asked about; it takes effect at once.
+* **Hide or Flatten.** The change carries `narrowing`: `HIDE`, the default, keeps everything where
+  it is, marked. `FLATTEN` moves every entry the new structure hides by its level to the
+  collection's top level, deepest first so each is a leaf when it moves, as an entry of the top
+  level's type; it is labelled with its former parent's title (a label of the collection of that
+  name, compared case-insensitively, created when none exists) and its history records the move.
+  Values it holds stay stored, marked where the collection hides them. Trashed entries stay where
+  they are. Switching back does not undo a flatten, and the preview says so (`flatten.entries`).
+
 * **What is hidden.** An entry's *level* is hidden when its type, or the type of any entry above it,
   is not in the collection's `levels`: an activity under a work package is hidden where work
   packages are not offered, one directly under a task is not. A *capability* is hidden when the
   installation carries it for the type and the collection's `fields` do not. The mark depends on the
   type and the collection, never on whether the entry holds a value.
 * **The mark.** Every read of an entry, and the answer of every write to one, carries
-  `hidden: {level, capabilities}`. It is derived, never stored; the synchronisation carries none,
+  `hidden: {level, capabilities, below}` - `below` counts the live entries under it hidden by
+  their level, so an entry says what it holds out of sight. It is derived, never stored; the synchronisation carries none,
   and a client derives it from the container's structure by the same rule
   (`api/fixtures/hidden-entries.json` holds both to one table).
 * **What is refused.** Writing a hidden capability - setting a value, taking one away - is refused
