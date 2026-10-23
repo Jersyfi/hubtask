@@ -72,6 +72,7 @@ done
 
 if [ -n "$go_pkgs" ]; then
 	step "vet, lint and test: $(wc -l <<<"$go_pkgs" | tr -d ' ') package(s)"
+	command -v "$lint" >/dev/null || make --no-print-directory tools-ensure >/dev/null
 	if [ -n "$plain_pkgs" ]; then
 		# shellcheck disable=SC2086 # one package per word
 		go vet $plain_pkgs
@@ -108,6 +109,11 @@ if grep -qE '^locales/' <<<"$changed"; then
 fi
 
 packages="$(grep -oE '^(apps/[^/]+|packages/[^/]+|sdk/typescript)/' <<<"$changed" | sort -u || true)"
+# A fresh worktree has neither the pinned pnpm nor the workspace installed.
+if [ -n "$packages" ]; then
+	command -v pnpm >/dev/null || make --no-print-directory tools-node >/dev/null
+	[ -d node_modules ] || pnpm install --frozen-lockfile >/dev/null
+fi
 for dir in $packages; do
 	[ -f "$dir/package.json" ] || continue
 	name="$(sed -n 's/^  "name": "\(.*\)",$/\1/p' "$dir/package.json")"
