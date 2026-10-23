@@ -503,6 +503,14 @@ class Client:
         """Change what the caller is called"""
         return self._call("PATCH", "/accounts/me", {}, None, {}, body, "json", "application/merge-patch+json", "json")
 
+    def set_own_avatar(self, body: "AvatarInput") -> "Account":
+        """Show a picture of one's own beside one's name"""
+        return self._call("PUT", "/accounts/me/avatar", {}, None, {}, body, "json", "application/json", "json")
+
+    def remove_own_avatar(self) -> "Account":
+        """Go back to the initials"""
+        return self._call("DELETE", "/accounts/me/avatar", {}, None, {}, None, "none", None, "json")
+
     def get_account(self, account_id: str) -> "AccountSummary":
         """The name behind an account identifier"""
         return self._call("GET", "/accounts/{accountId}", {"accountId": account_id}, None, {}, None, "none", None, "json")
