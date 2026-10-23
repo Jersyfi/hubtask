@@ -47,7 +47,7 @@ deployments: [D1, D2, D3, D4, D5, D6]
 serves: [P-02, P-11, P-13]
 state: partial
 tasks: [SI-04, SI-15]
-checked_by: [apps/webapp/e2e/signin.spec.ts]
+checked_by: [apps/webapp/e2e/signin.test.mjs]
 ---
 
 # Reset a forgotten password
@@ -84,7 +84,7 @@ names (those are in `checked_by:`). At `built` and `verified` the section is gon
 | `serves` | The principles it serves | every entry is a principle in [principles.md](../vision/principles.md) |
 | `state` | See below | one of the five |
 | `tasks` | Backlog tasks that built or will build it, may be empty | — |
-| `checked_by` | Tests, walks or evidence files that prove the checks | every path exists; required for `verified` |
+| `checked_by` | The tests that prove the checks — unit, integration, or an engine walk (`apps/webapp/e2e/*.test.mjs`); an evidence file only for a run no pipeline can make ([`../evidence/`](../evidence/README.md)) | every path exists; required for `verified` |
 
 **The five states:**
 
@@ -92,8 +92,8 @@ names (those are in `checked_by:`). At `built` and `verified` the section is gon
 |---|---|
 | `specified` | Agreed; not built. *Today* says what is missing. |
 | `partial` | Some checks hold, some do not. *Today* names the ones that do not, and where they are tracked. |
-| `built` | Every check has code behind it; not every check has a test or a walk that proves it. |
-| `verified` | Every check is proven — `checked_by` names the tests or the walk evidence. |
+| `built` | Every check has code behind it; not every check has a test that proves it. |
+| `verified` | Every check is proven — `checked_by` names the tests that assert it. |
 | `retired` | No longer applies; a line says why. The ID is not reused. |
 
 The gate also refuses a `partial` or `specified` use case without a *Today* section, a use case
@@ -104,11 +104,13 @@ that does not exist.
 
 1. **Cutting a milestone:** every task names the use cases it serves in a
    `**Use cases:** UC-ID-04 (1, 3), UC-ID-05` line, with the check numbers it is meant to make true.
-   A milestone file that uses the line anywhere must use it in every task.
-2. **Starting a task:** the worker reads those use cases completely, before the code
+   A milestone file that uses the line anywhere must use it in every task. A concept built whole
+   ([`../backlog/README.md`](../backlog/README.md#a-concept-built-whole)) has no task line; its pull
+   request's *Use cases* section names the checks.
+2. **Starting a task or a concept:** the worker reads those use cases completely, before the code
    ([`AGENTS.md`](../../AGENTS.md), the loop, step 1).
 3. **Leaving draft:** the pull request body carries a *Use cases* section — each named check, met or
-   not, and how it was confirmed. A check that cannot be met is reported, not rewritten.
+   not, and the test that proves it. A check that cannot be met is reported, not rewritten.
 4. **Merging:** the same pull request moves `state:` and adds `checked_by:`.
 5. **Reviewing:** the checklist below, for a pull request, a branch, a milestone or one use case.
 
@@ -123,15 +125,17 @@ and [`../vision/principles.md`](../vision/principles.md) first.
    | Scope | Where the promise is |
    |---|---|
    | a pull request | its *Use cases* section, and the `**Use cases:**` line of the task it closes |
+   | a concept built whole | its pull request's *Use cases* section |
    | a branch | the `Task:` trailers of `git log main..<branch>` → each task's `**Use cases:**` line |
    | a milestone | the milestone's `Delivers:` line and every task's `**Use cases:**` line |
    | one use case | the use case itself, against the code on `main` |
 
    A task that names no use case is itself the finding: the work was built without a yardstick.
 2. **Every check the work carries: met, not met, or not proven.** Read each use case completely.
-   *Met* needs evidence — the test that asserts it (by name), or a walk of the screen as the persona
-   in `actors:` would do it, at the widths and by the keyboard where the check says so. "The code
-   looks like it would" is *not proven*. *Not met* says what the person sees instead. A check that
+   *Met* needs the test that asserts it, by name — a unit or integration test, or an engine walk
+   (`apps/webapp/e2e/*.test.mjs`) that drives the screen as the persona in `actors:` would, at the
+   widths and by the keyboard where the check says so. Showing the running app to the owner is how a
+   change is looked at, not how a check is proven; "the code looks like it would" is *not proven*. *Not met* says what the person sees instead. A check that
    holds in one deployment and fails in another (`deployments:`) is not met (P-10).
 3. **Work beyond the goal.** Compare the change with every *Where it ends* and with
    [`../vision/non-goals.md`](../vision/non-goals.md). Something built that a use case does not ask

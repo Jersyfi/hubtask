@@ -10,8 +10,8 @@ are in [`AGENTS.md`](AGENTS.md). This file is the human way in.
 - **Propose a feature** with the feature form, or start with a
   [discussion](https://github.com/Jersyfi/hubtask/discussions) while it is an idea. A feature
   enters the product through a milestone cut ([docs/backlog/README.md](docs/backlog/README.md)).
-- **Fix something** with a pull request from your fork. A fix without a task says
-  `Readiness: n/a — <why>` and `No issue:` or `Closes #n` in its description.
+- **Fix something** with a pull request from your fork. Its description says `Closes #n`, or
+  `No issue:` and why.
 - **Translate** — see below.
 - **Work closely on a part of Hubtask** with your own tools: you take a milestone of your own, follow
   `AGENTS.md`, and put questions for the owner as `decision` issues.

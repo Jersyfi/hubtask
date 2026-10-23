@@ -13,7 +13,8 @@ Closes #
 ## Use cases
 
 <!-- The checks this pull request makes true — the ones the task carries in its `**Use cases:**`
-     line. One line per check: met or not, and how it was confirmed (a test, a walk). A check that
+     line, or the concept's in concept mode. One line per check: met or not, and the test that
+     proves it. A check that
      cannot be met is reported here and in a `decision` or `finding` issue; it is never rewritten to
      match the code. If this pull request changes a use case's Goal, How to check or Where it ends,
      say per change: `correction` (a wrong reference or number) or `decision #<issue>`. Move

@@ -1,20 +1,23 @@
 # Test evidence
 
-Results of the runs that cannot happen in a pipeline — and the first run of any that newly can,
-recorded once before the gate takes over. One file per run.
+Results of the runs no pipeline can make, one file per run: the reliability runs of the catalogue
+in [observability-reliability.md §12](../architecture/observability-reliability.md) that run by
+hand or once per release, the walk on the integration environment
+([offline-sync.md §11](../architecture/offline-sync.md)), the restore drill there, and the two
+accessibility walks before `1.0.0` ([design-system.md §10](../design/design-system.md)). A use case
+check is not proven here: it is proven by a test that asserts it
+([`../usecases/`](../usecases/README.md)).
 
-Mostly the reliability tests. Not only: a dogfooding pass is a run whose result is a file too, and
-`R-08-*.md` is one — a route walked in the application, so the next walk can be compared with it.
+The newest coverage report stays here, because `make gate-docs` holds the catalogue to it.
 
-The catalogue and the cadence each one is expected at are in [observability-reliability.md §12](../architecture/observability-reliability.md).
-
-Older runs are history in [`docs/archive/evidence/`](../archive/evidence/). The newest coverage
-report stays here, because `make gate-docs` holds the catalogue to it.
+The other files here — walks and run records of earlier tasks — are history: they stay, a
+`checked_by:` that names one keeps working, and none of them is read for current work. Older runs
+are in [`docs/archive/evidence/`](../archive/evidence/).
 
 ## How to walk
 
-A walk is the evidence a reading test cannot give: the product, running, used the way a person uses
-it. Two kinds, chosen by what the change can break.
+A walk is the product, running, used the way a person uses it: to show the owner a change, and to
+see what a test should then pin down. Two kinds, chosen by what the change can break.
 
 **Looking — "does this look right".** For layout, copy and states of a screen, and for showing the
 owner a change before it merges (AGENTS.md, "Working with the owner"):
@@ -75,6 +78,8 @@ probe is a temporary file under `apps/webapp/e2e/` that is deleted afterwards.
 **Screenshots are in English**, the repository's language; another language is proven by a test,
 not a picture (the owner, 2026-10-12).
 
-**Recording it.** A walk that is evidence for a use case check is a file here — what was walked, at
-which commit, what was pressed, what was seen, and what was found. A finding becomes a `finding`
-issue; the walk file links it.
+**Recording it.** A walk is not committed — neither a file nor its screenshots. It is shown to the
+owner in the running app, or by screenshots in the conversation or the pull request; what it found
+is fixed on the branch (AGENTS.md, "Working rules"), and what a use case check needs is asserted by
+a test, an engine walk (`apps/webapp/e2e/*.test.mjs`) for a screen. A file here is written only for
+a run no pipeline can make (above): what was run, at which commit, what was seen, what was found.
