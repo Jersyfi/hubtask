@@ -376,3 +376,22 @@ func TestSearchResolvesThePlaceholdersItParses(t *testing.T) {
 		t.Errorf("@today reached the repository unresolved: %+v", got)
 	}
 }
+
+// A hit only the meaning found is named beside the page, so that a client can say why an entry
+// sharing none of the reader's words is listed; a hit the words found is not named.
+func TestTheHitsFoundByMeaningAloneAreNamed(t *testing.T) {
+	byMeaning := hitOf(packageID, collectionID, hubID, 0.02)
+	byMeaning.ByMeaning = true
+	handler, _, _, permitted := searchHarness(hitOf(taskID, collectionID, hubID, 0.9), byMeaning)
+	permitted.permit = map[shared.ID]bool{taskID: true, packageID: true}
+
+	out, err := handler.Descriptor().Handler.Invoke(t.Context(), itemActor(), map[string]any{"q": "quarterly"})
+	if err != nil {
+		t.Fatalf("searching was refused: %v", err)
+	}
+
+	named, _ := out["found_by_meaning"].([]string)
+	if len(named) != 1 || named[0] != packageID.String() {
+		t.Fatalf("found_by_meaning is %v, want only %s", out["found_by_meaning"], packageID)
+	}
+}

@@ -365,6 +365,9 @@ type ItemHit struct {
 	// it is comparable inside one result set and means nothing outside it. It is on the hit
 	// because the cursor is a keyset over it - a walk that lost it could not continue.
 	Rank float32
+	// ByMeaning marks a hit none of the words found: it is on the page because its meaning is
+	// near the query's. A reader is told so, or an entry without any of their words looks wrong.
+	ByMeaning bool
 }
 
 // ItemHitPage is one page of a search, in rank order.

@@ -409,6 +409,7 @@ export type ActivityPage = components['schemas']['ActivityPage'];
 // these would be a consumer with two packages to keep in step.
 export type ContainerPage = components['schemas']['ContainerPage'];
 export type WorkItemPage = components['schemas']['WorkItemPage'];
+export type ItemSearchPage = components['schemas']['ItemSearchPage'];
 export type ItemQueryResult = components['schemas']['ItemQueryResult'];
 
 /**

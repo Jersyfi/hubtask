@@ -1283,7 +1283,7 @@ class Client:
         """The generic query - the basis for list, kanban, and timeline"""
         return self._call("POST", "/items:query", {}, None, {}, body, "json", "application/json", "json")
 
-    def search_items(self, body: "ItemSearchQuery") -> "WorkItemPage":
+    def search_items(self, body: "ItemSearchQuery") -> "ItemSearchPage":
         """Full-text search over the entries a caller may see"""
         return self._call("POST", "/search", {}, None, {}, body, "json", "application/json", "json")
 

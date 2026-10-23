@@ -8220,6 +8220,15 @@ type ItemQueryResult struct {
 	Total *int `json:"total"`
 }
 
+// ItemSearchPage One page of a search: the hits in rank order, and which of them were found by meaning alone.
+type ItemSearchPage struct {
+	Data []WorkItem `json:"data"`
+
+	// FoundByMeaning The hits on this page that share no word with `q` and were found because they are about the same subject. A client marks them, so that a reader is not left wondering why an entry without any of their words is listed. Empty where the search was by words only - `LEXICAL`, no words, or an installation without search by meaning.
+	FoundByMeaning *[]openapi_types.UUID `json:"found_by_meaning,omitempty"`
+	Page           PageInfo              `json:"page"`
+}
+
 // ItemSearchQuery One search of the whole workspace, or of one hub or collection. **At least one of `q` and `filter`** - a request with neither is refused by `search.words_required`, because "everything" is not a question this API answers.
 // `filter` is the same grammar `POST /items:query` takes, with the same closed field vocabulary, the same operators and the same bounds. The difference between the two endpoints is not the grammar, it is the anchor: a query is anchored to a container because an unanchored one is a question authorisation cannot answer in one step, and a search is the one read where "where is this, anywhere" *is* the question - so it is read and then narrowed to what the caller may see, and its page may be short where a query's would be a refusal.
 // **It searches by words and, where the installation can, by meaning.** The two are one ranked page with one cursor: a hit on the words somebody typed outranks one that is merely about the same subject, so an exact identifier is still found first, and an entry that shares no word with the query is found at all.

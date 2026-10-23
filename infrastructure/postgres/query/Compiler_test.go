@@ -737,3 +737,31 @@ func TestASearchReadsOnlyTheRowsOfTheQueryVectorsModel(t *testing.T) {
 		t.Errorf("the model is bound %d times, want once for the join and once for the neighbourhood", bound)
 	}
 }
+
+// Whether a row is a hit by meaning alone is the negation of the word branches, so a hit the words
+// also found is never marked; without a vector there is nothing to mark and the column is constant.
+func TestASearchSaysWhichRowsOnlyTheMeaningFound(t *testing.T) {
+	lexical, err := Search(textSearchOf("quarterly report"), "", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if !strings.Contains(lexical.SQL, "false AS by_meaning") {
+		t.Errorf("a lexical search marks rows by meaning:\n  %s", lexical.SQL)
+	}
+
+	widened, err := Search(textSearchOf("quarterly report"), "[0.1,0.2,0.3]", SearchBoundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if !strings.Contains(widened.SQL, "NOT (wi.search_document @@") || !strings.Contains(widened.SQL, ") AS by_meaning") {
+		t.Errorf("the statement does not negate the word branches for by_meaning:\n  %s", widened.SQL)
+	}
+
+	rows, err := SearchRows(textSearchOf("quarterly"), Boundary{}, 51)
+	if err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+	if !strings.Contains(rows.SQL, "false AS by_meaning") {
+		t.Errorf("a wordless search lacks the by_meaning column the reader scans:\n  %s", rows.SQL)
+	}
+}

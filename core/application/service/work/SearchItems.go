@@ -441,8 +441,14 @@ func (h SearchItems) invoke(
 		return nil, err
 	}
 	rows := make([]usecase.Output, 0, len(page.Hits))
+	byMeaning := make([]string, 0)
 	for _, hit := range page.Hits {
 		rows = append(rows, withHidden(ItemOutput(hit.Item), marks, hit.Item.ID))
+		if hit.ByMeaning {
+			byMeaning = append(byMeaning, hit.Item.ID.String())
+		}
 	}
-	return pageOutput(rows, page.Info), nil
+	out := pageOutput(rows, page.Info)
+	out["found_by_meaning"] = byMeaning
+	return out, nil
 }

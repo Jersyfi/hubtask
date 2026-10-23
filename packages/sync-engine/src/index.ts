@@ -255,4 +255,5 @@ export type {
   ViewExportDocument,
   WorkItem,
   WorkItemPage,
+  ItemSearchPage,
 } from './schema.ts';

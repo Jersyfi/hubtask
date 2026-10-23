@@ -379,6 +379,8 @@ func readHits(
 			row  sqlc.FindWorkItemRow
 			hub  pgtype.UUID
 			rank float32
+			// Whether only the meaning found it; false for every search without a query vector.
+			byMeaning bool
 		)
 		if err := rows.Scan(
 			&row.ID, &row.TenantID, &row.CollectionID, &row.Type, &row.ParentID, &row.Path,
@@ -392,7 +394,7 @@ func readHits(
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
-			&hub, &rank,
+			&hub, &rank, &byMeaning,
 		); err != nil {
 			return nil, queryFailed("reading a search hit", err)
 		}
@@ -405,7 +407,7 @@ func readHits(
 		if err != nil {
 			return nil, err
 		}
-		hits = append(hits, repository.ItemHit{Item: item, HubID: hubID, Rank: rank})
+		hits = append(hits, repository.ItemHit{Item: item, HubID: hubID, Rank: rank, ByMeaning: byMeaning})
 	}
 	if err := rows.Err(); err != nil {
 		return nil, queryFailed("running the search", err)
