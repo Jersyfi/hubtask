@@ -99,7 +99,8 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey && name != platformSubscriptionsKey {
+		if !areas[name] && name != "blocklist_file" && name != "metering" && name != aiModelsKey && name != plansKey && name != presetsKey &&
+			name != platformSubscriptionsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").
 				WithParams(map[string]string{"source": path, "area": name})
@@ -211,6 +212,40 @@ func malformedPlans(source string) error {
 	return shared.ErrValidation.
 		WithDetail("config.instance_file_malformed").
 		WithParams(map[string]string{"source": source})
+}
+
+// presetsKey is the list of the installation's presets (UC-INS-18). Not an area of the level: the
+// presets are rows of their own, each a document in the shape the API takes - `name`, `preset`,
+// `settings`, `is_default`, `locks` - so one copied out of `GET /admin/presets` goes into the file
+// as it is. A preset is known by its name.
+const presetsKey = "presets"
+
+// Presets reads the file's presets, each as the document the preset use cases read. Present is
+// false where the file says nothing about them, which is not an empty list: an enforcing file with
+// `"presets": []` withdraws every preset.
+func Presets(document map[string]any, source string) (presets []map[string]any, present bool, err error) {
+	raw, present := document[presetsKey]
+	if !present {
+		return nil, false, nil
+	}
+	list, isList := raw.([]any)
+	if !isList {
+		return nil, true, malformedPlans(source)
+	}
+	names := map[string]bool{}
+	for _, entry := range list {
+		fields, isObject := entry.(map[string]any)
+		if !isObject {
+			return nil, true, malformedPlans(source)
+		}
+		name, _ := fields["name"].(string)
+		if name == "" || names[name] {
+			return nil, true, malformedPlans(source)
+		}
+		names[name] = true
+		presets = append(presets, fields)
+	}
+	return presets, true, nil
 }
 
 // platformSubscriptionsKey is the installation's subscriptions for a purchase platform

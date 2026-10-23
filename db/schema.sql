@@ -3004,6 +3004,25 @@ CREATE TABLE plan_setting (
 ALTER TABLE tenant ADD CONSTRAINT tenant_plan_fk
   FOREIGN KEY (plan_id) REFERENCES plan (id) ON DELETE RESTRICT;
 
+-- The installation's presets (UC-INS-18, migration 0198): offered to every workspace, one of them
+-- the default a hub starts from where its workspace chose none, and only the default locks. No row
+-- level security, for plan's reason: every workspace reads them, and the table holds configuration.
+CREATE TABLE installation_preset (
+  id         uuid PRIMARY KEY,
+  name       text NOT NULL CHECK (char_length(name) BETWEEN 1 AND 100),
+  settings   jsonb NOT NULL,
+  is_default boolean NOT NULL DEFAULT false,
+  locks      text[] NOT NULL DEFAULT '{}',
+  version    integer NOT NULL DEFAULT 1,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz NOT NULL,
+  updated_by uuid,
+  CONSTRAINT installation_preset_name_key UNIQUE (name),
+  CONSTRAINT installation_preset_locks_check CHECK (is_default OR cardinality(locks) = 0)
+);
+CREATE UNIQUE INDEX installation_preset_default_idx
+  ON installation_preset (is_default) WHERE is_default;
+
 -- A platform's reference names one workspace (multi-tenancy.md §4.3, 0166).
 CREATE UNIQUE INDEX tenant_external_reference_key
   ON tenant (external_reference) WHERE external_reference IS NOT NULL;
@@ -3153,6 +3172,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON platform_delivery TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON instance_setting TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE ON plan TO hubtask_app;
 GRANT SELECT, INSERT, UPDATE, DELETE ON plan_setting TO hubtask_app;
+GRANT SELECT, INSERT, UPDATE, DELETE ON installation_preset TO hubtask_app;
 
 -- The operator register's four doors (migration 0101). SECURITY DEFINER for resolve_tenant's
 -- reason: reading a table that belongs to no tenant is the owner's right and the application role

@@ -210,3 +210,35 @@ func TestPlatformSubscriptionsAreReadWithTheirSecretFromItsOwnFile(t *testing.T)
 		t.Error("a secret file that is not there was read")
 	}
 }
+
+// The installation's presets (UC-INS-18 check 1): each the document the API takes, known by its
+// name, so a name twice is refused rather than one of the two silently winning.
+func TestPresetsAreReadAsTheDocumentsTheAPITakes(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "instance.json")
+	const document = `{"presets": [{"name": "Craft order", "preset": "FLOW", "is_default": true,
+	  "locks": ["views"], "settings": {"levels": [{"type": "TASK", "name": "Order"}]}}]}`
+	if err := os.WriteFile(path, []byte(document), 0o600); err != nil {
+		t.Fatalf("writing the fixture: %v", err)
+	}
+	body, _, err := Read(path)
+	if err != nil {
+		t.Fatalf("a file with presets answered %v", err)
+	}
+	presets, present, err := Presets(body, path)
+	if err != nil || !present || len(presets) != 1 || presets[0]["name"] != "Craft order" || presets[0]["is_default"] != true {
+		t.Fatalf("read %v (present %t, %v)", presets, present, err)
+	}
+	if _, present, _ := Presets(map[string]any{}, path); present {
+		t.Error("a file without presets answered them present")
+	}
+	if presets, present, err := Presets(map[string]any{"presets": []any{}}, path); err != nil || !present || len(presets) != 0 {
+		t.Errorf("an empty list read as %v (present %t, %v)", presets, present, err)
+	}
+	twice := map[string]any{"presets": []any{map[string]any{"name": "A"}, map[string]any{"name": "A"}}}
+	if _, _, err := Presets(twice, path); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a name twice answered %v", err)
+	}
+	if _, _, err := Presets(map[string]any{"presets": []any{map[string]any{"preset": "LIST"}}}, path); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a preset without a name answered %v", err)
+	}
+}

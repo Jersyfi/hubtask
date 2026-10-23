@@ -1316,6 +1316,37 @@ type Presets interface {
 	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
 }
 
+// InstallationPresets keeps the installation's presets (UC-INS-18). The table belongs to no
+// tenant: every workspace reads it in its own transaction, and only the control plane writes it,
+// in a transaction without one. Which caller may write is the application's decision (rule 2).
+type InstallationPresets interface {
+	// List answers every preset by name.
+	List(ctx context.Context) ([]work.InstallationPreset, error)
+
+	// Find answers one, or presets.not_found.
+	Find(ctx context.Context, id shared.ID) (work.InstallationPreset, error)
+
+	// Default answers the default preset; false where none is.
+	Default(ctx context.Context) (work.InstallationPreset, bool, error)
+
+	// Count answers how many there are.
+	Count(ctx context.Context) (int, error)
+
+	// Insert stores a new preset at version 1; a name taken is presets.name_taken.
+	Insert(ctx context.Context, preset work.InstallationPreset, by shared.ID, at time.Time) error
+
+	// Update writes a preset whole under the expected version - nil writes whatever stands - or
+	// reports a version conflict; a name taken is presets.name_taken.
+	Update(ctx context.Context, preset work.InstallationPreset, expected *int, by shared.ID, at time.Time) error
+
+	// ClearDefault makes every preset but `except` no default and lifts its locks.
+	ClearDefault(ctx context.Context, except shared.ID, by shared.ID, at time.Time) error
+
+	// Delete removes a preset under the expected version - nil removes whatever stands - or
+	// reports a version conflict.
+	Delete(ctx context.Context, id shared.ID, expected *int) error
+}
+
 // Starter keeps whether the workspace's first start was answered (UC-WRK-30 check 5).
 type Starter interface {
 	// Pending reports whether nobody has answered or skipped the first start's question and the

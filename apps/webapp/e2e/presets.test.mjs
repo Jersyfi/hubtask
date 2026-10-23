@@ -7,10 +7,12 @@
 // * *Save as preset* on a collection's Structure panel sends the collection and the choice - for
 //   me, or for the workspace where the reader may shape it; a member is not offered the workspace;
 // * creating a collection offers Hubtask's, the workspace's and the reader's own presets, each
-//   marked with where it comes from, and a saved one chosen is sent as `preset_id`;
+//   marked with where it comes from - the installation's too (UC-INS-18 check 2) -, and a saved one
+//   chosen is sent as `preset_id`;
 // * the workspace's *Presets* view renames and withdraws a workspace preset, draws the default's
-//   withdrawal unavailable with its reason, chooses the default and sets a lock - each sent as the
-//   server expects.
+//   withdrawal unavailable with its reason, chooses the default - never the installation's preset -
+//   and sets a lock, the installation's lock not the workspace's to lift - each sent as the server
+//   expects.
 //
 // Chromium only; what the server decides is its own tests'.
 
@@ -33,6 +35,8 @@ showStructures();
 const SHOP = { origin: 'WORKSPACE', id: '01a0e2e0-0000-7000-8000-0000000027f1', name: 'Weekly shop', version: 2, settings: PRESET_SETTINGS.LIST };
 const CLIENT = { origin: 'OWN', id: '01a0e2e0-0000-7000-8000-0000000027f2', name: 'Client project', version: 1, settings: PRESET_SETTINGS.PROJECT };
 const DEFAULTED = { origin: 'WORKSPACE', id: '01a0e2e0-0000-7000-8000-0000000027f3', name: 'Household', version: 1, settings: PRESET_SETTINGS.TASKS };
+/** The installation's (UC-INS-18): offered, marked, and never the workspace's default. */
+const CRAFT = { origin: 'INSTALLATION', id: '01a0e2e0-0000-7000-8000-0000000027f4', name: 'Craft order', version: 1, settings: PRESET_SETTINGS.PROJECT };
 
 /** A signed-in tab whose reader holds `role` on the workspace; every write is recorded. */
 async function as(browser, role, { width = 1280, defaultPreset = DEFAULTED.id } = {}) {
@@ -54,7 +58,7 @@ async function as(browser, role, { width = 1280, defaultPreset = DEFAULTED.id } 
       const rows = url.searchParams.get('scope_type') === 'TENANT' ? [{ id: 'm0', scope_type: 'TENANT', account_id: ACCOUNT.id, role }] : [];
       return route.fulfill({ json: { ...PAGE, data: rows, grantable_roles: [] } });
     }
-    if (path === '/presets' && method === 'GET') return route.fulfill({ json: [...PRESETS, SHOP, DEFAULTED, CLIENT] });
+    if (path === '/presets' && method === 'GET') return route.fulfill({ json: [...PRESETS, CRAFT, SHOP, DEFAULTED, CLIENT] });
     if (path === '/presets' && method === 'POST') {
       const body = request.postDataJSON();
       return route.fulfill({ status: 201, json: { origin: body.origin, id: '01a0e2e0-0000-7000-8000-0000000027f9', name: body.name, version: 1, settings: PRESET_SETTINGS.LIST } });
@@ -161,7 +165,7 @@ test("chromium: creating a collection offers every origin, marked, and sends a s
   await page.getByRole('button', { name: 'Create collection' }).first().click();
   const dialog = page.locator('dialog[open]');
   await dialog.getByRole('radio', { name: 'Weekly shop' }).waitFor({ timeout: 5_000 });
-  for (const [name, origin] of [['List', "Hubtask's"], ['Weekly shop', "The workspace's"], ['Client project', 'Yours']]) {
+  for (const [name, origin] of [['List', "Hubtask's"], ['Craft order', "The installation's"], ['Weekly shop', "The workspace's"], ['Client project', 'Yours']]) {
     const radio = dialog.getByRole('radio', { name, exact: true });
     assert.equal(await radio.count(), 1, `${name} is not offered`);
     const described = await radio.evaluate((input) => input.closest('.row')?.textContent ?? '');
@@ -211,6 +215,7 @@ test("chromium: the workspace's Presets - rename, withdraw, the default kept, th
 
   // Check 4: the default chosen - a workspace preset by id, Hubtask's by key.
   const defaultSelect = page.getByLabel('A new hub starts from');
+  assert.equal(await defaultSelect.locator(`option[value="${CRAFT.id}"]`).count(), 0, "the installation's preset is offered as the workspace's default");
   await defaultSelect.selectOption(SHOP.id);
   await page.waitForTimeout(300);
   await defaultSelect.selectOption('FLOW');

@@ -28,6 +28,9 @@
   // limits, AI - the tab in the address. The editor opens on the whole level, because a save
   // replaces the whole level; switching tabs while editing keeps what was changed, and the one save
   // bar counts every area's changes.
+  //
+  // **The installation's presets below, in multi mode only** (UC-INS-18): written one by one, not
+  // with the level, so they are a section of their own beside the editor and not one of its tabs.
   import { untrack } from 'svelte';
 
   import { Banner, Button, Input, PageHeader, ReadOnlyNotice, SaveBar, Spinner, Stack, Table, Tabs } from '@hubtask/design-system/components';
@@ -35,6 +38,7 @@
   import { TransportError } from '@hubtask/sync-engine';
 
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
+  import InstallationPresets from '../lib/instance/InstallationPresets.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
   import { AREAS, changesBetween, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
   import { enterSubmits } from '../lib/forms/enter.ts';
@@ -340,6 +344,11 @@
           <div>
             <Button tone="primary" onclick={edit}>{t('app.instance.settings_edit')}</Button>
           </div>
+        {/if}
+
+        {#if manifest.isMultiTenant && !draft}
+          <!-- The installation's presets (UC-INS-18): a level a single installation does not have. -->
+          <InstallationPresets isEnforced={enforced} />
         {/if}
       {/if}
     </Stack>

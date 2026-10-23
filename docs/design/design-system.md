@@ -590,7 +590,9 @@ screenshots.
 
 * **It starts while the account's `onboarding_completed_at` is null.** Finishing or skipping writes
   it; *Take the tour again* in *Help and shortcuts* (§11.4) clears it. The field is the account's
-  (`AccountPreferences`): having been shown the product is a fact about the person.
+  (`AccountPreferences`): having been shown the product is a fact about the person. It starts on
+  the overview, where its first step is: an address opened by link, bookmark or mail keeps its
+  screen, and the tour waits until the person first arrives on the overview.
 * **Skippable at every step.** Progress in this tab is kept in `sessionStorage` and dies with it.
 * **The last step is the first celebration.** The tour ends by leading the user to create and
   complete a first task, which fires the tier-3 onboarding moment (§7). Any completion while
@@ -1014,14 +1016,20 @@ on screen, renaming, sharing or deleting a view, exporting the list as it is fil
 calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
-*Structure* panel's picker — each is marked with where it comes from: Hubtask's, the workspace's,
-yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
+*Structure* panel's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
+the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
 unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
 workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
 change. The workspace's presets have their own administration view, *Presets*: each to rename or
 withdraw — the default's *Withdraw* unavailable with its reason —, the preset a new hub starts
 from, and the whole settings locked for every hub and collection, a lock from the installation or
-the plan unavailable with where it comes from. A new workspace asks its first person once, on Home,
+the plan unavailable with where it comes from; an installation preset is never offered as the
+workspace's default. The installation's presets (UC-INS-18) are a *Presets* section below the
+values on *Installation → Defaults*, in multi mode only: each to rename, to start its settings
+again from one of Hubtask's, or to withdraw — the default's *Withdraw* unavailable with its reason
+—, the preset new workspaces start from, the whole settings that default locks in every
+workspace, and a new preset by name from one of Hubtask's. A file that enforces the level lists
+them with the default and its locks, and no control. A new workspace asks its first person once, on Home,
 what it is used for, and sets up a hub and collections they can rename, change or remove; *Skip*
 and dismissing the dialog both close the question for good.
 

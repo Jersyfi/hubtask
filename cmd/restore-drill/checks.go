@@ -157,6 +157,8 @@ var rlsExceptions = map[string]string{
 		"reached with their subscription",
 	"usage_archive": "a purged workspace's daily counts (multi-tenancy.md §4.3): kept after the " +
 		"workspace's row is gone, counts only, no name and no reference",
+	"installation_preset": "the installation's presets (UC-INS-18): offered to every workspace, " +
+		"configuration rather than a person's data",
 	"plan_setting": "what a plan decides (multi-tenancy.md §4.2): read with its plan, configuration " +
 		"rather than a person's data",
 }

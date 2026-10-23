@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-platform]
 deployments: [D4, D5, D6, D7]
 serves: [P-06, P-07, P-10]
-state: specified
+state: verified
 tasks: [UX-28]
-checked_by: []
+checked_by: [core/domain/model/work/InstallationPresets_test.go, test/integration/installation_preset_test.go, test/integration/installation_preset_usecase_test.go, test/integration/installation_presets_offered_test.go, test/integration/installation_preset_file_test.go, cmd/hubctl/AdminPresets_test.go, apps/webapp/e2e/instancepresets.test.mjs, apps/webapp/e2e/presets.test.mjs]
 ---
 
 # Offer presets to every workspace
@@ -30,10 +30,3 @@ The operator of a craft-business platform adds the preset "Craft order" with *Fl
 ## Where it ends
 
 * An operator never sees a workspace's collections or entries ([NG-operator-reads-content](../../vision/non-goals.md)).
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.

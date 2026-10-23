@@ -220,6 +220,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
 - [x] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget — *Administration → AI*
 - [x] New: *Presets* (UX-27) — *Administration → Workspace and people → Presets*
+- [x] New: the installation's *Presets* (UX-28) — a section of *Installation → Defaults*, multi mode only; marked *The installation's* wherever a preset is offered
 - [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
 - [x] Workspaces (new, suspend, cancel deletion, resume, change plan, limits, export, open/close password, delete) → kept, in a row menu — *Installation → Workspaces*
 - [x] Plans, plan, defaults (about forty values with lock selects) → kept; defaults in tabs per area; one lock display — *Installation → Plans*, *Defaults*

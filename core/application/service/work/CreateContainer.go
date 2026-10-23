@@ -265,6 +265,14 @@ func (h CreateContainer) seedStructure(
 	if container.Type == domain.ContainerHub && preset == "" {
 		preset = workspace.DefaultPreset
 	}
+	// A workspace that chose no default starts from the installation's (UC-INS-18 check 3).
+	if container.Type == domain.ContainerHub && preset == "" {
+		bound, err := reading.Bound(ctx)
+		if err != nil {
+			return domain.StructureLayer{}, err
+		}
+		preset = bound.Installation().Default
+	}
 	if container.Type == domain.ContainerCollection {
 		hub, err := reading.hub(ctx, container.ParentID)
 		if err != nil {

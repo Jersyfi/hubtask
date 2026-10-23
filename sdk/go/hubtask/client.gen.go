@@ -2226,6 +2226,54 @@ func (e InstallationDefaultsWeekStart) Valid() bool {
 	}
 }
 
+// Defines values for InstallationPresetCreatePreset.
+const (
+	InstallationPresetCreatePresetFLOW    InstallationPresetCreatePreset = "FLOW"
+	InstallationPresetCreatePresetLIST    InstallationPresetCreatePreset = "LIST"
+	InstallationPresetCreatePresetPROJECT InstallationPresetCreatePreset = "PROJECT"
+	InstallationPresetCreatePresetTASKS   InstallationPresetCreatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the InstallationPresetCreatePreset enum.
+func (e InstallationPresetCreatePreset) Valid() bool {
+	switch e {
+	case InstallationPresetCreatePresetFLOW:
+		return true
+	case InstallationPresetCreatePresetLIST:
+		return true
+	case InstallationPresetCreatePresetPROJECT:
+		return true
+	case InstallationPresetCreatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for InstallationPresetUpdatePreset.
+const (
+	InstallationPresetUpdatePresetFLOW    InstallationPresetUpdatePreset = "FLOW"
+	InstallationPresetUpdatePresetLIST    InstallationPresetUpdatePreset = "LIST"
+	InstallationPresetUpdatePresetPROJECT InstallationPresetUpdatePreset = "PROJECT"
+	InstallationPresetUpdatePresetTASKS   InstallationPresetUpdatePreset = "TASKS"
+)
+
+// Valid indicates whether the value is a known member of the InstallationPresetUpdatePreset enum.
+func (e InstallationPresetUpdatePreset) Valid() bool {
+	switch e {
+	case InstallationPresetUpdatePresetFLOW:
+		return true
+	case InstallationPresetUpdatePresetLIST:
+		return true
+	case InstallationPresetUpdatePresetPROJECT:
+		return true
+	case InstallationPresetUpdatePresetTASKS:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for InstanceSettingKind.
 const (
 	InstanceSettingKindCHOICE   InstanceSettingKind = "CHOICE"
@@ -3251,15 +3299,18 @@ func (e PresetKey) Valid() bool {
 
 // Defines values for PresetOrigin.
 const (
-	PresetOriginHUBTASK   PresetOrigin = "HUBTASK"
-	PresetOriginOWN       PresetOrigin = "OWN"
-	PresetOriginWORKSPACE PresetOrigin = "WORKSPACE"
+	PresetOriginHUBTASK      PresetOrigin = "HUBTASK"
+	PresetOriginINSTALLATION PresetOrigin = "INSTALLATION"
+	PresetOriginOWN          PresetOrigin = "OWN"
+	PresetOriginWORKSPACE    PresetOrigin = "WORKSPACE"
 )
 
 // Valid indicates whether the value is a known member of the PresetOrigin enum.
 func (e PresetOrigin) Valid() bool {
 	switch e {
 	case PresetOriginHUBTASK:
+		return true
+	case PresetOriginINSTALLATION:
 		return true
 	case PresetOriginOWN:
 		return true
@@ -7063,7 +7114,7 @@ type ContainerCreate struct {
 	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
-	// PresetId A saved preset to start from instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID `json:"preset_id,omitempty"`
 
 	// Private Makes the new hub private: reached only by people holding a role on it or below it, not by the workspace's owners and administrators. Any person holding a role anywhere in the workspace may create one, without the right to create shared hubs, and becomes its owner. A service account may not. Refused on a collection (`containers.private_only_hubs`).
@@ -8001,6 +8052,64 @@ type InstallationDefaults struct {
 
 // InstallationDefaultsWeekStart defines model for InstallationDefaults.WeekStart.
 type InstallationDefaultsWeekStart string
+
+// InstallationPreset A preset the installation offers every workspace: its eight settings, held to what the installation offers; whether it is the default a hub starts from where its workspace chose none; and, on the default, the settings it locks for every workspace.
+type InstallationPreset struct {
+	Id openapi_types.UUID `json:"id"`
+
+	// IsDefault Whether a hub created without a preset starts from it, in a workspace that chose no default of its own. One preset at most.
+	IsDefault bool `json:"is_default"`
+
+	// Locks What the default fixes in every workspace: a whole setting (`views`) or one capability of one level (`fields.TASK.DUE_DATE`). Empty on every other preset.
+	Locks []string `json:"locks"`
+
+	// Name The operator's name for it, as every workspace sees it.
+	Name string `json:"name"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings StructureSettings `json:"settings"`
+
+	// Version The optimistic lock, the same value as the `ETag`.
+	Version int `json:"version"`
+}
+
+// InstallationPresetCreate defines model for InstallationPresetCreate.
+type InstallationPresetCreate struct {
+	// IsDefault Makes it the default; the former default stops being one and loses its locks.
+	IsDefault *bool `json:"is_default,omitempty"`
+
+	// Locks The settings the default locks; only with `is_default`.
+	Locks *[]string `json:"locks,omitempty"`
+	Name  string    `json:"name"`
+
+	// Preset One of Hubtask's presets the settings start from; Hubtask's default without one.
+	Preset *InstallationPresetCreatePreset `json:"preset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// InstallationPresetCreatePreset One of Hubtask's presets the settings start from; Hubtask's default without one.
+type InstallationPresetCreatePreset string
+
+// InstallationPresetUpdate Applied in this order - the name, Hubtask's preset copied again, the settings, the default, the locks. A field left out is left as it is.
+type InstallationPresetUpdate struct {
+	// IsDefault True makes it the default, lifting the former default's locks; false makes none the default and lifts its locks.
+	IsDefault *bool `json:"is_default,omitempty"`
+
+	// Locks The whole set of locks; refused on a preset that is not the default.
+	Locks *[]string `json:"locks,omitempty"`
+	Name  *string   `json:"name,omitempty"`
+
+	// Preset One of Hubtask's presets whose settings replace this one's.
+	Preset *InstallationPresetUpdatePreset `json:"preset,omitempty"`
+
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
+	Settings *StructureSettings `json:"settings,omitempty"`
+}
+
+// InstallationPresetUpdatePreset One of Hubtask's presets whose settings replace this one's.
+type InstallationPresetUpdatePreset string
 
 // InstallationSetUp defines model for InstallationSetUp.
 type InstallationSetUp struct {
@@ -9859,7 +9968,7 @@ type PolicyLock string
 // PolicySource Where a value in force came from: Hubtask's own default, the installation, the plan, or this workspace. A screen says it beside every rule, so nobody meets a value without learning who set it - and says nothing about an installation that decided nothing, which is what a private installation is.
 type PolicySource string
 
-// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the workspace's or the caller's own - its `id`, the `name` a person gave it and its `version`.
+// Preset A starting point for a hub or collection: values for all eight settings, held to what this installation offers. Choosing one copies its values; nothing follows a preset afterwards. One of Hubtask's carries its stable `key`, which a client translates; a saved one - the installation's, the workspace's or the caller's own - its `id`, the `name` given it and its `version`.
 type Preset struct {
 	// Id A saved preset's id. Absent on one of Hubtask's.
 	Id *openapi_types.UUID `json:"id,omitempty"`
@@ -9870,7 +9979,7 @@ type Preset struct {
 	// Name A saved preset's name. Absent on one of Hubtask's, which a client names.
 	Name *string `json:"name,omitempty"`
 
-	// Origin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+	// Origin Where the preset comes from: Hubtask's, the installation's (offered in every workspace), the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
 	Origin PresetOrigin `json:"origin"`
 
 	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
@@ -9883,7 +9992,7 @@ type Preset struct {
 // PresetKey One of Hubtask's presets. Absent on a saved one.
 type PresetKey string
 
-// PresetOrigin Where the preset comes from: Hubtask's, the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
+// PresetOrigin Where the preset comes from: Hubtask's, the installation's (offered in every workspace), the workspace's (offered to everyone in it), or the caller's own (offered to them alone).
 type PresetOrigin string
 
 // PresetCreate defines model for PresetCreate.
@@ -11186,7 +11295,7 @@ type StructureChange struct {
 	Narrowing *StructureChangeNarrowing `json:"narrowing,omitempty"`
 	Preset    *StructureChangePreset    `json:"preset,omitempty"`
 
-	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
@@ -12440,7 +12549,7 @@ type WorkspaceStructureChange struct {
 	Locks  *[]string                       `json:"locks,omitempty"`
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
 
-	// PresetId A saved preset to copy instead - the workspace's, or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
+	// PresetId A saved preset to copy instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
 	PresetId *openapi_types.UUID     `json:"preset_id,omitempty"`
 	Reset    *[]StructureSettingName `json:"reset,omitempty"`
 
@@ -12720,6 +12829,18 @@ type CreatePlanParams struct {
 
 // ChangePlanParams defines parameters for ChangePlan.
 type ChangePlanParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// WithdrawInstallationPresetParams defines parameters for WithdrawInstallationPreset.
+type WithdrawInstallationPresetParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeInstallationPresetParams defines parameters for ChangeInstallationPreset.
+type ChangeInstallationPresetParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -13940,6 +14061,12 @@ type CreatePlanJSONRequestBody = PlanCreate
 
 // ChangePlanJSONRequestBody defines body for ChangePlan for application/json ContentType.
 type ChangePlanJSONRequestBody = PlanChange
+
+// CreateInstallationPresetJSONRequestBody defines body for CreateInstallationPreset for application/json ContentType.
+type CreateInstallationPresetJSONRequestBody = InstallationPresetCreate
+
+// ChangeInstallationPresetJSONRequestBody defines body for ChangeInstallationPreset for application/json ContentType.
+type ChangeInstallationPresetJSONRequestBody = InstallationPresetUpdate
 
 // WriteInstanceSettingsJSONRequestBody defines body for WriteInstanceSettings for application/json ContentType.
 type WriteInstanceSettingsJSONRequestBody = InstanceSettings
@@ -15340,6 +15467,56 @@ type ClientInterface interface {
 	//
 	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
 	ChangePlan(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListInstallationPresets The installation's presets
+	//
+	// The presets this installation offers every workspace, by name, each with its eight settings, whether it is the default a new hub starts from where its workspace chose none, and - on the default - the settings it locks for every workspace. Multi mode only; single mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one level there.
+	//
+	// Corresponds with GET /admin/presets (the `ListInstallationPresets` operationId).
+	ListInstallationPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstallationPresetWithBody Create a preset of the installation
+	//
+	// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+	CreateInstallationPresetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateInstallationPreset Create a preset of the installation
+	//
+	// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+	CreateInstallationPreset(ctx context.Context, body CreateInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// WithdrawInstallationPreset Withdraw a preset of the installation
+	//
+	// It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.
+	//
+	// Corresponds with DELETE /admin/presets/{presetId} (the `WithdrawInstallationPreset` operationId).
+	WithdrawInstallationPreset(ctx context.Context, presetId PresetId, params *WithdrawInstallationPresetParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeInstallationPresetWithBody Change a preset of the installation
+	//
+	// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+	ChangeInstallationPresetWithBody(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeInstallationPreset Change a preset of the installation
+	//
+	// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+	ChangeInstallationPreset(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ReadInstanceSettings What this installation has decided for every workspace on it
 	//
@@ -18692,7 +18869,7 @@ type ClientInterface interface {
 
 	// ListPresets The presets a hub or collection can start from
 	//
-	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
+	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the installation's, the workspace's and the caller's own, each by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 	//
 	// Corresponds with GET /presets (the `ListPresets` operationId).
 	ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -21172,6 +21349,116 @@ func (c *Client) ChangePlanWithBody(ctx context.Context, planName string, params
 // Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
 func (c *Client) ChangePlan(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewChangePlanRequest(c.Server, planName, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListInstallationPresets The installation's presets
+//
+// The presets this installation offers every workspace, by name, each with its eight settings, whether it is the default a new hub starts from where its workspace chose none, and - on the default - the settings it locks for every workspace. Multi mode only; single mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one level there.
+//
+// Corresponds with GET /admin/presets (the `ListInstallationPresets` operationId).
+func (c *Client) ListInstallationPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListInstallationPresetsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstallationPresetWithBody Create a preset of the installation
+//
+// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+func (c *Client) CreateInstallationPresetWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstallationPresetRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateInstallationPreset Create a preset of the installation
+//
+// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+func (c *Client) CreateInstallationPreset(ctx context.Context, body CreateInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateInstallationPresetRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// WithdrawInstallationPreset Withdraw a preset of the installation
+//
+// It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.
+//
+// Corresponds with DELETE /admin/presets/{presetId} (the `WithdrawInstallationPreset` operationId).
+func (c *Client) WithdrawInstallationPreset(ctx context.Context, presetId PresetId, params *WithdrawInstallationPresetParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewWithdrawInstallationPresetRequest(c.Server, presetId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeInstallationPresetWithBody Change a preset of the installation
+//
+// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+func (c *Client) ChangeInstallationPresetWithBody(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeInstallationPresetRequestWithBody(c.Server, presetId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeInstallationPreset Change a preset of the installation
+//
+// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+func (c *Client) ChangeInstallationPreset(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeInstallationPresetRequest(c.Server, presetId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -28363,7 +28650,7 @@ func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJS
 
 // ListPresets The presets a hub or collection can start from
 //
-// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
+// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the installation's, the workspace's and the caller's own, each by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 //
 // Corresponds with GET /presets (the `ListPresets` operationId).
 func (c *Client) ListPresets(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -32162,6 +32449,184 @@ func NewChangePlanRequestWithBody(server string, planName string, params *Change
 	}
 
 	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewListInstallationPresetsRequest constructs an http.Request for the ListInstallationPresets method
+func NewListInstallationPresetsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/presets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateInstallationPresetRequest calls the generic CreateInstallationPreset builder with application/json body
+func NewCreateInstallationPresetRequest(server string, body CreateInstallationPresetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateInstallationPresetRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateInstallationPresetRequestWithBody constructs an http.Request for the CreateInstallationPreset method, with any body, and a specified content type
+func NewCreateInstallationPresetRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/presets")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewWithdrawInstallationPresetRequest constructs an http.Request for the WithdrawInstallationPreset method
+func NewWithdrawInstallationPresetRequest(server string, presetId PresetId, params *WithdrawInstallationPresetParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "presetId", presetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/presets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewChangeInstallationPresetRequest calls the generic ChangeInstallationPreset builder with application/json body
+func NewChangeInstallationPresetRequest(server string, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeInstallationPresetRequestWithBody(server, presetId, params, "application/json", bodyReader)
+}
+
+// NewChangeInstallationPresetRequestWithBody constructs an http.Request for the ChangeInstallationPreset method, with any body, and a specified content type
+func NewChangeInstallationPresetRequestWithBody(server string, presetId PresetId, params *ChangeInstallationPresetParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "presetId", presetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/presets/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
 	if err != nil {
 		return nil, err
 	}
@@ -48559,6 +49024,60 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PUT /admin/plans/{planName} (the `ChangePlan` operationId).
 	ChangePlanWithResponse(ctx context.Context, planName string, params *ChangePlanParams, body ChangePlanJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangePlanResult, error)
 
+	// ListInstallationPresetsWithResponse The installation's presets
+	//
+	// The presets this installation offers every workspace, by name, each with its eight settings, whether it is the default a new hub starts from where its workspace chose none, and - on the default - the settings it locks for every workspace. Multi mode only; single mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one level there.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/presets (the `ListInstallationPresets` operationId).
+	ListInstallationPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstallationPresetsResult, error)
+
+	// CreateInstallationPresetWithBodyWithResponse Create a preset of the installation
+	//
+	// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+	CreateInstallationPresetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstallationPresetResult, error)
+
+	// CreateInstallationPresetWithResponse Create a preset of the installation
+	//
+	// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+	CreateInstallationPresetWithResponse(ctx context.Context, body CreateInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstallationPresetResult, error)
+
+	// WithdrawInstallationPresetWithResponse Withdraw a preset of the installation
+	//
+	// It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /admin/presets/{presetId} (the `WithdrawInstallationPreset` operationId).
+	WithdrawInstallationPresetWithResponse(ctx context.Context, presetId PresetId, params *WithdrawInstallationPresetParams, reqEditors ...RequestEditorFn) (*WithdrawInstallationPresetResult, error)
+
+	// ChangeInstallationPresetWithBodyWithResponse Change a preset of the installation
+	//
+	// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+	ChangeInstallationPresetWithBodyWithResponse(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeInstallationPresetResult, error)
+
+	// ChangeInstallationPresetWithResponse Change a preset of the installation
+	//
+	// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+	ChangeInstallationPresetWithResponse(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeInstallationPresetResult, error)
+
 	// ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 	//
 	// The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -52252,7 +52771,7 @@ type ClientWithResponsesInterface interface {
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
-	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
+	// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the installation's, the workspace's and the caller's own, each by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -55532,6 +56051,209 @@ func (r ChangePlanResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ChangePlanResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListInstallationPresetsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *struct {
+		Data []InstallationPreset `json:"data"`
+	}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListInstallationPresetsResult) GetJSON200() *struct {
+	Data []InstallationPreset `json:"data"`
+} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListInstallationPresetsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListInstallationPresetsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListInstallationPresetsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListInstallationPresetsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListInstallationPresetsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// CreateInstallationPresetResult201Headers the declared response headers of an HTTP 201 response for CreateInstallationPreset
+type CreateInstallationPresetResult201Headers struct {
+	ETag *string
+}
+
+type CreateInstallationPresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *InstallationPreset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers201 the parsed response headers for an HTTP 201 response
+	Headers201 *CreateInstallationPresetResult201Headers
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateInstallationPresetResult) GetJSON201() *InstallationPreset {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateInstallationPresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateInstallationPresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateInstallationPresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateInstallationPresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateInstallationPresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type WithdrawInstallationPresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r WithdrawInstallationPresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r WithdrawInstallationPresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r WithdrawInstallationPresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r WithdrawInstallationPresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r WithdrawInstallationPresetResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+// ChangeInstallationPresetResult200Headers the declared response headers of an HTTP 200 response for ChangeInstallationPreset
+type ChangeInstallationPresetResult200Headers struct {
+	ETag *string
+}
+
+type ChangeInstallationPresetResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *InstallationPreset
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// Headers200 the parsed response headers for an HTTP 200 response
+	Headers200 *ChangeInstallationPresetResult200Headers
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeInstallationPresetResult) GetJSON200() *InstallationPreset {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeInstallationPresetResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeInstallationPresetResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeInstallationPresetResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeInstallationPresetResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeInstallationPresetResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -72674,6 +73396,96 @@ func (c *ClientWithResponses) ChangePlanWithResponse(ctx context.Context, planNa
 	return ParseChangePlanResult(rsp)
 }
 
+// ListInstallationPresetsWithResponse The installation's presets
+//
+// The presets this installation offers every workspace, by name, each with its eight settings, whether it is the default a new hub starts from where its workspace chose none, and - on the default - the settings it locks for every workspace. Multi mode only; single mode refuses with `admin.multi_mode_required`, as the workspace's own presets are the one level there.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/presets (the `ListInstallationPresets` operationId).
+func (c *ClientWithResponses) ListInstallationPresetsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListInstallationPresetsResult, error) {
+	rsp, err := c.ListInstallationPresets(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListInstallationPresetsResult(rsp)
+}
+
+// CreateInstallationPresetWithBodyWithResponse Create a preset of the installation
+//
+// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+func (c *ClientWithResponses) CreateInstallationPresetWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateInstallationPresetResult, error) {
+	rsp, err := c.CreateInstallationPresetWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstallationPresetResult(rsp)
+}
+
+// CreateInstallationPresetWithResponse Create a preset of the installation
+//
+// A preset every workspace is offered, marked as the installation's (`origin` `INSTALLATION` on `GET /presets`). Its settings start from one of Hubtask's presets (`preset`) or from Hubtask's default, with `settings` on top, held to what the installation offers like a layer's. A name is the installation's once (`presets.name_taken`); beyond 50 presets it is refused with `presets.limit_reached`. Refused while a file enforces the installation's level (`admin.instance_enforced_from_file`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/presets (the `CreateInstallationPreset` operationId).
+func (c *ClientWithResponses) CreateInstallationPresetWithResponse(ctx context.Context, body CreateInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateInstallationPresetResult, error) {
+	rsp, err := c.CreateInstallationPreset(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateInstallationPresetResult(rsp)
+}
+
+// WithdrawInstallationPresetWithResponse Withdraw a preset of the installation
+//
+// It is offered to no workspace any more; hubs and collections made from it keep their settings. The default is refused with `presets.installation_default` until another preset is the default or none is.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /admin/presets/{presetId} (the `WithdrawInstallationPreset` operationId).
+func (c *ClientWithResponses) WithdrawInstallationPresetWithResponse(ctx context.Context, presetId PresetId, params *WithdrawInstallationPresetParams, reqEditors ...RequestEditorFn) (*WithdrawInstallationPresetResult, error) {
+	rsp, err := c.WithdrawInstallationPreset(ctx, presetId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseWithdrawInstallationPresetResult(rsp)
+}
+
+// ChangeInstallationPresetWithBodyWithResponse Change a preset of the installation
+//
+// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+func (c *ClientWithResponses) ChangeInstallationPresetWithBodyWithResponse(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeInstallationPresetResult, error) {
+	rsp, err := c.ChangeInstallationPresetWithBody(ctx, presetId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeInstallationPresetResult(rsp)
+}
+
+// ChangeInstallationPresetWithResponse Change a preset of the installation
+//
+// Renames it, copies one of Hubtask's presets into it again (`preset`), sets settings on top (`settings`), makes it the default or not (`is_default`) and sets the settings it locks (`locks`, the whole set). Only the default locks: locks on another preset are refused with `presets.locks_need_default`, and making another preset the default lifts the former default's locks. A lock fixes a setting - or one capability of one level, `fields.TASK.DUE_DATE` - to this preset's value in every workspace, hub and collection, answered there with origin `INSTANCE`. Hubs and collections made from it keep their settings. With `If-Match`, a change made on a preset somebody else changed since is refused with `version_conflict`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /admin/presets/{presetId} (the `ChangeInstallationPreset` operationId).
+func (c *ClientWithResponses) ChangeInstallationPresetWithResponse(ctx context.Context, presetId PresetId, params *ChangeInstallationPresetParams, body ChangeInstallationPresetJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeInstallationPresetResult, error) {
+	rsp, err := c.ChangeInstallationPreset(ctx, presetId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeInstallationPresetResult(rsp)
+}
+
 // ReadInstanceSettingsWithResponse What this installation has decided for every workspace on it
 //
 // The level above the workspaces: the sign-in switches this installation set, which of them are locked, the operator's legal links, and the path to its own list of refused passwords.
@@ -78665,7 +79477,7 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context,
 
 // ListPresetsWithResponse The presets a hub or collection can start from
 //
-// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the workspace's and the caller's own by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
+// The presets the caller can start a hub or collection from, each marked with its `origin`: Hubtask's four - List, Tasks, Project and Flow -, the installation's, the workspace's and the caller's own, each with its eight settings as this installation offers them. Hubtask's come first in a stable order, then the installation's, the workspace's and the caller's own, each by name. Another person's own presets are never answered. A bounded list, not a page: the saved ones are bounded per origin.
 //
 // Returns a wrapper object for the known response body format(s).
 //
@@ -81752,6 +82564,162 @@ func ParseChangePlanResult(rsp *http.Response) (*ChangePlanResult, error) {
 	switch {
 	case rsp.StatusCode == 200:
 		var headers ChangePlanResult200Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseListInstallationPresetsResult parses an HTTP response from a ListInstallationPresetsWithResponse call
+func ParseListInstallationPresetsResult(rsp *http.Response) (*ListInstallationPresetsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListInstallationPresetsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest struct {
+			Data []InstallationPreset `json:"data"`
+		}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateInstallationPresetResult parses an HTTP response from a CreateInstallationPresetWithResponse call
+func ParseCreateInstallationPresetResult(rsp *http.Response) (*CreateInstallationPresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateInstallationPresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest InstallationPreset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 201:
+		var headers CreateInstallationPresetResult201Headers
+		if values := rsp.Header.Values("ETag"); len(values) > 0 {
+			var value string
+			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			}
+			headers.ETag = &value
+		}
+		response.Headers201 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseWithdrawInstallationPresetResult parses an HTTP response from a WithdrawInstallationPresetWithResponse call
+func ParseWithdrawInstallationPresetResult(rsp *http.Response) (*WithdrawInstallationPresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &WithdrawInstallationPresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeInstallationPresetResult parses an HTTP response from a ChangeInstallationPresetWithResponse call
+func ParseChangeInstallationPresetResult(rsp *http.Response) (*ChangeInstallationPresetResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeInstallationPresetResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest InstallationPreset
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	switch {
+	case rsp.StatusCode == 200:
+		var headers ChangeInstallationPresetResult200Headers
 		if values := rsp.Header.Values("ETag"); len(values) > 0 {
 			var value string
 			if err := runtime.BindStyledParameterWithOptions("simple", "ETag", values[0], &value, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""}); err != nil {

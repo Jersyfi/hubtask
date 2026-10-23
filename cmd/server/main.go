@@ -695,9 +695,10 @@ func run() error {
 	// One resolver of the structure in force, for every reader and writer of one (domain-model.md
 	// §2): a value read on one door is the value written on another.
 	presets := postgres.NewPresetRepository()
+	installationPresets := postgres.NewInstallationPresetRepository()
 	structures := work.StructureResolver{
 		Containers: containers, Structures: postgres.NewStructureRepository(), Profiles: profiles,
-		Presets: presets,
+		Presets: presets, Installation: installationPresets,
 	}
 	starter := work.Starter{
 		Starts: postgres.NewStarterRepository(), Permits: authorizer, Authorizer: authorizer,
@@ -1449,6 +1450,11 @@ func run() error {
 	// writer for the register, the level and the journal, and the mode - plans are multi mode's.
 	planWriter := adminservice.PlanWriter{
 		Instance: instanceWriter, Plans: postgres.NewPlanRepository(), Tenancy: cfg.Tenancy,
+	}
+	// The installation's presets (UC-INS-18), beside the plans and kept like them.
+	installationPresetWriter := adminservice.InstallationPresetWriter{
+		Instance: instanceWriter, Presets: postgres.NewInstallationPresetRepository(),
+		Profiles: postgres.NewCapabilityProfileRepository(), Tenancy: cfg.Tenancy, Text: textadapter.Forms{},
 	}
 	// One workspace, and the query a platform finds its workspaces with (multi-tenancy.md §4.3).
 	tenantReader := adminservice.TenantReader{Writer: planWriter, Finder: postgres.NewTenantQueryRepository(cursors)}
@@ -2209,7 +2215,9 @@ func run() error {
 			Containers: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Structure: structures, Figures: figures, Milestones: milestones,
 		}.Descriptor(),
-		work.ListPresets{Profiles: profiles, Presets: presets, UnitOfWork: unitOfWork}.Descriptor(),
+		work.ListPresets{
+			Profiles: profiles, Presets: presets, Installation: installationPresets, UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		work.ListJumbleDestinations{
 			Collections: containers, Authorizer: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork,
@@ -2539,6 +2547,10 @@ func run() error {
 		adminservice.CreatePlan{Writer: planWriter}.Descriptor(),
 		adminservice.ChangePlan{Writer: planWriter}.Descriptor(),
 		adminservice.RemovePlan{Writer: planWriter}.Descriptor(),
+		adminservice.ListInstallationPresets{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.CreateInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.ChangeInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
+		adminservice.WithdrawInstallationPreset{Writer: installationPresetWriter}.Descriptor(),
 		adminservice.ReadTenant{Reader: tenantReader}.Descriptor(),
 		adminservice.QueryTenants{Reader: tenantReader}.Descriptor(),
 		adminservice.UpdateTenant{
@@ -3911,6 +3923,7 @@ func run() error {
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
+		presets:    installationPresetWriter,
 		platform:   platformWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
@@ -4600,6 +4613,8 @@ type applyingInstanceFile struct {
 	// plans writes the plans the file names, as the file: it passes every check the API's writes
 	// pass, and is the one writer of plans while the file enforces.
 	plans adminservice.PlanWriter
+	// presets writes the installation's presets the file names, as the file.
+	presets adminservice.InstallationPresetWriter
 	// platform writes the subscriptions for a purchase platform the file names, their secrets read
 	// from the files it names.
 	platform   adminservice.PlatformWriter
@@ -4666,6 +4681,28 @@ func applyPlans(ctx context.Context, applying applyingInstanceFile, document map
 	return nil
 }
 
+// applyInstallationPresets writes the installation's presets the file names (UC-INS-18 check 1): in
+// `seed` where the installation has none, in `enforce` as the whole set.
+func applyInstallationPresets(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	presets, present, err := instancefile.Presets(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.presets.ApplyFile(ctx, presets, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names presets, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	slog.Info("the installation's presets were written from the file", "source", applying.path,
+		"mode", string(applying.mode), "created", outcome.Created, "changed", outcome.Changed,
+		"withdrawn", outcome.Withdrawn)
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4694,6 +4731,10 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	// The plans after the level: a plan is checked against the installation's values, so the
 	// file's own values have to be in place first.
 	if err := applyPlans(ctx, applying, document); err != nil {
+		return err
+	}
+	// The presets after the level too: a file that enforces the level is their one writer.
+	if err := applyInstallationPresets(ctx, applying, document); err != nil {
 		return err
 	}
 	return applyPlatformSubscriptions(ctx, applying, document)

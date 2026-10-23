@@ -20,8 +20,8 @@ import (
 )
 
 // Preset answers the preset a key names as the actor may choose it, held to the installation:
-// one of Hubtask's, the workspace's, or the actor's own. Another person's own preset is unknown,
-// exactly like one that never existed (T-04).
+// one of Hubtask's, the installation's, the workspace's, or the actor's own. Another person's own
+// preset is unknown, exactly like one that never existed (T-04).
 func (s *layerReading) Preset(
 	ctx context.Context, actor appshared.ActorContext, key domain.PresetKey,
 ) (domain.Preset, error) {
@@ -30,17 +30,28 @@ func (s *layerReading) Preset(
 		return domain.Preset{}, err
 	}
 	id, saved := key.SavedID()
-	if !saved || s.resolver.Presets == nil {
+	if !saved {
 		return domain.FindPreset(key, bound)
 	}
-	preset, err := s.resolver.Presets.Find(ctx, id)
-	if errors.Is(err, shared.ErrNotFound) || (err == nil && !mayChoose(actor, preset)) {
-		return domain.FindPreset(key, bound)
+	if s.resolver.Presets != nil {
+		preset, err := s.resolver.Presets.Find(ctx, id)
+		if err == nil && mayChoose(actor, preset) {
+			return preset.Offered(bound), nil
+		}
+		if err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return domain.Preset{}, err
+		}
 	}
-	if err != nil {
-		return domain.Preset{}, err
+	if s.resolver.Installation != nil {
+		preset, err := s.resolver.Installation.Find(ctx, id)
+		if err == nil {
+			return preset.Offered(bound), nil
+		}
+		if !errors.Is(err, shared.ErrNotFound) {
+			return domain.Preset{}, err
+		}
 	}
-	return preset.Offered(bound), nil
+	return domain.FindPreset(key, bound)
 }
 
 // mayChoose reports whether the actor is offered the saved preset: the workspace's are everyone's,
@@ -72,7 +83,7 @@ func presetFrom(in usecase.Input, keyName, idName string) (domain.PresetKey, err
 func presetIDField(name, beside string) usecase.Field {
 	return usecase.Field{
 		Name: name, Kind: usecase.KindID,
-		Description: "A saved preset instead of " + beside + ": the workspace's, or the caller's own. " +
+		Description: "A saved preset instead of " + beside + ": the installation's, the workspace's, or the caller's own. " +
 			"Naming both is refused as presets.both_named.",
 	}
 }
