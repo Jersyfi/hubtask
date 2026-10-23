@@ -782,7 +782,7 @@ func run() error {
 	// (work.KudosDesk).
 	kudosDesk := work.KudosDesk{
 		Kudos: postgres.NewKudosRepository(), Items: items, Containers: containers,
-		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Audit: auditSink,
+		Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 	}
 
 	// Moving and reordering share one dependency set, on the reasoning that keeps them one event type: a

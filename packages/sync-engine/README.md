@@ -74,7 +74,10 @@ held beside the document, a `DELETE` removes the entity and everything under a c
 came (§9.7). Every record is applied and then invalidates what the application's `pathsFor` names
 — the engine does not learn what a hub is. `sync.cursor_too_old` empties the store, keeps the
 device and synchronises again (§9.4); `sync.cursor_invalid` forgets the cursor and keeps the copy;
-`reset()` deletes the store, which is what sign-out means (§9.6).
+`reset()` deletes the store, which is what sign-out means (§9.6). `resynchronise(reason)` asks for a
+fresh snapshot over the copy, once per device and reason: the next catch-up walks the delta from
+the held cursor and then reads the snapshot whole, an open stream reconnects to do it now, and
+offline the request waits in the store. When one is due is the application's to say (§4.2).
 
 ## Writing
 

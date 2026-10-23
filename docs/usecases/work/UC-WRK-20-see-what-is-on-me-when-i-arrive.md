@@ -51,4 +51,4 @@ the page holds a single sentence and *Create hub*.
 
 ## Today
 
-* Check 6: not met — a person with a workspace role that reaches no hub reads "No hubs yet", not that nothing has been shared with them.
+* Check 6: not met for a person whose role reaches no hub — the empty state says "No hubs yet" to them too, not that nothing has been shared with them yet; in no milestone yet.
