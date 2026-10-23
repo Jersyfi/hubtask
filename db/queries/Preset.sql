@@ -13,13 +13,13 @@ INSERT INTO structure_preset (
 );
 
 -- name: FindStructurePreset :one
-SELECT id, origin, owner_id, name, settings, created_at, updated_at, version
+SELECT id, origin, owner_id, name, settings, created_at, version
 FROM structure_preset
 WHERE id = sqlc.arg('id')::uuid;
 
 -- name: ListStructurePresetsOffered :many
 -- The workspace's presets and one person's own, by name; `id` closes the order.
-SELECT id, origin, owner_id, name, settings, created_at, updated_at, version
+SELECT id, origin, owner_id, name, settings, created_at, version
 FROM structure_preset
 WHERE origin = 'WORKSPACE' OR owner_id = sqlc.arg('owner_id')::uuid
 ORDER BY origin DESC, name COLLATE hubtask_name, id;
@@ -35,7 +35,6 @@ WHERE origin = sqlc.arg('origin')
 UPDATE structure_preset SET
   name       = normalize(sqlc.arg('name')::text, NFC),
   settings   = sqlc.arg('settings')::jsonb,
-  updated_at = sqlc.arg('updated_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
 

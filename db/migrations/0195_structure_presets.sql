@@ -3,7 +3,8 @@
 -- `structure_preset` holds a preset saved from a hub's or collection's structure: the workspace's
 -- (`WORKSPACE`, offered to everyone in it) or one person's own (`OWN`, offered to them alone, gone
 -- with their account). `settings` is the eight settings in the document a layer's `settings` key
--- holds, its categories left out. The name is the person's content (rule 10).
+-- holds, its categories left out. The name is the person's content (rule 10). No change stamp: the
+-- archive writes the table whole, as a withdrawn preset leaves no deletion marker a delta could carry.
 --
 -- `tenant.starter_answered_at` records that the workspace's first start was answered or skipped,
 -- so nobody is asked twice.
@@ -20,7 +21,6 @@ CREATE TABLE IF NOT EXISTS structure_preset (
   name       text NOT NULL,
   settings   jsonb NOT NULL,
   created_at timestamptz NOT NULL,
-  updated_at timestamptz,
   version    integer NOT NULL DEFAULT 1,
   PRIMARY KEY (tenant_id, id),
   CONSTRAINT structure_preset_origin_check CHECK (origin IN ('WORKSPACE', 'OWN')),

@@ -1534,7 +1534,6 @@ type StructurePreset struct {
 	Name      string
 	Settings  []byte
 	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
 	Version   int32
 }
 

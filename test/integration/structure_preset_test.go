@@ -118,12 +118,12 @@ func TestAPresetIsChangedAndWithdrawnUnderItsVersion(t *testing.T) {
 	renamed := preset
 	renamed.Name = freshName(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Update(ctx, renamed, 1, created)
+		return repo.Update(ctx, renamed, 1)
 	}); err != nil {
 		t.Fatalf("changing: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Update(ctx, renamed, 1, created)
+		return repo.Update(ctx, renamed, 1)
 	}); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Fatalf("a stale change answered %v, want a version conflict", err)
 	}
@@ -188,7 +188,7 @@ func TestAnotherTenantsPresetIsNeitherReadNorWritten(t *testing.T) {
 	changed := preset
 	changed.Name = freshName(t)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Update(ctx, changed, 1, created)
+		return repo.Update(ctx, changed, 1)
 	}); !errors.Is(err, shared.ErrVersionConflict) {
 		t.Fatalf("Update from tenant B answered %v, want nothing written", err)
 	}

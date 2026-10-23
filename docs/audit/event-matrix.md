@@ -421,7 +421,10 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `presets.changed` | ChangePreset | `preset` | INFO | Every time |
 | `presets.read` | ListPresets | `preset` | INFO | When refused |
+| `presets.saved` | SavePreset | `preset` | INFO | Every time |
+| `presets.withdrawn` | WithdrawPreset | `preset` | INFO | Every time |
 
 ## Private_hubs
 

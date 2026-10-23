@@ -60,7 +60,7 @@ func (h ChangePreset) Execute(
 			expected = cmd.ExpectedVersion
 		}
 		now := d.Clock.Now()
-		if err := d.Presets.Update(ctx, next, expected, now); err != nil {
+		if err := d.Presets.Update(ctx, next, expected); err != nil {
 			return err
 		}
 		changed.Version = expected + 1

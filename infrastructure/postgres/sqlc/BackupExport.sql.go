@@ -1486,6 +1486,52 @@ func (q *Queries) ExportSetElements(ctx context.Context, arg ExportSetElementsPa
 	return items, nil
 }
 
+const exportStructurePresets = `-- name: ExportStructurePresets :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (p.id)::text AS record_id,
+         NULL::timestamptz AS changed_at,
+         (to_jsonb(p) - 'tenant_id')::jsonb AS payload,
+         p.id AS key_1
+  FROM structure_preset p
+) s
+  WHERE s.key_1 > $1::uuid
+  ORDER BY s.key_1
+  LIMIT $2::int
+`
+
+type ExportStructurePresetsParams struct {
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportStructurePresetsRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+// Exported whole: a withdrawn preset leaves no deletion marker of its own.
+func (q *Queries) ExportStructurePresets(ctx context.Context, arg ExportStructurePresetsParams) ([]ExportStructurePresetsRow, error) {
+	rows, err := q.db.Query(ctx, exportStructurePresets, arg.AfterID, arg.Batch)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportStructurePresetsRow{}
+	for rows.Next() {
+		var i ExportStructurePresetsRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportTemplates = `-- name: ExportTemplates :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

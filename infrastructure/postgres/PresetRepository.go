@@ -128,7 +128,7 @@ func (PresetRepository) Insert(ctx context.Context, preset work.Preset, at time.
 }
 
 // Update writes the preset's name and values.
-func (PresetRepository) Update(ctx context.Context, preset work.Preset, expectedVersion int, at time.Time) error {
+func (PresetRepository) Update(ctx context.Context, preset work.Preset, expectedVersion int) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -142,7 +142,7 @@ func (PresetRepository) Update(ctx context.Context, preset work.Preset, expected
 		return err
 	}
 	affected, err := queries.UpdateStructurePreset(ctx, sqlc.UpdateStructurePresetParams{
-		Name: preset.Name, Settings: settings, UpdatedAt: timestampOf(at), ID: id,
+		Name: preset.Name, Settings: settings, ID: id,
 		ExpectedVersion: int32(expectedVersion), //nolint:gosec // a row version is far below 2^31
 	})
 	if err != nil {

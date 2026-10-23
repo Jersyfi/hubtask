@@ -1220,7 +1220,6 @@ CREATE TABLE structure_preset (
   name       text NOT NULL,
   settings   jsonb NOT NULL,
   created_at timestamptz NOT NULL,
-  updated_at timestamptz,
   version    integer NOT NULL DEFAULT 1,
   PRIMARY KEY (tenant_id, id),
   CONSTRAINT structure_preset_origin_check CHECK (origin IN ('WORKSPACE', 'OWN')),

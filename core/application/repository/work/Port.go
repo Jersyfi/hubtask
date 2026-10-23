@@ -1265,7 +1265,7 @@ type Presets interface {
 
 	// Update writes the preset's name and values under the expected version, or reports a version
 	// conflict.
-	Update(ctx context.Context, preset work.Preset, expectedVersion int, at time.Time) error
+	Update(ctx context.Context, preset work.Preset, expectedVersion int) error
 
 	// Delete removes the preset under the expected version, or reports a version conflict.
 	Delete(ctx context.Context, id shared.ID, expectedVersion int) error

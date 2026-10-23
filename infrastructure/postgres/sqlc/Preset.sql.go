@@ -50,7 +50,7 @@ func (q *Queries) DeleteStructurePreset(ctx context.Context, arg DeleteStructure
 }
 
 const findStructurePreset = `-- name: FindStructurePreset :one
-SELECT id, origin, owner_id, name, settings, created_at, updated_at, version
+SELECT id, origin, owner_id, name, settings, created_at, version
 FROM structure_preset
 WHERE id = $1::uuid
 `
@@ -62,7 +62,6 @@ type FindStructurePresetRow struct {
 	Name      string
 	Settings  []byte
 	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
 	Version   int32
 }
 
@@ -76,7 +75,6 @@ func (q *Queries) FindStructurePreset(ctx context.Context, id pgtype.UUID) (Find
 		&i.Name,
 		&i.Settings,
 		&i.CreatedAt,
-		&i.UpdatedAt,
 		&i.Version,
 	)
 	return i, err
@@ -119,7 +117,7 @@ func (q *Queries) InsertStructurePreset(ctx context.Context, arg InsertStructure
 }
 
 const listStructurePresetsOffered = `-- name: ListStructurePresetsOffered :many
-SELECT id, origin, owner_id, name, settings, created_at, updated_at, version
+SELECT id, origin, owner_id, name, settings, created_at, version
 FROM structure_preset
 WHERE origin = 'WORKSPACE' OR owner_id = $1::uuid
 ORDER BY origin DESC, name COLLATE hubtask_name, id
@@ -132,7 +130,6 @@ type ListStructurePresetsOfferedRow struct {
 	Name      string
 	Settings  []byte
 	CreatedAt pgtype.Timestamptz
-	UpdatedAt pgtype.Timestamptz
 	Version   int32
 }
 
@@ -153,7 +150,6 @@ func (q *Queries) ListStructurePresetsOffered(ctx context.Context, ownerID pgtyp
 			&i.Name,
 			&i.Settings,
 			&i.CreatedAt,
-			&i.UpdatedAt,
 			&i.Version,
 		); err != nil {
 			return nil, err
@@ -170,15 +166,13 @@ const updateStructurePreset = `-- name: UpdateStructurePreset :execrows
 UPDATE structure_preset SET
   name       = normalize($1::text, NFC),
   settings   = $2::jsonb,
-  updated_at = $3,
   version    = version + 1
-WHERE id = $4::uuid AND version = $5
+WHERE id = $3::uuid AND version = $4
 `
 
 type UpdateStructurePresetParams struct {
 	Name            string
 	Settings        []byte
-	UpdatedAt       pgtype.Timestamptz
 	ID              pgtype.UUID
 	ExpectedVersion int32
 }
@@ -187,7 +181,6 @@ func (q *Queries) UpdateStructurePreset(ctx context.Context, arg UpdateStructure
 	result, err := q.db.Exec(ctx, updateStructurePreset,
 		arg.Name,
 		arg.Settings,
-		arg.UpdatedAt,
 		arg.ID,
 		arg.ExpectedVersion,
 	)
