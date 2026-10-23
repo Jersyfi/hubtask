@@ -70,6 +70,8 @@
   import { people } from '../lib/data/people.svelte.ts';
   import { selection } from '../lib/data/selection.svelte.ts';
   import { live } from '../lib/data/live.svelte.ts';
+  import { suggestions } from '../lib/data/suggestions.svelte.ts';
+  import { isPending } from '../lib/data/suggestions.ts';
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ContainerEditDialog from '../lib/workspace/ContainerEditDialog.svelte';
@@ -321,7 +323,34 @@
   );
   const archival = $derived(container ? archivalOf(container) : 'active');
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+
+  /** The ✦ at the figure: how this collection stands, asked of AI and drawn under the head. */
+  async function askHowItStands() {
+    if (!container) return;
+    failure = undefined;
+    try {
+      await suggestions.askContainer(container.id);
+    } catch (error) {
+      failure = renderProblem(error as TransportError, messages);
+    }
+  }
   const isReadOnly = $derived(archival !== 'active');
+
+  /**
+   * The level a kept summary becomes an entry of: the first top level that carries notes, where the
+   * reader may add one and the collection is not read-only. None, and the summary is read only.
+   */
+  const summaryKeepType = $derived(
+    mayCreateHere && !isReadOnly ? offer.rootTypes().find((type) => offer.supports(type, 'NOTES').status === 'permitted') : undefined,
+  );
+  /** Whether any level of this collection carries a capability - what its filter may ask about. */
+  const carriedHere = $derived.by(() => {
+    const levels = container?.structure?.settings?.levels;
+    if (!levels) return undefined;
+    return (capability: string) => levels.some((level) => offer.supports(level.type as string, capability).status === 'permitted');
+  });
+  const summaryAsk = $derived(container ? suggestions.askingOf(container.id) : undefined);
+
 
   // Built from the route rather than from a remembered click, which is what makes a deep link land
   // with a correct trail: a trail assembled from navigation history would be empty after a reload,
@@ -915,6 +944,17 @@
        collection or hub, while the reader celebrates (checks 4 and 7). -->
   {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
+    {#if container.type === 'COLLECTION' && hasAi}
+      <!-- The ✦ where what counts is said (ux-inventory.md §E4): the question is about the figure. -->
+      <IconButton
+        icon="sparkles"
+        size="sm"
+        label={t('app.workspace.summarise')}
+        disabledReason={isPending(summaryAsk) ? t('app.suggestions.pending') : undefined}
+        data-opener="summarise"
+        onclick={() => void askHowItStands()}
+      />
+    {/if}
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
@@ -943,7 +983,7 @@
       primary={headPrimary}
       secondary={headSecondary}
       menu={headMenu}
-      figure={(container.type === 'COLLECTION' && container.figure) || hasMilestone ? collectionFigure : undefined}
+      figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
       {#snippet notices()}
@@ -1006,7 +1046,7 @@
     <!-- The collection's status, summarised where the manifest says AI is configured here,
          and absent - not gated - where it is not (design-system.md §4, CapabilityGate). -->
     {#if container.type === 'COLLECTION' && hasAi}
-      <CollectionSummary containerId={container.id} />
+      <CollectionSummary containerId={container.id} part="summary" keepAs={summaryKeepType} />
     {/if}
 
     {#if container.type === 'HUB'}
@@ -1039,11 +1079,11 @@
            `expanded`, a drawer from the bottom below it. -->
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
         </Drawer>
       {:else}
         <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
         </div>
       {/if}
 
