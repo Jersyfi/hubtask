@@ -207,3 +207,16 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
   assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');
   assert.deepEqual(failures, []);
 });
+
+// An entry with nothing under it says so of the entry: the collection it sits in is not empty.
+test('chromium: an entry with nothing under it says that of the entry, not of the collection', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'MEMBER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await page.getByText('Nothing sits under this entry yet.').waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('No entries in this collection yet.').count(), 0);
+  assert.deepEqual(failures, []);
+});
