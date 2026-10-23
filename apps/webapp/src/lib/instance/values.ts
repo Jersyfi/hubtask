@@ -152,3 +152,15 @@ export function planBodyOf(
   }
   return body;
 }
+
+/**
+ * Whether a workspace may choose a model this installation offers: `ai.sources` decided as the
+ * offered model or either. Undecided, the product's default holds - their own model only
+ * (`EffectiveAi`) - and a plan or a workspace only narrows what the installation leaves, so no
+ * level below can open it. `undefined` while the level is unread.
+ */
+export function isOfferedAiReachable(settings: InstanceSettings | undefined): boolean | undefined {
+  if (!settings) return undefined;
+  const sources = settings.ai?.['sources'];
+  return sources?.set === true && (sources.value === 'OFFERED' || sources.value === 'EITHER');
+}
