@@ -79,6 +79,33 @@ export function filterableFields(
   return allFields(manifest, extra).filter((field) => (field.operators?.length ?? 0) > 0);
 }
 
+/**
+ * The capability a level must carry for a field to mean anything on its entries. A field not named
+ * here - the title, the dates every entry has, the type - is a field of every entry.
+ */
+const CARRIED_BY: Readonly<Record<string, string>> = {
+  start_at: 'DUE_DATE',
+  due_at: 'DUE_DATE',
+  labels: 'LABELS',
+  assignee_id: 'ASSIGNMENT',
+  members: 'MEMBERS',
+  bucket_id: 'BUCKET',
+  notes: 'NOTES',
+};
+
+/**
+ * The fields a collection's effective profile gives meaning to (UC-WRK-23 check 4): a list that
+ * carries no dates is not offered a filter on them. `carried` answers whether any level of the
+ * collection carries a capability; without one, every field stands.
+ */
+export function offeredByProfile<T extends { field: string }>(fields: readonly T[], carried?: (capability: string) => boolean): readonly T[] {
+  if (!carried) return fields;
+  return fields.filter((each) => {
+    const capability = CARRIED_BY[each.field];
+    return capability === undefined || carried(capability);
+  });
+}
+
 export function sortableFields(manifest: Capabilities | undefined): readonly QueryField[] {
   return queryFields(manifest).filter((field) => field.sortable);
 }

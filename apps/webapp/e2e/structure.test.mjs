@@ -95,6 +95,12 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   assert.equal(await page.getByRole('radio', { name: 'Timeline' }).count(), 0, 'a timeline is offered');
   assert.equal(await page.getByRole('button', { name: `Expand ${SHAPE_ITEMS[0].title}` }).count(), 0, 'a twist for children a list does not hold');
   assert.equal(await page.getByRole('button', { name: new RegExp(`inside ${SHAPE_ITEMS[0].title}`) }).count(), 0, 'a child is offered');
+  // ...and its filter asks about nothing a list does not carry: no due date to order by.
+  await page.getByRole('button', { name: 'Filter and sort' }).click();
+  const orderBy = page.getByRole('combobox', { name: 'Order by' });
+  await orderBy.waitFor({ state: 'visible', timeout: 5_000 });
+  const orders = await orderBy.locator('option').evaluateAll((options) => options.map((option) => option.value));
+  assert.ok(orders.includes('title') && !orders.includes('due_at'), `the list is ordered by ${orders}`);
 
   // Check 4: on an entry, no date, person, label, note editor or child.
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
