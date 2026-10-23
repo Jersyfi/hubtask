@@ -18,3 +18,19 @@ func TestThePreambleCarriesNoCount(t *testing.T) {
 		t.Errorf("the preamble counts %q; the tables are the count", n)
 	}
 }
+
+// A use case that declares no obligation on success - a read, or a write gate SG-13 names as an
+// exception - is recorded when refused, by the authorisation service; nothing else is true of it.
+func TestAnEntryWithoutAnObligationIsRecordedWhenRefused(t *testing.T) {
+	for _, c := range []struct {
+		entry row
+		want  string
+	}{
+		{row{required: true}, "Every time"},
+		{row{required: false}, "When refused"},
+	} {
+		if got := recorded(c.entry); got != c.want {
+			t.Errorf("recorded(%+v) = %q, want %q", c.entry, got, c.want)
+		}
+	}
+}

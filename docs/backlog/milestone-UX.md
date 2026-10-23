@@ -425,7 +425,7 @@ node's value the target does not carry, and refuses a node of a hidden level. An
 hidden when its type is not offered **or an ancestor's level is hidden**; a type with several system
 parents (an activity, under a task or a work package) is offered when **any** offered level may hold
 it. *Tasks* offers an activity under a task wherever the installation's system profile does (UX-08's
-0185); a workspace's own task row from before it is finding #1689.
+0185), and in a workspace whose own task row offered every child there was before 0185 (0191).
 
 **Acceptance:** a round trip per door (REST, MCP, hubctl, automation, sync push): narrow → write
 refused → read shows hidden → widen → value back; cross-tenant negatives.

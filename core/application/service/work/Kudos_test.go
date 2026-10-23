@@ -65,7 +65,6 @@ func (s *kudosStore) Received(_ context.Context, item, to shared.ID) ([]domain.K
 type kudosHarness struct {
 	registry   *usecase.Registry
 	kudos      *kudosStore
-	audit      *sink
 	authorizer *authorizer
 	items      *items
 }
@@ -75,10 +74,10 @@ func newKudosHarness(t *testing.T) *kudosHarness {
 	completion := newCompletionHarness(domain.CompletionManual)
 	task := completion.items.stored[taskID]
 	completion.items.stored[taskID] = task.Completed(annaID, now)
-	h := &kudosHarness{kudos: &kudosStore{}, audit: &sink{}, authorizer: &authorizer{}, items: completion.items}
+	h := &kudosHarness{kudos: &kudosStore{}, authorizer: &authorizer{}, items: completion.items}
 	desk := KudosDesk{
 		Kudos: h.kudos, Items: completion.items, Containers: completion.containers, Authorizer: h.authorizer,
-		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now), Audit: h.audit,
+		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 	registry, err := usecase.NewRegistry(nil,
 		ReadKudos{Desk: desk}.Descriptor(), GiveKudos{Desk: desk}.Descriptor(), TakeBackKudos{Desk: desk}.Descriptor(),
@@ -133,29 +132,28 @@ func TestKudosReachOnlyThePersonWhoCompleted(t *testing.T) {
 	}
 }
 
-func TestGivingAndTakingBackAreAuditedOnlyWhenTheyChangeSomething(t *testing.T) {
+// Kudos are audited only when refused, as reading the AI budget state is (UC-WRK-29 check 6): a
+// trail of every give would let an auditor count who acknowledged whom. The declaration is not
+// required, so nothing is written on success, and it still names the action and the target the
+// authorisation service records a refusal against.
+func TestGivingAndTakingBackAreAuditedOnlyWhenRefused(t *testing.T) {
 	h := newKudosHarness(t)
-	for range 2 {
-		if _, err := h.invoke(t, GiveKudosName, benID); err != nil {
-			t.Fatalf("giving: %v", err)
+	for name, action := range map[string]string{
+		ReadKudosName: string(KudosReadAction), GiveKudosName: string(KudosGivenAction), TakeBackKudosName: string(KudosTakenBackAction),
+	} {
+		descriptor, ok := h.registry.Lookup(name)
+		if !ok {
+			t.Fatalf("%s is not registered", name)
 		}
-	}
-	for range 2 {
-		if out, err := h.invoke(t, TakeBackKudosName, benID); err != nil || out["given"] != false {
-			t.Fatalf("taking back: %v %v", out, err)
+		if descriptor.Audit.Required || string(descriptor.Audit.Action) != action || descriptor.Audit.TargetType != itemTarget {
+			t.Errorf("%s declares %+v, want %s on %s when refused only", name, descriptor.Audit, action, itemTarget)
 		}
-	}
-	if len(h.audit.entries) != 2 {
-		t.Fatalf("audited %d acts, want one give and one take-back", len(h.audit.entries))
-	}
-	for i, action := range []string{string(KudosGivenAction), string(KudosTakenBackAction)} {
-		entry := h.audit.entries[i]
-		if string(entry.Action) != action || entry.TargetID != taskID || entry.ActorID != benID {
-			t.Errorf("entry %d: %+v", i, entry)
+		h.authorizer.requests = nil
+		if _, err := h.invoke(t, name, benID); err != nil {
+			t.Fatalf("%s: %v", name, err)
 		}
-		// Whom the kudos went to is not in the trail (UC-WRK-29 check 6).
-		if len(entry.Changes) != 0 {
-			t.Errorf("entry %d carries changes %v", i, entry.Changes)
+		if got := string(h.authorizer.requests[0].Action); got != action {
+			t.Errorf("%s asks under %q, so a refusal would be recorded as that, want %q", name, got, action)
 		}
 	}
 }
@@ -174,8 +172,8 @@ func TestKudosAreRefusedOnAnOpenEntryAndOnOnesOwnCompletion(t *testing.T) {
 	if out, err := h.invoke(t, TakeBackKudosName, benID); err != nil || out["given"] != false {
 		t.Errorf("taking back on an open entry: %v %v", out, err)
 	}
-	if len(h.kudos.rows) != 0 || len(h.audit.entries) != 0 {
-		t.Errorf("a refusal wrote %v and audited %v", h.kudos.rows, h.audit.entries)
+	if len(h.kudos.rows) != 0 {
+		t.Errorf("a refusal wrote %v", h.kudos.rows)
 	}
 }
 

@@ -102,7 +102,7 @@ test('chromium: a page of runs that did not arrive is said beside the button, th
   await listFailingOnce(context, {
     endsWith: '/automation/runs',
     failure: 'serverFault',
-    answer: (cursor) => (cursor === 'p2' ? { data: [RUN(3)], next_cursor: null } : { data: [RUN(1), RUN(2)], next_cursor: 'p2' }),
+    answer: (cursor) => (cursor === 'p2' ? { data: [RUN(3)], page: { next_cursor: null, has_more: false } } : { data: [RUN(1), RUN(2)], page: { next_cursor: 'p2', has_more: true } }),
   });
   await page.goto(`${served.origin}/administration/runs`);
   await failsThenRetries(page, {
@@ -116,7 +116,7 @@ test('chromium: a page of runs that did not arrive is said beside the button, th
   await listFailingOnce(context, {
     endsWith: '/automation/runs',
     failure: 'serverFault',
-    answer: (cursor) => (cursor === 'p2' ? { data: [RUN(3)], next_cursor: null } : { data: [RUN(1), RUN(2)], next_cursor: 'p2' }),
+    answer: (cursor) => (cursor === 'p2' ? { data: [RUN(3)], page: { next_cursor: null, has_more: false } } : { data: [RUN(1), RUN(2)], page: { next_cursor: 'p2', has_more: true } }),
   });
   await page.getByLabel('From').fill('2026-10-01T00:00');
   await page.getByRole('button', { name: 'Show more' }).click();
