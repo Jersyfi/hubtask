@@ -30,16 +30,7 @@ import (
 
 func installationPresetCatalogue(t *testing.T, tenancy env.TenancyMode, settings postgres.InstanceSettingRepository) *usecase.Registry {
 	t.Helper()
-	ctx := context.Background()
-	ids := clockadapter.NewUUIDv7(clockadapter.System{})
-	writer := adminservice.InstallationPresetWriter{
-		Instance: adminservice.InstanceWriter{
-			Settings: settings, Journal: postgres.NewInstanceJournal(pageCursors()),
-			UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)), Clock: clockadapter.System{}, IDs: ids,
-		},
-		Presets:  postgres.NewInstallationPresetRepository(),
-		Profiles: postgres.NewCapabilityProfileRepository(), Tenancy: tenancy, Text: textadapter.Forms{},
-	}
+	writer := installationPresetWriter(t, tenancy, settings)
 	registry, err := usecase.NewRegistry(nil,
 		adminservice.ListInstallationPresets{Writer: writer}.Descriptor(),
 		adminservice.CreateInstallationPreset{Writer: writer}.Descriptor(),
@@ -50,6 +41,23 @@ func installationPresetCatalogue(t *testing.T, tenancy env.TenancyMode, settings
 		t.Fatal(err)
 	}
 	return registry
+}
+
+func installationPresetWriter(
+	t *testing.T, tenancy env.TenancyMode, settings postgres.InstanceSettingRepository,
+) adminservice.InstallationPresetWriter {
+	t.Helper()
+	ctx := context.Background()
+	ids := clockadapter.NewUUIDv7(clockadapter.System{})
+	writer := adminservice.InstallationPresetWriter{
+		Instance: adminservice.InstanceWriter{
+			Settings: settings, Journal: postgres.NewInstanceJournal(pageCursors()),
+			UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)), Clock: clockadapter.System{}, IDs: ids,
+		},
+		Presets:  postgres.NewInstallationPresetRepository(),
+		Profiles: postgres.NewCapabilityProfileRepository(), Tenancy: tenancy, Text: textadapter.Forms{},
+	}
+	return writer
 }
 
 func presetOperator(t *testing.T) appshared.ActorContext {

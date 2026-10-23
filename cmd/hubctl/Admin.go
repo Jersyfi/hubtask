@@ -54,6 +54,12 @@ func adminGroup() group {
 				run:     adminPlan,
 			},
 			{
+				name:    "presets",
+				usage:   "ls|create|set|rm …",
+				summary: "the presets every workspace is offered, the default and what it locks",
+				run:     adminPresets,
+			},
+			{
 				name:    "events",
 				usage:   "[--cursor <cursor>] [--size <n>]",
 				summary: "the installation's events, read forward: what a purchase platform learns",

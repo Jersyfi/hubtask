@@ -3913,6 +3913,7 @@ func run() error {
 		write:      adminservice.WriteInstanceSettings{Writer: instanceFileWriter},
 		ai:         instanceAiWriter,
 		plans:      planWriter,
+		presets:    installationPresetWriter,
 		platform:   platformWriter,
 		unitOfWork: unitOfWork,
 	}); err != nil {
@@ -4602,6 +4603,8 @@ type applyingInstanceFile struct {
 	// plans writes the plans the file names, as the file: it passes every check the API's writes
 	// pass, and is the one writer of plans while the file enforces.
 	plans adminservice.PlanWriter
+	// presets writes the installation's presets the file names, as the file.
+	presets adminservice.InstallationPresetWriter
 	// platform writes the subscriptions for a purchase platform the file names, their secrets read
 	// from the files it names.
 	platform   adminservice.PlatformWriter
@@ -4668,6 +4671,28 @@ func applyPlans(ctx context.Context, applying applyingInstanceFile, document map
 	return nil
 }
 
+// applyInstallationPresets writes the installation's presets the file names (UC-INS-18 check 1): in
+// `seed` where the installation has none, in `enforce` as the whole set.
+func applyInstallationPresets(ctx context.Context, applying applyingInstanceFile, document map[string]any) error {
+	presets, present, err := instancefile.Presets(document, applying.path)
+	if err != nil || !present {
+		return err
+	}
+	outcome, err := applying.presets.ApplyFile(ctx, presets, applying.mode == instancefile.ModeEnforce, applying.path)
+	if err != nil {
+		return err
+	}
+	if outcome.Skipped {
+		slog.Info("the instance file names presets, and this installation runs one workspace: skipped",
+			"source", applying.path)
+		return nil
+	}
+	slog.Info("the installation's presets were written from the file", "source", applying.path,
+		"mode", string(applying.mode), "created", outcome.Created, "changed", outcome.Changed,
+		"withdrawn", outcome.Withdrawn)
+	return nil
+}
+
 func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error {
 	if applying.path == "" {
 		return nil
@@ -4696,6 +4721,10 @@ func applyInstanceFile(ctx context.Context, applying applyingInstanceFile) error
 	// The plans after the level: a plan is checked against the installation's values, so the
 	// file's own values have to be in place first.
 	if err := applyPlans(ctx, applying, document); err != nil {
+		return err
+	}
+	// The presets after the level too: a file that enforces the level is their one writer.
+	if err := applyInstallationPresets(ctx, applying, document); err != nil {
 		return err
 	}
 	return applyPlatformSubscriptions(ctx, applying, document)

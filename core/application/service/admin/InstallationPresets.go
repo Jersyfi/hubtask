@@ -5,6 +5,9 @@ package admin
 
 import (
 	"context"
+	"errors"
+	"reflect"
+	"slices"
 	"time"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -73,6 +76,9 @@ type InstallationPresetCommand struct {
 	// Locks is the whole set of locks, where LocksSet says the caller named it.
 	Locks    []string
 	LocksSet bool
+	// Whole is the instance file's reading: the document describes the preset entirely, so its
+	// settings start from Hubtask's default where it names no preset of Hubtask's.
+	Whole bool
 }
 
 // ListInstallationPresets answers the installation's presets.
@@ -192,6 +198,12 @@ func (w InstallationPresetWriter) change(
 		if err != nil {
 			return err
 		}
+		// The file is read at every start, and a write per start would be a journal entry and a
+		// new version per restart for nothing.
+		if fromFile && sameInstallationPreset(found, preset) {
+			changed = found
+			return nil
+		}
 		now := w.Instance.Clock.Now()
 		if preset.IsDefault && !found.IsDefault {
 			if err := w.Presets.ClearDefault(ctx, preset.ID, actor.AccountID, now); err != nil {
@@ -242,6 +254,100 @@ func (w InstallationPresetWriter) withdraw(
 	})
 }
 
+// InstallationPresetFileOutcome is what writing the file's presets came to: nothing in single mode,
+// and how many were created, changed and withdrawn.
+type InstallationPresetFileOutcome struct {
+	Skipped                     bool
+	Created, Changed, Withdrawn int
+}
+
+// ApplyFile writes the instance file's presets, the third door (ADR-0070 §5) for them: `seed`
+// writes them where the installation has none yet; `enforce` writes them at every start and
+// withdraws the presets the file no longer names. A preset is known by its name. Each passes the
+// reading and the checks the API's writes pass, as the file (UC-INS-18 check 1).
+func (w InstallationPresetWriter) ApplyFile(
+	ctx context.Context, documents []map[string]any, enforce bool, source string,
+) (InstallationPresetFileOutcome, error) {
+	if w.Tenancy != env.TenancyMulti {
+		return InstallationPresetFileOutcome{Skipped: true}, nil
+	}
+	var existing []domain.InstallationPreset
+	if err := w.Instance.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+		read, err := w.Presets.List(ctx)
+		existing = read
+		return err
+	}); err != nil {
+		return InstallationPresetFileOutcome{}, err
+	}
+	var outcome InstallationPresetFileOutcome
+	if !enforce && len(existing) > 0 {
+		return outcome, nil
+	}
+	held := map[string]domain.InstallationPreset{}
+	for _, standing := range existing {
+		held[standing.Name] = standing
+	}
+
+	file := appshared.ActorContext{AccountName: source}
+	named := map[string]bool{}
+	for _, document := range documents {
+		cmd, err := installationPresetCommandFrom(usecase.Input(document))
+		if err != nil {
+			return InstallationPresetFileOutcome{}, err
+		}
+		// The document is the whole preset: what it leaves out is Hubtask's default, no default
+		// and no lock.
+		isDefault := cmd.IsDefault != nil && *cmd.IsDefault
+		cmd.IsDefault, cmd.LocksSet, cmd.Whole = &isDefault, true, true
+		name, err := domain.PresetName(*cmd.Name, w.Text)
+		if err != nil {
+			return InstallationPresetFileOutcome{}, err
+		}
+		named[name] = true
+		if standing, isHeld := held[name]; isHeld {
+			changed, err := w.change(ctx, file, standing.ID, cmd, nil, true)
+			if err != nil {
+				return InstallationPresetFileOutcome{}, err
+			}
+			if changed.Version != standing.Version {
+				outcome.Changed++
+			}
+			continue
+		}
+		if _, err := w.create(ctx, file, cmd, true); err != nil {
+			return InstallationPresetFileOutcome{}, err
+		}
+		outcome.Created++
+	}
+	if !enforce {
+		return outcome, nil
+	}
+	for _, standing := range existing {
+		if named[standing.Name] {
+			continue
+		}
+		// The file decides the default too: one it no longer names stops being the default first.
+		if standing.IsDefault {
+			off := false
+			if _, err := w.change(ctx, file, standing.ID, InstallationPresetCommand{IsDefault: &off}, nil, true); err != nil {
+				return InstallationPresetFileOutcome{}, err
+			}
+		}
+		if err := w.withdraw(ctx, file, standing.ID, nil, true); err != nil && !errors.Is(err, shared.ErrNotFound) {
+			return InstallationPresetFileOutcome{}, err
+		}
+		outcome.Withdrawn++
+	}
+	return outcome, nil
+}
+
+// sameInstallationPreset reports whether a change leaves a preset as it stands.
+func sameInstallationPreset(standing, next domain.InstallationPreset) bool {
+	return standing.Name == next.Name && standing.IsDefault == next.IsDefault &&
+		slices.Equal(standing.Locks, next.Locks) &&
+		reflect.DeepEqual(workservice.StructureValuesOutput(standing.Values), workservice.StructureValuesOutput(next.Values))
+}
+
 // apply is a command on a preset, in the contract's order: the name, Hubtask's preset, the
 // settings, the default, the locks. Every value is held to the system profile, which is the most
 // any workspace is offered; a workspace narrower still is offered it clipped.
@@ -264,6 +370,8 @@ func (w InstallationPresetWriter) apply(
 			return domain.InstallationPreset{}, err
 		}
 		preset.Values = bound.Default().Overlay(from.Values)
+	} else if cmd.Whole {
+		preset.Values = bound.Default()
 	}
 	if len(cmd.Settings.Decided()) > 0 {
 		validated, err := bound.Validate(cmd.Settings, w.Text)
