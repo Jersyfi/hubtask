@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6]
 serves: [P-05, P-12, P-14]
 state: verified
 tasks: [UX-22]
-checked_by: [core/application/service/suggestion/AskMaterial_test.go, core/application/service/suggestion/AnswerDraft_test.go, core/application/service/suggestion/AskWorkspace_test.go, core/application/service/suggestion/Suggestions_test.go, test/integration/ai_answer_test.go, test/architecture/promptanswers_test.go, apps/webapp/src/lib/ask/answer.test.ts, apps/webapp/e2e/ask.test.mjs, docs/evidence/UX-22-2026-10-23.md]
+checked_by: [core/application/service/suggestion/AskMaterial_test.go, core/application/service/suggestion/AnswerDraft_test.go, core/application/service/suggestion/AskWorkspace_test.go, core/application/service/suggestion/Suggestions_test.go, test/integration/ai_answer_test.go, test/architecture/promptanswers_test.go, apps/webapp/src/lib/ask/answer.test.ts, apps/webapp/e2e/ask.test.mjs]
 ---
 
 # Ask the workspace a question

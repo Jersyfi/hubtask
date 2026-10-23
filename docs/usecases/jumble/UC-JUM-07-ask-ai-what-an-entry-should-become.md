@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-11, P-12, P-14]
 state: built
 tasks: [J-06, F5-03, K-01, UX-21]
-checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go, core/application/service/jumble/ArrivalProposals_test.go, core/application/service/suggestion/Arrival_test.go, core/application/service/suggestion/Destinations_test.go, core/application/service/integration/AiArrivalProposals_test.go, core/application/service/quota/Quota_test.go, presentation/worker/AiSuggestionArrival_test.go, test/integration/arrival_proposals_test.go, test/integration/arrival_proposals_flow_test.go, test/integration/jumble_destinations_test.go, test/integration/jumble_suggestion_test.go, apps/webapp/src/lib/data/askEach.test.ts, apps/webapp/src/lib/data/suggestions.test.ts, apps/webapp/e2e/arrivalproposals.test.mjs, apps/webapp/e2e/jumbleselection.test.mjs, docs/evidence/UX-21-2026-10-21.md]
+checked_by: [core/application/service/jumble/Suggesting_test.go, test/integration/suggestion_test.go, core/application/service/jumble/ArrivalProposals_test.go, core/application/service/suggestion/Arrival_test.go, core/application/service/suggestion/Destinations_test.go, core/application/service/integration/AiArrivalProposals_test.go, core/application/service/quota/Quota_test.go, presentation/worker/AiSuggestionArrival_test.go, test/integration/arrival_proposals_test.go, test/integration/arrival_proposals_flow_test.go, test/integration/jumble_destinations_test.go, test/integration/jumble_suggestion_test.go, apps/webapp/src/lib/data/askEach.test.ts, apps/webapp/src/lib/data/suggestions.test.ts, apps/webapp/e2e/arrivalproposals.test.mjs, apps/webapp/e2e/jumbleselection.test.mjs]
 ---
 
 # Ask AI what a jumble entry should become

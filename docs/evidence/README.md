@@ -10,9 +10,11 @@ check is not proven here: it is proven by a test that asserts it
 
 The newest coverage report stays here, because `make gate-docs` holds the catalogue to it.
 
-The other files here — walks and run records of earlier tasks — are history: they stay, a
-`checked_by:` that names one keeps working, and none of them is read for current work. Older runs
-are in [`docs/archive/evidence/`](../archive/evidence/).
+The other files here — walks and run records of tasks before 2026-10-20 — are history: they stay,
+a `checked_by:` that names one keeps working, and none of them is read for current work. The walks
+of milestone UX and of the tasks beside it from 2026-10-20 on are gone; each check they showed is
+proven by the tests its use case names (the owner, 2026-10-23). Older runs are in
+[`docs/archive/evidence/`](../archive/evidence/).
 
 ## How to walk
 
