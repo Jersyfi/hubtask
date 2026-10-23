@@ -204,7 +204,7 @@ Administration and installation, found by UX-05's sweep:
 ## E8 — Administration and installation
 
 - [x] `/administration` redirect → the overview (UX-18) — *Administration → Overview*
-- [ ] Workspace (name, address, language, zone, week start, save) → kept; save bar
+- [x] Workspace (name, address, language, zone, week start, save) → kept; save bar — *Administration → Workspace and people → Workspace*
 - [ ] People (table, renew invitation, start password, address, revoke, invite, without address, grant) → kept; one primary action with the three ways
 - [ ] Groups (rename without a permission check, take out, add, delete, new), permissions matrix → tabs of *People*; rename checked
 - [ ] Service accounts with tokens, third-party apps → *Machines and apps*
@@ -212,12 +212,12 @@ Administration and installation, found by UX-05's sweep:
 - [ ] Sign-in provider page → merged into *Sign-in → Ways and providers*; one provider form for workspace and installation
 - [ ] Automation, rule editor, runs ("Try a rule"), webhooks → *Automation*; trying lives in the editor (§E9); breadcrumbs; ✦ *Describe it* (UX-23 — done: the new-rule editor)
 - [ ] Limits (read-only, "set by") → the overview and beside each feature; source chips
-- [ ] Private hubs (allowed switch, table, emergency access) → *Data*
-- [ ] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms
+- [x] Private hubs (allowed switch, table, emergency access) → *Data* — *Administration → Data → Private hubs*
+- [x] Backup (job, targets, archives, check, add target, schedules, switch, remove without confirmation) → *Data*; removing a schedule confirms — *Administration → Data → Backup*
 - [ ] Restore → *Data*; the operator's path named with where to go
-- [ ] Retention (rules, preview, arm, withdraw without confirmation, write, in force, holds) → *Data*; withdraw confirms
+- [x] Retention (rules, preview, arm, withdraw without confirmation, write, in force, holds) → *Data*; withdraw confirms — *Administration → Data → Retention*
 - [ ] Trail (free-text identifiers, verify, anchor, export reusing the verify dates) → *Records*; pickers; export with its own period
-- [ ] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked
+- [x] People's requests (cases, erasure mode, start, answered, extend, refuse, record, consent register, restrict, withdraw) → *Records*; pickers; actions permission-checked — *Administration → Records → People's requests*
 - [ ] AI (offered models, own model, consent, narrowing, opt-out, budget, remove) → *AI* in three tabs: source, consent and people, budget
 - [ ] New: *Presets* (UX-27)
 - [x] Installation overview (counts, digest, stale "later" line, health) → kept; stale line removed — *Installation → Overview*
