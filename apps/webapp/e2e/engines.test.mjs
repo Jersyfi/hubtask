@@ -113,9 +113,10 @@ for (const [name, engine] of Object.entries(ENGINES)) {
     page.on('pageerror', (error) => failures.push(String(error)));
 
     await page.goto(`${served.origin}/`);
-    // The workspace page's primary action; the tree at the side offers the same
-    // verb, which is why the name alone is not enough.
-    const createHub = page.locator('[data-opener="add-hub"]');
+    // *Today*, drawn: the page the app opens on, past the session and the manifest.
+    await page.getByRole('region', { name: 'On you' }).waitFor({ state: 'visible', timeout: 15_000 });
+    // The navigation's way to make a hub: the dialog this walk opens below.
+    const createHub = page.getByRole('button', { name: 'Create hub', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });
     assert.deepEqual(failures, [], `${name}: the bundle threw while booting`);
 
