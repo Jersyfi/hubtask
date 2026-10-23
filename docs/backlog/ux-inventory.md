@@ -199,7 +199,7 @@ Administration and installation, found by UX-05's sweep:
 - [x] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting) — theme and motion on *On this device* (`/profile/appearance`), the moments' switch on *You* (`/profile`) (UX-17)
 - [x] Notifications table with always-on cells → kept; one note for always-on rows — UX-04
 - [x] Password and sign-in (password, passkeys, providers, second factor) → kept; sections instead of disclosures — *Password and sign-in* (`/profile/security`): replacing the authenticator and turning the factor off are headed sections (UX-17)
-- [ ] Signed in · devices · apps · access tokens → kept; withdraw with undo
+- [x] Signed in · devices · apps · access tokens → kept; withdrawing is a final act and asks in a dialog (§E0) — corrected from "with undo": an ended session or a withdrawn app or token cannot come back — *Signed in*, *Devices*, *Apps*, *Access tokens* (`/profile/sessions`, `/devices`, `/apps`, `/tokens`) (UX-17)
 
 ## E8 — Administration and installation
 

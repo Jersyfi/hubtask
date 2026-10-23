@@ -17,6 +17,7 @@
 
   import { Button, EmptyState, ErrorState, Skeleton, Stack, Table } from '@hubtask/design-system/components';
 
+  import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
   import { sorting } from '../lib/sorting.svelte.ts';
@@ -37,6 +38,12 @@
 
   const held = $derived(sessions.state);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
+  /**
+   * What the reader is being asked to end: one session, or every other one. A session ended is
+   * gone on the server and nothing brings it back, so ending is a final act and asks first
+   * (ux-inventory.md §E0).
+   */
+  let asking = $state<{ id: string; isCurrent: boolean; client: string } | 'others' | undefined>(undefined);
 
   // `$derived`, because the headings are words: a language chosen on the screen beside this one
   // changes them, and a list built once would keep the language it was built in.
@@ -179,7 +186,11 @@
                      stands alone, and the label says what it destroys) - which is exactly the
                      signal a control that ends a session owes the reader. Making it quiet to calm
                      the column down took the warning off it. -->
-                <Button tone="danger" size="sm" onclick={() => void endOne(row.id, row.current)}>
+                <Button
+                  tone="danger"
+                  size="sm"
+                  onclick={() => (asking = { id: row.id, isCurrent: row.current, client: row.user_agent || t('app.sessions.unknown_client') })}
+                >
                   {row.current ? t('app.sessions.end_this') : t('app.sessions.end')}
                 </Button>
               </td>
@@ -193,13 +204,39 @@
             <!-- Said before it is pressed: which sessions end, and that this one does not. -->
             <p class="quiet">{t('app.sign_out.everywhere_else_note')}</p>
             <div>
-              <Button tone="danger" onclick={() => void endElsewhere()}>{t('app.sign_out.everywhere_else')}</Button>
+              <Button tone="danger" onclick={() => (asking = 'others')}>{t('app.sign_out.everywhere_else')}</Button>
             </div>
           </div>
         {/if}
       {/if}
     </Stack>
   </Stack>
+
+  <FinalActDialog
+    isOpen={asking !== undefined}
+    title={asking === 'others'
+      ? t('app.sessions.others_confirm_title')
+      : asking?.isCurrent
+        ? t('app.sessions.this_confirm_title')
+        : t('app.sessions.end_confirm_title')}
+    body={asking === 'others'
+      ? t('app.sessions.others_confirm_body')
+      : asking?.isCurrent
+        ? t('app.sessions.this_confirm_body')
+        : t('app.sessions.end_confirm_body', { client: asking?.client ?? '' })}
+    confirmLabel={asking === 'others'
+      ? t('app.sign_out.everywhere_else')
+      : asking?.isCurrent
+        ? t('app.sessions.end_this')
+        : t('app.sessions.end')}
+    busyLabel={t('app.sessions.ending')}
+    onConfirm={async () => {
+      const chosen = asking;
+      if (chosen === 'others') await endElsewhere();
+      else if (chosen) await endOne(chosen.id, chosen.isCurrent);
+    }}
+    onClose={() => (asking = undefined)}
+  />
 {/if}
 
 <style>

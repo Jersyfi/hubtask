@@ -37,6 +37,7 @@
     Table,
   } from '@hubtask/design-system/components';
 
+  import FinalActDialog from '../lib/frame/FinalActDialog.svelte';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { tokens, type MintedToken } from '../lib/data/tokens.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
@@ -83,6 +84,12 @@
   let minted = $state<MintedToken | undefined>(undefined);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isWorking = $state(false);
+  /**
+   * The token the reader is asked about. Withdrawing is final - whatever used it stops, and a
+   * withdrawn token cannot be restored, only a new one made - so it asks first (ux-inventory.md
+   * §E0).
+   */
+  let withdrawing = $state<{ id: string; name: string } | undefined>(undefined);
 
   $effect(() => untrack(() => tokens.open(accountId)));
 
@@ -289,8 +296,8 @@
           </td>
           <td>
             {#if !token.revoked_at}
-              <!-- `danger`: withdrawing a token stops whatever was using it, at once and without
-                   a second screen. Every row action in these settings that takes access away now
+              <!-- `danger`: withdrawing a token stops whatever was using it, at once once the
+                   dialog is confirmed. Every row action in these settings that takes access away now
                    carries the tone, because a reader should be able to tell the destructive
                    control from the harmless one without reading it. -->
               <Button
@@ -298,13 +305,7 @@
                 tone="danger"
                 isBusy={isWorking}
                 busyLabel={t('app.tokens.working')}
-                onclick={() =>
-                  void tokens
-                    .revoke(token.id)
-                    .then(() => announcer.say(t('app.tokens.revoked_announced')))
-                    .catch((cause) => {
-                      failure = renderProblem(cause as never, messages);
-                    })}
+                onclick={() => (withdrawing = { id: token.id, name: token.name })}
               >
                 {t('app.tokens.revoke')}
               </Button>
@@ -397,6 +398,24 @@
   </Stack>
   {/if}
 </Stack>
+
+<FinalActDialog
+  isOpen={withdrawing !== undefined}
+  title={t('app.tokens.revoke_confirm_title', { name: withdrawing?.name ?? '' })}
+  body={t('app.tokens.revoke_confirm_body', { name: withdrawing?.name ?? '' })}
+  confirmLabel={t('app.tokens.revoke')}
+  busyLabel={t('app.tokens.working')}
+  onConfirm={async () => {
+    if (!withdrawing) return;
+    try {
+      await tokens.revoke(withdrawing.id);
+      announcer.say(t('app.tokens.revoked_announced'));
+    } catch (cause) {
+      failure = renderProblem(cause as never, messages);
+    }
+  }}
+  onClose={() => (withdrawing = undefined)}
+/>
 
 <style>
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
