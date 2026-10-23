@@ -107,6 +107,9 @@ order keys a reorder needs offline, with the server's cases as its test.
 * **`Transport.document`** is a `POST` whose answer is a file — `POST /views/{id}:export`. The
   response headers come back uninterpreted beside the bytes (`Export-Truncated` is the
   application's to read), and it invalidates nothing.
+* **`engine.landed`** is a write a server job made after its request was answered - an import -
+  read again under the prefixes the caller names, never everything: the job writes no change log
+  entries, so the stream does not say.
 
 ## Testing
 
