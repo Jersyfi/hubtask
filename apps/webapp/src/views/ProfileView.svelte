@@ -177,6 +177,7 @@
           <div class="name">
             <Input
               label={t('app.profile.display_name')}
+              data-setting="name"
               hint={t('app.profile.display_name_hint')}
               bind:value={displayName}
               error={nameError}
@@ -190,6 +191,7 @@
         {#if locales.length > 0}
           <Select
             label={t('app.profile.language')}
+            data-setting="language"
             hint={t('app.profile.language_hint')}
             bind:value={locale}
             options={withWorkspaceChoice(
@@ -201,7 +203,7 @@
           <!-- An installation that declares no locales has none to choose between, and an empty
                dropdown says that badly. Found by reading a real manifest, which reports none. -->
           <Stack gap="050">
-            <span class="label">{t('app.profile.language')}</span>
+            <span class="label" data-setting="language">{t('app.profile.language')}</span>
             <p class="quiet">{t('app.profile.no_locales')}</p>
           </Stack>
         {/if}
@@ -209,6 +211,7 @@
         {#if zones.length > 0}
           <Select
             label={t('app.profile.zone')}
+            data-setting="zone"
             hint={t('app.profile.zone_hint')}
             bind:value={zone}
             options={withWorkspaceChoice(
@@ -219,11 +222,12 @@
         {:else}
           <!-- A browser that will not list the zones still lets somebody type one, and the server
                refuses an unknown name. A worse offer, not a broken one. -->
-          <Input label={t('app.profile.zone')} hint={t('app.profile.zone_free')} bind:value={zone} />
+          <Input label={t('app.profile.zone')} data-setting="zone" hint={t('app.profile.zone_free')} bind:value={zone} />
         {/if}
 
         <Select
           label={t('app.profile.week_start')}
+          data-setting="week-start"
           hint={t('app.profile.week_start_hint')}
           bind:value={weekStart}
           options={withWorkspaceChoice(

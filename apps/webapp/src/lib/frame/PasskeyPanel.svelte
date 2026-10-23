@@ -132,7 +132,7 @@
   }
 </script>
 
-<div class="panel" data-testid="passkeys">
+<div class="panel" data-testid="passkeys" data-setting="passkeys">
   <Stack gap="150">
     <h2>{t('app.passkeys.title')}</h2>
     <p class="quiet">{t('app.passkeys.body')}</p>
