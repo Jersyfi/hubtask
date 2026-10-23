@@ -104,7 +104,6 @@
   import type { ItemsQuery } from '../lib/data/items.svelte.ts';
 
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { humanise } from '../lib/i18n/messages.ts';
   import { renderProblem } from '../lib/problem.ts';
 
   interface Props {
@@ -1159,7 +1158,7 @@
           {#key openItemId}
             <DetailPane
               title={openItem?.title ?? ''}
-              kind={openItem ? humanise(openItem.type.toLowerCase()) : undefined}
+              kind={openItem ? offer.level(openItem.type).label : undefined}
               dismissLabel={t('app.pane.close')}
               pageLabel={t('app.pane.open_page')}
               pageHref={`/items/${openItemId}`}
