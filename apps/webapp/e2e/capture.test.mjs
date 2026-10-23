@@ -132,7 +132,7 @@ test('chromium: 375 px — the bottom bar’s ＋ opens the field (check 1)', as
   await page.getByText(ITEMS[2].title).first().waitFor();
   const bar = page.getByRole('navigation', { name: 'Sections' });
   const names = await bar.locator('li').allTextContents();
-  assert.deepEqual(names.map((name) => name.trim()), ['Overview', 'Search', 'Capture', 'Jumble', 'You']);
+  assert.deepEqual(names.map((name) => name.trim()), ['Today', 'Search', 'Capture', 'Jumble', 'You']);
   await bar.getByRole('button', { name: 'Capture' }).tap();
   await fieldOf(page).waitFor({ timeout: 5_000 });
   assert.equal(await page.getByRole('banner').getByRole('button', { name: 'Capture' }).count(), 0, 'the bar carries Capture on a phone too');
@@ -380,6 +380,8 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   await page.keyboard.press('Enter');
   const create = await sent(page, writes, 'POST /items');
   assert.ok(create.body.title.startsWith('Order tiles'));
+  // The field closes once the create is answered; a Q pressed while it is still closing opens nothing.
+  await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
 
   // Escape returns focus where it was.
   await page.keyboard.press('q');

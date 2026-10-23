@@ -67,12 +67,11 @@ export interface Destination {
 }
 
 export const DESTINATIONS: readonly Destination[] = [
-  // The primary group: the three spaces one moves between. The word for the first is the
-  // workspace's own title rather than "Home", because the destination *is* the workspace.
-  // `app.nav.overview` and not `app.workspace.title`: since ADR-0063 decision 1 the first
-  // destination is the overview - what is on the reader - rather than a list of the hubs the tree
-  // below it lists. The workspace keeps its own name for what the workspace is called.
-  { id: 'workspace', group: 'primary', icon: 'workspace', code: 'app.nav.overview', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
+  // The primary group: the three spaces one moves between. The first is *Today* (UC-WRK-34):
+  // what is the reader's today across every hub, the page the app opens on - not a list of the
+  // hubs the tree below it lists (ADR-0063 decision 1). Its id stays `workspace`, the key the
+  // drawings and the walks know it by; the workspace keeps its own name for what it is called.
+  { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
   { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
   // Capture: the phone's ＋ between Search and the jumble (ux-inventory.md §E0). Only the bottom bar
   // draws it; from `medium` up the bar carries *Capture* as a button of its own, and the column

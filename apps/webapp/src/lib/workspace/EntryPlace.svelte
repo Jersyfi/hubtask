@@ -16,11 +16,17 @@
 
   interface Props {
     collectionId: string;
+    /**
+     * The hub first, in its own colour, then the collection: where a page gathers entries from
+     * every hub, the hub is what the eye sorts them by (UC-WRK-34 check 1).
+     */
+    withHub?: boolean;
   }
 
-  const { collectionId }: Props = $props();
+  const { collectionId, withHub = false }: Props = $props();
 
   const collection = $derived(containers.find(collectionId));
+  const hub = $derived(withHub && collection?.parent_id ? containers.find(collection.parent_id) : undefined);
 
   $effect(() => {
     const id = collectionId;
@@ -31,6 +37,10 @@
 
 {#if collection}
   <span class="place">
+    {#if hub}
+      <ContainerMark look={hub} />
+      <span class="name hub">{hub.name}</span>
+    {/if}
     <ContainerMark look={collection} />
     <span class="name">{collection.name}</span>
   </span>
@@ -47,5 +57,10 @@
     font-size: var(--fs-075);
   }
 
+  /* With the hub in front the two names share the width rather than the first taking it all. */
+  .place:has(.hub) { max-inline-size: 36ch; }
+
   .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .hub { max-inline-size: 14ch; }
 </style>

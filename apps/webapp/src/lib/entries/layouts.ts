@@ -41,14 +41,3 @@ export function layoutsOffered(
   const rest = offered.filter((layout) => !isListLayout(layout));
   return list ? [list, ...rest] : rest;
 }
-
-/**
- * The layout a collection opens in: the one its structure names (`views.default`) where it may be
- * chosen here, else the first that may - the list where it is offered. A list layout named as the
- * default opens as itself, so a project opens with what is inside shown.
- */
-export function openingLayout(container: Container, offered: readonly string[]): string {
-  const named = container.structure?.settings.views?.default as string | undefined;
-  if (named && (offered.includes(named) || (isListLayout(named) && offered.some(isListLayout)))) return named;
-  return offered[0] ?? 'LIST_COLLAPSED';
-}

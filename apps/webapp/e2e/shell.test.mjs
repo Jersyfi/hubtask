@@ -77,7 +77,7 @@ const STATEMENT = 'Accessibility statement, on hubtask.eu';
  * field is where a search is typed and Search is the place it is built, which is why they are no
  * longer counted as one thing.
  */
-const PRIMARY = ['Overview', 'Search', 'Jumble'];
+const PRIMARY = ['Today', 'Search', 'Jumble'];
 // The account group, in its order. "This installation" is "About Hubtask" — the same route under
 // a name somebody would look for (ADR-0063 decision 6) — and it carries no version: a build
 // reference is not what a menu row is called, and the page behind it quotes the version whole
@@ -156,7 +156,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   // The ＋ between Search and the jumble is an act, so a button and never a link (UC-WRK-26 check 1).
   assert.equal(await bar.getByRole('button', { name: 'Capture' }).count(), 1, 'the bottom bar has no capture');
   assert.equal(await bar.getByRole('link', { name: 'Capture' }).count(), 0, 'capture is drawn as a link');
-  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page');
+  assert.equal(await bar.getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page');
 
   // ☰ is the tour's target and opens the tree alone: the hub, the trash last, and none of the
   // three destinations the bar below already has.
@@ -176,7 +176,7 @@ test('chromium: 375 px — the bottom bar, the tree behind ☰, the account grou
   await drawer.getByRole('treeitem', { name: 'Kitchen' }).click();
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
   assert.equal(new URL(page.url()).pathname, `/collections/${COLLECTION.id}`);
-  assert.equal(await bar.getByRole('link', { name: 'Overview' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
+  assert.equal(await bar.getByRole('link', { name: 'Today' }).getAttribute('aria-current'), 'page', 'a collection is inside the workspace');
 
   // And the row itself is the hub's own screen, which is what a reader presses a hub for.
   await toggle.click();
@@ -319,7 +319,7 @@ for (const width of [905, 1280]) {
     assert.ok(foot !== null && foot.below > 100, `${width}: the keeping band is ${JSON.stringify(foot)} from the hubs`);
     assert.ok(foot.toBottom < 40, `${width}: the keeping band is ${foot.toBottom}px above the column's bottom`);
     assert.equal(await page.locator('aside[data-tour="hubs"]').count(), 1, `${width}: the tour's target is not the pinned navigation`);
-    assert.equal(await tree.getByRole('treeitem', { name: 'Overview' }).getAttribute('aria-current'), 'page');
+    assert.equal(await tree.getByRole('treeitem', { name: 'Today' }).getAttribute('aria-current'), 'page');
 
     // The rail: the same tree, folded to its marks, and back. The width is the token's.
     const aside = page.locator('aside.sidenav');
@@ -486,7 +486,9 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
   const page = await context.newPage();
   const failures = [];
   page.on('pageerror', (error) => failures.push(String(error)));
-  await page.goto(`${served.origin}/`);
+  // On a page that reads no level itself: *Today* reads every hub's collections for their
+  // figures, which would settle the empty hub before the tree is asked.
+  await page.goto(`${served.origin}/trash`);
 
   const tree = page.getByRole('navigation', { name: 'Workspace' });
   await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).waitFor({ timeout: 15_000 });
