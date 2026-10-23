@@ -728,9 +728,10 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"retention_rule":   "a rule that can delete, pointing at an egress channel a restore does not recreate",
 	"deletion_journal": "§7 - the journal is applied to a restore rather than restored by one",
 	// UC-WRK-29 check 6: an archive is read by whoever holds the target, an administrator among
-	// them, and who acknowledged whom is the business of the person acknowledged alone. The same
-	// holds for the person's own copy, which is the archive filtered (data-protection.md §4).
-	"kudos": "who acknowledged whose completion is the acknowledged person's alone, and an archive is an administrator's to read (UC-WRK-29 check 6)",
+	// them, and who acknowledged whom is the business of the two people alone. The copy a person
+	// gets of their own data is theirs, and carries the kudos they gave and received as a section
+	// of its own (Request.Sections, data-protection.md §4) - never as an entity of this format.
+	"kudos": "who acknowledged whose completion is the two people's alone, and an archive is an administrator's to read (UC-WRK-29 check 6); the person's own copy carries theirs as a section",
 	// And the one row-level-secured table that is nobody's data: the system-defined capability
 	// profiles every tenant may read and none may write. They come with the installation, and a
 	// restore that carried its own copy would be a restore that could contradict it.

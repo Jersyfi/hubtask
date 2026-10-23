@@ -311,6 +311,17 @@ DELETE FROM kudos
 WHERE tenant_id = current_tenant_id()
   AND (given_by = sqlc.arg('account_id') OR given_to = sqlc.arg('account_id'));
 
+-- name: KudosOfAccount :many
+-- The kudos the person gave and received, for their own copy of their data, a page at a time in the
+-- key's order. Never kudos between two other people.
+SELECT item_id, given_by, given_to, given_at FROM kudos
+WHERE tenant_id = current_tenant_id()
+  AND (given_by = sqlc.arg('account_id') OR given_to = sqlc.arg('account_id'))
+  AND (item_id, given_by, given_to) > (sqlc.arg('after_item')::uuid, sqlc.arg('after_by')::uuid,
+                                       sqlc.arg('after_to')::uuid)
+ORDER BY item_id, given_by, given_to
+LIMIT sqlc.arg('batch')::int;
+
 -- name: DeleteAiRequestsOfAccount :execrows
 -- The words a person asked with that a job still holds.
 DELETE FROM ai_request WHERE tenant_id = current_tenant_id() AND asked_by = sqlc.arg('account_id');

@@ -3300,7 +3300,7 @@ func run() error {
 	}
 	// Data subject requests: the export that is a Hubtask archive rather than a second format.
 	privacyExporter := privacyservice.Exporter{
-		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts,
+		Requests: privacyStore, Subjects: privacyStore, Accounts: accounts, Kudos: privacyStore,
 		Targets: backupservice.StoreOpener{
 			Targets: backupTargets, Opener: backupAdapters, Encryptor: encryptor,
 			UnitOfWork: unitOfWork,

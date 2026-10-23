@@ -214,6 +214,11 @@ reasoning is backup-restore.md §8.4):
   retention run bookkeeping, retention rules. Cases and attestations belong to the installation
   that handled them.
 * **The product's own shape**: the system capability profiles.
+* **Who acknowledged whom**: kudos are the business of the person who gave them and the person who
+  received them (UC-WRK-29 check 6), and an export or a backup is an administrator's to read. The
+  copy a person gets of their own data carries the kudos they gave and received as a section,
+  `data/kudos.jsonl` (`item_id`, `given_by`, `given_to`, `given_at`;
+  [data-protection.md](./data-protection.md) §4).
 
 The list is `ExcludedTables()` in `core/application/archive/Record.go`; a test holds every table under
 row level security to being either an entity of §6 or on that list.
@@ -254,6 +259,9 @@ expected to keep sign-ins working. The export is handed outwards.
 * A file version 1 gained later (§6: `private_hub_accesses`, `container_milestones`) is additive
   too: every archive written since carries it, and one written before reads as holding none of its
   rows.
+* A section is a file one archive carries beyond §6's entities, named in its manifest like any
+  member and read by no restore. Only the copy a person gets of their own data has one, `kudos`
+  (§9).
 * A field a writer stops writing is additive in the other direction: a reader tolerates it in an
   older archive and takes nothing from it. `accounts` no longer carries `ai_consent`, a column
   nothing reads or writes - the person's AI objection is a `consent_records` row

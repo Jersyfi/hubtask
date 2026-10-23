@@ -77,6 +77,7 @@
   "request.body_too_large": "The request body may be at most {limit_bytes} bytes.",
   "access.credential_required": "This operation needs you to be signed in.",
   "access.no_scope_named": "This operation names no scope to check, so it is refused.",
+  "privacy.export_kudos_unwired": "This installation cannot read the kudos for a copy of a person's data, so the copy is not written.",
   "access.insufficient_scope": "The token used is not allowed to do this. It would need the scope {scope}.",
   "access.operator_register_required": "This token carries the scope {scope}, but its account is not in this installation's operator register, so the scope does not apply. An operator adds the account under Installation → Operators.",
   "access.operator_register_unreadable": "The operator register could not be read, so the scope {scope} is withheld for now. Try again shortly.",

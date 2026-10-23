@@ -6,8 +6,8 @@
 --
 -- `kudos` holds one person's acknowledgement of another's completion of an entry: who gave it, to
 -- whom, when. Personal data about both (data-catalog.md): read only by the person it was given to,
--- never exported, audited or announced; gone with the entry, with either account, and with an
--- erasure of either person.
+-- never audited or announced, and in no workspace's archive - only in the copy each of the two gets
+-- of their own data; gone with the entry, with either account, and with an erasure of either person.
 --
 -- Expand only: two new tables nothing older reads or writes (rule 12). Their indexes are built
 -- without CONCURRENTLY: the tables are created in this same migration and nobody reads them yet.

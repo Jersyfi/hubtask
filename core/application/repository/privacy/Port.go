@@ -12,6 +12,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // Requests stores the cases (data-protection.md §4).
@@ -181,6 +182,17 @@ type Subjects interface {
 	// rather than a tenant, and it answers identifiers rather than rows: what follows is one
 	// ordinary transaction per tenant, under that tenant's own context.
 	Tenants(ctx context.Context, email string) ([]shared.ID, error)
+}
+
+// OwnKudos is what a person's own copy of their data reads of the kudos (UC-WRK-29 checks 5 and 6).
+//
+// Its own port rather than a table of the archive: no workspace archive carries kudos, because an
+// administrator reads those, and the person's copy carries the ones about them as a section of its
+// own (data-protection.md §4).
+type OwnKudos interface {
+	// KudosOf hands every kudos the account gave or received to yield - and none between two
+	// other people.
+	KudosOf(ctx context.Context, accountID shared.ID, yield func(work.Kudos) error) error
 }
 
 // AccountStatuses is what a restriction and an erasure's kept account read before they write: the

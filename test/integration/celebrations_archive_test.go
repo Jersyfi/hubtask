@@ -7,9 +7,11 @@ package integration
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/Jersyfi/hubtask/core/application/archive"
 	backupservice "github.com/Jersyfi/hubtask/core/application/service/backup"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/backup"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -18,8 +20,10 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
 
-// Milestones in the archives (UC-WRK-29 check 4): a milestone is the workspace's and goes through a
-// backup and its restore with its collection's identity and its moment.
+// Milestones and kudos in the archives (UC-WRK-29 checks 4 to 6): a milestone is the workspace's
+// and goes through a backup and its restore with its collection's identity and its moment; kudos
+// are the two people's, so the copy a person gets of their own data carries the ones they gave and
+// received, and no archive an administrator reads carries any.
 
 func TestAMilestoneComesBackWithARestoreAsItWas(t *testing.T) {
 	ctx := context.Background()
@@ -82,5 +86,67 @@ func TestAMilestoneComesBackWithARestoreAsItWas(t *testing.T) {
 	}
 	if restored != collection || !reached.Equal(foreignMilestone) {
 		t.Errorf("the milestone came back on %s at %v, want %s at %v", restored, reached, collection, foreignMilestone)
+	}
+}
+
+func TestThePersonsOwnCopyCarriesTheirKudosAndNoWorkspaceArchiveDoes(t *testing.T) {
+	ctx := context.Background()
+	anna := seedSubject(ctx, t, "kudos-"+freshID(t).String()+"@example.test")
+	admin := adminPool(ctx, t)
+	ben, carl, dana := freshID(t), freshID(t), freshID(t)
+	for name, account := range map[string]shared.ID{"Ben": ben, "Carl": carl, "Dana": dana} {
+		if _, err := admin.Exec(ctx, `INSERT INTO account (id, tenant_id, email, display_name) VALUES ($1, $2, $3, $4)`,
+			account.String(), anna.tenant.String(), strings.ToLower(name)+"-"+account.String()+"@example.test", name); err != nil {
+			t.Fatalf("seeding %s: %v", name, err)
+		}
+	}
+	given := map[string][2]shared.ID{
+		"Ben to Anna":  {ben, anna.account},
+		"Anna to Carl": {anna.account, carl},
+		"Ben to Carl":  {ben, carl},
+	}
+	for name, pair := range given {
+		if _, err := admin.Exec(ctx, `
+			INSERT INTO kudos (tenant_id, item_id, given_by, given_to, given_at) VALUES ($1, $2, $3, $4, now())`,
+			anna.tenant.String(), anna.item.String(), pair[0].String(), pair[1].String()); err != nil {
+			t.Fatalf("seeding the kudos %s: %v", name, err)
+		}
+	}
+	record := func(name string) string {
+		pair := given[name]
+		return `"id":"` + anna.item.String() + "/" + pair[0].String() + "/" + pair[1].String() + `"`
+	}
+
+	// Anna's copy holds both directions - who, on which entry, when - and nothing between Ben and
+	// Carl.
+	own := ownCopyOf(ctx, t, anna.tenant, anna.account)
+	for _, name := range []string{"Ben to Anna", "Anna to Carl"} {
+		if !strings.Contains(own, record(name)) {
+			t.Errorf("Anna's copy lacks the kudos %s", name)
+		}
+	}
+	if !strings.Contains(own, `"given_at"`) {
+		t.Error("Anna's copy does not say when the kudos were given")
+	}
+	if strings.Contains(own, record("Ben to Carl")) {
+		t.Error("Anna's copy carries kudos between two other people")
+	}
+
+	// Dana gave and received none, and her copy carries nobody else's.
+	other := ownCopyOf(ctx, t, anna.tenant, dana)
+	for name := range given {
+		if strings.Contains(other, record(name)) {
+			t.Errorf("Dana's copy carries the kudos %s", name)
+		}
+	}
+
+	// What an administrator reads - the workspace export and a backup - carries no kudos at all.
+	for name, written := range map[string]string{
+		"the workspace export": workspaceExportOf(ctx, t, anna.tenant),
+		"the backup":           backupOf(ctx, t, anna.tenant, anna.account),
+	} {
+		if strings.Contains(written, "given_by") || strings.Contains(written, archive.DataName("kudos")) {
+			t.Errorf("%s carries kudos", name)
+		}
 	}
 }

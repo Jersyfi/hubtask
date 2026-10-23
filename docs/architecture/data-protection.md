@@ -101,6 +101,13 @@ practice. Rules:
   accepted: an account a hold keeps as an invitation is given no new one and cannot be accepted
   into one that may act. Restricting and lifting read the status they start from with the row
   locked, and ask whether a hold keeps the account only then.
+* **The access copy is the archive filtered, and one section more.** It is the workspace's archive
+  cut down to the rows that name the person (`subjectColumns` in
+  `core/application/service/privacy/SubjectSource.go`), and it carries one file no workspace archive
+  does: `kudos`, the kudos the person gave and received - who, on which entry, when - and none
+  between two other people. Kudos stay out of every archive an administrator reads (UC-WRK-29
+  check 6); the copy is the person's own, and one without them would answer Art. 15 short. No
+  restore reads the section.
 * **An installation-wide case is a loop, not a wider query**: one workspace at a time under its own
   tenant context, through the ordinary repositories; only the tenant identifiers from
   `subject_tenants()` cross the boundary ([multi-tenancy.md](./multi-tenancy.md) §2.1). It needs
