@@ -43,7 +43,7 @@ const (
 //
 // A table rather than a switch with a body per operation, because that is the whole design: a bulk
 // performs the operations this API already offers on one entry, through the same use cases, so what
-// a bulk may do is what a caller may do one entry at a time and never more. Nine reimplementations
+// a bulk may do is what a caller may do one entry at a time and never more. Ten reimplementations
 // would be nine places for a rule to drift from the one the single-entry route enforces.
 var bulkOperations = map[string]string{
 	"CREATE_ITEM":   CreateWorkItemName,
@@ -52,6 +52,7 @@ var bulkOperations = map[string]string{
 	"REOPEN_ITEM":   ReopenWorkItemName,
 	"MOVE_ITEM":     MoveWorkItemName,
 	"TRASH_ITEM":    TrashWorkItemName,
+	"RESTORE_ITEM":  RestoreWorkItemName,
 	"ADD_LABEL":     AddLabelName,
 	"REMOVE_LABEL":  RemoveLabelName,
 	"ASSIGN":        AssignWorkItemName,

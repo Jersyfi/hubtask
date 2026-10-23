@@ -4,6 +4,7 @@
   import AppBar from './AppBar.svelte';
   import Avatar from './Avatar.svelte';
   import IconButton from './IconButton.svelte';
+  import Logo from './Logo.svelte';
   import Menu from './Menu.svelte';
   import SearchField from './SearchField.svelte';
   import Stack from './Stack.svelte';
@@ -35,7 +36,7 @@
       toggle={{ kind: 'drawer', label: 'Open the navigation', isExpanded: isOpen, onToggle: () => (isOpen = !isOpen) }}
     >
       {#snippet brand()}
-        <a class="wordmark" href="/">Hubtask</a>
+        <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
       {/snippet}
       {#snippet search()}
         <!-- The entry to search, not the search: pressing Enter here leads to the search page,
@@ -58,7 +59,7 @@
       toggle={{ kind: 'rail', label: isPinned ? 'Collapse the navigation' : 'Expand the navigation', isExpanded: isPinned, onToggle: () => (isPinned = !isPinned) }}
     >
       {#snippet brand()}
-        <a class="wordmark" href="/">Hubtask</a>
+        <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
       {/snippet}
       {#snippet end()}
         <Avatar name="Jérôme Winkel" size="sm" />
@@ -85,15 +86,13 @@
 </Stack>
 
 <style>
-  .wordmark {
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
+  .home {
+    display: inline-flex;
     color: var(--text-primary);
     text-decoration: none;
   }
 
-  .wordmark:focus-visible {
+  .home:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
     border-radius: var(--r-xs);

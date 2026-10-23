@@ -2,6 +2,7 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   import Banner from './Banner.svelte';
+  import Icon from './Icon.svelte';
   import PageHeader from './PageHeader.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import Stack from './Stack.svelte';
@@ -53,7 +54,9 @@
       primary={{ label: 'Create a collection', icon: 'plus', onclick: () => (chosen = 'create') }}
       secondary={[{ label: 'Import', icon: 'cloud-upload', onclick: () => (chosen = 'import') }]}
       menu={{ label: 'More for this hub', items: menu.filter((item) => !['labels', 'fields', 'views', 'templates', 'policies'].includes(item.id)), onselect: (id) => (chosen = id) }}
-    />
+    >
+      {#snippet mark()}<span class="tile"><Icon name="house" size="md" /></span>{/snippet}
+    </PageHeader>
   {:else}
     <PageHeader
       title={isLong ? 'Renovierung der Küche im Erdgeschoss' : 'Renovation'}
@@ -95,5 +98,16 @@
 
 <style>
   .share { inline-size: 12ch; }
+
+  /* The hub's own colour, as the application draws it: the label's ink on the label's tile. */
+  .tile {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--sp-050);
+    border-radius: var(--r-md);
+    background: var(--label-magenta-bg);
+    color: var(--label-magenta-fg);
+  }
   .state { margin: 0; font-size: var(--fs-075); color: var(--text-secondary); }
 </style>

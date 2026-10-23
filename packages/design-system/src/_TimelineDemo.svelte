@@ -5,10 +5,17 @@
   // The gridlines are the caller's, because where a week starts is the reader's account's business
   // and how a day is spelled is a question this package answers in no language.
 
+  import IconButton from './IconButton.svelte';
   import Timeline, { type TimelineCarry, type TimelineRow, type TimelineTick } from './Timeline.svelte';
 
-  const { mode = 'mixed', scale = 'day' }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked'; scale?: 'day' | 'week' | 'month' } =
-    $props();
+  const {
+    mode = 'mixed',
+    scale = 'day',
+  }: { mode?: 'mixed' | 'undatedOnly' | 'empty' | 'locked' | 'actions'; scale?: 'day' | 'week' | 'month' } = $props();
+
+  // The entry open beside the timeline, and what a row's menu or a long press last asked for.
+  let current = $state<string | undefined>('r2');
+  let asked = $state<string | undefined>(undefined);
 
   let rows = $state<TimelineRow[]>([
     { id: 'r1', title: 'Kitchen fit-out', start: '2026-09-07', due: '2026-09-14' },
@@ -76,4 +83,15 @@
   startHandleLabel="Move the start"
   dueHandleLabel="Move the due date"
   onCarry={carried}
+  currentId={mode === 'actions' ? current : undefined}
+  onSelect={mode === 'actions' ? (id) => (current = id) : undefined}
+  onHold={mode === 'actions' ? (id) => (asked = id) : undefined}
+  rowAction={mode === 'actions' ? rowAction : undefined}
 />
+{#if mode === 'actions'}
+  <p>Asked for the menu of: {asked ?? 'nothing yet'}</p>
+{/if}
+
+{#snippet rowAction(id: string)}
+  <IconButton icon="ellipsis" label={`Actions for ${rows.find((row) => row.id === id)?.title ?? id}`} size="sm" onclick={() => (asked = id)} />
+{/snippet}

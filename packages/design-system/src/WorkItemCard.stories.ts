@@ -23,3 +23,10 @@ export const board: Story = {
   about:
     'The card is a **link**, for the reason ListRow is: readers open cards in a new tab constantly, and a div with a click handler takes that away. A completed card is struck through as well as dimmed — rule 3, so it reads in greyscale.',
 };
+
+export const beside: Story = {
+  name: 'Opened beside the board',
+  about:
+    'A plain press on a card’s title opens it beside the board (ADR-0061 decision 4) instead of following the link; a press with Ctrl, ⌘ or Shift is still the browser’s, so a card opens in a new tab as before. The card open beside is announced as current and carries the rail a list row has, so it reads in greyscale (rule 3).',
+  args: { mode: 'beside' },
+};

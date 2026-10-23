@@ -20,7 +20,7 @@ export const collection: Story = {
 export const hub: Story = {
   name: 'A hub: create a collection, and import beside it',
   about:
-    'The same head with the hub’s actions: the primary is what a hub is for, import is the one secondary, and the menu holds only what a hub can do — no labels, fields, views, templates or policies, which belong to a collection.',
+    'The same head with the hub’s actions: the primary is what a hub is for, import is the one secondary, and the menu holds only what a hub can do — no labels, fields, views, templates or policies, which belong to a collection. Its mark before the title is the symbol and the colour its people chose — the caller’s drawing, decorative beside the name, and not drawn where the bar carries the title.',
   args: { mode: 'hub' },
 };
 

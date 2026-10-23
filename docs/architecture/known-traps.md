@@ -106,6 +106,6 @@ each one stays listed until its test is made deterministic.
 | `TestSeveralHundredIdleStreamsDoNotPoll` | one poll tick inside the 300 ms window on a loaded runner |
 | `TestTheSessionSweepStaysInsideTheTenantAndTakesOnlyTheOver` | wall-clock sensitive in the shared integration database |
 | hubctl e2e, AI-stub section | "no suggestion arrived within 90s" while the stub image is still being pulled |
-| engines, `playwright install-deps` | apt's mirror crawls or stalls; apt now drops a stalled connection after 30 s and the step tries three times, so only a mirror that stays hung turns the job red — green on re-run |
+| engines, `playwright install-deps` | apt's mirror crawls (50 kB/s) or stalls; apt drops a connection silent for 30 s and retries, a slow one is let finish within the step's 15 minutes — never cut a moving download with a limit per try. Red only when the mirror stays hung; green on re-run |
 | RT-1's container test | a Docker Hub token error pulling `nginx:alpine`; green on re-run |
 | a Testcontainers gate run locally | `address already in use` on a random high port: another worktree's container on the shared Docker daemon took it — re-run the gate alone. A fixed port (18081, 19091) is a real collision |

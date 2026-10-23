@@ -78,3 +78,10 @@ export const figuresOnRail: Story = {
   about: 'The rail is a column of marks: no label, so no figure either. The row’s name stays the label alone.',
   args: { mode: 'figures', isRail: true },
 };
+
+export const colours: Story = {
+  name: 'Places in their own colour',
+  about:
+    'A hub or a collection drawn with the symbol and the colour its people chose: the symbol in the label’s ink on the label’s tile, the measured pair, so it reads in both modes. The colour is the place’s, never a level’s — a place nobody chose for keeps its type’s mark and no tile — and it never says anything alone: the name beside it says which place it is. Folded, the tiles are what tells the hubs apart.',
+  args: { mode: 'colours' },
+};

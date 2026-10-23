@@ -226,6 +226,9 @@ func containerResponse(out usecase.Output) openapi.Container {
 			container.Figure = &answered
 		}
 	}
+	if milestone, held := out["milestone"].(map[string]any); held {
+		container.Milestone = &openapi.ContainerMilestone{ReachedAt: timeValue(milestone["reached_at"])}
+	}
 	return container
 }
 

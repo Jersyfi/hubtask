@@ -938,7 +938,9 @@ jobs:
     needs: changes
     if: needs.changes.outputs.webapp == 'true' || needs.changes.outputs.design_system == 'true' || needs.changes.outputs.sync_engine == 'true' || needs.changes.outputs.api_client == 'true' || needs.changes.outputs.openapi == 'true' || needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # The suite alone takes about sixteen minutes since the screen walks came in, and the apt
+    # steps up to fifteen on a slow mirror: twenty minutes cancelled green runs.
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -963,39 +965,22 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      # Both steps below run apt against the runner's mirror, which has hung for forty minutes and
-      # more, and stalled one pull request twice in a row on one package. apt gives up on a stalled
-      # connection after 30 seconds and tries again on its own; each step tries three times, under a
-      # limit per try, so a hung mirror costs minutes and a re-run only when it stays hung.
-      #
-      # `timeout` ends pnpm, not the apt-get it started through sudo, which then holds dpkg's lock
-      # and fails the next try at once - so a try that did not finish ends that apt-get, and
-      # lets dpkg finish what it had begun, before the next one.
+      # Both steps below run apt against the runner's mirror, which is sometimes slow (50 kB/s for
+      # the 26 MB these steps fetch) and has hung outright. apt itself drops a connection that sends
+      # nothing for 30 seconds and tries again; a download that is slow but moving is let finish.
+      # A limit per try is what not to do: it cut such a download and started it again from zero,
+      # three times, and turned a slow mirror into a red `main` (ADR-0089).
       - name: apt gives up on a stalled mirror and retries
         run: |
-          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\nDPkg::Lock::Timeout "60";\n' |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
             sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
       - if: steps.browsers.outputs.cache-hit != 'true'
         timeout-minutes: 15
-        run: |
-          for try in 1 2 3; do
-            timeout 270 pnpm --filter @hubtask/webapp exec playwright install --with-deps chromium && exit 0
-            echo "::warning::playwright install, try $try of 3, did not finish"
-            sudo pkill -x apt-get || true
-            sudo dpkg --configure -a || true
-          done
-          exit 1
+        run: pnpm --filter @hubtask/webapp exec playwright install --with-deps chromium
       # The system packages the engine needs are installed either way; only the browser is cached.
       - if: steps.browsers.outputs.cache-hit == 'true'
-        timeout-minutes: 12
-        run: |
-          for try in 1 2 3; do
-            timeout 210 pnpm --filter @hubtask/webapp exec playwright install-deps chromium && exit 0
-            echo "::warning::playwright install-deps, try $try of 3, did not finish"
-            sudo pkill -x apt-get || true
-            sudo dpkg --configure -a || true
-          done
-          exit 1
+        timeout-minutes: 15
+        run: pnpm --filter @hubtask/webapp exec playwright install-deps chromium
       - run: pnpm --filter "@hubtask/webapp^..." build
       - run: pnpm --filter @hubtask/webapp build
       # The design system's workbench, which e2e/workbench-layout.test.mjs measures: a reason never

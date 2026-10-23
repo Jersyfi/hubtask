@@ -5,6 +5,7 @@ package rest
 
 import (
 	"net/http"
+	"time"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -17,10 +18,11 @@ import (
 // once, whichever channel the call came through (ADR-0005, arc42 §4).
 
 const (
-	createLabelUseCase = "CreateLabel"
-	listLabelsUseCase  = "ListLabels"
-	updateLabelUseCase = "UpdateLabel"
-	deleteLabelUseCase = "DeleteLabel"
+	createLabelUseCase  = "CreateLabel"
+	listLabelsUseCase   = "ListLabels"
+	updateLabelUseCase  = "UpdateLabel"
+	deleteLabelUseCase  = "DeleteLabel"
+	restoreLabelUseCase = "RestoreLabel"
 )
 
 // CreateLabel answers POST /containers/{containerId}/labels.
@@ -67,10 +69,15 @@ func (c *RestController) CreateLabel(
 // is as long as a person can hold in their head (api-guidelines.md §2).
 func (c *RestController) ListLabels(
 	w http.ResponseWriter, r *http.Request, containerID openapi.ContainerId,
+	params openapi.ListLabelsParams,
 ) {
-	out, ok := c.read(w, r, listLabelsUseCase, usecase.Input{
-		"collection_id": containerID.String(),
-	})
+	in := usecase.Input{"collection_id": containerID.String()}
+	// Only when asked: an input the caller did not send stays absent, so the catalogue's default
+	// is the one answer to "what does a plain read return".
+	if params.IncludeDeleted != nil {
+		in["include_deleted"] = *params.IncludeDeleted
+	}
+	out, ok := c.read(w, r, listLabelsUseCase, in)
 	if !ok {
 		return
 	}
@@ -94,6 +101,9 @@ func labelResponse(out usecase.Output) openapi.Label {
 	}
 	if description := out.String("description"); description != "" {
 		label.Description = &description
+	}
+	if deletedAt, ok := out["deleted_at"].(time.Time); ok {
+		label.DeletedAt = &deletedAt
 	}
 	return label
 }
@@ -182,4 +192,34 @@ func (c *RestController) DeleteLabel(
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// RestoreLabel answers POST /containers/{containerId}/labels/{labelId}:restore.
+//
+// No If-Match: the precondition of a restore is the deletion, not a version, and a retry after a
+// lost answer has to succeed rather than meet the version its own first attempt moved on. The
+// Idempotency-Key is the transport's (api-guidelines.md §5).
+func (c *RestController) RestoreLabel(
+	w http.ResponseWriter, r *http.Request,
+	_ openapi.ContainerId, labelID openapi.LabelId, _ openapi.RestoreLabelParams,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	actor, _ := appshared.ActorFrom(r.Context())
+
+	out, err := c.UseCases.Invoke(r.Context(), restoreLabelUseCase, actor, usecase.Input{
+		"label_id": labelID.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+
+	label := labelResponse(out)
+	w.Header().Set("ETag", etag(label.Version))
+	writeJSON(w, r, http.StatusOK, label)
 }

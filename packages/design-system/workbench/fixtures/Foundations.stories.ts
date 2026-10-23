@@ -47,8 +47,8 @@ export const motion: Story = {
 };
 
 export const mark: Story = {
-  name: 'The wordmark, unfinished',
+  name: 'The mark',
   about:
-    'Three nested planes, the innermost in bordeaux. It is not a finished mark — §9 lists it as missing — and it lives here because it is the only drawn record of the idea.',
+    'The provisional mark of §9: its four parts and the brand tokens they draw, the lockup with the wordmark, the reduced form at the smallest step, mono, and the two generated files — the tab icon and the installed apps’ icon source at the sizes the shells render it.',
   args: { section: 'mark' },
 };

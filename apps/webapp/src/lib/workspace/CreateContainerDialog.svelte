@@ -12,10 +12,9 @@
   // different name, and a sentence somewhere else on the screen is one they would have to carry
   // back to the field.
   //
-  // Icon and colour are deliberately absent. `containers.create` takes both, and offering them
-  // needs an icon picker and a colour picker - two components, and
-  // the design system grows in the order of design-system.md §4, never as a side effect of other
-  // work, so this dialog offers neither.
+  // A colour and a symbol are chosen here as on the edit dialog, from the same fields (UC-WRK-33):
+  // a place is told apart from the moment it exists. Neither is required - a place nobody chose for
+  // keeps its type's mark.
   //
   // *Private* is offered for a hub where the workspace has more than one person
   // (`private_hubs_offered`, UC-ID-16 check 8): a workspace of one has nobody to keep a hub from.
@@ -37,8 +36,11 @@
   import { workspace } from '../data/workspace.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { focusFirst } from '../forms/missing.ts';
+  import LookFields from './LookFields.svelte';
+  import { lookBody, type PlaceSymbol } from './look.ts';
   import { renderProblem } from '../problem.ts';
 
+  import type { LabelToken } from '@hubtask/design-system';
   import type { TransportError } from '@hubtask/sync-engine';
 
   interface Props {
@@ -63,6 +65,8 @@
   let isPrivate = $state(false);
   /** The preset chosen, or empty for the hub's (a collection) or the workspace's default (a hub). */
   let preset = $state('');
+  let symbol = $state<PlaceSymbol | undefined>(undefined);
+  let colour = $state<LabelToken | undefined>(undefined);
   let isSaving = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   let isNameFailure = $state(false);
@@ -74,6 +78,8 @@
     description = '';
     isPrivate = false;
     preset = '';
+    symbol = undefined;
+    colour = undefined;
     failure = undefined;
     isNameFailure = false;
   });
@@ -126,6 +132,7 @@
           parent_id: isHub ? null : parentId,
           name: name.trim(),
           description: description.trim() === '' ? null : description.trim(),
+          ...lookBody(symbol, colour),
           ...(isPrivateHubOnly || (isPrivacyOffered && isPrivate) ? { private: true } : {}),
           ...(preset !== '' ? { preset: preset as 'LIST' | 'TASKS' | 'PROJECT' | 'FLOW' } : {}),
         },
@@ -160,6 +167,7 @@
       error={isNameMissing ? t('app.workspace.name_required') : isNameFailure ? failure?.message : undefined}
     />
     <Textarea label={t('app.workspace.description')} bind:value={description} />
+    <LookFields {type} bind:symbol bind:colour />
     {#if presetOptions.length > 0}
       <Radio label={t('app.structure.preset_at_creation')} options={presetOptions} bind:value={preset} />
     {/if}

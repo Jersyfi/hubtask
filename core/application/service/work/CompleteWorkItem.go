@@ -73,6 +73,9 @@ type CompletionWriter struct {
 	// Structure answers the completion in force: the collection's own, else its hub's, else the
 	// workspace's (domain-model.md §2). A build without it reads the collection's own alone.
 	Structure StructureResolver
+	// Milestones records the collection, and its hub, a completion left with nothing open
+	// (UC-WRK-29 check 4). A build without it records none.
+	Milestones repository.Milestones
 }
 
 // completionOf is what completing a child does in this collection: the value in force, inherited
@@ -229,12 +232,42 @@ func (w CompletionWriter) change(
 		if err != nil {
 			return err
 		}
-		return w.rollUp(ctx, actor, written, policy, now, announcement)
+		if err := w.rollUp(ctx, actor, written, policy, now, announcement); err != nil {
+			return err
+		}
+		if want == completing {
+			return w.recordMilestones(ctx, collection, now)
+		}
+		return nil
 	})
 	if err != nil {
 		return domain.WorkItem{}, err
 	}
 	return changed, nil
+}
+
+// recordMilestones records the collection, and then its hub, when this completion left nothing
+// open in it (UC-WRK-29 check 4). In the completion's own transaction, after the roll-up, so that a
+// parent the last child completed counts as done; only a completion records one, because only a
+// completion can leave nothing open - a trashed or archived last entry is not a finish.
+//
+// A reopened entry takes nothing away: the milestone says when everything was finished, which stays
+// true, and the next finish moves it.
+func (w CompletionWriter) recordMilestones(
+	ctx context.Context, collection domain.Container, now time.Time,
+) error {
+	if w.Milestones == nil {
+		return nil
+	}
+	if err := w.Milestones.LockHub(ctx, collection.ParentID); err != nil {
+		return err
+	}
+	finished, err := w.Milestones.RecordCollection(ctx, collection.ID, now)
+	if err != nil || !finished {
+		return err
+	}
+	_, err = w.Milestones.RecordHub(ctx, collection.ParentID, now)
+	return err
 }
 
 // rollUp propagates a change upwards for as far as the policy and the tree allow (I-W5).
@@ -431,7 +464,13 @@ func (w CompletionWriter) recordChange(
 		ActorID:     actor.AccountID,
 		HLC:         w.HLC.Next(),
 		Field:       domain.FieldCompletion,
-		Payload:     map[string]any{domain.FieldCompletion: snapshot[domain.FieldCompletion]},
+		// The count rides with the completion it moved with: it is the server's, never merged, so it
+		// takes no clock of its own, and a device that learned the completion without it would rank
+		// its *Recently* on a stale count (UC-WRK-25 check 4).
+		Payload: map[string]any{
+			domain.FieldCompletion:      snapshot[domain.FieldCompletion],
+			domain.FieldCompletionCount: snapshot[domain.FieldCompletionCount],
+		},
 	})
 }
 

@@ -354,6 +354,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `jumble.intake_rotated` | RotateJumbleIntake | `jumble_entry` | WARNING | Every time |
 | `jumble.suggestion_asked` | SuggestFromJumbleEntry | `jumble_entry` | NOTICE | Every time |
 
+## Kudos
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `kudos.given` | GiveKudos | `item` | INFO | Every time |
+| `kudos.read` | ReadKudos | `item` | INFO | When refused |
+| `kudos.taken_back` | TakeBackKudos | `item` | INFO | Every time |
+
 ## Oauth
 
 | Action | Use case | Target | Severity | Recorded |
@@ -471,6 +479,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `label.created` | CreateLabel | `label` | INFO | Every time |
 | `label.deleted` | DeleteLabel | `label` | INFO | Every time |
 | `label.read` | ListLabels | `label` | INFO | When refused |
+| `label.restored` | RestoreLabel | `label` | INFO | Every time |
 | `label.updated` | UpdateLabel | `label` | INFO | Every time |
 
 ## Structure: custom fields

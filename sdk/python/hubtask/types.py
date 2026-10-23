@@ -1508,6 +1508,20 @@ class Container(TypedDict, total=False):
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
     figure: "CollectionFigure"
+    milestone: "ContainerMilestone"
+
+class ContainerMilestone(TypedDict, total=False):
+    reached_at: Required[str]
+
+Kudos = TypedDict("Kudos", {
+    "item_id": Required[str],
+    "given": Required[bool],
+    "from": Required[list["KudosFrom"]],
+}, total=False)
+
+class KudosFrom(TypedDict, total=False):
+    account_id: Required[str]
+    given_at: Required[str]
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -1549,9 +1563,11 @@ class StructureSettings(TypedDict, total=False):
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
     name: str | None
+    done_name: str | None
 
 class StructureLevelFields(TypedDict, total=False):
     capabilities: Required[list[str]]
+    categories: list[str]
 
 class StructureViews(TypedDict, total=False):
     """The layouts a client offers, and the one it opens with. Applied by clients."""
@@ -2119,8 +2135,10 @@ class WorkItem(TypedDict, total=False):
     path: str
     depth: int
     title: Required[str]
+    amount: str | None
     notes: str | None
     completion: Required["Completion"]
+    completion_count: int
     bucket_id: str | None
     order_key: str
     start_at: str | None
@@ -2159,6 +2177,7 @@ class WorkItemCreate(TypedDict, total=False):
     collection_id: str
     parent_id: str | None
     title: Required[str]
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     before_item_id: str | None
@@ -2178,6 +2197,7 @@ class WorkItemCreate(TypedDict, total=False):
 class WorkItemUpdate(TypedDict, total=False):
     """JSON Merge Patch; null deletes a field."""
     title: str
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     start_at: str | None
@@ -2239,7 +2259,7 @@ class ItemQueryResult(TypedDict, total=False):
 
 class BulkOperation(TypedDict, total=False):
     """One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own."""
-    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
+    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "RESTORE_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
     item_id: str
     payload: dict[str, Any]
 
@@ -2295,6 +2315,7 @@ class Label(TypedDict, total=False):
     color_token: Required[str]
     description: Required[str | None]
     version: Required[int]
+    deleted_at: str | None
 
 class LabelCreate(TypedDict, total=False):
     name: Required[str]

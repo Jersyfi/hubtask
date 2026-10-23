@@ -41,6 +41,13 @@
   import BucketDialog from './BucketDialog.svelte';
   import ReplicaMark from '../frame/ReplicaMark.svelte';
   import { createDrag } from './dragging.svelte.ts';
+  import EntryActions from './EntryActions.svelte';
+  import EntryMenu from './EntryMenu.svelte';
+  import { attachEntryGestures } from './entryGestures.ts';
+  import { entryMenu } from './entryMenu.ts';
+  import { supports } from '../data/capability.svelte.ts';
+  import { archivalOfItem } from '../data/lifecycle.ts';
+  import { isSwipe, swipeThreshold } from './swipe.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -80,8 +87,17 @@
      * that is not in the map was not part of that bulk.
      */
     lastResults?: ReadonlyMap<string, BulkResult>;
-    /** Asked to copy a card. Handed up, because a duplicate ends on the copy and that is a route. */
-    onduplicate?: (item: WorkItem) => void;
+    /**
+     * Asked to open a card beside the board rather than on its page (ADR-0061 decision 4), from
+     * `large` up; without it a card is the link it is.
+     */
+    onopen?: (itemId: string) => void;
+    /** The card open beside the board, so it is announced as current. */
+    currentId?: string;
+    /** Where a link the board cannot follow itself leads: the entry's page, a copy made from it. */
+    onnavigate?: (path: string) => void;
+    /** Whether the reader may share an entry here (`MANAGE_MEMBERS` along the path, D5). */
+    mayShare?: boolean;
     /**
      * Why the reader's role may not change this card, or nothing where it may (UC-WRK-22 checks
      * 1, 2): such a card is not carried, ranked or moved between columns, and its menu offers only
@@ -94,7 +110,19 @@
     mayShape: boolean;
   }
 
-  const { collectionId, isReadOnly = false, query, lastResults, onduplicate, changeRefusal, mayCreate, mayShape }: Props = $props();
+  const {
+    collectionId,
+    isReadOnly = false,
+    query,
+    lastResults,
+    onopen,
+    currentId,
+    onnavigate,
+    mayShare = false,
+    changeRefusal,
+    mayCreate,
+    mayShape,
+  }: Props = $props();
 
   /** Whether a card may be carried, ranked or moved: not archived, and the reader's to change. */
   const isMovable = (card: WorkItem) => !isReadOnly && changeRefusal(card) === undefined;
@@ -143,7 +171,7 @@
     void groups;
     if (!wanted) return;
     queueMicrotask(() => {
-      const trigger = document.querySelector<HTMLElement>(`[data-card-menu="${wanted}"]`);
+      const trigger = document.querySelector<HTMLElement>(`[data-card-menu="${wanted}"] button`);
       if (!trigger) return;
       if (document.activeElement === document.body) trigger.focus();
       refocusId = undefined;
@@ -218,8 +246,9 @@
     const dx = touch.clientX - swipeStart.x;
     const dy = touch.clientY - swipeStart.y;
     swipeStart = null;
-    // Far enough sideways, and more sideways than down: a scroll is not a swipe.
-    if (Math.abs(dx) < swipeThreshold() || Math.abs(dx) < Math.abs(dy)) return;
+    // Far enough sideways, and more sideways than down: a scroll is not a swipe (`swipe.ts`, the
+    // rule the list's rows read too).
+    if (!isSwipe(dx, dy, swipeThreshold(board))) return;
     const index = strip.findIndex((column) => (column.id ?? 'none') === shownKey);
     const dir = board !== null && getComputedStyle(board).direction === 'rtl' ? -1 : 1;
     const next = strip[index + (dx < 0 ? dir : -dir)];
@@ -238,12 +267,6 @@
       element.removeEventListener('touchend', onSwipeEnd);
     };
   });
-  /** How far a swipe has to travel, read from the density's control size rather than written. */
-  function swipeThreshold(): number {
-    const size = board ? Number.parseFloat(getComputedStyle(board).getPropertyValue('--density-control-md-min')) : NaN;
-    return Number.isFinite(size) ? size : 0;
-  }
-
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
     return groups.find((group) => group.key === bucketId)?.data ?? [];
   }
@@ -406,79 +429,64 @@
     }
   }
 
-  /** Why a rank command is unavailable on this card, or nothing. */
-  function rankReason(
-    card: WorkItem,
-    cards: readonly WorkItem[],
-    command: RankCommand,
-  ): string | undefined {
-    if (isReadOnly) return t('app.entries.read_only');
-    const index = cards.findIndex((each) => each.id === card.id);
-    if (rankTarget(command, index, cards.length) !== null) return undefined;
-    return command === 'up' || command === 'top'
-      ? t('app.rank.already_first')
-      : t('app.rank.already_last');
-  }
-
-  const RANK_COMMANDS: readonly { readonly id: RankCommand; readonly label: string }[] = [
-    { id: 'up', label: 'app.rank.up' },
-    { id: 'down', label: 'app.rank.down' },
-    { id: 'top', label: 'app.rank.top' },
-    { id: 'bottom', label: 'app.rank.bottom' },
-  ];
-
   /**
-   * The whole of what a card can be told to do: where in the column, and which column.
-   *
-   * Both in one menu, because the reader is answering one question. The separator is where the
-   * column stops being the column — and where the call behind it stops being `:reorder`.
+   * A card's menu: the one every surface draws (UC-WRK-28 check 1), ranked within its column, and
+   * after the moves the columns - but only where a column is a **bucket**. Grouping by something
+   * else makes the columns values rather than places, and "move this entry into `WORK_PACKAGE`" is
+   * not an offer: a type is a property of the entry, not a column it can be put in.
    */
   function menuItems(card: WorkItem, cards: readonly WorkItem[]) {
-    if (isReadOnly) return [];
-    const copy = everyItem(card, cards).filter((each) => each.id === 'duplicate' && mayCreate);
-    return isMovable(card) ? everyItem(card, cards).filter((each) => each.id !== 'duplicate' || mayCreate) : copy;
+    const level = actions?.levelOf(card, cards);
+    return entryMenu(
+      {
+        surface: 'board',
+        item: {
+          title: card.title,
+          isCompleted: card.completion?.is_completed ?? false,
+          hasDue: Boolean(card.due_at),
+        },
+        archival: archivalOfItem(card, false),
+        isCollectionReadOnly: isReadOnly,
+        mayChange: changeRefusal(card) === undefined,
+        mayCreate,
+        mayShare,
+        carries: (capability) => supports(card.type, capability).status === 'permitted',
+        level: level && { ...level, outReason: level.outReason },
+        extras: isBucketBoard
+          ? [...columns, null].map((target) => ({
+              id: `bucket:${target?.id ?? 'none'}`,
+              label: t('app.board.move_to', { title: card.title, name: target?.name ?? t('app.board.unbucketed') }),
+            }))
+          : [],
+      },
+      t,
+    );
   }
 
-  function everyItem(card: WorkItem, cards: readonly WorkItem[]) {
-    return [
-      ...RANK_COMMANDS.map((command) => ({
-        id: command.id,
-        label: t(command.label),
-        disabledReason: rankReason(card, cards, command.id),
-      })),
-      // The columns, but only where a column is a **bucket**. Grouping by something else makes
-      // the columns values rather than places, and "move this entry into `WORK_PACKAGE`" is not an
-      // offer — a type is a property of the entry, not a column it can be put in.
-      ...(isBucketBoard
-        ? [...columns, null].map((target, index) => ({
-            id: `bucket:${target?.id ?? 'none'}`,
-            label: t('app.board.move_to', {
-              title: card.title,
-              name: target?.name ?? t('app.board.unbucketed'),
-            }),
-            hasSeparatorBefore: index === 0,
-          }))
-        : []),
-      {
-        id: 'duplicate',
-        label: t('app.duplicate.title'),
-        disabledReason: isReadOnly ? t('app.entries.read_only') : undefined,
-        hasSeparatorBefore: true,
-      },
-    ];
-  }
+  /** The menus of the cards, so a right click, a key or a long press can open one. */
+  const menus = $state<Record<string, EntryMenu | undefined>>({});
+  let actions = $state<EntryActions | undefined>(undefined);
 
   function chose(card: WorkItem, cards: readonly WorkItem[], id: string) {
-    if (id === 'duplicate') {
-      onduplicate?.(card);
+    if (id === 'select') {
+      selection.pick(visibleIds, card.id);
       return;
     }
-    if (!id.startsWith('bucket:')) {
-      void rank(card, cards, id as RankCommand);
+    if (id === 'open' && !onopen) {
+      onnavigate?.(`/items/${card.id}`);
       return;
     }
-    const bucketId = id.slice('bucket:'.length);
-    void moveTo(card, bucketId === 'none' ? null : bucketId);
+    // Ranked within the column, which is a position in the level the reader can see.
+    if (id === 'up' || id === 'down' || id === 'top' || id === 'bottom') {
+      void rank(card, cards, id);
+      return;
+    }
+    if (id.startsWith('bucket:')) {
+      const bucketId = id.slice('bucket:'.length);
+      void moveTo(card, bucketId === 'none' ? null : bucketId);
+      return;
+    }
+    void actions?.run(card, id, cards);
   }
 
   /**
@@ -521,6 +529,8 @@
       const card = cardsOf(from === 'none' ? null : from).find((each) => each.id === id);
       if (card) void drop(card, from, levelKey, to);
     },
+    // A finger held still on a card and lifted asks for its menu (ADR-0088); one that moves drags.
+    onhold: (id) => menus[id]?.open(0),
   });
 
   /** The card elements of one column, in drawn order, for the measuring. */
@@ -570,6 +580,38 @@
    * `data-column` says which column's cards it is ranked among.
    */
   let board = $state<HTMLElement | null>(null);
+
+  const cardIdAt = (target: EventTarget | null) =>
+    (target as Element | null)?.closest?.('[data-card]')?.getAttribute('data-card') ?? undefined;
+
+  /**
+   * A right click and the context-menu key open a card's menu; the long press is the drag
+   * helper's, which opens it on a still release (`onhold`).
+   */
+  $effect(() => {
+    const node = board;
+    if (!node) return;
+    return attachEntryGestures(node, { idAt: cardIdAt, open: (id) => menus[id]?.open(0), ignore: '[data-card]' });
+  });
+
+  /**
+   * `Ctrl`/`⌘`-click picks a card (UC-WRK-28 check 4), captured before the link under it, as the
+   * list does.
+   */
+  $effect(() => {
+    const node = board;
+    if (!node) return;
+    const onClick = (event: MouseEvent) => {
+      if (!(event.metaKey || event.ctrlKey)) return;
+      const id = cardIdAt(event.target);
+      if (!id) return;
+      event.preventDefault();
+      event.stopPropagation();
+      selection.pick(visibleIds, id);
+    };
+    node.addEventListener('click', onClick, true);
+    return () => node.removeEventListener('click', onClick, true);
+  });
 
   $effect(() => {
     const node = board;
@@ -625,6 +667,7 @@
 {:else}
   <ReplicaMark state={boardState} />
   {#if writeFailure}<p class="failure" role="alert">{writeFailure.message}</p>{/if}
+  <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} onselect={(id) => selection.pick(visibleIds, id)} />
 
   {#if isOneColumn && strip.length > 1}
     <div class="strip">
@@ -721,6 +764,8 @@
                 <WorkItemCard
                   title={card.title}
                   href={`/items/${card.id}`}
+                  onOpen={onopen ? () => onopen(card.id) : undefined}
+                  isCurrent={currentId === card.id}
                   pendingLabel={queue.isPending(card.id) ? t('app.sync.pending_entry') : undefined}
                   isCompleted={card.completion?.is_completed ?? false}
                   coverKind={card.cover?.kind ?? null}
@@ -739,26 +784,17 @@
                           <LabelChip name={label.name} colorToken={label.color_token} />
                         {/if}
                       {/each}
-                      {#if menuItems(card, cards).length > 0}
-                        <!-- The keyboard path to moving a card — the drag is built
-                             against it, because WCAG 2.2 SC 2.5.7 wants a single-pointer
-                             alternative and a rank change is a command before it is a gesture. -->
-                        <Menu
-                          label={t('app.board.card_actions', { title: card.title })}
+                      <!-- The keyboard path to moving a card - the drag is built against it, because
+                           WCAG 2.2 SC 2.5.7 wants a single-pointer alternative and a rank change is
+                           a command before it is a gesture. -->
+                      <span class="menu" data-card-menu={card.id}>
+                        <EntryMenu
+                          bind:this={menus[card.id]}
+                          title={card.title}
                           items={menuItems(card, cards)}
                           onselect={(id) => chose(card, cards, id)}
-                        >
-                          {#snippet trigger(props)}
-                            <IconButton
-                              icon="ellipsis"
-                              label={t('app.board.card_actions', { title: card.title })}
-                              size="sm"
-                              data-card-menu={card.id}
-                              {...props}
-                            />
-                          {/snippet}
-                        </Menu>
-                      {/if}
+                        />
+                      </span>
                     </Inline>
                   {/snippet}
                 </WorkItemCard>
@@ -808,6 +844,8 @@
 {/if}
 
 <style>
+  .menu { display: inline-flex; }
+
   .add-column { align-self: start; padding: var(--sp-100); }
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 

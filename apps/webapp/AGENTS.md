@@ -9,7 +9,8 @@ The product UI in the browser, embedded into the binary and wrapped by the shell
 * **No SvelteKit, and nothing the content security policy refuses.** Svelte 5 as a plain Vite
   single-page application. The policy permits neither `'unsafe-inline'` nor `'unsafe-eval'`, so the
   built bundle holds no inline script or style; `pnpm build` runs `build/check-csp.js` and fails
-  on one. `[partial: ci:node, gate-unit; open: a SvelteKit dependency, eval in the bundle]`
+  on one. The tab icon's own style element is not one: an SVG loaded as an image runs no script
+  and cannot style the page. `[partial: ci:node, gate-unit; open: a SvelteKit dependency, eval in the bundle]`
 * **No platform-specific code outside `src/lib/platform/`**, and no runtime sniffing: a shell's
   build selects its implementation. `[owner]`
 * **No colour, spacing, radius or duration written here** (rule 15). In CSS it is `var(--…)`; in
