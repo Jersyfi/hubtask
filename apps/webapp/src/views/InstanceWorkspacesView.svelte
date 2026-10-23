@@ -29,7 +29,8 @@
 
   import { tick, untrack } from 'svelte';
 
-  import { Badge, Banner, Button, Dialog, Input, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, Dialog, IconButton, Input, Menu, OneTimeSecret, PageHeader, Select, Spinner, Stack, Table } from '@hubtask/design-system/components';
+  import type { MenuItem } from '@hubtask/design-system/components';
   import type { AdminTenant, ProvisionedTenant, TenantQuotas } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
@@ -195,6 +196,59 @@
     }
   }
 
+  /**
+   * What may be done to a workspace, in its state: the way back while its removal has not begun,
+   * resuming a suspended one, moving and limits, the export, the password opening, and deletion last
+   * and marked - absent where the server would refuse it (P-05).
+   */
+  function actionsOf(workspace: AdminTenant): MenuItem[] {
+    const items: MenuItem[] = [];
+    if (workspace.status === 'ACTIVE' && isMulti) items.push({ id: 'suspend', label: t('app.instance.suspend') });
+    // The way back, also past the deadline while a legal hold keeps the workspace pending; absent
+    // once the removal has begun, which the server would refuse.
+    if (workspace.status === 'PENDING_DELETION' && !workspace.purge_started_at) {
+      items.push({ id: 'cancel-deletion', label: t('app.instance.cancel_deletion') });
+    }
+    if (workspace.status === 'SUSPENDED') items.push({ id: 'resume', label: t('app.instance.resume') });
+    // Every workspace but one whose removal has begun can be moved, a suspended or pending one
+    // included: its plan applies as it is used again.
+    if (hasPlans && !workspace.purge_started_at) items.push({ id: 'move', label: t('app.instance.move_action') });
+    items.push({ id: 'quotas', label: t('app.instance.quotas') });
+    items.push({ id: 'export', label: t('app.instance.export') });
+    // Only an active workspace opens: a suspended one refuses its people before any password is
+    // asked for, and the server refuses to open it.
+    if (workspace.password_opening) items.push({ id: 'close-password', label: t('app.instance.password_close') });
+    else if (workspace.status === 'ACTIVE') items.push({ id: 'open-password', label: t('app.instance.password_open_action') });
+    if (isMulti && workspace.status !== 'PENDING_DELETION' && !workspace.legal_hold) {
+      items.push({ id: 'delete', label: t('app.instance.delete'), isDestructive: true, hasSeparatorBefore: true });
+    }
+    return items;
+  }
+
+  function act(id: string, workspace: AdminTenant): void {
+    switch (id) {
+      case 'cancel-deletion':
+        void run(workspace.id, () => instance.shift(workspace.id, 'cancel-deletion'));
+        return;
+      case 'resume':
+        void run(workspace.id, () => instance.shift(workspace.id, 'resume'));
+        return;
+      case 'close-password':
+        void run(`close:${workspace.id}`, () => instance.closePassword(workspace.id));
+        return;
+      case 'move':
+        moving = workspace;
+        return;
+      case 'suspend':
+      case 'quotas':
+      case 'export':
+      case 'open-password':
+      case 'delete':
+        open(id as Parameters<typeof open>[0], workspace);
+        return;
+    }
+  }
+
   async function run(id: string, call: () => Promise<void>): Promise<void> {
     working = id;
     failure = undefined;
@@ -345,69 +399,21 @@
                 {/if}
                 <td class="slug">{formatDateTime(workspace.created_at, messages.locale)}</td>
                 <td>
+                  <!-- One menu per row: nine verbs side by side were a wall of buttons on every row and
+                       a column no phone could hold. The items are what the row's state permits. -->
                   <div class="row">
-                    {#if workspace.status === 'ACTIVE'}
-                      {#if isMulti}
-                        <Button tone="subtle" onclick={() => open('suspend', workspace)}>
-                          {t('app.instance.suspend')}
-                        </Button>
-                      {/if}
-                    {:else if workspace.status === 'PENDING_DELETION'}
-                      {#if !workspace.purge_started_at}
-                        <!-- The way back, also past the deadline while a legal hold keeps the
-                             workspace pending; absent once the removal has begun, which the server
-                             would refuse. -->
-                        <Button
-                          tone="subtle"
-                          isBusy={working === workspace.id}
-                          busyLabel={t('app.instance.working')}
-                          onclick={() =>
-                            void run(workspace.id, () => instance.shift(workspace.id, 'cancel-deletion'))}
-                        >
-                          {t('app.instance.cancel_deletion')}
-                        </Button>
-                      {/if}
-                    {:else if workspace.status === 'SUSPENDED'}
-                      <Button
-                        tone="subtle"
-                        isBusy={working === workspace.id}
-                        busyLabel={t('app.instance.working')}
-                        onclick={() => void run(workspace.id, () => instance.shift(workspace.id, 'resume'))}
-                      >
-                        {t('app.instance.resume')}
-                      </Button>
-                    {/if}
-                    {#if hasPlans && !workspace.purge_started_at}
-                      <!-- Every workspace but one whose removal has begun can be moved, a suspended or
-                           pending one included: its plan applies as it is used again. -->
-                      <Button tone="subtle" onclick={() => (moving = workspace)}>{t('app.instance.move_action')}</Button>
-                    {/if}
-                    <Button tone="subtle" onclick={() => open('quotas', workspace)}>
-                      {t('app.instance.quotas')}
-                    </Button>
-                    <Button tone="subtle" onclick={() => open('export', workspace)}>
-                      {t('app.instance.export')}
-                    </Button>
-                    {#if workspace.password_opening}
-                      <Button
-                        tone="subtle"
-                        isBusy={working === `close:${workspace.id}`}
-                        busyLabel={t('app.instance.working')}
-                        onclick={() => void run(`close:${workspace.id}`, () => instance.closePassword(workspace.id))}
-                      >
-                        {t('app.instance.password_close')}
-                      </Button>
-                    {:else if workspace.status === 'ACTIVE'}
-                      <!-- Only an active workspace: a suspended one refuses its people before any
-                           password is asked for, and the server refuses to open it. -->
-                      <Button tone="subtle" onclick={() => open('open-password', workspace)}>
-                        {t('app.instance.password_open_action')}
-                      </Button>
-                    {/if}
-                    {#if isMulti && workspace.status !== 'PENDING_DELETION' && !workspace.legal_hold}
-                      <Button tone="subtle" onclick={() => open('delete', workspace)}>
-                        {t('app.instance.delete')}
-                      </Button>
+                    <Menu
+                      label={t('app.instance.workspace_actions', { name: workspace.display_name })}
+                      items={actionsOf(workspace)}
+                      placement={{ side: 'block-end', align: 'end' }}
+                      onselect={(id) => act(id, workspace)}
+                    >
+                      {#snippet trigger(props)}
+                        <IconButton icon="ellipsis" label={t('app.instance.workspace_actions', { name: workspace.display_name })} size="sm" {...props} />
+                      {/snippet}
+                    </Menu>
+                    {#if working === workspace.id || working === `close:${workspace.id}`}
+                      <Spinner label={t('app.instance.working')} />
                     {/if}
                   </div>
                 </td>

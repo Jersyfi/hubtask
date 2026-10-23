@@ -73,7 +73,8 @@ func (s ArrivalProposals) Deliver(ctx context.Context, envelope event.Envelope) 
 	}
 
 	// The entry and who made it - account identifiers, never content (rule 10) - because the entry
-	// records no submitter, and whose content stays out is judged against them at the run.
+	// records its submitter but not the principal an agent or a rule acted for, and whose content
+	// stays out is judged against them at the run.
 	payload := map[string]any{"target_id": entryID.String()}
 	if submitter := envelope.Actor; !submitter.ID.IsZero() &&
 		(submitter.Kind == shared.ActorUser || submitter.Kind == shared.ActorServiceAccount || submitter.Kind == shared.ActorAIAgent) {

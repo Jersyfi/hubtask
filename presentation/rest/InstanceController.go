@@ -399,6 +399,12 @@ func (c *RestController) ListInstanceJournal(
 	if params.Size != nil {
 		in["limit"] = *params.Size
 	}
+	if params.Action != nil {
+		in["action"] = *params.Action
+	}
+	if params.Workspace != nil {
+		in["workspace"] = *params.Workspace
+	}
 
 	out, err := c.UseCases.Invoke(r.Context(), listInstanceJournalUseCase, actorOf(r), in)
 	if err != nil {

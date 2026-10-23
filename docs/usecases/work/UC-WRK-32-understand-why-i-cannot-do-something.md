@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-07, P-11, P-13]
 state: verified
 tasks: [UX-03, UX-04, UX-05]
-checked_by: [apps/webapp/e2e/workbench-layout.test.mjs, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/explain-settings.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs, docs/evidence/UX-04-2026-10-21.md, apps/webapp/e2e/adminreasons.test.mjs, apps/webapp/e2e/adminbyrole.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/quotas.test.mjs, docs/evidence/UX-05-2026-10-21.md]
+checked_by: [apps/webapp/e2e/workbench-layout.test.mjs, apps/webapp/e2e/explain.test.mjs, apps/webapp/e2e/explain-settings.test.mjs, apps/webapp/e2e/workbench-fields.test.mjs, apps/webapp/e2e/adminreasons.test.mjs, apps/webapp/e2e/adminbyrole.test.mjs, apps/webapp/e2e/engines.test.mjs, apps/webapp/e2e/signinsettings.test.mjs, apps/webapp/e2e/quotas.test.mjs]
 ---
 
 # Understand why I cannot do something

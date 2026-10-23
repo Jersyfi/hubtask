@@ -6,18 +6,18 @@
 
 -- name: InsertJumbleEntry :exec
 INSERT INTO jumble_entry (
-  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at
+  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at, created_by
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('channel'), sqlc.narg('sender'),
   sqlc.narg('raw_subject'), sqlc.narg('raw_body'), sqlc.arg('attachments'),
-  sqlc.arg('status'), sqlc.arg('received_at')
+  sqlc.arg('status'), sqlc.arg('received_at'), sqlc.narg('created_by')
 );
 
 -- name: FindJumbleEntry :one
 -- tenant_id for ListJumbleEntries' reason, said in full there: the projection carries it because
 -- the events a settlement announces are built from the projection. arrival_job_id as there.
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
-       e.target_item_id, e.received_at, e.processed_at,
+       e.target_item_id, e.received_at, e.processed_at, e.created_by,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -41,7 +41,7 @@ WHERE e.id = sqlc.arg('id');
 -- job table's two existing indexes (the pending and running dedupe key, the state of the pickup),
 -- and named in the workspace's own scope: the table has no row level security.
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
-       e.target_item_id, e.received_at, e.processed_at,
+       e.target_item_id, e.received_at, e.processed_at, e.created_by,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')

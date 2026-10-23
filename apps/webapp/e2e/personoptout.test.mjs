@@ -54,7 +54,7 @@ test('chromium: AI for everybody needs its basis, and says how many people it to
   const { page, sent, close } = await open(browser, { ...AI_SOURCE, keeping_out_count: 2 });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
   const section = page.locator('[data-person-opt-out]');
   await section.waitFor({ timeout: 15_000 });
   await section.getByLabel("AI is part of everybody's work").check();
@@ -82,7 +82,7 @@ test('chromium: under the installation\'s lock the screen says who decided and o
   const { page, close } = await open(browser, { ...AI_SOURCE, person_opt_out_lock: 'INSTANCE', person_opt_out_origin: 'INSTANCE' });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
   const section = page.locator('[data-person-opt-out]');
   await section.waitFor({ timeout: 15_000 });
   assert.match((await section.textContent()) ?? '', /set for every workspace on this installation/);
@@ -111,8 +111,8 @@ test('chromium: a workspace of one is asked nothing about people keeping their c
   const { page, close } = await open(browser, AI_SOURCE, { alone: true });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
-  await page.getByRole('heading', { name: 'The budget' }).waitFor({ timeout: 15_000 });
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
+  await page.getByRole('tab', { name: 'Source', exact: true }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
   assert.equal(await page.locator('[data-person-opt-out]').count(), 0, 'the position is asked of a workspace of one');
 
@@ -131,7 +131,7 @@ test('chromium: a workspace of one still sees a stored AI for everybody, which s
   }, { alone: true });
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
+  await page.goto(`${served.origin}/administration/ai?tab=consent`);
   await page.locator('[data-person-opt-out]').waitFor({ timeout: 15_000 });
 });
 

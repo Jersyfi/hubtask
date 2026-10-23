@@ -69,8 +69,8 @@ async function offered(browser, permissions, address, waitFor, button) {
 test('chromium: renaming a group is offered only to whom may manage members', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/groups', GROUP.name, 'Rename'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/groups', GROUP.name, 'Rename'), 0);
+  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/people?tab=groups', GROUP.name, 'Rename'), 1);
+  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/people?tab=groups', GROUP.name, 'Rename'), 0);
 });
 
 test('chromium: a reader who may not manage members is not told the group is above their own role', async (t) => {
@@ -78,7 +78,7 @@ test('chromium: a reader who may not manage members is not told the group is abo
   t.after(() => browser.close());
   const { context, page } = await as(browser, PERMISSIONS.AUDITOR);
   t.after(() => context.close());
-  await page.goto(`${served.origin}/administration/groups`);
+  await page.goto(`${served.origin}/administration/people?tab=groups`);
   await page.getByText(GROUP.name).first().waitFor({ timeout: 15_000 });
   await page.waitForLoadState('networkidle');
   // Their role cannot change any group; the page's read-only notice says so once, and "a role you
@@ -96,6 +96,6 @@ test('chromium: emptying the trash is offered only to whom may delete a hub', as
 test('chromium: a service account\'s tokens are offered only to whom may manage members', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/service-accounts', MACHINE.display_name, 'Its tokens'), 1);
-  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/service-accounts', MACHINE.display_name, 'Its tokens'), 0);
+  assert.equal(await offered(browser, PERMISSIONS.ADMIN, '/administration/machines', MACHINE.display_name, 'Its tokens'), 1);
+  assert.equal(await offered(browser, PERMISSIONS.AUDITOR, '/administration/machines', MACHINE.display_name, 'Its tokens'), 0);
 });

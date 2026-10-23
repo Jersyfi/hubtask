@@ -262,11 +262,13 @@ type Erasure interface {
 	// people, about both, and evidence of nothing (UC-WRK-29 check 5).
 	DiscardKudos(ctx context.Context, accountID shared.ID) (int, error)
 
-	// CountIntake answers how much of the intake carries the person's address.
+	// CountIntake answers how much of the intake carries the person's address or names them as
+	// its submitter.
 	CountIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// DiscardIntake removes what the person sent in by mail, matched by their address, which is
-	// all an inbound message carries. Only `FULL_DELETE` calls it.
+	// all an inbound message carries, and what they captured, matched by the account that
+	// submitted it. Only `FULL_DELETE` calls it.
 	DiscardIntake(ctx context.Context, accountID shared.ID) (int, error)
 
 	// ReleaseIntake is the same in the mode that keeps the workspace's content: the text stays and

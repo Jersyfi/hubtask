@@ -200,10 +200,12 @@ func (q *Queries) CompleteReappliedErasure(ctx context.Context, arg CompleteReap
 const countIntakeOf = `-- name: CountIntakeOf :one
 SELECT count(*) FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+  AND (created_by = $1
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1))
 `
 
-// How much of the intake carries the person's address: what a hold on the workspace keeps of it.
+// How much of the intake carries the person's address or names them as its submitter: what a hold
+// on the workspace keeps of it.
 func (q *Queries) CountIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, countIntakeOf, accountID)
 	var count int64
@@ -373,15 +375,16 @@ func (q *Queries) DeletePasskeysOfAccount(ctx context.Context, accountID pgtype.
 const discardIntakeOf = `-- name: DiscardIntakeOf :execrows
 DELETE FROM jumble_entry
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+  AND (created_by = $1
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1))
 `
 
-// What the person sent in by mail, and the address it came from.
+// What the person sent in by mail or captured themselves, and the address it came from.
 //
-// `jumble_entry` is matched by address rather than by account, because that is all an inbound mail
-// carries. The catalogue's path for it is `RETENTION` - 90 days - and an erasure that left the
-// person's own address and text sitting there for those 90 days would be an erasure in name
-// (PG-2).
+// `jumble_entry` is matched by address as well as by account, because an address is all an inbound
+// mail carries; `created_by` names the account a capture came from. The catalogue's path for it is
+// `RETENTION` - 90 days - and an erasure that left the person's own address and text sitting there
+// for those 90 days would be an erasure in name (PG-2).
 func (q *Queries) DiscardIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, discardIntakeOf, accountID)
 	if err != nil {
@@ -1274,12 +1277,18 @@ func (q *Queries) RecoveredErasureCases(ctx context.Context, recoveryPoint pgtyp
 }
 
 const releaseIntakeOf = `-- name: ReleaseIntakeOf :execrows
-UPDATE jumble_entry SET sender = NULL
+UPDATE jumble_entry
+SET sender = CASE
+      WHEN lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+      THEN NULL ELSE sender END,
+    created_by = CASE WHEN created_by = $1 THEN NULL ELSE created_by END
 WHERE tenant_id = current_tenant_id()
-  AND lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1)
+  AND (created_by = $1
+       OR lower(sender) = (SELECT lower(a.email) FROM account a WHERE a.id = $1))
 `
 
-// The same in the mode that keeps the workspace's content: the text stays and stops being anybody's.
+// The same in the mode that keeps the workspace's content: the text stays and stops being anybody's
+// - the address goes where it is the person's, the account where it is theirs, each on its own.
 func (q *Queries) ReleaseIntakeOf(ctx context.Context, accountID pgtype.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, releaseIntakeOf, accountID)
 	if err != nil {

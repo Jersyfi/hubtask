@@ -6724,13 +6724,31 @@
         ],
         "operationId": "listInstanceJournal",
         "summary": "The installation's own record",
-        "description": "What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.\nIdentifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.\n",
+        "description": "What was provisioned, suspended, resumed and deleted, and what the operator changed - newest first. Evidence of acts whose per-tenant trail cannot hold them: after a hard delete the workspace's own audit chain is gone by design, which is the reason this record exists.\nIdentifiers, slugs, counts and moments. **Never anybody's content**, which is what makes it readable at all after the workspace it names is gone.\nNarrowed by what happened (`action`, a prefix) and by the workspace it was about (`workspace`, its address); a cursor walks on under the same narrowing.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/Cursor"
           },
           {
             "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "description": "A prefix of the action, e.g. `tenant.` for every workspace's lifecycle or `tenant.suspended` for one act.",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
+          },
+          {
+            "name": "workspace",
+            "in": "query",
+            "description": "The address (slug) of the workspace the entries are about, as the journal kept it - also of one that is gone.",
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            }
           }
         ],
         "responses": {

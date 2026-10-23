@@ -104,7 +104,7 @@ test('taking somebody out of a group that holds Owner asks for the proof and sen
 
   const failures = [];
   page.on('pageerror', (error) => failures.push(error.message));
-  await page.goto(`${served.origin}/administration/groups`);
+  await page.goto(`${served.origin}/administration/people?tab=groups`);
   const owners = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Owners' }) });
   await owners.getByRole('button', { name: 'Take out' }).first().waitFor({ timeout: 15_000 });
   await owners.getByRole('button', { name: 'Take out' }).last().click();

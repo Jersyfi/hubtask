@@ -736,7 +736,7 @@ func kudosOf(row sqlc.KudosOfAccountRow) (work.Kudos, error) {
 	return work.Kudos{ItemID: itemID, GivenBy: givenBy, GivenTo: givenTo, GivenAt: timeFrom(row.GivenAt)}, nil
 }
 
-// DiscardIntake removes what the person sent in by mail.
+// DiscardIntake removes what the person sent in by mail or captured into the jumble.
 func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {
@@ -750,7 +750,7 @@ func (r PrivacyRepository) DiscardIntake(ctx context.Context, accountID shared.I
 	return int(rows), nil
 }
 
-// ReleaseIntake keeps the text and takes the address off it.
+// ReleaseIntake keeps the text and takes the person's address and account off it.
 func (r PrivacyRepository) ReleaseIntake(ctx context.Context, accountID shared.ID) (int, error) {
 	queries, id, err := r.accountQuery(ctx, accountID)
 	if err != nil {

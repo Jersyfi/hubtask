@@ -84,7 +84,7 @@ test('a group above the reader keeps its name editable and nothing else, and say
   // A failure while drawing stops the whole screen; it is caught here rather than read as a timeout.
   const failures = [];
   page.on('pageerror', (error) => failures.push(error.message));
-  await page.goto(`${served.origin}/administration/groups`);
+  await page.goto(`${served.origin}/administration/people?tab=groups`);
   const owners = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Owners' }) });
   const helpers = page.locator('section').filter({ has: page.getByRole('heading', { name: 'Helpers' }) });
   await helpers.getByRole('button', { name: 'Delete the group' }).waitFor({ timeout: 15_000 });

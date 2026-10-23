@@ -110,12 +110,12 @@ func TestTheJournalIsWalkedNewestFirstOnAKeyset(t *testing.T) {
 	var page, second []adminrepo.InstanceEvent
 	var info adminrepo.PageInfo
 	if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
-		entries, read, err := journal.Page(ctx, "", 2)
+		entries, read, err := journal.Page(ctx, adminrepo.JournalFilter{}, "", 2)
 		page, info = entries, read
 		if err != nil || !info.HasMore {
 			return err
 		}
-		second, _, err = journal.Page(ctx, info.NextCursor, 2)
+		second, _, err = journal.Page(ctx, adminrepo.JournalFilter{}, info.NextCursor, 2)
 		return err
 	}); err != nil {
 		t.Fatalf("reading the journal: %v", err)
@@ -137,5 +137,77 @@ func TestTheJournalIsWalkedNewestFirstOnAKeyset(t *testing.T) {
 	}
 	if page[0].Details["seeded"] == nil {
 		t.Error("the details did not come back")
+	}
+}
+
+// The journal is narrowed in the query, not after it: an action prefix whose `%` and `_` are
+// characters rather than a pattern, and a workspace's address - and a cursor walks on under the
+// narrowing.
+func TestTheJournalIsNarrowedByActionAndWorkspaceInTheQuery(t *testing.T) {
+	ctx := context.Background()
+	seedIdentityProviderTenants(ctx, t)
+
+	journal := postgres.NewInstanceJournal(pageCursors())
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	seeded := []struct {
+		id     string
+		action string
+		slug   string
+	}{
+		{"01936f2a-7c1e-7000-8000-00000000fd01", "tenant.suspended", "narrow-a"},
+		{"01936f2a-7c1e-7000-8000-00000000fd02", "tenant.suspended", "narrow-a"},
+		{"01936f2a-7c1e-7000-8000-00000000fd03", "tenant.resumed", "narrow-a"},
+		{"01936f2a-7c1e-7000-8000-00000000fd04", "tenant.suspended", "narrow-b"},
+		{"01936f2a-7c1e-7000-8000-00000000fd05", "tenantXsuspended", "narrow-a"},
+	}
+	if err := uow.Within(ctx, persistence.SystemScope(), func(ctx context.Context) error {
+		for i, entry := range seeded {
+			if err := journal.Record(ctx, adminrepo.InstanceEvent{
+				ID: shared.MustParseID(entry.id), OccurredAt: at.Add(time.Duration(i) * time.Second),
+				Action: entry.action, TenantID: idpTenantA, TenantSlug: entry.slug,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("recording the journal entries: %v", err)
+	}
+
+	read := func(filter adminrepo.JournalFilter) []string {
+		t.Helper()
+		var ids []string
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			cursor := ""
+			for {
+				page, info, err := journal.Page(ctx, filter, cursor, 1)
+				if err != nil {
+					return err
+				}
+				for _, entry := range page {
+					ids = append(ids, entry.ID.String())
+				}
+				if !info.HasMore {
+					return nil
+				}
+				cursor = info.NextCursor
+			}
+		}); err != nil {
+			t.Fatalf("reading the journal: %v", err)
+		}
+		return ids
+	}
+
+	suspendedA := read(adminrepo.JournalFilter{ActionPrefix: "tenant.suspended", TenantSlug: "narrow-a"})
+	if len(suspendedA) != 2 || suspendedA[0] != seeded[1].id || suspendedA[1] != seeded[0].id {
+		t.Errorf("suspensions of narrow-a, a page at a time, are %v", suspendedA)
+	}
+	// `_` would match any character under LIKE; as a prefix it is only itself.
+	if got := read(adminrepo.JournalFilter{ActionPrefix: "tenant_", TenantSlug: "narrow-a"}); len(got) != 0 {
+		t.Errorf("a prefix was read as a pattern: %v", got)
+	}
+	if got := read(adminrepo.JournalFilter{TenantSlug: "narrow-b"}); len(got) != 1 || got[0] != seeded[3].id {
+		t.Errorf("narrow-b's entries are %v", got)
 	}
 }

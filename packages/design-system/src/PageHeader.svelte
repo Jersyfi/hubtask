@@ -219,9 +219,9 @@
       {/if}
       {#if foldedItems.length > 0 && !isMenuInBar}
         <span class="menu menu-folded">
-          <Menu label={menu?.label ?? secondary[0]?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
+          <Menu label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? ''} tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
+              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
             {/snippet}
           </Menu>
         </span>

@@ -113,15 +113,20 @@ test('chromium: a consumer switches on the offered model with one control', asyn
   assert.match(await page.locator('main').textContent() ?? '', /sent to Example AI SAS in the EEA when somebody asks/);
   assert.equal(await page.getByLabel(/^Provider/).count(), 0, 'an own model is offered where only the provider’s may be used');
   assert.equal(await page.getByLabel('This workspace may use').count(), 0, 'a locked rule is offered for narrowing');
-  assert.match(await page.locator('main').textContent() ?? '', /The offered model: today 1,234 tokens of 200,000 tokens used/);
-  // Only the offered model may be used: its budget, and no word of an own one (P-05).
-  assert.doesNotMatch(await page.locator('main').textContent() ?? '', /Our own model:/);
-  assert.equal(await page.getByLabel(/^Daily budget of our own model/).count(), 0);
 
   await use.check();
   for (let i = 0; i < 50 && sent.length === 0; i++) await page.waitForTimeout(100);
   assert.deepEqual(sent[0], { source: 'OFFERED', offered_model_id: LARGE.id });
   assert.ok(await use.isChecked(), 'the switch does not show the model in use');
+
+  // The budget is its own tab (ux-inventory §E8): only the offered model's, and no word of an own
+  // one (P-05).
+  await page.getByRole('tab', { name: 'Budget', exact: true }).click();
+  await page.waitForFunction(() => location.search === '?tab=budget');
+  await page.getByRole('heading', { name: 'The budget' }).waitFor();
+  assert.match(await page.locator('main').textContent() ?? '', /The offered model: today 1,234 tokens of 200,000 tokens used/);
+  assert.doesNotMatch(await page.locator('main').textContent() ?? '', /Our own model:/);
+  assert.equal(await page.getByLabel(/^Daily budget of our own model/).count(), 0);
 });
 
 // UC-AI-05 check 6: where the installation offers several models, the workspace picks one by name -
@@ -192,8 +197,9 @@ test('chromium: each source shows its own budget, and the workspace sets its own
   const { page, close } = await open(browser, routes);
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/ai`);
-  await page.getByRole('switch', { name: 'Use Large (EU)' }).waitFor({ timeout: 15_000 });
+  await page.goto(`${served.origin}/administration/ai?tab=budget`);
+  await page.getByRole('heading', { name: 'The budget' }).waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByRole('switch', { name: 'Use Large (EU)' }).count(), 0, 'the source is drawn on the budget tab');
   const text = await page.locator('main').textContent() ?? '';
   assert.match(text, /The offered model: today 1,234 tokens of 200,000 tokens used/);
   assert.match(text, /Our own model: today 56 tokens used, with no budget/);

@@ -112,7 +112,7 @@ test('chromium: a provider-only administrator confirms at the provider and the c
   const { page, sent, close } = await open(browser, 'PROVIDER');
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   await changeARule(page);
 
   const dialog = page.getByRole('dialog');
@@ -128,7 +128,8 @@ test('chromium: a provider-only administrator confirms at the provider and the c
   assert.equal(new URL(page.url()).pathname, '/administration/sign-in');
   assert.equal(sent.starts, 1);
   assert.deepEqual(sent.proofs, [{ state: 'the-state', authorization_code: 'the-code' }]);
-  assert.equal(new URL(page.url()).search, '', 'the code stayed in the address');
+  // Back on the tab they were on, and nothing of the provider's answer in the address.
+  assert.equal(new URL(page.url()).search, '?tab=sessions', 'the code stayed in the address, or the tab was lost');
 
   // The same change again: refused once more, answered with the held proof rather than a second
   // dialog, and the note is gone.
@@ -146,7 +147,7 @@ test('chromium: the dialog offers every way the account holds, and a recovery co
   const { page, sent, close } = await open(browser, 'PASSWORD TOTP RECOVERY PROVIDER');
   t.after(close);
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   await changeARule(page);
   const dialog = page.getByRole('dialog');
   await dialog.waitFor();
@@ -183,7 +184,7 @@ test('chromium: a step-up return the server fails is a sentence with its referen
   await page.context().route('**/api/v1/auth/step-up', (route) =>
     route.fulfill({ status: 500, json: { code: 'internal', status: 500, request_id: 'req_e2e_su500' } }));
 
-  await page.goto(`${served.origin}/administration/sign-in`);
+  await page.goto(`${served.origin}/administration/sign-in?tab=sessions`);
   await changeARule(page);
   await page.getByRole('dialog').getByRole('button', { name: 'Confirm with Contoso Entra ID' }).click();
 

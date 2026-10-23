@@ -221,10 +221,7 @@ async function views() {
     ['grants', await load('GrantsView'), {}],
     ['workspace-settings', await load('WorkspaceSettingsView'), {}],
     ['people', await load('PeopleView'), {}],
-    ['groups', await load('GroupsView'), {}],
-    ['permissions', await load('PermissionsView'), {}],
-    ['service-accounts', await load('ServiceAccountsView'), {}],
-    ['apps', await load('AppsView'), {}],
+    ['machines', await load('MachinesView'), {}],
     ['rules', await load('RulesView'), {}],
     ['rule-new', await load('RuleEditorView'), { id: 'new', onnavigate: noop }],
     ['rule', await load('RuleEditorView'), { id: ITEM, onnavigate: noop }],
@@ -237,7 +234,6 @@ async function views() {
     ['restore', await load('RestoreView'), {}],
     ['audit', await load('AuditView'), {}],
     ['privacy', await load('PrivacyView'), {}],
-    ['identity-provider', await load('IdentityProviderView'), {}],
     ['ai', await load('AiSettingsView'), {}],
     ['search', await load('SearchView'), {}],
     ['jumble', await load('JumbleView'), { onnavigate: noop }],
@@ -245,7 +241,9 @@ async function views() {
     ['archive', await load('ArchiveView'), { onnavigate: noop }],
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
+    ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
+    ['legal', await load('SignInSettingsView'), { part: 'legal' }],
     // The level above the workspaces. Each draws its door until the session is raised,
     // which is the state every one of them is in here - and the one this test needs, because a
     // raised session is not a thing a server-rendered screen can have.
@@ -279,15 +277,16 @@ async function views() {
 const CARD_SCREENS = new Set(['sign-in', 'redeem', 'reset', 'confirm-address']);
 
 test('the route table and this test name the same screens', async () => {
-  const { ROUTES } = await import('../src/lib/routes.ts');
+  const { ROUTES, movedTo } = await import('../src/lib/routes.ts');
   // `sign-in` is a screen without a route: it stands in for every route while nobody is signed
   // in, and is rendered here for that reason.
   const named = (await views()).map(([name]) => name).filter((name) => name !== 'sign-in').sort();
   const routed = ROUTES.map((route) => route.name)
     // `hub` is `ContainerView` as `collection` is; `oidc-callback` finishes an exchange and draws
-    // nothing of the product; `administration` is a section's front door and draws nothing either -
-    // it replaces the address with the section's first screen (ADR-0065 decision 1).
-    .filter((name) => name !== 'hub' && name !== 'oidc-callback' && name !== 'administration')
+    // nothing of the product; an address that moved (`movedTo`) draws nothing either - it replaces
+    // itself with the tab it became.
+    .filter((name) => name !== 'hub' && name !== 'oidc-callback')
+    .filter((name) => movedTo(name) === undefined)
     .sort();
   assert.deepEqual(named, routed);
 });

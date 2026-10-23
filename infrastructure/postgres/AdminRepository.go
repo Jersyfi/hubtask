@@ -560,7 +560,7 @@ func (TenantPurge) MarkStarted(ctx context.Context, now time.Time) (bool, error)
 // No tenant anywhere in it, deliberately: the journal is the installation's own record and its rows
 // are about workspaces that are usually gone, which is the reason the table exists.
 func (j InstanceJournal) Page(
-	ctx context.Context, cursor string, size int,
+	ctx context.Context, filter repository.JournalFilter, cursor string, size int,
 ) ([]repository.InstanceEvent, repository.PageInfo, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -568,6 +568,12 @@ func (j InstanceJournal) Page(
 	}
 
 	params := sqlc.PageInstanceJournalParams{Limit: int32(size) + 1} //nolint:gosec // G115: clamped by the use case
+	if filter.ActionPrefix != "" {
+		params.ActionPrefix = &filter.ActionPrefix
+	}
+	if filter.TenantSlug != "" {
+		params.TenantSlug = &filter.TenantSlug
+	}
 	if cursor != "" {
 		position, err := j.cursors.Decode(cursor)
 		if err != nil {

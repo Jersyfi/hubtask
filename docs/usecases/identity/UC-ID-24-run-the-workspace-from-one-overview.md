@@ -7,7 +7,7 @@ deployments: [D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-11]
 state: verified
 tasks: [UX-18]
-checked_by: [apps/webapp/e2e/adminoverview.test.mjs, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/bar.test.mjs, apps/webapp/e2e/adminpickers.test.mjs]
+checked_by: [apps/webapp/e2e/adminoverview.test.mjs, apps/webapp/src/lib/administration/overview.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/bar.test.mjs, apps/webapp/e2e/adminpickers.test.mjs, apps/webapp/e2e/admintabs.test.mjs]
 ---
 
 # Run the workspace from one overview

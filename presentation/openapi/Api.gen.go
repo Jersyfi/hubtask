@@ -12534,6 +12534,12 @@ type WithdrawInstanceIdentityProviderParams struct {
 type ListInstanceJournalParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
 	Size   *PageSize `form:"size,omitempty" json:"size,omitempty"`
+
+	// Action A prefix of the action, e.g. `tenant.` for every workspace's lifecycle or `tenant.suspended` for one act.
+	Action *string `form:"action,omitempty" json:"action,omitempty"`
+
+	// Workspace The address (slug) of the workspace the entries are about, as the journal kept it - also of one that is gone.
+	Workspace *string `form:"workspace,omitempty" json:"workspace,omitempty"`
 }
 
 // CreatePlanParams defines parameters for CreatePlan.
@@ -16441,6 +16447,32 @@ func (siw *ServerInterfaceWrapper) ListInstanceJournal(w http.ResponseWriter, r 
 			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "size"})
 		} else {
 			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "size", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "action", r.URL.Query(), &params.Action, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "action"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "workspace" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "workspace", r.URL.Query(), &params.Workspace, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "workspace"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "workspace", Err: err})
 		}
 		return
 	}
