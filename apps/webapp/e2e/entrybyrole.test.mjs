@@ -220,3 +220,19 @@ test('chromium: an entry with nothing under it says that of the entry, not of th
   assert.equal(await page.getByText('No entries in this collection yet.').count(), 0);
   assert.deepEqual(failures, []);
 });
+
+// A row the reader may only read is a plain element rather than a button, and stays inside the card
+// as the button does: its padding is within its width, not added to it.
+test('chromium: a read-only details row stays inside its card', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'VIEWER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  const row = page.locator('div.detail-row[data-detail="labels"]');
+  await row.waitFor();
+  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('aside.details .details-fold').boundingBox()]);
+  assert.ok(rowBox.x + rowBox.width <= cardBox.x + cardBox.width, `the row ends at ${rowBox.x + rowBox.width}, past the card's ${cardBox.x + cardBox.width}`);
+  assert.deepEqual(failures, []);
+});

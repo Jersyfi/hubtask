@@ -102,6 +102,7 @@
     justify-content: space-between;
     gap: var(--sp-150);
     inline-size: 100%;
+    box-sizing: border-box;
     min-block-size: var(--density-control-md-min);
     padding: var(--density-row-block) var(--sp-100);
     border: 0;
