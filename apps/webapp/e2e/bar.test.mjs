@@ -249,7 +249,7 @@ test('chromium: 375 px — the section is behind the drawer, and the bottom bar 
   // The bottom bar is the frame's and stays whatever section the reader is in - it is how they
   // leave one on a phone.
   const bar = page.getByRole('navigation', { name: 'Sections' });
-  assert.equal(await bar.getByRole('link', { name: 'Overview' }).count(), 1, 'no way out of the section on a phone');
+  assert.equal(await bar.getByRole('link', { name: 'Today' }).count(), 1, 'no way out of the section on a phone');
 
   assert.deepEqual(failures, []);
 });

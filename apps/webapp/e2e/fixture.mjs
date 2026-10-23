@@ -492,10 +492,105 @@ function lookRoute(route, request, url, path) {
   return undefined;
 }
 
+/**
+ * A person's day (UC-WRK-34): a hub of its own with a list, a project and a collection of chores,
+ * the entries on the reader across them - one past, one today, one coming up, and one in the list,
+ * which *Today* draws as the list's tile instead - the project's next due step and two arrivals in
+ * the jumble. Shown where a walk asks for it (`showToday`) or the preview is started with
+ * `HUBTASK_FIXTURE_TODAY=1`. A completion is answered and remembered, so a walk that ticks one off
+ * reads it back as done.
+ */
+export const TODAY_HUB = { id: '01a0e2e0-0000-7000-8000-0000000d7a01', type: 'HUB', parent_id: null, name: 'Life', icon: 'leaf', color_token: 'teal', order_key: 'a5', version: 1 };
+const dayCollection = (n, name, levels, figure) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'COLLECTION', parent_id: TODAY_HUB.id, name, order_key: `a${n}`, version: 1,
+  structure: structureOf(levels, { figure: figure.kind, field_key: null }),
+  figure: { today: today(), ...figure },
+});
+export const TODAY_COLLECTIONS = {
+  list: dayCollection('11', 'Shopping', ['TASK'], { kind: 'OPEN', open: 5 }),
+  project: dayCollection('12', 'Garden', ['TASK', 'WORK_PACKAGE', 'ACTIVITY'], { kind: 'PROGRESS', done: 3, total: 8 }),
+  chores: dayCollection('13', 'Chores', ['TASK'], { kind: 'DUE', due: 2 }),
+};
+const dayItem = (n, title, collection, due, extra = {}) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000d7a${n}`, type: 'TASK', title, collection_id: collection.id, parent_id: null, depth: 0,
+  order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], due_at: due, due_date_only: false, ...extra,
+});
+const hoursFromNow = (hours) => new Date(Date.now() + hours * 3_600_000).toISOString();
+/** On the reader, soonest first as the search answers them. */
+export const TODAY_ITEMS = [
+  dayItem('21', 'Water the plants', TODAY_COLLECTIONS.chores, hoursFromNow(-26)),
+  dayItem('22', 'Buy oat milk', TODAY_COLLECTIONS.list, `${inDays(0)}T00:00:00Z`, { due_date_only: true, due_time_zone: 'UTC' }),
+  dayItem('23', 'Pay the electricity bill', TODAY_COLLECTIONS.chores, `${inDays(0)}T00:00:00Z`, { due_date_only: true, due_time_zone: 'UTC' }),
+  dayItem('24', 'Book the sauna', TODAY_COLLECTIONS.chores, `${inDays(3)}T17:00:00Z`),
+];
+/** The project's next due step: an activity two levels down, not on the reader. */
+export const TODAY_STEP = dayItem('31', 'Order the seeds', TODAY_COLLECTIONS.project, `${inDays(1)}T09:00:00Z`, { type: 'ACTIVITY', depth: 2, parent_id: '01a0e2e0-0000-7000-8000-0000000d7a32' });
+export const TODAY_ARRIVALS = [
+  { id: '01a0e2e0-0000-7000-8000-0000000d7a41', channel: 'EMAIL', raw_subject: 'Invoice from the plumber', attachments: [], status: 'NEW', received_at: '2026-10-23T07:10:00Z' },
+  { id: '01a0e2e0-0000-7000-8000-0000000d7a42', channel: 'EMAIL', raw_subject: '', attachments: [], status: 'NEW', received_at: '2026-10-23T07:40:00Z' },
+];
+
+let todayShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_TODAY === '1';
+/** Adds the day to the workspace, for this process. */
+export function showToday() {
+  todayShown = true;
+}
+/** What was ticked off so far, by entry; reset by `forgetUnstubbed`. */
+let dayTicked = {};
+/** The completions the day's entries were sent, in order: what a walk reads to prove a tick. */
+let dayCompletions = [];
+export function dayCompletionsSoFar() {
+  return [...dayCompletions];
+}
+const asTicked = (entry) => (entry && dayTicked[entry.id] !== undefined ? { ...entry, completion: { is_completed: dayTicked[entry.id] } } : entry);
+
+/** The day's reads and its completions; `undefined` where the general stub answers. */
+function todayRoute(route, request, url, path) {
+  if (!todayShown) return undefined;
+  const collections = Object.values(TODAY_COLLECTIONS);
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, TODAY_HUB] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === TODAY_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: collections } });
+  }
+  if (path.endsWith(`/api/v1/containers/${TODAY_HUB.id}`)) return route.fulfill({ json: TODAY_HUB });
+  const one = collections.find((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (one) return route.fulfill({ json: one });
+  if (path.endsWith('/api/v1/search')) {
+    // Answered as the server would: what is still open, so a tick read again is gone.
+    const open = TODAY_ITEMS.map(asTicked).filter((each) => !each.completion.is_completed);
+    return route.fulfill({ json: { ...PAGE, data: open } });
+  }
+  if (path.endsWith('/api/v1/items:query') && request.postDataJSON()?.scope?.container_id === TODAY_COLLECTIONS.project.id) {
+    const step = asTicked(TODAY_STEP);
+    const data = step.completion.is_completed ? [] : [step];
+    return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+  }
+  const done = /\/api\/v1\/items\/([^/]+):(complete|reopen)$/.exec(path);
+  const target = done && [...TODAY_ITEMS, TODAY_STEP].find((each) => each.id === done[1]);
+  if (target && request.method() === 'POST') {
+    dayTicked[target.id] = done[2] === 'complete';
+    dayCompletions.push(`${done[2]} ${target.id}`);
+    return route.fulfill({ json: { ...asTicked(target), version: target.version + 1 } });
+  }
+  const entry = [...TODAY_ITEMS, TODAY_STEP].find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && request.method() === 'GET') return route.fulfill({ json: asTicked(entry) });
+  if (path.endsWith('/api/v1/jumble/entries')) return route.fulfill({ json: { data: TODAY_ARRIVALS, page: { next_cursor: null } } });
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const containers = [HUB, COLLECTION, TODAY_HUB, ...collections.map(({ figure, ...rest }) => rest)];
+    const records = containers.map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  return undefined;
+}
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
+  const day = todayRoute(route, request, url, path);
+  if (day) return day;
   const looks = lookRoute(route, request, url, path);
   if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
@@ -706,6 +801,8 @@ let unstubbed = [];
 export function forgetUnstubbed() {
   unstubbed = [];
   looked = [];
+  dayTicked = {};
+  dayCompletions = [];
   draftSaved = false;
 }
 
