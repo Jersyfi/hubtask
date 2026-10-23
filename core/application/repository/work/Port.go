@@ -1246,6 +1246,31 @@ type Structures interface {
 	SetWorkspace(ctx context.Context, workspace work.WorkspaceStructure, expectedVersion int, at time.Time) error
 }
 
+// Presets keeps the saved presets: the workspace's and each person's own (UC-WRK-30). Which own
+// preset a person may read or change is the caller's decision (rule 2); another tenant's preset is
+// not found.
+type Presets interface {
+	// Find answers one saved preset, or presets.not_found.
+	Find(ctx context.Context, id shared.ID) (work.Preset, error)
+
+	// ListOffered answers the workspace's presets and the person's own, the workspace's first,
+	// each by name.
+	ListOffered(ctx context.Context, ownerID shared.ID) ([]work.Preset, error)
+
+	// Count answers how many presets of the origin there are: the workspace's, or the owner's own.
+	Count(ctx context.Context, origin work.PresetOrigin, ownerID shared.ID) (int, error)
+
+	// Insert stores a new saved preset at version 1.
+	Insert(ctx context.Context, preset work.Preset, at time.Time) error
+
+	// Update writes the preset's name and values under the expected version, or reports a version
+	// conflict.
+	Update(ctx context.Context, preset work.Preset, expectedVersion int, at time.Time) error
+
+	// Delete removes the preset under the expected version, or reports a version conflict.
+	Delete(ctx context.Context, id shared.ID, expectedVersion int) error
+}
+
 // Figures counts what a collection's figure is made of (UC-WRK-29): for each request, only what its
 // kind needs, over the entries that are neither trashed nor hidden. A collection with nothing to
 // count is answered with zeros, or not at all.

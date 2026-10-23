@@ -159,6 +159,9 @@ CREATE TABLE tenant (
   -- byte goes, after which no cancel lands.
   status_before_deletion    tenant_status,
   purge_started_at          timestamptz,
+  -- The first start's question was answered or skipped (0195, UC-WRK-30 check 5): nobody is asked
+  -- again.
+  starter_answered_at       timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );
@@ -1205,6 +1208,28 @@ CREATE TABLE kudos (
 );
 CREATE INDEX kudos_given_to_idx ON kudos (tenant_id, given_to, item_id);
 CREATE INDEX kudos_given_by_idx ON kudos (tenant_id, given_by);
+
+-- A preset saved from a hub's or collection's structure (UC-WRK-30): the workspace's, or one
+-- person's own, gone with their account. `settings` is a layer's settings document without
+-- categories; the name is the person's content (rule 10). Migration 0195.
+CREATE TABLE structure_preset (
+  tenant_id  uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  id         uuid NOT NULL,
+  origin     text NOT NULL,
+  owner_id   uuid,
+  name       text NOT NULL,
+  settings   jsonb NOT NULL,
+  created_at timestamptz NOT NULL,
+  updated_at timestamptz,
+  version    integer NOT NULL DEFAULT 1,
+  PRIMARY KEY (tenant_id, id),
+  CONSTRAINT structure_preset_origin_check CHECK (origin IN ('WORKSPACE', 'OWN')),
+  CONSTRAINT structure_preset_owner_check CHECK ((origin = 'OWN') = (owner_id IS NOT NULL)),
+  CONSTRAINT structure_preset_name_check CHECK (char_length(name) BETWEEN 1 AND 100),
+  CONSTRAINT structure_preset_owner_fkey FOREIGN KEY (tenant_id, owner_id)
+    REFERENCES account (tenant_id, id) ON DELETE CASCADE
+);
+CREATE INDEX structure_preset_origin_owner_idx ON structure_preset (tenant_id, origin, owner_id);
 
 -- Partitioned by month (multi-tenancy.md §7), constructed exactly as migration 0068
 -- leaves a converted installation: a standalone history partition carrying the old shapes, a
@@ -2641,7 +2666,8 @@ BEGIN
     'account_identity','tenant_host','oidc_flow','ai_source','ai_suggestion','ai_request',
     'item_embedding',
     'container','bucket','label','work_item','item_label','item_member',
-    'custom_field_definition','comment','container_milestone','kudos','activity_entry',
+    'custom_field_definition','comment','container_milestone','kudos','structure_preset',
+    'activity_entry',
     'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
     'automation_rule','rule_run','rule_occurrence','jumble_intake',
