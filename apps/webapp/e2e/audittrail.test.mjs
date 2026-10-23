@@ -170,6 +170,54 @@ test('chromium: checking and exporting with nothing named mark the fields and se
   assert.equal(await exporting.getAttribute('aria-disabled'), null);
   await exporting.click();
   await page.getByText('Choose a target first.').waitFor();
+  // The export's own period is what is marked: it borrows nothing from the check above it.
+  const exportFrom = page
+    .locator('div')
+    .filter({ has: page.getByRole('heading', { name: 'Take a copy away' }) })
+    .last()
+    .getByRole('textbox', { name: 'From', description: 'Name a period first.' });
+  assert.equal(await exportFrom.evaluate((field) => field === document.activeElement), true, 'focus is not on the export\'s own period');
   await page.waitForTimeout(200);
   assert.deepEqual(sent, [], 'a press with something missing sent a request');
+});
+
+// ux-inventory §E8: the export has a period of its own, sent as named, whatever the check holds.
+test('chromium: the export takes away its own period, not the one checked above it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/audit' && request.method() === 'GET') return route.fulfill({ json: { items: [], next_cursor: null } });
+    if (path === '/backup-targets' && request.method() === 'GET') {
+      return route.fulfill({ json: [{ id: 'bt-export', name: 'Basement disk', kind: 'WEBDAV', created_at: '2026-09-01T00:00:00Z' }] });
+    }
+    if (path === '/audit:export') {
+      sent.push(request.postDataJSON());
+      return route.fulfill({ status: 202, json: { job_id: '01a0e2e0-0000-7000-8000-0000000007e1' } });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+  await page.goto(`${served.origin}/administration/audit`);
+  const section = page.locator('section, div').filter({ has: page.getByRole('heading', { name: 'Take a copy away' }) }).last();
+  await section.getByRole('button', { name: 'Export the period' }).waitFor({ timeout: 15_000 });
+  // The check's period is left empty: the export no longer reads it.
+  await section.getByRole('textbox', { name: 'From' }).fill('2026-09-01T00:00');
+  await section.getByRole('textbox', { name: 'To' }).fill('2026-09-30T23:59');
+  await section.getByLabel('Write it to').selectOption('bt-export');
+  const asked = page.waitForRequest((request) => request.url().endsWith('/audit:export'));
+  await section.getByRole('button', { name: 'Export the period' }).click();
+  await asked;
+  assert.equal(sent.length, 1, 'the export was not sent');
+  assert.equal(sent[0].target_id, 'bt-export');
+  assert.equal(sent[0].from, new Date('2026-09-01T00:00').toISOString());
+  assert.equal(sent[0].to, new Date('2026-09-30T23:59').toISOString());
 });

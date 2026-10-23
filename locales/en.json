@@ -5125,7 +5125,7 @@
   "app.audit.gaps": "Entries missing from the chain: {count}.",
   "app.audit.break_is_recorded": "This finding has been written into the trail itself, so somebody reading it months from now can see that it was noticed, and when.",
   "app.audit.export_title": "Take a copy away",
-  "app.audit.export_intro": "The period above, written to a backup target as one archive with its checksums.",
+  "app.audit.export_intro": "A period of its own, written to a backup target as one archive with its checksums.",
   "app.audit.export_has_no_filter": "An export covers a whole period and cannot be narrowed. One narrowed by who or what before it was signed would be evidence about somebody's choice rather than about the period.",
   "app.audit.format": "As",
   "app.audit.format_jsonl": "JSON Lines — for another system to read",

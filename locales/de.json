@@ -3909,7 +3909,7 @@
   "app.audit.gaps": "In der Kette fehlende Einträge: {count}.",
   "app.audit.break_is_recorded": "Dieser Befund wurde ins Protokoll selbst geschrieben, damit jemand, der es in Monaten liest, sehen kann, dass er bemerkt wurde, und wann.",
   "app.audit.export_title": "Eine Kopie mitnehmen",
-  "app.audit.export_intro": "Der Zeitraum oben, als ein Archiv mit seinen Prüfsummen an ein Sicherungsziel geschrieben.",
+  "app.audit.export_intro": "Ein eigener Zeitraum, als ein Archiv mit seinen Prüfsummen an ein Sicherungsziel geschrieben.",
   "app.audit.export_has_no_filter": "Ein Export umfasst einen ganzen Zeitraum und lässt sich nicht eingrenzen. Einer, der vor dem Signieren nach Wer oder Was eingegrenzt wurde, wäre ein Beweis über jemandes Auswahl statt über den Zeitraum.",
   "app.audit.format": "Als",
   "app.audit.format_jsonl": "JSON Lines – für ein anderes System",
