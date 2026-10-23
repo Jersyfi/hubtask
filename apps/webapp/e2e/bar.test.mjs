@@ -89,6 +89,7 @@ async function open(browser, width = 375) {
  */
 const ROUTES = [
   '/', '/search', '/jumble', '/archive', '/trash', '/installation',
+  `/hubs/${HUB.id}`, `/collections/${COLLECTION.id}`,
   // Your settings, which is a section of eight screens (ADR-0065 decision 3).
   '/profile', '/profile/appearance', '/profile/notifications', '/profile/security',
   '/profile/sessions', '/profile/devices', '/profile/apps', '/profile/tokens',
@@ -116,11 +117,12 @@ test('chromium: 375 px — every page hands its title to the bar', async (t) => 
     await page.goto(`${served.origin}${route}`);
     // The title arrives with the screen rather than with the navigation, so it is waited for
     // rather than read at once - a page that never sets one is what the timeout finds.
-    const title = await page
-      .locator('[data-bar="title"]')
-      .textContent({ timeout: 4_000 })
-      .catch(() => undefined);
-    if (!title || title.trim() === '') silent.push(route);
+    const bar = page.locator('[data-bar="title"]');
+    const title = await bar.textContent({ timeout: 4_000 }).catch(() => undefined);
+    // Drawn, not only present: an empty search slot once shared the bar's room with the title
+    // and squeezed it to no width at all, with the words still in the tree.
+    const width = title ? ((await bar.boundingBox())?.width ?? 0) : 0;
+    if (!title || title.trim() === '' || width === 0) silent.push(route);
   }
 
   assert.deepEqual(silent, [], `these pages show the wordmark above their own heading: ${silent.join(', ')}`);
