@@ -125,7 +125,7 @@ test('chromium: UC-WRK-31 check 2 — the Structure panel says the flow keeps it
   assert.equal(await gate.isChecked(), true);
   await gate.uncheck();
   const sent = page.waitForRequest((request) => request.method() === 'PATCH' && request.url().endsWith(`/containers/${FLOW.id}/structure`));
-  await page.locator('dialog[open]').getByRole('button', { name: 'Save' }).click();
+  await page.locator('dialog[open]').getByRole('button', { name: 'Save', exact: true }).click();
   assert.deepEqual((await sent).postDataJSON(), { settings: { automation: [] } });
   assert.equal(written.filter((each) => each.path.endsWith('/structure')).length, 1);
   assert.deepEqual(failures, []);
