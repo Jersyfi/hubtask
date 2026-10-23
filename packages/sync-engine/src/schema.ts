@@ -614,6 +614,13 @@ export type PlanChange = components['schemas']['PlanChange'];
 export type PlanFeature = components['schemas']['PlanFeature'];
 export type TenantPlanMove = components['schemas']['TenantPlanMove'];
 export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
+/**
+ * A preset the installation offers every workspace (UC-INS-18): its settings, whether it is the
+ * default a new hub starts from, and - on the default - the settings it locks; and what writing one takes.
+ */
+export type InstallationPreset = components['schemas']['InstallationPreset'];
+export type InstallationPresetCreate = components['schemas']['InstallationPresetCreate'];
+export type InstallationPresetUpdate = components['schemas']['InstallationPresetUpdate'];
 export type LimitExceeded = components['schemas']['LimitExceeded'];
 /**
  * An operator's opening of the password for one workspace (ADR-0078 §3): until when, who asked and
