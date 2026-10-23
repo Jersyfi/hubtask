@@ -231,6 +231,7 @@ UPDATE account SET
   locale           = NULL,
   time_zone        = NULL,
   week_start       = NULL,
+  avatar_media_id  = NULL,
   status           = 'ANONYMIZED',
   updated_at       = sqlc.arg('updated_at'),
   version          = version + 1

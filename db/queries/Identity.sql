@@ -200,7 +200,7 @@ WHERE m.scope_type = 'ITEM'
 
 -- name: FindAccount :one
 SELECT id, tenant_id, kind, email, sign_in_name, display_name, status, locale, time_zone, week_start,
-  celebrations, onboarding_completed_at
+  celebrations, onboarding_completed_at, avatar_media_id
 FROM account
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 
@@ -301,6 +301,14 @@ WHERE id = sqlc.arg('id') AND deleted_at IS NULL;
 UPDATE account SET
   display_name = sqlc.arg('display_name'),
   updated_at   = sqlc.arg('updated_at')
+WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND status <> 'ANONYMIZED';
+
+-- name: SetAccountAvatar :execrows
+-- The picture and no other column, for the reason the preferences' query gives. NULL takes it away.
+-- An erased account has no picture to set: its anonymisation cleared it.
+UPDATE account SET
+  avatar_media_id = sqlc.narg('avatar_media_id'),
+  updated_at      = sqlc.arg('updated_at')
 WHERE id = sqlc.arg('id') AND deleted_at IS NULL AND status <> 'ANONYMIZED';
 
 -- =============================== Groups ===============================
