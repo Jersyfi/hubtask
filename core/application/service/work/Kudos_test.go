@@ -181,15 +181,22 @@ func TestKudosAreRefusedOnAnOpenEntryAndOnOnesOwnCompletion(t *testing.T) {
 
 func TestKudosAskOnlyToReadTheEntry(t *testing.T) {
 	h := newKudosHarness(t)
-	for name, scope := range map[string]string{ReadKudosName: itemsRead, GiveKudosName: itemsWrite, TakeBackKudosName: itemsWrite} {
+	// In this order, not a map's: a give after the take-back would leave its row for the
+	// refusal below to find.
+	for _, c := range []struct{ name, scope string }{
+		{ReadKudosName, itemsRead}, {GiveKudosName, itemsWrite}, {TakeBackKudosName, itemsWrite},
+	} {
 		h.authorizer.requests = nil
-		if _, err := h.invoke(t, name, benID); err != nil {
-			t.Fatalf("%s: %v", name, err)
+		if _, err := h.invoke(t, c.name, benID); err != nil {
+			t.Fatalf("%s: %v", c.name, err)
 		}
 		request := h.authorizer.requests[0]
-		if request.Permission != service.PermissionRead || request.TokenScope != scope || request.TargetID != taskID {
-			t.Errorf("%s asks %+v", name, request)
+		if request.Permission != service.PermissionRead || request.TokenScope != c.scope || request.TargetID != taskID {
+			t.Errorf("%s asks %+v", c.name, request)
 		}
+	}
+	if len(h.kudos.rows) != 0 {
+		t.Fatalf("the take-back left %v", h.kudos.rows)
 	}
 
 	h.authorizer.err = shared.ErrForbidden
