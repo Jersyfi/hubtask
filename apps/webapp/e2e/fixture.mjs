@@ -67,6 +67,52 @@ export const CHILDREN = {
   '01a0e2e0-0000-7000-8000-000000000042': [],
 };
 /**
+ * A grocery list on *List* (UC-WRK-25): one level, amounts, a name for its done entries, and three
+ * labels it groups by, in the shop's order. Reached by its address, not listed in the hub, so the
+ * walks that count the hub's collections are not disturbed. Its done entries are relative to now:
+ * two ticked minutes ago (*In the trolley*), two days ago and earlier (*Recently*, by use).
+ */
+export const GROCERY_LABELS = [
+  { id: '01a0e2e0-0000-7000-8000-000000000081', name: 'Produce', color_token: 'label.green' },
+  { id: '01a0e2e0-0000-7000-8000-000000000082', name: 'Dairy', color_token: 'label.blue' },
+  { id: '01a0e2e0-0000-7000-8000-000000000083', name: 'Bakery', color_token: 'label.amber' },
+];
+const listFields = (categories) => ({ TASK: { capabilities: ['COMPLETION', 'LABELS', 'HISTORY', 'CUSTOM_FIELDS', 'AMOUNT'], categories } });
+/** The structure in force of a list, as a container read answers it; `figure` is UX-24's. */
+export const LIST_STRUCTURE = {
+  preset: 'LIST',
+  settings: {
+    levels: [{ type: 'TASK', name: null, done_name: 'In the trolley' }],
+    fields: listFields(GROCERY_LABELS.map((label) => label.id)),
+    views: { offered: ['LIST_COLLAPSED'], default: 'LIST_COLLAPSED' },
+    counts: { figure: 'OPEN', field_key: null },
+    completion: 'MANUAL',
+    capture: ['LINES', 'AMOUNT'],
+    celebration: 'SUBTLE',
+    automation: [],
+  },
+  sources: {},
+  locks: {},
+};
+export const GROCERIES = { id: '01a0e2e0-0000-7000-8000-000000000060', type: 'COLLECTION', parent_id: HUB.id, name: 'Groceries', order_key: 'a2', version: 1, structure: LIST_STRUCTURE };
+const minutesAgo = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
+const grocery = (n, title, extra = {}) => ({ ...item(n, title, extra), collection_id: GROCERIES.id, completion_count: 0, amount: null, ...extra });
+export const GROCERY_ITEMS = [
+  grocery('71', 'apples', { amount: '1 kg', label_ids: [GROCERY_LABELS[0].id] }),
+  grocery('72', 'milk', { amount: '2', label_ids: [GROCERY_LABELS[1].id], completion_count: 6 }),
+  grocery('73', 'bread', { label_ids: [GROCERY_LABELS[2].id] }),
+  grocery('74', 'salt'),
+  grocery('75', 'butter', { label_ids: [GROCERY_LABELS[1].id], completion: { is_completed: true, completed_at: minutesAgo(2) }, completion_count: 3 }),
+  grocery('76', 'coffee', { amount: '500 g', completion: { is_completed: true, completed_at: minutesAgo(2 * 24 * 60) }, completion_count: 2 }),
+  grocery('77', 'oat milk', { completion: { is_completed: true, completed_at: minutesAgo(9 * 24 * 60) }, completion_count: 8 }),
+  grocery('78', 'tea', { completion: { is_completed: true, completed_at: minutesAgo(3 * 24 * 60) }, completion_count: 2 }),
+];
+const GROCERIES_AT_START = GROCERY_ITEMS.map((entry) => ({ ...entry }));
+/** Puts the grocery list back as it started: a walk that ticks things leaves the next one alone. */
+export function resetGroceries() {
+  GROCERY_ITEMS.splice(0, GROCERY_ITEMS.length, ...GROCERIES_AT_START.map((entry) => ({ ...entry })));
+}
+/**
  * An entry archived in its own right with an activity under it that is not - the server's model:
  * archiving freezes the entry alone (ArchiveWorkItem.go) - and an entry in the archived collection.
  * Neither is in `ITEMS`, so no list walk counts them; their pages are reached by address.
@@ -75,7 +121,7 @@ export const ARCHIVED_ENTRY = item('61', 'Old shelving plan', { archived_at: '20
 export const UNDER_ARCHIVED_ENTRY = item('62', 'Measure the alcove', { type: 'ACTIVITY', parent_id: ARCHIVED_ENTRY.id, depth: 1 });
 CHILDREN[ARCHIVED_ENTRY.id] = [UNDER_ARCHIVED_ENTRY];
 export const IN_ARCHIVED = item('63', 'Insulate the loft', { collection_id: ARCHIVED.id });
-export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat(), ARCHIVED_ENTRY, IN_ARCHIVED];
+export const ALL_ITEMS = [...ITEMS, ...Object.values(CHILDREN).flat(), ARCHIVED_ENTRY, IN_ARCHIVED, ...GROCERY_ITEMS];
 
 const ALL = { read: 'ALL', create: 'ALL', change: 'ALL', comment: 'ALL' };
 export const ROLES = [
@@ -94,7 +140,7 @@ export const MANIFEST = {
   // spelling included — the fixture said `ASSIGNEE` for `ASSIGNMENT` and gave a work package two
   // capabilities of fourteen, which is a fake that agrees with no installation.
   item_types: [
-    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS'], allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'], max_depth: 3 },
+    { type: 'TASK', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'BUCKET', 'NOTES', 'LABELS', 'COMMENTS', 'COVER', 'ATTACHMENTS', 'HISTORY', 'RECURRENCE', 'CUSTOM_FIELDS', 'AMOUNT'], allowed_child_types: ['WORK_PACKAGE', 'ACTIVITY'], max_depth: 3 },
     { type: 'WORK_PACKAGE', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'MEMBERS', 'NOTES', 'LABELS', 'COMMENTS', 'ATTACHMENTS', 'HISTORY', 'CUSTOM_FIELDS'], allowed_child_types: ['ACTIVITY'], max_depth: 2 },
     { type: 'ACTIVITY', capabilities: ['COMPLETION', 'DUE_DATE', 'REMINDER', 'ASSIGNMENT', 'HISTORY'], allowed_child_types: [], max_depth: 1 },
   ],
@@ -432,10 +478,72 @@ function figureRoute(route, request, url, path) {
   return undefined;
 }
 
+/**
+ * Places in their own colour and symbol (UC-WRK-33): a hub with a colour and a symbol, a private
+ * one with both, and under the first a collection with both and one with neither - plus two dated
+ * entries from different collections, so the overview and search mix places. Shown where a walk
+ * asks for it (`showLooks`) or the preview is started with `HUBTASK_FIXTURE_LOOKS=1`.
+ *
+ * It answers writes: a hub or collection created or changed here is read back as written, so the
+ * walk proves the dialog sent what the navigation then draws.
+ */
+export const LOOK_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Agency', icon: 'briefcase', color_token: 'violet', order_key: 'a3', version: 1 };
+export const LOOK_PRIVATE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000082', type: 'HUB', parent_id: null, name: 'Family', icon: 'heart', color_token: 'magenta', order_key: 'a4', version: 1, private: true };
+export const LOOK_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Clients', icon: 'rocket', color_token: 'amber', order_key: 'a0', version: 1 };
+export const PLAIN_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000084', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Invoices', order_key: 'a1', version: 1 };
+export const LOOK_ITEMS = [
+  item('85', 'Send the offer to the bakery', { collection_id: LOOK_COLLECTION.id, due_at: `${inDays(-1)}T09:00:00Z` }),
+  item('86', 'Pay the tiler', { collection_id: PLAIN_COLLECTION.id, due_at: `${inDays(3)}T09:00:00Z` }),
+  { ...ITEMS[1] },
+];
+
+let looksShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_LOOKS === '1';
+/** Adds the places of their own to the tree, for this process. */
+export function showLooks() {
+  looksShown = true;
+}
+/** The look records as written so far; reset by `forgetUnstubbed`. */
+let looked = [];
+const freshLooks = () => [LOOK_HUB, LOOK_PRIVATE_HUB, LOOK_COLLECTION, PLAIN_COLLECTION].map((each) => ({ ...each }));
+
+/** The look records' reads and writes; `undefined` where the general stub answers. */
+function lookRoute(route, request, url, path) {
+  if (!looksShown) return undefined;
+  if (looked.length === 0) looked = freshLooks();
+  const method = request.method();
+  if (path.endsWith('/api/v1/containers') && method === 'POST') {
+    const body = request.postDataJSON();
+    const made = { id: `01a0e2e0-0000-7000-8000-0000000000${87 + looked.length - 4}`, parent_id: null, order_key: `a${looked.length + 5}`, version: 1, ...body };
+    looked.push(made);
+    return route.fulfill({ status: 201, json: made });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, ...looked.filter((c) => c.type === 'HUB')] } });
+  }
+  const parent = url.searchParams.get('parent_id');
+  if (path.endsWith('/api/v1/containers') && looked.some((c) => c.id === parent)) {
+    return route.fulfill({ json: { ...PAGE, data: looked.filter((c) => c.parent_id === parent) } });
+  }
+  const index = looked.findIndex((c) => path.endsWith(`/api/v1/containers/${c.id}`));
+  if (index >= 0 && method === 'PATCH') {
+    looked[index] = { ...looked[index], ...request.postDataJSON(), version: looked[index].version + 1 };
+    return route.fulfill({ json: looked[index] });
+  }
+  if (index >= 0) return route.fulfill({ json: looked[index] });
+  if (path.endsWith('/api/v1/search')) return route.fulfill({ json: { ...PAGE, data: LOOK_ITEMS } });
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const records = [HUB, COLLECTION, ...looked].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  return undefined;
+}
+
 export function stub(route) {
   const request = route.request();
   const url = new URL(request.url());
   const path = url.pathname;
+  const looks = lookRoute(route, request, url, path);
+  if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
   if (figured) return figured;
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
@@ -446,7 +554,13 @@ export function stub(route) {
     return route.fulfill({ status: 200, contentType: 'text/event-stream', body: 'retry: 3600000\n\n' });
   }
   if (path.endsWith('/api/v1/sync:snapshot')) {
-    const records = [HUB, COLLECTION].map((c) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    // The grocery list travels whole - its labels and its entries too - so a walk offline reads
+    // it from the local copy (UC-WRK-25 check 6).
+    const records = [
+      ...[HUB, COLLECTION, GROCERIES].map((c) => ({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c })),
+      ...GROCERY_LABELS.map((label) => ({ op: 'UPSERT', entity: 'label', entity_id: label.id, container_id: GROCERIES.id, payload: { ...label, collection_id: GROCERIES.id } })),
+      ...GROCERY_ITEMS.map((entry) => ({ op: 'UPSERT', entity: 'item', entity_id: entry.id, container_id: GROCERIES.id, payload: entry })),
+    ].map((record) => JSON.stringify(record));
     return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
   }
   if (path.endsWith('/api/v1/sync:pull')) return route.fulfill({ json: { changes: [], cursor: 'c-e2e', has_more: false, tombstone_window_days: 90 } });
@@ -466,6 +580,20 @@ export function stub(route) {
     return route.fulfill({ json: { ...PAGE, data: rows } });
   }
   if (path.endsWith(`/api/v1/containers/${COLLECTION.id}`)) return route.fulfill({ json: COLLECTION });
+  // The list's figure (UC-WRK-25 check 7, UX-24): the server counts the open entries on the read; the
+  // replica's snapshot carries none, as no change record does.
+  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}`)) {
+    const open = GROCERY_ITEMS.filter((entry) => !entry.completion?.is_completed).length;
+    return route.fulfill({ json: { ...GROCERIES, figure: { kind: 'OPEN', open, today: today() } } });
+  }
+  if (path.endsWith(`/api/v1/containers/${GROCERIES.id}/labels`)) return route.fulfill({ json: GROCERY_LABELS });
+  // A device's queued writes, answered as applied (offline-sync.md §3.2): the walk offline sees
+  // its marks go when the network is back.
+  if (path.endsWith('/api/v1/sync:push') && request.method() === 'POST') {
+    const sent = request.postDataJSON();
+    pushed.push(sent);
+    return route.fulfill({ json: { results: (sent.mutations ?? []).map((mutation) => ({ op_id: mutation.op_id, result: 'APPLIED' })) } });
+  }
   if (path.endsWith(`/api/v1/containers/${ARCHIVED.id}`)) return route.fulfill({ json: ARCHIVED });
   if (path.endsWith(`/api/v1/containers/${ARCHIVED_HUB.id}`)) return route.fulfill({ json: ARCHIVED_HUB });
   if (path.endsWith(`/api/v1/containers/${UNDER_ARCHIVED.id}`)) return route.fulfill({ json: UNDER_ARCHIVED });
@@ -496,7 +624,8 @@ export function stub(route) {
       const data = below(body.scope.item_id);
       return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
     }
-    return route.fulfill({ json: { data: ITEMS, groups: [], page: { next_cursor: null, has_more: false }, total: ITEMS.length } });
+    const level = body.scope?.container_id === GROCERIES.id ? GROCERY_ITEMS : ITEMS;
+    return route.fulfill({ json: { data: level, groups: [], page: { next_cursor: null, has_more: false }, total: level.length } });
   }
   const one = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}`));
   if (one && request.method() === 'GET') return route.fulfill({ json: one });
@@ -504,7 +633,14 @@ export function stub(route) {
   if (path.match(/\/api\/v1\/items\/[^/]+:(complete|reopen)$/) && request.method() === 'POST') {
     const id = path.split('/').pop().split(':')[0];
     const target = ALL_ITEMS.find((each) => each.id === id);
-    return route.fulfill({ json: { ...target, completion: { is_completed: path.endsWith(':complete') }, version: target.version + 1 } });
+    const done = path.endsWith(':complete');
+    // A grocery entry keeps what happened to it, so the list re-read after a tick draws it under
+    // *In the trolley*, as a server would.
+    const at = GROCERY_ITEMS.findIndex((each) => each.id === id);
+    const current = at >= 0 ? GROCERY_ITEMS[at] : target;
+    const next = { ...current, completion: done ? { is_completed: true, completed_at: new Date().toISOString() } : { is_completed: false }, completion_count: (current.completion_count ?? 0) + (done && !current.completion?.is_completed ? 1 : 0), version: current.version + 1 };
+    if (at >= 0) GROCERY_ITEMS[at] = next;
+    return route.fulfill({ json: next });
   }
   const covered = ALL_ITEMS.find((each) => path.endsWith(`/api/v1/items/${each.id}/cover`));
   if (covered && request.method() === 'PUT') return route.fulfill({ json: { ...covered, cover: request.postDataJSON(), version: covered.version + 1 } });
@@ -678,8 +814,13 @@ let unstubbed = [];
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  pushed.length = 0;
+  looked = [];
   draftSaved = false;
 }
+
+/** Every push a device sent, in order: what a walk offline reads back once the network returns. */
+export const pushed = [];
 
 /** Whether a walk saved the rule draft: the workspace's rules hold it from then on. */
 let draftSaved = false;

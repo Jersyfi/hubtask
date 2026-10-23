@@ -72,6 +72,7 @@ func structureCatalogue(t *testing.T) *usecase.Registry {
 		}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
+			Labels: labelRepo(),
 		}.Descriptor(),
 		work.ListPresets{Profiles: resolver.Profiles, UnitOfWork: unitOfWork}.Descriptor(),
 		work.SetWorkspaceStructure{
@@ -260,6 +261,8 @@ func TestALevelNameReachesNoLogAndNoAuditEntryInClear(t *testing.T) {
 	seedMemberships(ctx, t)
 	registry := structureCatalogue(t)
 	name := "Einkaufsposten " + freshName(t)
+	// The done section's name is the same kind of content and is held the same way (UC-WRK-25).
+	doneName := "Im Wagen " + freshName(t)
 
 	var captured bytes.Buffer
 	previous := slog.Default()
@@ -268,7 +271,7 @@ func TestALevelNameReachesNoLogAndNoAuditEntryInClear(t *testing.T) {
 
 	hub := createIn(ctx, t, registry, usecase.Input{"type": "HUB", "name": freshName(t)})
 	document, _ := json.Marshal(map[string]any{"settings": map[string]any{
-		"levels": []any{map[string]any{"type": "TASK", "name": name}},
+		"levels": []any{map[string]any{"type": "TASK", "name": name, "done_name": doneName}},
 	}})
 	if recorder := restStructure(ctx, t, registry, structureActor(tenantA, authorA), hub, string(document)); recorder.Code != http.StatusOK {
 		t.Fatalf("naming answered %d %s", recorder.Code, recorder.Body)
@@ -284,7 +287,8 @@ func TestALevelNameReachesNoLogAndNoAuditEntryInClear(t *testing.T) {
 
 	settings, _ := structureOf(ctx, t, registry, hub)["settings"].(map[string]any)
 	levels, _ := settings["levels"].([]any)
-	if len(levels) == 0 || levels[0].(map[string]any)["name"] != name {
+	if len(levels) == 0 || levels[0].(map[string]any)["name"] != name ||
+		levels[0].(map[string]any)["done_name"] != doneName {
 		t.Errorf("the read answers %v", settings["levels"])
 	}
 
@@ -294,11 +298,11 @@ func TestALevelNameReachesNoLogAndNoAuditEntryInClear(t *testing.T) {
 		Scan(&changes); err != nil {
 		t.Fatalf("reading the audit entry: %v", err)
 	}
-	if strings.Contains(changes, name) || !strings.Contains(changes, "structure.levels") {
+	if strings.Contains(changes, name) || strings.Contains(changes, doneName) || !strings.Contains(changes, "structure.levels") {
 		t.Errorf("the audit entry is %s", changes)
 	}
-	if strings.Contains(captured.String(), name) {
-		t.Errorf("a log line carries the level's name: %s", captured.String())
+	if strings.Contains(captured.String(), name) || strings.Contains(captured.String(), doneName) {
+		t.Errorf("a log line carries a level's name: %s", captured.String())
 	}
 }
 

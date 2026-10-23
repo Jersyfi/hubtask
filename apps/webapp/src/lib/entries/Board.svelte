@@ -47,6 +47,7 @@
   import { entryMenu } from './entryMenu.ts';
   import { supports } from '../data/capability.svelte.ts';
   import { archivalOfItem } from '../data/lifecycle.ts';
+  import { isSwipe, swipeThreshold } from './swipe.ts';
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
@@ -245,8 +246,9 @@
     const dx = touch.clientX - swipeStart.x;
     const dy = touch.clientY - swipeStart.y;
     swipeStart = null;
-    // Far enough sideways, and more sideways than down: a scroll is not a swipe.
-    if (Math.abs(dx) < swipeThreshold() || Math.abs(dx) < Math.abs(dy)) return;
+    // Far enough sideways, and more sideways than down: a scroll is not a swipe (`swipe.ts`, the
+    // rule the list's rows read too).
+    if (!isSwipe(dx, dy, swipeThreshold(board))) return;
     const index = strip.findIndex((column) => (column.id ?? 'none') === shownKey);
     const dir = board !== null && getComputedStyle(board).direction === 'rtl' ? -1 : 1;
     const next = strip[index + (dx < 0 ? dir : -dir)];
@@ -265,12 +267,6 @@
       element.removeEventListener('touchend', onSwipeEnd);
     };
   });
-  /** How far a swipe has to travel, read from the density's control size rather than written. */
-  function swipeThreshold(): number {
-    const size = board ? Number.parseFloat(getComputedStyle(board).getPropertyValue('--density-control-md-min')) : NaN;
-    return Number.isFinite(size) ? size : 0;
-  }
-
   function cardsOf(bucketId: string | null): readonly WorkItem[] {
     return groups.find((group) => group.key === bucketId)?.data ?? [];
   }

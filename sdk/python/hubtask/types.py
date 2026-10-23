@@ -1549,9 +1549,11 @@ class StructureSettings(TypedDict, total=False):
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
     name: str | None
+    done_name: str | None
 
 class StructureLevelFields(TypedDict, total=False):
     capabilities: Required[list[str]]
+    categories: list[str]
 
 class StructureViews(TypedDict, total=False):
     """The layouts a client offers, and the one it opens with. Applied by clients."""
@@ -2119,8 +2121,10 @@ class WorkItem(TypedDict, total=False):
     path: str
     depth: int
     title: Required[str]
+    amount: str | None
     notes: str | None
     completion: Required["Completion"]
+    completion_count: int
     bucket_id: str | None
     order_key: str
     start_at: str | None
@@ -2159,6 +2163,7 @@ class WorkItemCreate(TypedDict, total=False):
     collection_id: str
     parent_id: str | None
     title: Required[str]
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     before_item_id: str | None
@@ -2178,6 +2183,7 @@ class WorkItemCreate(TypedDict, total=False):
 class WorkItemUpdate(TypedDict, total=False):
     """JSON Merge Patch; null deletes a field."""
     title: str
+    amount: str | None
     notes: str | None
     bucket_id: str | None
     start_at: str | None

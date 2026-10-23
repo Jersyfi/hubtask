@@ -5,8 +5,7 @@
   import '@hubtask/design-system/fonts.css';
   import '@hubtask/design-system/tokens.css';
   import '../site.css';
-  import { Icon } from '@hubtask/design-system/components';
-  import Mark from '#lib/Mark.svelte';
+  import { Icon, Logo } from '@hubtask/design-system/components';
 
   let { children } = $props();
 
@@ -29,8 +28,7 @@
 <header class="masthead">
   <div class="wrap">
     <a class="brand" href="/">
-      <Mark />
-      Hubtask
+      <Logo size="lg" wordmark="Hubtask" />
     </a>
 
     <nav class="topnav" aria-label="Sections">
@@ -84,7 +82,7 @@
   <div class="wrap">
     <div class="colophon-grid">
       <div class="colophon-brand">
-        <Mark />
+        <Logo size="xl" />
         <p>
           Task management in five levels. Self-hostable, API first, agent ready — and built so the
           promises about your data can be checked rather than believed.

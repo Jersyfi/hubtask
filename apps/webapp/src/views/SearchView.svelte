@@ -51,6 +51,7 @@
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
+  import EntryPlace from '../lib/workspace/EntryPlace.svelte';
   import { labels } from '../lib/data/labels.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { people } from '../lib/data/people.svelte.ts';
@@ -604,7 +605,9 @@
             if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
           }}
         >
+          <!-- Search mixes collections: each hit says where it lives (UC-WRK-33). -->
           {#snippet trailing()}
+            <EntryPlace collectionId={hit.collection_id} />
             <EntryMenu
               bind:this={menus[hit.id]}
               title={hit.title}
