@@ -11,12 +11,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/service/access"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	domainwork "github.com/Jersyfi/hubtask/core/domain/model/work"
 	portclock "github.com/Jersyfi/hubtask/core/port/clock"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -133,5 +135,39 @@ func TestAWorkspaceHoldingAHubIsNotAskedItsFirstStart(t *testing.T) {
 	}
 	if offered(ctx, t, starter, owner) {
 		t.Errorf("a workspace holding a hub is asked its first start")
+	}
+}
+
+// The hub and collection a workspace is created with are nothing anybody made: the first start is
+// still asked over them, and no longer once somebody adds an entry.
+func TestTheWorkspacesOwnSeedDoesNotKeepTheFirstStartFromBeingAsked(t *testing.T) {
+	ctx := context.Background()
+	starter := starterDesk(t)
+	tenant, owner := freshWorkspace(ctx, t, "OWNER")
+	var born time.Time
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT created_at FROM tenant WHERE id = $1`, tenant.String()).
+		Scan(&born); err != nil {
+		t.Fatalf("reading the workspace's moment: %v", err)
+	}
+	hub := containerIn(tenant, owner.AccountID, freshID(t), freshName(t), "a0")
+	hub.CreatedAt, hub.UpdatedAt = born, born
+	collection := containerIn(tenant, owner.AccountID, freshID(t), freshName(t), "a0")
+	collection.Type, collection.ParentID = domainwork.ContainerCollection, hub.ID
+	collection.CreatedAt, collection.UpdatedAt = born, born
+	if err := write(ctx, t, tenant, func(ctx context.Context) error {
+		if err := containerRepo().Insert(ctx, hub); err != nil {
+			return err
+		}
+		return containerRepo().Insert(ctx, collection)
+	}); err != nil {
+		t.Fatalf("seeding the workspace's own hub and collection: %v", err)
+	}
+	if !offered(ctx, t, starter, owner) {
+		t.Fatalf("the owner of a workspace holding only what it was created with is not asked")
+	}
+
+	seedTask(ctx, t, tenant, owner.AccountID, collection.ID)
+	if offered(ctx, t, starter, owner) {
+		t.Errorf("a workspace holding an entry is asked its first start")
 	}
 }

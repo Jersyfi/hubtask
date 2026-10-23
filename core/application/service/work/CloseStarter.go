@@ -48,9 +48,10 @@ func structureAtWorkspace(action audit.Action, actor appshared.ActorContext) acc
 	}
 }
 
-// StarterOffered reports whether a client asks this reader: nobody answered yet, the workspace
-// holds no hub - so a restored or long-used workspace is never asked -, and the reader may change
-// the workspace's shape. Asked silently: a reader who may not is simply not asked.
+// StarterOffered reports whether a client asks this reader: nobody answered yet, nobody made a
+// hub, collection or entry beyond what the workspace was created with - so a restored or long-used
+// workspace is never asked -, and the reader may change the workspace's shape. Asked silently: a
+// reader who may not is simply not asked.
 func (s Starter) StarterOffered(ctx context.Context, actor appshared.ActorContext) (bool, error) {
 	if s.Starts == nil || s.Permits == nil {
 		return false, nil

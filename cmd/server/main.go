@@ -2073,6 +2073,9 @@ func run() error {
 			HLC:         hybrid,
 			Text:        forms,
 			Structure:   structures,
+			Buckets:     buckets,
+			Workspaces:  postgres.NewWorkspaceSettingsRepository(),
+			Renderer:    renderer,
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Gate:         entryGate,

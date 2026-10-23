@@ -319,6 +319,11 @@
   );
   /** The name of the preset the layer was copied from, where it is still offered. */
   const startedFrom = $derived(presets.nameOf(structure?.preset ?? structure?.preset_id));
+  /** The picker shows the preset in force until another is chosen, where it is still offered. */
+  const presetInForce = $derived.by(() => {
+    const value = structure?.preset ?? structure?.preset_id;
+    return value && presets.find(value) ? value : '';
+  });
 
   function choosePresetKey(key: string) {
     const preset = presets.find(key);
@@ -412,7 +417,7 @@
                 : t('app.structure.preset_hint')}
             placeholder={t('app.structure.preset_choose')}
             options={presetOptions}
-            bind:value={() => draft?.preset ?? '', (key) => choosePresetKey(key)}
+            bind:value={() => draft?.preset ?? presetInForce, (key) => choosePresetKey(key)}
           />
           <!-- What is saved is the structure the server holds, so it waits for the save bar. -->
           <div class="save-as">

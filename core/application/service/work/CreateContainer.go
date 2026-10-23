@@ -24,6 +24,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/service"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 	"github.com/Jersyfi/hubtask/core/port/clock"
+	"github.com/Jersyfi/hubtask/core/port/i18n"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/core/port/text"
 	"github.com/Jersyfi/hubtask/core/shared/correlation"
@@ -137,6 +138,23 @@ type CreateContainer struct {
 	// Structure resolves and seeds the new container's structure (domain-model.md §2). A build
 	// without it creates containers with no layer of their own and answers no structure.
 	Structure StructureResolver
+	// Buckets, Workspaces and Renderer give a new collection the columns its board starts with
+	// (domain.StartingColumns), named in the workspace's language: the names are content once
+	// created, so the backend renders them where they are created, as provisioning does. A build
+	// without them creates collections with no column.
+	Buckets    BucketInserter
+	Workspaces WorkspaceReader
+	Renderer   i18n.Renderer
+}
+
+// BucketInserter is the one method the starting columns need of the buckets.
+type BucketInserter interface {
+	Insert(ctx context.Context, bucket domain.Bucket) error
+}
+
+// WorkspaceReader reads the workspace the transaction is bound to, for the language it declared.
+type WorkspaceReader interface {
+	Find(ctx context.Context) (identity.Workspace, error)
 }
 
 // Execute creates the container and returns it.
@@ -231,6 +249,11 @@ func (h CreateContainer) create(
 				return err
 			}
 			structure = &effective
+			if container.Type == domain.ContainerCollection {
+				if err := h.startColumns(ctx, container, actor, effective.Values, now); err != nil {
+					return err
+				}
+			}
 		}
 		if err := h.recordAudit(ctx, container, actor, now); err != nil {
 			return err
@@ -248,6 +271,57 @@ func (h CreateContainer) create(
 		return domain.Container{}, nil, err
 	}
 	return created, structure, nil
+}
+
+// startColumns writes the columns the new collection's board starts with (UC-WRK-31 check 1),
+// each with the event and the change entry any column owes, so a synchronising client's next pull
+// sees the board the API answers.
+func (h CreateContainer) startColumns(
+	ctx context.Context, collection domain.Container, actor appshared.ActorContext,
+	values domain.StructureValues, now time.Time,
+) error {
+	columns := domain.StartingColumns(values)
+	if len(columns) == 0 || h.Buckets == nil || h.Workspaces == nil || h.Renderer == nil {
+		return nil
+	}
+	workspace, err := h.Workspaces.Find(ctx)
+	if err != nil {
+		return err
+	}
+	eventActor := event.Actor{Kind: actor.Kind, ID: actor.AccountID}
+	orderKey := ""
+	for _, column := range columns {
+		if orderKey, err = service.OrderKeyAfter(orderKey); err != nil {
+			return err
+		}
+		bucket, err := domain.NewBucket(domain.NewBucketInput{
+			ID: h.IDs.NewID(), TenantID: collection.TenantID, CollectionID: collection.ID,
+			Name: h.Renderer.Render(workspace.DefaultLocale, column.NameCode, nil), OrderKey: orderKey,
+			WipLimit: &column.WipLimit, IsDoneBucket: column.IsDoneBucket, ColorToken: column.ColorToken,
+			Text: h.Text,
+		})
+		if err != nil {
+			return err
+		}
+		if err := h.Buckets.Insert(ctx, bucket); err != nil {
+			return err
+		}
+		announcement, err := event.NewBucketCreated(h.IDs.NewID(), bucket, eventActor, now, event.Cause{})
+		if err != nil {
+			return err
+		}
+		if err := h.Events.Append(ctx, announcement); err != nil {
+			return err
+		}
+		if err := h.Changes.Record(ctx, changelog.Change{
+			TenantID: bucket.TenantID, Entity: bucketTarget, EntityID: bucket.ID,
+			Op: changelog.Upsert, ContainerID: bucket.CollectionID, ActorID: actor.AccountID,
+			HLC: h.HLC.Next(), Payload: announcement.Payload,
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // seedStructure is the new container's own layer (domain-model.md §2). A preset chosen is
@@ -532,7 +606,8 @@ func (h CreateContainer) Descriptor() usecase.Descriptor {
 			"parent; a collection takes the identifier of the hub it belongs to. The name has to " +
 			"be unique among the containers at the same level.",
 		SideEffects: "Writes the container, announces " + string(event.ContainerCreated) +
-			", records a change for offline clients, and writes an audit entry.",
+			", records a change for offline clients, and writes an audit entry. A collection whose " +
+			"board is offered starts with its columns, each announced as " + string(event.BucketCreated) + ".",
 		TokenScope: containersWrite,
 		Input: []usecase.Field{
 			{

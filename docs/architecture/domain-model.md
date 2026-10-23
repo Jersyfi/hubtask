@@ -95,9 +95,11 @@ How the settings resolve (`core/domain/model/work`, `StructureSettings.go`, `Str
   the operator may withdraw without the workspace knowing; the default is not withdrawn while it is
   the default. The installation's *hold* — the default's key, values and locks — travels on the
   `StructureBound`, so every resolution and every writer sees it.
-* **The first start.** A workspace that holds no hub asks whoever may shape it, once, what it is used
-  for (`starter_offered` on `GET /tenant`, `tenant.starter_answered_at`); the starter set of hubs
-  and collections on Hubtask's presets is the client's to create, its names being words (rule 8).
+* **The first start.** A workspace in which nobody has made anything yet - no hub or collection
+  beyond the ones it was created with (multi-tenancy.md §5), no entry - asks whoever may shape it,
+  once, what it is used for (`starter_offered` on `GET /tenant`, `tenant.starter_answered_at`); the
+  starter set of hubs and collections on Hubtask's presets is the client's to create, its names
+  being words (rule 8).
 * **The bound.** Every value at every layer is held inside what the installation offers: the
   system profile intersected with the profiles in force (`item_capability_profile`'s tenant rows
   stay that bound; a workspace narrows through its own layer). A write beyond it is refused with

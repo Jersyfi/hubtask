@@ -7129,7 +7129,7 @@ type ContainerCreate struct {
 	Name        string              `json:"name"`
 	ParentId    *openapi_types.UUID `json:"parent_id,omitempty"`
 
-	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+	// Preset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
 	Preset *ContainerCreatePreset `json:"preset,omitempty"`
 
 	// PresetId A saved preset to start from instead - the workspace's, the installation's or the caller's own; any other is refused with `presets.unknown`. Naming it beside `preset` is refused with `presets.both_named`.
@@ -7140,7 +7140,7 @@ type ContainerCreate struct {
 	Type    ContainerType `json:"type"`
 }
 
-// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
+// ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.
 type ContainerCreatePreset string
 
 // ContainerMilestone defines model for ContainerMilestone.
@@ -12482,7 +12482,7 @@ type Workspace struct {
 	// Slug The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.
 	Slug string `json:"slug"`
 
-	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, the workspace holds no hub, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
+	// StarterOffered Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, nobody has made a hub, collection or entry beyond what the workspace was created with, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.
 	StarterOffered *bool `json:"starter_offered,omitempty"`
 
 	// Status The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.

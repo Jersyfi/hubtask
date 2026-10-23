@@ -16948,7 +16948,7 @@
           "starter_offered": {
             "type": "boolean",
             "readOnly": true,
-            "description": "Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, the workspace holds no hub, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.\n"
+            "description": "Whether a client asks the reader, once, what the workspace is used for and offers a starter set of hubs and collections on matching presets: nobody has answered or skipped it yet, nobody has made a hub, collection or entry beyond what the workspace was created with, and the reader may change the workspace's shape. `POST /tenant/starter:close` answers it for good.\n"
           },
           "hosts": {
             "type": "array",
@@ -21926,7 +21926,7 @@
               "FLOW",
               null
             ],
-            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.\n"
+            "description": "The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set. A collection whose structure offers the board starts with the columns to do, in progress and done, named in the workspace's language; where the board is its default view, the column in progress is limited to three.\n"
           },
           "preset_id": {
             "type": [

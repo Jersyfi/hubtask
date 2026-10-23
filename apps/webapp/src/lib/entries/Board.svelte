@@ -655,10 +655,12 @@
     retryLabel={t('app.retry')}
     onRetry={() => items.openBoard(collectionId, query)()}
   />
-{:else if columns.length === 0}
+{:else if columns.length === 0 && cardsOf(null).length === 0}
   <ReplicaMark state={boardState} />
   <!-- §4.1: say what this place is for, and offer the one action. A board with no columns that
-       explained what a column is and offered no way to make one would be a dead end. -->
+       explained what a column is and offered no way to make one would be a dead end. Only while
+       there is no entry either: entries without a column keep their lane (ux-inventory.md E5), or switching to
+       the board would make the work disappear. -->
   <EmptyState kind="unused" title={t('app.board.no_buckets')} icon="bucket">
     {#snippet action()}
       {#if isBucketBoard && !isReadOnly && mayShape}
