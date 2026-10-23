@@ -916,7 +916,9 @@
         <CelebrationSlot current={moment} />
       {/if}
       <!-- The cover, where one is set: the stripe or the picture above the title, as on a card. -->
-      {#if item.cover?.kind === 'IMAGE' && media.coverUrl(coverImageIdOf(item.cover), Date.now())}
+      {#if !carries('COVER')}
+        <!-- A cover the type does not carry here stays stored and is not drawn. -->
+      {:else if item.cover?.kind === 'IMAGE' && media.coverUrl(coverImageIdOf(item.cover), Date.now())}
         <img class="cover-image" src={media.coverUrl(coverImageIdOf(item.cover), Date.now())} alt="" />
       {:else if item.cover?.kind === 'COLOR' && item.cover.color_token}
         <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
@@ -960,19 +962,23 @@
           <TranslatePanel {item} {languages} onclose={() => (isTranslating = false)} />
         {/if}
       {/if}
-      <!-- What is set, as chips (design-system.md §11.8: set before empty). Each is also a row below. -->
+      <!-- What is set, as chips (design-system.md §11.8: set before empty). Each is also a row below.
+           Per the effective profile (UC-WRK-23 check 4): a value the type no longer carries here
+           stays stored and is not drawn, as its row is not. -->
       <div class="marks">
         <Badge>{typeName(item.type)}</Badge>
         {#if item.archived_at}
           <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
-        <PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />
-        <DueMark {item} />
-        {#each carriedLabels as label (label.id)}
-          <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
-        {/each}
-        {#if repeatValue}<Badge icon="repeat">{repeatValue}</Badge>{/if}
-        {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
+        {#if carries('ASSIGNMENT') || carries('MEMBERS')}<PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />{/if}
+        {#if carries('DUE_DATE')}<DueMark {item} />{/if}
+        {#if carries('LABELS')}
+          {#each carriedLabels as label (label.id)}
+            <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
+          {/each}
+        {/if}
+        {#if repeatValue && carries('RECURRENCE')}<Badge icon="repeat">{repeatValue}</Badge>{/if}
+        {#if reminderCount > 0 && carries('REMINDER')}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
         {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
       </div>
       <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the

@@ -110,6 +110,9 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
     assert.equal(await page.locator(`[data-detail="${detail}"]`).count(), 0, `the entry offers ${detail}`);
   }
   assert.equal(await page.getByLabel('Notes').count(), 0, 'a note editor');
+  // What the entry still holds from before - a date, a person, a cover - stays stored and is not drawn.
+  assert.equal(await page.evaluate(() => document.querySelector('[data-tour="entry"] .marks')?.children.length), 1, 'a mark beside the type');
+  assert.equal(await page.locator('[data-tour="entry"] .cover-stripe').count(), 0, 'a cover');
   assert.equal(await page.getByRole('button', { name: /^Add (a task|a work package|an activity) inside/ }).count(), 0, 'a child entry');
 
   // Checks 1 and 3: the panel - every setting with its source, a reset where it is set here.

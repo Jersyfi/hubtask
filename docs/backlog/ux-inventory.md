@@ -185,12 +185,12 @@ Administration and installation, found by UX-05's sweep:
 ## E6 — The entry
 
 - [x] Head menu: only "Share this entry" → the full entry menu — the entry page's head (and the pane's, and the bar's *⋯* on phones): the one entry menu without *Open*, *People* where the reader may not share (UX-17)
-- [ ] Conflict strip, celebration → kept
-- [ ] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title
-- [ ] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11)
+- [x] Conflict strip, celebration → kept — the entry page's conflict strip above the head and the celebration on its head (UX-17)
+- [x] Cover, checkbox, title, marks (type, archived, people, due, labels, repeats, reminders, language), notes → kept; per profile; ✦ at the title — the entry page's head; a cover or mark the type does not carry here is not drawn, the ✦ beside the title (UX-19, UX-17)
+- [x] Details: assignee (responsible, policy, also on it), dates, labels, reminders, repeats, written in, cover, attachments, custom fields → a property list beside the content; hidden values stay stored (UX-11) — the entry page's *Details*, beside the content from `expanded` up and below it on `compact`, a row per field the type carries here; what it no longer carries stays stored, undrawn (UX-17)
 - [x] "Ask AI" menu (six kinds), translate → at their fields and sections (UX-19); translation for readers
 - [x] Children: heading, count, open/close all levels, embedded list → kept; ＋ activity and ＋ work package (UX-08, the entry page)
-- [ ] Tabs: comments (edit, remove, reply, older, write), history (more) → kept
+- [x] Tabs: comments (edit, remove, reply, older, write), history (more) → kept — the entry page's *Comments* and *History* tabs (UX-17)
 
 ## E7 — Your settings
 
