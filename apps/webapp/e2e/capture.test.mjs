@@ -318,6 +318,8 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   await page.keyboard.press('Enter');
   const create = await sent(page, writes, 'POST /items');
   assert.ok(create.body.title.startsWith('Order tiles'));
+  // The field closes once the create is answered; a Q pressed while it is still closing opens nothing.
+  await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
 
   // Escape returns focus where it was.
   await page.keyboard.press('q');
