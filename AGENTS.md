@@ -34,7 +34,8 @@ read that directory's `AGENTS.md`**, whether or not your tool loads it.
 
 One place per kind of knowledge; write it there and link to it elsewhere. `docs/README.md` names the
 place of each kind. A question for the owner is an issue labelled `decision`; something found
-outside the task, one labelled `finding`; how to work here, this file.
+outside the task and too big to fix where it was found, one labelled `finding`; how to work here,
+this file.
 
 ## Rules that do not bend
 
@@ -83,15 +84,17 @@ The other sections explain.
 - A task of a released milestone carries only checks from the milestone's `Delivers`, and a
   milestone closes only when its use cases list none of those checks as unmet. `[gate: gate-docs]`
 - One concern per commit; each commit builds, carries a Conventional Commit title and a
-  `Task: <ID>` trailer, and keeps its tests beside the code. History is rewritten only while the
-  pull request is a draft. `[unchecked: what one concern is, is judgement; CI checks the head]`
-- A finding outside the task is fixed on the branch where the rules allow — test first, own
-  commit, named in the pull request, or a further pull request of the same task when bigger than a
-  step; a document stating the system wrongly is corrected in the same pull request; a question on
-  the owner's list is a `decision` issue, anything else a `finding`. `[owner]`
-- The owner is asked only about items in § "What you do not decide yourself", after searching, as a
-  `decision` issue in its form — at the cut or the task's start; during the build only when the
-  code refutes a decision, naming the new fact. `[owner]`
+  `Task: <ID>` trailer (in concept mode, the concept's name), and keeps its tests beside the code.
+  History is rewritten only while the pull request is a draft. `[unchecked: what one concern is, is judgement; CI checks the head]`
+- A finding is fixed where it is found: a defect, a wrong comment or document, an outdated *Today*
+  or a small gap next to the work is fixed on the branch in its own commit — test first for code —
+  and named under *Premises* in the description. It becomes a `finding` issue only when the fix is
+  clearly bigger than one step (a data migration, a change to the sync protocol, a whole screen) or
+  touches an item of § "What you do not decide yourself". `[owner]`
+- The owner is asked only when the work cannot go on without the answer, only about an item of
+  § "What you do not decide yourself", after searching, as a `decision` issue in its form.
+  Otherwise the worker takes the option that changes no rule, gate or use case, builds on, and
+  names the choice in the pull request; the owner may overrule it there. `[owner]`
 - An answer is recorded at once on its `decision` issue (the option or words, the date, where it
   goes) and lands on `main` the same day where it governs, in a small documentation pull request
   per batch — never on a task branch — that closes the issues. `[owner]`
@@ -122,12 +125,13 @@ The other sections explain.
 
 ### Steps and commits
 
-- A step is one commit, pushed at once; the steps are a numbered list in the draft pull request's
-  description. A step that adds a use case lands it end to end. `[partial: gate-architecture; open:
-  a layer split that stays green, a step left unpushed]`
-- `make check` is green before a push; the merge is a squash, so CI holds the head, not every
-  commit. More than about eight files, or a title needing "and", is too big a step. No `wip`,
-  `fixup` or `address review` commits. `[unchecked: CI checks the head only]`
+- The steps are the numbered list in the draft pull request's description; a step that adds a use
+  case lands it end to end. Commits are by concern — one concern each, as the working rules say —
+  and are pushed when `make check` is green. `[partial: gate-architecture; open: a layer split that
+  stays green, a commit left unpushed]`
+- The merge is a squash, so CI holds the head, not every commit. A commit of more than about eight
+  files, or one whose title needs "and", most likely holds more than one concern. No `wip`, `fixup`
+  or `address review` commits. `[unchecked: CI checks the head only]`
 - Resuming: compare `git log --oneline main..HEAD` with the draft's steps, run `make check`,
   continue at the first missing one (in an own worktree if the checkout is in use). Stopping: push
   everything and name the next step on the draft pull request. `[unchecked: a conversation is
@@ -140,11 +144,22 @@ The other sections explain.
 
 - The owner directs, decides and looks at results through workers, who do the rest, administration
   and releases included. `[owner]`
-- A user-interface change is shown in the running app (`docs/evidence/README.md`, "How to walk")
-  and refined on its draft pull request until the owner is content; feedback on a task in progress
-  is part of that task. `[owner]`
+- A user-interface change is shown to the owner in the running app (`docs/evidence/README.md`,
+  "How to walk"), or by screenshots in the conversation or the pull request, and refined on its
+  draft pull request until the owner is content; feedback on a task in progress is part of that
+  task. Neither the walk nor its screenshots are committed: the checks are proven by tests.
+  `[owner]`
 - A concept the owner works out is held to the cut checklist (`docs/backlog/README.md`); the worker
   says what is open before it lands. `[owner]`
+- **Concept mode.** On the owner's word — "build concept X completely and bring it to main" — a
+  worker builds a whole concept on one branch, in one pull request, without cutting it into tasks
+  (`docs/backlog/README.md`, "A concept built whole"). The bar is a task's: the concept's use cases
+  written or updated with their checks and proven by tests; domain → application → ports →
+  adapters → presentation; the subject documents and arc42 updated; the contract first; `make
+  check` green, CI on *Ready*; the merge on the owner's word. A change to an existing use case's
+  *Goal*, *How to check* or *Where it ends* that the released concept names is decided by that
+  word; any other still needs the owner's decision. When one context cannot hold it, it is
+  split into pull requests by screen or area, never by a cross-cutting theme. `[owner]`
 - Each new task starts with a fresh worker, unless the owner asks for a series. `[unchecked: a
   preference]`
 - An unattended run (scheduled, nightly) opens an issue and stops. `[unchecked: depends on the
@@ -154,17 +169,19 @@ The other sections explain.
 
 ## The loop for every task
 
-1. **Understand and settle.** Read the task, its issue, its use cases and their principles,
+1. **Understand and settle.** Read completely the task (or the concept), its issue, its use cases
+   and the `AGENTS.md` of every directory the change touches. Read the use cases' principles,
    `domain-model.md`, `project-structure.md`, `api-guidelines.md` for an endpoint, the concern's
-   subject document and `known-traps.md` — completely what you read; an ADR only for a rule's
-   reasoning. Check every premise against the code; correct a false one in this pull request.
+   subject document and `known-traps.md` by the sections the change touches; an ADR only for a
+   rule's reasoning. Check every premise against the code; correct a false one in this pull
+   request.
 2. **Plan in steps** in a draft pull request that closes the issue.
 3. **Specification first:** `api/openapi.yaml`, a migration and sqlc queries, `make generate`.
 4. **Inside out:** domain → application → ports → adapters → presentation.
 5. **Test:** table tests for the domain; Testcontainers and a cross-tenant negative test per new
    repository method; each use case check by a test that can prove it.
-6. **Check:** every carried check met with evidence (`docs/usecases/README.md`), a review against the
-   rules no gate checks, `make check` green.
+6. **Check:** every carried check proven by a test that asserts it (`docs/usecases/README.md`), a
+   review against the rules no gate checks, `make check` green.
 7. **Finish:** the template complete — *Premises* included —, the use cases' `state:`,
    `checked_by:` and *Today* moved, `gh pr ready`; CI runs then.
 
@@ -182,12 +199,16 @@ Bring these to the owner with a worked-out proposal:
   number is a correction.
 - A change to what a released milestone delivers.
 
-Everything else you decide and write down why, in the record and where the next reader needs it.
+Everything else you decide and write down why, in the pull request and where the next reader needs
+it.
 
-**Asking.** Search `docs/`, the milestones' `Decisions` and closed `decision` issues first; an
-answered question is cited. Otherwise the `decision` issue form (`.github/ISSUE_TEMPLATE/`): the
-problem with a person's example, the proposal's effect on users, administrators and operators
-through D1–D7, the alternatives, one answerable question, what waits. Tell the owner once, with the
+**Asking.** First whether to ask at all: only when the work cannot go on without the answer;
+otherwise take the option that changes no rule, gate or use case, build on, and name the choice in
+the pull request, where the owner may overrule it. Then search `docs/`, the milestones' `Decisions`
+and closed `decision` issues; an answered question is cited. Only an unanswered one becomes a
+`decision` issue in its form (`.github/ISSUE_TEMPLATE/`): the problem with a person's example, the
+proposal's effect on users, administrators and operators through D1–D7, the alternatives, one
+answerable question, what waits. Tell the owner once, with the
 list; a follow-up needs a new fact.
 
 ## Which command checks what
@@ -217,6 +238,9 @@ pushed.
 
 - Comment only what the code cannot say: why not the obvious alternative, an invariant, a trap —
   never what the next line does, history or plans. `[unchecked: judgement]`
+- A comment is as short as it can be and still say why — a few lines; the reasoning lives in the
+  subject document or ADR it cites, not in the code. An existing comment is shortened when its file
+  is changed anyway, not in a sweep. `[unchecked: judgement]`
 - Cite only stable references: `rule 10`, `P-05`, `UC-ID-12/4`, an existing identifier (`SG-3`,
   `RT-12`, `T-07`), `security.md §9`, an ADR for the reasoning — never a task ID, an issue or pull
   request number, or an instruction file. `[partial: gate-docs; open: tasks lettered A, C or P,
@@ -229,6 +253,7 @@ pushed.
 
 ## Style
 
-Small, self-contained changes — one pull request per use case or clearly bounded building block.
+Small, self-contained changes — one pull request per use case or clearly bounded building block,
+or per concept in concept mode.
 Errors are typed values, wrapped with `%w`. No speculative abstraction: the generalisation is
 already in the domain model.
