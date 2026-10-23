@@ -571,6 +571,16 @@ func (s *suggestionStore) Decide(
 	return true, nil
 }
 
+func (s *suggestionStore) Narrow(
+	_ context.Context, narrowed domain.Suggestion, _ int,
+) (bool, error) {
+	if s.versionMoved {
+		return false, nil
+	}
+	s.proposals[narrowed.ID] = narrowed
+	return true, nil
+}
+
 type allow struct{}
 
 func (allow) Authorize(context.Context, appshared.ActorContext, access.Request) error { return nil }

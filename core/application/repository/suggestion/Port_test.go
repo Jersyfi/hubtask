@@ -29,12 +29,13 @@ func TestTheRetentionSliceCanOnlyCountAndRemove(t *testing.T) {
 	}
 }
 
-// And the store's own surface, which is the other half of the same statement: recording, reading
-// and deciding are the whole of what the application layer asks of it.
-func TestTheStoreSurfaceIsTheFourThingsTheUseCasesNeed(t *testing.T) {
+// And the store's own surface, which is the other half of the same statement: recording, reading,
+// deciding, and narrowing what is left of a proposal taken in part are the whole of what the
+// application layer asks of it.
+func TestTheStoreSurfaceIsTheFiveThingsTheUseCasesNeed(t *testing.T) {
 	store := reflect.TypeOf((*repository.Suggestions)(nil)).Elem()
 
-	want := map[string]bool{"Record": true, "Find": true, "List": true, "Decide": true}
+	want := map[string]bool{"Record": true, "Find": true, "List": true, "Decide": true, "Narrow": true}
 	if store.NumMethod() != len(want) {
 		t.Fatalf("the store has %d methods, want %d", store.NumMethod(), len(want))
 	}

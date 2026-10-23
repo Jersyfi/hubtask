@@ -262,7 +262,7 @@ func TestTheClosedSetsAreClosed(t *testing.T) {
 	if domain.TargetType("COMMENT").Valid() || domain.Status("PENDING").Valid() {
 		t.Error("an invented value reports itself valid")
 	}
-	if len(domain.Kinds()) != 5 || len(domain.TargetTypes()) != 4 || len(domain.Statuses()) != 3 {
+	if len(domain.Kinds()) != 6 || len(domain.TargetTypes()) != 4 || len(domain.Statuses()) != 3 {
 		t.Error("a value was added to a closed set without this test being told")
 	}
 	if domain.StatusProposed.Decided() {
@@ -284,5 +284,32 @@ func TestTheDigestSeparatesItsPartsAndIsTheSameTwice(t *testing.T) {
 	}
 	if got := len(domain.Digest("Buy milk")); got != sha256.Size {
 		t.Fatalf("the digest is %d bytes, want SHA-256's %d", got, sha256.Size)
+	}
+}
+
+// Taking part of a proposal leaves the rest open: still proposed, with only what is left, and a
+// version that moved so that two people taking at once are told rather than both served.
+func TestANarrowedProposalStaysOpenWithWhatIsLeft(t *testing.T) {
+	recorded, err := domain.New(input())
+	if err != nil {
+		t.Fatalf("recording: %v", err)
+	}
+	left := map[string]any{"entries": []any{map[string]any{"key": "2", "title": "Flour"}}}
+	narrowed, err := recorded.Narrow(left)
+	if err != nil {
+		t.Fatalf("narrowing: %v", err)
+	}
+	if narrowed.Status != domain.StatusProposed || narrowed.Version != recorded.Version+1 {
+		t.Errorf("the narrowing left the record at %+v", narrowed)
+	}
+	if len(narrowed.Payload) != 1 || narrowed.Payload["entries"] == nil {
+		t.Errorf("the payload is %v, want only what is left", narrowed.Payload)
+	}
+	if _, err := recorded.Narrow(map[string]any{}); !errors.Is(err, shared.ErrInternal) {
+		t.Errorf("narrowing to nothing answered %v; taking the last is a decision", err)
+	}
+	decided, _ := recorded.Decide(domain.StatusDismissed, deciderID, moment)
+	if _, err := decided.Narrow(left); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("narrowing a decided proposal answered %v, want a conflict", err)
 	}
 }

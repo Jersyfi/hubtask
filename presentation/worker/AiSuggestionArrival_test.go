@@ -69,6 +69,10 @@ func (r *recordingSuggestions) Decide(context.Context, domain.Suggestion, int) (
 	return false, nil
 }
 
+func (r *recordingSuggestions) Narrow(context.Context, domain.Suggestion, int) (bool, error) {
+	return false, nil
+}
+
 type fixedClock struct{}
 
 func (fixedClock) Now() time.Time { return time.Date(2026, 10, 21, 9, 0, 0, 0, time.UTC) }

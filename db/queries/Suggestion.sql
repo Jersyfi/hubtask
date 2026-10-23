@@ -48,6 +48,14 @@ SET status = sqlc.arg('status'), decided_at = sqlc.arg('decided_at'),
     decided_by = sqlc.arg('decided_by'), version = version + 1
 WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version');
 
+-- name: NarrowSuggestion :execrows
+-- What is left of a proposal once part of it was taken, guarded like a decision: two people taking
+-- from one proposal at once is the same conflict as two answering it. Only an open proposal
+-- narrows.
+UPDATE ai_suggestion
+SET payload = sqlc.arg('payload'), version = version + 1
+WHERE id = sqlc.arg('id') AND version = sqlc.arg('expected_version') AND status = 'PROPOSED';
+
 -- name: CountExpiredSuggestions :one
 -- Counted no higher than the ceiling, the notification history's shape: the number is for a run
 -- log and an operator, and counting a million rows to write "a lot" into a log is a scan nobody

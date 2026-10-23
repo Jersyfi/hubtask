@@ -178,6 +178,33 @@ func (r SuggestionRepository) Decide(
 	return written > 0, nil
 }
 
+func (r SuggestionRepository) Narrow(
+	ctx context.Context, narrowed domain.Suggestion, expectedVersion int,
+) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	id, err := uuidOf(narrowed.ID)
+	if err != nil {
+		return false, err
+	}
+	payload, err := json.Marshal(narrowed.Payload)
+	if err != nil {
+		return false, shared.Internalf("encoding a suggestion's payload: %w", err)
+	}
+	written, err := queries.NarrowSuggestion(ctx, sqlc.NarrowSuggestionParams{
+		ID: id, Payload: payload,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return false, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("narrowing a suggestion: %w", err))
+	}
+	return written > 0, nil
+}
+
 func (r SuggestionRepository) DeleteExpired(
 	ctx context.Context, cutoff time.Time, batch int,
 ) (int, error) {
