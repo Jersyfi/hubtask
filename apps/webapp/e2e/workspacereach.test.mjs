@@ -79,7 +79,7 @@ for (const role of ['MEMBER', 'CONTRIBUTOR', 'VIEWER', 'BELOW']) {
     await page.goto(`${served.origin}/administration/workspace`);
     await page.getByRole('heading', { name: NOTHING_HERE }).waitFor();
     assert.equal(await page.getByRole('button', { name: 'Save' }).count(), 0, 'the workspace form is drawn');
-    assert.equal(await page.getByText('Sign-in provider').count(), 0, 'the administration column is drawn');
+    assert.equal(await page.getByText('Legal links').count(), 0, 'the administration column is drawn');
 
     // The front door reaches nothing either, rather than sending the reader on to a screen that does not.
     await page.goto(`${served.origin}/administration`);
@@ -103,7 +103,7 @@ for (const role of ['OWNER', 'AUDITOR']) {
     assert.ok((await menuRows(page)).includes('Workspace administration'));
 
     await page.goto(`${served.origin}/administration/workspace`);
-    await page.getByRole('navigation').getByText('Sign-in provider').waitFor();
+    await page.getByRole('navigation').getByText('Legal links').waitFor();
     assert.equal(await page.getByRole('heading', { name: NOTHING_HERE }).count(), 0);
     for (let waited = 0; !asked.includes('/meta/health') && waited < 50; waited++) await page.waitForTimeout(100);
     assert.ok(asked.includes('/meta/health'), 'the health report was not read for somebody who may read it');

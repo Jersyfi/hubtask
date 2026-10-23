@@ -65,7 +65,7 @@ test('chromium: on a private installation the installation is the administration
   await context.close();
 
   const multi = await administration(browser, 'multi', desktop);
-  await multi.page.getByRole('navigation').getByText('Sign-in provider').waitFor();
+  await multi.page.getByRole('navigation').getByText('Legal links').waitFor();
   assert.equal(await multi.page.getByText('Applies to every workspace you create').count(), 0);
   assert.match(await menuRows(multi.page), /\bInstallation\b/);
   await multi.context.close();
