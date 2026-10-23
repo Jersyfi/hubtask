@@ -192,6 +192,7 @@ export type {
   DataSubjectRequestExtension,
   DataSubjectRequestExtensionReason,
   ErasureMode,
+  ItemExport,
   ItemQueryResult,
   ItemSearchQuery,
   ItemAttachments,

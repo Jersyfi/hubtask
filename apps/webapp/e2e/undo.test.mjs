@@ -109,11 +109,13 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   assert.ok(written.some((w) => w.method === 'PUT' && w.path.endsWith(`/items/${tagged.id}/labels/${label.id}`)), 'Undo did not put it back');
   await settle(page);
 
-  // A label deleted from the collection, from the labels dialog. The dialog is modal: its own list
+  // A label deleted from the collection, from *Structure → Labels*. The panel is modal: its own list
   // of deleted labels is the way back while it is open, and the message stands with its Undo once
   // it is closed.
   await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Labels' }).click();
+  // The labels are a tab of *Structure* (ux-inventory.md §E4).
+  await page.getByRole('menuitem', { name: 'Structure…' }).click();
+  await page.getByRole('tab', { name: 'Labels' }).click();
   await undoAfterEightSeconds(page, async () => {
     await page.getByRole('button', { name: `Delete ${label.name}` }).click();
     await page.keyboard.press('Escape');
@@ -125,7 +127,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — the labels dialog lists a deleted label with the way back', async (t) => {
+test('chromium: 1280 px — *Structure → Labels* lists a deleted label with the way back', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures, written } = await list(browser);
@@ -134,7 +136,9 @@ test('chromium: 1280 px — the labels dialog lists a deleted label with the way
   await context.route('**/api/v1/containers/*/labels?include_deleted=true', (route) => route.fulfill({ json: [...LABELS, gone] }));
 
   await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Labels' }).click();
+  // The labels are a tab of *Structure* (ux-inventory.md §E4).
+  await page.getByRole('menuitem', { name: 'Structure…' }).click();
+  await page.getByRole('tab', { name: 'Labels' }).click();
   await page.getByRole('heading', { name: 'Deleted labels' }).waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: `Bring ${gone.name} back` }).click();
   await page.waitForTimeout(300);

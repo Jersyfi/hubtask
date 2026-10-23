@@ -15,12 +15,11 @@
   // are: the gate is a prediction, and the server's refusal is what a reader meets when it is
   // wrong.
 
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
 
   import {
     Button,
     CapabilityGate,
-    Dialog,
     IconButton,
     Select,
     Stack,
@@ -46,8 +45,11 @@
   import { check, focusFirst, isComplete, type Missing } from '../forms/missing.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import PanelOrDialog from './PanelOrDialog.svelte';
 
   interface Props {
+    /** Drawn as a tab of the *Structure* panel rather than as a dialog of its own. */
+    isEmbedded?: boolean;
     isOpen: boolean;
     container: Container;
     /** The path the collection sits on: who may be named comes from the roles along it. */
@@ -56,7 +58,7 @@
     role: string | undefined;
   }
 
-  let { isOpen = $bindable(), container, path, role }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(), container, path, role }: Props = $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
 
@@ -72,6 +74,13 @@
   // reason: the fields are re-read on the next open.
   $effect(() => {
     if (!isOpen) return;
+    untrack(fill);
+    people.open(path);
+    return groups.open();
+  });
+
+  /** The form as the collection holds it: what opening shows, and what *Cancel* goes back to in a tab. */
+  function fill() {
     const draft = draftOf(container.policies);
     completion = draft.completion;
     strategy = draft.strategy;
@@ -79,9 +88,13 @@
     enabled = draft.enabled;
     adding = '';
     failure = undefined;
-    people.open(path);
-    return groups.open();
-  });
+  }
+
+  /** Done with the form: a dialog closes; a *Structure* tab stays, as the collection holds it. */
+  function finish() {
+    if (isEmbedded) fill();
+    else isOpen = false;
+  }
 
   const draft = $derived({ completion, strategy, candidates, enabled });
 
@@ -152,7 +165,7 @@
     try {
       await containers.setPolicies(container.id, documentOf(draft), container.version);
       announcer.say(t('app.policies.saved_announced'));
-      isOpen = false;
+      if (!isEmbedded) isOpen = false;
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
@@ -161,7 +174,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t('app.policies.title')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.policies.title')} dismissLabel={t('app.workspace.cancel')}>
   <CapabilityGate
     status={structure.status}
     reason={structure.status === 'refused' ? t(structure.code, structure.params) : undefined}
@@ -230,7 +243,7 @@
   </CapabilityGate>
 
   {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
+    <Button tone="secondary" onclick={finish}>{t('app.workspace.cancel')}</Button>
     <Button
       isBusy={isSaving}
       busyLabel={t('app.workspace.saving')}
@@ -240,7 +253,7 @@
       {t('app.workspace.save')}
     </Button>
   {/snippet}
-</Dialog>
+</PanelOrDialog>
 
 <style>
   .hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); max-width: 64ch; }

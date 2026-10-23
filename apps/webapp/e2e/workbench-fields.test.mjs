@@ -76,6 +76,12 @@ test('a missing value is marked, said and described, in chromium', { timeout: 5 
       }
     }
 
+    // An option's hint is its own input's description, not only a line under it.
+    await page.goto(`${server.origin}/?story=wave-1-forms-radio--resting`);
+    const hinted = page.locator('.host input[type="radio"][value="schedule"]');
+    await hinted.waitFor();
+    assert.match(await description(hinted), /whether or not this one is done/, 'the option is not described by its hint');
+
     // The one-time secret: *Done* is never switched off; pressed before the tick it marks the box
     // and moves focus there.
     await page.goto(`${server.origin}/?story=wave-3-domain-one-time-secret--acknowledge`);

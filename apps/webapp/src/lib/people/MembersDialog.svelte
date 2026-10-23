@@ -33,7 +33,6 @@
     Badge,
     Banner,
     Button,
-    Dialog,
     Input,
     OneTimeSecret,
     Select,
@@ -52,13 +51,15 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
 
   let {
+    isEmbedded = false,
     isOpen = $bindable(false),
     scope,
     path,
     title,
-  }: { isOpen?: boolean; scope: Scope; path: Path; title: string } = $props();
+  }: { isEmbedded?: boolean; isOpen?: boolean; scope: Scope; path: Path; title: string } = $props();
 
   const holders = $derived(people.holders(path, scope));
 
@@ -227,7 +228,7 @@
   }
 </script>
 
-<Dialog bind:isOpen {title} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen {title} dismissLabel={t('app.workspace.cancel')}>
   <Stack gap="200">
     {#if holders.length === 0}
       <p class="empty">{t('app.people.nobody_here')}</p>
@@ -350,7 +351,7 @@
 
     {#if failure}<p class="failure" role="alert">{failure}</p>{/if}
   </Stack>
-</Dialog>
+</PanelOrDialog>
 
 <RevokeDialog
   holder={revoking}

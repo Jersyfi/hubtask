@@ -10,6 +10,7 @@ import {
   exportFileName,
   feedStateOf,
   isTruncated,
+  itemExportOf,
   needsStructure,
   queryDocumentOf,
   queryOf,
@@ -113,4 +114,28 @@ test('a view saved at hub scope names the hub, never the collection the screen i
   assert.equal(scopeIdOf('TENANT', at), null);
   // The hub not known yet: there is nothing to name, so the scope cannot be saved at.
   assert.equal(scopeIdOf('HUB', { collectionId: 'collection-1' }), undefined);
+});
+
+test('an export without a view asks the question a view saved here would store', () => {
+  // The same level and anchor as `queryDocumentOf`, in the body's shape: saving the view first
+  // and exporting it then hands over the same rows.
+  const query = {
+    filter: { op: 'EQ', field: 'is_completed', value: false } as never,
+    sort: [{ field: 'due_at', dir: 'ASC' as const }],
+    group: { field: 'assignee_id', limit_per_group: 50 },
+  };
+  assert.deepEqual(itemExportOf(query, 'c-1', 'CSV', 'Europe/Berlin'), {
+    format: 'CSV',
+    time_zone: 'Europe/Berlin',
+    query: {
+      scope: { container_id: 'c-1', include_descendants: false },
+      filter: query.filter,
+      sort: query.sort,
+    },
+  });
+  // Nothing filtered is the whole level, and no zone is the reader's own on the server.
+  assert.deepEqual(itemExportOf(undefined, 'c-1', 'ICS', undefined), {
+    format: 'ICS',
+    query: { scope: { container_id: 'c-1', include_descendants: false } },
+  });
 });

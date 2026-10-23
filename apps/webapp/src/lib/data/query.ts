@@ -193,6 +193,27 @@ export function filterOf(
   return nodes.length === 1 ? nodes[0] : { op: 'AND', nodes };
 }
 
+/**
+ * …and back: the conditions a filter is, for an editor showing a saved view's question.
+ *
+ * Only the shape `filterOf` writes can be shown as a list of conditions — one leaf, or `AND` over
+ * leaves. Anything else (`OR`, `NOT`, a deeper tree a script saved) is `undefined`: the editor
+ * cannot draw it, and the caller keeps the filter whole rather than dropping the part it cannot
+ * draw.
+ */
+export function conditionsOf(filter: FilterNode | undefined): Condition[] | undefined {
+  if (!filter) return [];
+  const leaves = filter.op === 'AND' ? (filter.nodes ?? []) : [filter];
+  if (leaves.some((leaf) => leaf.op === 'AND' || leaf.op === 'OR' || leaf.op === 'NOT' || !leaf.field)) return undefined;
+  return leaves.map((leaf) => ({ field: leaf.field!, op: leaf.op, value: textOf(leaf.value) }));
+}
+
+/** A value as the text an input holds: a list comma-separated, as `valueFor` reads it back. */
+function textOf(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  return Array.isArray(value) ? value.map(String).join(', ') : String(value);
+}
+
 /** One ordering. `undefined` where the field is not one the installation says may be sorted on. */
 export function sortOf(
   manifest: Capabilities | undefined,
