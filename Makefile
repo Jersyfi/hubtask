@@ -524,7 +524,7 @@ gate-privacy:
 # `$$`; given in the environment (TITLE="…" make gate-pr), it is taken as it is.
 .PHONY: gate-pr
 gate-pr:
-	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) $(if $(BASE),-base $(BASE),) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
+	$(GO) run ./tools/checkpr $(if $(BODY),-body $(BODY),) $(if $(TITLE),-title "$$TITLE",) -base $(if $(BASE),$(BASE),origin/main) $(if $(HEAD_REF),-head $(HEAD_REF),) $(if $(OPENED),-opened $(OPENED),)
 
 ## gate-privacy-full: PG-2 and PG-7 against a real PostgreSQL (every pull request, and the nightly on arm64)
 .PHONY: gate-privacy-full
