@@ -8,7 +8,7 @@
    The visual system is `docs/design/design-system.md` applied to a brochure. Four mechanisms
    carry the recognition, and they repeat on every page:
 
-     1. The mark      three nested planes, the innermost in the signature bordeaux (§9).
+     1. The mark      the provisional mark of §9, drawn by the design system's Logo.
      2. The ember     the signature colour appears in exactly three ways - an ambient wash behind
                       a hero, the mono kicker above a section, and a short rule under a title. It
                       is never a surface, because `ambient.*` are washes and `accent.signature`
@@ -65,6 +65,10 @@ html:has(#mode-dark:checked) body[data-theme] {
   --shadow-nested: inherit;
   --rim-signature: inherit;
   --rim-primary: inherit;
+  --brand-outline: inherit;
+  --brand-plane: inherit;
+  --brand-core: inherit;
+  --brand-spark: inherit;
   --ambient-primary: inherit;
   --ambient-signature: inherit;
   --label-slate-bg: inherit;
@@ -134,6 +138,10 @@ html:has(#mode-dark:checked) body[data-theme] {
     --shadow-nested: inherit;
     --rim-signature: inherit;
     --rim-primary: inherit;
+    --brand-outline: inherit;
+    --brand-plane: inherit;
+    --brand-core: inherit;
+    --brand-spark: inherit;
     --ambient-primary: inherit;
     --ambient-signature: inherit;
     --label-slate-bg: inherit;
@@ -252,31 +260,12 @@ body {
 
 .brand {
   display: inline-flex;
-  align-items: center;
-  gap: var(--sp-150);
   color: var(--text-primary);
-  font-family: var(--font-display);
-  font-size: var(--fs-300);
-  font-weight: var(--fw-bold);
-  letter-spacing: -0.01ch;
   text-decoration: none;
-  white-space: nowrap;
 }
 
 .brand:hover {
   color: var(--text-primary);
-}
-
-.site-mark {
-  display: block;
-  flex: none;
-  inline-size: var(--sp-400);
-  block-size: var(--sp-400);
-}
-
-.site-mark[data-size='lg'] {
-  inline-size: var(--sp-600);
-  block-size: var(--sp-600);
 }
 
 .topnav {

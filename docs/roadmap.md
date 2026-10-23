@@ -143,8 +143,8 @@ they exist and are not yet published.
 
 Open, and the owner's:
 
-* the wordmark, which `design-system.md` §9 still lists as unfinished — the site uses the
-  workbench's placeholder;
+* the final mark: `design-system.md` §9's mark is provisional until a trademark search and a
+  graphic refinement — the site already draws it;
 * which mailbox: the site uses `info@hubtask.eu`, while [`TRADEMARK.md`](../TRADEMARK.md) names
   `licensing@hubtask.eu`;
 * whether the colour mode persists across a navigation — it costs a script on a site that loads
