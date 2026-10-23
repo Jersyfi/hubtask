@@ -424,7 +424,7 @@
       <!-- On `medium` *Capture* is a mark at the start: the row is too narrow for one more control
            at the end and the palette's field still centred between the two sides (§11.2). -->
       {#if isCaptureOffered && !viewport.isCompact && viewport.isBelowExpanded}
-        <IconButton icon="plus" label={t('app.capture.open_field')} aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+        <IconButton icon="plus" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
       {/if}
     {/snippet}
     {#snippet search()}
@@ -459,7 +459,7 @@
       <!-- Capture, from every page (UC-WRK-26 check 1): the product's act rather than a page's,
            here from `medium` up and the bottom bar's ＋ below it. -->
       {#if isCaptureOffered && !viewport.isBelowExpanded}
-        <Button size="sm" tone="primary" icon="plus" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+        <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
       {/if}
       <NoticeMark />
       <SyncLine />
@@ -502,63 +502,69 @@
          so it draws no ring when it does. -->
     <main id="main" tabindex="-1" data-filled={page.fills ? '' : undefined} bind:this={mainElement}>
       <div class="content">
-        {#if recoveryNote.note}
-          <!-- After a sign-in with a recovery code (UC-ID-02 check 6). The danger tone at zero,
-               because that is the number to act on; the link is the action that makes it true
-               again. -->
-          <div class="confirmed">
-            <Banner
-              tone={recoveryNote.note.left === 0 ? 'danger' : 'info'}
-              dismissLabel={t('app.recovery_note.close')}
-              onDismiss={() => recoveryNote.close()}
-            >
-              {recoveryNote.note.left === 0
-                ? t('app.recovery_note.none')
-                : t('app.recovery_note.left', { count: String(recoveryNote.note.left), total: '10' })}
-              {#snippet action()}
-                <!-- A link, because it goes somewhere: announced as one, and it opens in a new tab
-                     for whoever asks it to. The click stays inside the application. -->
-                <a
-                  href="/profile/security"
-                  onclick={(event) => {
-                    event.preventDefault();
-                    go('/profile/security');
-                  }}
-                >
-                  {t('app.recovery_note.replace')}
-                </a>
-              {/snippet}
-            </Banner>
-          </div>
-        {/if}
-        <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
-        <EmergencyNotices onnavigate={go} />
-        {#if aiObjection.noticePending && aiObjection.position}
-          <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
-          <div class="confirmed" data-ai-notice>
-            <Banner tone="info">
-              {t('app.profile.ai_notice', {
-                basis: aiObjection.position.basis ? t(`app.profile.ai_basis_${aiObjection.position.basis}`) : '',
-                contact: aiObjection.position.contact || t('app.profile.ai_ask_admin'),
-              })}
-              {#snippet action()}
-                <Button size="sm" isBusy={isAcknowledging} busyLabel={t('app.workspace.saving')} onclick={() => void acknowledgeAiNotice()}>
-                  {t('app.profile.ai_notice_understood')}
-                </Button>
-              {/snippet}
-            </Banner>
-          </div>
-        {/if}
-        {#if stepUp.confirmed}
-          <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
-               the action the person left to confirm goes through when they take it again. Gone
-               once that action has used it, or its few minutes are over. -->
-          <div class="confirmed">
-            <Banner tone="success">
-              {t('app.step_up.confirmed', { provider: stepUp.confirmed.provider || t('app.step_up.your_provider') })}
-            </Banner>
-          </div>
-        {/if}
+        <!-- One banner zone (ux-inventory.md §E1): what the frame has to say to the person - the
+             recovery codes, an emergency access, the AI notice, a step-up that held - stands in
+             one place above the page head, in this order, rather than wherever each was added.
+             Empty, it takes no room: each banner carries its own space below. -->
+        <div class="banners" data-banners>
+          {#if recoveryNote.note}
+            <!-- After a sign-in with a recovery code (UC-ID-02 check 6). The danger tone at zero,
+                 because that is the number to act on; the link is the action that makes it true
+                 again. -->
+            <div class="confirmed">
+              <Banner
+                tone={recoveryNote.note.left === 0 ? 'danger' : 'info'}
+                dismissLabel={t('app.recovery_note.close')}
+                onDismiss={() => recoveryNote.close()}
+              >
+                {recoveryNote.note.left === 0
+                  ? t('app.recovery_note.none')
+                  : t('app.recovery_note.left', { count: String(recoveryNote.note.left), total: '10' })}
+                {#snippet action()}
+                  <!-- A link, because it goes somewhere: announced as one, and it opens in a new tab
+                       for whoever asks it to. The click stays inside the application. -->
+                  <a
+                    href="/profile/security"
+                    onclick={(event) => {
+                      event.preventDefault();
+                      go('/profile/security');
+                    }}
+                  >
+                    {t('app.recovery_note.replace')}
+                  </a>
+                {/snippet}
+              </Banner>
+            </div>
+          {/if}
+          <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
+          <EmergencyNotices onnavigate={go} />
+          {#if aiObjection.noticePending && aiObjection.position}
+            <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
+            <div class="confirmed" data-ai-notice>
+              <Banner tone="info">
+                {t('app.profile.ai_notice', {
+                  basis: aiObjection.position.basis ? t(`app.profile.ai_basis_${aiObjection.position.basis}`) : '',
+                  contact: aiObjection.position.contact || t('app.profile.ai_ask_admin'),
+                })}
+                {#snippet action()}
+                  <Button size="sm" isBusy={isAcknowledging} busyLabel={t('app.workspace.saving')} onclick={() => void acknowledgeAiNotice()}>
+                    {t('app.profile.ai_notice_understood')}
+                  </Button>
+                {/snippet}
+              </Banner>
+            </div>
+          {/if}
+          {#if stepUp.confirmed}
+            <!-- The return from a step-up at the provider (ADR-0075 §2): the confirmation holds, and
+                 the action the person left to confirm goes through when they take it again. Gone
+                 once that action has used it, or its few minutes are over. -->
+            <div class="confirmed">
+              <Banner tone="success">
+                {t('app.step_up.confirmed', { provider: stepUp.confirmed.provider || t('app.step_up.your_provider') })}
+              </Banner>
+            </div>
+          {/if}
+        </div>
         {@render children()}
       </div>
     </main>

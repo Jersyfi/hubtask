@@ -113,21 +113,21 @@ Administration and installation, found by UX-05's sweep:
 
 ## E1 — Frame
 
-- [ ] Skip link → kept
-- [ ] Navigation toggle and rail (kept in `hubtask.nav`) → kept
+- [x] Skip link → kept — the frame, on every screen behind the sign-in (UX-17)
+- [x] Navigation toggle and rail (kept in `hubtask.nav`) → kept — the frame's ☰ and the column folded to a rail (UX-17)
 - [x] Wordmark → the mark (UX-06), leads to Today — the mark and the wordmark link to `/`, the start page UX-15 makes *Today*
 - [x] Bar search: live hits, quick filters (mine and open, due this week, overdue, nobody on it, changed this week, recently finished), "Open search", "with the filter open", arrows/Enter/Escape → the palette (UX-13), all kept, plus commands and *Ask* — the palette in the bar and, on phones, behind *Search*; *Ask* — one question, a proposed answer with its sources, provenance, filter chips and *Save as view*, in the dialog *Ask the workspace* (UX-22)
-- [ ] Page *⋯* on phones → kept
-- [ ] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview
-- [ ] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry
+- [x] Page *⋯* on phones → kept — the bar's *⋯* on `compact`, the page's own menu (UX-17)
+- [x] Notice mark: installation unreadable + Try again, degraded features, maturity → kept; health also on the administration overview — the bar's notice mark; health also on *Administration → Overview* (UX-17)
+- [x] Sync mark: waiting count, oldest, synchronised, list, not accepted + Dismiss + link, conflict resolver → kept; the conflict also on the entry — the bar's sync mark; the conflict also on the entry, its conflict strip (UX-17)
 - [x] Account menu: settings, administration, installation, tour, about, sign out → kept; the tour moves under *Help and shortcuts* (`?`, new) — the account menu and *You* (UX-13)
-- [ ] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble
-- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24 — colour and symbol done by UX-07); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*
-- [ ] Archive, Trash band → kept
-- [ ] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You — ＋: UX-14 (a button opening the capture field); *Today*: UX-15
-- [ ] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone
-- [ ] Step-up dialog (authenticator, recovery, password, passkey, provider, Not now, Prove it) → kept
-- [ ] Tour: seven steps, next/back/skip/count, ends with "Make one" → kept; steps for capture, levels and the palette; still ends with the first completion
+- [x] Navigation primary: Overview, Search, Jumble → Today, Search (only without bar search), Jumble — the column's places *Today*, *Search*, *Jumble*; *Search* stays beside the bar's field, a place rather than a second field (`navigation.ts`, `primary`) (UX-17)
+- [ ] Hub tree: rows, twist, rail flyout, private lock, create hub / private hub, empty, no access, error, replica line → kept; colour, symbol, figure per row (UX-07, UX-24 — colour and symbol done by UX-07); *＋ New* creates a hub or collection with a preset; drag to reorder in addition to *Move up/down*; *＋ New* in the column offers a hub, or a collection in the hub the reader stands in, with its preset (UX-17); drag to reorder needs `SideNav` to drag first, a design-system task — finding #1729
+- [x] Archive, Trash band → kept — *Archive* and *Trash* at the foot of the column (UX-17)
+- [x] Bottom bar: Overview, Search, Jumble, You → Today, Search, ＋, Jumble, You — ＋: UX-14 (a button opening the capture field); *Today*: UX-15 — the bottom bar on `compact` (UX-17)
+- [x] Banners: recovery codes, emergency access, AI notice, step-up confirmed → one banner zone — the frame's one banner zone above the page head (UX-17)
+- [x] Step-up dialog (authenticator, recovery, password, passkey, provider, Not now, Prove it) → kept — the frame's step-up prompt (UX-17)
+- [x] Tour: seven steps, next/back/skip/count, ends with "Make one" → kept; steps for capture, levels and the palette; still ends with the first completion — capture, the palette and the levels under an entry are steps of their own; a step whose element a width does not draw is passed over (UX-17)
 
 ## E2 — Signing in, invitations, setup
 

@@ -1031,7 +1031,7 @@
           <!-- The whole subtree (decisions 6 and 7): the same tree the expanded list draws, one
                level down, headed by what it holds and how much of it is done. -->
           <Stack gap="150">
-            <div class="section-head">
+            <div class="section-head" data-tour="levels">
               <h2 class="section">
                 {subtreeHeading}
                 {#if children.length > 0}

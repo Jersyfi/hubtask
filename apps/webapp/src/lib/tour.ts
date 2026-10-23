@@ -2,16 +2,18 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 /**
- * The tour's content (design-system.md §8): six steps on the real interface, each a route
- * and an element found by `data-tour`, and the seventh which is not a step - *now make one*.
+ * The tour's content (design-system.md §8): steps on the real interface, each a route and an
+ * element found by `data-tour`, and the last which is not a step - *now make one*.
  *
  * What the workspace holds decides which steps can be walked: a collection's list and board and
  * an entry need a collection and an entry to point at, and a fresh workspace has neither. Those
- * steps are left out rather than pointed at nothing, and the seventh then points at where the
- * first hub is made. The count a person reads is the count of what they will actually see.
+ * steps are left out rather than pointed at nothing, and the last then points at where the
+ * first hub is made. A step whose element this width does not draw - the palette's field on a
+ * phone - is passed over when it is reached. The count a person reads is the count of what the
+ * workspace can show.
  */
 
-export type StepId = 'hubs' | 'layouts' | 'entry' | 'jumble' | 'search' | 'profile' | 'make';
+export type StepId = 'hubs' | 'capture' | 'palette' | 'layouts' | 'entry' | 'levels' | 'jumble' | 'search' | 'profile' | 'make';
 
 export interface Step {
   readonly id: StepId;
@@ -35,12 +37,21 @@ export interface Workspace {
 
 /** The steps a workspace can be walked through, in order. */
 export function stepsFor(workspace: Workspace): readonly Step[] {
-  const steps: Step[] = [{ id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' }];
+  const steps: Step[] = [
+    { id: 'hubs', route: '/', selector: '[data-tour="hubs"]', side: 'inline-end' },
+    // Capture from every page (ux-inventory.md §E1): the bar's button, or the bottom bar's ＋ on a
+    // phone - the one act among its destinations.
+    { id: 'capture', route: '/', selector: '[data-tour="capture"], nav button[data-action]', side: 'block-end' },
+    { id: 'palette', route: '/', selector: '[data-tour="palette"]', side: 'block-end' },
+  ];
   if (workspace.collectionId) {
     steps.push({ id: 'layouts', route: `/collections/${workspace.collectionId}`, selector: '[data-tour="layouts"]', side: 'block-end' });
   }
   if (workspace.itemId) {
     steps.push({ id: 'entry', route: `/items/${workspace.itemId}`, selector: '[data-tour="entry"]', side: 'block-end' });
+    // The levels under an entry, where its type holds any; a list's entry holds none, and the step
+    // is passed over there.
+    steps.push({ id: 'levels', route: `/items/${workspace.itemId}`, selector: '[data-tour="levels"]', side: 'block-end' });
   }
   if (workspace.hasJumble) {
     steps.push({ id: 'jumble', route: '/jumble', selector: '[data-tour="jumble"]', side: 'block-end' });
@@ -49,7 +60,7 @@ export function stepsFor(workspace: Workspace): readonly Step[] {
     { id: 'search', route: '/search', selector: '[data-tour="search"]', side: 'block-end' },
     { id: 'profile', route: '/profile', selector: '[data-tour="profile"]', side: 'block-end' },
   );
-  // The seventh: the entry the tour leads to. Where a collection exists, its add control; where
+  // The last: the entry the tour leads to. Where a collection exists, its add control; where
   // none does, the hub that has to come first.
   steps.push(
     workspace.collectionId
