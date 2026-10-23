@@ -295,6 +295,10 @@ at the trailing edge. Folded (`isRail`) it is a rail of one centred mark per row
 indent; the label is the accessible name and the tooltip — and a branch pressed there opens the same
 tree as a flyout `Popover`, so nothing is unreachable. One tab stop, the arrows, `Home` and `End`; in
 the rail the direction keys open and close the flyout.
+A node the caller marks `isMovable` is ranked within its level — its siblings, and at the top level
+its band — by `onreorder(id, to)`: a grip at the row's end that drags as a list row's does (§11.9),
+or `Alt`+`↑`/`↓` on the focused row, `Shift` to the ends; the focus stays with the node. The tree
+names the position; the caller writes it and announces it. No grip in the rail.
 
 **`Drawer` at `block-end` keeps its head while its body scrolls.** With `isResizable` a handle above
 the head sizes it — by pointer, or by arrows, `Home` and `End` — between a third and nine tenths of

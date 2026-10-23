@@ -20,7 +20,8 @@
   import { focusReturn } from './focus.ts';
   import { openOverlay } from './overlay.ts';
   import Self from './SideNav.svelte';
-  import { flattenTree, treeIntent, type NavNode as StructureNode } from './structure.ts';
+  import { HOLD_MS, boundariesOf, dropIndex, hasLeftTheHandle, rankIntent } from './reorder.ts';
+  import { flattenTree, levelOf, treeIntent, type NavNode as StructureNode } from './structure.ts';
 
   /**
    * One node. Children make it a branch, unless `isBranch` says so on its own — which is what a
@@ -86,9 +87,19 @@
      */
     branchLabel?: (name: string, isExpanded: boolean) => string;
     onnavigate?: (id: string) => void;
+    /**
+     * Ranks a node among its siblings: `to` is the position it asks for in its level as drawn,
+     * the number `rankTarget` answers with (`reorder.ts`). Only a node with `isMovable` offers it:
+     * a grip to drag by, and `Alt+↑`/`↓` (with `Shift`, to the ends) on the focused row.
+     *
+     * A position rather than a command, because a drag lands three rows away as easily as one.
+     * The write, and the sentence that says it happened, are the caller's: the tree draws the
+     * order it is handed and moves nothing by itself, so the order on screen is the server's.
+     */
+    onreorder?: (id: string, to: number) => void;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate, onreorder }: Props = $props();
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -186,12 +197,45 @@
     tree?.querySelector<HTMLElement>(`[data-index="${index}"]`)?.focus();
   }
 
+  /** Whether a row offers to be ranked here: folded, a rail has no room for a grip or a level. */
+  const isMovable = (row: { node: NavNode }) => onreorder !== undefined && !isRail && row.node.isMovable === true;
+
+  /**
+   * The node just ranked by key, which keeps the focus while the caller's order arrives: the
+   * rows are drawn from what the caller hands back, so the focused index would otherwise stay
+   * where the node was and the next `Alt+↓` would rank its old neighbour.
+   */
+  let following = $state<string | null>(null);
+
+  $effect(() => {
+    if (following === null) return;
+    const index = rows.findIndex((row) => row.node.id === following);
+    if (index < 0 || index === active) return;
+    if (tree?.contains(document.activeElement)) focusRow(index);
+    else active = index;
+  });
+
   function onKeydown(event: KeyboardEvent) {
-    const row = rows[focused];
+    // The row the key was pressed on, which is the focused one however it got the focus - a
+    // caller or a test that focused a row directly has not moved `active`.
+    const pressed = Number((event.target as Element | null)?.closest?.('[data-index]')?.getAttribute('data-index') ?? focused);
+    if (pressed !== focused && rows[pressed]) active = pressed;
+    const row = rows[pressed];
     if (!row) return;
+    if (isMovable(row) && event.altKey && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+      // Answered even where there is nowhere to go: a refused rank is not a request to move the focus.
+      event.preventDefault();
+      const level = levelOf(rows, pressed);
+      const to = rankIntent(event, level.indexOf(pressed), level.length);
+      if (to === null) return;
+      following = row.node.id;
+      onreorder?.(row.node.id, to);
+      return;
+    }
+    following = null;
     const dir = tree !== null && getComputedStyle(tree).direction === 'rtl' ? 'rtl' : 'ltr';
 
-    const intent = treeIntent(event.key, rows, focused, dir);
+    const intent = treeIntent(event.key, rows, pressed, dir);
     if (intent === null) return;
     event.preventDefault();
 
@@ -204,6 +248,86 @@
       else toggle(row.node.id, false);
     } else focusRow(intent.index);
   }
+
+  /**
+   * The pointer path to the same call (`reorder.ts`): a drag ends by naming a position in the
+   * level, which is what `Alt+↓` names too, so the two cannot disagree about where a row lands.
+   * It starts on the grip only, because the row is a link: a fine pointer once it has travelled,
+   * a coarse one after the hold, as every list here does (design-system.md §11.9).
+   */
+  let drag = $state<{ id: string; level: string[]; offset: number; to: number; from: number } | null>(null);
+  let hasJustDragged = false;
+  let stopDrag: (() => void) | undefined;
+
+  function beginDrag(event: PointerEvent, index: number) {
+    const row = rows[index];
+    if (event.button !== 0 || !row || !isMovable(row)) return;
+    const level = levelOf(rows, index).map((at) => rows[at]!.node.id);
+    const from = level.indexOf(row.node.id);
+    const origin = { x: event.clientX, y: event.clientY };
+    let mayBegin = event.pointerType === 'mouse';
+    const held = mayBegin ? undefined : setTimeout(() => (mayBegin = true), HOLD_MS);
+    let hasBegun = false;
+
+    const extentOf = (id: string) => {
+      const box = tree?.querySelector<HTMLElement>(`[data-node="${CSS.escape(id)}"]`)?.getBoundingClientRect();
+      // The carried row is drawn where the pointer is; its slot is where it was.
+      const shift = id === row.node.id ? (drag?.offset ?? 0) : 0;
+      return { start: (box?.top ?? 0) - shift, end: (box?.bottom ?? 0) - shift };
+    };
+
+    const onMove = (move: PointerEvent) => {
+      if (!hasBegun) {
+        if (!hasLeftTheHandle(origin, { x: move.clientX, y: move.clientY })) return;
+        if (!mayBegin) return finish();
+        hasBegun = true;
+        drag = { id: row.node.id, level, offset: 0, to: from, from };
+      }
+      if (!drag) return;
+      const to = dropIndex(move.clientY, boundariesOf(level.map(extentOf)));
+      drag = { ...drag, offset: move.clientY - origin.y, to };
+    };
+
+    const finish = () => {
+      clearTimeout(held);
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', finish);
+      window.removeEventListener('pointercancel', finish);
+      stopDrag = undefined;
+      const landed = drag;
+      drag = null;
+      hasJustDragged = hasBegun;
+      // A drag let go where it began writes nothing: thinking better of it is not a request.
+      if (landed && landed.to !== landed.from) onreorder?.(landed.id, landed.to);
+    };
+
+    stopDrag?.();
+    stopDrag = finish;
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', finish);
+    window.addEventListener('pointercancel', finish);
+  }
+
+  // The click a drag ends with belongs to the drag, never to the row it was let go over, so it is
+  // swallowed before the row's own handler sees it.
+  $effect(() => {
+    const node = tree;
+    if (!node) return;
+    const onClick = (event: MouseEvent) => {
+      if (!hasJustDragged) return;
+      hasJustDragged = false;
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    node.addEventListener('click', onClick, true);
+    return () => {
+      node.removeEventListener('click', onClick, true);
+      stopDrag?.();
+    };
+  });
+
+  /** Where the carried row would land: the row now in that slot, drawn with the marker. */
+  const dropTarget = $derived(drag && drag.to !== drag.from ? drag.level[drag.to] : undefined);
 </script>
 
 <nav class="side-nav" data-rail={isRail ? '' : undefined} aria-label={label}>
@@ -239,9 +363,14 @@
         aria-expanded={row.isBranch ? (isRail ? opened === row.node.id : row.isExpanded) : undefined}
         aria-selected={row.node.id === current}
         aria-current={row.node.id === current ? 'page' : undefined}
+        aria-keyshortcuts={isMovable(row) ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
+        data-dragging={drag?.id === row.node.id ? '' : undefined}
+        data-drop={dropTarget === row.node.id ? '' : undefined}
+        style:--drag-offset={drag?.id === row.node.id ? `${drag.offset}px` : undefined}
         tabindex={index === focused ? 0 : -1}
         onclick={() => {
           active = index;
+          following = null;
           choose(row);
         }}
         onkeydown={(event) => {
@@ -263,6 +392,14 @@
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
           {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
+          <!-- The grip: what a pointer drags by. Hidden from the accessibility tree, because the
+               keys on the row are the same command, and a press on it that does not travel is the
+               row's own click. -->
+          {#if isMovable(row)}
+            <span class="grip" data-grip aria-hidden="true" onpointerdown={(event) => beginDrag(event, index)}>
+              <Icon name="grip-vertical" size="sm" />
+            </span>
+          {/if}
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
                through the logical padding, so it mirrors with the document.
                A **control** where the caller named one, because the row itself now goes to the
@@ -465,6 +602,53 @@
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
+
+  /* The grip, faded until the pointer is over the row or the focus is in it, where a pointer
+     hovers at all (design-system.md §11.9): faded rather than taken out, so the row keeps its
+     width. A touch screen draws it always. `touch-action: none` is what lets a finger drag it at
+     all, and it is on the grip alone, so the column still scrolls everywhere else. */
+  .grip {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    color: var(--text-subtle);
+    cursor: grab;
+    touch-action: none;
+  }
+
+  @media (hover: hover) {
+    .row .grip {
+      opacity: 0;
+      transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+    }
+
+    .row:hover .grip,
+    .row:focus-within .grip,
+    .row[data-dragging] .grip { opacity: 1; }
+  }
+
+  /* Rule 6: the carried row moves by a `translate` and nothing else, raised off the column
+     (rule 1), and out of the measuring: the element under the pointer is the column, not it. */
+  .row[data-dragging] {
+    translate: 0 var(--drag-offset);
+    background: var(--bg-surface);
+    box-shadow: var(--shadow-overlay);
+    pointer-events: none;
+  }
+
+  .row[data-dragging] .grip { cursor: grabbing; }
+
+  /* Where it would land. Rule 3: an outline, not a tint. */
+  .row[data-drop] {
+    outline: var(--bw-thick) dashed var(--accent-primary);
+    outline-offset: calc(var(--sp-025) * -1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .row[data-dragging] { translate: none; }
+  }
+
+  :global([data-motion='reduced']) .row[data-dragging] { translate: none; }
 
   /* The flyout: positioned by `anchorTo`, layered by `openOverlay`, drawn like every other
      surface that is temporarily over the page (rule 1). */

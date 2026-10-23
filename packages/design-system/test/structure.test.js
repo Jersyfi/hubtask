@@ -11,7 +11,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { collapseTrail, flattenTree, parentRow, treeIntent } from '../src/structure.ts';
+import { collapseTrail, flattenTree, levelOf, parentRow, treeIntent } from '../src/structure.ts';
 
 const crumbs = (...ids) => ids.map((id) => ({ id, label: id }));
 const shownIds = (result) => result.shown.map((entry) => entry.crumb.id);
@@ -158,4 +158,33 @@ test('a node may declare itself a branch before its children are loaded', () => 
 
   // And the ordinary case is unchanged: children still answer it when nobody says otherwise.
   assert.equal(flattenTree([{ id: 'leaf', label: 'Jumble' }], [])[0].isBranch, false);
+});
+
+// --- the level a node is ranked in ------------------------------------------------------------
+
+test('a node is ranked among its siblings, never among the children of an open one', () => {
+  const rows = flattenTree(tree, ['private', 'work']);
+  // private, shopping, renovation, work, hubtask, jumble
+  assert.deepEqual(levelOf(rows, 0), [0, 3, 5]);
+  assert.deepEqual(levelOf(rows, 5), [0, 3, 5]);
+  assert.deepEqual(levelOf(rows, 2), [1, 2]);
+  assert.deepEqual(levelOf(rows, 4), [4]);
+});
+
+test('a band ends a level: the hubs under their caption are not ranked among the places above', () => {
+  const banded = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'jumble', label: 'Jumble' },
+    { ...tree[0], band: { caption: 'Hubs' } },
+    tree[1],
+    { id: 'trash', label: 'Trash', band: {} },
+  ];
+  const rows = flattenTree(banded, ['private']);
+  // overview, jumble, private, shopping, renovation, work, trash
+  assert.deepEqual(levelOf(rows, 1), [0, 1]);
+  assert.deepEqual(levelOf(rows, 2), [2, 5]);
+  assert.deepEqual(levelOf(rows, 5), [2, 5]);
+  assert.deepEqual(levelOf(rows, 4), [3, 4]);
+  assert.deepEqual(levelOf(rows, 6), [6]);
+  assert.deepEqual(levelOf(rows, 9), []);
 });

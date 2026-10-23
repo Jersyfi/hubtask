@@ -4,7 +4,7 @@
   import Box from './Box.svelte';
   import SideNav, { type NavNode } from './SideNav.svelte';
 
-  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures' | 'colours'; isRail?: boolean; opened?: string } = $props();
+  const { mode = 'tree', isRail = false, opened }: { mode?: 'tree' | 'flat' | 'long' | 'bands' | 'figures' | 'colours' | 'reorder'; isRail?: boolean; opened?: string } = $props();
 
   // Hubs holding collections: the two-level container tree of domain-model.md §3.3, which is the
   // shape the application hands this component for real.
@@ -97,6 +97,25 @@
     { id: 'garden', label: 'Garden', icon: 'hub', href: '/h/garden' },
   ];
 
+  // The hubs and their collections, each the reader's to rank: the order lives here, as it lives
+  // with the caller for real, and the tree draws what it is handed back.
+  let ranked = $state<NavNode[]>(
+    tree.slice(0, 2).map((hub) => ({ ...hub, isMovable: true, children: hub.children?.map((each) => ({ ...each, isMovable: true })) })),
+  );
+  let said = $state('');
+
+  function reorder(id: string, to: number) {
+    const move = (level: NavNode[]): NavNode[] | undefined => {
+      const from = level.findIndex((each) => each.id === id);
+      if (from < 0) return undefined;
+      const next = level.filter((each) => each.id !== id);
+      next.splice(to, 0, level[from]!);
+      said = `${level[from]!.label} is now number ${to + 1} of ${level.length}.`;
+      return next;
+    };
+    ranked = move(ranked) ?? ranked.map((hub) => ({ ...hub, children: (hub.children && move([...hub.children])) ?? hub.children }));
+  }
+
   let expanded = $state(['private', 'work']);
   let nav = $state<HTMLElement | null>(null);
 
@@ -109,7 +128,7 @@
     if (row instanceof HTMLElement) row.click();
   });
   const nodes = $derived(
-    mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : mode === 'colours' ? colours : tree,
+    mode === 'reorder' ? ranked : mode === 'flat' ? flat : mode === 'long' ? long : mode === 'bands' ? bands : mode === 'figures' ? figures : mode === 'colours' ? colours : tree,
   );
 </script>
 
@@ -126,12 +145,16 @@
       flyoutLabel={(name) => `Inside ${name}`}
       branchLabel={(name, isOpen) => (isOpen ? `Hide what is in ${name}` : `Show what is in ${name}`)}
       bind:expanded
+      onreorder={mode === 'reorder' ? reorder : undefined}
     />
   </Box>
+  {#if mode === 'reorder'}<p class="said" role="status">{said}</p>{/if}
 </div>
 
 <style>
   .pane { max-width: 32ch; }
+
+  .said { color: var(--text-subtle); font-size: var(--fs-075); }
 
   /* The column the frame gives the fold, so the story is measured against the real width. */
   .pane[data-rail] { max-width: var(--layout-sidenav-rail); }

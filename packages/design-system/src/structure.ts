@@ -72,6 +72,12 @@ export interface NavNode {
    * naming what the separation already says.
    */
   readonly band?: { readonly caption?: string };
+  /**
+   * Whether the reader may rank this node among its siblings. A node that is not movable is still
+   * a position another one can be dropped beside: what is asked is a permission on the node that
+   * moves, never on its neighbours.
+   */
+  readonly isMovable?: boolean;
 }
 
 /**
@@ -172,4 +178,36 @@ export function treeIntent(
   if (key === 'Home') return rows.length > 0 ? { kind: 'focus', index: 0 } : null;
   if (key === 'End') return rows.length > 0 ? { kind: 'focus', index: rows.length - 1 } : null;
   return null;
+}
+
+/**
+ * The rows a node is ranked among: its siblings as drawn, itself included, by row index.
+ *
+ * The same parent, and at the top level the same band too - a band says "a different kind of
+ * thing", so the hubs under their caption are one level and the destinations above them another,
+ * although the tree holds them as one list. A child of an open sibling is in neither, and the
+ * index of a row in the answer is the position `rankTarget` and `dropIndex` speak of.
+ */
+export function levelOf(rows: readonly NavRow<NavNode>[], index: number): number[] {
+  const row = rows[index];
+  if (!row) return [];
+  const parent = parentRow(rows, index);
+  let start = parent === null ? 0 : parent + 1;
+  if (row.depth === 0) {
+    for (let above = index; above >= 0; above--) {
+      if (rows[above]?.depth === 0 && rows[above]?.node.band !== undefined) {
+        start = above;
+        break;
+      }
+    }
+  }
+  const level: number[] = [];
+  for (let at = start; at < rows.length; at++) {
+    const each = rows[at]!;
+    if (each.depth < row.depth) break;
+    if (each.depth !== row.depth) continue;
+    if (at > index && each.depth === 0 && each.node.band !== undefined) break;
+    level.push(at);
+  }
+  return level;
 }
