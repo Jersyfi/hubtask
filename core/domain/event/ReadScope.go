@@ -56,6 +56,7 @@ var readScopes = map[Type]string{
 	LabelCreated:             containersRead,
 	LabelUpdated:             containersRead,
 	LabelDeleted:             containersRead,
+	LabelRestored:            containersRead,
 
 	// The entry itself, at every level: one aggregate, one scope (ADR-0006). What is on an entry -
 	// who it is assigned to, who is on it, which labels it carries, what somebody wrote under it -

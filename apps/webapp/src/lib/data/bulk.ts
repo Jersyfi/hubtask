@@ -44,11 +44,6 @@ export function needsItem(op: string): boolean {
   return op !== 'CREATE_ITEM';
 }
 
-/** The one that asks first. Reversible, and still a subtree somebody may not know is there. */
-export function isDestructive(op: string): boolean {
-  return op === 'TRASH_ITEM';
-}
-
 /**
  * One operation per selected entry, with the same payload on each.
  *

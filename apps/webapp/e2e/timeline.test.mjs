@@ -120,13 +120,14 @@ test('chromium: 1280 px — a scale, dated gridlines, today marked, and a tray t
   assert.equal(await tray.evaluate((el) => el.open), false, 'the tray does not fold');
 
   // The one dated entry is a row on the axis, and its row opens the entry: that is the keyboard
-  // path every drag here has (SC 2.5.7).
+  // path every drag here has (SC 2.5.7). From `large` up it opens beside the timeline (UC-WRK-28
+  // check 5).
   const row = page.locator('.timeline .rows .row button.title');
   assert.equal(await row.count(), 1);
   await row.focus();
   await page.keyboard.press('Enter');
-  await page.waitForFunction((id) => location.pathname === `/items/${id}`, DATED.id, { timeout: 5_000 })
-    .catch(() => assert.fail(`the row led to ${page.url()} rather than to the entry`));
+  await page.waitForFunction((id) => new URLSearchParams(location.search).get('item') === id, DATED.id, { timeout: 5_000 })
+    .catch(() => assert.fail(`the row led to ${page.url()} rather than to the entry beside the timeline`));
 
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
@@ -387,9 +388,10 @@ test('chromium: 1280 px — a reader who may not change an entry cannot drag it,
     assert.equal(await page.locator('.timeline .rows .row[data-locked]').count(), 2, 'not every row is locked for a viewer');
     const writes = written.filter((each) => each.method === 'PATCH' || each.method === 'PUT');
     assert.deepEqual(writes, [], `a viewer's drag wrote ${JSON.stringify(writes.map((each) => `${each.method} ${each.path}`))}`);
-    // The title still opens the entry: reading it is not what the lock takes away.
+    // The title still opens the entry, beside the timeline at this width: reading it is not what
+    // the lock takes away.
     await page.locator('.timeline .rows .row button.title', { hasText: theirs.title }).click();
-    await page.waitForFunction((id) => location.pathname === `/items/${id}`, theirs.id, { timeout: 5_000 });
+    await page.waitForFunction((id) => new URLSearchParams(location.search).get('item') === id, theirs.id, { timeout: 5_000 });
     assert.deepEqual(failures, []);
     assert.deepEqual(unstubbed(), []);
   }

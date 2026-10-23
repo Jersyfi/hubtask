@@ -105,7 +105,9 @@ type Erased struct {
 	Credentials   int
 	Notifications int
 	// AiDrafts are what AI drafted for the person alone and the words they asked with.
-	AiDrafts    int
+	AiDrafts int
+	// Kudos are the acknowledgements the person gave and received.
+	Kudos       int
 	Assignments int
 	Comments    int
 	// Intake is what the person sent in by mail: removed in a full deletion, and stripped of the
@@ -218,6 +220,13 @@ func (e Eraser) erase(
 			return err
 		}
 		erased.AiDrafts = drafts
+
+		// Kudos are no evidence either, and they name the person on one side or the other.
+		kudos, err := e.Erasure.DiscardKudos(ctx, subject)
+		if err != nil {
+			return err
+		}
+		erased.Kudos = kudos
 
 		assignments, err := e.Erasure.ReleaseAssignmentsOn(ctx, subject, plan.ReleaseOn, now)
 		if err != nil {
@@ -467,6 +476,7 @@ func (e Eraser) record(
 		{Field: "credentials", Classification: audit.Open, To: erased.Credentials},
 		{Field: "notifications", Classification: audit.Open, To: erased.Notifications},
 		{Field: "ai_drafts", Classification: audit.Open, To: erased.AiDrafts},
+		{Field: "kudos", Classification: audit.Open, To: erased.Kudos},
 		{Field: "assignments", Classification: audit.Open, To: erased.Assignments},
 		{Field: "comments", Classification: audit.Open, To: erased.Comments},
 		{Field: "intake", Classification: audit.Open, To: erased.Intake},

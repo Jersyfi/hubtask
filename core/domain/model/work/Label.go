@@ -104,6 +104,9 @@ func labelColorToken(raw string) (string, error) {
 			WithDetail("labels.color_token_empty").
 			WithFields(shared.FieldError{Path: "/color_token", Code: "labels.color_token_empty"})
 	}
+	if err := knownColorToken(token, "labels.color_token_unknown"); err != nil {
+		return "", err
+	}
 	return token, nil
 }
 
@@ -146,7 +149,8 @@ func (l Label) Updated(attributes LabelAttributes, form text.Normalizer) (Label,
 		}
 	}
 
-	if attributes.ColorToken != nil {
+	// The colour it already has is no change, and is not checked again (knownColorToken).
+	if attributes.ColorToken != nil && strings.TrimSpace(*attributes.ColorToken) != l.ColorToken {
 		token, err := labelColorToken(*attributes.ColorToken)
 		if err != nil {
 			return Label{}, nil, err
@@ -195,6 +199,21 @@ func (l Label) Deleted(at time.Time) (Label, []FieldChange, error) {
 	changes := []FieldChange{{Field: FieldDeletedAt, From: "", To: instant(at)}}
 	l.DeletedAt = &at
 	return l, changes, nil
+}
+
+// Restored brings a deleted label back into the collection's vocabulary.
+//
+// The inverse of Deleted, and as idempotent: a label in the vocabulary is already what the caller
+// asked for. Whether its name is still free is the store's to answer - the uniqueness of a name is
+// an index over the labels in use, and a label that was out of use held no claim on it.
+func (l Label) Restored() (Label, []FieldChange) {
+	if !l.IsDeleted() {
+		return l, nil
+	}
+
+	changes := []FieldChange{{Field: FieldDeletedAt, From: instant(*l.DeletedAt), To: ""}}
+	l.DeletedAt = nil
+	return l, changes
 }
 
 // EnsureEditable refuses a label that is no longer in the collection's vocabulary. A conflict

@@ -66,6 +66,21 @@ func (l *labels) List(_ context.Context, collection shared.ID) ([]domain.Label, 
 	return vocabulary, nil
 }
 
+func (l *labels) ListWithDeleted(_ context.Context, collection shared.ID) ([]domain.Label, error) {
+	if l.listErr != nil {
+		return nil, l.listErr
+	}
+
+	vocabulary := make([]domain.Label, 0, len(l.stored))
+	for _, label := range l.stored {
+		if label.CollectionID == collection {
+			vocabulary = append(vocabulary, label)
+		}
+	}
+	sortLabels(vocabulary)
+	return vocabulary, nil
+}
+
 func (l *labels) Insert(_ context.Context, label domain.Label) error {
 	if l.insertErr != nil {
 		return l.insertErr
@@ -81,6 +96,10 @@ func (l *labels) SetAttributes(_ context.Context, label domain.Label, expected i
 
 func (l *labels) SetDeleted(_ context.Context, label domain.Label, expected int) error {
 	return l.write("deleted", label, expected)
+}
+
+func (l *labels) SetRestored(_ context.Context, label domain.Label, expected int) error {
+	return l.write("restored", label, expected)
 }
 
 func (l *labels) write(method string, label domain.Label, expected int) error {
@@ -152,7 +171,7 @@ func (h *labelHarness) withCollection() {
 func (h *labelHarness) withLabel(id shared.ID, name string) domain.Label {
 	label := domain.Label{
 		ID: id, TenantID: tenantID, CollectionID: collectionID,
-		Name: name, ColorToken: "accent.red", Version: 1,
+		Name: name, ColorToken: "red", Version: 1,
 	}
 	h.labels.stored[id] = label
 	return label
@@ -160,7 +179,7 @@ func (h *labelHarness) withLabel(id shared.ID, name string) domain.Label {
 
 func labelCommand() CreateLabelCommand {
 	return CreateLabelCommand{
-		CollectionID: collectionID, Name: "  Urgent  ", ColorToken: "accent.red",
+		CollectionID: collectionID, Name: "  Urgent  ", ColorToken: "red",
 	}
 }
 
@@ -174,7 +193,7 @@ func TestCreatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		t.Fatalf("creating the label failed: %v", err)
 	}
 
-	if label.Name != "Urgent" || label.ColorToken != "accent.red" || label.Version != 1 {
+	if label.Name != "Urgent" || label.ColorToken != "red" || label.Version != 1 {
 		t.Errorf("unexpected label: %+v", label)
 	}
 	if label.TenantID != tenantID || label.CollectionID != collectionID {
@@ -228,7 +247,7 @@ func TestCreatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 			t.Errorf("the name is in the trail in clear text: %+v", recorded)
 		}
 		colour, _ := entry.Changes[domain.FieldColorToken].(map[string]any)
-		if colour == nil || colour["to"] != "accent.red" {
+		if colour == nil || colour["to"] != "red" {
 			t.Errorf("the colour is not readable in the trail: %+v", entry.Changes)
 		}
 	})
@@ -318,6 +337,26 @@ func TestALabelNeedsAColour(t *testing.T) {
 	}
 }
 
+// The same reason closes every name outside the ten: a script, MCP or hubctl that sent one would
+// leave each client drawing its own fallback.
+func TestALabelColourOutsideTheTenIsRefusedAndWritesNothing(t *testing.T) {
+	h := newLabelHarness()
+
+	cmd := labelCommand()
+	cmd.ColorToken = "raspberry"
+
+	_, err := h.create.Execute(context.Background(), actor(), cmd)
+	if !errors.Is(err, shared.ErrValidation) || shared.AsError(err).DetailCode != "labels.color_token_unknown" {
+		t.Fatalf("got %v, want a validation refusal labels.color_token_unknown", err)
+	}
+	if fields := shared.AsError(err).Fields; len(fields) != 1 || fields[0].Path != "/color_token" {
+		t.Errorf("the refusal does not point at /color_token: %+v", fields)
+	}
+	if len(h.labels.inserted) != 0 || len(h.events.appended) != 0 {
+		t.Errorf("a refused label wrote %d rows and %d events", len(h.labels.inserted), len(h.events.appended))
+	}
+}
+
 func TestALabelIsRefusedOnAnArchivedCollection(t *testing.T) {
 	h := newLabelHarness()
 	collection := h.containers.stored[collectionID]
@@ -384,7 +423,7 @@ func TestALabelWithoutADescriptionCarriesANull(t *testing.T) {
 	h := newLabelHarness()
 
 	out, err := h.create.invoke(context.Background(), actor(), map[string]any{
-		"collection_id": collectionID.String(), "name": "Urgent", "color_token": "accent.red",
+		"collection_id": collectionID.String(), "name": "Urgent", "color_token": "red",
 	})
 	if err != nil {
 		t.Fatalf("creating the label failed: %v", err)

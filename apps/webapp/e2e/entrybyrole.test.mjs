@@ -76,7 +76,7 @@ async function offered(page) {
     complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
     comment: (await count(page.getByLabel('Say something'))) === 1,
     addInside: (await count(page.getByRole('button', { name: `Add an activity inside ${CHILD.title}`, exact: true }))) === 1,
-    childMenu: (await count(page.getByRole('button', { name: `Move ${CHILD.title}` }))) === 1,
+    childMenu: (await count(page.getByRole('button', { name: `Actions for ${CHILD.title}` }))) === 1,
     assigneeEditor: (await count(page.locator('button[data-detail="assignee"]'))) === 1,
     notYours: (await count(page.locator('main [role="note"]', { hasText: 'Your role changes only the entries assigned to you.' }))) > 0,
     readsOnly: (await count(page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }))) > 0,
@@ -86,8 +86,8 @@ async function offered(page) {
 const EXPECTED = {
   MEMBER: { complete: true, comment: true, addInside: true, childMenu: true, assigneeEditor: true, notYours: false, readsOnly: false },
   CONTRIBUTOR: { complete: false, comment: false, addInside: true, childMenu: true, assigneeEditor: false, notYours: true, readsOnly: false },
-  VIEWER: { complete: false, comment: false, addInside: false, childMenu: false, assigneeEditor: false, notYours: false, readsOnly: true },
-  GUEST: { complete: false, comment: true, addInside: false, childMenu: false, assigneeEditor: false, notYours: false, readsOnly: true },
+  VIEWER: { complete: false, comment: false, addInside: false, childMenu: true, assigneeEditor: false, notYours: false, readsOnly: true },
+  GUEST: { complete: false, comment: true, addInside: false, childMenu: true, assigneeEditor: false, notYours: false, readsOnly: true },
 };
 
 for (const [role, expected] of Object.entries(EXPECTED)) {
@@ -114,6 +114,29 @@ test('chromium: a contributor changes and comments on the entry assigned to them
   assert.equal(seen.comment, true);
   assert.equal(seen.assigneeEditor, true);
   assert.equal(seen.notYours, false);
+  assert.deepEqual(failures, []);
+});
+
+// A search result is ticked off by the same rule as a row of its list: a role that only reads does
+// not complete it from the results either.
+test('chromium: a viewer cannot tick off a search result', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'VIEWER');
+  t.after(() => context.close());
+  const sent = [];
+  page.on('request', (request) => {
+    if (request.method() !== 'GET') sent.push(new URL(request.url()).pathname);
+  });
+
+  await page.goto(`${served.origin}/search`);
+  await page.getByRole('searchbox', { name: 'Search the entries you can see' }).fill('electrician');
+  const box = page.getByRole('checkbox', { name: `Mark ${ITEMS[1].title} as done` });
+  await box.waitFor({ timeout: 10_000 });
+  await page.waitForTimeout(600);
+  await box.click({ force: true });
+  await page.waitForTimeout(300);
+  assert.deepEqual(sent.filter((path) => path.endsWith(':complete')), []);
   assert.deepEqual(failures, []);
 });
 
@@ -171,5 +194,68 @@ test('chromium: a viewer reads the collection with no control that changes an en
   assert.equal(await page.getByRole('button', { name: `Move ${ITEMS[2].title}` }).count(), 0, 'a row menu that moves');
   assert.equal(await page.getByRole('button', { name: 'Labels' }).count(), 0, 'a label picker on a row');
   assert.equal(await page.locator('[data-opener="add-entry"]').count(), 0, 'an add control');
+  assert.deepEqual(failures, []);
+});
+
+// An entry's details card is drawn only when it holds a row (P-05, P-11): a value that is set, or a
+// row the reader may fill in. An empty frame would read as something that failed to load.
+test('chromium: a viewer sees no details card on an entry with nothing set, and the card where something is', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'VIEWER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await page.locator('main [role="note"]', { hasText: 'Your role can read entries here but not change them.' }).first().waitFor();
+  await page.waitForTimeout(600);
+  assert.equal(await page.locator('aside.details').count(), 0, 'an empty details card is drawn');
+
+  // The first entry carries a label: the card is there, with that one row and nothing to add.
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  await page.locator('[data-detail="labels"]').waitFor();
+  assert.equal(await page.locator('aside.details').count(), 1);
+  assert.equal(await page.locator('aside.details button.detail-row').count(), 0, 'a row the viewer may not fill in is offered');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a member sees the details card on an entry with nothing set, because every row can be filled in', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'MEMBER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await page.locator('aside.details [data-detail="language"]').waitFor();
+  assert.equal(await page.locator('aside.details').count(), 1);
+  assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');
+  assert.deepEqual(failures, []);
+});
+
+// An entry with nothing under it says so of the entry: the collection it sits in is not empty.
+test('chromium: an entry with nothing under it says that of the entry, not of the collection', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'MEMBER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await page.getByText('Nothing sits under this entry yet.').waitFor({ timeout: 5_000 });
+  assert.equal(await page.getByText('No entries in this collection yet.').count(), 0);
+  assert.deepEqual(failures, []);
+});
+
+// A row the reader may only read is a plain element rather than a button, and stays inside the card
+// as the button does: its padding is within its width, not added to it.
+test('chromium: a read-only details row stays inside its card', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { context, page, failures } = await as(browser, 'VIEWER');
+  t.after(() => context.close());
+
+  await page.goto(`${served.origin}/items/${ENTRY.id}`);
+  const row = page.locator('div.detail-row[data-detail="labels"]');
+  await row.waitFor();
+  const [rowBox, cardBox] = await Promise.all([row.boundingBox(), page.locator('aside.details .details-fold').boundingBox()]);
+  assert.ok(rowBox.x + rowBox.width <= cardBox.x + cardBox.width, `the row ends at ${rowBox.x + rowBox.width}, past the card's ${cardBox.x + cardBox.width}`);
   assert.deepEqual(failures, []);
 });

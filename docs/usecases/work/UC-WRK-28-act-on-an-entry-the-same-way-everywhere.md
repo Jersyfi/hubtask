@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-13]
-state: specified
+state: partial
 tasks: [UX-16, UX-17]
-checked_by: []
+checked_by: [apps/webapp/src/lib/entries/entryMenu.test.ts, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/undo.test.mjs, apps/webapp/src/lib/entries/undo.test.ts, test/integration/restore_label_test.go, test/integration/bulk_restore_test.go, apps/webapp/e2e/layoutmemory.test.mjs, apps/webapp/src/lib/entries/layoutmemory.test.ts]
 ---
 
 # Act on an entry the same way everywhere
@@ -36,9 +36,5 @@ On the board the person right-clicks a card and moves it to another collection �
 
 ## Today
 
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: not met — not built yet, tracked in milestone UX.
+* Check 1: not met on *Today* — not built yet, tracked in #1647 (UX-15).
+* Check 2: not met — not built yet, tracked in milestone UX (UX-17).

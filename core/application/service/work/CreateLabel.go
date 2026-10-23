@@ -252,6 +252,11 @@ func labelOutput(label domain.Label) usecase.Output {
 	if label.Description != "" {
 		out["description"] = label.Description
 	}
+	// Only on a deleted label, which only a read asking for them returns: a live label's answer
+	// keeps the shape every caller already reads.
+	if label.DeletedAt != nil {
+		out["deleted_at"] = label.DeletedAt.UTC()
+	}
 	return out
 }
 
@@ -330,6 +335,9 @@ type ListLabels struct {
 // ListLabelsQuery is the input, typed.
 type ListLabelsQuery struct {
 	CollectionID shared.ID
+	// IncludeDeleted adds the labels taken out of the vocabulary, for a reader that offers to bring
+	// one back. The same permission: a deleted label is the same vocabulary, out of use.
+	IncludeDeleted bool
 }
 
 // Execute returns the collection's labels, by name.
@@ -367,7 +375,11 @@ func (h ListLabels) Execute(
 	var vocabulary []domain.Label
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		var err error
-		vocabulary, err = h.Labels.List(ctx, query.CollectionID)
+		if query.IncludeDeleted {
+			vocabulary, err = h.Labels.ListWithDeleted(ctx, query.CollectionID)
+		} else {
+			vocabulary, err = h.Labels.List(ctx, query.CollectionID)
+		}
 		return err
 	})
 	if err != nil {
@@ -380,7 +392,8 @@ func (h ListLabels) Execute(
 func (h ListLabels) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ListLabelsName,
-		Summary: "Lists a collection's labels by name. Deleted ones are not in it. Not paged: a " +
+		Summary: "Lists a collection's labels by name. Deleted ones are not in it unless asked for, " +
+			"and then carry when they were deleted. Not paged: a " +
 			"vocabulary people have to agree on is as long as a person can hold in their head. A " +
 			"hub has no vocabulary and comes back empty.",
 		SideEffects: "None. Reads only.",
@@ -390,6 +403,11 @@ func (h ListLabels) Descriptor() usecase.Descriptor {
 			{
 				Name: "collection_id", Kind: usecase.KindID, Required: true,
 				Description: "The collection whose vocabulary is wanted.",
+			},
+			{
+				Name: "include_deleted", Kind: usecase.KindBool,
+				Description: "Also the labels taken out of the vocabulary, so that one can be brought " +
+					"back. Omitted or false leaves them out.",
 			},
 		},
 		Audit: usecase.AuditDeclaration{
@@ -408,7 +426,9 @@ func (h ListLabels) invoke(
 		return nil, err
 	}
 
-	vocabulary, err := h.Execute(ctx, actor, ListLabelsQuery{CollectionID: collectionID})
+	vocabulary, err := h.Execute(ctx, actor, ListLabelsQuery{
+		CollectionID: collectionID, IncludeDeleted: in.Bool("include_deleted"),
+	})
 	if err != nil {
 		return nil, err
 	}

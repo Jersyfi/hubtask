@@ -18,7 +18,7 @@ var (
 
 	baseLabel = work.NewLabelInput{
 		ID: labelID, TenantID: tenant, CollectionID: collectionID,
-		Name: "Urgent", ColorToken: "accent.red", Text: text.Composing{},
+		Name: "Urgent", ColorToken: "red", Text: text.Composing{},
 	}
 )
 
@@ -40,7 +40,7 @@ func TestNewLabelKeepsWhatItWasGiven(t *testing.T) {
 	switch {
 	case label.Name != "Urgent":
 		t.Errorf("name %q", label.Name)
-	case label.ColorToken != "accent.red":
+	case label.ColorToken != "red":
 		t.Errorf("colour token %q", label.ColorToken)
 	case label.Description != "Needs a decision today":
 		t.Errorf("description %q, want it trimmed", label.Description)
@@ -109,6 +109,9 @@ func TestNewLabelNeedsAColour(t *testing.T) {
 		{name: "absent", input: "", detailCode: "labels.color_token_empty"},
 		{name: "whitespace only", input: "  ", detailCode: "labels.color_token_empty"},
 		{name: "a control character", input: "accent\u0085red", detailCode: "labels.color_token_malformed"},
+		{name: "a name outside the ten", input: "raspberry", detailCode: "labels.color_token_unknown"},
+		{name: "a token of another palette", input: "accent.red", detailCode: "labels.color_token_unknown"},
+		{name: "a token in capitals", input: "RED", detailCode: "labels.color_token_unknown"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			in := baseLabel
@@ -146,7 +149,7 @@ func TestLabelUpdatedReportsOnlyWhatMoved(t *testing.T) {
 
 	t.Run("a change that changes nothing writes nothing", func(t *testing.T) {
 		_, changes, err := label.Updated(work.LabelAttributes{
-			Name: pointerTo("Urgent"), ColorToken: pointerTo("accent.red"),
+			Name: pointerTo("Urgent"), ColorToken: pointerTo("red"),
 		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("an update to the stored values was refused: %v", err)
@@ -158,13 +161,13 @@ func TestLabelUpdatedReportsOnlyWhatMoved(t *testing.T) {
 
 	t.Run("the fields that moved, and no others", func(t *testing.T) {
 		updated, changes, err := label.Updated(work.LabelAttributes{
-			ColorToken: pointerTo("accent.amber"),
+			ColorToken: pointerTo("amber"),
 		}, text.Composing{})
 		if err != nil {
 			t.Fatalf("the update was refused: %v", err)
 		}
 		if len(changes) != 1 || changes[0].Field != work.FieldColorToken ||
-			changes[0].From != "accent.red" || changes[0].To != "accent.amber" {
+			changes[0].From != "red" || changes[0].To != "amber" {
 			t.Fatalf("the change is wrong: %+v", changes)
 		}
 		if updated.Name != "Urgent" || updated.Description != "Needs a decision today" {
@@ -205,6 +208,11 @@ func TestLabelUpdatedChecksWhatItIsGiven(t *testing.T) {
 			detailCode: "labels.color_token_empty",
 		},
 		{
+			name:       "a colour outside the ten",
+			attributes: work.LabelAttributes{ColorToken: pointerTo("raspberry")},
+			detailCode: "labels.color_token_unknown",
+		},
+		{
 			name:       "a control character in the description",
 			attributes: work.LabelAttributes{Description: pointerTo("one\ntwo")},
 			detailCode: "labels.description_malformed",
@@ -215,6 +223,26 @@ func TestLabelUpdatedChecksWhatItIsGiven(t *testing.T) {
 			assertDetail(t, err, shared.ErrValidation, c.detailCode)
 		})
 	}
+}
+
+// A colour stored before the ten were checked is not a reason to refuse a change that leaves it
+// alone: sent back unchanged it is no change, and only a new colour has to be one of the ten.
+func TestALabelKeepsAColourFromBeforeTheCheckUntilItIsChanged(t *testing.T) {
+	label := newLabel(t, baseLabel)
+	label.ColorToken = "raspberry"
+
+	_, changes, err := label.Updated(work.LabelAttributes{
+		Name: pointerTo("Urgent"), ColorToken: pointerTo("raspberry"),
+	}, text.Composing{})
+	if err != nil {
+		t.Fatalf("the stored colour sent back unchanged was refused: %v", err)
+	}
+	if len(changes) != 0 {
+		t.Errorf("changes reported for an update that moved nothing: %+v", changes)
+	}
+
+	_, _, err = label.Updated(work.LabelAttributes{ColorToken: pointerTo("mauve")}, text.Composing{})
+	assertDetail(t, err, shared.ErrValidation, "labels.color_token_unknown")
 }
 
 func TestLabelAttributesIsEmpty(t *testing.T) {
@@ -246,6 +274,40 @@ func TestLabelDeletedIsIdempotent(t *testing.T) {
 	}
 	if len(changes) != 0 {
 		t.Errorf("the second deletion reported changes: %+v", changes)
+	}
+}
+
+func TestLabelRestored(t *testing.T) {
+	live := newLabel(t, baseLabel)
+	deleted, _, err := live.Deleted(deletedAt)
+	if err != nil {
+		t.Fatalf("the deletion was refused: %v", err)
+	}
+
+	cases := []struct {
+		name        string
+		label       work.Label
+		wantChanges int
+	}{
+		{name: "a deleted label comes back", label: deleted, wantChanges: 1},
+		{name: "a label in use stays as it is", label: live, wantChanges: 0},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			restored, changes := tc.label.Restored()
+			if len(changes) != tc.wantChanges {
+				t.Fatalf("changes: got %+v, want %d", changes, tc.wantChanges)
+			}
+			if restored.IsDeleted() {
+				t.Fatal("the label is still deleted")
+			}
+			if restored.Name != live.Name || restored.ColorToken != live.ColorToken || restored.ID != live.ID {
+				t.Errorf("restoring changed the label itself: %+v", restored)
+			}
+			if tc.wantChanges == 1 && (changes[0].Field != work.FieldDeletedAt || changes[0].To != "") {
+				t.Errorf("the change does not clear the stamp: %+v", changes[0])
+			}
+		})
 	}
 }
 

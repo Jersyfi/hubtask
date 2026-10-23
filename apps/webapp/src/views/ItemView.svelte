@@ -61,7 +61,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { changeRefusalCode, childTypes, declaresType, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
+  import { changeRefusalCode, childTypes, declaresType, holds, mayDo, roleOrder, supports } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -77,11 +77,12 @@
   import { reminders, series } from '../lib/data/reminders.svelte.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
   import CelebrationSlot from '../lib/entries/CelebrationSlot.svelte';
+  import EntryKudos from '../lib/entries/EntryKudos.svelte';
+  import { kudosOffer } from '../lib/data/kudos.ts';
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
   import DueMark from '../lib/entries/DueMark.svelte';
-  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
@@ -345,8 +346,6 @@
   const typeName = (type: string) => t('app.item.type_name', { type });
   const subtreeHeading = $derived(heldTypes.length === 1 ? typeName(heldTypes[0] ?? '') : t('app.item.children'));
   let subtree = $state<EntryList | undefined>(undefined);
-  /** The entry of the subtree being copied; the dialog is open exactly while this is set. */
-  let duplicating = $state<WorkItem | undefined>(undefined);
   let isSubtreeOpen = $state(true);
 
   /** The entry's own menu. What the head and the details rows do is not repeated in it. */
@@ -421,6 +420,8 @@
   const mayChangeHere = $derived(mayDo(role, 'change', isMine));
   const mayCreateHere = $derived(mayDo(role, 'create', isMine) === true);
   const mayCommentHere = $derived(mayDo(role, 'comment', isMine));
+  /** Whether the reader may share an entry of the subtree: granting a role asks `MANAGE_MEMBERS` (D5). */
+  const mayShareHere = $derived(holds(role ?? undefined, 'MANAGE_MEMBERS').status === 'permitted');
   /**
    * The one line that says why nothing here can be changed (UC-WRK-22 check 2): the role reads and
    * does not change, or changes only what is assigned to the reader. Not while the role is unknown.
@@ -697,6 +698,36 @@
     return found;
   };
   const closeProposal = (suggestionId: string) => (closed = new Set([...closed, suggestionId]));
+  /**
+   * Whether the details card holds at least one row (P-05, P-11): a value that is set, or a row the
+   * reader may fill in. A read-only reader on an entry with nothing set would otherwise meet an
+   * empty frame that reads as something that failed to load. Each line mirrors when `detailRows`
+   * draws its row - `DetailRow` draws a read-only row only with a value. While the type is unknown
+   * or not offered the card stays: it says why there are no rows.
+   */
+  const holdsDetails = $derived.by(() => {
+    if (!item) return false;
+    if (!(isTypeKnown && isTypeOffered)) return true;
+    if (proposalsAt('due').length + proposalsAt('labels').length > 0) return true;
+    const shown = (isSet: boolean, isReadOnly: boolean) => isSet || !isReadOnly;
+    const held = item.custom_fields as Record<string, unknown> | undefined;
+    return (
+      ((carries('ASSIGNMENT') || carries('MEMBERS')) && shown(Boolean(item.assignee_id), !isWritable)) ||
+      (carries('DUE_DATE') && shown(datesValue !== undefined, !isWritable)) ||
+      (offersAmount && shown(item.amount != null, !isChangeable)) ||
+      (carries('LABELS') && shown(carriedLabels.length > 0, !isWritable)) ||
+      (carries('REMINDER') && shown(reminderCount > 0, !isWritable)) ||
+      (carries('RECURRENCE') && shown(repeatValue !== undefined, !isWritable)) ||
+      shown(Boolean(item.content_language), !isWritable) ||
+      (carries('COVER') && shown(Boolean(item.cover), !isWritable)) ||
+      (carries('ATTACHMENTS') && (isWritable || Boolean(attachmentCount))) ||
+      (carries('CUSTOM_FIELDS') &&
+        definitions.some((definition) => {
+          const value = held?.[definition.key];
+          return shown(value !== undefined && value !== null && value !== '', !isWritable);
+        }))
+    );
+  });
   /** The translation, open under the head once *Read in another language* was chosen. */
   let isTranslating = $state(false);
   $effect(() => () => untrack(() => entryAsks.forget(id)));
@@ -899,6 +930,11 @@
         {#if reminderCount > 0}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
         {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
       </div>
+      <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
+           celebrations are off (check 7), or while the entry is open. -->
+      {#if kudosOffer(item, signedIn.account?.id, celebration.isOn) !== 'none'}
+        {#key `${item.id}:${item.completion?.completed_by}`}<EntryKudos {item} />{/key}
+      {/if}
       <!-- The notes, in place, for the same reasons; empty, the field says what it is for. An
            activity carries none (`domain-model.md` §2), and a field whose every save is refused
            is not a field. While the manifest has not been read, which type this is decides
@@ -948,33 +984,36 @@
     <div class="columns" data-pane={isInPane ? '' : undefined}>
       <!-- The details before the text in the document: after the head they are what the entry
            is, so the reading order and the tab order meet them there on every width; from
-           `expanded` they are drawn beside the text, at the end of the line. -->
-      <aside class="details" aria-label={t('app.item.details')}>
-        <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
-        <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
-          <summary class="details-summary">{t('app.item.details')}</summary>
-          <div class="rows">
-            {#if isTypeKnown && isTypeOffered}
-              {@render detailRows()}
-            {:else if isTypeKnown}
-              <!-- The manifest answered and does not declare this type. Its own sentence, once,
-                   rather than fourteen refusals drawn as an empty column. -->
-              <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
-            {:else if typeFailure}
-              <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
-                   on. The rows are missing because the installation could not be read, and that
-                   is what it says — with the sentence the server gave, and where to ask again. -->
-              <p class="unread" role="status">{t('app.item.type_unread')}</p>
-              <p class="unread-detail">{typeFailure.message}</p>
-              {#if typeFailure.reference}
-                <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
+           `expanded` they are drawn beside the text, at the end of the line. Absent where they
+           would hold no row (`holdsDetails`). -->
+      {#if holdsDetails}
+        <aside class="details" aria-label={t('app.item.details')}>
+          <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
+          <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
+            <summary class="details-summary">{t('app.item.details')}</summary>
+            <div class="rows">
+              {#if isTypeKnown && isTypeOffered}
+                {@render detailRows()}
+              {:else if isTypeKnown}
+                <!-- The manifest answered and does not declare this type. Its own sentence, once,
+                     rather than fourteen refusals drawn as an empty column. -->
+                <p class="unread" role="status">{t('items.type_unsupported', { item_type: item.type })}</p>
+              {:else if typeFailure}
+                <!-- §4.4: a failure rendered as "there is nothing here" is a lie the reader acts
+                     on. The rows are missing because the installation could not be read, and that
+                     is what it says — with the sentence the server gave, and where to ask again. -->
+                <p class="unread" role="status">{t('app.item.type_unread')}</p>
+                <p class="unread-detail">{typeFailure.message}</p>
+                {#if typeFailure.reference}
+                  <p class="unread-detail">{t('app.error_reference', { request_id: typeFailure.reference })}</p>
+                {/if}
+              {:else}
+                <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
               {/if}
-            {:else}
-              <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
-            {/if}
-          </div>
-        </details>
-      </aside>
+            </div>
+          </details>
+        </aside>
+      {/if}
 
       <div class="main-column">
 
@@ -1005,7 +1044,7 @@
             {#if hasAi}
               <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
             {/if}
-            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} onduplicate={(chosen) => (duplicating = chosen)} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
+            <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
           </Stack>
         {/if}
 
@@ -1161,16 +1200,6 @@
 {/snippet}
 
 <!-- The same copy the collection's list makes: a duplicate ends on the copy, which is a page. -->
-<DuplicateDialog
-  item={duplicating}
-  hubId={peoplePath.hubId}
-  onclose={() => (duplicating = undefined)}
-  onopened={(itemId) => {
-    duplicating = undefined;
-    onnavigate?.(`/items/${itemId}`);
-  }}
-/>
-
 {#if item}
   <MembersDialog
     bind:isOpen={isSharing}

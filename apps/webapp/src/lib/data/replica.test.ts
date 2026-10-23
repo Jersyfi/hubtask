@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 
 import { MemoryStorage, type StoredRecord } from '@hubtask/sync-engine';
 
-import { hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type StructureShape } from './replica.ts';
+import { fetchStructureAfresh, hiddenOf, storeFor, useBound, type BoundType, type EntryHidden, type StructureShape } from './replica.ts';
 
 const HUB = 'h-1';
 const COLLECTION = 'c-1';
@@ -273,4 +273,25 @@ test('offline, an entry is marked from its collection\'s structure and the level
   } finally {
     useBound(undefined);
   }
+});
+
+test('a copy held without a container\'s structure is fetched afresh where the manifest announces it', async () => {
+  const STRUCTURE = { preset: 'LIST', settings: { levels: [{ type: 'TASK' }] } };
+  const asked = async (storage: MemoryStorage | undefined, features: Record<string, unknown> | undefined) => {
+    const reasons: string[] = [];
+    const sync = { storage, resynchronise: async (reason: string) => (reasons.push(reason), true) };
+    await fetchStructureAfresh(sync, features);
+    return reasons;
+  };
+  const held = await workspace();
+  assert.deepEqual(await asked(held, { structure: true }), ['structure'], 'a container without its structure, the feature on');
+  assert.deepEqual(await asked(held, { structure: false }), [], 'the feature off');
+  assert.deepEqual(await asked(held, undefined), [], 'before the manifest arrives');
+  assert.deepEqual(await asked(undefined, { structure: true }), [], 'no store, online-only');
+
+  const current = new MemoryStorage();
+  await current.put('containers', HUB, record({ id: HUB, type: 'HUB', parent_id: null, structure: STRUCTURE }));
+  await current.put('containers', COLLECTION, record({ id: COLLECTION, type: 'COLLECTION', parent_id: HUB, structure: STRUCTURE }));
+  assert.deepEqual(await asked(current, { structure: true }), [], 'every container holds its structure');
+  assert.deepEqual(await asked(new MemoryStorage(), { structure: true }), [], 'an empty copy waits for its first snapshot');
 });

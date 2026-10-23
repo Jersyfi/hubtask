@@ -5,7 +5,9 @@
   // word, pinned to the bottom of the screen where a thumb is.
   //
   // It switches routes, not panels, which is why it is a `<nav>` of links and not `Tabs`: a tab
-  // owns the panel it reveals, a destination owns nothing. The current one carries
+  // owns the panel it reveals, a destination owns nothing. One item may be an act instead of a
+  // place - the ＋ that opens the capture field (UC-WRK-26) - and that one is a button, never
+  // current, its mark filled so it reads as the act among the places. The current one carries
   // `aria-current="page"` and a colour, and the word beside the mark is what says it in
   // greyscale (rule 3). Never more than five - a sixth would be narrower than a thumb - and never
   // fewer than three, because two is a switch and a switch is a different control.
@@ -22,9 +24,16 @@
     /** Resolved text (ADR-0011). Short: it sits under a mark in a fifth of a phone. */
     readonly label: string;
     readonly icon: IconName;
-    readonly href: string;
+    /** Where it goes. Every destination that is a place has one. */
+    readonly href?: string;
     /** A count worth seeing before opening it: what waits in the inbox. */
     readonly count?: number;
+    /**
+     * Whether it is an act rather than a place - the ＋ that opens the capture field. Drawn as a
+     * button: a link with no place behind it would be announced as one, and nothing would be
+     * current for it.
+     */
+    readonly isAction?: boolean;
   }
 
   interface Props {
@@ -43,23 +52,31 @@
   <ul>
     {#each destinations as destination (destination.id)}
       <li>
-        <a
-          href={destination.href}
-          aria-current={destination.id === current ? 'page' : undefined}
-          onclick={(event) => {
-            if (!onnavigate) return;
-            event.preventDefault();
-            onnavigate(destination.id);
-          }}
-        >
-          <span class="mark">
-            <Icon name={destination.icon} />
-            {#if destination.count}
-              <span class="count">{destination.count}</span>
-            {/if}
-          </span>
-          <span class="word">{destination.label}</span>
-        </a>
+        {#if destination.isAction}
+          <button type="button" class="item" data-action="" onclick={() => onnavigate?.(destination.id)}>
+            <span class="mark"><Icon name={destination.icon} /></span>
+            <span class="word">{destination.label}</span>
+          </button>
+        {:else}
+          <a
+            class="item"
+            href={destination.href}
+            aria-current={destination.id === current ? 'page' : undefined}
+            onclick={(event) => {
+              if (!onnavigate) return;
+              event.preventDefault();
+              onnavigate(destination.id);
+            }}
+          >
+            <span class="mark">
+              <Icon name={destination.icon} />
+              {#if destination.count}
+                <span class="count">{destination.count}</span>
+              {/if}
+            </span>
+            <span class="word">{destination.label}</span>
+          </a>
+        {/if}
       </li>
     {/each}
   </ul>
@@ -90,7 +107,7 @@
 
   li { flex: 1; min-width: 0; display: flex; }
 
-  a {
+  .item {
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -100,27 +117,38 @@
     min-width: 0;
     padding: var(--sp-050) var(--sp-025);
     color: var(--text-secondary);
+    font: inherit;
     font-size: var(--fs-050);
     font-weight: var(--fw-medium);
     text-decoration: none;
+    border: 0;
     border-radius: var(--r-md);
+    background: none;
+    cursor: pointer;
   }
 
-  a:hover { color: var(--text-primary); }
+  .item:hover { color: var(--text-primary); }
 
   /* Rule 3: the current destination is the colour and the tint under the mark, and the word and
      `aria-current` say it without either. */
-  a[aria-current='page'] { color: var(--text-brand); }
+  .item[aria-current='page'] { color: var(--text-brand); }
 
-  a[aria-current='page'] .mark { background: var(--accent-primary-subtle); }
+  .item[aria-current='page'] .mark { background: var(--accent-primary-subtle); }
+
+  /* The act among the places: its mark is filled with the accent, so it reads as the one thing
+     the bar does rather than another place to go, and its word says it without the colour. */
+  .item[data-action] .mark {
+    background: var(--accent-primary);
+    color: var(--text-inverse);
+  }
 
   /* Rule 5's ring at rule 5's offset, drawn inward of the link's box so it is not clipped by the
      screen's bottom edge: the link is inset by the same amount the ring stands off. */
-  a {
+  .item {
     margin: var(--sp-025);
   }
 
-  a:focus-visible {
+  .item:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
   }

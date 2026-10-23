@@ -1508,6 +1508,20 @@ class Container(TypedDict, total=False):
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
     figure: "CollectionFigure"
+    milestone: "ContainerMilestone"
+
+class ContainerMilestone(TypedDict, total=False):
+    reached_at: Required[str]
+
+Kudos = TypedDict("Kudos", {
+    "item_id": Required[str],
+    "given": Required[bool],
+    "from": Required[list["KudosFrom"]],
+}, total=False)
+
+class KudosFrom(TypedDict, total=False):
+    account_id: Required[str]
+    given_at: Required[str]
 
 class ContainerCreate(TypedDict, total=False):
     type: Required["ContainerType"]
@@ -2245,7 +2259,7 @@ class ItemQueryResult(TypedDict, total=False):
 
 class BulkOperation(TypedDict, total=False):
     """One operation of a bulk: which of the single-entry operations to carry out, on which entry, with the body that operation takes on its own."""
-    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
+    op: Required[Literal["CREATE_ITEM", "UPDATE_ITEM", "COMPLETE_ITEM", "REOPEN_ITEM", "MOVE_ITEM", "TRASH_ITEM", "RESTORE_ITEM", "ADD_LABEL", "REMOVE_LABEL", "ASSIGN"]]
     item_id: str
     payload: dict[str, Any]
 
@@ -2301,6 +2315,7 @@ class Label(TypedDict, total=False):
     color_token: Required[str]
     description: Required[str | None]
     version: Required[int]
+    deleted_at: str | None
 
 class LabelCreate(TypedDict, total=False):
     name: Required[str]

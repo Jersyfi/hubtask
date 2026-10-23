@@ -1233,6 +1233,7 @@ const (
 	MOVEITEM     BulkOperationOp = "MOVE_ITEM"
 	REMOVELABEL  BulkOperationOp = "REMOVE_LABEL"
 	REOPENITEM   BulkOperationOp = "REOPEN_ITEM"
+	RESTOREITEM  BulkOperationOp = "RESTORE_ITEM"
 	TRASHITEM    BulkOperationOp = "TRASH_ITEM"
 	UPDATEITEM   BulkOperationOp = "UPDATE_ITEM"
 )
@@ -1253,6 +1254,8 @@ func (e BulkOperationOp) Valid() bool {
 	case REMOVELABEL:
 		return true
 	case REOPENITEM:
+		return true
+	case RESTOREITEM:
 		return true
 	case TRASHITEM:
 		return true
@@ -6494,10 +6497,12 @@ type Bucket struct {
 // BucketCreate defines model for BucketCreate.
 type BucketCreate struct {
 	BeforeBucketId *openapi_types.UUID `json:"before_bucket_id,omitempty"`
-	ColorToken     *string             `json:"color_token,omitempty"`
-	IsDoneBucket   *bool               `json:"is_done_bucket,omitempty"`
-	Name           string              `json:"name"`
-	WipLimit       *int                `json:"wip_limit,omitempty"`
+
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.
+	ColorToken   *string `json:"color_token,omitempty"`
+	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
+	Name         string  `json:"name"`
+	WipLimit     *int    `json:"wip_limit,omitempty"`
 }
 
 // BucketDeletion What became of the entries that were in a deleted column. Reported rather than left to be discovered: a board that silently reassigned a person's cards would be indistinguishable from one that lost them.
@@ -6513,6 +6518,7 @@ type BucketDeletion struct {
 
 // BucketUpdate JSON Merge Patch; null deletes a field.
 type BucketUpdate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.
 	ColorToken   *string `json:"color_token,omitempty"`
 	IsDoneBucket *bool   `json:"is_done_bucket,omitempty"`
 	Name         *string `json:"name,omitempty"`
@@ -6879,10 +6885,13 @@ type Container struct {
 	Id     openapi_types.UUID `json:"id"`
 
 	// KeptByLock On the answer to a change of the structure only: the locks that kept a value the chosen preset would have changed. Empty where none did.
-	KeptByLock *[]string           `json:"kept_by_lock,omitempty"`
-	Name       string              `json:"name"`
-	OrderKey   *string             `json:"order_key,omitempty"`
-	ParentId   *openapi_types.UUID `json:"parent_id,omitempty"`
+	KeptByLock *[]string `json:"kept_by_lock,omitempty"`
+
+	// Milestone The last time every entry of this collection, or of every collection in this hub, was finished. Recorded by the completion that left nothing open and kept when entries are added afterwards; a later finish moves it. Absent until the first.
+	Milestone *ContainerMilestone `json:"milestone,omitempty"`
+	Name      string              `json:"name"`
+	OrderKey  *string             `json:"order_key,omitempty"`
+	ParentId  *openapi_types.UUID `json:"parent_id,omitempty"`
 
 	// Policies How a collection works, as opposed to what it is called. Two keys, and no more: a key nothing reads would be a promise nothing keeps. This document is replaced whole (PUT): a key that is not sent falls back to its default - MANUAL for the completion policy, no automatic assignment for auto_assign.
 	Policies *ContainerPolicies `json:"policies,omitempty"`
@@ -6899,6 +6908,7 @@ type Container struct {
 
 // ContainerCreate defines model for ContainerCreate.
 type ContainerCreate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string means no colour.
 	ColorToken  *string             `json:"color_token,omitempty"`
 	Description *string             `json:"description,omitempty"`
 	Icon        *string             `json:"icon,omitempty"`
@@ -6915,6 +6925,12 @@ type ContainerCreate struct {
 
 // ContainerCreatePreset The preset the new hub or collection starts from; its values are copied. A collection given its hub's preset, or none, follows its hub instead and stores nothing of its own. A hub given none starts from the workspace's default preset where one is set.
 type ContainerCreatePreset string
+
+// ContainerMilestone defines model for ContainerMilestone.
+type ContainerMilestone struct {
+	// ReachedAt When the completion that left nothing open reached the server.
+	ReachedAt time.Time `json:"reached_at"`
+}
 
 // ContainerPage defines model for ContainerPage.
 type ContainerPage struct {
@@ -6936,6 +6952,7 @@ type ContainerType string
 
 // ContainerUpdate defines model for ContainerUpdate.
 type ContainerUpdate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `containers.color_token_unknown`; a value stored before that check is kept until it is changed. Null or the empty string clears it.
 	ColorToken  *string `json:"color_token,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Icon        *string `json:"icon,omitempty"`
@@ -8345,12 +8362,31 @@ type JumbleIntakeToken struct {
 	Token string `json:"token"`
 }
 
+// Kudos defines model for Kudos.
+type Kudos struct {
+	// From The kudos the reader received on this entry, oldest first. Empty for everybody but the person they were given to.
+	From []KudosFrom `json:"from"`
+
+	// Given Whether the reader gave kudos to the entry's current completion. False on an open entry.
+	Given  bool               `json:"given"`
+	ItemId openapi_types.UUID `json:"item_id"`
+}
+
+// KudosFrom defines model for KudosFrom.
+type KudosFrom struct {
+	AccountId openapi_types.UUID `json:"account_id"`
+	GivenAt   time.Time          `json:"given_at"`
+}
+
 // Label A tag a collection defines and its entries carry. Defined on the collection rather than on the workspace: a label is a vocabulary the people working in one collection agree on, and a workspace-wide list would make every collection pay for every other's.
 type Label struct {
 	CollectionId openapi_types.UUID `json:"collection_id"`
 
 	// ColorToken A theme token rather than a colour value, so clients render it in their own palette. Required: a label is rendered as a chip and nothing else.
 	ColorToken string `json:"color_token"`
+
+	// DeletedAt When the label was taken out of the vocabulary. Present only in a list read with `include_deleted`; a label in the vocabulary carries null or omits it.
+	DeletedAt *time.Time `json:"deleted_at,omitempty"`
 
 	// Description Always present, as null when unset.
 	Description *string            `json:"description"`
@@ -8363,6 +8399,7 @@ type Label struct {
 
 // LabelCreate defines model for LabelCreate.
 type LabelCreate struct {
+	// ColorToken One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red, magenta or violet. Any other name is refused with `labels.color_token_unknown`; a value stored before that check is kept until it is changed.
 	ColorToken  string  `json:"color_token"`
 	Description *string `json:"description,omitempty"`
 	Name        string  `json:"name"`
@@ -8370,7 +8407,7 @@ type LabelCreate struct {
 
 // LabelUpdate JSON Merge Patch; null deletes a field.
 type LabelUpdate struct {
-	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one.
+	// ColorToken Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a client would have to invent one. One of the ten label colours, as on creation; any other name is refused with `labels.color_token_unknown`.
 	ColorToken  *string `json:"color_token,omitempty"`
 	Description *string `json:"description,omitempty"`
 	Name        *string `json:"name,omitempty"`
@@ -12682,6 +12719,12 @@ type ReorderBucketParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ListLabelsParams defines parameters for ListLabels.
+type ListLabelsParams struct {
+	// IncludeDeleted Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client can offer to bring one back. Without it a deleted label is not in the list.
+	IncludeDeleted *bool `form:"include_deleted,omitempty" json:"include_deleted,omitempty"`
+}
+
 // DeleteLabelParams defines parameters for DeleteLabel.
 type DeleteLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -12692,6 +12735,12 @@ type DeleteLabelParams struct {
 type UpdateLabelParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// RestoreLabelParams defines parameters for RestoreLabel.
+type RestoreLabelParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateContainerPoliciesParams defines parameters for UpdateContainerPolicies.
@@ -14463,7 +14512,7 @@ type ServerInterface interface {
 	ReorderBucket(w http.ResponseWriter, r *http.Request, containerId ContainerId, bucketId BucketId, params ReorderBucketParams)
 
 	// (GET /containers/{containerId}/labels)
-	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId)
+	ListLabels(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ListLabelsParams)
 
 	// (POST /containers/{containerId}/labels)
 	CreateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId)
@@ -14473,6 +14522,9 @@ type ServerInterface interface {
 
 	// (PATCH /containers/{containerId}/labels/{labelId})
 	UpdateLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params UpdateLabelParams)
+
+	// (POST /containers/{containerId}/labels/{labelId}:restore)
+	RestoreLabel(w http.ResponseWriter, r *http.Request, containerId ContainerId, labelId LabelId, params RestoreLabelParams)
 
 	// (PUT /containers/{containerId}/policies)
 	UpdateContainerPolicies(w http.ResponseWriter, r *http.Request, containerId ContainerId, params UpdateContainerPoliciesParams)
@@ -14653,6 +14705,15 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/due)
 	SetDueDate(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetDueDateParams)
+
+	// (DELETE /items/{itemId}/kudos)
+	TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (GET /items/{itemId}/kudos)
+	ReadKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
+
+	// (PUT /items/{itemId}/kudos)
+	GiveKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
 
 	// (DELETE /items/{itemId}/labels/{labelId})
 	RemoveLabel(w http.ResponseWriter, r *http.Request, itemId ItemId, labelId LabelId)
@@ -20121,8 +20182,24 @@ func (siw *ServerInterfaceWrapper) ListLabels(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListLabelsParams
+
+	// ------------- Optional query parameter "include_deleted" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "include_deleted", r.URL.Query(), &params.IncludeDeleted, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "include_deleted"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "include_deleted", Err: err})
+		}
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ListLabels(w, r, containerId)
+		siw.Handler.ListLabels(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -20267,6 +20344,65 @@ func (siw *ServerInterfaceWrapper) UpdateLabel(w http.ResponseWriter, r *http.Re
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateLabel(w, r, containerId, labelId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RestoreLabel operation middleware
+func (siw *ServerInterfaceWrapper) RestoreLabel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "labelId" -------------
+	var labelId LabelId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "labelId", r.PathValue("labelId"), &labelId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "labelId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RestoreLabelParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RestoreLabel(w, r, containerId, labelId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -22888,6 +23024,84 @@ func (siw *ServerInterfaceWrapper) SetDueDate(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetDueDate(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TakeBackKudos operation middleware
+func (siw *ServerInterfaceWrapper) TakeBackKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TakeBackKudos(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReadKudos operation middleware
+func (siw *ServerInterfaceWrapper) ReadKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadKudos(w, r, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GiveKudos operation middleware
+func (siw *ServerInterfaceWrapper) GiveKudos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GiveKudos(w, r, itemId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -27793,6 +28007,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.DeleteComment)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/items/{itemId}/comments/{commentId}", wrapper.EditComment)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/activity", wrapper.ListActivity)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.TakeBackKudos)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.ReadKudos)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/kudos", wrapper.GiveKudos)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.ListBuckets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/buckets", wrapper.CreateBucket)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/buckets/{bucketId}", wrapper.DeleteBucket)
@@ -27802,6 +28019,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels", wrapper.CreateLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.DeleteLabel)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}", wrapper.UpdateLabel)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}/labels/{labelId}:restore", wrapper.RestoreLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.RemoveLabel)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/labels/{labelId}", wrapper.AddLabel)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/items/{itemId}/members/{accountId}", wrapper.RemoveMember)

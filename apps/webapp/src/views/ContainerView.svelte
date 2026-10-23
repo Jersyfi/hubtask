@@ -38,9 +38,11 @@
   import Board from '../lib/entries/Board.svelte';
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
+  import ContainerMilestone from '../lib/entries/ContainerMilestone.svelte';
+  import { showsMilestone } from '../lib/data/kudos.ts';
+  import { celebration } from '../lib/celebration.svelte.ts';
   import WhatCountsDialog from '../lib/workspace/WhatCountsDialog.svelte';
   import BulkBar from '../lib/entries/BulkBar.svelte';
-  import DuplicateDialog from '../lib/entries/DuplicateDialog.svelte';
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
@@ -57,6 +59,7 @@
   import MembersDialog from '../lib/people/MembersDialog.svelte';
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
+  import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, roleOrder, rootTypes } from '../lib/data/capability.svelte.ts';
@@ -83,7 +86,7 @@
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
-  import { layoutsOffered } from '../lib/entries/layouts.ts';
+  import { DRAWABLE, isListLayout, layoutsOffered } from '../lib/entries/layouts.ts';
   import { actionsOfHead, type Act } from '../lib/palette/actions.ts';
   import { commands } from '../lib/palette/commands.svelte.ts';
   import { mayCreateIn } from '../lib/palette/sources.ts';
@@ -151,9 +154,9 @@
   /**
    * Which layout the reader is looking at, and what they have asked of the entries.
    *
-   * Kept on the device, in memory. Saving a view is its own act, and a switch here writes no
-   * `SavedView` — the choice is the reader's for as long as the screen is open, and no further
-   * claim is made about it.
+   * The layout a person chose for a collection is kept for them on this device (UC-WRK-28 check 6,
+   * design-system.md §11.10) and sent nowhere; saving a view is its own act, and a switch here
+   * writes no `SavedView`.
    */
   let layout = $state('LIST_COLLAPSED');
   let query = $state<ItemsQuery>({});
@@ -162,6 +165,46 @@
 
   /** The layouts that may be chosen here: the switch's and the palette's one answer. */
   const offeredLayouts = $derived(container ? layoutsOffered(container, manifest.value) : []);
+
+  /**
+   * What the opening layout is chosen from: what may be chosen here, the list's both values where
+   * the list is offered; everything this client draws while the manifest is not yet read.
+   */
+  const choosable = $derived(
+    offeredLayouts.length === 0
+      ? DRAWABLE
+      : DRAWABLE.filter((each) => offeredLayouts.includes(each) || (isListLayout(each) && offeredLayouts.some(isListLayout))),
+  );
+
+  /** What the collection offers and opens with, as one key, so a re-read that changes neither leaves the layout alone. */
+  const offeredViews = $derived(JSON.stringify({ views: container?.structure?.settings?.views ?? null, choosable }));
+
+  // The layout a collection opens with: the person's remembered one where it is still offered,
+  // else the collection's default, else the list.
+  $effect(() => {
+    const wanted = id;
+    const account = actor.account?.id;
+    const read = JSON.parse(offeredViews) as {
+      views: { offered?: string[]; default?: string } | null;
+      choosable: string[];
+    };
+    untrack(() => {
+      layout = openingLayout({
+        store: deviceStore(),
+        accountId: account,
+        collectionId: wanted,
+        offered: read.views?.offered ?? [],
+        preferred: read.views?.default,
+        drawable: read.choosable,
+      });
+    });
+  });
+
+  /** A layout the person chose: drawn, and kept for them on this device. */
+  function chooseLayout(chosen: string) {
+    layout = chosen;
+    rememberLayout(deviceStore(), actor.account?.id, id, chosen);
+  }
 
   /**
    * The path this container sits on, and the role this reader holds along it.
@@ -214,9 +257,6 @@
    * and when the screen changes.
    */
   let lastResults = $state<ReadonlyMap<string, BulkResult>>(new Map());
-
-  /** The entry being copied, if one is. The dialog is open exactly while this is set. */
-  let duplicating = $state<WorkItem | undefined>(undefined);
 
   // `Escape` leaves the selection mode, from anywhere on the screen: a mode with no way out but a
   // small button is one somebody is stuck in (ADR-0063 decision 8). It is on the window rather
@@ -771,7 +811,7 @@
       .map((each) => ({
         id: `page:layout-${each}`,
         label: t('app.palette.show_as', { layout: each }),
-        run: () => (layout = each),
+        run: () => chooseLayout(each),
       })),
   );
 
@@ -786,7 +826,7 @@
     const wish = commands.take(container.id);
     if (!wish) return;
     untrack(() => {
-      if (wish.layout && offeredLayouts.includes(wish.layout)) layout = wish.layout;
+      if (wish.layout && offeredLayouts.includes(wish.layout)) chooseLayout(wish.layout);
       if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
         if (layout === 'KANBAN' || layout === 'TIMELINE') layout = 'LIST_COLLAPSED';
         isAddWished = true;
@@ -846,9 +886,12 @@
   <EmptyState kind="filtered" title={t('app.workspace.not_loaded')} />
 {:else}
   <!-- What counts in the collection, counted by the server on its read (UC-WRK-29). Absent on a
-       hub, offline, and where the collection counts nothing. -->
+       hub, offline, and where the collection counts nothing. Beside it the milestone of a
+       collection or hub, while the reader celebrates (checks 4 and 7). -->
+  {@const hasMilestone = showsMilestone(container.milestone, celebration.isOn)}
   {#snippet collectionFigure()}
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
+    {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
   <Stack gap="300">
@@ -875,7 +918,7 @@
       primary={headPrimary}
       secondary={headSecondary}
       menu={headMenu}
-      figure={container.type === 'COLLECTION' && container.figure ? collectionFigure : undefined}
+      figure={(container.type === 'COLLECTION' && container.figure) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
       {#snippet notices()}
@@ -903,7 +946,7 @@
           <!-- The three layouts, with "show what is inside" within the list; the star beside them
                is the saved views where they are used daily (design-system.md §11.8), the same panel the menu
                opens. -->
-          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={(id) => (layout = id)} />
+          <LayoutSwitch {layout} offered={offeredLayouts} onlayout={chooseLayout} />
           <IconButton icon="star" label={t('app.views.title')} size="sm" data-opener="views" onclick={() => (isManagingViews = true)} />
         {/if}
         {#if memberIds.length > 0}
@@ -1023,7 +1066,11 @@
               {query}
               {isReadOnly}
               changeRefusal={changeRefusalOf}
-              onopen={(itemId) => onnavigate(`/items/${itemId}`)}
+              onopen={(itemId) => (viewport.isLarge ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
+              currentId={openItemId}
+              {onnavigate}
+              mayCreate={mayCreateHere}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
             />
           {:else if layout === 'KANBAN'}
             <Board
@@ -1031,7 +1078,10 @@
               isReadOnly={isReadOnly}
               {query}
               {lastResults}
-              onduplicate={(item) => (duplicating = item)}
+              onopen={viewport.isLarge ? openBeside : undefined}
+              currentId={openItemId}
+              {onnavigate}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
               {mayShape}
@@ -1051,11 +1101,12 @@
               {lastResults}
               onopen={viewport.isLarge ? openBeside : undefined}
               currentId={openItemId}
-              onduplicate={(item) => (duplicating = item)}
+              {onnavigate}
+              mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
               changeRefusal={changeRefusalOf}
               mayCreate={mayCreateHere}
+              isSelectable
               structure={container.structure ?? undefined}
-              {onnavigate}
               {mayShape}
               containerVersion={container.version}
             />
@@ -1095,16 +1146,6 @@
   <ContainerLookDialog bind:isOpen={isChangingLook} {container} />
 {/if}
 
-<DuplicateDialog
-  item={duplicating}
-  hubId={container?.type === 'COLLECTION' ? (container.parent_id ?? undefined) : container?.id}
-  onclose={() => (duplicating = undefined)}
-  onopened={(itemId) => {
-    duplicating = undefined;
-    onnavigate(`/items/${itemId}`);
-  }}
-/>
-
 {#if container?.type === 'COLLECTION'}
   <LabelsDialog bind:isOpen={isManagingLabels} collectionId={container.id} />
   <CustomFieldsDialog
@@ -1137,7 +1178,7 @@
       // Both halves: the query the server validated, and the layout only a client knows what to do
       // with — which is what the `layout` field is for, declared uninterpreted.
       query = asked;
-      layout = appliedLayout;
+      chooseLayout(appliedLayout);
       announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
     }}
     onexport={(view) => {

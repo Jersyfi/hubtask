@@ -481,6 +481,71 @@ function figureRoute(route, request, url, path) {
 }
 
 /**
+ * Milestones and kudos (UC-WRK-29 checks 4-7): a hub of its own, finished, whose one collection is
+ * finished too; an entry Mara completed, which the reader may give kudos for, and one the reader
+ * completed, which Mara gave kudos for. Shown where a walk asks for it (`showCelebrations`) or the
+ * preview is started with `HUBTASK_FIXTURE_CELEBRATIONS=1`; `showCelebrations({ celebrating: false })`
+ * answers the account with its celebrations switched off.
+ */
+const FINISHED_AT = '2026-10-20T16:30:00Z';
+export const FINISHED_HUB = { id: '01a0e2e0-0000-7000-8000-0000000025f1', type: 'HUB', parent_id: null, name: 'Garden', order_key: 'a3', version: 1, milestone: { reached_at: FINISHED_AT } };
+export const FINISHED = { id: '01a0e2e0-0000-7000-8000-0000000025f2', type: 'COLLECTION', parent_id: FINISHED_HUB.id, name: 'Spring planting', order_key: 'a0', version: 1, milestone: { reached_at: FINISHED_AT } };
+const finishedEntry = (n, title, by) => ({
+  id: `01a0e2e0-0000-7000-8000-0000000025f${n}`, type: 'TASK', title, collection_id: FINISHED.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 2,
+  completion: { is_completed: true, completed_at: FINISHED_AT, completed_by: by }, labels: [], label_ids: [],
+});
+export const DONE_BY_OTHER = finishedEntry('3', 'Plant the tulips', OTHER.id);
+export const DONE_BY_ME = finishedEntry('4', 'Water the beds', ACCOUNT.id);
+
+let celebrationsShown = typeof process !== 'undefined' && process.env?.HUBTASK_FIXTURE_CELEBRATIONS === '1';
+let celebrating = true;
+let kudosGiven = false;
+/** Adds the finished hub to the tree, for this process; nothing given yet. */
+export function showCelebrations({ celebrating: on = true } = {}) {
+  celebrationsShown = true;
+  celebrating = on;
+  kudosGiven = false;
+}
+
+/** The finished hub's reads and the kudos; `undefined` where the general stub answers. */
+function celebrationRoute(route, request, url, path) {
+  if (!celebrationsShown) return undefined;
+  const method = request.method();
+  if (path.endsWith('/api/v1/accounts/me') || path.endsWith(`/api/v1/accounts/${ACCOUNT.id}`)) {
+    return route.fulfill({ json: { ...ACCOUNT, celebrations: celebrating } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('type') === 'HUB') {
+    return route.fulfill({ json: { ...PAGE, data: [HUB, FINISHED_HUB] } });
+  }
+  if (path.endsWith('/api/v1/containers') && url.searchParams.get('parent_id') === FINISHED_HUB.id) {
+    return route.fulfill({ json: { ...PAGE, data: [FINISHED] } });
+  }
+  if (path.endsWith(`/api/v1/containers/${FINISHED_HUB.id}`)) return route.fulfill({ json: FINISHED_HUB });
+  if (path.endsWith(`/api/v1/containers/${FINISHED.id}`)) return route.fulfill({ json: FINISHED });
+  // The replica holds them as their records carry them: without a milestone, the server's read alone.
+  if (path.endsWith('/api/v1/sync:snapshot')) {
+    const records = [HUB, COLLECTION, FINISHED_HUB, FINISHED].map(({ milestone, ...c }) => JSON.stringify({ op: 'UPSERT', entity: 'container', entity_id: c.id, container_id: c.parent_id, payload: c }));
+    return route.fulfill({ status: 200, contentType: 'application/x-ndjson', body: `${records.join('\n')}\n{"cursor":"c-e2e"}\n` });
+  }
+  if (path.endsWith('/api/v1/items:query') && request.postDataJSON()?.scope?.container_id === FINISHED.id) {
+    const data = [DONE_BY_OTHER, DONE_BY_ME];
+    return route.fulfill({ json: { data, groups: [], page: { next_cursor: null, has_more: false }, total: data.length } });
+  }
+  const entry = [DONE_BY_OTHER, DONE_BY_ME].find((each) => path.endsWith(`/api/v1/items/${each.id}`));
+  if (entry && method === 'GET') return route.fulfill({ json: entry });
+  // Each reader's own view: the reader's toggle on Mara's entry, Mara's kudos on the reader's.
+  if (path.endsWith(`/api/v1/items/${DONE_BY_OTHER.id}/kudos`)) {
+    if (method === 'PUT') kudosGiven = true;
+    if (method === 'DELETE') kudosGiven = false;
+    return route.fulfill({ json: { item_id: DONE_BY_OTHER.id, given: kudosGiven, from: [] } });
+  }
+  if (path.endsWith(`/api/v1/items/${DONE_BY_ME.id}/kudos`)) {
+    return route.fulfill({ json: { item_id: DONE_BY_ME.id, given: false, from: [{ account_id: OTHER.id, given_at: '2026-10-21T08:00:00Z' }] } });
+  }
+  return undefined;
+}
+
+/**
  * Places in their own colour and symbol (UC-WRK-33): a hub with a colour and a symbol, a private
  * one with both, and under the first a collection with both and one with neither - plus two dated
  * entries from different collections, so the overview and search mix places. Shown where a walk
@@ -548,6 +613,8 @@ export function stub(route) {
   if (looks) return looks;
   const figured = figureRoute(route, request, url, path);
   if (figured) return figured;
+  const celebrated = celebrationRoute(route, request, url, path);
+  if (celebrated) return celebrated;
   // The stream, **accepted and empty**: the connection is what the mark in the bar reads,
   // so a walk that refused it would draw *Reconnecting…* on every screenshot of every
   // screen. It carries the server's own reconnect suggestion and no records; what a walk needs
@@ -730,7 +797,13 @@ export function fallback(route, request, path) {
     const { archived_at: _put, ...back } = ARCHIVED;
     return route.fulfill({ json: { ...back, version: ARCHIVED.version + 1 } });
   }
-  if (read === '/search') return route.fulfill({ json: { ...PAGE, data: [] } });
+  // Words find the entries whose title holds them; a search with no words - the overview's - finds
+  // nothing, so the screens that ask one are drawn empty as before.
+  if (read === '/search') {
+    const words = (request.postDataJSON()?.q ?? '').trim().toLowerCase();
+    const hits = words === '' ? [] : ALL_ITEMS.filter((each) => each.title.toLowerCase().includes(words));
+    return route.fulfill({ json: { ...PAGE, data: hits } });
+  }
 
   // The three writes the walks make, each answered with the entry it
   // makes. Two of them are the subject of the walk that makes them - the timeline's drag sets a
@@ -740,8 +813,54 @@ export function fallback(route, request, path) {
   if (due) return route.fulfill({ json: { ...due, ...request.postDataJSON(), version: due.version + 1 } });
   const ranked = ALL_ITEMS.find((each) => read === `/items/${each.id}:reorder`);
   if (ranked) return route.fulfill({ json: { ...ranked, ...request.postDataJSON(), version: ranked.version + 1 } });
+  // What an entry's menu writes (UC-WRK-28): each answered with what it makes, so a walk that
+  // presses an item proves the request it sends rather than a guess.
+  const lifecycle = read.match(/^\/items\/([^/:]+):(archive|unarchive|restore)$/);
+  const living = lifecycle && ALL_ITEMS.find((each) => each.id === lifecycle[1]);
+  if (living && request.method() === 'POST') {
+    return route.fulfill({ json: { ...living, archived_at: lifecycle[2] === 'archive' ? '2026-10-21T09:00:00Z' : null, version: living.version + 1 } });
+  }
+  if (ALL_ITEMS.some((each) => read === `/items/${each.id}`) && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  const moved = read.match(/^\/items\/([^/:]+):move$/);
+  const carried = moved && ALL_ITEMS.find((each) => each.id === moved[1]);
+  if (carried && request.method() === 'POST') return route.fulfill({ json: { item: { ...carried, version: carried.version + 1 }, dropped_references: [] } });
+  const tagged = read.match(/^\/items\/([^/]+)\/labels\/([^/]+)$/);
+  const labelled = tagged && ALL_ITEMS.find((each) => each.id === tagged[1]);
+  if (labelled && (request.method() === 'PUT' || request.method() === 'DELETE')) {
+    const others = (labelled.label_ids ?? []).filter((id) => id !== tagged[2]);
+    return route.fulfill({ json: { label_ids: request.method() === 'PUT' ? [...others, tagged[2]] : others } });
+  }
+  const vocabulary = read.match(/^\/containers\/[^/]+\/labels\/([^/:]+)(:restore)?$/);
+  const word = vocabulary && LABELS.find((each) => each.id === vocabulary[1]);
+  if (word && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  if (word && request.method() === 'POST' && vocabulary[2]) return route.fulfill({ json: { ...word, deleted_at: null, version: (word.version ?? 1) + 1 } });
+  if (read === '/items:bulk' && request.method() === 'POST') {
+    const operations = request.postDataJSON()?.operations ?? [];
+    const results = operations.map((operation, index) => {
+      const item = ALL_ITEMS.find((each) => each.id === operation.item_id);
+      return { index, status: 200, item: item ? { ...item, version: item.version + 1 } : undefined };
+    });
+    return route.fulfill({ json: { applied: results.length, failed: 0, results } });
+  }
   if (read === '/items' && request.method() === 'POST') {
-    return route.fulfill({ status: 201, json: { ...ALL_ITEMS[0], id: '01a0e2e0-0000-7000-8000-0000000000ff', ...request.postDataJSON(), version: 1 } });
+    created = { ...ALL_ITEMS[0], id: CREATED_ID, ...request.postDataJSON(), version: 1 };
+    return route.fulfill({ status: 201, json: created });
+  }
+  // The entry a walk just made, read back and trashed again - what a capture's *Undo* does.
+  if (read === `/items/${CREATED_ID}` && request.method() === 'GET' && created) return route.fulfill({ json: created });
+  if (read === `/items/${CREATED_ID}` && request.method() === 'DELETE') return route.fulfill({ status: 204, body: '' });
+  // Several entries trashed at once, all or nothing: every operation applied.
+  if (read === '/items:bulk' && request.method() === 'POST') {
+    const operations = request.postDataJSON().operations ?? [];
+    return route.fulfill({ json: { results: operations.map(() => ({ status: 204 })) } });
+  }
+  // A capture into the jumble, and its *Undo*: the entry, then the same entry dismissed.
+  if (read === '/jumble/entries' && request.method() === 'POST') {
+    const body = request.postDataJSON();
+    return route.fulfill({ status: 201, json: { ...JUMBLED, raw_subject: body.raw_subject ?? null, channel: body.channel } });
+  }
+  if (read === `/jumble/entries/${JUMBLED.id}:dismiss` && request.method() === 'POST') {
+    return route.fulfill({ json: { ...JUMBLED, status: 'DISMISSED' } });
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
@@ -782,9 +901,17 @@ const ARRAYS = new Set([
 /** What the fixture was asked for and had no answer prepared for. Read through `signedIn`. */
 let unstubbed = [];
 
+/** The id every create answers with, and the entry the last create made. */
+export const CREATED_ID = '01a0e2e0-0000-7000-8000-0000000000ff';
+let created;
+
+/** What a capture into the jumble makes. */
+export const JUMBLED = { id: '01a0e2e0-0000-7000-8000-0000000007b1', channel: 'QUICK_CAPTURE', raw_subject: null, raw_body: null, attachments: [], status: 'NEW', received_at: '2026-10-21T08:00:00Z' };
+
 /** Starts a fresh record. `signedIn` does it; a walk with its own context calls it itself. */
 export function forgetUnstubbed() {
   unstubbed = [];
+  created = undefined;
   pushed.length = 0;
   looked = [];
   draftSaved = false;

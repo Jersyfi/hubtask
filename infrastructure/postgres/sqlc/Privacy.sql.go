@@ -314,6 +314,22 @@ func (q *Queries) DeleteFeedsOfAccount(ctx context.Context, accountID pgtype.UUI
 	return result.RowsAffected(), nil
 }
 
+const deleteKudosOfAccount = `-- name: DeleteKudosOfAccount :execrows
+DELETE FROM kudos
+WHERE tenant_id = current_tenant_id()
+  AND (given_by = $1 OR given_to = $1)
+`
+
+// Kudos the person gave and received: an acknowledgement between two people, about both of them,
+// and evidence of nothing.
+func (q *Queries) DeleteKudosOfAccount(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteKudosOfAccount, accountID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMediaObject = `-- name: DeleteMediaObject :execrows
 DELETE FROM media_object WHERE tenant_id = current_tenant_id() AND id = $1
 `
@@ -810,6 +826,64 @@ func (q *Queries) InsertRecoveredErasureCase(ctx context.Context, arg InsertReco
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const kudosOfAccount = `-- name: KudosOfAccount :many
+SELECT item_id, given_by, given_to, given_at FROM kudos
+WHERE tenant_id = current_tenant_id()
+  AND (given_by = $1 OR given_to = $1)
+  AND (item_id, given_by, given_to) > ($2::uuid, $3::uuid,
+                                       $4::uuid)
+ORDER BY item_id, given_by, given_to
+LIMIT $5::int
+`
+
+type KudosOfAccountParams struct {
+	AccountID pgtype.UUID
+	AfterItem pgtype.UUID
+	AfterBy   pgtype.UUID
+	AfterTo   pgtype.UUID
+	Batch     int32
+}
+
+type KudosOfAccountRow struct {
+	ItemID  pgtype.UUID
+	GivenBy pgtype.UUID
+	GivenTo pgtype.UUID
+	GivenAt pgtype.Timestamptz
+}
+
+// The kudos the person gave and received, for their own copy of their data, a page at a time in the
+// key's order. Never kudos between two other people.
+func (q *Queries) KudosOfAccount(ctx context.Context, arg KudosOfAccountParams) ([]KudosOfAccountRow, error) {
+	rows, err := q.db.Query(ctx, kudosOfAccount,
+		arg.AccountID,
+		arg.AfterItem,
+		arg.AfterBy,
+		arg.AfterTo,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []KudosOfAccountRow{}
+	for rows.Next() {
+		var i KudosOfAccountRow
+		if err := rows.Scan(
+			&i.ItemID,
+			&i.GivenBy,
+			&i.GivenTo,
+			&i.GivenAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const latestConsent = `-- name: LatestConsent :one

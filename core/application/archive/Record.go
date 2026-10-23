@@ -488,6 +488,16 @@ var entities = []Entity{
 			{Field: "opened_by", Table: "account"},
 		},
 	},
+	// When a collection or hub was last left with nothing open (UC-WRK-29 check 4). Archived
+	// although a later finish would record it again: until then a restore would take from the
+	// collection a date its members saw on it. It names nobody. Whole, because a milestone goes
+	// with its container by cascade and leaves no deletion marker an incremental chain could carry;
+	// duplicable, because a copy of a finished collection is finished too.
+	{
+		Name: "container_milestones", Table: "container_milestone", Whole: true, Later: true, Duplicable: true,
+		Keys:       []string{"container_id"},
+		References: []Reference{{Field: "container_id", Table: "container"}},
+	},
 	{
 		Name: "set_elements", Table: "set_element", Whole: true, Duplicable: true,
 		Keys:       []string{"item_id", "set_name", "element_id"},
@@ -717,6 +727,11 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// because it is only a period: it removes nothing on its own.
 	"retention_rule":   "a rule that can delete, pointing at an egress channel a restore does not recreate",
 	"deletion_journal": "§7 - the journal is applied to a restore rather than restored by one",
+	// UC-WRK-29 check 6: an archive is read by whoever holds the target, an administrator among
+	// them, and who acknowledged whom is the business of the two people alone. The copy a person
+	// gets of their own data is theirs, and carries the kudos they gave and received as a section
+	// of its own (Request.Sections, data-protection.md §4) - never as an entity of this format.
+	"kudos": "who acknowledged whose completion is the two people's alone, and an archive is an administrator's to read (UC-WRK-29 check 6); the person's own copy carries theirs as a section",
 	// And the one row-level-secured table that is nobody's data: the system-defined capability
 	// profiles every tenant may read and none may write. They come with the installation, and a
 	// restore that carried its own copy would be a restore that could contradict it.

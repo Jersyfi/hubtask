@@ -18,8 +18,9 @@ import (
 
 type labelWriterHarness struct {
 	*labelHarness
-	update UpdateLabel
-	remove DeleteLabel
+	update  UpdateLabel
+	remove  DeleteLabel
+	restore RestoreLabel
 }
 
 func newLabelWriterHarness() *labelWriterHarness {
@@ -33,6 +34,7 @@ func newLabelWriterHarness() *labelWriterHarness {
 		labelHarness: base,
 		update:       UpdateLabel{Writer: writer},
 		remove:       DeleteLabel{Writer: writer},
+		restore:      RestoreLabel{Writer: writer},
 	}
 }
 
@@ -42,7 +44,7 @@ func TestUpdatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 	h.withLabel(urgentLabel, "Urgent")
 	ctx := correlation.ContextWithRequestID(context.Background(), "01J9REQUEST")
 
-	colour := "accent.amber"
+	colour := "amber"
 	label, err := h.update.Execute(ctx, actor(), UpdateLabelCommand{
 		LabelID: urgentLabel, Attributes: domain.LabelAttributes{ColorToken: &colour},
 	})
@@ -50,7 +52,7 @@ func TestUpdatingALabelWritesTheRowTheEventTheChangeAndTheEntry(t *testing.T) {
 		t.Fatalf("updating the label failed: %v", err)
 	}
 
-	if label.ColorToken != "accent.amber" || label.Version != 2 {
+	if label.ColorToken != "amber" || label.Version != 2 {
 		t.Errorf("unexpected label: %+v", label)
 	}
 	if len(h.labels.written) != 1 || h.labels.written[0].method != "attributes" {
@@ -240,6 +242,95 @@ func TestDeletingALabelTwiceAnnouncesNothing(t *testing.T) {
 	}
 }
 
+// A restoration owes the same four writes as any change, and its change log entry is the whole label:
+// a device that applied the deletion dropped the label and learns nothing from a cleared stamp
+// alone (offline-sync.md §4).
+func TestRestoringALabelRecordsTheWholeLabel(t *testing.T) {
+	h := newLabelWriterHarness()
+	h.withLabel(urgentLabel, "Urgent")
+	if _, err := h.remove.Execute(context.Background(), actor(), DeleteLabelCommand{
+		LabelID: urgentLabel,
+	}); err != nil {
+		t.Fatalf("deleting the label failed: %v", err)
+	}
+
+	label, err := h.restore.Execute(context.Background(), actor(), RestoreLabelCommand{
+		LabelID: urgentLabel,
+	})
+	if err != nil {
+		t.Fatalf("restoring the label failed: %v", err)
+	}
+
+	if label.IsDeleted() || label.Name != "Urgent" {
+		t.Errorf("unexpected label: %+v", label)
+	}
+	if len(h.labels.written) != 2 || h.labels.written[1].method != "restored" {
+		t.Fatalf("unexpected writes: %+v", h.labels.written)
+	}
+	if len(h.events.appended) != 2 || h.events.appended[1].Type != event.LabelRestored {
+		t.Fatalf("unexpected events: %+v", h.events.appended)
+	}
+	if len(h.audit.entries) != 2 || h.audit.entries[1].Action != LabelRestoredAction {
+		t.Fatalf("unexpected audit entries: %+v", h.audit.entries)
+	}
+
+	if len(h.changes.recorded) != 2 {
+		t.Fatalf("%d changes, want 2", len(h.changes.recorded))
+	}
+	change := h.changes.recorded[1]
+	if change.Op != changelog.Upsert || change.ContainerID != collectionID || change.Field != "" {
+		t.Errorf("the change is not one upsert of the label: %+v", change)
+	}
+	for _, field := range []string{"id", "collection_id", "name", "color_token", "description", "version"} {
+		if _, present := change.Payload[field]; !present {
+			t.Errorf("the snapshot lacks %s: %+v", field, change.Payload)
+		}
+	}
+	if change.Payload["deleted_at"] != nil {
+		t.Errorf("the snapshot still carries a deletion: %+v", change.Payload["deleted_at"])
+	}
+}
+
+// Restoring a label that is in use succeeds and announces nothing: a retry after a lost answer is
+// harmless, and an *Undo* pressed twice does nothing the second time.
+func TestRestoringALabelInUseAnnouncesNothing(t *testing.T) {
+	h := newLabelWriterHarness()
+	h.withLabel(urgentLabel, "Urgent")
+
+	label, err := h.restore.Execute(context.Background(), actor(), RestoreLabelCommand{
+		LabelID: urgentLabel,
+	})
+	if err != nil {
+		t.Fatalf("restoring a label in use failed: %v", err)
+	}
+	if label.IsDeleted() {
+		t.Error("the label came back deleted")
+	}
+	if len(h.labels.written) != 0 || len(h.events.appended) != 0 || len(h.audit.entries) != 0 {
+		t.Error("restoring a label in use wrote something")
+	}
+}
+
+// The name index decides whether the name is still free; its refusal reaches the caller unchanged.
+func TestARestoredLabelWhoseNameWasTakenIsRefused(t *testing.T) {
+	h := newLabelWriterHarness()
+	label := h.withLabel(urgentLabel, "Urgent")
+	deleted, _, err := label.Deleted(now)
+	if err != nil {
+		t.Fatalf("deleting the label: %v", err)
+	}
+	h.labels.stored[urgentLabel] = deleted
+	h.labels.writeErr = shared.ErrConflict.WithDetail("labels.name_taken")
+
+	_, err = h.restore.Execute(context.Background(), actor(), RestoreLabelCommand{LabelID: urgentLabel})
+	if shared.AsError(err).DetailCode != "labels.name_taken" {
+		t.Fatalf("detail code %s", shared.AsError(err).DetailCode)
+	}
+	if len(h.events.appended) != 0 || len(h.audit.entries) != 0 {
+		t.Error("a refused restoration announced something")
+	}
+}
+
 // A deleted label is out of the vocabulary, and an update to one says so with a conflict.
 func TestADeletedLabelCannotBeUpdated(t *testing.T) {
 	h := newLabelWriterHarness()
@@ -321,6 +412,17 @@ func TestTheLabelChangeDescriptorsCarryWhatTheChannelsNeed(t *testing.T) {
 	remove := DeleteLabel{}.Descriptor()
 	if remove.Audit.Action != LabelDeletedAction {
 		t.Errorf("the deletion writes the wrong audit action: %s", remove.Audit.Action)
+	}
+
+	restore := RestoreLabel{}.Descriptor()
+	if restore.Audit.Action != LabelRestoredAction || !restore.Audit.Required ||
+		restore.TokenScope != labelsWrite || restore.AutomationAction() != "RESTORE_LABEL" {
+		t.Errorf("unexpected restore descriptor: %+v", restore)
+	}
+	for _, field := range restore.Input {
+		if field.Name == "expected_version" {
+			t.Error("a restoration takes a version; a retry would meet its own first attempt")
+		}
 	}
 }
 

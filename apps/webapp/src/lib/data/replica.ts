@@ -109,6 +109,25 @@ function structureOf(container: Document | undefined): StructureShape | undefine
   return structure?.settings?.levels ? structure.settings : undefined;
 }
 
+/**
+ * Asks for the fresh snapshot `offline-sync.md` §4.2 promises a copy taken before the server
+ * answered `structure`: where the manifest announces `features.structure` and a container is held
+ * without one. Without it, a *List* collection read offline would offer what the installation
+ * offers, and a write made there would be refused at the push. The engine keeps the "once per
+ * device" and lets the request wait while offline; this only says when one is due, and it may say
+ * so twice - from the manifest's arrival and from the store's attachment, whichever comes last.
+ */
+export async function fetchStructureAfresh(
+  sync: { readonly storage: Storage | undefined; resynchronise(reason: string): Promise<boolean> },
+  features: Readonly<Record<string, unknown>> | undefined,
+): Promise<boolean> {
+  const storage = sync.storage;
+  if (features?.structure !== true || !storage) return false;
+  const containers = await storage.all<StoredRecord<Document>>('containers');
+  if (!containers.some((held) => held.document?.structure === undefined)) return false;
+  return sync.resynchronise('structure');
+}
+
 /** The entries with their marks, where the installation and the container's structure are known. */
 async function marked(storage: Storage, rows: Document[]): Promise<Document[]> {
   if (!bound || rows.length === 0) return rows;

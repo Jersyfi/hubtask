@@ -5,11 +5,14 @@ package privacy
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"github.com/Jersyfi/hubtask/core/application/archive"
+	repository "github.com/Jersyfi/hubtask/core/application/repository/privacy"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/domain/model/work"
 )
 
 // The one thing an access export changes about a backup: which rows go in.
@@ -88,6 +91,7 @@ var notThePersons = map[string]string{
 	"template":                "a shape other people stamp out; it carries no author column",
 	"retention_policy":        "the workspace's periods",
 	"webhook_subscription":    "an integration of the workspace's",
+	"container_milestone":     "the moment a collection or hub was finished, which names nobody",
 }
 
 // SubjectTables answers which tables a subject export reads and which it deliberately leaves out,
@@ -97,6 +101,16 @@ func SubjectTables() (byPerson map[string][]string, byAddress map[string][]strin
 	return subjectColumns, subjectEmailColumns, notThePersons
 }
 
+// kudosSection is the file of a person's copy that holds the kudos they gave and received.
+//
+// A section rather than an entity of the archive: an archive of a workspace is an administrator's
+// to read, and who acknowledged whom is the business of the two people alone (UC-WRK-29 check 6).
+// The person's copy is theirs, and an access request answered without what they gave and received
+// would be short (data-protection.md §4). No restore reads it.
+var kudosSection = archive.Entity{
+	Name: "kudos", Table: "kudos", Whole: true, Keys: []string{"item_id", "given_by", "given_to"},
+}
+
 // subjectSource hands the writer only what belongs to the person.
 type subjectSource struct {
 	inner   archive.Source
@@ -104,6 +118,8 @@ type subjectSource struct {
 	email   string
 	// counted is how many records went in, for the record the export leaves behind.
 	counted *int
+	// kudos reads the person's kudos section; the archive's own source never carries any.
+	kudos repository.OwnKudos
 }
 
 var _ archive.Source = subjectSource{}
@@ -116,6 +132,9 @@ var _ archive.Source = subjectSource{}
 func (s subjectSource) Records(
 	ctx context.Context, entity archive.Entity, since time.Time, yield func(archive.Record) error,
 ) error {
+	if entity.Name == kudosSection.Name {
+		return s.ownKudos(ctx, yield)
+	}
 	byID, hasID := subjectColumns[entity.Table]
 	byEmail, hasEmail := subjectEmailColumns[entity.Table]
 	if !hasID && !hasEmail {
@@ -130,6 +149,28 @@ func (s subjectSource) Records(
 			*s.counted++
 		}
 		return yield(record)
+	})
+}
+
+// ownKudos writes the kudos section: each the person gave or received, both sides named by account,
+// with the entry and the moment.
+func (s subjectSource) ownKudos(ctx context.Context, yield func(archive.Record) error) error {
+	if s.kudos == nil {
+		return shared.ErrInternal.WithDetail("privacy.export_kudos_unwired").
+			WithCause(errors.New("the person's copy has no reader for their kudos"))
+	}
+	return s.kudos.KudosOf(ctx, s.subject, func(kudos work.Kudos) error {
+		if s.counted != nil {
+			*s.counted++
+		}
+		return yield(archive.Record{
+			ID: kudos.ItemID.String() + "/" + kudos.GivenBy.String() + "/" + kudos.GivenTo.String(),
+			Op: archive.OpUpsert, UpdatedAt: kudos.GivenAt,
+			Data: map[string]any{
+				"item_id": kudos.ItemID.String(), "given_by": kudos.GivenBy.String(),
+				"given_to": kudos.GivenTo.String(), "given_at": kudos.GivenAt.UTC().Format(time.RFC3339Nano),
+			},
+		})
 	})
 }
 

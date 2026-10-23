@@ -114,6 +114,20 @@ export class Replica {
     await this.#storage.put(META, 'hlc', reading);
   }
 
+  /**
+   * The fresh snapshots the application asked for, by the name it asked under: `pending` until a
+   * snapshot has been read whole, `done` from then on. Kept in the store rather than in memory,
+   * because "once per device" has to survive a reload, and kept through `empty()`, because a copy
+   * synchronised again for another reason does not make a name askable again.
+   */
+  async resynchronisations(): Promise<Readonly<Record<string, 'pending' | 'done'>>> {
+    return (await this.#storage.get<Record<string, 'pending' | 'done'>>(META, 'resynchronisations')) ?? {};
+  }
+
+  async holdResynchronisations(held: Readonly<Record<string, 'pending' | 'done'>>): Promise<void> {
+    await this.#storage.put(META, 'resynchronisations', held);
+  }
+
   // ------------------------------------------------------------------ what the server sent
 
   /** One record, transcribed. */

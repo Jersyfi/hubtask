@@ -72,7 +72,32 @@ func (r LabelRepository) List(ctx context.Context, collectionID shared.ID) ([]wo
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("listing the labels: %w", err))
 	}
+	return labelsFrom(rows)
+}
 
+// ListWithDeleted returns a collection's labels by name, deleted ones included.
+func (r LabelRepository) ListWithDeleted(
+	ctx context.Context, collectionID shared.ID,
+) ([]work.Label, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	collection, err := uuidOf(collectionID)
+	if err != nil {
+		return nil, err
+	}
+
+	rows, err := queries.ListLabelsWithDeleted(ctx, collection)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("listing the labels with the deleted ones: %w", err))
+	}
+	return labelsFrom(rows)
+}
+
+func labelsFrom(rows []sqlc.Label) ([]work.Label, error) {
 	labels := make([]work.Label, 0, len(rows))
 	for _, row := range rows {
 		label, err := labelFrom(row)
@@ -154,6 +179,26 @@ func (r LabelRepository) SetDeleted(
 	})
 	if err != nil {
 		return labelWriteError(err, label, "writing the label deletion")
+	}
+	return labelConflict(affected, label, expectedVersion)
+}
+
+// SetRestored clears the label's deletion stamp.
+func (r LabelRepository) SetRestored(
+	ctx context.Context, label work.Label, expectedVersion int,
+) error {
+	queries, id, err := structureWrite(ctx, label.ID)
+	if err != nil {
+		return err
+	}
+
+	affected, err := queries.SetLabelRestored(ctx, sqlc.SetLabelRestoredParams{
+		ID: id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(expectedVersion),
+	})
+	if err != nil {
+		return labelWriteError(err, label, "writing the label restoration")
 	}
 	return labelConflict(affected, label, expectedVersion)
 }

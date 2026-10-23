@@ -9274,6 +9274,62 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /items/{itemId}/kudos:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    get:
+      tags: [items]
+      operationId: readKudos
+      description: >
+        What the reader may know of the kudos on this entry: whether they gave kudos to its
+        current completion, and - only to the person they were given to - who gave theirs and
+        when. Nobody else learns who gave kudos to whom, and no answer counts kudos per person:
+        an administrator reading somebody else's entry sees their own kudos and nothing more.
+        Readable by whoever may read the entry.
+      responses:
+        "200":
+          description: The reader's view of the entry's kudos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kudos"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [items]
+      operationId: giveKudos
+      description: >
+        Acknowledges the entry's completion to the person who completed it. Idempotent: kudos
+        already given succeed. Only on a completed entry (`kudos.not_completed`, 409) and never on
+        one's own completion (`kudos.own_completion`, 422). Needs only the right to read the entry:
+        kudos change nothing of it, so the entry keeps its version and its history, and no event or
+        change record is written. The audit trail records the act and the entry, never whom the
+        kudos went to.
+      responses:
+        "200":
+          description: The reader's view of the entry's kudos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kudos"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [items]
+      operationId: takeBackKudos
+      description: >
+        Takes back the kudos the caller gave to the entry's current completion. Idempotent: kudos
+        not given succeed.
+      responses:
+        "200":
+          description: The reader's view of the entry's kudos
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Kudos"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /containers/{containerId}/buckets:
     parameters:
       - $ref: "#/components/parameters/ContainerId"
@@ -9402,6 +9458,13 @@ paths:
     get:
       tags: [structure]
       operationId: listLabels
+      parameters:
+        - name: include_deleted
+          in: query
+          description: >
+            Also the labels taken out of the vocabulary, each with its `deleted_at`, so that a client
+            can offer to bring one back. Without it a deleted label is not in the list.
+          schema: { type: boolean, default: false }
       responses:
         "200":
           description: The collection's labels, by name
@@ -9482,6 +9545,32 @@ paths:
       responses:
         "204":
           description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /containers/{containerId}/labels/{labelId}:restore:
+    parameters:
+      - $ref: "#/components/parameters/ContainerId"
+      - $ref: "#/components/parameters/LabelId"
+    post:
+      tags: [structure]
+      operationId: restoreLabel
+      description: >
+        Brings a deleted label back into the collection's vocabulary, with every entry that carried
+        it: the deletion never rewrote them. Refused when another label has taken the name in the
+        meantime. Idempotent: restoring a label that is not deleted succeeds and changes nothing.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Restored
+          headers:
+            ETag:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Label"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -15238,6 +15327,45 @@ components:
             What counts in this collection, counted at the read for the reader (their day and week).
             On a collection's read only; absent on a hub, on a trashed collection, and where what
             counts is `NONE` or not yet counted by this server (`FLOW`).
+        milestone:
+          $ref: "#/components/schemas/ContainerMilestone"
+          description: >
+            The last time every entry of this collection, or of every collection in this hub, was
+            finished. Recorded by the completion that left nothing open and kept when entries are
+            added afterwards; a later finish moves it. Absent until the first.
+
+    ContainerMilestone:
+      type: object
+      required: [reached_at]
+      properties:
+        reached_at:
+          type: string
+          format: date-time
+          description: When the completion that left nothing open reached the server.
+
+    Kudos:
+      type: object
+      required: [item_id, given, from]
+      properties:
+        item_id: { type: string, format: uuid }
+        given:
+          type: boolean
+          description: >
+            Whether the reader gave kudos to the entry's current completion. False on an open
+            entry.
+        from:
+          type: array
+          description: >
+            The kudos the reader received on this entry, oldest first. Empty for everybody but the
+            person they were given to.
+          items: { $ref: "#/components/schemas/KudosFrom" }
+
+    KudosFrom:
+      type: object
+      required: [account_id, given_at]
+      properties:
+        account_id: { type: string, format: uuid }
+        given_at: { type: string, format: date-time }
 
     ContainerCreate:
       type: object
@@ -15248,7 +15376,13 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"] }
         icon: { type: [string, "null"] }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `containers.color_token_unknown`; a
+            value stored before that check is kept until it is changed. Null or the empty string
+            means no colour.
         private:
           type: boolean
           default: false
@@ -15272,7 +15406,13 @@ components:
         name: { type: string, minLength: 1, maxLength: 200 }
         description: { type: [string, "null"] }
         icon: { type: [string, "null"] }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `containers.color_token_unknown`; a
+            value stored before that check is kept until it is changed. Null or the empty string
+            clears it.
 
     HubPrivacy:
       type: object
@@ -17542,7 +17682,7 @@ components:
             CREATE_ITEM is POST /items, MOVE_ITEM is POST /items/{itemId}:move, ADD_LABEL is
             PUT /items/{itemId}/labels/{labelId}, and so on - so what a bulk may do is what a
             caller may do one entry at a time, never more.
-          enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
+          enum: [CREATE_ITEM, UPDATE_ITEM, COMPLETE_ITEM, REOPEN_ITEM, MOVE_ITEM, TRASH_ITEM, RESTORE_ITEM, ADD_LABEL, REMOVE_LABEL, ASSIGN]
         item_id:
           type: string
           format: uuid
@@ -17634,7 +17774,13 @@ components:
         before_bucket_id: { type: [string, "null"], format: uuid }
         wip_limit: { type: [integer, "null"] }
         is_done_bucket: { type: boolean, default: false }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value
+            stored before that check is kept until it is changed. Null or the empty string means
+            no colour.
 
     BucketUpdate:
       type: object
@@ -17649,7 +17795,13 @@ components:
             is lost by reading it that way, and it saves a client from a second field beside the
             number.
         is_done_bucket: { type: boolean }
-        color_token: { type: [string, "null"] }
+        color_token:
+          type: [string, "null"]
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `buckets.color_token_unknown`; a value
+            stored before that check is kept until it is changed. Null or the empty string clears
+            it.
 
     BucketDeletion:
       type: object
@@ -17693,13 +17845,25 @@ components:
         version:
           type: integer
           description: The optimistic lock, returned as the ETag and sent back as If-Match.
+        deleted_at:
+          type: [string, "null"]
+          format: date-time
+          description: >
+            When the label was taken out of the vocabulary. Present only in a list read with
+            `include_deleted`; a label in the vocabulary carries null or omits it.
 
     LabelCreate:
       type: object
       required: [name, color_token]
       properties:
         name: { type: string, minLength: 1, maxLength: 120 }
-        color_token: { type: string, minLength: 1 }
+        color_token:
+          type: string
+          minLength: 1
+          description: >
+            One of the ten label colours: slate, blue, teal, green, lime, amber, orange, red,
+            magenta or violet. Any other name is refused with `labels.color_token_unknown`; a value
+            stored before that check is kept until it is changed.
         description: { type: [string, "null"] }
 
     ItemLabels:
@@ -17750,7 +17914,8 @@ components:
           minLength: 1
           description: >
             Cannot be cleared. A label is rendered as a chip and nothing else, so with no colour a
-            client would have to invent one.
+            client would have to invent one. One of the ten label colours, as on creation; any other
+            name is refused with `labels.color_token_unknown`.
         description: { type: [string, "null"] }
 
     Comment:
