@@ -728,6 +728,11 @@
     .frame[data-bottombar] { padding-block-end: calc(var(--layout-bottombar-height) + env(safe-area-inset-bottom, 0)); }
 
     main { padding: var(--sp-200); }
+
+    /* A page head pins its primary action above the bottom bar here (`PageHeader`), over the
+       page; the page ends a control's height and a gap further down, so its last row can be
+       scrolled out from under that button. */
+    main:not([data-filled]) .content { padding-block-end: calc(var(--density-control-md-min) + var(--sp-200)); }
   }
 
   .skip {

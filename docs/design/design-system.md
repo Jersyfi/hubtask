@@ -987,6 +987,10 @@ archived container leaves the tree.
   component as a restore's dry run, refused rows beneath it by number and code.
 * **On a collection**: *Add entry*, with a submenu for creating from a template, and the filter as
   the secondary action with a count — inline from `expanded` up, a `Drawer` below.
+* **One add on a phone.** On `compact` the head pins its primary above the bottom bar, and the page
+  ends a control's height lower so its last row scrolls clear of it. A collection then draws no
+  second *Add entry* under its rows; a list of one level pins none, because its capture line at the
+  top is the add, and the submenu's ways join the page menu.
 
 **The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
 (name, description, colour and symbol, and a hub's default preset), move to another hub (a

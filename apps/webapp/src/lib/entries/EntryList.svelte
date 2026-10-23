@@ -79,6 +79,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import PeopleMarks from '../people/PeopleMarks.svelte';
   import { renderProblem } from '../problem.ts';
+  import { viewport } from '../frame/viewport.svelte.ts';
 
   interface Props {
     collectionId: string;
@@ -1308,7 +1309,9 @@
           <!-- Drawn at the top. -->
         {:else if addingUnder === 'root'}
           {@render addForm()}
-        {:else}
+        {:else if !(viewport.isCompact && !root)}
+          <!-- Not on a phone's collection: the head pins the same *Add an entry* above the bottom
+               bar there, and a second one under the rows was one add too many on one screen. -->
           <Inline gap="100">
             {#each addControls as control (control.label)}
               <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>
