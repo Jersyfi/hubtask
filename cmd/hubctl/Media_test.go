@@ -86,11 +86,11 @@ func TestAMediaUsageThatIsNotOneIsRefusedBeforeTheCall(t *testing.T) {
 	}
 
 	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
-		"media", "upload", file, "--usage", "AVATAR")
+		"media", "upload", file, "--usage", "BANNER")
 	if code != exitUsage {
 		t.Fatalf("exit %d, want %d", code, exitUsage)
 	}
-	expected, _ := catalogue(t).Message("media.usage_unknown", map[string]string{"value": "AVATAR"})
+	expected, _ := catalogue(t).Message("media.usage_unknown", map[string]string{"value": "BANNER"})
 	if !strings.Contains(errOut, expected) {
 		t.Errorf("the message %q is not the catalogue's: %q", errOut, expected)
 	}

@@ -274,6 +274,9 @@ type Account struct {
 	// person who has seen the tour has seen it on every screen.
 	Celebrations          *bool
 	OnboardingCompletedAt *time.Time
+	// AvatarMediaID is the picture the person shows beside their name, zero for the initials. Every
+	// member may read it, as they may read the name (data-protection.md §9).
+	AvatarMediaID shared.ID
 }
 
 // Verify decides whether the account may act.
