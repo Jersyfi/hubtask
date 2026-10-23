@@ -211,6 +211,8 @@ func Descriptors() []usecase.Descriptor {
 		identity.GetAccount{}.Descriptor(),
 		identity.UpdateAccountPreferences{}.Descriptor(),
 		identity.UpdateOwnAccount{}.Descriptor(),
+		identity.SetOwnAvatar{}.Descriptor(),
+		identity.RemoveOwnAvatar{}.Descriptor(),
 		identity.ListNotificationPreferences{}.Descriptor(),
 		identity.SetNotificationPreference{}.Descriptor(),
 		identity.ListMemberships{}.Descriptor(),

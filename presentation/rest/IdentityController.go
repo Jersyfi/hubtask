@@ -29,6 +29,8 @@ const (
 	getAccountUseCase                  = "GetAccount"
 	updateAccountPreferencesUseCase    = "UpdateAccountPreferences"
 	updateOwnAccountUseCase            = "UpdateOwnAccount"
+	setOwnAvatarUseCase                = "SetOwnAvatar"
+	removeOwnAvatarUseCase             = "RemoveOwnAvatar"
 	listNotificationPreferencesUseCase = "ListNotificationPreferences"
 	setNotificationPreferenceUseCase   = "SetNotificationPreference"
 	listMembershipsUseCase             = "ListMemberships"
@@ -224,6 +226,46 @@ func (c *RestController) UpdateOwnAccount(w http.ResponseWriter, r *http.Request
 		in["display_name"] = *body.DisplayName
 	}
 	out, err := c.UseCases.Invoke(r.Context(), updateOwnAccountUseCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, accountResponse(out))
+}
+
+// SetOwnAvatar answers PUT /accounts/me/avatar: the caller's own picture. Written out like
+// GetOwnAccount, for the reason given there.
+func (c *RestController) SetOwnAvatar(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	var body openapi.AvatarInput
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), setOwnAvatarUseCase, actorOf(r), usecase.Input{
+		"media_id": body.MediaId.String(),
+	})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, accountResponse(out))
+}
+
+// RemoveOwnAvatar answers DELETE /accounts/me/avatar.
+func (c *RestController) RemoveOwnAvatar(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+
+	out, err := c.UseCases.Invoke(r.Context(), removeOwnAvatarUseCase, actorOf(r), usecase.Input{})
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -540,13 +582,23 @@ func (c *RestController) identity(
 // what must not travel leaks the next field somebody adds to the wider one.
 func accountSummaryResponse(out usecase.Output) openapi.AccountSummary {
 	return openapi.AccountSummary{
-		Id:          uuidValue(out.String("id")),
-		Kind:        openapi.AccountSummaryKind(out.String("kind")),
-		DisplayName: out.String("display_name"),
-		Status:      openapi.AccountSummaryStatus(out.String("status")),
-		HasAddress:  boolPointer(out["has_address"]),
-		Managed:     boolPointer(out["managed"]),
+		Id:            uuidValue(out.String("id")),
+		Kind:          openapi.AccountSummaryKind(out.String("kind")),
+		DisplayName:   out.String("display_name"),
+		Status:        openapi.AccountSummaryStatus(out.String("status")),
+		HasAddress:    boolPointer(out["has_address"]),
+		Managed:       boolPointer(out["managed"]),
+		AvatarMediaId: optionalUUID(out.String("avatar_media_id")),
 	}
+}
+
+// optionalUUID answers a projected identifier, or nil where the projection carried none.
+func optionalUUID(value string) *openapi_types.UUID {
+	if value == "" {
+		return nil
+	}
+	id := uuidValue(value)
+	return &id
 }
 
 // boolPointer answers a projected flag, or nil where the projection did not carry it.
@@ -586,6 +638,7 @@ func accountResponse(out usecase.Output) openapi.Account {
 		account.Celebrations = &celebrations
 	}
 	account.OnboardingCompletedAt = timePointer(out["onboarding_completed_at"])
+	account.AvatarMediaId = optionalUUID(out.String("avatar_media_id"))
 	if armed, held := out["has_second_factor"].(bool); held {
 		// Answered on the caller's own account and on nothing else, which is why it is conditional
 		// here rather than a plain field: the same projection renders a colleague's account.

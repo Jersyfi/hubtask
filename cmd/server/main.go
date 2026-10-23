@@ -1712,6 +1712,14 @@ func run() error {
 			Accounts: accounts, Names: accounts, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, Text: forms,
 		}.Descriptor(),
+		identity.SetOwnAvatar{
+			Accounts: accounts, Avatars: accounts, Objects: mediaObjects, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
+		identity.RemoveOwnAvatar{
+			Accounts: accounts, Avatars: accounts, Objects: mediaObjects, Audit: auditSink,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
+		}.Descriptor(),
 		identity.ListNotificationPreferences{
 			Accounts: accounts, Preferences: notificationPreferences, Authorizer: authorizer,
 			UnitOfWork: unitOfWork,

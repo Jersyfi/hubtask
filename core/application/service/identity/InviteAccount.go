@@ -349,6 +349,9 @@ func accountOutput(account domain.Account) usecase.Output {
 	if account.Celebrations != nil {
 		out["celebrations"] = *account.Celebrations
 	}
+	if !account.AvatarMediaID.IsZero() {
+		out["avatar_media_id"] = account.AvatarMediaID.String()
+	}
 	if account.OnboardingCompletedAt != nil {
 		out["onboarding_completed_at"] = *account.OnboardingCompletedAt
 	}

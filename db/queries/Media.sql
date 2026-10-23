@@ -77,7 +77,9 @@ FROM (
     + (SELECT count(*) FROM work_item w WHERE w.cover_media_id = o.id)
     -- A jumble entry's attachments are references too: an object a mail brought in must
     -- not be reclaimed while the entry that carries it is still readable.
-    + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments)) AS total
+    + (SELECT count(*) FROM jumble_entry j WHERE o.id = ANY(j.attachments))
+    -- A person's picture: reclaimed only once nobody shows it any more.
+    + (SELECT count(*) FROM account p WHERE p.avatar_media_id = o.id) AS total
   FROM media_object o
   WHERE o.deleted_at IS NULL
 ) c
@@ -127,6 +129,13 @@ SELECT w.id, w.collection_id
 FROM item_attachment a JOIN work_item w ON w.id = a.item_id
 WHERE a.media_id = sqlc.arg('media_id')::uuid
 LIMIT 50;
+
+-- name: MediaServesAvatar :one
+-- Whether somebody shows the object as their picture, for GetMedia's authorisation: a picture is
+-- read by every member, as the name beside it is.
+SELECT EXISTS (
+  SELECT 1 FROM account WHERE avatar_media_id = sqlc.arg('media_id')::uuid AND deleted_at IS NULL
+)::boolean AS serves;
 
 -- name: InsertItemAttachment :execrows
 -- ON CONFLICT DO NOTHING, for the reason AddItemMember gives: attaching what is already attached

@@ -206,6 +206,9 @@ CREATE TABLE account (
   terms_url         text CONSTRAINT account_terms_url_check CHECK (char_length(terms_url) <= 2000),
   terms_version     text CONSTRAINT account_terms_version_check CHECK (char_length(terms_version) <= 64),
   terms_agreed_at   timestamptz,
+  -- The picture the person shows beside their name (migration 0199); NULL means the initials. Its
+  -- foreign key is declared after media_object.
+  avatar_media_id   uuid,
   created_at        timestamptz NOT NULL DEFAULT now(),
   updated_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
@@ -1295,7 +1298,8 @@ CREATE TABLE media_object (
   mime_type   text NOT NULL,
   byte_size   bigint NOT NULL CHECK (byte_size >= 0),
   checksum    text,
-  usage       text NOT NULL CHECK (usage IN ('COVER','ATTACHMENT','IMPORT','EXPORT')),
+  usage       text NOT NULL CONSTRAINT media_object_usage_check
+              CHECK (usage IN ('COVER', 'ATTACHMENT', 'IMPORT', 'EXPORT', 'AVATAR')),
   ref_count   integer NOT NULL DEFAULT 0,
   -- NULL where nobody uploaded it: a mail attachment arrives over an intake that authenticates the
   -- tenant and no person, and an account here would be an uploader this system invented
@@ -1319,6 +1323,11 @@ CREATE INDEX media_object_reconcile_idx ON media_object (tenant_id, status, ref_
 -- in this file; migration 0013 is where it arrived.
 ALTER TABLE work_item ADD CONSTRAINT work_item_cover_media_fkey
   FOREIGN KEY (tenant_id, cover_media_id) REFERENCES media_object (tenant_id, id) ON DELETE RESTRICT;
+-- Cleared rather than refused when the picture goes: a replace-restore and an erasure both remove
+-- media before the account row is done with (migration 0199).
+ALTER TABLE account ADD CONSTRAINT account_avatar_media_fkey
+  FOREIGN KEY (tenant_id, avatar_media_id) REFERENCES media_object (tenant_id, id)
+  ON DELETE SET NULL (avatar_media_id);
 
 CREATE TABLE item_attachment (
   tenant_id uuid NOT NULL,

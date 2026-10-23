@@ -121,7 +121,11 @@ class Media {
    * is passed on as a claim — the server judges from the bytes at confirmation and answers
    * `media.type_mismatch` when the two disagree, which is a sentence the reader gets to read.
    */
-  async upload(file: File, usage: 'COVER' | 'ATTACHMENT' | 'IMPORT', options: UploadOptions): Promise<MediaObject> {
+  async upload(
+    file: File,
+    usage: 'COVER' | 'ATTACHMENT' | 'IMPORT' | 'AVATAR',
+    options: UploadOptions,
+  ): Promise<MediaObject> {
     const contentType = options.contentType ?? file.type;
     const staged = await engine.mutate<MediaObject>(
       'POST',

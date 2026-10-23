@@ -208,9 +208,9 @@ func (h RequestMediaUpload) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{
 				Name: "usage", Kind: usecase.KindString, Required: true,
-				Description: "What the object is for: COVER or ATTACHMENT. It is held against the " +
-					"use at attachment time, so an object staged as a cover cannot become an " +
-					"attachment behind the client's back.",
+				Description: "What the object is for: COVER, ATTACHMENT, IMPORT or AVATAR (a picture " +
+					"of oneself, at most 5 MB). It is held against the use at attachment time, so an " +
+					"object staged as a cover cannot become an attachment behind the client's back.",
 			},
 			{
 				Name: "size", Kind: usecase.KindInt, Required: true,

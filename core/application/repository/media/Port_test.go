@@ -39,6 +39,7 @@ func (objectDouble) RemoveRows(context.Context, []shared.ID) (int, error) { retu
 func (objectDouble) ReferencingItems(context.Context, shared.ID) ([]ItemRef, error) {
 	return nil, nil
 }
+func (objectDouble) ServesAvatar(context.Context, shared.ID) (bool, error) { return false, nil }
 func (objectDouble) ListForItem(context.Context, shared.ID, repository.Page) (ObjectPage, error) {
 	return ObjectPage{}, nil
 }
