@@ -2402,7 +2402,7 @@ paths:
       description: >
         What the import did: created, skipped, refused, each by entity, in the shape a restore
         reports, plus the rows the converter refused by number where the source had rows. Visible
-        to whoever may read the hub it landed in.
+        to whoever may read the hub it landed in, or the collection.
       responses:
         "200":
           description: The import

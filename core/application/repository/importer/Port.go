@@ -45,6 +45,9 @@ type Source struct {
 	Content io.Reader
 	// Hub is the hub the collections land under; the converter writes its containers beneath it.
 	Hub shared.ID
+	// Into, where set, is a collection of the hub the entries land in instead: the converter
+	// writes no container, and the identities are salted by the collection rather than the hub.
+	Into *Target
 	// Name is what the file was called when it arrived, without its extension, or empty where
 	// nothing is known. A source that names nothing of its own - a CSV - names its collection
 	// after it: two files are then two collections, where a constant name would meet the
@@ -66,6 +69,26 @@ type Source struct {
 	Zone string
 	// Language is the actor's locale, for the entries' content_language.
 	Language string
+}
+
+// Target is the collection an import lands in, as it stands when the job starts: its live board
+// columns and labels, which the file's are matched to by name rather than written beside - the
+// collection's unique names would refuse a second one - and the last order keys, so that what
+// lands ranks after what was there.
+type Target struct {
+	Collection shared.ID
+	Buckets    []Named
+	Labels     []Named
+	// LastBucketOrder and LastEntryOrder are the order keys of the last column and the last
+	// top-level entry, or empty where the collection has none.
+	LastBucketOrder string
+	LastEntryOrder  string
+}
+
+// Named is a column or a label of the target collection.
+type Named struct {
+	ID   shared.ID
+	Name string
 }
 
 // Result is what a converter answered: the records per entity, in the archive's entity order,

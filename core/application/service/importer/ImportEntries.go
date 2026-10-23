@@ -59,9 +59,22 @@ type (
 		Find(ctx context.Context, id shared.ID) (media.Object, error)
 		MarkDeleted(ctx context.Context, id shared.ID, at time.Time) (bool, error)
 	}
-	// ContainerFinder answers the hub.
+	// ContainerFinder answers the hub, and the collection an import lands in.
 	ContainerFinder interface {
 		Find(ctx context.Context, id shared.ID) (work.Container, error)
+	}
+	// BucketReader answers the target collection's live columns and the last one's rank.
+	BucketReader interface {
+		List(ctx context.Context, collectionID shared.ID) ([]work.Bucket, error)
+		LastOrderKey(ctx context.Context, collectionID shared.ID) (string, error)
+	}
+	// LabelReader answers the target collection's live labels.
+	LabelReader interface {
+		List(ctx context.Context, collectionID shared.ID) ([]work.Label, error)
+	}
+	// ItemOrders answers the rank of the target collection's last top-level entry.
+	ItemOrders interface {
+		LastOrderKey(ctx context.Context, collectionID, parentID shared.ID) (string, error)
 	}
 	// Enqueuer accepts the job.
 	Enqueuer interface {
@@ -72,6 +85,9 @@ type (
 var (
 	_ ObjectFinder    = mediarepo.Objects(nil)
 	_ ContainerFinder = workrepo.Containers(nil)
+	_ BucketReader    = workrepo.Buckets(nil)
+	_ LabelReader     = workrepo.Labels(nil)
+	_ ItemOrders      = workrepo.Items(nil)
 	_ Enqueuer        = queue.Queue(nil)
 )
 
@@ -96,7 +112,10 @@ type ImportCommand struct {
 	MediaID shared.ID
 	Kind    domain.Kind
 	HubID   shared.ID
-	Mapping map[string]string
+	// CollectionID, where set, is a collection of the hub the entries land in, instead of new
+	// collections under the hub.
+	CollectionID shared.ID
+	Mapping      map[string]string
 }
 
 // Accepted is what the use case answers: the job, and the run whose report the job will write.
@@ -120,14 +139,29 @@ func (h ImportEntries) Execute(
 	}
 	// Before the transaction: a refusal writes an audit entry, and one written inside the
 	// transaction would be rolled back with the refusal (audit.md §7). STRUCTURE on the hub,
-	// because an import creates collections there.
+	// because an import creates collections there; into a collection, STRUCTURE on that one,
+	// because the import may add its columns and labels. The collection is read first, so that the
+	// path asked about is its own and not the one the caller named.
+	path, target := []identity.Scope{identity.TenantScope(), identity.HubScope(cmd.HubID)}, cmd.HubID
+	if !cmd.CollectionID.IsZero() {
+		var collection work.Container
+		err := h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+			found, err := h.collection(ctx, cmd)
+			collection = found
+			return err
+		})
+		if err != nil {
+			return Accepted{}, err
+		}
+		path, target = domainservice.ContainerScopes(collection), collection.ID
+	}
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: domainservice.PermissionStructure,
-		Path:       []identity.Scope{identity.TenantScope(), identity.HubScope(cmd.HubID)},
+		Path:       path,
 		Action:     ImportedAction,
 		TokenScope: containersWrite,
 		TargetType: importTarget,
-		TargetID:   cmd.HubID,
+		TargetID:   target,
 	}); err != nil {
 		return Accepted{}, err
 	}
@@ -147,19 +181,30 @@ func (h ImportEntries) Execute(
 			return shared.ErrValidation.WithDetail(domain.CodeNotAHub).
 				WithFields(shared.FieldError{Path: "/hub_id", Code: domain.CodeNotAHub})
 		}
+		if !cmd.CollectionID.IsZero() {
+			if _, err := h.collection(ctx, cmd); err != nil {
+				return err
+			}
+		}
 		if err := h.checkObject(ctx, actor, cmd.MediaID); err != nil {
 			return err
 		}
 		if err := h.Runs.Insert(ctx, domain.Run{
 			ID: importID, TenantID: actor.TenantID, RequestedBy: actor.AccountID,
-			Kind: cmd.Kind, MediaID: cmd.MediaID, HubID: cmd.HubID, Mapping: cmd.Mapping,
-			Zone: actor.TimeZone, Language: actor.Locale,
+			Kind: cmd.Kind, MediaID: cmd.MediaID, HubID: cmd.HubID, CollectionID: cmd.CollectionID,
+			Mapping: cmd.Mapping, Zone: actor.TimeZone, Language: actor.Locale,
 			Status: domain.StatusPending, CreatedAt: h.Clock.Now(),
 		}); err != nil {
 			return err
 		}
+		// Into a collection, a kind of its own: a process of the release before, which would land
+		// the file as new collections, does not claim it (rule 12).
+		kind := queue.KindImport
+		if !cmd.CollectionID.IsZero() {
+			kind = queue.KindImportIntoCollection
+		}
 		jobID, err := h.Jobs.Enqueue(ctx, queue.Request{
-			Kind:      queue.KindImport,
+			Kind:      kind,
 			TenantID:  actor.TenantID,
 			Payload:   map[string]any{"import_id": importID.String()},
 			DedupeKey: "import:" + importID.String(),
@@ -174,6 +219,20 @@ func (h ImportEntries) Execute(
 		return Accepted{}, err
 	}
 	return accepted, nil
+}
+
+// collection answers the collection the import lands in: a live collection of the named hub, or
+// one refusal whatever else it is, so that a guessed identifier learns nothing about another hub.
+func (h ImportEntries) collection(ctx context.Context, cmd ImportCommand) (work.Container, error) {
+	collection, err := h.Containers.Find(ctx, cmd.CollectionID)
+	if err != nil && !errors.Is(err, shared.ErrNotFound) {
+		return work.Container{}, err
+	}
+	if err != nil || collection.Type != work.ContainerCollection || collection.ParentID != cmd.HubID || collection.DeletedAt != nil {
+		return work.Container{}, shared.ErrValidation.WithDetail(domain.CodeNotInHub).
+			WithFields(shared.FieldError{Path: "/collection_id", Code: domain.CodeNotInHub})
+	}
+	return collection, nil
 }
 
 // checkObject is the file: staged as an import, confirmed, and the caller's own. Every other
@@ -216,7 +275,8 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name: ImportEntriesName,
 		Summary: "Imports entries from another system - a CSV, a Trello board, a Google Tasks " +
-			"export, a Microsoft To Do dump - as collections under a hub, through the same path a " +
+			"export, a Microsoft To Do dump - as collections under a hub, or as entries in one of its " +
+			"collections, through the same path a " +
 			"restore uses: converted into archive records under derived identities and applied " +
 			"in MERGE mode with skip, so that the same file twice creates nothing the second " +
 			"time. The file arrives first through the media upload staged as an import.",
@@ -233,6 +293,7 @@ func (h ImportEntries) Descriptor() usecase.Descriptor {
 				Description: "The system the file came from.",
 			},
 			{Name: "hub_id", Kind: usecase.KindID, Required: true, Description: "The hub the imported collections land under."},
+			{Name: "collection_id", Kind: usecase.KindID, Description: "A collection of that hub to land the entries in, instead of new collections under the hub."},
 			{
 				Name: "mapping", Kind: usecase.KindObject,
 				Description: "For CSV: which column carries which field, by header name, where the header does not already say.",
@@ -256,6 +317,10 @@ func (h ImportEntries) invoke(
 	if err != nil {
 		return nil, err
 	}
+	collectionID, err := in.ID("collection_id")
+	if err != nil {
+		return nil, err
+	}
 	kind, err := domain.ParseKind(in.String("kind"))
 	if err != nil {
 		return nil, err
@@ -268,7 +333,7 @@ func (h ImportEntries) invoke(
 			}
 		}
 	}
-	accepted, err := h.Execute(ctx, actor, ImportCommand{MediaID: mediaID, Kind: kind, HubID: hubID, Mapping: mapping})
+	accepted, err := h.Execute(ctx, actor, ImportCommand{MediaID: mediaID, Kind: kind, HubID: hubID, CollectionID: collectionID, Mapping: mapping})
 	if err != nil {
 		return nil, err
 	}

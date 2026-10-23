@@ -38,9 +38,14 @@ func (h GetImport) Execute(ctx context.Context, actor appshared.ActorContext, id
 	if err != nil {
 		return domain.Run{}, err
 	}
+	// Read where it landed: a person shown only the collection reads an import into it.
+	path := []identity.Scope{identity.TenantScope(), identity.HubScope(run.HubID)}
+	if !run.CollectionID.IsZero() {
+		path = append(path, identity.CollectionScope(run.CollectionID))
+	}
 	if err := h.Authorizer.Authorize(ctx, actor, access.Request{
 		Permission: domainservice.PermissionRead,
-		Path:       []identity.Scope{identity.TenantScope(), identity.HubScope(run.HubID)},
+		Path:       path,
 		TokenScope: containersRead,
 		TargetType: importTarget,
 		TargetID:   run.ID,
@@ -86,8 +91,11 @@ func (h GetImport) invoke(ctx context.Context, actor appshared.ActorContext, in 
 func RunOutput(run domain.Run) usecase.Output {
 	out := usecase.Output{
 		"id": run.ID.String(), "kind": string(run.Kind), "hub_id": run.HubID.String(),
-		"media_id": run.MediaID.String(), "status": string(run.Status),
+		"collection_id": nil, "media_id": run.MediaID.String(), "status": string(run.Status),
 		"created_at": run.CreatedAt, "finished_at": nil, "error_code": nil,
+	}
+	if !run.CollectionID.IsZero() {
+		out["collection_id"] = run.CollectionID.String()
 	}
 	if run.FinishedAt != nil {
 		out["finished_at"] = *run.FinishedAt

@@ -17721,7 +17721,7 @@ type ClientInterface interface {
 
 	// GetImport An import and its report
 	//
-	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.
 	//
 	// Corresponds with GET /imports/{importId} (the `GetImport` operationId).
 	GetImport(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -26056,7 +26056,7 @@ func (c *Client) ImportEntries(ctx context.Context, params *ImportEntriesParams,
 
 // GetImport An import and its report
 //
-// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.
 //
 // Corresponds with GET /imports/{importId} (the `GetImport` operationId).
 func (c *Client) GetImport(ctx context.Context, importId ImportId, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -51485,7 +51485,7 @@ type ClientWithResponsesInterface interface {
 
 	// GetImportWithResponse An import and its report
 	//
-	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+	// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -77329,7 +77329,7 @@ func (c *ClientWithResponses) ImportEntriesWithResponse(ctx context.Context, par
 
 // GetImportWithResponse An import and its report
 //
-// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in.
+// What the import did: created, skipped, refused, each by entity, in the shape a restore reports, plus the rows the converter refused by number where the source had rows. Visible to whoever may read the hub it landed in, or the collection.
 //
 // Returns a wrapper object for the known response body format(s).
 //
