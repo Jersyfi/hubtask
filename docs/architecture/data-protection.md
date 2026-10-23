@@ -161,7 +161,8 @@ are built.
     An `ACCOUNT` hold keeps that account's own rows: the entries it created with their fields, its
     comments, its attached files, the account. The intake, matched by address, is kept only by a
     hold on the workspace. Credentials, notifications, unattached uploads and what AI drafted for the
-    person alone (a rule drafted from their sentence, the words a job still holds) go in every case:
+    person alone (a rule drafted from their sentence, entries proposed from their pasted text, the
+    words a job still holds) go in every case:
     no hold reaches them. Several holds over one row: the oldest names it. One function decides it, and
     the erasure and its preview both call it.
   * **The account.** Only a hold on the person or on the workspace keeps the account itself - as it

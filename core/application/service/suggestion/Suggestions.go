@@ -282,9 +282,35 @@ func (h AcceptSuggestion) Execute(
 func (h AcceptSuggestion) Accept(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
 ) (domain.Suggestion, shared.ID, error) {
-	var created shared.ID
-	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &created)
-	return accepted, created, err
+	var taken taking
+	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &taken)
+	return accepted, taken.Created, err
+}
+
+// Take accepts the entries of an ENTRIES proposal that `keys` names - nil takes every entry left -
+// and answers the proposal as it now stands with the entries created, in its order. The proposal
+// stays PROPOSED with the rest until none is left (UC-AI-09 check 3).
+func (h AcceptSuggestion) Take(
+	ctx context.Context, actor appshared.ActorContext, id shared.ID, overrides map[string]any,
+	keys []string,
+) (domain.Suggestion, []shared.ID, error) {
+	taken := taking{Take: keys}
+	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &taken)
+	return accepted, taken.CreatedIDs, err
+}
+
+// taking is what one acceptance was asked to take, and what it did.
+type taking struct {
+	// Take names the entries of an ENTRIES proposal to take now; nil takes every one left. Any
+	// other kind is taken whole, and naming entries of it is refused.
+	Take []string
+	// Created is what accepting created, where it created one thing - a template, a rule.
+	Created shared.ID
+	// CreatedIDs are the entries an ENTRIES acceptance created, in the proposal's order.
+	CreatedIDs []shared.ID
+	// Left is what remains of an ENTRIES proposal once part of it was taken; nil where nothing
+	// does, and the proposal is then accepted.
+	Left map[string]any
 }
 
 // DismissSuggestion turns one down.
@@ -337,7 +363,7 @@ func (c Cases) targetOf(ctx context.Context, actor appshared.ActorContext, id sh
 
 func (c Cases) decideAs(
 	ctx context.Context, actor appshared.ActorContext, id shared.ID, status domain.Status,
-	overrides map[string]any, created *shared.ID,
+	overrides map[string]any, taken *taking,
 ) (domain.Suggestion, error) {
 	action := SuggestionAcceptedAction
 	if status == domain.StatusDismissed {
@@ -434,14 +460,36 @@ func (c Cases) decideAs(
 		if err != nil {
 			return err
 		}
+		if taken != nil && taken.Take != nil && proposal.Kind != domain.KindEntries {
+			// Only a list of entries is taken in part; anything else is one proposal.
+			return shared.ErrValidation.WithDetail("suggestions.take_not_for_kind").
+				WithFields(shared.FieldError{Path: "/take", Code: "suggestions.take_not_for_kind"})
+		}
 
 		if status == domain.StatusAccepted {
 			// The whole design, in one call. The ordinary use case, the accepting person as the
 			// actor, and therefore the ordinary permission check - somebody who could not make
 			// this change by hand cannot make it by accepting.
-			if err := c.apply(ctx, actor, proposal, overrides, created); err != nil {
+			if err := c.apply(ctx, actor, proposal, overrides, taken); err != nil {
 				return err
 			}
+		}
+		if taken != nil && taken.Left != nil {
+			// Part of a list was taken: the rest stays proposed, for the person to take or turn
+			// down, and the trail records the taking as an acceptance that left the rest open.
+			narrowed, err := proposal.Narrow(taken.Left)
+			if err != nil {
+				return err
+			}
+			written, err := c.Suggestions.Narrow(ctx, narrowed, proposal.Version)
+			if err != nil {
+				return err
+			}
+			if !written {
+				return domain.ErrAlreadyDecided
+			}
+			answered = narrowed
+			return c.record(ctx, actor, action, narrowed)
 		}
 
 		written, err := c.Suggestions.Decide(ctx, decided, proposal.Version)
@@ -473,6 +521,9 @@ type accepted struct {
 	Applier string
 	// Walk marks a proposal the acceptance walks itself rather than merging into one input.
 	Walk bool
+	// Beside marks a walk whose nodes are created side by side in the proposal's collection,
+	// rather than down a tree under the target: entries made from a pasted text (`make`).
+	Beside bool
 	// Refusal is the detail code for a shape nothing accepts. A shape with one is not a gap in
 	// this build - it is a proposal whose answer is somebody's decision, and dismissing closes it.
 	Refusal string
@@ -521,6 +572,12 @@ var acceptance = map[applierKey]accepted{
 	// who is the asker, since nobody else reads the draft - and so it is stored switched off. The
 	// draft carries no name and no `run_as`: the overrides do, as the person sets them.
 	{domain.TargetAccount, domain.KindRule}: {Applier: createRuleName, NoTarget: true, Creates: true},
+	// Entries made from the asker's pasted text are created one CreateWorkItem each, as the
+	// accepting person - who is the asker - in the collection and at the level the proposal names,
+	// all of them or the ones taken.
+	{domain.TargetAccount, domain.KindEntries}: {
+		Applier: createWorkItemName, Walk: true, Beside: true, NoTarget: true,
+	},
 	// The one kind nothing accepts. Not "not built yet": there is nothing to build. A
 	// duplicate is two entries and a decision about them - archive one, trash one, move one under
 	// the other - and which of those somebody means is theirs to say, through the use case that
@@ -666,7 +723,7 @@ type applierKey struct {
 // apply performs the acceptance, and does nothing else.
 func (c Cases) apply(
 	ctx context.Context, actor appshared.ActorContext, proposal domain.Suggestion,
-	overrides map[string]any, created *shared.ID,
+	overrides map[string]any, taken *taking,
 ) error {
 	how, served := acceptance[applierKey{proposal.TargetType, proposal.Kind}]
 	if !served {
@@ -683,6 +740,9 @@ func (c Cases) apply(
 	}
 	name := how.Applier
 	if how.Walk {
+		if how.Beside {
+			return c.make(ctx, actor, name, proposal, overrides, taken)
+		}
 		return c.plant(ctx, actor, name, proposal, overrides)
 	}
 
@@ -730,8 +790,8 @@ func (c Cases) apply(
 		if err != nil {
 			return err
 		}
-		if how.Creates && created != nil {
-			*created, _ = shared.ParseID(out.String("id"))
+		if how.Creates && taken != nil {
+			taken.Created, _ = shared.ParseID(out.String("id"))
 		}
 	}
 	// What the acceptance performs itself, once the applier has written the rest.
@@ -1237,7 +1297,12 @@ func (h AcceptSuggestion) Descriptor() usecase.Descriptor {
 				Description: "What the person changed or added before accepting, laid over the " +
 					"proposal key by key. A jumble proposal needs the destination collection here, " +
 					"because a model cannot know which collections a workspace has; a RULE draft " +
-					"needs name and run_as, and any other key it carries replaces the draft's whole."},
+					"needs name and run_as, and any other key it carries replaces the draft's whole. " +
+					"For an ENTRIES proposal they are laid over every entry taken."},
+			{Name: "take", Kind: usecase.KindList,
+				Description: "For an ENTRIES proposal only: the keys of the entries to create now. " +
+					"Absent takes every entry left; the proposal stays proposed with the rest until " +
+					"none is left. The created entries are answered in created_ids."},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: SuggestionAcceptedAction, TargetType: suggestionTarget,
@@ -1262,13 +1327,25 @@ func (h AcceptSuggestion) invoke(
 	// what is *in* it is the target use case's judgement, exactly as a query's filter tree is the
 	// grammar's (usecase.KindObject).
 	overrides, _ := in["overrides"].(map[string]any)
-	accepted, created, err := h.Accept(ctx, actor, id, overrides)
+	keys, err := in.StringList("take")
+	if err != nil {
+		return nil, err
+	}
+	taken := taking{Take: keys}
+	accepted, err := h.Cases.decideAs(ctx, actor, id, domain.StatusAccepted, overrides, &taken)
 	if err != nil {
 		return nil, err
 	}
 	out := suggestionOutput(accepted)
-	if !created.IsZero() {
-		out["created_id"] = created.String()
+	if !taken.Created.IsZero() {
+		out["created_id"] = taken.Created.String()
+	}
+	if accepted.Kind == domain.KindEntries {
+		ids := make([]any, 0, len(taken.CreatedIDs))
+		for _, created := range taken.CreatedIDs {
+			ids = append(ids, created.String())
+		}
+		out["created_ids"] = ids
 	}
 	return out, nil
 }

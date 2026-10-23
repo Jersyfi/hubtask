@@ -522,3 +522,17 @@ func TestTheAskerStopsTheDraftingOfTheirRule(t *testing.T) {
 		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
 	}
 }
+
+// Entries made from pasted text are the asker's too, and theirs to stop while the provider works
+// (UC-AI-04 check 9).
+func TestTheAskerStopsTheMakingOfTheirEntries(t *testing.T) {
+	h := newHarness(domain.StateRunning)
+	h.jobs.asker = repository.Asker{Kind: "ai.make_entries", AskedBy: actorID, TargetType: "ACCOUNT", TargetID: actorID}
+
+	if _, err := h.cancel().Execute(context.Background(), askerWithToken(), Query{JobID: jobID}); err != nil {
+		t.Fatalf("stopping the making: %v", err)
+	}
+	if len(h.authorizer.requests) != 0 || len(h.authorizer.permitted) != 0 {
+		t.Errorf("a permission was asked of the asker: %+v %+v", h.authorizer.requests, h.authorizer.permitted)
+	}
+}

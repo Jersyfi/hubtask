@@ -1872,6 +1872,11 @@ func run() error {
 			AI:    suggestionservice.Availability{Providers: budgetedAi},
 			Queue: jobs,
 		}.Descriptor(),
+		suggestionservice.MakeEntries{
+			Cases: suggestionCases,
+			AI:    suggestionservice.Availability{Providers: budgetedAi},
+			Queue: jobs,
+		}.Descriptor(),
 		// The one that asks nothing of a provider: no `AI`, no `Queue`, and no provider
 		// anywhere in its dependencies - which is what makes "no budget is spent" structural.
 		suggestionservice.SuggestDuplicates{
@@ -3563,6 +3568,7 @@ func run() error {
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		queueport.KindAiDraftRule:              worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
+		queueport.KindAiMakeEntries:            worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},
 		// Its own kind, which a process of the previous release leaves alone.
 		queueport.KindAiSuggestArrival: worker.AiSuggestionArrival{Produce: produceSuggestion},
 		queueport.KindAiEmbed: worker.AiEmbedding{

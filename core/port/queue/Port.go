@@ -164,6 +164,14 @@ const (
 	// AiDraftRuleAttempts is that job's attempt budget, EmergencyAccessAttempts' for its reason.
 	AiDraftRuleAttempts = 20
 
+	// KindAiMakeEntries turns a person's pasted text into a proposal of entries (UC-AI-09), under a
+	// kind of its own for KindAiDraftRule's reason: a process of the previous release has no
+	// handler for it and hands it back to the queue rather than spending its retry ladder.
+	KindAiMakeEntries Kind = "ai.make_entries"
+
+	// AiMakeEntriesAttempts is that job's attempt budget, AiDraftRuleAttempts' for its reason.
+	AiMakeEntriesAttempts = 20
+
 	// KindAiSuggestArrival asks for a proposal the workspace prepares about one jumble arrival
 	// (UC-JUM-07 check 10): the system acting for the workspace, not a person who asked. A kind of
 	// its own rather than a flag on KindAiSuggest, for KindEmergencyAccessEmail's reason: a process

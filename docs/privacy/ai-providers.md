@@ -72,6 +72,7 @@ switched on *Prepare proposals for new jumble entries*, when something arrives i
 | Jumble suggestion | The entry's subject and body, today's date, and the names of the collections everybody who may convert may write in | A suggested title, notes, due date, steps, and one of those collections |
 | Decomposition | An entry's title and notes | A suggested tree of work packages and activities |
 | Rule drafting | The person's sentence; the names of the people, collections, hubs and labels it names that they may see; the rule vocabulary | A suggested rule, switched off until somebody saves and switches it on |
+| Entries from text | The text the person pasted, without the names and addresses of people who keep their content out; which fields an entry of the collection carries; today's date where it carries a due date | Suggested entries with those fields, created only as the person takes them |
 | Automation AI actions | The fields the rule names | A suggestion, or a value the rule applies |
 | Semantic search | Titles and notes, as text to embed; the words somebody searches for | A vector |
 | Duplicates of a title being typed | The words of the title, as text to embed | A vector, compared with the stored ones |
