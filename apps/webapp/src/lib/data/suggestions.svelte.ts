@@ -48,9 +48,14 @@ export type { SuggestionPage };
  * after about a minute without an end, or how it ended (`noteOf` says it).
  */
 export interface Asking extends AskingState {
-  readonly operation: Operation | 'jumble' | 'container' | 'template' | 'rule';
+  readonly operation: Operation | 'jumble' | 'container' | 'template' | 'rule' | 'entries';
   readonly askedAt: string;
+  /** The job a `202` named, kept where the ask can be stopped (`stop`). */
+  readonly jobId?: string;
 }
+
+/** How long stopping may take. */
+const STOP_TIMEOUT_MS = 10_000;
 
 /** The pointer a `202` hands back; only its identifier is read here. */
 interface Accepted {
@@ -262,6 +267,68 @@ class Suggestions {
     );
   }
 
+  /**
+   * Asks for a pasted text to be turned into entries for one collection (UC-AI-09), and follows
+   * the person's own listing, as a rule draft is followed: the proposal appears there as an
+   * `ENTRIES` suggestion about their account. The job is kept, so that *Stop* can stop it.
+   */
+  async makeEntries(accountId: string, collectionId: string, text: string): Promise<void> {
+    const askedAt = new Date().toISOString();
+    const accepted = await whilePending(
+      () => this.#put(accountId, { operation: 'entries', askedAt, outcome: 'following' }),
+      () => this.#withdraw(accountId, askedAt),
+      () =>
+        engine.mutate<Accepted | undefined>('POST', `/containers/${collectionId}:make-entries`, { text }, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: ASK_TIMEOUT_MS,
+          invalidates: [],
+        }),
+    );
+    const jobId = accepted?.job_id;
+    if (jobId) this.#put(accountId, { operation: 'entries', askedAt, outcome: 'following', jobId });
+    void this.#follow(accountId, 'entries', askedAt, 'ACCOUNT', jobId);
+  }
+
+  /**
+   * Takes the entries of a proposal that `keys` names, or every one left: each is created as the
+   * person's own write, and the rest stays proposed until none is left (UC-AI-09 check 3). Answers
+   * the proposal as it now stands and the entries created, which is what an undo trashes.
+   */
+  async take(suggestion: Suggestion, keys?: readonly string[]): Promise<AcceptedSuggestion> {
+    return engine.mutate<AcceptedSuggestion>('POST', `/suggestions/${suggestion.id}:accept`, keys ? { take: keys } : {}, {
+      idempotencyKey: crypto.randomUUID(),
+      // New entries: every list that may hold them is stale, and so is the person's own listing.
+      invalidates: [...touches(suggestion.target_id, 'ACCOUNT'), ENTRY_LISTS],
+    });
+  }
+
+  /**
+   * Stops an ask that is still on its way: the job is cancelled, the ask ends without a note, and
+   * the listing is read once - a proposal recorded before the stop stands and is shown. A job that
+   * had already finished answers `409`, which is the same reading.
+   */
+  async stop(id: string, target: Target): Promise<void> {
+    const asking = this.#asking[id];
+    this.#follows.delete(id);
+    this.#withdraw(id, asking?.askedAt ?? '');
+    if (asking?.jobId) {
+      try {
+        await engine.mutate('POST', `/jobs/${asking.jobId}:cancel`, undefined, {
+          idempotencyKey: crypto.randomUUID(),
+          timeoutMs: STOP_TIMEOUT_MS,
+          invalidates: [],
+        });
+      } catch {
+        // Finished already, or out of reach: what stands is read next, and that is the answer.
+      }
+    }
+    try {
+      await engine.refresh({ path: suggestionsPath(id, target) });
+    } catch {
+      // The listing shows what it last held.
+    }
+  }
+
   /** Dismisses. A state, not a deletion; the listing narrows to what still stands. */
   async dismiss(suggestion: Suggestion): Promise<Suggestion> {
     const target = targetOf(suggestion);
@@ -287,7 +354,7 @@ class Suggestions {
     this.#follows.set(id, token);
     const isLive = () => this.#follows.get(id) === token;
     const outcome = await followArrival(engine, id, askedAt, wait, isLive, target, jobId, () => {
-      if (isLive()) this.#put(id, { operation, askedAt, outcome: 'slow' });
+      if (isLive()) this.#put(id, { operation, askedAt, outcome: 'slow', ...(jobId ? { jobId } : {}) });
     });
     if (outcome === 'left' || !isLive()) return;
     this.#follows.delete(id);

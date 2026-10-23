@@ -131,9 +131,14 @@ const (
 	// account that asked. Its own kind by the rule above: like a duplicate, accepting it would do
 	// nothing - an answer performs no action - and `:dismiss` is what closes it.
 	KindAnswer Kind = "ANSWER"
+	// KindEntries proposes entries for a collection, made from a piece of text the asker pasted,
+	// about the account that asked. Its own kind by the rule above: accepting creates entries side
+	// by side in a collection rather than changing one or growing a tree under one - and, alone of
+	// the kinds, it may be taken in part (Narrow).
+	KindEntries Kind = "ENTRIES"
 )
 
-var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate, KindRule, KindAnswer}
+var kinds = []Kind{KindFields, KindDecomposition, KindDuplicates, KindTemplate, KindRule, KindAnswer, KindEntries}
 
 // Kinds is the closed set, in the contract's order.
 func Kinds() []Kind { return slices.Clone(kinds) }
@@ -265,6 +270,23 @@ func (s Suggestion) Decide(status Status, by shared.ID, at time.Time) (Suggestio
 	decided.DecidedBy, decided.DecidedAt = by, at.UTC()
 	decided.Version = s.Version + 1
 	return decided, nil
+}
+
+// Narrow keeps a proposal open with what is left of it, once part of it was taken: the payload
+// is what remains, and the proposal stays PROPOSED for somebody to take more or dismiss the rest.
+// Taking the last of it is a decision (Decide), never a narrowing to nothing - a proposal left
+// proposing nothing is the inbox of noise New refuses.
+func (s Suggestion) Narrow(remaining map[string]any) (Suggestion, error) {
+	if s.Status.Decided() {
+		return Suggestion{}, ErrAlreadyDecided
+	}
+	if len(remaining) == 0 {
+		return Suggestion{}, shared.ErrInternal.WithDetail("suggestions.payload_empty")
+	}
+	narrowed := s
+	narrowed.Payload = remaining
+	narrowed.Version = s.Version + 1
+	return narrowed, nil
 }
 
 // Fresh reports whether this suggestion was made from the state the digest describes.

@@ -5,9 +5,9 @@ context: work
 actors: [PE-admin, PE-member]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-07, P-11]
-state: specified
+state: verified
 tasks: [UX-26]
-checked_by: []
+checked_by: [core/domain/model/work/Flow_test.go, core/domain/model/work/Figure_test.go, core/application/service/work/FlowGate_test.go, core/application/service/work/FigureReader_test.go, test/integration/flow_gate_test.go, test/integration/figure_repository_test.go, apps/webapp/src/lib/data/figure.test.ts, apps/webapp/e2e/flow.test.mjs, apps/webapp/e2e/figure.test.mjs]
 ---
 
 # Run a collection as a flow
@@ -31,10 +31,3 @@ The support team's "Requests" collection uses *Flow*: columns *New*, *In progres
 
 * The server enforces nothing about limits beyond reporting them ([UC-WRK-05](./UC-WRK-05-run-a-collection-as-a-board.md)).
 * No approvals or sign-offs.
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 3: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.

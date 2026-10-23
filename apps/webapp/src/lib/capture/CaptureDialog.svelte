@@ -19,6 +19,8 @@
   import { DEFAULT_TIMEOUT_MS, type Container, type TransportError, type WorkItem } from '@hubtask/sync-engine';
 
   import { capture } from './capture.svelte.ts';
+  import { offersMakeEntries } from './entries.ts';
+  import MakeEntries from './MakeEntries.svelte';
   import { NOTHING, literalKey, readLine, readTargets, type Chip, type Context, type Named, type Reading } from './parse.ts';
   import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn } from './places.svelte.ts';
   import { bodyOf, createAll, readLinesOf, type Writer } from './submit.ts';
@@ -38,6 +40,7 @@
   import { jumble } from '../data/jumble.svelte.ts';
   import { labels } from '../data/labels.svelte.ts';
   import { people } from '../data/people.svelte.ts';
+  import { suggestions } from '../data/suggestions.svelte.ts';
   import { captureRulesOf, unitsOf } from '../entries/capture.ts';
   import { offerUndo } from '../entries/undo.svelte.ts';
   import { formatDue } from '../i18n/datetime.ts';
@@ -428,6 +431,9 @@
       <Button type="submit" tone="primary" icon="plus" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}</Button>
     </div>
   </form>
+  {#if collection && actor.account && (offersMakeEntries(text, { aiOn: manifest.value?.features?.ai_suggestions === true, intoCollection: true }) || suggestions.askingOf(actor.account.id)?.operation === 'entries')}
+    <MakeEntries accountId={actor.account.id} collection={collection} {text} ondone={() => finish('')} />
+  {/if}
 </Dialog>
 
 <style>

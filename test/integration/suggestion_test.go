@@ -185,6 +185,74 @@ func TestOneWorkspacesSuggestionsAreInvisibleNextDoor(t *testing.T) {
 	})
 }
 
+// Narrowing writes what is left of an open proposal: guarded on the version like a decision, never
+// over a decided one, and never next door.
+func TestANarrowingIsGuardedAndBoundedLikeADecision(t *testing.T) {
+	ctx := context.Background()
+	seedSuggestionTenants(ctx, t)
+
+	suggestions := postgres.NewSuggestionRepository(security.NewCursorCodec(secret.New(installationSecret)))
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	now := time.Now().UTC()
+	id := shared.MustParseID("01936f2a-7c1e-7000-8000-00000000fb35")
+	recorded := proposalFor(t, id, sugTenantA, now)
+	left := map[string]any{"entries": []any{map[string]any{"key": "2", "title": "Flour"}}}
+	narrowed, err := recorded.Narrow(left)
+	if err != nil {
+		t.Fatalf("building the narrowing: %v", err)
+	}
+
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		if err := suggestions.Record(ctx, recorded); err != nil {
+			t.Fatalf("recording A's suggestion: %v", err)
+		}
+		return nil
+	})
+
+	// Cross-tenant: B narrowing A's row with A's own version writes nothing.
+	inTenant(t, uow, sugTenantB, func(ctx context.Context) error {
+		written, err := suggestions.Narrow(ctx, narrowed, 1)
+		if err != nil {
+			t.Fatalf("B's narrowing: %v", err)
+		}
+		if written {
+			t.Error("B narrowed A's suggestion")
+		}
+		return nil
+	})
+
+	inTenant(t, uow, sugTenantA, func(ctx context.Context) error {
+		if written, err := suggestions.Narrow(ctx, narrowed, 7); err != nil || written {
+			t.Errorf("a narrowing at a version that moved answered %v, %v; want nothing written", written, err)
+		}
+		if written, err := suggestions.Narrow(ctx, narrowed, 1); err != nil || !written {
+			t.Fatalf("A's narrowing answered %v, %v", written, err)
+		}
+		found, err := suggestions.Find(ctx, id)
+		if err != nil {
+			t.Fatalf("reading it back: %v", err)
+		}
+		entries, held := found.Payload["entries"].([]any)
+		if found.Status != domain.StatusProposed || found.Version != 2 || !held || len(entries) != 1 ||
+			found.Payload["title"] != nil {
+			t.Errorf("after narrowing the row is %+v", found)
+		}
+
+		decided, err := found.Decide(domain.StatusDismissed, sugPersonA, now)
+		if err != nil {
+			t.Fatalf("building the decision: %v", err)
+		}
+		if written, err := suggestions.Decide(ctx, decided, 2); err != nil || !written {
+			t.Fatalf("dismissing answered %v, %v", written, err)
+		}
+		// A decided proposal does not narrow, whatever version is named.
+		if written, err := suggestions.Narrow(ctx, found, 3); err != nil || written {
+			t.Errorf("narrowing a decided proposal answered %v, %v; want nothing written", written, err)
+		}
+		return nil
+	})
+}
+
 // A suggestion about a *collection* is the third target type, and it is bounded by the same policy
 // as the other two: the row is invisible next door, and it round-trips with the target type the
 // aggregate carries.

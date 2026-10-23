@@ -336,6 +336,7 @@ class AiAsk(TypedDict, total=False):
 class SuggestionAcceptance(TypedDict, total=False):
     """What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights."""
     overrides: dict[str, Any]
+    take: list[str]
 
 class AcceptedSuggestion(TypedDict, total=False):
     """The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only."""
@@ -356,6 +357,11 @@ class AcceptedSuggestion(TypedDict, total=False):
     dropped_nodes: int
     version: Required[int]
     created_id: str
+    created_ids: list[str]
+
+class EntriesText(TypedDict, total=False):
+    """The text to turn into entries."""
+    text: Required[str]
 
 class RuleDescription(TypedDict, total=False):
     """What to ask for, and where the rule would apply."""
@@ -373,7 +379,7 @@ class SuggestionPage(TypedDict, total=False):
 
 SuggestionTargetType = Literal["WORK_ITEM", "JUMBLE_ENTRY", "CONTAINER", "ACCOUNT"]
 
-SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE", "ANSWER"]
+SuggestionKind = Literal["FIELDS", "DECOMPOSITION", "DUPLICATES", "TEMPLATE", "RULE", "ANSWER", "ENTRIES"]
 
 SuggestionStatus = Literal["PROPOSED", "ACCEPTED", "DISMISSED"]
 
@@ -1554,7 +1560,7 @@ class ContainerPolicies(TypedDict, total=False):
 CompletionPolicy = Literal["MANUAL", "ROLLUP"]
 
 class StructureSettings(TypedDict, total=False):
-    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them."""
+    """How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them."""
     levels: list["StructureLevel"]
     fields: dict[str, Any]
     views: "StructureViews"
@@ -1562,7 +1568,7 @@ class StructureSettings(TypedDict, total=False):
     completion: "CompletionPolicy"
     capture: list[Literal["LINES", "AMOUNT", "DATE", "PERSON", "LABEL"]]
     celebration: Literal["ALL", "SUBTLE"]
-    automation: list[str]
+    automation: list[Literal["REQUIRED_BEYOND_FIRST_COLUMN"]]
 
 class StructureLevel(TypedDict, total=False):
     type: Required["ItemType"]
@@ -1625,7 +1631,7 @@ StructureCountsClip = TypedDict("StructureCountsClip", {
 
 class CollectionFigure(TypedDict, total=False):
     """What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered."""
-    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS"]]
+    kind: Required[Literal["OPEN", "FIELD_SUM", "DUE", "RHYTHM", "PROGRESS", "FLOW"]]
     today: Required[str]
     unavailable: bool
     open: int
@@ -1636,6 +1642,9 @@ class CollectionFigure(TypedDict, total=False):
     week_start: str
     done: int
     total: int
+    completed: int
+    average_seconds: float | None
+    over_limit: int
 
 class StructureLock(TypedDict, total=False):
     origin: Required[Literal["INSTANCE", "PLAN", "WORKSPACE"]]

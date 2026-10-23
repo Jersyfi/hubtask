@@ -31,6 +31,7 @@ const EXPECTED = [
   [FIGURES.open, '7 open', '7 open'],
   [FIGURES.none, undefined, undefined],
   [FIGURES.unavailable, 'Could not be counted', undefined],
+  [FIGURES.flow, '12 a week · 2.1 days on average', '1 full'],
 ];
 
 async function open(browser, width, collection, options = {}) {

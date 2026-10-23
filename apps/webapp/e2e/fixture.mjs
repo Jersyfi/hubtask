@@ -485,6 +485,16 @@ const figureCollection = (n, name, levels, counts, figure, extra = {}) => ({
   structure: structureOf(levels, counts, extra),
   ...(figure ? { figure: { today: today(), ...figure } } : {}),
 });
+/** A flow (UC-WRK-31): it opens on the board, and keeps its required fields before the first column. */
+const flowCollection = (n, name, figure) => {
+  const collection = figureCollection(n, name, ['TASK'], { figure: 'FLOW', field_key: null }, figure);
+  collection.structure.settings = {
+    ...collection.structure.settings,
+    views: { offered: ['KANBAN', 'LIST_COLLAPSED'], default: 'KANBAN' },
+    automation: ['REQUIRED_BEYOND_FIRST_COLUMN'],
+  };
+  return collection;
+};
 export const FIGURES = {
   sum: figureCollection('62', 'Groceries', ['TASK'], { figure: 'FIELD_SUM', field_key: 'amount' }, { kind: 'FIELD_SUM', open: 5, sum: 38.1, summed: 4 }),
   due: figureCollection('63', 'Household', ['TASK', 'ACTIVITY'], { figure: 'DUE', field_key: null }, { kind: 'DUE', due: 3 }),
@@ -497,6 +507,7 @@ export const FIGURES = {
   }),
   none: figureCollection('68', 'Notes', ['TASK'], { figure: 'NONE', field_key: null }, undefined),
   unavailable: figureCollection('69', 'Archive box', ['TASK'], { figure: 'OPEN', field_key: null }, { kind: 'OPEN', unavailable: true }),
+  flow: flowCollection('6a', 'Requests', { kind: 'FLOW', completed: 12, average_seconds: 181_440, over_limit: 1 }),
 };
 /** A number field the sum may name. */
 export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collection_id: FIGURES.sum.id, key: 'amount', kind: 'NUMBER', options: [], is_required: false, applies_to: ['TASK'], version: 1 };
@@ -530,7 +541,7 @@ const PRESET_SETTINGS = {
   FLOW: {
     levels: [{ type: 'TASK', name: null }], fields: {},
     views: { offered: ['KANBAN', 'LIST_COLLAPSED'], default: 'KANBAN' },
-    counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: [],
+    counts: { figure: 'FLOW', field_key: null }, completion: 'MANUAL', capture: ['DATE', 'PERSON', 'LABEL'], celebration: 'ALL', automation: ['REQUIRED_BEYOND_FIRST_COLUMN'],
   },
 };
 /** Hubtask's four presets, as `GET /presets` answers them. */

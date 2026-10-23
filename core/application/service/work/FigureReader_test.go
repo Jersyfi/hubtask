@@ -49,7 +49,7 @@ func countedCollection(id shared.ID) domain.Container {
 }
 
 // Which containers are counted, in the reader's day: only collections that are not trashed and
-// whose structure counts something counted here.
+// whose structure counts something - FLOW included (UC-WRK-31 check 4).
 func TestOnlyCollectionsThatCountSomethingAreCounted(t *testing.T) {
 	trashedAt := now
 	trashed := countedCollection("0192f000-0000-7000-8000-0000000000d1")
@@ -77,13 +77,13 @@ func TestOnlyCollectionsThatCountSomethingAreCounted(t *testing.T) {
 			due.ID:     structureCounting(domain.FigureDue, domain.ItemTask),
 		})
 
-	if len(store.asked) != 1 || store.asked[0].CollectionID != due.ID {
+	if len(store.asked) != 2 || store.asked[0].CollectionID != flow.ID || store.asked[1].CollectionID != due.ID {
 		t.Fatalf("asked %+v", store.asked)
 	}
 	if store.window.Today != "2026-10-19" {
 		t.Errorf("counted for %s, want the reader's Monday", store.window.Today)
 	}
-	if len(figures) != 1 || figures[due.ID].Counts.Due != 3 || figures[due.ID].Today != "2026-10-19" {
+	if len(figures) != 2 || figures[due.ID].Counts.Due != 3 || figures[due.ID].Today != "2026-10-19" {
 		t.Errorf("figures %+v", figures)
 	}
 }
@@ -120,6 +120,7 @@ func TestAFigureAnswersTheNumbersOfItsKind(t *testing.T) {
 		{domain.FigureDue, []string{"due"}},
 		{domain.FigureRhythm, []string{"days", "week_start"}},
 		{domain.FigureProgress, []string{"done", "total"}},
+		{domain.FigureFlow, []string{"completed", "average_seconds", "over_limit"}},
 	}
 	for _, tc := range cases {
 		out := figureOutput(domain.CollectionFigure{Kind: tc.kind, Today: "2026-10-22", WeekStart: "2026-10-19",
@@ -135,6 +136,23 @@ func TestAFigureAnswersTheNumbersOfItsKind(t *testing.T) {
 	}
 	encoded, _ := json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFieldSum, Counts: domain.FigureCounts{Sum: &sum}}))
 	if want := `"sum":38.10`; !strings.Contains(string(encoded), want) {
+		t.Errorf("encoded %s, want %s", encoded, want)
+	}
+	// The flow's average is null where nothing was completed, never zero (P-11: no figure invented),
+	// and where entries were completed but none went from the first column to the last.
+	encoded, _ = json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFlow}))
+	if want := `"average_seconds":null`; !strings.Contains(string(encoded), want) {
+		t.Errorf("encoded %s, want %s", encoded, want)
+	}
+	encoded, _ = json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFlow,
+		Counts: domain.FigureCounts{Completed: 3}}))
+	if want := `"average_seconds":null,"completed":3`; !strings.Contains(string(encoded), want) {
+		t.Errorf("encoded %s, want %s", encoded, want)
+	}
+	average := 183600.0
+	encoded, _ = json.Marshal(figureOutput(domain.CollectionFigure{Kind: domain.FigureFlow,
+		Counts: domain.FigureCounts{Completed: 12, AverageSeconds: &average, OverLimit: 1}}))
+	if want := `"average_seconds":183600,"completed":12,"kind":"FLOW","over_limit":1`; !strings.Contains(string(encoded), want) {
 		t.Errorf("encoded %s, want %s", encoded, want)
 	}
 }

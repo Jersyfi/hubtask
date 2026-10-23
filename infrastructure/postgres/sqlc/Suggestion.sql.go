@@ -234,6 +234,29 @@ func (q *Queries) ListSuggestions(ctx context.Context, arg ListSuggestionsParams
 	return items, nil
 }
 
+const narrowSuggestion = `-- name: NarrowSuggestion :execrows
+UPDATE ai_suggestion
+SET payload = $1, version = version + 1
+WHERE id = $2 AND version = $3 AND status = 'PROPOSED'
+`
+
+type NarrowSuggestionParams struct {
+	Payload         []byte
+	ID              pgtype.UUID
+	ExpectedVersion int32
+}
+
+// What is left of a proposal once part of it was taken, guarded like a decision: two people taking
+// from one proposal at once is the same conflict as two answering it. Only an open proposal
+// narrows.
+func (q *Queries) NarrowSuggestion(ctx context.Context, arg NarrowSuggestionParams) (int64, error) {
+	result, err := q.db.Exec(ctx, narrowSuggestion, arg.Payload, arg.ID, arg.ExpectedVersion)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const recordSuggestion = `-- name: RecordSuggestion :exec
 
 INSERT INTO ai_suggestion

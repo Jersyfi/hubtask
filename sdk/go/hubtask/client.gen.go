@@ -1369,6 +1369,7 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
 	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindFLOW     CollectionFigureKind = "FLOW"
 	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
 	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
 	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
@@ -1380,6 +1381,8 @@ func (e CollectionFigureKind) Valid() bool {
 	case CollectionFigureKindDUE:
 		return true
 	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindFLOW:
 		return true
 	case CollectionFigureKindOPEN:
 		return true
@@ -4464,6 +4467,21 @@ func (e StructureSettingName) Valid() bool {
 	}
 }
 
+// Defines values for StructureSettingsAutomation.
+const (
+	REQUIREDBEYONDFIRSTCOLUMN StructureSettingsAutomation = "REQUIRED_BEYOND_FIRST_COLUMN"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsAutomation enum.
+func (e StructureSettingsAutomation) Valid() bool {
+	switch e {
+	case REQUIREDBEYONDFIRSTCOLUMN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingsCapture.
 const (
 	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
@@ -4577,6 +4595,7 @@ const (
 	ANSWER        SuggestionKind = "ANSWER"
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
+	ENTRIES       SuggestionKind = "ENTRIES"
 	FIELDS        SuggestionKind = "FIELDS"
 	RULE          SuggestionKind = "RULE"
 	TEMPLATE      SuggestionKind = "TEMPLATE"
@@ -4590,6 +4609,8 @@ func (e SuggestionKind) Valid() bool {
 	case DECOMPOSITION:
 		return true
 	case DUPLICATES:
+		return true
+	case ENTRIES:
 		return true
 	case FIELDS:
 		return true
@@ -5422,6 +5443,9 @@ type AcceptedSuggestion struct {
 	// CreatedId What accepting created, where it created one thing; absent where it changed an entry or created several.
 	CreatedId *openapi_types.UUID `json:"created_id,omitempty"`
 
+	// CreatedIds The entries accepting an `ENTRIES` proposal created, in the proposal's order — what an undo trashes. Absent for every other kind.
+	CreatedIds *[]openapi_types.UUID `json:"created_ids,omitempty"`
+
 	// DecidedAt When it was accepted or dismissed.
 	DecidedAt *time.Time `json:"decided_at,omitempty"`
 
@@ -5435,14 +5459,14 @@ type AcceptedSuggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -5459,7 +5483,7 @@ type AcceptedSuggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -6770,6 +6794,12 @@ type CapabilitiesWorkspacePermissions string
 
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
+	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
+	AverageSeconds *float64 `json:"average_seconds,omitempty"`
+
+	// Completed FLOW - entries at the top level completed in the seven days up to the moment of counting, archived ones included.
+	Completed *int `json:"completed,omitempty"`
+
 	// Days RHYTHM - the dates of the reader's week on which something was completed.
 	Days *[]openapi_types.Date `json:"days,omitempty"`
 
@@ -6782,6 +6812,9 @@ type CollectionFigure struct {
 
 	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
 	Open *int `json:"open,omitempty"`
+
+	// OverLimit FLOW - the board's columns that hold more open entries than their limit. Reported, never enforced.
+	OverLimit *int `json:"over_limit,omitempty"`
 
 	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
 	Sum *float64 `json:"sum,omitempty"`
@@ -7349,7 +7382,7 @@ type EffectiveStructure struct {
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
 	// Sources For each of the eight settings, the level its value comes from.
@@ -7394,6 +7427,12 @@ type EncryptionStoreCount struct {
 
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
+
+// EntriesText The text to turn into entries.
+type EntriesText struct {
+	// Text What was pasted, in the caller's own words. It travels to the provider as content, never as instruction.
+	Text string `json:"text"`
+}
 
 // EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 //
@@ -9720,7 +9759,7 @@ type PolicySource string
 type Preset struct {
 	Key PresetKey `json:"key"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 }
 
@@ -11005,7 +11044,7 @@ type StructureChange struct {
 	Preset    *StructureChangePreset    `json:"preset,omitempty"`
 	Reset     *[]StructureSettingName   `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -11112,10 +11151,10 @@ type StructurePreviewViews string
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
-// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
-	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
-	Automation *[]string `json:"automation,omitempty"`
+	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.
+	Automation *[]StructureSettingsAutomation `json:"automation,omitempty"`
 
 	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
 	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
@@ -11138,6 +11177,9 @@ type StructureSettings struct {
 	// Views The layouts a client offers, and the one it opens with. Applied by clients.
 	Views *StructureViews `json:"views,omitempty"`
 }
+
+// StructureSettingsAutomation defines model for StructureSettings.Automation.
+type StructureSettingsAutomation string
 
 // StructureSettingsCapture defines model for StructureSettings.Capture.
 type StructureSettingsCapture string
@@ -11174,14 +11216,14 @@ type Suggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -11198,7 +11240,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -11210,14 +11252,17 @@ type SuggestionSource string
 
 // SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
 type SuggestionAcceptance struct {
-	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`.
+	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`. For an `ENTRIES` proposal they are laid over every entry taken; its collection and level stay the proposal's.
 	Overrides *map[string]interface{} `json:"overrides,omitempty"`
+
+	// Take For an `ENTRIES` proposal only: the `key`s of the entries to create now. Absent takes every entry left. A key the proposal does not hold is refused with `suggestions.entry_unknown`.
+	Take *[]string `json:"take,omitempty"`
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 // `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 // `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -11231,7 +11276,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -12217,7 +12262,7 @@ type WorkspaceStructure struct {
 	Locks         map[string]StructureLock         `json:"locks"`
 	Preset        *WorkspaceStructurePreset        `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
 	Sources  map[string]PolicySource `json:"sources"`
 }
@@ -12238,7 +12283,7 @@ type WorkspaceStructureChange struct {
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
 	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -12881,6 +12926,12 @@ type SetContainerStructureParams struct {
 
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// MakeEntriesParams defines parameters for MakeEntries.
+type MakeEntriesParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -13905,6 +13956,9 @@ type SetContainerStructureJSONRequestBody = StructureChange
 
 // PreviewContainerStructureJSONRequestBody defines body for PreviewContainerStructure for application/json ContentType.
 type PreviewContainerStructureJSONRequestBody = StructureChange
+
+// MakeEntriesJSONRequestBody defines body for MakeEntries for application/json ContentType.
+type MakeEntriesJSONRequestBody = EntriesText
 
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
@@ -16886,6 +16940,28 @@ type ClientInterface interface {
 	// Archives the container. An archived container is read-only, and everything below it inherits that: a collection in an archived hub refuses writes without being archived itself, which is what effective_archived reports. Idempotent - archiving an archived container changes nothing.
 	ArchiveContainer(ctx context.Context, containerId ContainerId, params *ArchiveContainerParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// MakeEntriesWithBody Ask AI to turn a piece of text into entries
+	//
+	// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+	// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+	MakeEntriesWithBody(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeEntries Ask AI to turn a piece of text into entries
+	//
+	// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+	// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+	MakeEntries(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, body MakeEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// MoveContainerWithBody performs a POST /containers/{containerId}:move (the `MoveContainer` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -18870,6 +18946,7 @@ type ClientInterface interface {
 	// A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 	// The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 	// A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+	// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -18883,6 +18960,7 @@ type ClientInterface interface {
 	// A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 	// The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 	// A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+	// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -24582,6 +24660,48 @@ func (c *Client) ArchiveContainer(ctx context.Context, containerId ContainerId, 
 	return c.Client.Do(req)
 }
 
+// MakeEntriesWithBody Ask AI to turn a piece of text into entries
+//
+// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+func (c *Client) MakeEntriesWithBody(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeEntriesRequestWithBody(c.Server, containerId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeEntries Ask AI to turn a piece of text into entries
+//
+// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+func (c *Client) MakeEntries(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, body MakeEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeEntriesRequest(c.Server, containerId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // MoveContainerWithBody performs a POST /containers/{containerId}:move (the `MoveContainer` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -28716,6 +28836,7 @@ func (c *Client) ListSuggestions(ctx context.Context, params *ListSuggestionsPar
 // A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 // The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 // A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 //
 // Takes any type of body and a specified content type.
 //
@@ -28739,6 +28860,7 @@ func (c *Client) AcceptSuggestionWithBody(ctx context.Context, suggestionId Sugg
 // A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 // The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 // A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -37569,6 +37691,68 @@ func NewArchiveContainerRequest(server string, containerId ContainerId, params *
 	if err != nil {
 		return nil, err
 	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewMakeEntriesRequest calls the generic MakeEntries builder with application/json body
+func NewMakeEntriesRequest(server string, containerId ContainerId, params *MakeEntriesParams, body MakeEntriesJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMakeEntriesRequestWithBody(server, containerId, params, "application/json", bodyReader)
+}
+
+// NewMakeEntriesRequestWithBody constructs an http.Request for the MakeEntries method, with any body, and a specified content type
+func NewMakeEntriesRequestWithBody(server string, containerId ContainerId, params *MakeEntriesParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "containerId", containerId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/containers/%s:make-entries", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	if params != nil {
 
@@ -49521,6 +49705,28 @@ type ClientWithResponsesInterface interface {
 	// Returns a wrapper object for the known response body format(s).
 	ArchiveContainerWithResponse(ctx context.Context, containerId ContainerId, params *ArchiveContainerParams, reqEditors ...RequestEditorFn) (*ArchiveContainerResult, error)
 
+	// MakeEntriesWithBodyWithResponse Ask AI to turn a piece of text into entries
+	//
+	// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+	// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+	MakeEntriesWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeEntriesResult, error)
+
+	// MakeEntriesWithResponse Ask AI to turn a piece of text into entries
+	//
+	// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+	// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+	// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+	MakeEntriesWithResponse(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, body MakeEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeEntriesResult, error)
+
 	// MoveContainerWithBodyWithResponse performs a POST /containers/{containerId}:move (the `MoveContainer` operationId) request,
 	// with any type of body and a specified content type.
 	//
@@ -51733,6 +51939,7 @@ type ClientWithResponsesInterface interface {
 	// A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 	// The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 	// A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+	// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -51746,6 +51953,7 @@ type ClientWithResponsesInterface interface {
 	// A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 	// The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 	// A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+	// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -60832,6 +61040,61 @@ func (r ArchiveContainerResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ArchiveContainerResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type MakeEntriesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *JobRef
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+	// ApplicationproblemJSON503 the response for an HTTP 503 `application/problem+json` response
+	ApplicationproblemJSON503 *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r MakeEntriesResult) GetJSON202() *JobRef {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MakeEntriesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetApplicationproblemJSON503 returns the response for an HTTP 503 `application/problem+json` response
+func (r MakeEntriesResult) GetApplicationproblemJSON503() *Problem {
+	return r.ApplicationproblemJSON503
+}
+
+// GetBody returns the raw response body bytes
+func (r MakeEntriesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MakeEntriesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MakeEntriesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MakeEntriesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -74345,6 +74608,40 @@ func (c *ClientWithResponses) ArchiveContainerWithResponse(ctx context.Context, 
 	return ParseArchiveContainerResult(rsp)
 }
 
+// MakeEntriesWithBodyWithResponse Ask AI to turn a piece of text into entries
+//
+// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+func (c *ClientWithResponses) MakeEntriesWithBodyWithResponse(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeEntriesResult, error) {
+	rsp, err := c.MakeEntriesWithBody(ctx, containerId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeEntriesResult(rsp)
+}
+
+// MakeEntriesWithResponse Ask AI to turn a piece of text into entries
+//
+// Asks the workspace's AI provider which entries a piece of pasted text holds — a recipe, an e-mail, meeting notes — for one collection. Needs what creating entries there needs.
+// The proposal carries only the fields the collection's structure offers its entries at their level: a title always, and notes, an amount and a due date only where the collection carries them. Nothing else is read for it: no entry of the collection and nobody else's content travels, only the caller's own text and what the collection offers. A caller who keeps their own content out of AI is refused with `ai.kept_out`.
+// Asynchronous and answered `202`, with the same refusal for a workspace that has no provider or has not consented. The proposal appears under `GET /suggestions` as an `ENTRIES` suggestion with `target_type=ACCOUNT` and the caller's own account as its target — only the caller reads, takes or dismisses it. Nothing is created before it is taken: `:accept` takes every entry, or those named in `take`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /containers/{containerId}:make-entries (the `MakeEntries` operationId).
+func (c *ClientWithResponses) MakeEntriesWithResponse(ctx context.Context, containerId ContainerId, params *MakeEntriesParams, body MakeEntriesJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeEntriesResult, error) {
+	rsp, err := c.MakeEntries(ctx, containerId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeEntriesResult(rsp)
+}
+
 // MoveContainerWithBodyWithResponse performs a POST /containers/{containerId}:move (the `MoveContainer` operationId) request,
 // with any type of body and a specified content type.
 //
@@ -77847,6 +78144,7 @@ func (c *ClientWithResponses) ListSuggestionsWithResponse(ctx context.Context, p
 // A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 // The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 // A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -77866,6 +78164,7 @@ func (c *ClientWithResponses) AcceptSuggestionWithBodyWithResponse(ctx context.C
 // A suggestion made against an entry that has since been rewritten is **stale** and is refused (`409`, detail code `suggestions.stale`): applying it would attach a proposal about one state of the entry to a different one. Ask for a new suggestion instead.
 // The optional body carries what the person changed or added before accepting — an edited title, or the destination collection a jumble suggestion cannot know. It is merged over the proposal key by key, and it is the caller's own input checked by the use case with the caller's own rights, exactly as if they had made the call themselves. The suggestion's target is never taken from either the proposal or the overrides: a proposal about one entry cannot be made to change another.
 // A `RULE` draft carries no `name` and no `run_as`, so accepting one needs both in the overrides; any other key the overrides carry — `trigger`, `actions`, `scope` — replaces the draft's whole.
+// An `ENTRIES` proposal is taken whole, or in part with `take`: the entries named are created in the proposal's collection, in order, as the caller, and the suggestion stays `PROPOSED` with the others until none is left — then it is `ACCEPTED`. A refusal of one entry creates none of those taken. `:dismiss` turns down what is left.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -84672,6 +84971,46 @@ func ParseArchiveContainerResult(rsp *http.Response) (*ArchiveContainerResult, e
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseMakeEntriesResult parses an HTTP response from a MakeEntriesWithResponse call
+func ParseMakeEntriesResult(rsp *http.Response) (*MakeEntriesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MakeEntriesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest JobRef
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 503:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON503 = &dest
+
 	}
 
 	return response, nil

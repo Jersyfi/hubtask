@@ -135,6 +135,12 @@ func figureOutput(figure domain.CollectionFigure) map[string]any {
 		out["days"], out["week_start"] = days, figure.WeekStart
 	case domain.FigureProgress:
 		out["done"], out["total"] = counts.Done, counts.Total
+	case domain.FigureFlow:
+		out["completed"], out["over_limit"] = counts.Completed, counts.OverLimit
+		out["average_seconds"] = nil
+		if counts.AverageSeconds != nil {
+			out["average_seconds"] = *counts.AverageSeconds
+		}
 	}
 	return out
 }

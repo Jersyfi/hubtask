@@ -1363,6 +1363,7 @@ func (e CapabilitiesWorkspacePermissions) Valid() bool {
 const (
 	CollectionFigureKindDUE      CollectionFigureKind = "DUE"
 	CollectionFigureKindFIELDSUM CollectionFigureKind = "FIELD_SUM"
+	CollectionFigureKindFLOW     CollectionFigureKind = "FLOW"
 	CollectionFigureKindOPEN     CollectionFigureKind = "OPEN"
 	CollectionFigureKindPROGRESS CollectionFigureKind = "PROGRESS"
 	CollectionFigureKindRHYTHM   CollectionFigureKind = "RHYTHM"
@@ -1374,6 +1375,8 @@ func (e CollectionFigureKind) Valid() bool {
 	case CollectionFigureKindDUE:
 		return true
 	case CollectionFigureKindFIELDSUM:
+		return true
+	case CollectionFigureKindFLOW:
 		return true
 	case CollectionFigureKindOPEN:
 		return true
@@ -4458,6 +4461,21 @@ func (e StructureSettingName) Valid() bool {
 	}
 }
 
+// Defines values for StructureSettingsAutomation.
+const (
+	REQUIREDBEYONDFIRSTCOLUMN StructureSettingsAutomation = "REQUIRED_BEYOND_FIRST_COLUMN"
+)
+
+// Valid indicates whether the value is a known member of the StructureSettingsAutomation enum.
+func (e StructureSettingsAutomation) Valid() bool {
+	switch e {
+	case REQUIREDBEYONDFIRSTCOLUMN:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for StructureSettingsCapture.
 const (
 	StructureSettingsCaptureAMOUNT StructureSettingsCapture = "AMOUNT"
@@ -4571,6 +4589,7 @@ const (
 	ANSWER        SuggestionKind = "ANSWER"
 	DECOMPOSITION SuggestionKind = "DECOMPOSITION"
 	DUPLICATES    SuggestionKind = "DUPLICATES"
+	ENTRIES       SuggestionKind = "ENTRIES"
 	FIELDS        SuggestionKind = "FIELDS"
 	RULE          SuggestionKind = "RULE"
 	TEMPLATE      SuggestionKind = "TEMPLATE"
@@ -4584,6 +4603,8 @@ func (e SuggestionKind) Valid() bool {
 	case DECOMPOSITION:
 		return true
 	case DUPLICATES:
+		return true
+	case ENTRIES:
 		return true
 	case FIELDS:
 		return true
@@ -5416,6 +5437,9 @@ type AcceptedSuggestion struct {
 	// CreatedId What accepting created, where it created one thing; absent where it changed an entry or created several.
 	CreatedId *openapi_types.UUID `json:"created_id,omitempty"`
 
+	// CreatedIds The entries accepting an `ENTRIES` proposal created, in the proposal's order — what an undo trashes. Absent for every other kind.
+	CreatedIds *[]openapi_types.UUID `json:"created_ids,omitempty"`
+
 	// DecidedAt When it was accepted or dismissed.
 	DecidedAt *time.Time `json:"decided_at,omitempty"`
 
@@ -5429,14 +5453,14 @@ type AcceptedSuggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -5453,7 +5477,7 @@ type AcceptedSuggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -6764,6 +6788,12 @@ type CapabilitiesWorkspacePermissions string
 
 // CollectionFigure What counts in a collection, as numbers and dates: the client phrases them. Every figure counts the collection's entries - never a person's - leaving out trashed ones and those its structure hides. `today` is the reader's date the figure was counted for. Where the count could not be made, `unavailable` is true and nothing else is answered.
 type CollectionFigure struct {
+	// AverageSeconds FLOW - the average time those entries took from their first column to their last: from the moment each was created to the moment it was completed, in seconds. Null where none was completed.
+	AverageSeconds *float64 `json:"average_seconds,omitempty"`
+
+	// Completed FLOW - entries at the top level completed in the seven days up to the moment of counting, archived ones included.
+	Completed *int `json:"completed,omitempty"`
+
 	// Days RHYTHM - the dates of the reader's week on which something was completed.
 	Days *[]openapi_types.Date `json:"days,omitempty"`
 
@@ -6776,6 +6806,9 @@ type CollectionFigure struct {
 
 	// Open OPEN and FIELD_SUM - open entries directly under the collection, archived ones left out.
 	Open *int `json:"open,omitempty"`
+
+	// OverLimit FLOW - the board's columns that hold more open entries than their limit. Reported, never enforced.
+	OverLimit *int `json:"over_limit,omitempty"`
 
 	// Sum FIELD_SUM - the sum of the number field over those entries; absent or null where the field is not a live number field the entries carry.
 	Sum *float64 `json:"sum,omitempty"`
@@ -7343,7 +7376,7 @@ type EffectiveStructure struct {
 	Locks  map[string]StructureLock  `json:"locks"`
 	Preset *EffectiveStructurePreset `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 
 	// Sources For each of the eight settings, the level its value comes from.
@@ -7388,6 +7421,12 @@ type EncryptionStoreCount struct {
 
 // EncryptionStoreCountStore The kind of value: second factors, sign-in provider secrets, webhook signing secrets, backup target credentials, AI provider keys, rule header secrets, header secrets of HTTP calls still waiting to be made or retried, and backup archives still kept, which a re-seal cannot move and which leave the count only as they expire. Further kinds may be added; a client names an unknown one generically.
 type EncryptionStoreCountStore string
+
+// EntriesText The text to turn into entries.
+type EntriesText struct {
+	// Text What was pasted, in the caller's own words. It travels to the provider as content, never as instruction.
+	Text string `json:"text"`
+}
 
 // EntryHidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 //
@@ -9714,7 +9753,7 @@ type PolicySource string
 type Preset struct {
 	Key PresetKey `json:"key"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings `json:"settings"`
 }
 
@@ -10999,7 +11038,7 @@ type StructureChange struct {
 	Preset    *StructureChangePreset    `json:"preset,omitempty"`
 	Reset     *[]StructureSettingName   `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -11106,10 +11145,10 @@ type StructurePreviewViews string
 // StructureSettingName defines model for StructureSettingName.
 type StructureSettingName string
 
-// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+// StructureSettings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 type StructureSettings struct {
-	// Automation What runs by itself in this collection. A closed set that holds no value yet: every value is refused with `capability_not_supported` until a behaviour exists that a collection may switch on.
-	Automation *[]string `json:"automation,omitempty"`
+	// Automation What the collection applies by itself, a closed set. REQUIRED_BEYOND_FIRST_COLUMN: an entry enters a column of the board after the first only with every required custom field of its type set; a move, a creation or an edit that would place it there without one is refused with `validation_failed` and the detail `items.required_fields_missing`, naming the fields. The first column, no column and moves within a column are never refused, and a value is never cleared by it.
+	Automation *[]StructureSettingsAutomation `json:"automation,omitempty"`
 
 	// Capture What a capture field recognises when it adds to this collection: several lines as several entries, a leading amount, a date, a person, a label. Applied by clients.
 	Capture *[]StructureSettingsCapture `json:"capture,omitempty"`
@@ -11132,6 +11171,9 @@ type StructureSettings struct {
 	// Views The layouts a client offers, and the one it opens with. Applied by clients.
 	Views *StructureViews `json:"views,omitempty"`
 }
+
+// StructureSettingsAutomation defines model for StructureSettings.Automation.
+type StructureSettingsAutomation string
 
 // StructureSettingsCapture defines model for StructureSettings.Capture.
 type StructureSettingsCapture string
@@ -11168,14 +11210,14 @@ type Suggestion struct {
 	// Kind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 	// `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 	// `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+	// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 	// `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 	Kind SuggestionKind `json:"kind"`
 
 	// Model The model that answered, as the provider named it — not as it was configured.
 	Model string `json:"model"`
 
-	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. It is data, never an instruction, and nothing acts on it until somebody accepts.
+	// Payload What was proposed, in the shape the kind fixes. For `FIELDS` it is the fields of the target entry, and about a jumble entry it may also carry `subtasks` — the titles the material implied, which accepting creates under the converted entry rather than setting on it. For `DECOMPOSITION` it is a tree of entries proposed under the target. For `DUPLICATES` it is `duplicates`: the entries that look like this one, nearest first, each with the identifier and the similarity that put it there — identifiers only, so what a reader sees of them is what they could have read anyway. For `TEMPLATE` it is a `TemplateInput` for the target collection. For `RULE` it is part of an `AutomationRuleCreate` — `scope`, `trigger`, `conditions`, `actions` — and `not_drafted`, what of the sentence could not be drafted: entries with `part` (words quoted from the sentence) or `code` and `params` (a message code). For `ANSWER` it is `answer` (the proposed answer, at most 2000 characters), `source_ids` (at most five entries it rests on, each one the asker could read when asked) and, where the question is a filter, `filter`: an object of `place_id` and `place_type` (`HUB` or `COLLECTION`), `is_completed`, `due` (`overdue`, `today`, `next_7_days` or `this_month`), `assignee_id` and `label_ids`, each present only where implied. For `ENTRIES` it is `collection_id`, `type` — the level the entries are created at — and `entries`, each with a `key` and a `title`, and `notes`, `amount` (text) or `due_date` (`YYYY-MM-DD`) only where the collection carries them. It is data, never an instruction, and nothing acts on it until somebody accepts.
 	Payload map[string]interface{} `json:"payload"`
 
 	// ProducedAt When the provider answered, which is not when the record was written.
@@ -11192,7 +11234,7 @@ type Suggestion struct {
 	Status   SuggestionStatus   `json:"status"`
 	TargetId openapi_types.UUID `json:"target_id"`
 
-	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+	// TargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 	TargetType SuggestionTargetType `json:"target_type"`
 
 	// Version The optimistic lock, as everywhere else.
@@ -11204,14 +11246,17 @@ type SuggestionSource string
 
 // SuggestionAcceptance What the person changed or added before accepting. Merged over the proposal; every value is checked by the use case that performs the change, with the accepting person's rights.
 type SuggestionAcceptance struct {
-	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`.
+	// Overrides Fields of the proposal to replace or add, key by key. A jumble suggestion needs the destination collection here, because a model cannot know which collections a workspace has; a `RULE` draft needs `name` and `run_as`. For an `ENTRIES` proposal they are laid over every entry taken; its collection and level stay the proposal's.
 	Overrides *map[string]interface{} `json:"overrides,omitempty"`
+
+	// Take For an `ENTRIES` proposal only: the `key`s of the entries to create now. Absent takes every entry left. A key the proposal does not hold is refused with `suggestions.entry_unknown`.
+	Take *[]string `json:"take,omitempty"`
 }
 
 // SuggestionKind What accepting does, which is the only thing a kind has to say. `FIELDS` proposes values for the target entry; `DECOMPOSITION` proposes a tree of entries under it. A summary and a classification are `FIELDS` suggestions whose payload happens to be notes or labels — they are not kinds of their own, because accepting them is the same act.
 // `TEMPLATE` proposes a template for the collection it targets: its payload is a `TemplateInput`, and accepting it is `CreateTemplate` performed by the accepting person.
 // `RULE` proposes an automation rule drafted from a sentence, about the account that asked; accepting it is `CreateRule` performed by that person, so the rule is stored switched off.
-// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it.
+// `ANSWER` is a proposed answer to a question, about the account that asked. Like `DUPLICATES` nothing accepts it — it performs no action — and `:dismiss` closes it. `ENTRIES` proposes entries for a collection, made from a piece of text the person pasted, about the account that asked; accepting creates the entries taken — all, or some — with `CreateWorkItem` performed by that person.
 // `DUPLICATES` is the one kind nothing accepts. It says which entries look like this one, and what to do about that is a person's decision through the ordinary use cases — `:accept` refuses it and `:dismiss` closes it. It is also the one kind no prompt produced, so its `prompt_id` and `prompt_version` are empty and its `model` names the embedding model whose vectors were compared.
 type SuggestionKind string
 
@@ -11225,7 +11270,7 @@ type SuggestionPage struct {
 // SuggestionStatus `DISMISSED` is a state and not a deletion, so "what was proposed and turned down" has an answer; the retention engine ages both decided states out by rule.
 type SuggestionStatus string
 
-// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule — or for an answer to their question: only that account lists, accepts or dismisses it.
+// SuggestionTargetType What the suggestion is about. `CONTAINER` is a collection rather than an entry: a summary of how it stands is about the collection, and nothing accepts one — a collection has nowhere to put a status summary, so it is read and dismissed. `ACCOUNT` is the person who asked, for a draft of something that does not exist yet — a rule, or entries made from pasted text — or for an answer to their question: only that account lists, accepts or dismisses it.
 type SuggestionTargetType string
 
 // SyncChange defines model for SyncChange.
@@ -12211,7 +12256,7 @@ type WorkspaceStructure struct {
 	Locks         map[string]StructureLock         `json:"locks"`
 	Preset        *WorkspaceStructurePreset        `json:"preset"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings StructureSettings       `json:"settings"`
 	Sources  map[string]PolicySource `json:"sources"`
 }
@@ -12232,7 +12277,7 @@ type WorkspaceStructureChange struct {
 	Preset *WorkspaceStructureChangePreset `json:"preset,omitempty"`
 	Reset  *[]StructureSettingName         `json:"reset,omitempty"`
 
-	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` is applied by the server; `levels` and `fields` say what a client offers; `views`, `counts`, `capture`, `celebration` and `automation` are applied by clients, and the server stores and answers them.
+	// Settings How much structure a hub or collection has: eight settings. Answered whole wherever a structure is in force; a write sends only the settings it changes. Every value is held inside what this installation offers (`/meta/capabilities`, `item_types`): a value that would widen it is refused with `capability_not_supported`. `completion` and `automation` are applied by the server; `levels` and `fields` say what a client offers; `counts` the server counts and a client draws; `views`, `capture` and `celebration` are applied by clients, and the server stores and answers them.
 	Settings *StructureSettings `json:"settings,omitempty"`
 }
 
@@ -12875,6 +12920,12 @@ type SetContainerStructureParams struct {
 
 // ArchiveContainerParams defines parameters for ArchiveContainer.
 type ArchiveContainerParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// MakeEntriesParams defines parameters for MakeEntries.
+type MakeEntriesParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
@@ -13900,6 +13951,9 @@ type SetContainerStructureJSONRequestBody = StructureChange
 // PreviewContainerStructureJSONRequestBody defines body for PreviewContainerStructure for application/json ContentType.
 type PreviewContainerStructureJSONRequestBody = StructureChange
 
+// MakeEntriesJSONRequestBody defines body for MakeEntries for application/json ContentType.
+type MakeEntriesJSONRequestBody = EntriesText
+
 // MoveContainerJSONRequestBody defines body for MoveContainer for application/json ContentType.
 type MoveContainerJSONRequestBody MoveContainerJSONBody
 
@@ -14661,6 +14715,9 @@ type ServerInterface interface {
 
 	// (POST /containers/{containerId}:archive)
 	ArchiveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params ArchiveContainerParams)
+	// MakeEntries Ask AI to turn a piece of text into entries
+	// (POST /containers/{containerId}:make-entries)
+	MakeEntries(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MakeEntriesParams)
 
 	// (POST /containers/{containerId}:move)
 	MoveContainer(w http.ResponseWriter, r *http.Request, containerId ContainerId, params MoveContainerParams)
@@ -20794,6 +20851,56 @@ func (siw *ServerInterfaceWrapper) ArchiveContainer(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ArchiveContainer(w, r, containerId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MakeEntries operation middleware
+func (siw *ServerInterfaceWrapper) MakeEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "containerId" -------------
+	var containerId ContainerId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "containerId", r.PathValue("containerId"), &containerId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "containerId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MakeEntriesParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MakeEntries(w, r, containerId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28116,6 +28223,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:classify", wrapper.AiClassify)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:summarize-thread", wrapper.AiSummarizeThread)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:summarize", wrapper.AiSummarizeContainer)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/containers/{containerId}:make-entries", wrapper.MakeEntries)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items/{itemId}:duplicates", wrapper.SuggestDuplicates)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/items:duplicates", wrapper.FindDuplicatesByTitle)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/ask", wrapper.AskWorkspace)

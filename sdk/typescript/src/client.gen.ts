@@ -1294,6 +1294,11 @@ export class HubtaskClient {
     return this.call("POST", "/containers/{containerId}:summarize", { "containerId": containerId }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Ask AI to turn a piece of text into entries */
+  makeEntries(containerId: string, body: NonNullable<operations["makeEntries"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["makeEntries"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/containers/{containerId}:make-entries", { "containerId": containerId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Which entries look like this one */
   suggestDuplicates(itemId: string, options: CallOptions = {}): Promise<operations["suggestDuplicates"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/items/{itemId}:duplicates", { "itemId": itemId }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
