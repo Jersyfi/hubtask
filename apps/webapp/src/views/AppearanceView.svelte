@@ -3,37 +3,29 @@
 <script lang="ts">
   // How the product looks and moves at this reader, on this device.
   //
-  // **Two of the three belong to the device rather than to the account** (ADR-0043): the theme and
-  // reduced motion apply at once and are kept in this browser, because how bright a screen should
-  // be is a question about that screen. The account is not asked, because there is nothing above
-  // the device to resolve to. A radio group rather than a select: three words, all visible, one
-  // press.
+  // **Both belong to the device rather than to the account** (ADR-0043): the theme and reduced
+  // motion apply at once and are kept in this browser, because how bright a screen should be is a
+  // question about that screen. The account is not asked, because there is nothing above the device
+  // to resolve to. A radio group rather than a select: three words, all visible, one press.
   //
-  // **The third is the account's**: somebody who switched the moments off switched them
-  // off everywhere, so it is written to the account and put back when a write is refused - the
-  // control never shows a choice the server did not take.
+  // "Mark the moments" is the account's, so it stands on *You* (`lib/profile/CelebrationsSwitch`),
+  // not here: a screen called *On this device* holds only what this device keeps.
 
   import { untrack } from 'svelte';
 
-  import { EmptyState, Radio, Stack, Switch } from '@hubtask/design-system/components';
+  import { EmptyState, Radio, Stack } from '@hubtask/design-system/components';
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
-  import { preferences } from '../lib/data/preferences.svelte.ts';
   import { announcer } from '../lib/announce.svelte.ts';
-  import { toast } from '../lib/frame/toasts.svelte.ts';
   import { device } from '../lib/device.svelte.ts';
-  import { messages, t } from '../lib/i18n/i18n.svelte.ts';
-  import { renderProblem } from '../lib/problem.ts';
+  import { t } from '../lib/i18n/i18n.svelte.ts';
 
   const account = $derived(actor.account);
-  const accountId = $derived(account?.id);
 
   const THEMES = ['system', 'light', 'dark'] as const;
   const MOTIONS = ['system', 'reduced'] as const;
-
-  let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   /** The radio groups' bound values; the device store is told when they move, and says so. */
   let themeChoice = $state<string>(device.theme);
@@ -52,30 +44,6 @@
     device.setMotion(choice);
     announcer.say(t('app.profile.motion_changed_announced', { choice: t(`app.profile.motion_${choice}`) }));
   });
-
-  let isSavingCelebrations = $state(false);
-  let celebrationsOn = $state(true);
-  $effect(() => {
-    celebrationsOn = account?.celebrations !== false;
-  });
-
-  async function setCelebrations(isOn: boolean) {
-    if (!accountId) return;
-    isSavingCelebrations = true;
-    failure = undefined;
-    try {
-      // `true` is written as the default's own value rather than cleared: what the person chose
-      // is a choice, and "on" is not the same fact as "never decided".
-      await preferences.setAccount(accountId, { celebrations: isOn });
-      // Confirmed as a passing message, which the frame also says once (design-system.md §4, case 7).
-      toast.show({ text: t(isOn ? 'app.profile.celebrations_on_announced' : 'app.profile.celebrations_off_announced'), tone: 'success' });
-    } catch (error) {
-      failure = renderProblem(error as never, messages);
-      celebrationsOn = account?.celebrations !== false;
-    } finally {
-      isSavingCelebrations = false;
-    }
-  }
 </script>
 
 {#if !account}
@@ -98,18 +66,6 @@
           bind:value={motionChoice}
           options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
         />
-        <!-- The one switch of design-system.md §7, beside the theme's and motion's - and unlike
-             them the account's (ADR-0043): a person who switched the moments off has
-             switched them off everywhere. Absent means on. -->
-        <Switch
-          label={t('app.profile.celebrations')}
-          hint={t('app.profile.celebrations_hint')}
-          bind:checked={celebrationsOn}
-          isBusy={isSavingCelebrations}
-          busyLabel={t('app.workspace.saving')}
-          onchange={() => void setCelebrations(celebrationsOn)}
-        />
-        {#if failure}<p class="failure" role="alert">{failure.message}</p>{/if}
       </Stack>
     </div>
   </Stack>
@@ -128,6 +84,4 @@
   }
 
   .quiet { margin: 0; color: var(--text-secondary); }
-
-  .failure { margin: 0; color: var(--text-danger); }
 </style>

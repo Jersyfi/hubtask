@@ -141,7 +141,7 @@ for (const width of [375, 768, 1280]) {
       await held;
       return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
     });
-    await page.goto(`${served.origin}/profile/appearance`);
+    await page.goto(`${served.origin}/profile`);
     const moments = page.getByRole('switch', { name: 'Mark the moments' }).or(page.getByLabel('Mark the moments'));
     await moments.first().waitFor({ timeout: 15_000 });
     await moments.first().click();

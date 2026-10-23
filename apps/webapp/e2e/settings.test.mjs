@@ -183,6 +183,33 @@ for (const width of [375, 1280]) {
   });
 }
 
+// "Mark the moments" is the account's (ADR-0043), so it moved from *On this device* to *You*
+// (ux-inventory.md §E7): the device screen keeps the theme and motion alone, and the switch on
+// *You* writes the account's preference.
+test('chromium: 1280 px — the moments are switched on You, and On this device keeps the device', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await open(browser);
+  t.after(close);
+  const written = [];
+  await page.route(`**/api/v1/accounts/${ACCOUNT.id}/preferences`, (route) => {
+    written.push(route.request().postDataJSON());
+    return route.fulfill({ json: { ...ACCOUNT, ...route.request().postDataJSON() } });
+  });
+
+  await page.goto(`${served.origin}/profile/appearance`);
+  await page.getByText('Light or dark').first().waitFor({ timeout: 15_000 });
+  assert.equal(await page.getByLabel('Mark the moments').count(), 0, 'the moments are still on the device screen');
+
+  await page.goto(`${served.origin}/profile`);
+  const moments = page.getByLabel('Mark the moments');
+  await moments.waitFor({ timeout: 15_000 });
+  await moments.click();
+  await page.getByText('Moments are not marked any more.').first().waitFor({ timeout: 5_000 });
+  assert.deepEqual(written, [{ celebrations: false }]);
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: 1280 px — what you are told about is a grid, and every row’s switches line up', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());

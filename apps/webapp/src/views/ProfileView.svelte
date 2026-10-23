@@ -21,6 +21,9 @@
   // **One more thing is the person's own here**: keeping their content out of AI, beside how the
   // product speaks to them, because it is a choice about themselves rather than about a device.
   //
+  // **And the moments**: whether the product marks them is the person's, on every device, so the
+  // switch stands here and not with the theme.
+  //
   // **Nothing else is under it.** The second factor, the sessions, the devices, the theme, the
   // notifications, the apps and the tokens are each a row of the section's column with an address
   // of its own.
@@ -39,6 +42,7 @@
 
   import SettingsHead from '../lib/frame/SettingsHead.svelte';
   import AiObjectionSection from '../lib/profile/AiObjectionSection.svelte';
+  import CelebrationsSwitch from '../lib/profile/CelebrationsSwitch.svelte';
   import AddressForm from '../lib/people/AddressForm.svelte';
 
   import { actor } from '../lib/data/account.svelte.ts';
@@ -241,6 +245,10 @@
         onSave={() => void save()}
       />
     </form>
+
+    <!-- The moments: the account's, so here rather than on *On this device* (ADR-0043). A switch
+         of its own outside the form, written at once as every switch outside a form is. -->
+    <CelebrationsSwitch />
 
     <!-- Keeping one's own content out of AI: the person's own choice, so on the profile; absent
          where there is nothing to choose (UC-PRV-05 check 8). -->

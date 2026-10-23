@@ -194,9 +194,9 @@ Administration and installation, found by UX-05's sweep:
 
 ## E7 — Your settings
 
-- [ ] Language and clock: language, zone, week start, AI objection, address → kept
+- [x] Language and clock: language, zone, week start, AI objection, address → kept — *You* (`/profile`), the row now *Name and language* (UX-17)
 - [x] Missing: display name, avatar → new *You* page — *You* (`/profile`): the name, changed by the person (`PATCH /accounts/me`), and the avatar its initials make; a picture of one's own needs storage it does not have, finding #1732 (UX-17)
-- [ ] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting)
+- [x] On this device: theme, motion, "Mark the moments" → device settings kept; moments move to *You* (an account setting) — theme and motion on *On this device* (`/profile/appearance`), the moments' switch on *You* (`/profile`) (UX-17)
 - [x] Notifications table with always-on cells → kept; one note for always-on rows — UX-04
 - [ ] Password and sign-in (password, passkeys, providers, second factor) → kept; sections instead of disclosures
 - [ ] Signed in · devices · apps · access tokens → kept; withdraw with undo
