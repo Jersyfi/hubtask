@@ -667,7 +667,7 @@
       </div>
       {#each search.hits as hit (hit.id)}
         {@const isCompleted = hit.completion?.is_completed ?? false}
-        <div class="hit" data-hit={hit.id} data-by-meaning={search.isByMeaning(hit.id) ? '' : undefined}>
+        <div class="hit" data-hit={hit.id} data-compact={viewport.isCompact ? '' : undefined} data-by-meaning={search.isByMeaning(hit.id) ? '' : undefined}>
         {#if selection.isOn}
           <span class="pick">
             <Checkbox
@@ -742,11 +742,18 @@
 
   .head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-100); }
 
-  .hit { display: flex; align-items: center; gap: var(--sp-100); }
+  /* As a list's row lays out its pick (`EntryList`): the row takes the rest of the line. */
+  .hit { display: flex; align-items: center; gap: var(--sp-050); }
 
-  .hit > :global(:not(.pick)) { flex: 1 1 auto; min-width: 0; }
+  .hit > :global(*:last-child) { flex: 1; min-width: 0; }
 
   .pick { display: flex; flex: none; align-items: center; }
+
+  /* On a phone the task row stacks its controls under its title, so the pick keeps to the title's
+     line: aligned to the start and as tall as that line, as a list's pick does. */
+  .hit[data-compact] { align-items: start; }
+
+  .hit[data-compact] .pick { min-block-size: calc(var(--density-control-md-min) + 2 * var(--density-row-block)); }
 
   .starts { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
 

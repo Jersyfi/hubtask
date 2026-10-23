@@ -389,6 +389,9 @@
 
   .name { color: var(--text-primary); font-weight: var(--fw-medium); }
 
+  /* The way to *Limits* reads as a link in both themes, as the overview's does. */
+  [data-hourly] a { color: var(--text-brand); }
+
   .run {
     padding: var(--sp-200);
     border: var(--bw-hairline) solid var(--border-subtle);
