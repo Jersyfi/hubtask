@@ -205,6 +205,7 @@ export type Container = components['schemas']['Container'];
 export type EffectiveStructure = components['schemas']['EffectiveStructure'];
 export type StructureSettings = components['schemas']['StructureSettings'];
 export type StructureChange = components['schemas']['StructureChange'];
+export type StructurePreview = components['schemas']['StructurePreview'];
 export type WorkspaceStructure = components['schemas']['WorkspaceStructure'];
 export type WorkspaceStructureChange = components['schemas']['WorkspaceStructureChange'];
 /**

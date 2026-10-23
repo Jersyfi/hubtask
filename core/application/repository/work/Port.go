@@ -464,6 +464,48 @@ type ItemBatch interface {
 // needs it.
 type ItemTypes interface {
 	TypesOf(ctx context.Context, ids []shared.ID) (map[shared.ID]work.ItemType, error)
+	// EntriesBelow answers the live entries under each entry among ids, grouped by the types met
+	// from just under it down to each one; an entry with nothing below is absent.
+	EntriesBelow(ctx context.Context, ids []shared.ID) ([]EntriesBelow, error)
+}
+
+// EntriesBelow is a number of live entries under one entry, every one of which has the types Seen
+// on its way down (its own included) and no other.
+type EntriesBelow struct {
+	Under   shared.ID
+	Seen    []work.ItemType
+	Entries int
+}
+
+// EntryShape is one live entry as a preview of a structure change counts it: where it sits, its
+// type, and the capabilities it holds a value for - never a value.
+type EntryShape struct {
+	ID           shared.ID
+	CollectionID shared.ID
+	Type         work.ItemType
+	Path         string
+	Holds        []work.Capability
+}
+
+// EntryShapes answers the live entries of collections, at most limit of them, ordered by
+// collection and depth. Its own interface for ItemTypes' reason: only the preview needs it.
+type EntryShapes interface {
+	ShapesIn(ctx context.Context, collectionIDs []shared.ID, limit int) ([]EntryShape, error)
+}
+
+// Flattening is one entry made a top-level entry of another type: Item as it is after, with
+// its old path and how far its depth moved, for the trashed entries still under it.
+type Flattening struct {
+	Item            work.WorkItem
+	OldPath         string
+	DepthDelta      int
+	ExpectedVersion int
+}
+
+// ItemFlattener writes a flattening (UC-WRK-24 check 6): the only write that changes an entry's
+// type, and so its own interface - a move never does.
+type ItemFlattener interface {
+	Flatten(ctx context.Context, flattening Flattening) error
 }
 
 type Items interface {

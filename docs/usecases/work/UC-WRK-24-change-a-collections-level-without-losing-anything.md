@@ -5,9 +5,9 @@ context: work
 actors: [PE-person, PE-owner, PE-admin, PE-agent, PE-scripter]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-04, P-08, P-11]
-state: partial
+state: verified
 tasks: [UX-29, UX-11]
-checked_by: [core/domain/model/work/StructureEntries_test.go, core/application/service/work/Hidden_test.go, core/application/service/work/EntryGate_test.go, core/application/service/work/EntryFieldWrites_test.go, core/application/service/work/EntrySetWrites_test.go, core/application/service/work/EntryCreate_test.go, core/application/service/work/EntryPlacement_test.go, core/application/service/work/EntryStamp_test.go, core/application/service/work/EntryCalendar_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/hidden_entries_test.go]
+checked_by: [core/domain/model/work/StructureEntries_test.go, core/domain/model/work/StructureNarrowing_test.go, core/application/service/work/PreviewContainerStructure_test.go, core/application/service/work/SetContainerStructure_test.go, core/application/service/work/StructureFlatten_test.go, core/application/service/work/Hidden_test.go, core/application/service/work/EntryGate_test.go, core/application/service/work/EntryFieldWrites_test.go, core/application/service/work/EntrySetWrites_test.go, core/application/service/work/EntryCreate_test.go, core/application/service/work/EntryPlacement_test.go, core/application/service/work/EntryStamp_test.go, core/application/service/work/EntryCalendar_test.go, apps/webapp/src/lib/data/replica.test.ts, test/integration/hidden_entries_test.go, apps/webapp/e2e/structure.test.mjs]
 ---
 
 # Change a collection's level without losing anything
@@ -35,13 +35,3 @@ The hub "Shopping" with "Wholesale" and "Supermarket" becomes the project "Summe
 
 * Switching never deletes an entry, a value, a comment or an attachment; deleting stays the lifecycle's use cases.
 * No automatic switching: Hubtask may say a collection uses more than its preset, never change it on its own.
-
-## Today
-
-* Check 1: not met — not built yet, tracked in milestone UX.
-* Check 2: not met — not built yet, tracked in milestone UX.
-* Check 4: not met — not built yet, tracked in milestone UX.
-* Check 5: not met — not built yet, tracked in milestone UX.
-* Check 6: not met — not built yet, tracked in milestone UX.
-* Check 7: not met — not built yet, tracked in milestone UX.
-* Check 8: not met — not built yet, tracked in milestone UX.

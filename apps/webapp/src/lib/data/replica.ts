@@ -68,6 +68,48 @@ export interface StructureShape {
 export interface EntryHidden {
   readonly level: boolean;
   readonly capabilities: string[];
+  /** How many live entries under a shown entry the collection hides; set by `marked`. */
+  readonly below?: number;
+}
+
+/** An entry as `belowOf` reads it: its type, its parent and whether it is live. */
+export interface HeldEntry {
+  readonly id: string;
+  readonly type: string;
+  readonly parent_id?: string | null;
+  readonly deleted_at?: string | null;
+  readonly archived_at?: string | null;
+}
+
+/**
+ * How many live entries under a shown entry the collection hides (UC-WRK-24 check 4): every one
+ * under it whose own level, or a level between, is not offered - the server's count
+ * (`EntryGate.countBelow`), held to the same table (`below` in `api/fixtures/hidden-entries.json`).
+ * Zero for an entry hidden itself; its whole subtree is hidden with it.
+ */
+export function belowOf(
+  entry: HeldEntry,
+  ancestors: readonly string[],
+  children: ReadonlyMap<string, readonly HeldEntry[]>,
+  structure: StructureShape,
+  types: readonly BoundType[],
+): number {
+  if (hiddenOf(entry.type, ancestors, structure, types).level) return 0;
+  const held = new Set(types.map((row) => row.type));
+  const levels = new Set((structure.levels ?? []).map((level) => level.type));
+  const hides = (type: string) => held.has(type) && !levels.has(type);
+  let count = 0;
+  const walk = (id: string, hidden: boolean, depth: number): void => {
+    if (depth > 16) return;
+    for (const child of children.get(id) ?? []) {
+      if (child.deleted_at || child.archived_at) continue;
+      const under = hidden || hides(child.type);
+      if (under) count += 1;
+      walk(child.id, under, depth + 1);
+    }
+  };
+  walk(entry.id, false, 0);
+  return count;
 }
 
 /**
@@ -134,6 +176,13 @@ async function marked(storage: Storage, rows: Document[]): Promise<Document[]> {
   const containers = new Map((await storage.all<StoredRecord<Document>>('containers')).map((record) => [record.id, record.document]));
   const items = new Map((await storage.all<StoredRecord<Document>>('items')).map((record) => [record.id, record.document]));
   const types = bound;
+  const children = new Map<string, HeldEntry[]>();
+  for (const [id, item] of items) {
+    if (typeof item.parent_id !== 'string' || typeof item.type !== 'string') continue;
+    const siblings = children.get(item.parent_id) ?? [];
+    siblings.push({ ...(item as Omit<HeldEntry, 'id'>), id: String(id) });
+    children.set(item.parent_id, siblings);
+  }
   return rows.map((row) => {
     const structure = structureOf(containers.get(String(row.collection_id)));
     if (!structure || typeof row.type !== 'string') return row;
@@ -141,7 +190,8 @@ async function marked(storage: Storage, rows: Document[]): Promise<Document[]> {
     for (let at = items.get(String(row.parent_id)); at && ancestors.length < 16; at = items.get(String(at.parent_id))) {
       if (typeof at.type === 'string') ancestors.push(at.type);
     }
-    return { ...row, hidden: hiddenOf(row.type, ancestors, structure, types) };
+    const below = belowOf({ id: String(row.id), type: row.type }, ancestors, children, structure, types);
+    return { ...row, hidden: { ...hiddenOf(row.type, ancestors, structure, types), below } };
   });
 }
 

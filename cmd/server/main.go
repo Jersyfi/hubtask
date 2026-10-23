@@ -894,6 +894,19 @@ func run() error {
 	// opposite directions - the same capability gate, the same collection check, the same tag -
 	// and wiring them separately would be two places to get one of thirteen fields wrong
 	// (work.ItemLabelWriter).
+	createLabel := work.CreateLabel{
+		Labels:     labels,
+		Containers: containers,
+		Authorizer: authorizer,
+		Events:     outbox,
+		Changes:    changes,
+		Audit:      auditSink,
+		UnitOfWork: unitOfWork,
+		Clock:      clockadapter.System{},
+		IDs:        ids,
+		HLC:        hybrid,
+		Text:       forms,
+	}
 	itemLabelWriter := work.ItemLabelWriter{
 		Gate:  entryGate,
 		Items: items, ItemLabels: itemLabels, Labels: labels, Containers: containers,
@@ -2099,6 +2112,15 @@ func run() error {
 		work.SetContainerStructure{
 			Writer: containerWriter, Structure: structures, Epochs: postgres.NewEpochRepository(),
 			Labels: labels,
+			Flatten: work.StructureFlattener{
+				Placement: placement, Labels: itemLabelWriter, NewLabels: createLabel, Shapes: items, Flat: items,
+			},
+		}.Descriptor(),
+		work.PreviewContainerStructure{
+			Set: work.SetContainerStructure{
+				Writer: containerWriter, Structure: structures, Labels: labels,
+			},
+			Shapes: items,
 		}.Descriptor(),
 		work.SetWorkspaceStructure{
 			Structure: structures, Authorizer: authorizer, Changes: changes,
@@ -2159,19 +2181,7 @@ func run() error {
 		work.UpdateBucket{Writer: bucketWriter}.Descriptor(),
 		work.ReorderBucket{Writer: bucketWriter}.Descriptor(),
 		work.DeleteBucket{Writer: bucketWriter}.Descriptor(),
-		work.CreateLabel{
-			Labels:     labels,
-			Containers: containers,
-			Authorizer: authorizer,
-			Events:     outbox,
-			Changes:    changes,
-			Audit:      auditSink,
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{},
-			IDs:        ids,
-			HLC:        hybrid,
-			Text:       forms,
-		}.Descriptor(),
+		createLabel.Descriptor(),
 		work.ListLabels{
 			Labels: labels, Containers: containers, Authorizer: authorizer, UnitOfWork: unitOfWork,
 		}.Descriptor(),

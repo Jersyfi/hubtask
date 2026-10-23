@@ -53,6 +53,7 @@ func Descriptors() []usecase.Descriptor {
 		work.RenameContainer{}.Descriptor(),
 		work.UpdateContainerPolicies{}.Descriptor(),
 		work.SetContainerStructure{}.Descriptor(),
+		work.PreviewContainerStructure{}.Descriptor(),
 		work.SetWorkspaceStructure{}.Descriptor(),
 		work.SavePreset{}.Descriptor(),
 		work.ChangePreset{}.Descriptor(),

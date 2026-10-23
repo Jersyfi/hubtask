@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"slices"
 	"strconv"
 	"time"
 
@@ -135,6 +136,141 @@ func (r ItemRepository) TypesOf(ctx context.Context, ids []shared.ID) (map[share
 		types[id] = work.ItemType(row.Type)
 	}
 	return types, nil
+}
+
+// Flatten makes an entry a top-level entry of another type, and moves the paths of the trashed
+// entries still under it along.
+func (r ItemRepository) Flatten(ctx context.Context, flattening repository.Flattening) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	item := flattening.Item
+	id, err := uuidOf(item.ID)
+	if err != nil {
+		return err
+	}
+	collection, err := uuidOf(item.CollectionID)
+	if err != nil {
+		return err
+	}
+	placed, err := queries.FlattenWorkItem(ctx, sqlc.FlattenWorkItemParams{
+		Type: sqlc.ItemType(item.Type), Path: item.Path, OrderKey: item.OrderKey,
+		UpdatedAt: timestampOf(item.UpdatedAt), ID: id,
+		//nolint:gosec // G115: a version is a row counter, bounded by the number of updates a row has had
+		ExpectedVersion: int32(flattening.ExpectedVersion),
+	})
+	if err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("flattening %s: %w", item.ID, err))
+	}
+	if err := versionConflictIfUntouched(placed, item.ID, flattening.ExpectedVersion); err != nil {
+		return err
+	}
+	if _, err := queries.MoveWorkItemSubtree(ctx, sqlc.MoveWorkItemSubtreeParams{
+		CollectionID: collection, NewPrefix: item.Path, OldPrefix: flattening.OldPath,
+		//nolint:gosec // G115: a depth delta is bounded by the profile's MaxDepth
+		DepthDelta: int32(flattening.DepthDelta),
+		UpdatedAt:  timestampOf(item.UpdatedAt),
+		ItemID:     id,
+	}); err != nil {
+		return shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("moving what lies under %s: %w", item.ID, err))
+	}
+	return nil
+}
+
+// EntriesBelow answers the live entries under each entry among ids, in one recursive statement.
+// Another tenant's entries are absent, by the predicate and row level security.
+func (r ItemRepository) EntriesBelow(ctx context.Context, ids []shared.ID) ([]repository.EntriesBelow, error) {
+	if len(ids) == 0 {
+		return []repository.EntriesBelow{}, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(ids)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.EntriesHiddenBelow(ctx, keys)
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("counting the entries below work items: %w", err))
+	}
+	groups := make([]repository.EntriesBelow, 0, len(rows))
+	for _, row := range rows {
+		under, err := idFrom(row.RootID)
+		if err != nil {
+			return nil, err
+		}
+		seen := make([]work.ItemType, 0, len(row.Seen))
+		for _, itemType := range row.Seen {
+			seen = append(seen, work.ItemType(itemType))
+		}
+		groups = append(groups, repository.EntriesBelow{Under: under, Seen: seen, Entries: int(row.Entries)})
+	}
+	return groups, nil
+}
+
+// ShapesIn answers up to limit live entries of the collections, with the capabilities each holds
+// a value for. Another tenant's collection is absent, by the predicate and row level security.
+func (r ItemRepository) ShapesIn(
+	ctx context.Context, collectionIDs []shared.ID, limit int,
+) ([]repository.EntryShape, error) {
+	if len(collectionIDs) == 0 || limit <= 0 {
+		return []repository.EntryShape{}, nil
+	}
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	keys, err := uuidsOf(collectionIDs)
+	if err != nil {
+		return nil, err
+	}
+	rows, err := queries.CollectionEntryShapes(ctx, sqlc.CollectionEntryShapesParams{
+		CollectionIds: keys, MaxRows: int32(min(limit, math.MaxInt32)),
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the shapes of work items: %w", err))
+	}
+	shapes := make([]repository.EntryShape, 0, len(rows))
+	for _, row := range rows {
+		id, err := idFrom(row.ID)
+		if err != nil {
+			return nil, err
+		}
+		collectionID, err := idFrom(row.CollectionID)
+		if err != nil {
+			return nil, err
+		}
+		holds := []work.Capability{}
+		for capability, held := range map[work.Capability]bool{
+			work.CapabilityDueDate: row.HasDueDate, work.CapabilityAssignment: row.HasAssignment,
+			work.CapabilityBucket: row.HasBucket, work.CapabilityNotes: row.HasNotes,
+			work.CapabilityCover: row.HasCover, work.CapabilityAmount: row.HasAmount,
+			work.CapabilityRecurrence: row.HasRecurrence, work.CapabilityCustomFields: row.HasCustomFields,
+			work.CapabilityLabels: row.HasLabels, work.CapabilityMembers: row.HasMembers,
+			work.CapabilityComments: row.HasComments, work.CapabilityAttachments: row.HasAttachments,
+			work.CapabilityReminder: row.HasReminder,
+		} {
+			if held {
+				holds = append(holds, capability)
+			}
+		}
+		slices.Sort(holds)
+		shapes = append(shapes, repository.EntryShape{
+			ID: id, CollectionID: collectionID, Type: work.ItemType(row.Type), Path: row.Path, Holds: holds,
+		})
+	}
+	return shapes, nil
 }
 
 // FindByCalendarUID returns the item a calendar client's UID names.

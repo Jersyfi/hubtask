@@ -88,6 +88,27 @@ func hiddenCatalogue(t *testing.T) *usecase.Registry {
 		}.Descriptor(),
 		work.SetContainerStructure{
 			Writer: writer, Structure: resolver, Epochs: postgres.NewEpochRepository(),
+			Flatten: work.StructureFlattener{
+				Placement: work.PlacementWriter{
+					Items: itemRepo(), Containers: containers, Profiles: profiles, Gate: gate,
+					Authorizer: authoriser, Events: outbox, Changes: changes, Audit: sink, Activity: journal,
+					UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+				},
+				Labels: work.ItemLabelWriter{
+					Items: itemRepo(), ItemLabels: itemLabelRepo(), Labels: labelRepo(), Containers: containers,
+					Profiles: profiles, Gate: gate, Authorizer: authoriser, Events: outbox, Changes: changes,
+					Audit: sink, Activity: journal, UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+				},
+				NewLabels: work.CreateLabel{
+					Labels: labelRepo(), Containers: containers, Authorizer: authoriser, Events: outbox,
+					Changes: changes, Audit: sink, UnitOfWork: unitOfWork, Clock: fixed, IDs: ids, HLC: hybrid,
+					Text: textadapter.Forms{},
+				},
+				Shapes: itemRepo(), Flat: itemRepo(),
+			},
+		}.Descriptor(),
+		work.PreviewContainerStructure{
+			Set: work.SetContainerStructure{Writer: writer, Structure: resolver}, Shapes: itemRepo(),
 		}.Descriptor(),
 		work.CreateWorkItem{
 			Items: itemRepo(), Containers: containers, Profiles: profiles, Gate: gate,
@@ -215,6 +236,12 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	// Tenant B, seeded through the repository with its own ranks: tenant A carries a narrowed TASK
 	// profile and tenant B's hub level a rank another test wrote, both in the shared database.
 	collection := collectionFor(ctx, t, tenantB, authorB).String()
+	// UC-WRK-24's story: the collection is a project first.
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "PROJECT",
+	}); err != nil {
+		t.Fatalf("making it a project: %v", err)
+	}
 
 	task, err := registry.Invoke(ctx, "CreateWorkItem", actor, usecase.Input{
 		"type": "TASK", "collection_id": collection, "title": "Summer party", "notes": "Budget 400",
@@ -290,6 +317,35 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	})
 	before := storedAbout(ctx, t, entries...)
 
+	// UC-WRK-24 check 2: the preview names what List would no longer show, and writes nothing.
+	preview, err := registry.Invoke(ctx, "PreviewContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	levels, _ := json.Marshal(preview["levels"])
+	fields, _ := json.Marshal(preview["fields"])
+	if preview["narrows"] != true ||
+		string(levels) != `[{"entries":1,"type":"WORK_PACKAGE"},{"entries":1,"type":"ACTIVITY"}]` {
+		t.Errorf("the preview named levels %s", levels)
+	}
+	for _, capability := range []string{"NOTES", "DUE_DATE", "ASSIGNMENT", "BUCKET", "COVER", "MEMBERS",
+		"ATTACHMENTS", "COMMENTS", "REMINDER", "RECURRENCE"} {
+		if !strings.Contains(string(fields), `{"capability":"`+capability+`","entries":1,"type":"TASK"}`) {
+			t.Errorf("the preview did not name %s: %s", capability, fields)
+		}
+	}
+	if previewed := storedAbout(ctx, t, entries...); previewed != before {
+		t.Fatalf("the preview changed what is stored")
+	}
+	// Another workspace previews nothing of it.
+	if _, err := registry.Invoke(ctx, "PreviewContainerStructure", hiddenActor(tenantA, authorA), usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("tenant A previewed tenant B's collection: %v", err)
+	}
+
 	// Narrow to List: nothing stored moves.
 	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
 		"container_id": collection, "preset": "LIST",
@@ -310,6 +366,10 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 		!slices.Contains(capabilities, "DUE_DATE") {
 		t.Errorf("the task is marked %v %v", level, capabilities)
 	}
+	// UC-WRK-24 check 4: the task says what List hides under it.
+	if below := read["hidden"].(map[string]any)["below"]; below != 2 {
+		t.Errorf("the task says %v entries hidden below it, want 2", below)
+	}
 	if read["notes"] != "Budget 400" || read["assignee_id"] != authorB.String() || read["due_at"] == nil {
 		t.Errorf("the read lost a hidden value: %v", read)
 	}
@@ -326,7 +386,7 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	// The REST answer carries the mark as the contract spells it.
 	fetched := restItem(ctx, t, registry, actor, http.MethodGet, "/items/"+taskID, "")
 	if fetched.Code != http.StatusOK || !strings.Contains(fetched.Body.String(), `"hidden":{`) ||
-		!strings.Contains(fetched.Body.String(), `"NOTES"`) {
+		!strings.Contains(fetched.Body.String(), `"NOTES"`) || !strings.Contains(fetched.Body.String(), `"below":2`) {
 		t.Errorf("REST read answered %d %s", fetched.Code, fetched.Body)
 	}
 
@@ -411,6 +471,30 @@ func TestNarrowingAndWideningKeepEveryValue(t *testing.T) {
 	if recorder.Code != http.StatusOK {
 		t.Errorf("widened, REST answered %d %s", recorder.Code, recorder.Body)
 	}
+
+	// UC-WRK-24 check 8: every switch is in the trail with who, when and from what to what.
+	rows, err := adminPool(ctx, t).Query(ctx, `SELECT actor_id::text, occurred_at IS NOT NULL, changes::text
+		FROM audit_log WHERE target_id::text = $1 AND action = 'container.structure_updated' ORDER BY seq`, collection)
+	if err != nil {
+		t.Fatalf("reading the trail: %v", err)
+	}
+	switches := []string{}
+	for rows.Next() {
+		var who, changes string
+		var when bool
+		if err := rows.Scan(&who, &when, &changes); err != nil {
+			t.Fatalf("reading the trail: %v", err)
+		}
+		if who != authorB.String() || !when {
+			t.Errorf("a switch was recorded as %s at %v", who, when)
+		}
+		switches = append(switches, changes)
+	}
+	rows.Close()
+	if len(switches) != 3 || !strings.Contains(switches[1], `"PROJECT"`) || !strings.Contains(switches[1], `"LIST"`) ||
+		!strings.Contains(switches[2], `"PROJECT"`) {
+		t.Errorf("the trail holds %d switches: %v", len(switches), switches)
+	}
 }
 
 // The cross-tenant negative: another workspace reads none of it, mark or not.
@@ -435,5 +519,97 @@ func TestAnotherWorkspaceReadsNoHiddenEntry(t *testing.T) {
 	_, err = registry.Invoke(ctx, "GetWorkItem", hiddenActor(tenantA, authorA), usecase.Input{"item_id": task.String("id")})
 	if !errors.Is(err, shared.ErrNotFound) {
 		t.Fatalf("tenant B read tenant A's entry: %v", err)
+	}
+}
+
+// UC-WRK-24 check 6: Flatten moves every entry the narrower structure hides to the top level as
+// its type, labels it with its former parent's title and records where it came from; switching
+// back does not undo it, and the preview counts it first.
+func TestFlatteningMovesWhatANarrowingHidesToTheTopLevel(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	registry := hiddenCatalogue(t)
+	actor := hiddenActor(tenantB, authorB)
+	collection := collectionFor(ctx, t, tenantB, authorB).String()
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "PROJECT",
+	}); err != nil {
+		t.Fatalf("making it a project: %v", err)
+	}
+	create := func(in usecase.Input) string {
+		t.Helper()
+		in["collection_id"] = collection
+		out, err := registry.Invoke(ctx, "CreateWorkItem", actor, in)
+		if err != nil {
+			t.Fatalf("creating %v: %v", in["title"], err)
+		}
+		return out.String("id")
+	}
+	task := create(usecase.Input{"type": "TASK", "title": "Summer party"})
+	pack := create(usecase.Input{"type": "WORK_PACKAGE", "parent_id": task, "title": "Drinks"})
+	step := create(usecase.Input{"type": "ACTIVITY", "parent_id": pack, "title": "Order ice"})
+
+	preview, err := registry.Invoke(ctx, "PreviewContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "LIST",
+	})
+	if err != nil {
+		t.Fatalf("previewing: %v", err)
+	}
+	if flatten, _ := json.Marshal(preview["flatten"]); string(flatten) != `{"entries":2}` {
+		t.Errorf("the preview says a flatten moves %s", flatten)
+	}
+
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "LIST", "narrowing": "FLATTEN",
+	}); err != nil {
+		t.Fatalf("flattening: %v", err)
+	}
+	if _, err := registry.Invoke(ctx, "SetContainerStructure", actor, usecase.Input{
+		"container_id": collection, "preset": "PROJECT",
+	}); err != nil {
+		t.Fatalf("switching back: %v", err)
+	}
+
+	type row struct {
+		Type, Label string
+		Parent      *string
+		Depth       int
+	}
+	rows, err := adminPool(ctx, t).Query(ctx, `SELECT wi.id::text, wi.type::text, wi.parent_id::text, wi.depth,
+			coalesce((SELECT string_agg(l.name, ',') FROM item_label il JOIN label l ON l.id = il.label_id
+			          WHERE il.item_id = wi.id), '')
+		FROM work_item wi WHERE wi.id::text = ANY($1)`, []string{task, pack, step})
+	if err != nil {
+		t.Fatalf("reading the entries: %v", err)
+	}
+	got := map[string]row{}
+	for rows.Next() {
+		var id string
+		var r row
+		if err := rows.Scan(&id, &r.Type, &r.Parent, &r.Depth, &r.Label); err != nil {
+			t.Fatalf("scanning: %v", err)
+		}
+		got[id] = r
+	}
+	rows.Close()
+	for id, want := range map[string]row{
+		task: {Type: "TASK", Depth: 1},
+		pack: {Type: "TASK", Depth: 1, Label: "Summer party"},
+		step: {Type: "TASK", Depth: 1, Label: "Drinks"},
+	} {
+		have := got[id]
+		if have.Type != want.Type || have.Parent != nil || have.Depth != want.Depth || have.Label != want.Label {
+			t.Errorf("%s is %+v after switching back, want %+v at the top level", id, have, want)
+		}
+	}
+
+	// Each moved entry's history says where it came from.
+	var from string
+	if err := adminPool(ctx, t).QueryRow(ctx, `SELECT change_set::text FROM activity_entry
+		WHERE item_id = $1 AND verb = 'item.moved'`, step).Scan(&from); err != nil {
+		t.Fatalf("the history of the moved activity: %v", err)
+	}
+	if !strings.Contains(from, pack) || !strings.Contains(from, "ACTIVITY") {
+		t.Errorf("the history records %s, want the former parent and type", from)
 	}
 }

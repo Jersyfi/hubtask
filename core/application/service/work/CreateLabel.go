@@ -114,44 +114,10 @@ func (h CreateLabel) Execute(
 		if err := collection.EnsureAcceptsItems(); err != nil {
 			return err
 		}
-
-		label, err := domain.NewLabel(domain.NewLabelInput{
-			ID:           h.IDs.NewID(),
-			TenantID:     actor.TenantID,
-			CollectionID: cmd.CollectionID,
-			Name:         cmd.Name,
-			ColorToken:   cmd.ColorToken,
-			Description:  cmd.Description,
-			Text:         h.Text,
-		})
+		label, err := h.insertWithin(ctx, actor, collection, cmd)
 		if err != nil {
 			return err
 		}
-
-		if err := h.Labels.Insert(ctx, label); err != nil {
-			return err
-		}
-
-		now := h.Clock.Now()
-		// One snapshot, two recipients. The event goes outwards as a public contract, the change
-		// log goes to synchronising clients (offline-sync.md §10) - but they describe the same
-		// state, and building it twice is how the two come to disagree.
-		announcement, err := event.NewLabelCreated(
-			h.IDs.NewID(), label, event.Actor{Kind: actor.Kind, ID: actor.AccountID},
-			now, event.Cause{})
-		if err != nil {
-			return err
-		}
-		if err := h.Events.Append(ctx, announcement); err != nil {
-			return err
-		}
-		if err := h.recordChange(ctx, label, collection, actor, announcement.Payload); err != nil {
-			return err
-		}
-		if err := h.recordAudit(ctx, label, actor, now); err != nil {
-			return err
-		}
-
 		created = label
 		return nil
 	})
@@ -159,6 +125,51 @@ func (h CreateLabel) Execute(
 		return domain.Label{}, err
 	}
 	return created, nil
+}
+
+// insertWithin creates the label inside the caller's transaction, with the records it owes: what
+// a flatten asks for its former parents' titles too, after its own permission question.
+func (h CreateLabel) insertWithin(
+	ctx context.Context, actor appshared.ActorContext, collection domain.Container, cmd CreateLabelCommand,
+) (domain.Label, error) {
+	label, err := domain.NewLabel(domain.NewLabelInput{
+		ID:           h.IDs.NewID(),
+		TenantID:     actor.TenantID,
+		CollectionID: cmd.CollectionID,
+		Name:         cmd.Name,
+		ColorToken:   cmd.ColorToken,
+		Description:  cmd.Description,
+		Text:         h.Text,
+	})
+	if err != nil {
+		return domain.Label{}, err
+	}
+
+	if err := h.Labels.Insert(ctx, label); err != nil {
+		return domain.Label{}, err
+	}
+
+	now := h.Clock.Now()
+	// One snapshot, two recipients. The event goes outwards as a public contract, the change
+	// log goes to synchronising clients (offline-sync.md §10) - but they describe the same
+	// state, and building it twice is how the two come to disagree.
+	announcement, err := event.NewLabelCreated(
+		h.IDs.NewID(), label, event.Actor{Kind: actor.Kind, ID: actor.AccountID},
+		now, event.Cause{})
+	if err != nil {
+		return domain.Label{}, err
+	}
+	if err := h.Events.Append(ctx, announcement); err != nil {
+		return domain.Label{}, err
+	}
+	if err := h.recordChange(ctx, label, collection, actor, announcement.Payload); err != nil {
+		return domain.Label{}, err
+	}
+	if err := h.recordAudit(ctx, label, actor, now); err != nil {
+		return domain.Label{}, err
+	}
+
+	return label, nil
 }
 
 // readCollection reads the collection outside the write transaction, because the permission check

@@ -1607,6 +1607,17 @@ class StructureChange(TypedDict, total=False):
     preset_id: str
     settings: "StructureSettings"
     reset: list["StructureSettingName"]
+    narrowing: Literal["HIDE", "FLATTEN"]
+
+class StructurePreview(TypedDict, total=False):
+    """What a change of structure would stop showing. Nothing it names is deleted by the change: hidden entries and values stay stored and come back when the structure offers them again. Trashed entries are not counted."""
+    flatten: Required[dict[str, Any]]
+    narrows: Required[bool]
+    levels: Required[list[dict[str, Any]]]
+    fields: Required[list[dict[str, Any]]]
+    views: Required[list[Literal["LIST_COLLAPSED", "LIST_EXPANDED", "KANBAN", "TIMELINE"]]]
+    automation: Required[list[str]]
+    keeping: Required[list[dict[str, Any]]]
 
 class WorkspaceStructureChange(TypedDict, total=False):
     """A change of the workspace's structure. Applied in this order: the preset, the settings, the resets; then the locks and the default preset."""
@@ -2217,6 +2228,7 @@ class EntryHidden(TypedDict, total=False):
     """What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again."""
     level: Required[bool]
     capabilities: Required[list[str]]
+    below: Required[int]
 
 class WorkItemCreate(TypedDict, total=False):
     type: Required["ItemType"]

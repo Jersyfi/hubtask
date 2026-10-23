@@ -376,6 +376,58 @@ FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id()
   AND wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
+-- name: EntriesHiddenBelow :many
+-- What a collection hides under each shown entry among ids (UC-WRK-24 check 4): every live entry
+-- below one, grouped by the types met from just under it down to it. Which of those types the
+-- collection hides is the domain's question (domain-model.md §2), so the statement needs no
+-- structure: a type met anywhere on the way hides the entry with it. Live means neither trashed
+-- nor archived, as a list shows them.
+WITH RECURSIVE below AS (
+  SELECT wi.parent_id AS root_id, wi.id, ARRAY[wi.type::text] AS seen
+  FROM work_item wi
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.parent_id = ANY(sqlc.arg('ids')::uuid[])
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+  UNION ALL
+  SELECT b.root_id, wi.id,
+    CASE WHEN wi.type::text = ANY(b.seen) THEN b.seen ELSE b.seen || wi.type::text END
+  FROM below b
+  JOIN work_item wi ON wi.parent_id = b.id
+  WHERE wi.tenant_id = current_tenant_id()
+    AND wi.deleted_at IS NULL
+    AND wi.archived_at IS NULL
+)
+SELECT b.root_id::uuid AS root_id, b.seen::text[] AS seen, count(*)::bigint AS entries
+FROM below b
+GROUP BY b.root_id, b.seen;
+
+-- name: CollectionEntryShapes :many
+-- What a preview of a structure change counts (UC-WRK-24 check 2): every live entry of the
+-- collections, its type and path, and whether it holds a value of each capability - never the
+-- value. Bounded by the caller; ordered so that a bound cuts the same entries every time.
+SELECT
+  wi.id, wi.collection_id, wi.type, wi.path,
+  (wi.due_at IS NOT NULL OR wi.start_at IS NOT NULL)::boolean AS has_due_date,
+  (wi.assignee_id IS NOT NULL)::boolean AS has_assignment,
+  (wi.bucket_id IS NOT NULL)::boolean AS has_bucket,
+  (coalesce(wi.notes, '') <> '')::boolean AS has_notes,
+  (wi.cover_kind IS NOT NULL)::boolean AS has_cover,
+  (wi.amount IS NOT NULL)::boolean AS has_amount,
+  (wi.recurrence_rule_id IS NOT NULL)::boolean AS has_recurrence,
+  (wi.custom_fields <> '{}'::jsonb)::boolean AS has_custom_fields,
+  EXISTS (SELECT 1 FROM item_label il WHERE il.item_id = wi.id)::boolean AS has_labels,
+  EXISTS (SELECT 1 FROM item_member im WHERE im.item_id = wi.id)::boolean AS has_members,
+  EXISTS (SELECT 1 FROM comment c WHERE c.item_id = wi.id AND c.deleted_at IS NULL)::boolean AS has_comments,
+  EXISTS (SELECT 1 FROM item_attachment ia WHERE ia.item_id = wi.id)::boolean AS has_attachments,
+  EXISTS (SELECT 1 FROM reminder r WHERE r.item_id = wi.id AND r.state = 'PENDING')::boolean AS has_reminder
+FROM work_item wi
+WHERE wi.tenant_id = current_tenant_id()
+  AND wi.collection_id = ANY(sqlc.arg('collection_ids')::uuid[])
+  AND wi.deleted_at IS NULL
+ORDER BY wi.collection_id, wi.depth, wi.id
+LIMIT sqlc.arg('max_rows');
+
 -- name: LastWorkItemOrderKey :one
 -- The highest rank among the siblings of a new item: same collection, same parent. A NULL parent
 -- is the level directly under the collection, which is why the comparison is IS NOT DISTINCT FROM
@@ -713,6 +765,24 @@ UPDATE work_item SET
   updated_at            = sqlc.arg('updated_at'),
   version               = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version');
+
+-- name: FlattenWorkItem :execrows
+-- Makes an entry a top-level entry of another type (UC-WRK-24 check 6): the one statement that
+-- changes an entry's type, which a move never does. The parent goes, the path and the depth are
+-- the top level's, the rank is the caller's; under the optimistic lock every write to the row
+-- takes. Whatever still lies under it - only trashed entries, since a flatten moves the deepest
+-- first - follows through MoveWorkItemSubtree.
+UPDATE work_item SET
+  type       = sqlc.arg('type'),
+  parent_id  = NULL,
+  path       = sqlc.arg('path'),
+  depth      = 1,
+  order_key  = sqlc.arg('order_key'),
+  updated_at = sqlc.arg('updated_at'),
+  version    = version + 1
+WHERE tenant_id = current_tenant_id()
+  AND id = sqlc.arg('id')::uuid
+  AND version = sqlc.arg('expected_version');
 
 -- name: MoveWorkItemSubtree :execrows
 -- Rewrites the materialised path, the depth and the collection of an item and everything below it, in one

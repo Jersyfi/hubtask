@@ -321,3 +321,17 @@ func TestADeletedLabelRefusesEveryChange(t *testing.T) {
 	_, _, err = deleted.Updated(work.LabelAttributes{Name: pointerTo("Later")}, text.Composing{})
 	assertDetail(t, err, shared.ErrConflict, "labels.deleted")
 }
+
+func TestALabelNameFromATitleIsOneLineAndNotTooLong(t *testing.T) {
+	long := strings.Repeat("ä", work.MaxStructureNameLength+5)
+	for _, tc := range []struct{ title, want string }{
+		{"Drinks", "Drinks"},
+		{"  Drinks\nand food\t", "Drinks and food"},
+		{long, strings.Repeat("ä", work.MaxStructureNameLength)},
+		{"\n", ""},
+	} {
+		if got := work.LabelNameFrom(tc.title); got != tc.want {
+			t.Errorf("LabelNameFrom(%q) = %q, want %q", tc.title, got, tc.want)
+		}
+	}
+}

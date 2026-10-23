@@ -1,5 +1,5 @@
 {
-  "$comment": "One table, two implementations of what a collection hides of an entry (domain-model.md §2, 'Narrowing hides, it never deletes'). The Go domain (core/domain/model/work/StructureEntries.go) decides it for every read and refuses the writes it names; the web app (apps/webapp/src/lib/data/replica.ts) derives the same mark for what it answers from the replica. `bound` is what GET /meta/capabilities answers as item_types; `structure` is a container's structure in force, as `structure.settings` carries its levels and fields; `ancestors` are the types above the entry, nearest first; `hidden` is WorkItem.hidden.",
+  "$comment": "One table, two implementations of what a collection hides of an entry (domain-model.md §2, 'Narrowing hides, it never deletes'). The Go domain (core/domain/model/work/StructureEntries.go) decides it for every read and refuses the writes it names; the web app (apps/webapp/src/lib/data/replica.ts) derives the same mark for what it answers from the replica. `bound` is what GET /meta/capabilities answers as item_types; `structure` is a container's structure in force, as `structure.settings` carries its levels and fields; `ancestors` are the types above the entry, nearest first; `hidden` is WorkItem.hidden. `below` holds a tree of entries (`parent` null for a task, `trashed` for one in the trash) under several structures; its `below` is WorkItem.hidden.below of each entry, an entry not named counting none.",
   "bound": [
     {
       "type": "TASK",
@@ -146,6 +146,60 @@
       "type": "WORK_PACKAGE",
       "ancestors": ["TASK"],
       "hidden": { "level": true, "capabilities": ["DUE_DATE", "REMINDER", "ASSIGNMENT", "MEMBERS", "NOTES", "LABELS", "COMMENTS", "ATTACHMENTS", "CUSTOM_FIELDS"] }
+    }
+  ],
+  "below": [
+    {
+      "name": "a collection offering every level hides nothing below",
+      "levels": ["TASK", "WORK_PACKAGE", "ACTIVITY"],
+      "entries": [
+        { "id": "task", "type": "TASK", "parent": null },
+        { "id": "pack", "type": "WORK_PACKAGE", "parent": "task" },
+        { "id": "step", "type": "ACTIVITY", "parent": "pack" },
+        { "id": "call", "type": "ACTIVITY", "parent": "task" },
+        { "id": "gone", "type": "ACTIVITY", "parent": "task", "trashed": true },
+        { "id": "lone", "type": "TASK", "parent": null }
+      ],
+      "below": {}
+    },
+    {
+      "name": "tasks alone hide the work package, its activity and the activity under the task, never the trashed one",
+      "levels": ["TASK"],
+      "entries": [
+        { "id": "task", "type": "TASK", "parent": null },
+        { "id": "pack", "type": "WORK_PACKAGE", "parent": "task" },
+        { "id": "step", "type": "ACTIVITY", "parent": "pack" },
+        { "id": "call", "type": "ACTIVITY", "parent": "task" },
+        { "id": "gone", "type": "ACTIVITY", "parent": "task", "trashed": true },
+        { "id": "lone", "type": "TASK", "parent": null }
+      ],
+      "below": { "task": 3 }
+    },
+    {
+      "name": "tasks and activities hide the work package and the activity under it; the hidden work package counts none",
+      "levels": ["TASK", "ACTIVITY"],
+      "entries": [
+        { "id": "task", "type": "TASK", "parent": null },
+        { "id": "pack", "type": "WORK_PACKAGE", "parent": "task" },
+        { "id": "step", "type": "ACTIVITY", "parent": "pack" },
+        { "id": "call", "type": "ACTIVITY", "parent": "task" },
+        { "id": "gone", "type": "ACTIVITY", "parent": "task", "trashed": true },
+        { "id": "lone", "type": "TASK", "parent": null }
+      ],
+      "below": { "task": 2 }
+    },
+    {
+      "name": "tasks and work packages hide every activity, under the task and under the shown work package",
+      "levels": ["TASK", "WORK_PACKAGE"],
+      "entries": [
+        { "id": "task", "type": "TASK", "parent": null },
+        { "id": "pack", "type": "WORK_PACKAGE", "parent": "task" },
+        { "id": "step", "type": "ACTIVITY", "parent": "pack" },
+        { "id": "call", "type": "ACTIVITY", "parent": "task" },
+        { "id": "gone", "type": "ACTIVITY", "parent": "task", "trashed": true },
+        { "id": "lone", "type": "TASK", "parent": null }
+      ],
+      "below": { "task": 2, "pack": 1 }
     }
   ]
 }

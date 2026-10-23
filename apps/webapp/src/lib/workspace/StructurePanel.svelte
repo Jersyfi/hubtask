@@ -18,7 +18,7 @@
   import { untrack, type Snippet } from 'svelte';
 
   import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack, Tabs } from '@hubtask/design-system/components';
-  import type { Container, StructureSettings } from '@hubtask/sync-engine';
+  import type { Container, StructureChange, StructurePreview, StructureSettings } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
@@ -29,6 +29,7 @@
   import { levelWords } from '../data/levels.ts';
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
+  import NarrowingDialog from './NarrowingDialog.svelte';
   import SavePresetDialog from './SavePresetDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { viewport } from '../frame/viewport.svelte.ts';
@@ -340,6 +341,13 @@
     isViewMissing = false;
   }
 
+  /** A change that would stop showing something, waiting for the person's choice (UC-WRK-24 check 2). */
+  let narrowing = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+
+  /**
+   * Saves a change that offers as much or more at once (check 1); one that would stop showing
+   * something is previewed first and waits for *Hide* or *Flatten*.
+   */
   async function save() {
     if (isSaving || !change) return;
     isFieldMissing = !isComplete(figure, values.counts?.field_key ?? undefined);
@@ -348,16 +356,40 @@
     isSaving = true;
     failure = undefined;
     try {
-      const answered = await containers.setStructure(container.id, change, container.version);
-      if (answered.structure) draft = startDraft(answered.structure);
-      const kept = answered.kept_by_lock ?? [];
-      announcer.say(t('app.structure.saved_announced'));
-      if (kept.length > 0) toast.show({ text: t('app.structure.kept_by_lock', { count: String(kept.length) }) });
+      const preview = await containers.previewStructure(container.id, change);
+      if (preview.narrows) {
+        narrowing = { change, preview };
+        return;
+      }
+      await write(change);
     } catch (error) {
       failure = renderProblem(error as never, messages);
     } finally {
       isSaving = false;
     }
+  }
+
+  async function confirmNarrowing(choice: 'HIDE' | 'FLATTEN') {
+    if (!narrowing || isSaving) return;
+    isSaving = true;
+    failure = undefined;
+    try {
+      await write({ ...narrowing.change, narrowing: choice });
+      narrowing = undefined;
+    } catch (error) {
+      narrowing = undefined;
+      failure = renderProblem(error as never, messages);
+    } finally {
+      isSaving = false;
+    }
+  }
+
+  async function write(change: StructureChange) {
+    const answered = await containers.setStructure(container.id, change, container.version);
+    if (answered.structure) draft = startDraft(answered.structure);
+    const kept = answered.kept_by_lock ?? [];
+    announcer.say(t('app.structure.saved_announced'));
+    if (kept.length > 0) toast.show({ text: t('app.structure.kept_by_lock', { count: String(kept.length) }) });
   }
 
   const titleOf = (setting: SettingName): string => t(`app.structure.setting.${setting}`);
@@ -571,6 +603,16 @@
     {@render settingsBody()}
   {/if}
 </Drawer>
+
+{#if narrowing}
+  <NarrowingDialog
+    preview={narrowing.preview}
+    settings={structure?.settings}
+    {isSaving}
+    onconfirm={(choice) => void confirmNarrowing(choice)}
+    oncancel={() => (narrowing = undefined)}
+  />
+{/if}
 
 <SavePresetDialog bind:isOpen={isSavingPreset} containerId={container.id} {mayShapeWorkspace} />
 

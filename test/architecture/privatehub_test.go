@@ -45,6 +45,7 @@ var privateHubExemptions = map[string]string{
 	"GetRecurrence":                asksOnItsPath,
 	"GetTemplate":                  asksOnItsPath,
 	"ListActivity":                 asksOnItsPath,
+	"PreviewContainerStructure":    asksOnItsPath,
 	"ReadKudos":                    asksOnItsPath,
 	"ListBuckets":                  asksOnItsPath,
 	"ListCalendarFeeds":            asksOnItsPath,
