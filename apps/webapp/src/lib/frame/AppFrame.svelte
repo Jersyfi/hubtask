@@ -22,7 +22,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, IconButton, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, IconButton, Logo, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -354,7 +354,7 @@
   </VisuallyHidden>
 
   <!-- Signed out there is nowhere to go but the token screen, so the bar offers nothing that
-       would land there under another name: no toggle, no account, the wordmark alone. -->
+       would land there under another name: no toggle, no account, the mark alone. -->
   <!-- On a phone the bar carries the page's title where the page told the frame one
        (`page.svelte.ts`); the head then reads its heading rather than drawing it. -->
   <AppBar
@@ -368,7 +368,7 @@
   >
     {#snippet brand()}
       <!-- A name rather than a message: the product is called Hubtask in every language. -->
-      <a class="wordmark" href="/">Hubtask</a>
+      <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
     {/snippet}
     {#snippet search()}
       <!-- Only where there is room for it. On `compact` the bar is a title and two controls, and
@@ -558,10 +558,8 @@
     color: var(--text-primary);
   }
 
-  .wordmark {
-    font-family: var(--font-display);
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
+  .home {
+    display: inline-flex;
     color: var(--text-primary);
     text-decoration: none;
   }

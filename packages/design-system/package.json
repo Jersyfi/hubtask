@@ -13,6 +13,7 @@
     "./fonts.css": "./dist/fonts.css",
     "./fonts-scripts.css": "./dist/fonts-scripts.css",
     "./fonts/*": "./dist/fonts/*",
+    "./mark/*": "./dist/mark/*",
     "./tokens.json": "./tokens/tokens.json"
   },
   "files": [
