@@ -24,7 +24,7 @@
 
   import { announcer } from '../announce.svelte.ts';
   import { celebration } from '../celebration.svelte.ts';
-  import { acceptsChild, placementOf } from '../data/capability.svelte.ts';
+  import { offerIn } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { items } from '../data/items.svelte.ts';
   import { anchorFor } from '../data/rank.ts';
@@ -109,17 +109,20 @@
     const index = siblings.findIndex((each) => each.id === item.id);
     if (index < 0) return undefined;
     const above = aboveOf(item, siblings);
-    const inside = above ? acceptsChild(above.type, item.type, Math.max(0, (above.depth ?? 1) - 1)) : undefined;
+    // The collection's answers, as the list's own menu gives them: its structure narrows what may
+    // sit where, and names its levels (UC-WRK-23 checks 4 and 6).
+    const offer = offerIn(containers.find(item.collection_id)?.structure?.settings);
+    const inside = above ? offer.acceptsChild(above.type, item.type, Math.max(0, (above.depth ?? 1) - 1)) : undefined;
     let outReason: string | undefined;
     if (!item.parent_id) outReason = t('app.move.already_top');
     else {
       const out = outOf(item);
       const destination = out === undefined ? undefined : out.parentId === null ? null : items.find(out.parentId);
-      const verdict = placementOf(
+      const verdict = offer.placementOf(
         item.type,
         destination === null ? null : destination?.depth === undefined ? undefined : { type: destination.type, depth: destination.depth },
       );
-      outReason = verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
+      outReason = verdict.status === 'refused' ? offer.refusal(verdict) : undefined;
     }
     return {
       index,
@@ -128,7 +131,7 @@
       insideReason: !above
         ? t('app.move.nothing_above')
         : inside?.status === 'refused'
-          ? t(inside.code, inside.params)
+          ? offer.refusal(inside)
           : inside?.status === 'permitted'
             ? undefined
             : t('app.move.moving'),

@@ -608,12 +608,16 @@
 
   /**
    * What the control at the end of the top level says: "Add an entry" in a collection; in a
-   * subtree the name of what it adds, in the catalogue's words for the manifest's type, because
-   * "Add a work package" under a task says which level the reader is adding to.
+   * subtree the name of what it adds, because "Add a work package" under a task says which level
+   * the reader is adding to. A collection whose one top level carries a name a person gave it says
+   * that name - "Add item" - since "entry" would be the one place the level went unnamed
+   * (UC-WRK-23 check 6).
    */
-  const addLabel = $derived(
-    root && topTypes().length === 1 ? t('app.entries.add_typed', { type: topTypes()[0] ?? '' }) : t('app.entries.add'),
-  );
+  const addLabel = $derived.by(() => {
+    if (topTypes().length !== 1) return t('app.entries.add');
+    const words = offer.level(topTypes()[0] ?? '');
+    return root || words.name !== undefined ? words.add : t('app.entries.add');
+  });
 
   /** The language a new entry is written in: the person's own, preselected, and changeable. */
   let draftLanguage = $state('');
@@ -654,7 +658,7 @@
    */
   const addControls = $derived(
     root && topTypes().length > 1
-      ? topTypes().map((type) => ({ type, label: t('app.entries.add_typed', { type }) }))
+      ? topTypes().map((type) => ({ type, label: offer.level(type).add }))
       : [{ type: undefined, label: addLabel }],
   );
 
@@ -829,7 +833,7 @@
     const verdict = acceptsChild(target.type, row.item.type, row.depth);
     if (verdict.status === 'permitted') return undefined;
     // The server's own code where there is one, so a prediction and a refusal read the same way.
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : t('app.move.moving');
+    return verdict.status === 'refused' ? offer.refusal(verdict) : t('app.move.moving');
   }
 
   /** The entry a row moves out to: its parent's parent, or `null` for the collection's top level. */
@@ -861,7 +865,7 @@
       row.item.type,
       above === null ? null : above?.depth === undefined ? undefined : { type: above.type, depth: above.depth },
     );
-    return verdict.status === 'refused' ? t(verdict.code, verdict.params) : undefined;
+    return verdict.status === 'refused' ? offer.refusal(verdict) : undefined;
   }
 
   /** The row's menu: the one every surface draws (UC-WRK-28 check 1), with this level's reasons. */
@@ -1477,7 +1481,7 @@
             <IconButton
               icon="plus"
               label={childTypes(row.item.type).length === 1
-                ? t('app.entries.add_typed_inside', { type: childTypes(row.item.type)[0] ?? '', title: row.item.title })
+                ? offer.level(childTypes(row.item.type)[0] ?? '').addInside(row.item.title)
                 : t('app.entries.add_child', { title: row.item.title })}
               size="sm"
               onclick={() => startAdding(row.item.id)}
@@ -1568,7 +1572,7 @@
         label={t('app.entries.type_label')}
         size="sm"
         bind:value={draftType}
-        options={offeredTypes.map((type) => ({ value: type, label: t('app.item.type_name', { type }) }))}
+        options={offeredTypes.map((type) => ({ value: type, label: offer.level(type).label }))}
       />
     {/if}
     <!-- The language is what a quick capture rarely needs, so it waits under *More*

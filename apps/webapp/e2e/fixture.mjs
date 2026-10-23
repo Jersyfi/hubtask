@@ -503,7 +503,7 @@ export const AMOUNT_FIELD = { id: '01a0e2e0-0000-7000-8000-000000000070', collec
 
 /**
  * How much structure a collection has (UC-WRK-23): a hub of its own with a *List* collection - one
- * level, no dates, people, labels or notes, the list alone - and a *Project* whose views and task
+ * level, which its owner named "item", no dates, people, labels or notes, the list alone - and a *Project* whose views and task
  * dates the workspace locked (Mara Lind set the locks). Shown where a walk asks for it
  * (`showStructures`) or the preview is started with `HUBTASK_FIXTURE_STRUCTURES=1`.
  */
@@ -538,7 +538,9 @@ export const PRESETS = Object.entries(PRESET_SETTINGS).map(([key, settings]) => 
 export const SHAPES = {
   list: {
     id: '01a0e2e0-0000-7000-8000-000000000082', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Shopping', order_key: 'a0', version: 1,
-    structure: { preset: 'LIST', settings: PRESET_SETTINGS.LIST, sources: own(), locks: {}, counts_clipped: null },
+    structure: {
+      preset: 'LIST', settings: { ...PRESET_SETTINGS.LIST, levels: [{ type: 'TASK', name: 'item' }] }, sources: own(), locks: {}, counts_clipped: null,
+    },
   },
   locked: {
     id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: SHAPE_HUB.id, name: 'Client project', order_key: 'a1', version: 1,

@@ -768,6 +768,12 @@
    * what a hub is for - a collection - with import beside it; the collection's is an entry, with
    * the filter beside it and the templates as the verb's own list.
    */
+  /** "Add an entry", or "Add item" where the one top level carries a name a person gave it (UC-WRK-23 check 6). */
+  const addLabel = $derived.by(() => {
+    const tops = offer.rootTypes();
+    const only = tops.length === 1 ? offer.level(tops[0] ?? '') : undefined;
+    return only?.name !== undefined ? only.add : t('app.entries.add');
+  });
   const headPrimary = $derived<PageAction | undefined>(
     container === undefined
       ? undefined
@@ -781,7 +787,7 @@
           })
         : mayCreateHere
           ? {
-              label: t('app.entries.add'),
+              label: addLabel,
               icon: 'plus',
               onclick: addFromHead,
               disabledReason: addDisabledReason,
