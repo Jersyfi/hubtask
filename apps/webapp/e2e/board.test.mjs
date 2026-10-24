@@ -220,3 +220,21 @@ test('chromium: a board opened at its own address draws its cards, though the ma
   assert.ok(await page.locator(`[data-card="${ITEMS[0].id}"]`).isVisible(), 'the board drew empty columns');
   assert.deepEqual(failures, []);
 });
+
+test('chromium: a card says what it holds - its parts, comments and files - and a title alone takes no more room', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await board(browser);
+  t.after(close);
+
+  const full = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  const text = (await full.innerText()).replace(/\s+/g, ' ');
+  assert.match(text, /1\/3/u, `the parts are not counted: ${text}`);
+  assert.equal(await full.getByText('1 of 3 parts done').count(), 1, 'the parts are not said in words');
+  assert.equal(await full.getByText('2 comments').count(), 1, 'the comments are not said');
+  assert.equal(await full.getByText('1 attachment').count(), 1, 'the file is not said');
+  // A card holding nothing draws no footer line at all.
+  const bare = page.locator(`[data-card="${ITEMS[2].id}"]`);
+  assert.equal(await bare.locator('.footer:visible').count(), 0, 'an empty footer line on a card that holds nothing');
+  assert.deepEqual(failures, []);
+});

@@ -6249,5 +6249,9 @@
   "app.query.sort_named": "Sortiert nach {field}",
   "app.query.sort_menu": "Wie die Einträge geordnet sind",
   "app.capture.mode_needs_collection": "Vorlagen und Importe gehören zu einer Sammlung: wähle oben einen Ort oder tippe @ und ihren Namen.",
-  "app.capture.mode_import_not_yours": "Ein Import ändert, wie der Ort aufgebaut ist – das darf nur, wer ihn gestalten darf."
+  "app.capture.mode_import_not_yours": "Ein Import ändert, wie der Ort aufgebaut ist – das darf nur, wer ihn gestalten darf.",
+  "app.board.more_labels": "{count, plural, one {# weiteres Label} other {# weitere Labels}}",
+  "app.board.parts_done": "{done} von {count} Teilen erledigt",
+  "app.board.comments": "{count, plural, one {# Kommentar} other {# Kommentare}}",
+  "app.board.attachments": "{count, plural, one {# Anhang} other {# Anhänge}}"
 }

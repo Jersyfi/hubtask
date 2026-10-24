@@ -26,12 +26,12 @@
     EmptyState,
     ErrorState,
     IconButton,
-    Inline,
     Icon,
     LabelChip,
     Menu,
     Skeleton,
     ViewSwitcher,
+    VisuallyHidden,
     WorkItemCard,
     rankIntent,
     rankTarget,
@@ -862,18 +862,33 @@
                   coverImageUrl={media.coverUrl(coverImageIdOf(card.cover), Date.now()) ?? null}
                   coverAlt=""
                 >
+                  <!-- The card's zones (concept round 2, §3): labels above the title, at most two and
+                       "+n"; one footer line with the date and the counts, the people at its end. -->
+                  {#snippet labels()}
+                    {@const carried = (card.label_ids ?? []).map((labelId) => available.find((each) => each.id === labelId)).filter((label) => label !== undefined)}
+                    {#each carried.slice(0, 2) as label (label.id)}
+                      <LabelChip name={label.name} colorToken={label.color_token} />
+                    {/each}
+                    {#if carried.length > 2}
+                      <span class="more-labels" title={carried.slice(2).map((label) => label.name).join(', ')}>
+                        <span aria-hidden="true">+{carried.length - 2}</span><VisuallyHidden>{t('app.board.more_labels', { count: String(carried.length - 2) })}</VisuallyHidden>
+                      </span>
+                    {/if}
+                  {/snippet}
                   {#snippet footer()}
-                    <Inline gap="050">
-                      <!-- The same two facts the list row carries, in the space a card has. -->
-                      <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
-                      <DueMark item={card} />
-                      {#each (card.label_ids ?? []) as labelId (labelId)}
-                        {@const label = available.find((each) => each.id === labelId)}
-                        {#if label}
-                          <LabelChip name={label.name} colorToken={label.color_token} />
-                        {/if}
-                      {/each}
-                    </Inline>
+                    <DueMark item={card} />
+                    {#if card.counts && card.counts.parts > 0}
+                      <span class="count"><Icon name="square-check" size="sm" /><span aria-hidden="true">{card.counts.parts_done}/{card.counts.parts}</span><VisuallyHidden>{t('app.board.parts_done', { done: String(card.counts.parts_done), count: String(card.counts.parts) })}</VisuallyHidden></span>
+                    {/if}
+                    {#if card.counts && card.counts.comments > 0}
+                      <span class="count"><Icon name="message-square" size="sm" /><span aria-hidden="true">{card.counts.comments}</span><VisuallyHidden>{t('app.board.comments', { count: String(card.counts.comments) })}</VisuallyHidden></span>
+                    {/if}
+                    {#if card.counts && card.counts.attachments > 0}
+                      <span class="count"><Icon name="paperclip" size="sm" /><span aria-hidden="true">{card.counts.attachments}</span><VisuallyHidden>{t('app.board.attachments', { count: String(card.counts.attachments) })}</VisuallyHidden></span>
+                    {/if}
+                  {/snippet}
+                  {#snippet people()}
+                    <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
                   {/snippet}
                 </WorkItemCard>
                 <!-- In the card's corner rather than a line of its own, shown on hover and focus where
@@ -974,6 +989,19 @@
   }
 
   .zone { display: flex; }
+
+  /* A count on the card's footer: its mark and its number, the number said in words to a reader. */
+  .count { display: inline-flex; align-items: center; gap: var(--sp-025); font-variant-numeric: tabular-nums; }
+  .more-labels {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sp-025) var(--sp-050);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface-sunken);
+    color: var(--text-secondary);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+  }
 
   /* The lane of cards nobody has put in a column is not a column: dashed and open, as the
      concept draws it, so it reads as a place to sort out rather than a stage of the work. */

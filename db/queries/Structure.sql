@@ -333,3 +333,26 @@ JOIN label l ON l.id = il.label_id
 WHERE il.item_id = ANY(sqlc.arg('item_ids')::uuid[])
   AND l.deleted_at IS NULL
 ORDER BY il.item_id, l.name COLLATE hubtask_name, l.id;
+
+-- name: TallyItems :many
+-- What a card and a row say about an entry beside its own fields, for a page of entries in one
+-- statement: what `expand=counts` needs. Its parts (the direct children) and how many are done,
+-- what people wrote on it, and what is attached to it.
+--
+-- Only what a reader would find: parts in the trash are left out, comments the server filed
+-- (`kind = 'SYSTEM'`) and deleted ones are not counted, and an attachment whose object is gone is
+-- not one. Every count is a correlated subquery over an index the table already has
+-- (`wi_parent_idx`, `comment_item_idx`, the attachment's primary key), so a page of fifty costs
+-- fifty index probes per count and no scan.
+SELECT
+  w.id AS item_id,
+  (SELECT count(*) FROM work_item c
+     WHERE c.tenant_id = w.tenant_id AND c.parent_id = w.id AND c.deleted_at IS NULL)::integer AS parts,
+  (SELECT count(*) FROM work_item c
+     WHERE c.tenant_id = w.tenant_id AND c.parent_id = w.id AND c.deleted_at IS NULL AND c.is_completed)::integer AS parts_done,
+  (SELECT count(*) FROM comment m
+     WHERE m.tenant_id = w.tenant_id AND m.item_id = w.id AND m.deleted_at IS NULL AND m.kind = 'USER')::integer AS comments,
+  (SELECT count(*) FROM item_attachment a JOIN media_object o ON o.id = a.media_id
+     WHERE a.item_id = w.id AND o.deleted_at IS NULL)::integer AS attachments
+FROM work_item w
+WHERE w.id = ANY(sqlc.arg('item_ids')::uuid[]);

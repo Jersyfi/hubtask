@@ -2257,7 +2257,7 @@ func run() error {
 		}.Descriptor(),
 		work.QueryItems{
 			Gate:  entryGate,
-			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three

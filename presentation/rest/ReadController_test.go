@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -392,5 +393,20 @@ func TestTheLabelsAreInTheResponseOnlyWhenAsked(t *testing.T) {
 	}
 	if _, present := without["label_ids"]; present {
 		t.Error("label_ids came back although nobody asked")
+	}
+}
+
+// `counts` is the query's: a single read refuses it by name, as any other relation it does not serve.
+func TestASingleReadRefusesCounts(t *testing.T) {
+	registry := &catalogue{out: readItem()}
+	response := get(t, registry, "/items/"+sampleItemID+"?expand=counts")
+	if response.Code != http.StatusUnprocessableEntity && response.Code != http.StatusBadRequest {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	if !strings.Contains(response.Body.String(), "items.expand_not_supported") {
+		t.Errorf("the refusal does not name its reason: %s", response.Body)
+	}
+	if registry.name != "" {
+		t.Errorf("the handler ran %q", registry.name)
 	}
 }

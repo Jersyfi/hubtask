@@ -18106,6 +18106,20 @@ components:
             `capability_not_supported`. Nothing sums it or reads a unit out of it.
         notes: { type: [string, "null"] }
         completion: { $ref: "#/components/schemas/Completion" }
+        counts:
+          type: object
+          readOnly: true
+          description: >
+            What the entry holds besides its own fields, as a card and a row count it: its parts
+            (direct children, those in the trash left out) and how many of them are done, the
+            comments people wrote on it (not the ones the server filed), and its attachments. Only
+            with `expand: ["counts"]` on `POST /items:query`; absent otherwise.
+          required: [parts, parts_done, comments, attachments]
+          properties:
+            parts: { type: integer, minimum: 0 }
+            parts_done: { type: integer, minimum: 0 }
+            comments: { type: integer, minimum: 0 }
+            attachments: { type: integer, minimum: 0 }
         completion_count:
           type: integer
           minimum: 0
@@ -18467,8 +18481,9 @@ components:
         expand:
           type: array
           description: >
-            Relations to include, as on `GET /items`. `labels` is served; anything else is
-            `items.expand_not_supported`.
+            Relations to include, as on `GET /items`. `labels` and `counts` are served (`counts`
+            here only: what each entry holds, counted for the whole page in one query); anything
+            else is `items.expand_not_supported`.
           items: { type: string }
         page:
           type: object

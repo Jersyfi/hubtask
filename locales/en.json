@@ -6252,5 +6252,9 @@
   "app.query.sort_named": "Sorted by {field}",
   "app.query.sort_menu": "How the entries are ordered",
   "app.capture.mode_needs_collection": "Templates and imports belong to a collection: choose one with the place above or type @ and its name.",
-  "app.capture.mode_import_not_yours": "Importing changes how the place is set up, which only someone who may shape it can do."
+  "app.capture.mode_import_not_yours": "Importing changes how the place is set up, which only someone who may shape it can do.",
+  "app.board.more_labels": "{count, plural, one {# more label} other {# more labels}}",
+  "app.board.parts_done": "{done} of {count} parts done",
+  "app.board.comments": "{count, plural, one {# comment} other {# comments}}",
+  "app.board.attachments": "{count, plural, one {# attachment} other {# attachments}}"
 }

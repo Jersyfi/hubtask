@@ -64,7 +64,8 @@ const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-000000000
  */
 const inDays = (days) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 export const ITEMS = [
-  item('31', 'Order the tiles for the splashback and the floor', { label_ids: [LABELS[0].id], labels: [LABELS[0]], bucket_id: BUCKETS[0].id }),
+  // What `expand: ["counts"]` answers for it: three parts, one done, two comments, a file.
+  item('31', 'Order the tiles for the splashback and the floor', { label_ids: [LABELS[0].id], labels: [LABELS[0]], bucket_id: BUCKETS[0].id, counts: { parts: 3, parts_done: 1, comments: 2, attachments: 1 } }),
   item('32', 'Book the electrician', { label_ids: [LABELS[1].id], labels: [LABELS[1]], bucket_id: BUCKETS[1].id, due_at: `${inDays(2)}T09:00:00Z` }),
   item('33', 'Measure the worktop', { bucket_id: BUCKETS[0].id }),
   item('34', 'Choose the paint', { bucket_id: null }),

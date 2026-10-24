@@ -81,7 +81,7 @@ function level(
       // a list a person can drag has to be in the order they dragged it into.
       sort: query.sort ?? MANUAL,
       ...(query.filter ? { filter: query.filter } : {}),
-      expand: ['labels'],
+      expand: ['labels', 'counts'],
       page: { size: 200 },
     },
   };
@@ -112,7 +112,7 @@ function board(containerId: string, query: ItemsQuery): { path: string; body: un
       ...(query.group ? { group_by: query.group } : {}),
       sort: query.sort ?? MANUAL,
       ...(query.filter ? { filter: query.filter } : {}),
-      expand: ['labels'],
+      expand: ['labels', 'counts'],
       count: 'exact',
     },
   };

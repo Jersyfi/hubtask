@@ -221,3 +221,63 @@ func decodeQueryResult(t *testing.T, response *httptest.ResponseRecorder) map[st
 	}
 	return body
 }
+
+// `expand=counts` is served by the query: the flag reaches the use case, and what it counted is
+// rendered on each row of `data` and of every group.
+func TestAQueryServesCountsAndRendersThem(t *testing.T) {
+	row := readItem()
+	row["counts"] = usecase.Output{"parts": 3, "parts_done": 1, "comments": 4, "attachments": 2}
+	grouped := readItem()
+	grouped["counts"] = usecase.Output{"parts": 0, "parts_done": 0, "comments": 0, "attachments": 0}
+	registry := &catalogue{out: queryResult(
+		[]usecase.Output{row},
+		[]usecase.Output{{"key": nil, "count": nil, "data": []usecase.Output{grouped}, "page": map[string]any{"next_cursor": nil, "has_more": false}}},
+		nil,
+	)}
+
+	response := query(t, registry, `{"scope": {"container_id": "`+sampleContainerID+`"}, "expand": ["labels", "counts"]}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	if registry.in["expand_counts"] != true || registry.in["expand_labels"] != true {
+		t.Errorf("the expansions arrived as %v / %v", registry.in["expand_labels"], registry.in["expand_counts"])
+	}
+
+	var body struct {
+		Data []struct {
+			Counts *struct{ Parts, PartsDone, Comments, Attachments int } `json:"counts"`
+		} `json:"data"`
+		Groups []struct {
+			Data []struct {
+				Counts map[string]int `json:"counts"`
+			} `json:"data"`
+		} `json:"groups"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decoding: %v", err)
+	}
+	if len(body.Data) != 1 || body.Data[0].Counts == nil || body.Data[0].Counts.Parts != 3 || body.Data[0].Counts.Comments != 4 {
+		t.Errorf("the row's counts are %s", response.Body)
+	}
+	if !strings.Contains(response.Body.String(), `"parts_done":1`) {
+		t.Errorf("parts_done is not rendered under its contract name: %s", response.Body)
+	}
+	if len(body.Groups) != 1 || body.Groups[0].Data[0].Counts == nil || body.Groups[0].Data[0].Counts["attachments"] != 0 {
+		t.Errorf("a grouped row has no counts, though none is an answer: %s", response.Body)
+	}
+}
+
+// Not asked, not drawn: absent is "not asked for", which is a different answer from zeros.
+func TestAQueryWithoutCountsLeavesThemOut(t *testing.T) {
+	registry := &catalogue{out: queryResult([]usecase.Output{readItem()}, nil, nil)}
+	response := query(t, registry, `{"scope": {"container_id": "`+sampleContainerID+`"}}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("status %d: %s", response.Code, response.Body)
+	}
+	if registry.in["expand_counts"] != false {
+		t.Errorf("expand_counts is %v", registry.in["expand_counts"])
+	}
+	if strings.Contains(response.Body.String(), `"counts"`) {
+		t.Errorf("counts were rendered unasked: %s", response.Body)
+	}
+}

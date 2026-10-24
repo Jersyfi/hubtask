@@ -36,6 +36,9 @@ const QueryItemsName = "QueryItems"
 type QueryItems struct {
 	Items      repository.Items
 	ItemLabels repository.ItemLabels
+	// Tallies counts what each entry holds, for `expand=counts`. Absent where the use case is
+	// composed into something that never asks (an export, a view's preview).
+	Tallies    repository.ItemTallies
 	Containers repository.Containers
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
@@ -307,6 +310,12 @@ func (h QueryItems) Descriptor() usecase.Descriptor {
 				Description: "Includes the labels each entry carries, read for the whole result in " +
 					"one query. Omitted leaves the field out of the answer entirely.",
 			},
+			{
+				Name: "expand_counts", Kind: usecase.KindBool,
+				Description: "Includes what each entry holds - its parts and how many are done, its " +
+					"comments, its attachments - counted for the whole result in one query. " +
+					"Omitted leaves the field out of the answer entirely.",
+			},
 		},
 		Audit: usecase.AuditDeclaration{
 			Action: ItemReadAction, TargetType: itemTarget,
@@ -338,7 +347,67 @@ func (h QueryItems) invoke(
 	if err != nil {
 		return nil, err
 	}
-	return queryOutput(result, spec, carried, marks), nil
+	tallies, err := tallyOf(ctx, h.UnitOfWork, h.Tallies, actor, in.Bool("expand_counts"), everyItem(result))
+	if err != nil {
+		return nil, err
+	}
+	return withCounts(queryOutput(result, spec, carried, marks), tallies), nil
+}
+
+// tallyOf counts what a page of entries holds, or nothing when the caller did not ask - read after
+// the permission check, as the labels are, so a refusal pays for no second query.
+func tallyOf(
+	ctx context.Context, uow persistence.UnitOfWork, tallies repository.ItemTallies,
+	actor appshared.ActorContext, expand bool, items []domain.WorkItem,
+) (map[shared.ID]repository.ItemTally, error) {
+	if !expand || tallies == nil || len(items) == 0 {
+		return nil, nil
+	}
+	ids := make([]shared.ID, 0, len(items))
+	for _, item := range items {
+		ids = append(ids, item.ID)
+	}
+	var counted map[shared.ID]repository.ItemTally
+	err := uow.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		var err error
+		counted, err = tallies.TallyFor(ctx, ids)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return counted, nil
+}
+
+// withCounts puts each row's counts into the answer - zeros where it holds nothing, because the
+// caller asked and none is the answer - in `data` and in every group alike.
+func withCounts(out usecase.Output, tallies map[shared.ID]repository.ItemTally) usecase.Output {
+	if tallies == nil {
+		return out
+	}
+	stamp := func(rows []usecase.Output) {
+		for _, row := range rows {
+			id, _ := row["id"].(string)
+			tally := tallies[shared.ID(id)]
+			row["counts"] = usecase.Output{
+				"parts":       tally.Parts,
+				"parts_done":  tally.PartsDone,
+				"comments":    tally.Comments,
+				"attachments": tally.Attachments,
+			}
+		}
+	}
+	if rows, ok := out["data"].([]usecase.Output); ok {
+		stamp(rows)
+	}
+	if groups, ok := out["groups"].([]usecase.Output); ok {
+		for _, group := range groups {
+			if rows, ok := group["data"].([]usecase.Output); ok {
+				stamp(rows)
+			}
+		}
+	}
+	return out
 }
 
 // specOf turns what a channel sent into the specification the domain validated.

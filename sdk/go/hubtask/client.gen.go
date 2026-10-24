@@ -8431,7 +8431,7 @@ type ItemQuery struct {
 	// Count `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
 	Count *ItemQueryCount `json:"count,omitempty"`
 
-	// Expand Relations to include, as on `GET /items`. `labels` is served; anything else is `items.expand_not_supported`.
+	// Expand Relations to include, as on `GET /items`. `labels` and `counts` are served (`counts` here only: what each entry holds, counted for the whole page in one query); anything else is `items.expand_not_supported`.
 	Expand *[]string `json:"expand,omitempty"`
 
 	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -12328,15 +12328,23 @@ type WorkItem struct {
 	CompletionCount *int `json:"completion_count,omitempty"`
 
 	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.
-	ContentLanguage *string                 `json:"content_language,omitempty"`
-	Cover           *Cover                  `json:"cover,omitempty"`
-	CreatedAt       *time.Time              `json:"created_at,omitempty"`
-	CreatedBy       *openapi_types.UUID     `json:"created_by,omitempty"`
-	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
-	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
-	Depth           *int                    `json:"depth,omitempty"`
-	DueAt           *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+
+	// Counts What the entry holds besides its own fields, as a card and a row count it: its parts (direct children, those in the trash left out) and how many of them are done, the comments people wrote on it (not the ones the server filed), and its attachments. Only with `expand: ["counts"]` on `POST /items:query`; absent otherwise.
+	Counts *struct {
+		Attachments int `json:"attachments"`
+		Comments    int `json:"comments"`
+		Parts       int `json:"parts"`
+		PartsDone   int `json:"parts_done"`
+	} `json:"counts,omitempty"`
+	Cover        *Cover                  `json:"cover,omitempty"`
+	CreatedAt    *time.Time              `json:"created_at,omitempty"`
+	CreatedBy    *openapi_types.UUID     `json:"created_by,omitempty"`
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+	DeletedAt    *time.Time              `json:"deleted_at,omitempty"`
+	Depth        *int                    `json:"depth,omitempty"`
+	DueAt        *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
 
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`

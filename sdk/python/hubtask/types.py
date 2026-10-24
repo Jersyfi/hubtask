@@ -2225,6 +2225,7 @@ class WorkItem(TypedDict, total=False):
     amount: str | None
     notes: str | None
     completion: Required["Completion"]
+    counts: dict[str, Any]
     completion_count: int
     bucket_id: str | None
     order_key: str

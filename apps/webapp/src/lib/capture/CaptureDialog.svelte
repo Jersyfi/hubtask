@@ -681,6 +681,30 @@
       void submit();
     }}
   >
+    <!-- The ways of adding first, as one segmented switch under the title (concept round 2, §5):
+         the way is chosen before anything is written - several lines change the field, a
+         template and a file replace it. *One entry* is chosen, so a quick capture costs nothing. -->
+    <div class="modes" role="tablist" aria-label={t('app.capture.modes')} tabindex="-1" onkeydown={modeKey}>
+      {#each modes as each (each)}
+        <button
+          type="button"
+          class="mode"
+          role="tab"
+          id={`${listId}-tab-${each}`}
+          data-mode={each}
+          aria-selected={mode === each}
+          aria-controls={`${listId}-mode`}
+          tabindex={mode === each ? 0 : -1}
+          aria-disabled={modeReason(each) ? 'true' : undefined}
+          aria-describedby={modeReason(each) ? `${listId}-why-${each}` : undefined}
+          title={modeReason(each)}
+          onclick={() => {
+            if (!modeReason(each)) chooseMode(each);
+          }}
+        >{t(`app.capture.mode_${each}`)}{#if modeReason(each)}<span class="why" id={`${listId}-why-${each}`}>{modeReason(each)}</span>{/if}</button>
+      {/each}
+    </div>
+
     <!-- Where it goes, as pills at the top rather than a sentence under the field: the place, the
          entry it goes under, the level - each one press to change. -->
     <div class="where" role="group" aria-label={t('app.capture.where_group')}>
@@ -862,27 +886,6 @@
     {/if}
     </div>
 
-    <!-- The ways of adding, as tabs of this one dialog: one entry, several lines, a template, a file. -->
-    <div class="modes" role="tablist" aria-label={t('app.capture.modes')} tabindex="-1" onkeydown={modeKey}>
-      {#each modes as each (each)}
-        <button
-          type="button"
-          class="mode"
-          role="tab"
-          id={`${listId}-tab-${each}`}
-          data-mode={each}
-          aria-selected={mode === each}
-          aria-controls={`${listId}-mode`}
-          tabindex={mode === each ? 0 : -1}
-          aria-disabled={modeReason(each) ? 'true' : undefined}
-          aria-describedby={modeReason(each) ? `${listId}-why-${each}` : undefined}
-          title={modeReason(each)}
-          onclick={() => {
-            if (!modeReason(each)) chooseMode(each);
-          }}
-        >{t(`app.capture.mode_${each}`)}{#if modeReason(each)}<span class="why" id={`${listId}-why-${each}`}>{modeReason(each)}</span>{/if}</button>
-      {/each}
-    </div>
     {#if mode === 'one' || mode === 'lines'}
       <div class="actions">
         <span class="keep"><Checkbox density="sm" label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>
@@ -1026,30 +1029,36 @@
   /* The modes as tabs with an underline, the chosen one marked by it. */
   .modes {
     display: flex;
-    flex-wrap: wrap;
-    gap: var(--sp-050);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    padding: var(--sp-025);
+    border-radius: var(--r-md);
+    background: var(--bg-recess);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--border-subtle);
   }
 
   .mode {
     position: relative;
-    margin-block-end: calc(var(--bw-hairline) * -1);
-    padding: var(--sp-100) var(--sp-150);
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-050) var(--sp-100);
     border: 0;
-    border-block-end: var(--bw-ring) solid transparent;
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--text-secondary);
     font: inherit;
-    font-size: var(--fs-100);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     cursor: pointer;
   }
 
-  .mode:hover { color: var(--text-primary); }
+  .mode:hover:not([aria-disabled='true']) { color: var(--text-primary); }
   /* A way not open here: drawn, quieter, its reason said to a screen reader and shown on hover. */
   .mode[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
   .why { position: absolute; inline-size: var(--sp-025); block-size: var(--sp-025); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
-  .mode[aria-selected='true'] { border-block-end-color: var(--accent-primary); color: var(--text-primary); font-weight: var(--fw-semibold); }
+  .mode[aria-selected='true'] { background: var(--bg-surface); color: var(--text-primary); font-weight: var(--fw-semibold); box-shadow: var(--shadow-raised); }
 
   /* The footer: keep capturing said quietly, the one button at the end at the small size. */
   .actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }

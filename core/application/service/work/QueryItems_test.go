@@ -400,3 +400,35 @@ func TestQueryItemsRefusesADocumentOfTheWrongShape(t *testing.T) {
 		}
 	}
 }
+
+// What was counted goes onto every row, in `data` and in each group; a row the count did not answer
+// for gets zeros, because the caller asked and none is the answer. Not asked, nothing is added.
+func TestCountsAreStampedOnEveryRowAndZeroWhereNothingIsHeld(t *testing.T) {
+	held := shared.ID("0192f000-0000-7000-8000-0000000000a1")
+	empty := shared.ID("0192f000-0000-7000-8000-0000000000a2")
+	out := usecase.Output{
+		"data": []usecase.Output{{"id": held.String()}},
+		"groups": []usecase.Output{
+			{"data": []usecase.Output{{"id": empty.String()}}},
+		},
+	}
+
+	withCounts(out, map[shared.ID]repository.ItemTally{held: {Parts: 3, PartsDone: 1, Comments: 4, Attachments: 2}})
+
+	row := out["data"].([]usecase.Output)[0]
+	counts, ok := row["counts"].(usecase.Output)
+	if !ok || counts["parts"] != 3 || counts["parts_done"] != 1 || counts["comments"] != 4 || counts["attachments"] != 2 {
+		t.Errorf("the counted row reads %v", row["counts"])
+	}
+	grouped := out["groups"].([]usecase.Output)[0]["data"].([]usecase.Output)[0]
+	zero, ok := grouped["counts"].(usecase.Output)
+	if !ok || zero["parts"] != 0 || zero["comments"] != 0 {
+		t.Errorf("a row holding nothing reads %v", grouped["counts"])
+	}
+
+	unasked := usecase.Output{"data": []usecase.Output{{"id": held.String()}}}
+	withCounts(unasked, nil)
+	if _, present := unasked["data"].([]usecase.Output)[0]["counts"]; present {
+		t.Error("counts were added though nobody asked")
+	}
+}
