@@ -23,7 +23,8 @@ export type Act =
   | { readonly kind: 'bulk-trash'; readonly itemIds: readonly string[] }
   | { readonly kind: 'bulk-label-removed'; readonly itemIds: readonly string[]; readonly labelId: string }
   | { readonly kind: 'captured'; readonly itemIds: readonly string[]; readonly place: string }
-  | { readonly kind: 'jumbled'; readonly entryId: string };
+  | { readonly kind: 'jumbled'; readonly entryId: string }
+  | { readonly kind: 'place-archived'; readonly containerId: string; readonly name: string };
 
 /** What the message says about the act, as a code and its parameters. */
 export function sentenceOf(act: Act): { readonly code: string; readonly params: Record<string, string | number> } {
@@ -44,6 +45,8 @@ export function sentenceOf(act: Act): { readonly code: string; readonly params: 
       return { code: 'app.capture.added', params: { count: String(act.itemIds.length), place: act.place } };
     case 'jumbled':
       return { code: 'app.capture.jumbled', params: {} };
+    case 'place-archived':
+      return { code: 'app.undo.archived', params: { title: act.name } };
   }
 }
 

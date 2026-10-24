@@ -15,6 +15,7 @@ import { ancestorsFirst, sentenceOf, takenBackCode, type Act } from './undo.ts';
 
 import { engine } from '../data/engine.ts';
 import { items } from '../data/items.svelte.ts';
+import { containers } from '../data/containers.svelte.ts';
 import { jumble } from '../data/jumble.svelte.ts';
 import { labels } from '../data/labels.svelte.ts';
 import { toast } from '../frame/toasts.svelte.ts';
@@ -39,6 +40,9 @@ async function takeBack(act: Act): Promise<void> {
       return;
     case 'jumbled':
       await jumble.dismiss(act.entryId);
+      return;
+    case 'place-archived':
+      await containers.setArchived(act.containerId, false, key);
       return;
     case 'captured':
       if (act.itemIds.length === 1) {

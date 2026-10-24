@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import AddRow from './AddRow.svelte';
   // The collection as a board: one grouped query, one column per bucket.
   //
   // It is not a list fetched and then sorted in the browser. `group_by` is what turns the read into
@@ -852,9 +853,7 @@
             <!-- The column's own door to capture: pointed at this column, so an entry lands where it
                  is added (design-system.md §11.8). The same field as everywhere else. -->
             {#if mayCreate && !isReadOnly && isBucketBoard}
-              <Button size="sm" tone="subtle" icon="plus" data-opener="add-entry" onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })}>
-                {t('app.entries.add')}
-              </Button>
+              <AddRow label={t('app.entries.add')} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
             {/if}
           </BucketColumn>
         </div>

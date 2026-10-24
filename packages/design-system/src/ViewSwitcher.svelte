@@ -129,25 +129,26 @@
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: var(--sp-050);
-    padding: var(--sp-050);
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-lg);
-    /* Rule 1: recessed, because it is a child element of the toolbar it sits in. */
+    gap: var(--sp-025);
+    /* The concept's segmented control: a recessed track (rule 1) with a small inset, the chosen
+       segment raised out of it. */
+    padding: var(--sp-025);
+    border-radius: var(--r-md);
     background: var(--bg-surface-sunken);
   }
 
   .view {
     display: inline-flex;
     align-items: center;
-    gap: var(--density-row-gap);
-    padding: var(--density-row-block) var(--sp-150);
+    gap: var(--sp-050);
+    padding: var(--sp-050) var(--sp-150);
     border: var(--bw-hairline) solid transparent;
-    border-radius: var(--r-md);
+    border-radius: var(--r-sm);
     background: transparent;
     color: var(--text-secondary);
     font: inherit;
-    font-size: var(--fs-100);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
     cursor: pointer;
   }
 
@@ -156,10 +157,11 @@
   /* Rule 3: the chosen view is not told apart by a tint. It carries the surface *and* the border,
      so the choice reads in greyscale and to a reader who does not perceive the accent. */
   .view[aria-checked='true'] {
-    border-color: var(--border-default);
+    border-color: var(--border-subtle);
     background: var(--bg-surface);
+    box-shadow: var(--shadow-raised);
     color: var(--text-primary);
-    font-weight: var(--fw-medium);
+    font-weight: var(--fw-semibold);
   }
 
   /* Rule 5. With roving focus the ring is the only thing that says which view the arrows are on. */

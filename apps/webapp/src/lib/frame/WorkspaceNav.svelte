@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type MenuItem, type RowMenu } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type RowMenu } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -36,6 +36,10 @@
   import { KEEPING, primary } from '../navigation.ts';
   import { commands } from '../palette/commands.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import { archivalOf } from '../data/containers.ts';
+  import { workspace } from '../data/workspace.svelte.ts';
+  import { placeMenu } from '../workspace/placeMenu.ts';
+  import { ownsHub, privacyAction } from '../workspace/privacy.ts';
 
   interface Props {
     /**
@@ -128,6 +132,19 @@
     });
   });
 
+  // Every hub's level is read once the tree is drawn, not only an opened one's: a hub with no
+  // collections then shows no twist from the start, instead of one that opens nothing.
+  const hubIds = $derived(containers.hubs.map((hub) => hub.id).join(','));
+  $effect(() => {
+    const ids = hubIds === '' ? [] : hubIds.split(',');
+    return untrack(() => {
+      const stops = ids.map((hubId) => containers.openLevel(hubId));
+      return () => {
+        for (const stop of stops) stop();
+      };
+    });
+  });
+
   // The hub the reader is inside is opened for them. Arriving at a collection by deep link and
   // finding its own hub collapsed would make the sidebar disagree with the address bar.
   $effect(() => {
@@ -169,14 +186,30 @@
     const container = containers.find(id);
     if (!container || isRail) return undefined;
     const hubId = container.type === 'HUB' ? container.id : container.parent_id;
-    if (!hubId || !mayRankIn(hubId)) return undefined;
-    const items: MenuItem[] = [
-      { id: 'edit', label: t('app.workspace.edit'), icon: 'pencil' },
-      ...(container.type === 'COLLECTION' ? [{ id: 'move', label: t('app.move.to_hub'), icon: 'arrow-right-left' as const }] : []),
-      { id: 'settings', label: t('app.settings.title'), icon: 'settings' },
-      { id: 'archive', label: t('app.workspace.archive'), icon: 'archive', hasSeparatorBefore: true },
-      { id: 'trash', label: t('app.workspace.trash'), icon: 'trash', isDestructive: true, hasSeparatorBefore: true },
-    ];
+    if (!hubId) return undefined;
+    const path = container.type === 'HUB' ? { hubId } : { hubId, collectionId: container.id };
+    const role = people.roleOf(path, actor.account?.id, roleOrder()) ?? undefined;
+    const workspaceRole = people.along({}).find((membership) => membership.account_id === actor.account?.id && membership.scope_type === 'TENANT')?.role;
+    // The page's own menu, item for item (`placeMenu`): the same builder, the same answers.
+    const items = placeMenu(
+      {
+        type: container.type === 'HUB' ? 'HUB' : 'COLLECTION',
+        mayShape: holds(role, 'STRUCTURE').status === 'permitted',
+        mayDelete: holds(role, 'DELETE_CONTAINER').status === 'permitted',
+        archival: archivalOf(container),
+        privacy:
+          container.type === 'HUB'
+            ? privacyAction({
+                isPrivate: container.private === true,
+                ownsHub: ownsHub(people.along(path), actor.account?.id, container.id),
+                mayCreateHubs: holds(workspaceRole as string | undefined, 'STRUCTURE').status === 'permitted',
+                isOffered: workspace.workspace?.private_hubs_offered === true,
+              })
+            : undefined,
+      },
+      (code) => t(code),
+    );
+    if (items.length === 0) return undefined;
     return {
       label: t('app.nav.row_actions', { name: container.name }),
       items,

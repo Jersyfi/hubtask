@@ -3708,9 +3708,9 @@
   "app.query.add": "Add a condition",
   "app.query.remove": "Remove this condition",
   "app.query.none_filterable": "This installation reports no field that can be filtered on.",
-  "app.query.show": "Filter and sort",
+  "app.query.show": "Filter",
   "app.query.hide": "Hide the filter",
-  "app.query.filter_count": "Filter and sort ({count})",
+  "app.query.filter_count": "Filter ({count})",
   "app.query.sort_by": "Order by",
   "app.query.sort_manual": "The order you arranged",
   "app.query.direction": "Direction",
@@ -6241,5 +6241,13 @@
   "app.sync.state.refused": "{count, plural, one {# change not accepted} other {# changes not accepted}}",
   "app.sync.state.conflict": "{count, plural, one {A conflict in # entry} other {A conflict in # entries}}",
   "app.sync.retry": "Try again",
-  "app.sync.open": "Open the entry"
+  "app.sync.open": "Open the entry",
+  "app.place.settings": "Settings…",
+  "app.place.position": "Change position…",
+  "app.place.position_title": "Position of {name}",
+  "app.place.position_order": "The order in this level",
+  "app.place.position_done": "Done",
+  "app.query.sort": "Sort",
+  "app.query.sort_named": "Sorted by {field}",
+  "app.query.sort_menu": "How the entries are ordered"
 }

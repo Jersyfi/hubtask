@@ -220,7 +220,7 @@
         <span class="menu menu-full">
           <Menu label={menu.label} items={menu.items} placement={{ side: 'block-end', align: 'end' }} onselect={menu.onselect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu.label} tone="secondary" data-opener={isFolded ? undefined : menu.opener} {...props} />
+              <IconButton icon="ellipsis" label={menu.label} size="sm" data-opener={isFolded ? undefined : menu.opener} {...props} />
             {/snippet}
           </Menu>
         </span>
@@ -229,7 +229,7 @@
         <span class="menu menu-folded">
           <Menu label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} items={foldedItems} placement={{ side: 'block-end', align: 'end' }} onselect={onFoldedSelect}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} tone="secondary" data-opener={isFolded ? menu?.opener : undefined} {...props} />
+              <IconButton icon="ellipsis" label={menu?.label ?? secondary[0]?.label ?? primary?.menu?.label ?? ''} size="sm" data-opener={isFolded ? menu?.opener : undefined} {...props} />
             {/snippet}
           </Menu>
         </span>

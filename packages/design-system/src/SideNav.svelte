@@ -383,6 +383,14 @@
         aria-current={row.node.id === current ? 'page' : undefined}
         aria-keyshortcuts={isMovable(row) ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
         data-dragging={drag?.id === row.node.id ? '' : undefined}
+        style:--depth={row.depth}
+        onpointerdown={(event) => {
+          // Where a pointer hovers, the row itself is what is carried - a press that travels, as a
+          // card on the board (design-system.md §11.9); its menu and its twist keep their own press.
+          if (event.pointerType !== 'mouse' || !isMovable(row)) return;
+          if ((event.target as Element).closest('.more, .twist')) return;
+          beginDrag(event, index);
+        }}
         data-drop={dropTarget === row.node.id ? '' : undefined}
         style:--drag-offset={drag?.id === row.node.id ? `${drag.offset}px` : undefined}
         tabindex={index === focused ? 0 : -1}
@@ -413,7 +421,7 @@
           {/if}
         </span>
         {#if !isRail}
-          <span class="label" style:--depth={row.depth}>{row.node.label}</span>
+          <span class="label">{row.node.label}</span>
           {@const menu = rowMenu?.(row.node.id)}
           <!-- The figure and the place's menu share one cell at the end: the figure is drawn, and
                where the pointer or the focus is the menu takes its place, so a row with a menu wraps
@@ -444,9 +452,9 @@
               {/if}
             </span>
           {/if}
-          <!-- The grip: what a pointer drags by. Hidden from the accessibility tree, because the
-               keys on the row are the same command, and a press on it that does not travel is the
-               row's own click. -->
+          <!-- The grip, on a touch screen only: there a press that moves scrolls the column, so a
+               finger carries a row by this. Hidden from the accessibility tree, because the keys on
+               the row are the same command. -->
           {#if isMovable(row)}
             <span class="grip" data-grip aria-hidden="true" onpointerdown={(event) => beginDrag(event, index)}>
               <Icon name="grip-vertical" size="sm" />
@@ -475,11 +483,11 @@
             >
               <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
             </button>
-          {:else}
+          {:else if row.isBranch}
+            <!-- Only a row that opens reserves the twist's room: a leaf's figure and menu reach the
+                 row's end rather than stopping a twist's width short of it. -->
             <span class="twist" aria-hidden="true">
-              {#if row.isBranch}
-                <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
-              {/if}
+              <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
             </span>
           {/if}
         {/if}
@@ -537,12 +545,14 @@
     font-weight: var(--fw-semibold);
   }
 
+  /* A level in is the whole row in - the mark with the words - so a collection reads as its hub's
+     (the concept's tree); the rail keeps every mark in one column. */
   .row {
     display: flex;
     align-items: center;
     gap: var(--density-row-gap);
     padding-block: var(--density-row-block);
-    padding-inline: var(--sp-100);
+    padding-inline: calc(var(--sp-100) + var(--depth, 0) * var(--sp-300)) var(--sp-100);
     border-radius: var(--r-md);
     color: var(--text-secondary);
     font-size: var(--fs-100);
@@ -637,7 +647,6 @@
   .label {
     flex: 1;
     min-width: 0;
-    padding-inline-start: calc(var(--depth) * var(--sp-200));
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -672,21 +681,9 @@
     touch-action: none;
   }
 
-  /* Where a pointer hovers, the grip stands in the gutter before the row, as on a list's rows, so
-     it takes no width from the label: a row with a grip wraps exactly where one without does. */
+  /* Where a pointer hovers the row itself is carried, so no grip is drawn. */
   @media (hover: hover) {
-    .row:has(.grip) { position: relative; }
-
-    .row .grip {
-      position: absolute;
-      inset-inline-start: calc(-1 * var(--sp-150));
-      opacity: 0;
-      transition: opacity var(--motion-state-duration) var(--motion-state-easing);
-    }
-
-    .row:hover .grip,
-    .row:focus-within .grip,
-    .row[data-dragging] .grip { opacity: 1; }
+    .row .grip { display: none; }
 
     .row .more {
       opacity: 0;
@@ -723,21 +720,24 @@
 
   .more { display: inline-flex; }
 
+  /* The place's menu: a target as wide as the twist and the row's height, in the secondary ink so
+     it reads on the current row's tint, and raised under the pointer so it stands off that tint. */
   .more-trigger {
     display: inline-grid;
     place-items: center;
-    inline-size: var(--sp-300);
-    block-size: var(--sp-300);
+    inline-size: var(--sp-400);
+    block-size: var(--sp-400);
+    margin-block: calc(var(--sp-050) * -1);
     padding: 0;
     border: 0;
     border-radius: var(--r-sm);
     background: transparent;
-    color: var(--text-subtle);
+    color: var(--text-secondary);
     cursor: pointer;
   }
 
   .more-trigger:hover,
-  .more-trigger[aria-expanded='true'] { background: var(--bg-surface-pressed); color: var(--text-primary); }
+  .more-trigger[aria-expanded='true'] { background: var(--bg-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
 
   .more-trigger:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);

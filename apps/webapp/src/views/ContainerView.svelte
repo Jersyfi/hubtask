@@ -61,6 +61,7 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
@@ -75,6 +76,9 @@
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ContainerEditDialog from '../lib/workspace/ContainerEditDialog.svelte';
+  import PositionDialog from '../lib/workspace/PositionDialog.svelte';
+  import { offerUndo } from '../lib/entries/undo.svelte.ts';
+  import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
@@ -415,8 +419,6 @@
         : [],
   );
   const position = $derived(siblings.findIndex((entry) => entry.id === id));
-  const canMoveUp = $derived(position > 0);
-  const canMoveDown = $derived(position >= 0 && position < siblings.length - 1);
 
   /**
    * Ranks this container one place up or down.
@@ -468,6 +470,9 @@
           name: container.name,
         }),
       );
+      // Archiving is offered back for the message's while, as every act that takes something out
+      // of sight is (UC-WRK-28 check 3): no question first, and no way lost.
+      if (archiving) offerUndo({ kind: 'place-archived', containerId: container.id, name: container.name });
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
     }
@@ -535,7 +540,6 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   /** *Edit*: its name, description, colour and symbol (UC-WRK-33), and a hub's preset. */
-  let isEditing = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
   /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
@@ -729,55 +733,16 @@
   const mayChangeSome = $derived(mayDo(myRole, 'change', true) === true);
   /** Whether the reader may put this container in the trash: `DELETE_CONTAINER`, the owner's alone. */
   const mayDelete = $derived(holds(structureRole, 'DELETE_CONTAINER').status === 'permitted');
-  /** The menu rows that change the workspace's shape, or none where the reader's role may not. */
-  function shaping<T>(rows: readonly T[]): readonly T[] {
-    return mayShape ? rows : [];
-  }
 
 
+  /**
+   * The place's own menu, the same items as its row in the navigation (`placeMenu`, design-system.md
+   * §11.8): what is done to the place itself, for whom it may be done. Entries are the toolbar's.
+   */
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : [
-          // The collection's own menu (design-system.md §11.1): what is done to the place itself.
-          // Selecting entries is the toolbar's, the settings the head's ⚙ - they are about the
-          // entries and the set-up, not this object. What changes the shape of the workspace - its
-          // name, its place, its order, its archive - only for a role that may (UC-WRK-01 check 6,
-          // P-05); `shaping` drops the rest.
-          ...shaping<MenuItem>([
-          // *Edit*: the name, the description, the colour and symbol, and a hub's preset.
-          { id: 'edit', label: t('app.workspace.edit'), icon: 'pencil', disabledReason: readOnlyReason },
-          // A hub sits in nothing, so only a collection moves to another hub (ux-inventory.md §E9).
-          ...(container.type === 'COLLECTION' ? [{ id: 'move', label: t('app.move.to_hub'), icon: 'arrow-right-left' as const, disabledReason: readOnlyReason }] : []),
-          ...(archival !== 'inherited'
-            ? [{ id: 'archive', label: archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
-            : []),
-          { id: 'up', label: t('app.rank.up'), icon: 'chevron-up', disabledReason: canMoveUp ? undefined : t('app.rank.already_first') },
-          { id: 'down', label: t('app.rank.down'), icon: 'chevron-down', disabledReason: canMoveDown ? undefined : t('app.rank.already_last') },
-          ]),
-          // The views, the export and the subscriptions are the toolbar's *Views* menu, and only
-          // there (ux-inventory.md §E9).
-          ...(privacyControl
-            ? [
-                {
-                  id: 'privacy',
-                  label: privacyControl === 'make_shared' ? t('app.workspace.make_shared') : t('app.workspace.make_private'),
-                  icon: 'lock' as const,
-                  hasSeparatorBefore: mayShape,
-                },
-              ]
-            : []),
-          ...(mayDelete
-            ? [{
-                id: 'trash',
-                label: t('app.workspace.trash'),
-                icon: 'trash' as const,
-                isDestructive: true,
-                hasSeparatorBefore: true,
-                disabledReason: readOnlyReason,
-              }]
-            : []),
-        ],
+      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
   );
 
   /**
@@ -817,15 +782,17 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'select') selection.start();
-    else if (id === 'edit') isEditing = true;
+    if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
+    else if (id === 'import') isImporting = true;
+    else if (id === 'position') isPositioning = true;
     else if (id === 'archive') void toggleArchived();
-    else if (id === 'up') void moveBy(-1);
-    else if (id === 'down') void moveBy(1);
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
   }
+
+  /** The place's position among its siblings, changed one step at a time (`PositionDialog`). */
+  let isPositioning = $state(false);
 
   /** Where this place's settings live: a page with a section each, as the administration's areas are. */
   const settingsPath = $derived(`/${container?.type === 'HUB' ? 'hubs' : 'collections'}/${id}/settings`);
@@ -869,19 +836,30 @@
             }
           : undefined,
   );
-  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
-    container?.type === 'HUB'
-      ? mayShape
-        ? [
-            {
-              label: t('app.import.open'),
-              onclick: () => (isImporting = true),
-              disabledReason: readOnlyReason,
-            },
-          ]
-        : []
-      : [],
-  );
+  /** The head draws no secondary action: import is the place's menu's, the filter the toolbar's. */
+  const headSecondary: readonly [] = [];
+  /**
+   * The order, the toolbar's own menu (design-system.md §11.1): the fields the installation lets
+   * the entries be ordered by, narrowed to what this collection carries, and the direction.
+   */
+  let sortField = $state('');
+  let sortDir = $state<'ASC' | 'DESC'>('ASC');
+  const sortFields = $derived(offeredByProfile(sortableFields(manifest.value), carriedHere).map((field) => field.field));
+  const sortMenu = $derived<MenuItem[]>([
+    { id: 'field:', label: t('app.query.sort_manual'), icon: sortField === '' ? 'check' : undefined },
+    ...sortFields.map((field) => ({ id: `field:${field}`, label: field, icon: sortField === field ? ('check' as const) : undefined })),
+    ...(sortField === ''
+      ? []
+      : [
+          { id: 'dir:ASC', label: t('app.query.ascending'), icon: sortDir === 'ASC' ? ('check' as const) : undefined, hasSeparatorBefore: true },
+          { id: 'dir:DESC', label: t('app.query.descending'), icon: sortDir === 'DESC' ? ('check' as const) : undefined },
+        ]),
+  ]);
+  function choseSort(id: string) {
+    if (id.startsWith('field:')) sortField = id.slice('field:'.length);
+    else if (id === 'dir:ASC' || id === 'dir:DESC') sortDir = id.slice('dir:'.length) as 'ASC' | 'DESC';
+  }
+
   /** The filter's words: how many conditions hold, or the plain verb. */
   const filterLabel = $derived(filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'));
   /** Whether the toolbar offers the selection mode, where a screen's verbs are (ADR-0063 decision 8). */
@@ -897,12 +875,6 @@
     ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
     ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure('general') }] : []),
   ]);
-  /**
-   * Whether the head pins no add on this screen: a collection on a phone, where the bottom bar's
-   * ＋ is the add and opens capture pointed at this collection (design-system.md §11.8). A pinned
-   * round button above it would be a second way to do one thing.
-   */
-  const isAddInBar = $derived(viewport.isCompact && container?.type === 'COLLECTION');
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
     items: pageMenu,
@@ -993,6 +965,11 @@
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet entryTools()}
+    <Menu label={t('app.query.sort_menu')} items={sortMenu} onselect={choseSort}>
+      {#snippet trigger(props)}
+        <Button size="sm" tone="secondary" icon="chevrons-up-down" data-opener="sort" {...props}>{sortField === '' ? t('app.query.sort') : t('app.query.sort_named', { field: sortField })}</Button>
+      {/snippet}
+    </Menu>
     <!-- The saved views, saving, the export and the calendar subscriptions (design-system.md §11.8). -->
     <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
       {#snippet trigger(props)}
@@ -1098,7 +1075,6 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      primary={isAddInBar ? undefined : headPrimary}
       secondary={headSecondary}
       menu={headMenu}
       figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
@@ -1195,9 +1171,12 @@
           {/snippet}
         </EmptyState>
       {:else}
-        <!-- The way to a new collection is the head's primary action now; the collections are
-             cards with what counts in each (ux-inventory.md §E4). -->
-        <CollectionCards {collections} />
+        <!-- The collections as cards with what counts in each (ux-inventory.md §E4), the way to a
+             new one the last card, where they are. -->
+        <CollectionCards
+          {collections}
+          create={mayShape ? { label: t('app.workspace.create_collection'), onclick: () => (isCreatingCollection = true), disabledReason: readOnlyReason } : undefined}
+        />
       {/if}
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
@@ -1207,11 +1186,11 @@
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
           <div class="sheet-tools">{@render entryTools()}</div>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
         </Drawer>
       {:else}
         <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
         </div>
       {/if}
 
@@ -1332,7 +1311,13 @@
 {/if}
 
 {#if container && mayShape}
-  <ContainerEditDialog bind:isOpen={isEditing} {container} />
+  <PositionDialog
+    bind:isOpen={isPositioning}
+    id={container.id}
+    name={container.name}
+    siblings={siblings.map((each) => ({ id: each.id, name: each.name }))}
+    onmove={(offset) => void moveBy(offset)}
+  />
 {/if}
 
 

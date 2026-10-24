@@ -120,7 +120,9 @@
         disabledReason={completeDisabledReason}
         onchange={() => onToggleComplete?.()}
       />
-      <span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>
+      <!-- The level's mark below the top only: a top-level row is the collection's own kind, and
+           its indent and twist already say where a nested one stands. -->
+      {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
     <span class="title">{title}</span>
@@ -145,8 +147,28 @@
     .task-row { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200)); }
   }
 
-  .twist,
-  .mark { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  /* The concept's row: a card of the surface on the canvas, one line high, its corners rounded and
+     a gap to the next, so a list reads as entries rather than as lines of a table. */
+  .task-row > :global(.row) {
+    min-block-size: var(--sp-500);
+    padding-block: var(--sp-025);
+    padding-inline: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid transparent;
+    background: var(--bg-surface);
+  }
+
+  .task-row > :global(.row:hover) { border-color: var(--border-subtle); background: var(--bg-surface); }
+
+  /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;
+     the outline is what says it in greyscale (rule 3). */
+  .task-row > :global(.row[data-selected]) {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-subtle);
+    box-shadow: none;
+  }
+
+  .twist { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  .mark { display: inline-flex; flex: none; width: var(--sp-300); justify-content: center; }
 
   .mark { color: var(--text-subtle); }
 

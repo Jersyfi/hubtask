@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import AddRow from './AddRow.svelte';
   // The entries of a collection, one level at a time.
   //
   // `LIST_COLLAPSED` and `LIST_EXPANDED` are not two components and not a prop: they are whether a
@@ -1166,14 +1167,12 @@
 
       {#if !isReadOnly && mayCreate && topTypes().length > 0}
         {#if !(viewport.isCompact && !root)}
-          <!-- The same capture as the head's, pointed here: an extra door, not a second feature
-               (design-system.md §11.8). Not on a phone's collection: the head pins the same *Add an
-               entry* above the bottom bar there, and a second one was one add too many. -->
+          <!-- Capture, pointed here: a door into the one add, said as quietly as the board's column
+               foot says it (design-system.md §11.8). Not on a phone's collection, where the bottom
+               bar's ＋ is that door. -->
           <Inline gap="100">
             {#each addControls as control (control.label)}
-              <Button tone="secondary" icon="plus" data-opener="add-entry" onclick={() => startAdding('root', control.type)}>
-                {control.label}
-              </Button>
+              <AddRow label={control.label} onclick={() => startAdding('root', control.type)} />
             {/each}
           </Inline>
         {/if}
@@ -1463,6 +1462,7 @@
 <style>
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
+  /* The concept's rhythm: one row-card under the next with a small gap (design-system.md §11.8). */
   .level { display: flex; flex-direction: column; gap: var(--sp-050); }
 
   /* The level is what a row's indent is measured against (`TaskRow` caps it below `medium` by a
@@ -1544,28 +1544,28 @@
 
   .bulk-note { margin: 0 0 0 var(--sp-300); color: var(--text-danger); font-size: var(--fs-075); }
 
-  /* The row's tools - the grip, the labels, ＋ and ⋯ - where a pointer that hovers is pointing,
-     or the keyboard is (ux-inventory.md §E5); the chips stay, they are what the row says. Faded
-     rather than taken out: the row keeps its width, the tools stay in the tab order and a
-     right-click, Shift+F10 or a hold still opens the menu. A touch screen has no hover and keeps
-     them drawn. */
+  /* The row's tools - the labels, ＋ and ⋯ - where a pointer that hovers is pointing, or the
+     keyboard is (ux-inventory.md §E5); the chips stay, they are what the row says, and at rest
+     they stand at the row's end as the concept draws it. Out of the row until then, so they take
+     no room from the chips; a right-click, Shift+F10 or a hold still opens the menu, and the
+     row's focus brings them back for the keyboard. A touch screen has no hover and keeps them. */
   .on-hover { display: inline-flex; align-items: center; }
 
   @media (hover: hover) {
-    .row .grip,
-    .row .on-hover {
-      opacity: 0;
-      transition: opacity var(--motion-state-duration) var(--motion-state-easing);
-    }
+    /* The grip stands in the gutter before the row, so the rows start on the page's one edge
+       (§13 G1) and the grip takes no width from them. */
+    .row:has(> .grip) { position: relative; }
+    .row > .grip { position: absolute; inset-block: 0; inset-inline-end: 100%; padding-inline-end: var(--sp-050); }
+    .row .grip { opacity: 0; transition: opacity var(--motion-state-duration) var(--motion-state-easing); }
+    .row .on-hover { display: none; }
+
+    .row:hover .on-hover,
+    .row:focus-within .on-hover,
+    .row:has(:global([aria-expanded='true'])) .on-hover { display: inline-flex; }
 
     .row:hover .grip,
-    .row:hover .on-hover,
     .row:focus-within .grip,
-    .row:focus-within .on-hover,
-    .row:has(:global([aria-expanded='true'])) .on-hover,
-    .row[data-dragging] .grip {
-      opacity: 1;
-    }
+    .row[data-dragging] .grip { opacity: 1; }
   }
 
   .grip {

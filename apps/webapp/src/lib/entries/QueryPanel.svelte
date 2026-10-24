@@ -37,7 +37,6 @@
     groupableFields,
     isSendable,
     sortOf,
-    sortableFields,
     takesList,
     takesValue,
   } from '../data/query.ts';
@@ -70,14 +69,27 @@
      * meaning to are not offered (`offeredByProfile`). Absent, the installation's answer stands.
      */
     carried?: (capability: string) => boolean;
+    /**
+     * The order, owned by the toolbar's own *Sort* menu (design-system.md §11.1) and bound here,
+     * because the order is part of the one query this panel sends. The manual order is the empty
+     * choice: `order_key ASC` is the query's own default.
+     */
+    sortField?: string;
+    sortDir?: 'ASC' | 'DESC';
   }
 
-  const { layout, onquery, oncount, custom = [], applied, carried }: Props = $props();
+  let {
+    layout,
+    onquery,
+    oncount,
+    custom = [],
+    applied,
+    carried,
+    sortField = $bindable(''),
+    sortDir = $bindable('ASC'),
+  }: Props = $props();
 
   let conditions = $state<QueryCondition[]>([]);
-  /** The manual order is the empty choice: `order_key ASC` is the query's own default. */
-  let sortField = $state('');
-  let sortDir = $state<'ASC' | 'DESC'>('ASC');
   let groupField = $state('bucket_id');
   /**
    * An applied filter the conditions cannot draw (`conditionsOf`), kept whole and combined with
@@ -107,7 +119,6 @@
     })),
   );
 
-  const sorts = $derived(offeredByProfile(sortableFields(manifest.value), carried));
   const groups = $derived(offeredByProfile(groupableFields(manifest.value), carried));
 
   /**
@@ -123,7 +134,8 @@
       sort: sortField === '' ? undefined : sortOf(manifest.value, sortField, sortDir),
       group: layout === 'KANBAN' ? groupOf(manifest.value, groupField) : undefined,
     });
-    oncount?.(conditions.length + (kept ? 1 : 0) + (sortField === '' ? 0 : 1));
+    // The filter's count is its conditions; the order says itself on the *Sort* button.
+    oncount?.(conditions.length + (kept ? 1 : 0));
   }
 
   function clear() {
@@ -151,10 +163,13 @@
     });
   });
 
-  // The grouping belongs to the board, so changing the layout changes the document.
+  // The grouping belongs to the board, so changing the layout changes the document; the order
+  // comes from the *Sort* menu, so a change there does too.
   $effect(() => {
     void layout;
-    publish();
+    void sortField;
+    void sortDir;
+    untrack(publish);
   });
 </script>
 
@@ -173,24 +188,6 @@
   />
 
   <div class="ordering">
-    <Select
-      label={t('app.query.sort_by')}
-      size="sm"
-      bind:value={sortField}
-      placeholder={t('app.query.sort_manual')}
-      options={sorts.map((field) => ({ value: field.field, label: field.field }))}
-      onchange={publish}
-    />
-    <Select
-      label={t('app.query.direction')}
-      size="sm"
-      bind:value={sortDir}
-      options={[
-        { value: 'ASC', label: t('app.query.ascending') },
-        { value: 'DESC', label: t('app.query.descending') },
-      ]}
-      onchange={publish}
-    />
     <!-- Only where the columns are a question. On a list there is no grouping to choose. -->
     {#if layout === 'KANBAN' && groups.length > 1}
       <Select
