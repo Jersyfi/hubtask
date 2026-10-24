@@ -57,6 +57,8 @@
   const rows = $derived(page.state.status === 'ready' ? (page.state.data.data ?? []) : []);
   const hasMore = $derived(page.state.status === 'ready' && (page.state.data.page?.has_more ?? false));
   /** Why the last press of *Older comments* brought nothing; cleared by the next press. */
+  /** How many threads are drawn, newest first: five, then ten more at a time. */
+  let shownCount = $state(5);
   let olderFailed = $state<string | undefined>(undefined);
 
   async function older(): Promise<void> {
@@ -182,23 +184,8 @@
       <p class="failure" role="alert">{failure.message}</p>
     {/if}
 
-    <CommentThread
-      label={t('app.comments.title')}
-      comments={threadRows()}
-      emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
-      removedLabel={t('app.comments.removed')}
-      editLabel={t('app.comments.edit')}
-      deleteLabel={t('app.comments.remove')}
-      replyLabel={t('app.comments.reply')}
-      {hasMore}
-      loadMoreLabel={t('app.comments.older')}
-      loadMoreFailedLabel={olderFailed}
-      onLoadMore={() => void older()}
-      onEdit={startEdit}
-      onDelete={remove}
-      onReply={mayComment ? startReply : undefined}
-    />
-
+    <!-- Writing first, the newest under it, five of them: a long conversation stays a glance
+         until somebody asks for more (concept round 2, §4). -->
     {#if mayComment}
       <Stack gap="100">
         <Textarea
@@ -208,7 +195,7 @@
               ? t('app.comments.replying')
               : t('app.comments.write')}
           bind:value={draft}
-          rows={3}
+          rows={draft.trim() === '' ? 1 : 3}
           error={tooLong ? t('app.comments.too_long', { limit: String(BODY_LIMIT), length: String(bodyLength(draft)) }) : undefined}
         />
         {#if writeFailure}<p class="failure" role="alert">{writeFailure}</p>{/if}
@@ -231,6 +218,26 @@
         </div>
       </Stack>
     {/if}
+    <CommentThread
+      label={t('app.comments.title')}
+      comments={threadRows().slice(0, shownCount)}
+      emptyLabel={t(mayComment === false ? 'app.comments.none_closed' : 'app.comments.none')}
+      removedLabel={t('app.comments.removed')}
+      editLabel={t('app.comments.edit')}
+      deleteLabel={t('app.comments.remove')}
+      replyLabel={t('app.comments.reply')}
+      hasMore={hasMore || threadRows().length > shownCount}
+      loadMoreLabel={t('app.comments.older')}
+      loadMoreFailedLabel={olderFailed}
+      onLoadMore={() => {
+        // What is held here first, ten at a time; then the server's older page.
+        if (threadRows().length > shownCount) shownCount += 10;
+        else void older();
+      }}
+      onEdit={startEdit}
+      onDelete={remove}
+      onReply={mayComment ? startReply : undefined}
+    />
   </Stack>
 
 <style>

@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, ARCHIVED, ARCHIVED_ENTRY, ARCHIVED_HUB, COLLECTION, IN_ARCHIVED, ITEMS, UNDER_ARCHIVED, UNDER_ARCHIVED_ENTRY, signedIn } from './fixture.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -354,6 +355,7 @@ test('chromium: 1280 px — a reminder counted from a due date the entry lacks i
   const sent = writes(context);
   const undated = ITEMS.find((each) => !each.due_at) ?? ITEMS[0];
   await page.goto(`${served.origin}/items/${undated.id}`);
+  await unfoldFields(page);
   const row = page.locator('button[data-detail="reminders"]');
   await row.waitFor({ timeout: 15_000 });
   await row.click();

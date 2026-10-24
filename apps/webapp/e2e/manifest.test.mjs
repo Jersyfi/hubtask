@@ -110,7 +110,7 @@ test('chromium: the manifest never answers — the entry says so, and the bar ca
   await surface.getByRole('button', { name: 'Try again' }).click();
 
   // No reload. The rows arrive because the manifest did.
-  await page.locator('[data-detail="due"]').waitFor({ timeout: 10_000 })
+  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('asking again from the bar did not bring the entry back'));
   await page.keyboard.press('Escape');
   assert.deepEqual(
@@ -208,7 +208,7 @@ test('chromium: a stale bearer signs the reader out, and the sign-in reads the m
   // entry drew as though its type carried nothing until somebody reloaded.
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
   assert.equal(new URL(page.url()).pathname, `/items/${ENTRY.id}`, 'the reader was not returned to the entry');
-  await page.locator('[data-detail="due"]').waitFor({ timeout: 10_000 })
+  await page.locator('[data-detail="due"]').waitFor({ state: 'attached', timeout: 10_000 })
     .catch(() => assert.fail('the manifest was not read again as the signed-in actor'));
   assert.deepEqual(
     await page.locator('[data-detail]').evaluateAll((rows) => rows.map((row) => row.getAttribute('data-detail'))),

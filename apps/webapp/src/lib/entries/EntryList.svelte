@@ -1079,7 +1079,18 @@
          worth having; a client that swallowed it would turn a designed behaviour into data loss. -->
     <EntryActions bind:this={actions} onopen={(id) => (onopen ? onopen(id) : onnavigate?.(`/items/${id}`))} {onnavigate} />
 
-    {#if rows.length === 0}
+    {#if rows.length === 0 && root}
+      <!-- Under an entry, nothing yet: one quiet line and the adds as the list's own, not a big
+           empty state in the middle of the entry (concept round 2, §4). -->
+      <div class="sub-empty">
+        <p class="sub-none">{t('app.item.no_children')}</p>
+        {#if !isReadOnly && mayCreate && topTypes().length > 0}
+          {#each addControls as control (control.label)}
+            <AddRow label={control.label} onclick={() => startAdding('root', control.type)} />
+          {/each}
+        {/if}
+      </div>
+    {:else if rows.length === 0}
       <!-- §4.1's empty state, the one that carries a call to action: capture, pointed here. -->
       <EmptyState kind="unused" title={t(root ? 'app.item.no_children' : 'app.entries.none')} icon="task">
         {#snippet action()}
@@ -1460,6 +1471,9 @@
 {/if}
 
 <style>
+  .sub-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
+  .sub-none { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); flex-basis: 100%; }
+
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   /* The concept's rhythm: one row-card under the next with a small gap (design-system.md §11.8). */

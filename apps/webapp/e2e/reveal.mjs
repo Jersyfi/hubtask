@@ -11,3 +11,13 @@ export async function reveal(control) {
   await control.focus();
   await control.click();
 }
+
+/**
+ * Unfolds the details' fields with nothing set (concept round 2, §4): they wait behind *More
+ * fields* until somebody asks, so a walk that fills one asks first, as a person does.
+ */
+export async function unfoldFields(page) {
+  const toggle = page.locator('.more-fields[aria-expanded="false"]');
+  await page.waitForTimeout(100);
+  for (const each of await toggle.all()) await each.click();
+}

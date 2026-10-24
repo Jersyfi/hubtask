@@ -6262,5 +6262,8 @@
   "app.today.jumble_waiting": "{count, plural, one {# wartet} other {# warten}}",
   "app.today.jumble_waiting_more": "mehr als {count} warten",
   "app.today.jumble_sort": "Einsortieren",
-  "app.today.jumble_dismiss": "{subject} verwerfen"
+  "app.today.jumble_dismiss": "{subject} verwerfen",
+  "app.item.fields_more": "Weitere Felder ({count})",
+  "app.item.fields_fewer": "Weniger Felder",
+  "app.item.fields_add": "Feld hinzufügen"
 }

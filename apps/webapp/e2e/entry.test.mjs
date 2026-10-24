@@ -15,7 +15,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
-import { reveal } from './reveal.mjs';
+import { reveal, unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -138,6 +138,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.ok(offered.includes('Share this entry') && !offered.some((label) => /^(Edit|Rename)/.test(label)), offered.join());
   await page.keyboard.press('Escape');
 
+  await unfoldFields(page);
   // Every details row opens its editor beside it and gives focus back on Escape.
   for (const [id, heading] of ROWS) {
     const row = page.locator(`[data-detail="${id}"]`);
@@ -251,6 +252,7 @@ test('chromium: 375 px — the title in the bar, the details folded under the he
   });
   assert.equal(order, 'details first');
   await page.locator('summary.details-summary').click();
+  await unfoldFields(page);
   await page.locator('[data-detail="due"]').click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
@@ -284,6 +286,7 @@ test('chromium: 1280 px — assignment is two named questions, and the policy is
       route.fulfill({ json: { data: [{ ...COLLECTION, policies }], page: { next_cursor: null, has_more: false } } }));
     await page.goto(`${served.origin}/items/${itemId}`);
     await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+    await unfoldFields(page);
     await page.locator('[data-detail="assignee"]').click();
     const editor = page.getByRole('dialog', { name: 'Assignee' });
     await editor.waitFor({ timeout: 5_000 });
@@ -376,6 +379,7 @@ test('chromium: 1280 px — the details column is the capability matrix, and not
 
   // And the dates are one row: pressing it opens the one editor that writes both, which is why
   // two rows for it showed the reader the other date wherever they pressed.
+  await unfoldFields(page);
   await page.locator('[data-detail="due"]').click();
   const editor = page.getByRole('dialog', { name: 'Dates' });
   await editor.waitFor({ timeout: 5_000 });
@@ -407,6 +411,7 @@ test('chromium: 1280 px — the cover row offers both kinds, and no cover takes 
   });
   assert.equal(above, 0, 'the head keeps room above the title for a cover that is not set');
 
+  await unfoldFields(page);
   await page.locator('[data-detail="cover"]').click();
   const editor = page.getByRole('dialog', { name: 'Cover' });
   await editor.waitFor({ timeout: 5_000 });
@@ -503,6 +508,7 @@ test('chromium: the attachments announce a page only after the reader asked for 
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await unfoldFields(page);
   await page.locator('[data-detail="attachments"]').click();
 
   const more = page.getByRole('button', { name: 'Older attachments' });

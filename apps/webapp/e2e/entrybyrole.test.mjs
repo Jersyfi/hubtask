@@ -23,7 +23,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
-import { reveal } from './reveal.mjs';
+import { reveal, unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -72,6 +72,7 @@ async function offered(page) {
   await page.getByText(CHILD.title).first().waitFor();
   // The role arrives with the memberships; give the screen the moment to draw it.
   await page.waitForTimeout(600);
+  await unfoldFields(page);
   const count = (locator) => locator.count();
   return {
     complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
@@ -246,6 +247,7 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await unfoldFields(page);
   await page.locator('aside.details [data-detail="language"]').waitFor();
   assert.equal(await page.locator('aside.details').count(), 1);
   assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');
