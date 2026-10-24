@@ -1159,14 +1159,16 @@ keeps the row `aria-current` and the focus in the list.
 
 **The panel lies over the list.** From `large` up the `DetailPane` opens over the content, below the
 bar and at the end of the line, raised as an overlay, so the list keeps its width; its shadow falls
-on the list and never on the bar, and it scrolls without carrying the page. Its head names where the
-entry is (hub › collection), *Full page* and the close; the entry's title is its own field below,
+on the list and never on the bar, and it scrolls without carrying the page; the bar's line runs on
+across its top. Its head names where the entry is (hub › collection), the view switch and the close;
+the entry's title is its own field below,
 and the details inside it are a table, not a second raised layer. It opens at
 `layout.panel.width`; its start edge is a `ResizeHandle` between `layout.panel.min` and seven tenths
 of the window, and the width is the device's (§11.10). **The person chooses how an entry opens**:
 in the panel beside the list, or whole, as its page — under *On this device* and, where the
-person notices they want it, by the checkbox at the panel's foot, *Always open entries as a full
-page*. Below
+person notices they want it, by one switch of two marks, *Side panel | Full page*, in the panel's
+head and in the entry page's head alike: choosing opens this entry that way and every one after
+it, so the way back is where the way there was. Below
 `large` an entry always opens whole.
 
 ### 11.9 Selection, drag and the pointer
