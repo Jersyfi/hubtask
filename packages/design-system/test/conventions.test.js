@@ -93,12 +93,17 @@ test('every interactive component has a visible focus ring', () => {
       /:focus-visible/,
       `${component.relative} renders a control and has no :focus-visible rule (rule 5)`,
     );
+    // The ring, or - for a text field, a select, a search field - its own border turned 2 px of
+    // the focus colour: the hairline border and an inset hairline of --focus-ring.
     assert.match(
       style,
-      /outline:\s*var\(--bw-ring\)\s+solid\s+var\(--focus-ring\)/,
+      /outline:\s*var\(--bw-ring\)\s+solid\s+var\(--focus-ring\)|border-color:\s*var\(--focus-ring\);\s*box-shadow:\s*inset 0 0 0 var\(--bw-hairline\) var\(--focus-ring\)/,
       `${component.relative} draws a focus ring that is not rule 5's: 2 px, --focus-ring`,
     );
-    assert.match(style, /outline-offset:\s*var\(--sp-025\)/, `${component.relative} misses rule 5's 2 px offset`);
+    // The offset belongs to the ring; a border turned focus colour has none.
+    if (/outline:\s*var\(--bw-ring\)\s+solid\s+var\(--focus-ring\)/.test(style)) {
+      assert.match(style, /outline-offset:\s*var\(--sp-025\)/, `${component.relative} misses rule 5's 2 px offset`);
+    }
   }
 });
 

@@ -6160,6 +6160,7 @@
   "app.capture.words.in": "in",
   "app.capture.words.days": "Tagen|Tag|Tage",
   "app.capture.words.hour": "Uhr",
+  "app.capture.words.on": "am|um",
   "app.capture.words.am": "",
   "app.capture.words.pm": "",
   "app.capture.title": "Erfassen",
@@ -6227,5 +6228,7 @@
   "app.settings.not_yours": "Die Einstellungen sieht nur, wer einrichten darf, wie dieser Ort aufgebaut ist.",
   "app.settings.open": "Einstellungen von {name}",
   "app.capture.ticked_before": "Schon einmal abgehakt",
-  "app.capture.put_back": "{title} wieder auf die Liste"
+  "app.capture.put_back": "{title} wieder auf die Liste",
+  "app.capture.offer_in": "in {hub}",
+  "app.capture.offers_keys": "↑↓ wählen · Enter übernehmen · Esc schließen"
 }

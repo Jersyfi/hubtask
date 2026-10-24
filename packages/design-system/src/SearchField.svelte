@@ -114,10 +114,11 @@
   .shell[data-size='md'] { padding-inline: var(--sp-150); min-height: var(--density-control-md-min); }
   .shell[data-size='sm'] { padding-inline: var(--sp-100); min-height: var(--density-control-sm-min); }
 
+  /* Focused, the field's own border takes the focus colour and doubles inward (design-system.md
+     §10): the edge the person sees is the field's, not a second ring a gap outside it. */
   .shell:has(.input:focus-visible) {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-    border-color: var(--border-strong);
+    border-color: var(--focus-ring);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--focus-ring);
   }
 
   .mark { display: inline-flex; flex: none; }

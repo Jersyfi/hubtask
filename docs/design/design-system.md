@@ -454,8 +454,9 @@ below it.
    and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
-5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
-   keyboard. A box sized in percent is `border-box`, and a scroll container keeps a gutter no
+5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`; a text field, a select and a
+   search field instead turn their own border into the 2 px focus colour, the edge the person sees.
+   The app is fully operable by keyboard. A box sized in percent is `border-box`, and a scroll container keeps a gutter no
    narrower than the focus ring, or the container cuts the ring.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. A component animates
    through a `motion.<role>` token — a duration paired with an easing — never a primitive. The roles

@@ -6163,6 +6163,7 @@
   "app.capture.words.in": "in",
   "app.capture.words.days": "days|day",
   "app.capture.words.hour": "o'clock|oclock",
+  "app.capture.words.on": "on|at",
   "app.capture.words.am": "am|a.m.",
   "app.capture.words.pm": "pm|p.m.",
   "app.capture.title": "Capture",
@@ -6230,5 +6231,7 @@
   "app.settings.not_yours": "Only someone who may change how this place is set up sees its settings.",
   "app.settings.open": "Settings of {name}",
   "app.capture.ticked_before": "Ticked before",
-  "app.capture.put_back": "Put {title} back on the list"
+  "app.capture.put_back": "Put {title} back on the list",
+  "app.capture.offer_in": "in {hub}",
+  "app.capture.offers_keys": "↑↓ choose · Enter take · Esc close"
 }

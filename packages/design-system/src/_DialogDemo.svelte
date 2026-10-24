@@ -8,13 +8,22 @@
   import Popover from './Popover.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'confirm' }: { mode?: 'confirm' | 'layers' } = $props();
+  const { mode = 'confirm' }: { mode?: 'confirm' | 'layers' | 'wide' } = $props();
+
+  let working = $state(false);
 
   let confirming = $state(false);
   let editing = $state(false);
 </script>
 
-{#if mode === 'layers'}
+{#if mode === 'wide'}
+  <Stack gap="200">
+    <Button tone="primary" icon="plus" onclick={() => (working = true)}>Capture</Button>
+    <Dialog title="Capture" bind:isOpen={working} dismissLabel="Close" isWide>
+      <Input label="What do you want to remember?" value="Write the release notes tomorrow 10" />
+    </Dialog>
+  </Stack>
+{:else if mode === 'layers'}
   <Stack gap="200">
     <!-- Two layers. `Escape` closes the popover and leaves the dialog standing; the second press
          closes the dialog and focus lands back on the button that opened it. -->

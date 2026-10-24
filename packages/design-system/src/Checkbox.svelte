@@ -139,7 +139,8 @@
 <style>
   .checkbox { display: flex; flex-direction: column; gap: var(--sp-050); }
 
-  .row { display: flex; align-items: start; gap: var(--sp-100); }
+  /* The label's size on the row, so `1lh` below is the label's line. */
+  .row { display: flex; align-items: start; gap: var(--sp-100); font-size: var(--fs-100); }
 
   /* Announced but not drawn. Never `display: none`, which would take the name out of the
      accessibility tree along with the text — and a checkbox with no name is a control a screen
@@ -158,9 +159,9 @@
     position: relative;
     display: inline-flex;
     flex: none;
-    /* Lines up with the first line of the label rather than with the block, so a label that wraps
-       does not drag the box down with it. */
-    margin-block-start: var(--sp-025);
+    /* Centred on the first line of the label rather than on the block, so a label that wraps
+       does not drag the box down with it - and a label of one line stands centred beside it. */
+    margin-block-start: calc((1lh - var(--sp-250)) / 2);
   }
 
   /* On top and transparent, never `display: none`: the input is what the keyboard and the

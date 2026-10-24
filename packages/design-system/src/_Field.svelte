@@ -18,6 +18,11 @@
   interface Props {
     /** The visible label. Sentence case (voice-and-tone.md §1.1). */
     label: string;
+    /**
+     * Read but not drawn: for a field whose surroundings already say what it is for - the one
+     * field of a dialog titled by it. The label stays the field's name for a screen reader.
+     */
+    isLabelHidden?: boolean;
     /** Standing help, shown before anything goes wrong. */
     hint?: string;
     /** What is wrong now. Names the fix, not only the fault (voice-and-tone.md §3.1). */
@@ -56,6 +61,7 @@
 
   const {
     label,
+    isLabelHidden = false,
     hint,
     error,
     disabledReason,
@@ -87,7 +93,7 @@
 </script>
 
 <Stack as="div" gap="050" class="field">
-  <label class="label" for={uid}>
+  <label class="label" class:is-hidden={isLabelHidden} for={uid}>
     {label}{#if isRequired}<span class="required" aria-hidden="true">*</span>{/if}
   </label>
 
@@ -114,6 +120,16 @@
     text-align: start;
   }
 
+  /* Announced but not drawn - never `display: none`, which would take the name away. */
+  .label.is-hidden {
+    position: absolute;
+    inline-size: var(--sp-025);
+    block-size: var(--sp-025);
+    margin: calc(var(--sp-025) * -1);
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
   .required {
     margin-inline-start: var(--sp-025);
     color: var(--text-danger);

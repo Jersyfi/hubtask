@@ -39,12 +39,14 @@
     dismissLabel?: string;
     /** Ran when it closes, however it closed. */
     onClose?: () => void;
+    /** A dialog worked in rather than answered - capture - takes the wide measure. */
+    isWide?: boolean;
     /** The buttons that answer it. The primary one is the caller's to name and to place last. */
     actions?: Snippet;
     children: Snippet;
   }
 
-  let { title, isOpen = $bindable(false), dismissLabel, onClose, actions, children }: Props = $props();
+  let { title, isOpen = $bindable(false), dismissLabel, onClose, isWide = false, actions, children }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -110,6 +112,7 @@
      opened again within that task; only an element still closed means it was closed. -->
 <dialog
   class="dialog"
+  data-wide={isWide ? '' : undefined}
   bind:this={node}
   aria-labelledby={titleId}
   oncancel={(event) => event.preventDefault()}
@@ -152,6 +155,8 @@
     box-shadow: var(--shadow-overlay);
     animation: open var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
+
+  .dialog[data-wide] { width: min(var(--layout-dialog-wide), 100% - var(--sp-400)); }
 
   .dialog::backdrop {
     background: var(--bg-scrim);

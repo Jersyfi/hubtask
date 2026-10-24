@@ -23,3 +23,10 @@ export const layers: Story = {
     'Escape closes one layer at a time (design-system.md §4, Wave 1): two key presses. The first Escape closes the popover and leaves the dialog standing; the second closes the dialog. The platform would have closed the dialog first, which is why `cancel` is refused and the register in layers.ts decides instead.',
   args: { mode: 'layers' },
 };
+
+export const wide: Story = {
+  name: 'Wide: a dialog worked in',
+  about:
+    'Capture is worked in rather than answered: its chips, its field and its modes each want a line of their own, so it takes the wide measure. It still never runs past the viewport.',
+  args: { mode: 'wide' },
+};

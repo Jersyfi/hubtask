@@ -162,10 +162,11 @@
   .shell[data-size='md'] { min-height: var(--density-control-md-min); }
   .shell[data-size='sm'] { min-height: var(--density-control-sm-min); }
 
+  /* Focused, the field's own border takes the focus colour and doubles inward (design-system.md
+     §10): the edge the person sees is the field's, not a second ring a gap outside it. */
   .shell:has(.select:focus-visible) {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-    border-color: var(--border-strong);
+    border-color: var(--focus-ring);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--focus-ring);
   }
 
   .shell[data-invalid] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }

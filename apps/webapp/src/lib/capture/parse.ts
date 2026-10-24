@@ -368,7 +368,10 @@ function readDates(text: string, context: Context): Chip[] {
   let time: Chip | undefined;
 
   const chipOf = (kind: 'date' | 'time', from: number, length: number, value: string): Chip | undefined => {
-    const start = words[from]!.start;
+    // "am 30.10.", "um 10 Uhr": the word before belongs to the day or the time, not the title.
+    const before = words[from - 1];
+    const leads = before !== undefined && context.words.on.includes(before.core) && (!day || day.end <= before.start);
+    const start = leads ? before.start : words[from]!.start;
     const end = words[from + length - 1]!.end;
     const chipText = text.slice(start, end);
     if (context.literal.has(literalKey(kind, chipText))) return undefined;
@@ -394,6 +397,19 @@ function readDates(text: string, context: Context): Chip[] {
         if (chip) {
           day = chip;
           at += found.length - 1;
+          // "morgen 10" ends the line or stands before a token: the hour of that day. Before a
+          // word it stays a count - "morgen 10 Eier".
+          const hour = words[at + 1];
+          const after = words[at + 2];
+          const bare = hour ? /^(\d{1,2})$/u.exec(hour.core) : null;
+          const isLast = after === undefined || /^[@#+!]/u.test(text.slice(after.start, after.end));
+          if (!time && bare && Number(bare[1]) <= 23 && isLast && !hour!.isStopped) {
+            const timeChip = chipOf('time', at + 1, 1, `${pad(Number(bare[1]))}:00`);
+            if (timeChip) {
+              time = timeChip;
+              at += 1;
+            }
+          }
           continue;
         }
       }
