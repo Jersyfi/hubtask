@@ -5797,7 +5797,7 @@
   "app.sync.connected": "Verbunden",
   "app.sync.reconnecting": "Verbindet erneut …",
   "app.sync.offline": "Offline",
-  "app.sync.pending": "Noch nicht gesendet: {count}",
+  "app.sync.pending": "{count, plural, one {# Änderung wartet aufs Senden} other {# Änderungen warten aufs Senden}}",
   "app.sync.oldest": "Die älteste entstand {moment}.",
   "app.sync.synced": "Synchronisiert am {moment}",
   "app.sync.list": "Änderungen, die noch nicht gesendet sind",
@@ -6230,5 +6230,13 @@
   "app.capture.ticked_before": "Schon einmal abgehakt",
   "app.capture.put_back": "{title} wieder auf die Liste",
   "app.capture.offer_in": "in {hub}",
-  "app.capture.offers_keys": "↑↓ wählen · Enter übernehmen · Esc schließen"
+  "app.capture.offers_keys": "↑↓ wählen · Enter übernehmen · Esc schließen",
+  "app.sync.state.ok": "Alles synchronisiert",
+  "app.sync.state.busy": "Wird synchronisiert …",
+  "app.sync.state.offline": "Offline – du arbeitest hier weiter",
+  "app.sync.state.reconnecting": "Verbindung wird wiederhergestellt",
+  "app.sync.state.refused": "{count, plural, one {# Änderung nicht angenommen} other {# Änderungen nicht angenommen}}",
+  "app.sync.state.conflict": "{count, plural, one {Konflikt in # Eintrag} other {Konflikt in # Einträgen}}",
+  "app.sync.retry": "Erneut versuchen",
+  "app.sync.open": "Eintrag öffnen"
 }

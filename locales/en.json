@@ -5800,7 +5800,7 @@
   "app.sync.connected": "Connected",
   "app.sync.reconnecting": "Reconnecting…",
   "app.sync.offline": "Offline",
-  "app.sync.pending": "Waiting to be sent: {count}",
+  "app.sync.pending": "{count, plural, one {# change is waiting to be sent} other {# changes are waiting to be sent}}",
   "app.sync.oldest": "The oldest is from {moment}.",
   "app.sync.synced": "Synchronised {moment}",
   "app.sync.list": "Changes waiting to be sent",
@@ -6233,5 +6233,13 @@
   "app.capture.ticked_before": "Ticked before",
   "app.capture.put_back": "Put {title} back on the list",
   "app.capture.offer_in": "in {hub}",
-  "app.capture.offers_keys": "↑↓ choose · Enter take · Esc close"
+  "app.capture.offers_keys": "↑↓ choose · Enter take · Esc close",
+  "app.sync.state.ok": "All synchronised",
+  "app.sync.state.busy": "Synchronising…",
+  "app.sync.state.offline": "Offline – you keep working here",
+  "app.sync.state.reconnecting": "Reconnecting",
+  "app.sync.state.refused": "{count, plural, one {# change not accepted} other {# changes not accepted}}",
+  "app.sync.state.conflict": "{count, plural, one {A conflict in # entry} other {A conflict in # entries}}",
+  "app.sync.retry": "Try again",
+  "app.sync.open": "Open the entry"
 }

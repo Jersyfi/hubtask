@@ -51,3 +51,15 @@ export const sheet: Story = {
     'Below `medium` there is no room beside a bar’s control, so what the mark opens comes from the edge — the same choice the account menu makes, and the same `Drawer`. Width is the caller’s question and never this component’s: it takes `isSheet` and draws what it is told.',
   args: { isSheet: true },
 };
+
+export const busy: Story = {
+  name: 'Sending',
+  about: 'Connected and changes on their way: the band in the brand tint says so, the count and the age of the oldest under it.',
+  args: { mode: 'busy' },
+};
+
+export const conflict: Story = {
+  name: 'A conflict',
+  about: 'An entry changed on two devices: the band names it, the line says which entry, and the one action is the resolver.',
+  args: { mode: 'conflict' },
+};

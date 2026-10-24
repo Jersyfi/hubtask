@@ -394,7 +394,7 @@ for (const width of [905, 1280]) {
     await mark.click();
     const surface = page.getByRole('dialog', { name: 'The copy and the server' });
     await surface.waitFor({ timeout: 5_000 });
-    assert.equal(await surface.getByText('Connected').count(), 1, `${width}: what it opened does not say the state`);
+    assert.equal(await surface.getByText('All synchronised').count(), 1, `${width}: what it opened does not say the state`);
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 

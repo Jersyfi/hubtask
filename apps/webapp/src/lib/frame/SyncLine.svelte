@@ -65,7 +65,7 @@
     queue.conflicts.filter((conflict) => conflict.field === 'notes').map((conflict) => ({
       id: `conflict-${conflict.id}`,
       what: t('app.sync.what.patch.notes'),
-      where: conflict.itemId,
+      where: items.find(conflict.itemId)?.title ?? t('app.sync.what.patch.notes'),
       reason: t('app.sync.conflict.strip'),
       href: `/items/${conflict.itemId}`,
       resolveLabel: t('app.sync.conflict.show'),
@@ -81,6 +81,19 @@
       },
     })),
   );
+
+  /**
+   * The surface's heading: the most pressing of the six states the concept draws - a conflict, a
+   * refusal, offline, reconnecting, sending, all synchronised (design-system.md §11.6).
+   */
+  const heading = $derived.by((): { headline: string; tone: 'ok' | 'busy' | 'warn' | 'bad' } => {
+    if (conflicts.length > 0) return { headline: t('app.sync.state.conflict', { count: conflicts.length }), tone: 'warn' };
+    if (refused.length > 0) return { headline: t('app.sync.state.refused', { count: refused.length }), tone: 'bad' };
+    if (connection === 'offline') return { headline: t('app.sync.state.offline'), tone: 'warn' };
+    if (connection === 'reconnecting') return { headline: t('app.sync.state.reconnecting'), tone: 'warn' };
+    if (queue.count > 0) return { headline: t('app.sync.state.busy'), tone: 'busy' };
+    return { headline: t('app.sync.state.ok'), tone: 'ok' };
+  });
 
   async function keep(): Promise<void> {
     isResolverOpen = false;
@@ -103,6 +116,11 @@
   <SyncStatus
     {connection}
     {connectionLabel}
+    headline={heading.headline}
+    tone={heading.tone}
+    onRetry={() => void engine.push()}
+    retryLabel={t('app.sync.retry')}
+    openLabel={t('app.sync.open')}
     pendingCount={queue.count}
     pendingLabel={queue.count > 0 ? t('app.sync.pending', { count: queue.count }) : undefined}
     oldestLabel={queue.oldestAt !== undefined ? t('app.sync.oldest', { moment: formatRelative(new Date(queue.oldestAt).toISOString(), messages.locale) }) : undefined}
@@ -111,7 +129,6 @@
     refused={[...conflicts, ...refused]}
     listLabel={t('app.sync.panel')}
     emptyLabel={t('app.sync.empty')}
-    refusedLabel={t('app.sync.refused')}
     dismissLabel={t('app.sync.dismiss')}
     onDismiss={(id) => (id.startsWith('conflict-') ? queue.dismissConflict(id.slice('conflict-'.length)) : queue.dismiss(id))}
     isSheet={viewport.isCompact}

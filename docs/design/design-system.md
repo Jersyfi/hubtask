@@ -960,9 +960,14 @@ mark says only that there is something; pressed it says all of it in a `Popover`
 | Offline | The struck cloud, `status.warning` — tinted like reconnecting, not a filled block: working offline is a state the product is built for | That it is not connected |
 | Something was refused | The mark with a `status.danger` dot | That there is something to read |
 
-Pressed: the state as a band of its tone across the top with room around its words, then the last
-synchronisation, what is queued, what was refused and why, and the retry — each line starting on the
-band's text edge. **Connected means the stream was accepted**, not that a record arrived.
+Pressed: one band across the whole surface naming the most pressing of six states, in this order — a
+conflict (`status.warning`, the two-way mark), changes not accepted (`status.danger`), offline,
+reconnecting (both `status.warning`), synchronising (the brand tint) and all synchronised
+(`status.success`). Under it, on the band's text edge: the count and the age of the oldest change,
+each waiting change on one quiet line, or the last synchronisation; a refusal as the entry's name and
+the reason. **At most one action per state**: *Try again* while not connected, *Open the entry* for a
+refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
+accepted**, not that a record arrived.
 
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn always, signed in or
 not:

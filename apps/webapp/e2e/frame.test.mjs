@@ -110,16 +110,25 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   await home(page);
 
   await page.locator('header .trigger').click();
-  const band = page.locator('.state');
+  const band = page.locator('.band');
   await band.waitFor({ timeout: 5_000 });
+  assert.equal((await band.innerText()).trim(), 'All synchronised', 'the band names the state, not only the connection');
   const geometry = await page.evaluate(() => {
-    const state = document.querySelector('.state');
+    const state = document.querySelector('.band');
     const word = state.querySelector('.word').getBoundingClientRect();
-    const line = document.querySelector('.state ~ .detail')?.getBoundingClientRect();
+    const line = document.querySelector('.band ~ .body .detail')?.getBoundingClientRect();
+    const surface = state.closest('[popover], .surface')?.getBoundingClientRect() ?? state.parentElement.getBoundingClientRect();
+    const box = state.getBoundingClientRect();
     const style = getComputedStyle(state);
-    return { word: Math.round(word.left), line: line ? Math.round(line.left) : null, padding: Number.parseFloat(style.paddingInlineStart) };
+    return {
+      word: Math.round(word.left),
+      line: line ? Math.round(line.left) : null,
+      padding: Number.parseFloat(style.paddingInlineStart),
+      edge: Math.round(box.left - surface.left),
+    };
   });
   assert.ok(geometry.padding >= 8, `the band's words touch its edge: ${geometry.padding} px`);
+  assert.ok(geometry.edge <= 1, `the band does not run edge to edge: ${geometry.edge} px in`);
   if (geometry.line !== null) assert.ok(Math.abs(geometry.line - geometry.word) <= 1, `the lines start ${geometry.line - geometry.word} px off the band's words`);
 
   // Offline is tinted like the other states, not a filled block.
