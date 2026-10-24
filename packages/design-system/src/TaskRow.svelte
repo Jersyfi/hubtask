@@ -50,6 +50,12 @@
     completeDisabledReason?: string;
     /** The name of the control that shows or hides the children. */
     expandLabel?: string;
+    /**
+     * Whether the row keeps the twist's place. A level keeps it on every row, so the titles of the
+     * level line up whether or not a row has children; a list of rows from anywhere - *Today*, a
+     * search - opens nothing in place, and the empty place would only push the title in.
+     */
+    hasTwist?: boolean;
     onToggleComplete?: () => void;
     onToggleExpand?: () => void;
     /** Labels, a badge, a menu. Not part of the row's own activation. */
@@ -74,6 +80,7 @@
     completeLabel,
     completeDisabledReason,
     expandLabel,
+    hasTwist = true,
     onToggleComplete,
     onToggleExpand,
     trailing,
@@ -99,16 +106,18 @@
   <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
-      <span class="twist">
-        {#if expansion !== 'leaf' && expandLabel}
-          <IconButton
-            icon={expansion === 'expanded' ? 'chevron-down' : 'chevron-right'}
-            label={expandLabel}
-            size="sm"
-            onclick={() => onToggleExpand?.()}
-          />
-        {/if}
-      </span>
+      {#if hasTwist}
+        <span class="twist">
+          {#if expansion !== 'leaf' && expandLabel}
+            <IconButton
+              icon={expansion === 'expanded' ? 'chevron-down' : 'chevron-right'}
+              label={expandLabel}
+              size="sm"
+              onclick={() => onToggleExpand?.()}
+            />
+          {/if}
+        </span>
+      {/if}
       <!-- A checkbox, not an icon button, because that is what completion is: a two-state control
            a screen reader announces as checked or not. Its label is announced and not drawn — the
            title beside it is what the reader sees, and "Completed" printed against every row would

@@ -690,6 +690,7 @@
           {isCompleted}
           completeLabel={t(isCompleted ? 'app.entries.reopen' : 'app.entries.complete', { title: hit.title })}
           completeDisabledReason={completeReason(hit)}
+          hasTwist={false}
           onToggleComplete={() => {
             if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
           }}

@@ -35,7 +35,8 @@ async function open(browser, width = 1280) {
     if (request.url().endsWith('/api/v1/search')) searches.push(request.postDataJSON());
   });
   await tab.page.goto(`${served.origin}/`);
-  await tab.page.getByRole('heading', { name: 'Today', level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
+  // The page's heading is the greeting, by the hour where the person is (§11.7).
+  await tab.page.getByRole('heading', { name: /^(Good morning|Hello|Good evening)/u, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   return { ...tab, searches };
 }
 
@@ -229,7 +230,7 @@ test('chromium: the day at a glance - a greeting by the hour, figures that lead 
   assert.ok(links.some((link) => link.href === '/jumble'), 'no jumble figure for a reader of the jumble');
   // Nothing says what the person did not do (§11.7).
   assert.equal(links.some((link) => /overdue/i.test(link.text)), false, `an overdue figure: ${JSON.stringify(links)}`);
-  // The greeting by the hour where the person is, in the head's subtitle.
+  // The greeting by the hour where the person is, as the page's heading.
   const subtitle = await page.locator('main').getByText(/^(Good morning|Hello|Good evening)/).first().textContent();
   assert.ok(subtitle.includes(ACCOUNT.display_name.split(' ')[0]), `the greeting does not name the person: ${subtitle}`);
   assert.deepEqual(failures, []);

@@ -237,6 +237,7 @@
       href={`/items/${item.id}`}
       isCompleted={isDone(item)}
       completeLabel={t('app.entries.complete', { title: item.title })}
+      hasTwist={false}
       onToggleComplete={() => void toggle(item)}
     >
       {#snippet trailing()}
@@ -263,7 +264,10 @@
 {/snippet}
 
 <Stack gap="300">
-  <PageHeader title={t('app.nav.today')} subtitle={`${greeting} · ${dayLine}`} isTitleInBar={viewport.isCompact} />
+  <!-- The day starts with the person (§11.7): the greeting is the heading, the date at its end. -->
+  <PageHeader title={greeting} isTitleInBar={viewport.isCompact}>
+    {#snippet aside()}<span class="date">{dayLine}</span>{/snippet}
+  </PageHeader>
 
   {#if actor.hasNoAccess}
     <!-- Nobody gave this person anything yet: said in a sentence rather than an empty workspace
@@ -331,94 +335,98 @@
         </Stack>
       </section>
 
-      <!-- A list is one tile with its figure, never its entries one by one (check 2). -->
-      {#if lists.length > 0}
-        <section class="panel" aria-labelledby="today-lists">
-          <Stack gap="150">
-            <h2 class="head" id="today-lists">{t('app.today.lists')}</h2>
-            <ul class="tiles">
-              {#each lists as list (list.id)}
-                <li>
-                  <a class="tile" href={`/collections/${list.id}`} data-token={list.color_token ?? undefined}>
-                    <span class="tile-name"><ContainerMark look={list} size="md" /><span class="name">{list.name}</span></span>
-                    {#if list.figure}<span class="tile-figure"><CollectionFigure figure={list.figure} name={list.name} /></span>{/if}
+      <!-- Beside it, what the day is made of besides: the lists, the projects, the jumble, what
+           was opened last. -->
+      <div class="side">
+        <!-- A list is one tile with its figure, never its entries one by one (check 2). -->
+        {#if lists.length > 0}
+          <section class="panel" aria-labelledby="today-lists">
+            <Stack gap="150">
+              <h2 class="head" id="today-lists">{t('app.today.lists')}</h2>
+              <ul class="tiles">
+                {#each lists as list (list.id)}
+                  <li>
+                    <a class="tile" href={`/collections/${list.id}`} data-token={list.color_token ?? undefined}>
+                      <span class="tile-name"><ContainerMark look={list} size="md" /><span class="name">{list.name}</span></span>
+                      {#if list.figure}<span class="tile-figure"><CollectionFigure figure={list.figure} name={list.name} /></span>{/if}
+                    </a>
+                  </li>
+                {/each}
+              </ul>
+            </Stack>
+          </section>
+        {/if}
+
+        <!-- A project shows how far it is and the step that is due next (check 3). -->
+        {#if projects.length > 0}
+          <section class="panel" aria-labelledby="today-projects">
+            <Stack gap="200">
+              <h2 class="head" id="today-projects">{t('app.today.projects')}</h2>
+              {#each projects as project (project.id)}
+                {@const step = today.stepOf(project.id)}
+                {@const stepState = today.stepStateOf(project.id).status}
+                <div class="project">
+                  <a class="project-name" href={`/collections/${project.id}`}>
+                    <ContainerMark look={project} /><span class="name">{project.name}</span>
                   </a>
-                </li>
+                  {#if project.figure}<CollectionFigure figure={project.figure} name={project.name} />{/if}
+                  {#if step}
+                    <div class="step">
+                      <span class="step-word">{t('app.today.next_step')}</span>
+                      {@render entry(step, false)}
+                    </div>
+                  {:else if stepState === 'ready'}
+                    <p class="none">{t('app.today.step_none')}</p>
+                  {/if}
+                </div>
               {/each}
-            </ul>
-          </Stack>
-        </section>
-      {/if}
+            </Stack>
+          </section>
+        {/if}
 
-      <!-- A project shows how far it is and the step that is due next (check 3). -->
-      {#if projects.length > 0}
-        <section class="panel" aria-labelledby="today-projects">
-          <Stack gap="200">
-            <h2 class="head" id="today-projects">{t('app.today.projects')}</h2>
-            {#each projects as project (project.id)}
-              {@const step = today.stepOf(project.id)}
-              {@const stepState = today.stepStateOf(project.id).status}
-              <div class="project">
-                <a class="project-name" href={`/collections/${project.id}`}>
-                  <ContainerMark look={project} /><span class="name">{project.name}</span>
-                </a>
-                {#if project.figure}<CollectionFigure figure={project.figure} name={project.name} />{/if}
-                {#if step}
-                  <div class="step">
-                    <span class="step-word">{t('app.today.next_step')}</span>
-                    {@render entry(step, false)}
-                  </div>
-                {:else if stepState === 'ready'}
-                  <p class="none">{t('app.today.step_none')}</p>
-                {/if}
-              </div>
-            {/each}
-          </Stack>
-        </section>
-      {/if}
+        <!-- What arrived and has not been put anywhere. The count is the point; three rows are the
+             reminder that it is made of things (check 4). -->
+        {#if hasJumble}
+          <section class="panel" aria-labelledby="today-jumble">
+            <Stack gap="150">
+              <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
+              {#if isJumbleLoading}
+                <div aria-busy="true"><Skeleton lines={2} /></div>
+              {:else if waiting.length === 0}
+                <p class="none">{t('app.today.jumble_none')}</p>
+              {:else}
+                <Stack gap="050">
+                  {#each waiting.slice(0, 3) as arrival (arrival.id)}
+                    <!-- The same word the jumble screen puts on a row: an arriving message need not
+                         carry a subject, and "(no subject)" is what it is called rather than a blank. -->
+                    <ListRow href="/jumble">{arrival.raw_subject?.trim() || t('app.jumble.no_subject')}</ListRow>
+                  {/each}
+                </Stack>
+                <!-- Past the first page the count is a floor, and says so. -->
+                <p class="more">
+                  <a href="/jumble">{t(jumble.moreAfter() ? 'app.today.jumble_more_than' : 'app.today.jumble_more', { count: waiting.length })}</a>
+                </p>
+              {/if}
+            </Stack>
+          </section>
+        {/if}
 
-      <!-- What arrived and has not been put anywhere. The count is the point; three rows are the
-           reminder that it is made of things (check 4). -->
-      {#if hasJumble}
-        <section class="panel" aria-labelledby="today-jumble">
+        <!-- What this device opened last (check 5). No read at all: it is kept here and sent nowhere. -->
+        <section class="panel" aria-labelledby="today-recent">
           <Stack gap="150">
-            <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
-            {#if isJumbleLoading}
-              <div aria-busy="true"><Skeleton lines={2} /></div>
-            {:else if waiting.length === 0}
-              <p class="none">{t('app.today.jumble_none')}</p>
+            <h2 class="head" id="today-recent">{t('app.today.recent')}</h2>
+            {#if recents.rows.length === 0}
+              <div class="empty"><p class="none">{t('app.today.recent_none')}</p></div>
             {:else}
               <Stack gap="050">
-                {#each waiting.slice(0, 3) as arrival (arrival.id)}
-                  <!-- The same word the jumble screen puts on a row: an arriving message need not
-                       carry a subject, and "(no subject)" is what it is called rather than a blank. -->
-                  <ListRow href="/jumble">{arrival.raw_subject?.trim() || t('app.jumble.no_subject')}</ListRow>
+                {#each recents.rows as row (row.kind + row.id)}
+                  <ListRow href={recentHref(row.kind, row.id)}>{row.title}</ListRow>
                 {/each}
               </Stack>
-              <!-- Past the first page the count is a floor, and says so. -->
-              <p class="more">
-                <a href="/jumble">{t(jumble.moreAfter() ? 'app.today.jumble_more_than' : 'app.today.jumble_more', { count: waiting.length })}</a>
-              </p>
             {/if}
           </Stack>
         </section>
-      {/if}
-
-      <!-- What this device opened last (check 5). No read at all: it is kept here and sent nowhere. -->
-      <section class="panel" aria-labelledby="today-recent">
-        <Stack gap="150">
-          <h2 class="head" id="today-recent">{t('app.today.recent')}</h2>
-          {#if recents.rows.length === 0}
-            <div class="empty"><p class="none">{t('app.today.recent_none')}</p></div>
-          {:else}
-            <Stack gap="050">
-              {#each recents.rows as row (row.kind + row.id)}
-                <ListRow href={recentHref(row.kind, row.id)}>{row.title}</ListRow>
-              {/each}
-            </Stack>
-          {/if}
-        </Stack>
-      </section>
+      </div>
     </div>
   {/if}
 </Stack>
@@ -429,27 +437,32 @@
 <CreateContainerDialog bind:isOpen={isCreatingHub} type="HUB" isPrivateOnly={creation === 'private'} oncreated={(id) => onnavigate?.(`/hubs/${id}`)} />
 
 <style>
-  /* One column on a phone, two from where there is room for two; what is on the reader takes the
-     whole width, because it is the reason they are here. */
+  /* One column on a phone; from `expanded` the concept's two - what is on the reader the wider,
+     because it is the reason they are here, the rest stacked beside it. */
   .panels {
     display: grid;
     gap: var(--sp-200);
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: start;
   }
 
-  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
-  @media (width >= 600px) {
-    .panels { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .panels > .mine { grid-column: 1 / -1; }
+  .side { display: grid; gap: var(--sp-200); min-width: 0; }
+
+  /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
+  @media (width >= 905px) {
+    .panels { grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); }
   }
+
+  .date { color: var(--text-secondary); font-size: var(--fs-100); white-space: nowrap; }
 
   /* A standalone element, so it takes the surface and the raised shadow rather than a border
      (`design-system.md` rule 1). The frame's canvas is what it sits on. */
   .panel {
     background: var(--bg-surface);
+    border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-lg);
     box-shadow: var(--shadow-raised);
-    padding: var(--sp-200);
+    padding: var(--sp-150) var(--sp-200);
     min-width: 0;
   }
 
@@ -539,9 +552,9 @@
     align-items: baseline;
     gap: var(--sp-050);
     padding: var(--sp-100) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
     background: var(--bg-surface);
-    box-shadow: var(--shadow-raised);
     color: var(--text-primary);
     text-decoration: none;
     white-space: nowrap;
@@ -550,8 +563,9 @@
   .glance a:hover { background: var(--bg-surface-hover); }
 
   .glance b {
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
+    font-size: var(--fs-400);
+    font-weight: var(--fw-bold);
+    line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
