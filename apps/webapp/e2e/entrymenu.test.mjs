@@ -249,7 +249,8 @@ test('chromium: 390 px with a touch screen — a still long press opens the menu
   // On the board, the card's still hold opens its menu too; a hold that moves is the drag's.
   await page.keyboard.press('Escape');
   await page.getByRole('radio', { name: 'Board' }).click();
-  // One column at this width - the first, where this card is.
+  // One column at this width: the strip chooses the one this card is in.
+  await page.getByRole('radiogroup', { name: 'Which column is shown' }).getByRole('radio', { name: /^To do/u }).click();
   const card = page.locator(`[data-card="${ITEMS[2].id}"]`).first();
   await card.waitFor({ timeout: 15_000 });
   await page.waitForTimeout(300);
@@ -286,11 +287,13 @@ test('chromium: 375 × 812 — the menu of the last row on screen stays on scree
   const count = await items.count();
   assert.ok(count >= COMMON.length, `the menu has ${count} items`);
   for (let index = 0; index < count; index += 1) {
-    const box = await items.nth(index).evaluate((item) => {
+    // The surface measured with the item: the engine may settle the scrolled surface anew.
+    const { box, around } = await items.nth(index).evaluate((item) => {
       item.scrollIntoView({ block: 'nearest' });
-      return item.getBoundingClientRect().toJSON();
+      return { box: item.getBoundingClientRect().toJSON(), around: item.closest('[role="menu"]').parentElement.getBoundingClientRect().toJSON() };
     });
-    assert.ok(box.top >= surface.top - 1 && box.bottom <= surface.bottom + 1, `item ${index} is outside the menu: ${box.top}–${box.bottom}`);
+    assert.ok(around.top >= 0 && around.bottom <= 812, `the menu runs past the viewport: ${around.top}–${around.bottom}`);
+    assert.ok(box.top >= around.top - 1 && box.bottom <= around.bottom + 1, `item ${index} is outside the menu: ${box.top}–${box.bottom}`);
   }
   assert.equal(await page.evaluate(() => scrollY), scrolled, 'reaching the items scrolled the page');
   assert.deepEqual(failures, []);

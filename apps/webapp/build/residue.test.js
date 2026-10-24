@@ -242,6 +242,7 @@ async function views() {
     ['archive', await load('ArchiveView'), { onnavigate: noop }],
     ['item', await load('ItemView'), { id: ITEM }],
     ['collection', await load('ContainerView'), { id: COLLECTION, onnavigate: noop }],
+    ['collection-settings-section', await load('ContainerView'), { id: COLLECTION, section: 'structure', onnavigate: noop }],
     ['administration', await load('AdministrationOverviewView'), {}],
     ['sign-in-settings', await load('SignInSettingsView'), {}],
     ['legal', await load('SignInSettingsView'), { part: 'legal' }],
@@ -283,10 +284,10 @@ test('the route table and this test name the same screens', async () => {
   // in, and is rendered here for that reason.
   const named = (await views()).map(([name]) => name).filter((name) => name !== 'sign-in').sort();
   const routed = ROUTES.map((route) => route.name)
-    // `hub` is `ContainerView` as `collection` is; `oidc-callback` finishes an exchange and draws
-    // nothing of the product; an address that moved (`movedTo`) draws nothing either - it replaces
-    // itself with the tab it became.
-    .filter((name) => name !== 'hub' && name !== 'oidc-callback')
+    // `hub` is `ContainerView` as `collection` is, and a place's settings are that view with a
+    // section, drawn once; `oidc-callback` finishes an exchange and draws nothing of the product; an
+    // address that moved (`movedTo`) draws nothing either - it replaces itself with the tab it became.
+    .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback'].includes(name))
     .filter((name) => movedTo(name) === undefined)
     .sort();
   assert.deepEqual(named, routed);

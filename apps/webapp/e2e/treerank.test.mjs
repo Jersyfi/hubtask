@@ -165,7 +165,7 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
 
-  await tree.getByRole('button', { name: /Garden/ }).click();
+  await tree.getByRole('button', { name: 'Show what is in Garden' }).click();
   const beds = tree.getByRole('treeitem', { name: 'Beds' });
   await beds.waitFor({ timeout: 5_000 });
   await beds.focus();

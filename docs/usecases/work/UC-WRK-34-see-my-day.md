@@ -28,6 +28,7 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 4. The jumble shows how many arrivals wait and the first three.
 5. Recently opened places on this device are listed.
 6. Nothing on the page says what the person did not do: no "you missed", overdue entries are listed plainly.
+7. The page greets the person by the time of their day and says at a glance how much is due today, how much is coming up, what waits in the jumble and what is open on them, each figure a link to those entries.
 
 ## Where it ends
 

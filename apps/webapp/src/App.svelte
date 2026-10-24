@@ -13,7 +13,7 @@
   import AppFrame from './lib/frame/AppFrame.svelte';
   import { messages, t } from './lib/i18n/i18n.svelte.ts';
   import { Router, type Resolution } from './lib/router.ts';
-  import { ROUTES, movedTo, paneFor } from './lib/routes.ts';
+  import { PLACE_ROUTES, ROUTES, isSettingsRoute, movedTo, paneFor } from './lib/routes.ts';
   import { viewport } from './lib/frame/viewport.svelte.ts';
   import { actor } from './lib/data/account.svelte.ts';
   import { manifest } from './lib/data/capabilities.svelte.ts';
@@ -349,12 +349,17 @@ import ContainerView from './views/ContainerView.svelte';
     {#key route.params.id}
       <ItemView id={route.params.id ?? ''} onnavigate={(path) => router.navigate(path)} />
     {/key}
-  {:else if route.name === 'hub' || route.name === 'collection'}
+  {:else if PLACE_ROUTES.includes(route.name ?? '')}
     <!-- One view for both: they differ in what they hold, not in what they are. Keyed on the id so
          that navigating from one collection to another rebuilds rather than reusing the state of
          the one before — a draft rename would otherwise follow the reader to a different name. -->
     {#key route.params.id}
-      <ContainerView id={route.params.id ?? ''} openItemId={pane.kind === 'pane' ? pane.itemId : undefined} onnavigate={(path) => router.navigate(path)} />
+      <ContainerView
+        id={route.params.id ?? ''}
+        openItemId={pane.kind === 'pane' ? pane.itemId : undefined}
+        section={isSettingsRoute(route.name) ? (route.params.section ?? '') : undefined}
+        onnavigate={(path) => router.navigate(path)}
+      />
     {/key}
   {:else}
     {@render nothingHere()}

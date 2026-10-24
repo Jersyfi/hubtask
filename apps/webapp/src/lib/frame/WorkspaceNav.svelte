@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, IconButton, Menu, SideNav, Skeleton, type MenuItem, type RowMenu } from '@hubtask/design-system/components';
 
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import ReplicaMark from './ReplicaMark.svelte';
@@ -34,6 +34,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { rowMessage } from '../data/figure.ts';
   import { KEEPING, primary } from '../navigation.ts';
+  import { commands } from '../palette/commands.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -156,6 +157,38 @@
    */
   const mayRankIn = (hubId: string) =>
     holds(people.roleOf({ hubId }, actor.account?.id, roleOrder()) ?? undefined, 'STRUCTURE').status === 'permitted';
+
+  /**
+   * A hub's or collection's own menu in the tree (design-system.md §11.3, §13 G7): the place is
+   * managed where it is listed. Its items are the page menu's own, by id, and choosing one leaves
+   * the page the wish (`commands.intend`) and goes there: the page runs it with its own handler
+   * and its own answers, so there is one implementation of each act. Offered where the reader may
+   * change the hub's shape - the condition the page asks for these acts - and absent otherwise.
+   */
+  function rowMenuOf(id: string): RowMenu | undefined {
+    const container = containers.find(id);
+    if (!container || isRail) return undefined;
+    const hubId = container.type === 'HUB' ? container.id : container.parent_id;
+    if (!hubId || !mayRankIn(hubId)) return undefined;
+    const items: MenuItem[] = [
+      { id: 'edit', label: t('app.workspace.edit'), icon: 'pencil' },
+      ...(container.type === 'COLLECTION' ? [{ id: 'move', label: t('app.move.to_hub'), icon: 'arrow-right-left' as const }] : []),
+      { id: 'settings', label: t('app.settings.title'), icon: 'settings' },
+      { id: 'archive', label: t('app.workspace.archive'), icon: 'archive', hasSeparatorBefore: true },
+      { id: 'trash', label: t('app.workspace.trash'), icon: 'trash', isDestructive: true, hasSeparatorBefore: true },
+    ];
+    return {
+      label: t('app.nav.row_actions', { name: container.name }),
+      items,
+      onselect: (act) => {
+        const place = container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}`;
+        // The settings are a page of their own (design-system.md §11.8); the rest the place's page runs.
+        if (act === 'settings') return onnavigate(`${place}/settings`);
+        commands.intend({ containerId: container.id, act });
+        onnavigate(place);
+      },
+    };
+  }
 
   let rankFailure = $state<string | undefined>(undefined);
 
@@ -302,6 +335,7 @@
     bind:expanded
     onnavigate={navigate}
     onreorder={(id, to) => void rank(id, to)}
+    rowMenu={rowMenuOf}
   />
   {#if rankFailure && !isRail}<p class="failure">{rankFailure}</p>{/if}
   <!-- Folded, a sentence has nowhere to be drawn: what is waiting, what failed and what an empty

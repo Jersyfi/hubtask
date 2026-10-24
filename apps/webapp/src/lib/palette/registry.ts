@@ -97,6 +97,7 @@ export const SETTING_ROWS: readonly SettingRow[] = [
   { id: 'celebrations', code: 'app.profile.celebrations', path: '/profile', screen: 'app.profile.title' },
   { id: 'theme', code: 'app.profile.theme', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_theme' },
   { id: 'motion', code: 'app.profile.motion', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_motion' },
+  { id: 'open', code: 'app.profile.open', path: '/profile/appearance', screen: 'app.profile.device_section', words: 'app.palette.words_open' },
   { id: 'password', code: 'app.password.change_title', path: '/profile/security', screen: 'app.security.title' },
   { id: 'passkeys', code: 'app.passkeys.title', path: '/profile/security', screen: 'app.security.title' },
   { id: 'second-factor', code: 'app.mfa.title', path: '/profile/security', screen: 'app.security.title', words: 'app.palette.words_second_factor' },

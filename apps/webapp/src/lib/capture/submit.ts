@@ -29,7 +29,10 @@ export interface Writer {
 
 export interface CreateBody {
   readonly type: string;
-  readonly collection_id: string;
+  /** Where the entry goes: its collection, or the entry it goes under, which names the collection. */
+  readonly collection_id?: string;
+  readonly parent_id?: string;
+  readonly bucket_id?: string;
   readonly title: string;
   readonly due_at?: string;
   readonly due_date_only?: boolean;
@@ -72,7 +75,7 @@ export function readLinesOf(
 /** The create request for one read line. Only what the chips say is sent; nothing is guessed. */
 export function bodyOf(
   reading: Reading,
-  place: { readonly collectionId: string; readonly type: string },
+  place: { readonly collectionId: string; readonly type: string; readonly parentId?: string; readonly bucketId?: string },
   clock: { readonly now: number; readonly zone: string },
   amount?: string,
 ): CreateBody {
@@ -82,7 +85,9 @@ export function bodyOf(
   const labels = reading.chips.filter((chip) => chip.kind === 'label').map((chip) => chip.id ?? '').filter((id) => id !== '');
   return {
     type: place.type,
-    collection_id: place.collectionId,
+    // Under an entry the parent is the place, as the list's own form sends it.
+    ...(place.parentId ? { parent_id: place.parentId } : { collection_id: place.collectionId }),
+    ...(place.bucketId ? { bucket_id: place.bucketId } : {}),
     title: reading.title,
     ...(wire ?? {}),
     ...(assignee ? { assignee_id: assignee } : {}),

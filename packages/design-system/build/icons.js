@@ -57,6 +57,8 @@ export const DECLARED = {
     'external-link',
     'menu',
     'panel-left',
+    'panel-right',
+    'maximize-2',
   ],
   'State and feedback': [
     'circle-check',
@@ -202,6 +204,7 @@ export const MIRRORED = [
   'external-link', // an arrow leaving the box, towards the end of the line
   'log-out', // an arrow leaving the frame, the same way
   'panel-left', // the panel sits at the start of the line, which is the end in Arabic
+  'panel-right', // and this one at the end, which is the start in Arabic
 ];
 
 const SOURCE = path.join(packageRoot, 'node_modules', 'lucide-static', 'icon-nodes.json');

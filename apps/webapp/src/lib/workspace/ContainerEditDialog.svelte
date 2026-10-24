@@ -12,12 +12,13 @@
   // only when it changed, after the rest and on the version that answered; the server keeps what
   // the workspace locked.
   //
-  // A collection's preset is not here: it is its *Structure* panel's first setting, beside what it
-  // replaces.
+  // A collection's preset is not here: it is its *Structure* section's first setting, beside what
+  // it replaces. Embedded, the same fields are the settings page's *General* section: a save keeps
+  // them open with what was saved, and *Discard* returns to it.
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, Input, Radio, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, Input, Radio, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -26,6 +27,7 @@
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
   import LookFields from './LookFields.svelte';
+  import PanelOrDialog from './PanelOrDialog.svelte';
   import { chosenColour, chosenSymbol, lookBody, type PlaceSymbol } from './look.ts';
 
   import type { LabelToken } from '@hubtask/design-system';
@@ -34,9 +36,11 @@
   interface Props {
     isOpen: boolean;
     container: Container;
+    /** Drawn as the settings page's *General* section rather than as a dialog. */
+    isEmbedded?: boolean;
   }
 
-  let { isOpen = $bindable(), container }: Props = $props();
+  let { isOpen = $bindable(), container, isEmbedded = false }: Props = $props();
 
   let name = $state('');
   let description = $state('');
@@ -54,21 +58,23 @@
 
   const isHub = $derived(container.type === 'HUB');
 
-  // Opening starts from what the place has now; what was tried and not saved is gone.
+  /** The fields as the place has them now; what was tried and not saved is gone. */
+  function begin() {
+    name = container.name;
+    description = container.description ?? '';
+    symbol = chosenSymbol(container);
+    colour = chosenColour(container);
+    presetBefore = container.structure?.preset ?? container.structure?.preset_id ?? '';
+    preset = presetBefore;
+    version = container.version;
+    failure = undefined;
+    isNameMissing = false;
+    isNameFailure = false;
+  }
+
   $effect(() => {
     if (!isOpen) return;
-    untrack(() => {
-      name = container.name;
-      description = container.description ?? '';
-      symbol = chosenSymbol(container);
-      colour = chosenColour(container);
-      presetBefore = container.structure?.preset ?? container.structure?.preset_id ?? '';
-      preset = presetBefore;
-      version = container.version;
-      failure = undefined;
-      isNameMissing = false;
-      isNameFailure = false;
-    });
+    untrack(begin);
   });
 
   $effect(() => {
@@ -118,7 +124,8 @@
         await containers.setStructure(container.id, presetChoice(preset), saved.version);
       }
       announcer.say(t('app.workspace.edited_announced', { name: name.trim() }));
-      isOpen = false;
+      if (isEmbedded) presetBefore = preset;
+      else isOpen = false;
     } catch (error) {
       const problem = error as TransportError;
       failure = renderProblem(problem, messages);
@@ -129,7 +136,7 @@
   }
 </script>
 
-<Dialog bind:isOpen title={t(isHub ? 'app.workspace.edit_hub' : 'app.workspace.edit_collection')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={isEmbedded ? t('app.settings.section_general') : t(isHub ? 'app.workspace.edit_hub' : 'app.workspace.edit_collection')} dismissLabel={t('app.workspace.cancel')}>
   <div bind:this={body}>
     <Stack gap="150">
       <Input
@@ -148,10 +155,10 @@
   </div>
 
   {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
+    <Button tone="secondary" onclick={() => (isEmbedded ? begin() : (isOpen = false))}>{isEmbedded ? t('app.save_bar.discard') : t('app.workspace.cancel')}</Button>
     <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>{t('app.workspace.save')}</Button>
   {/snippet}
-</Dialog>
+</PanelOrDialog>
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }

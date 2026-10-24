@@ -296,7 +296,7 @@ test('chromium: while an entry is being created, what already looks like it is n
     try {
       await page.goto(`${served.origin}/items/${ENTRY.id}`);
       await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
-      await page.getByLabel('Title', { exact: true }).last().fill('Book an electrician');
+      await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).fill('Book an electrician');
       await page.waitForTimeout(900);
       if (ai) {
         await page.getByText('Possibly already here:').waitFor({ timeout: 5_000 });

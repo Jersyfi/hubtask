@@ -121,8 +121,10 @@
        of two words by the edge it is anchored against. -->
   <div class="panel">
     <Stack gap="150">
-    <p class="detail" data-connection={connection}>
-      <span class="mark"><Icon name={MARKS[connection]} size="sm" /></span>
+    <!-- The state heads the surface as a band of its tone, with room around its words; the lines
+         below start where its words start (design-system.md §11.6). -->
+    <p class="state" data-connection={connection}>
+      <span class="mark" data-spin={connection === 'reconnecting' ? '' : undefined}><Icon name={MARKS[connection]} size="sm" /></span>
       <span class="word">{connectionLabel}</span>
     </p>
     {#if syncedLabel}<p class="detail">{syncedLabel}</p>{/if}
@@ -253,11 +255,9 @@
      whether there is anything waiting behind the mark. It is not a reason to say nothing in colour. */
   .trigger[data-connection='connected'] { background: var(--status-success-surface); color: var(--status-success-text); }
   .trigger[data-connection='reconnecting'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
-  .trigger[data-connection='offline'] {
-    background: var(--status-warning-accent);
-    color: var(--text-inverse);
-    font-weight: var(--fw-semibold);
-  }
+  /* Offline is a warning, tinted like the others: a filled block in a row of quiet squares read as
+     an alarm, and working offline is a state the product is built for, not a failure. */
+  .trigger[data-connection='offline'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
 
   .count { font-variant-numeric: tabular-nums; }
 
@@ -274,10 +274,27 @@
 
   .mark { display: inline-flex; }
 
-  .detail[data-connection='connected'] { border-radius: var(--r-sm); background: var(--status-success-surface); color: var(--status-success-text); }
-  .detail[data-connection='offline'] { border-radius: var(--r-sm); background: var(--status-danger-surface); color: var(--status-danger-text); }
+  .state {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    margin: 0;
+    padding: var(--sp-100) var(--sp-150);
+    border-radius: var(--r-md);
+    font-size: var(--fs-100);
+    font-weight: var(--fw-semibold);
+  }
 
-  .detail .word { margin-inline-start: var(--sp-050); }
+  .state[data-connection='connected'] { background: var(--status-success-surface); color: var(--status-success-text); }
+  .state[data-connection='reconnecting'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .state[data-connection='offline'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
+
+  /* On the band's text edge: the band's inline padding and its mark with the gap after it. */
+  .panel .detail,
+  .panel .list,
+  .panel .refused {
+    margin-inline-start: calc(var(--sp-150) + var(--fs-100) + var(--sp-100));
+  }
 
   /* The `pending` role: a continuous indicator with no beginning and no end, so its easing is
      linear and it never arrives (design-system.md §6 rule 6). Transform only; reduced motion

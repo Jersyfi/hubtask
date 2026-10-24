@@ -193,28 +193,28 @@ const VIEWS = [
 ];
 
 /**
- * Opens one of the collection's parts: a tab of *Structure* for whom the shape belongs to
- * (ux-inventory.md §E4); the templates also from the add button's *From a template…*, the way
- * everybody who may add an entry uses them. Nothing where the reader has neither.
+ * Opens one of the collection's parts: a section of its settings for whom the shape belongs to
+ * (design-system.md §11.8); the templates also from capture's *From a template*, the way everybody
+ * who may add an entry uses them. Nothing where the reader has neither.
  */
 async function openPart(page, tab, mayShape) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   if (mayShape) {
-    await page.locator('[data-opener="container-menu"]').click();
-    await page.getByRole('menuitem', { name: 'Structure…', exact: true }).click();
-    const panel = page.getByRole('dialog');
-    await panel.getByRole('tab', { name: tab }).click();
-    return panel;
+    await page.locator('[data-opener="structure"]').click();
+    await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: tab }).click();
+    const part = page.getByRole('region', { name: tab === 'Fields' ? 'Custom fields' : tab });
+    await part.waitFor({ timeout: 5_000 });
+    return part;
   }
   // A viewer's page menu may hold nothing at all, so it is not where this starts.
   await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   if (tab !== 'Templates') return undefined;
-  const ways = page.getByRole('button', { name: 'More ways to add an entry' });
+  const add = page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true });
   await page.waitForTimeout(400);
-  if ((await ways.count()) === 0) return undefined;
-  await ways.click();
-  await page.getByRole('menuitem', { name: 'From a template…' }).click();
-  const dialog = page.getByRole('dialog');
+  if ((await add.count()) === 0) return undefined;
+  await add.click();
+  await page.getByRole('dialog', { name: 'Capture' }).getByRole('button', { name: 'From a template' }).click();
+  const dialog = page.getByRole('dialog', { name: 'Templates' });
   await dialog.waitFor();
   return dialog;
 }
@@ -312,8 +312,10 @@ for (const width of WIDTHS) {
     const sent = writes(context);
     await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
-    await page.locator('[data-opener="container-menu"]').click();
-    await page.getByRole('menuitem', { name: 'Select entries' }).click();
+    // Selecting is the toolbar's; below `expanded` its *Filter* sheet holds it.
+    const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
+    if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter and sort' }).click();
+    await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
     await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });
     const apply = page.getByRole('button', { name: 'Apply', exact: true });

@@ -117,6 +117,20 @@ test('no chips, no fields: nothing is guessed', () => {
   });
 });
 
+test('a door under an entry places it by its parent, and a column door carries the column', () => {
+  assert.deepEqual(bodyOf(reading('Hero text'), { collectionId: 'kitchen', type: 'WORK_PACKAGE', parentId: 'task-1' }, { now: 0, zone: 'UTC' }), {
+    type: 'WORK_PACKAGE',
+    parent_id: 'task-1',
+    title: 'Hero text',
+  });
+  assert.deepEqual(bodyOf(reading('Tiles'), { collectionId: 'kitchen', type: 'TASK', bucketId: 'doing' }, { now: 0, zone: 'UTC' }), {
+    type: 'TASK',
+    collection_id: 'kitchen',
+    bucket_id: 'doing',
+    title: 'Tiles',
+  });
+});
+
 test('entries are made in order, each with the key of its line', async () => {
   const { writer, calls } = fakeWriter();
   const bodies = ['a', 'b'].map((title) => ({ type: 'TASK', collection_id: 'k', title }));

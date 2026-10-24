@@ -13,7 +13,9 @@
 // * check 4 - without a target the entry goes to the collection the reader is in, else the jumble;
 //   the message names the place, links to it and undoes it;
 // * check 5 - the due date sent is the person's tomorrow, in their zone, near midnight;
-// * check 6 - by keyboard alone, and what was recognised is said in the frame's live region.
+// * check 6 - by keyboard alone, and what was recognised is said in the frame's live region;
+// * check 7 - every add opens this field pointed at its place, with suggestions while a token is
+//   typed, the modes, and *Keep capturing* on where a list is typed line after line.
 //
 // Chromium; the keyboard sequence also runs in all three engines in `engines.test.mjs`.
 
@@ -151,9 +153,9 @@ test('chromium: the story — chips, the entry in the right place on the person�
   await page.keyboard.press('q');
   await fieldOf(page).fill('Call the electrician tomorrow 11am +Mara !Urgent');
   const chips = dialogOf(page).getByRole('list', { name: 'Recognised' }).getByRole('listitem');
-  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul li').length === 4, null, { timeout: 5_000 });
+  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul[aria-label="Recognised"] li').length === 4, null, { timeout: 5_000 });
   assert.equal(await chips.count(), 4);
-  assert.ok((await dialogOf(page).textContent()).includes('Into Kitchen in House'), 'the target line does not name Kitchen');
+  assert.match(await dialogOf(page).locator('[data-chip="place"]').innerText(), /Kitchen in House/u, 'the place chip does not name Kitchen');
 
   await page.keyboard.press('Enter');
   const create = await sent(page, writes, 'POST /items');
@@ -178,7 +180,7 @@ test('chromium: the story — chips, the entry in the right place on the person�
   await page.keyboard.press('q');
   await fieldOf(page).fill('Call the electrician tomorrow');
   await dialogOf(page).getByRole('button', { name: 'Keep “tomorrow” in the title' }).click();
-  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul li').length === 0, null, { timeout: 5_000 });
+  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul[aria-label="Recognised"] li').length === 0, null, { timeout: 5_000 });
   const before = writes.length;
   await fieldOf(page).press('Enter');
   await sent(page, writes.slice(before), 'POST /items').catch(() => {});
@@ -252,7 +254,7 @@ test('chromium: a list takes no date, person or label, and makes one entry per l
   await page.keyboard.press('q');
   await fieldOf(page).fill('Milk tomorrow +Mara !Urgent');
   await page.waitForTimeout(500);
-  assert.ok((await dialogOf(page).textContent()).includes('Into Groceries'));
+  assert.match(await dialogOf(page).locator('[data-chip="place"]').innerText(), /Groceries/u);
   assert.equal(await dialogOf(page).getByRole('list', { name: 'Recognised' }).count(), 0, 'a list recognised something');
   await fieldOf(page).press('Shift+Enter');
   await fieldOf(page).pressSequentially('Eggs');
@@ -262,6 +264,9 @@ test('chromium: a list takes no date, person or label, and makes one entry per l
   assert.deepEqual(creates.map((each) => each.body.title), ['Milk tomorrow +Mara !Urgent', 'Eggs']);
   assert.ok(creates.every((each) => each.body.collection_id === GROCERIES.id && each.body.due_at === undefined));
   await page.locator('.stack').getByText('2 entries added to Groceries').waitFor({ timeout: 5_000 });
+  // A list keeps capture open for the next line; put away, the message's Undo is in reach.
+  await page.keyboard.press('Escape');
+  await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
   await page.getByRole('button', { name: 'Undo' }).click();
   const bulk = await sent(page, writes, 'POST /items:bulk');
   assert.equal(bulk.body.atomic, true);
@@ -364,7 +369,7 @@ test('chromium: a child with one hub and no workspace role captures into their o
   assert.equal(writes.filter((each) => each.call.startsWith('POST /items') || each.call.startsWith('POST /jumble')).length, 0);
 
   await fieldOf(page).fill('Homework @Kitchen');
-  await page.waitForFunction(() => document.querySelector('dialog[open]')?.textContent?.includes('Into Kitchen in House'), null, { timeout: 5_000 });
+  await page.waitForFunction(() => document.querySelector('dialog[open] [data-chip="place"]')?.textContent?.includes('Kitchen in House'), null, { timeout: 5_000 });
   await page.keyboard.press('Enter');
   const create = await sent(page, writes, 'POST /items');
   assert.equal(create.body.collection_id, COLLECTION.id);
@@ -415,7 +420,7 @@ test('chromium: by keyboard alone, and said to a screen reader (check 6)', async
   assert.deepEqual(failures, []);
 });
 
-test('chromium: the add split offers several lines where the line splits them, and opens a tall field', async (t) => {
+test('chromium: every add opens capture pointed at its place - the chip, suggestions, the modes and keep capturing (check 7)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await signedIn(browser, 1280);
@@ -425,25 +430,45 @@ test('chromium: the add split offers several lines where the line splits them, a
     if (url.pathname.endsWith(`/containers/${GROCERIES.id}`)) return route.fulfill({ json: GROCERIES });
     return stub(route);
   });
-  const ways = async () => {
-    await page.getByRole('button', { name: 'More ways to add an entry' }).click();
-    const rows = await page.getByRole('menuitem').allTextContents();
-    await page.keyboard.press('Escape');
-    return rows.map((each) => each.trim());
-  };
+  const place = () => dialogOf(page).locator('[data-chip="place"]');
+  const modes = () => dialogOf(page).getByRole('group', { name: 'How to add' });
+  const keep = () => dialogOf(page).getByRole('checkbox', { name: 'Keep capturing' });
 
-  // A collection with several levels makes one entry of what is typed: no such way is offered.
+  // A collection of several levels: the head's one add opens capture there, one entry at a time.
   await land(page, `/collections/${COLLECTION.id}`);
-  assert.ok(!(await ways()).includes('Several lines…'), 'several lines offered where the line does not split them');
+  assert.equal(await page.getByRole('button', { name: 'More ways to add an entry' }).count(), 0, 'the add is one button, not a split');
+  await page.getByRole('main').getByRole('button', { name: 'Add an entry' }).first().click();
+  await fieldOf(page).waitFor({ timeout: 5_000 });
+  assert.match(await place().innerText(), /Kitchen/u, 'the chip names the collection the add stood in');
+  assert.equal(await keep().isChecked(), false);
+  assert.deepEqual(
+    (await modes().getByRole('button').allTextContents()).map((each) => each.trim()),
+    ['One entry', 'Several lines', 'From a template', 'Import a file'],
+  );
+  assert.equal(await modes().getByRole('button', { name: 'One entry' }).getAttribute('aria-pressed'), 'true');
 
-  // A list splits lines: the way is there, and it opens the capture line tall, focused.
+  // `@` lists the collections as they are typed; picking one writes the whole name.
+  await fieldOf(page).pressSequentially('Tiles @Kit');
+  const offers = dialogOf(page).getByRole('listbox', { name: 'Collections' });
+  await offers.waitFor({ timeout: 5_000 });
+  assert.match(await offers.getByRole('option').first().innerText(), /Kitchen\s*House/u, 'the collection with its hub');
+  assert.equal(await fieldOf(page).getAttribute('aria-autocomplete'), 'list');
+  await page.keyboard.press('Enter');
+  assert.equal(await fieldOf(page).inputValue(), 'Tiles @Kitchen ');
+  assert.equal(await offers.count(), 0, 'the list closed once a name was taken');
+  await page.keyboard.press('Escape');
+  await dialogOf(page).waitFor({ state: 'hidden', timeout: 5_000 });
+
+  // A list typed line after line: capture keeps the field open, and the chip may be changed.
   await land(page, `/collections/${GROCERIES.id}`);
-  assert.ok((await ways()).includes('Several lines…'), `several lines missing from ${await ways()}`);
-  await page.getByRole('button', { name: 'More ways to add an entry' }).click();
-  await page.getByRole('menuitem', { name: 'Several lines…' }).click();
-  const field = page.locator('main textarea').first();
-  await field.waitFor({ timeout: 5_000 });
-  assert.equal(await field.getAttribute('rows'), '5');
-  assert.ok(await field.evaluate((node) => node === document.activeElement), 'the field did not take the focus');
+  await page.getByRole('main').getByRole('button', { name: /^Add/u }).first().click();
+  await fieldOf(page).waitFor({ timeout: 5_000 });
+  assert.match(await place().innerText(), /Groceries/u);
+  assert.equal(await keep().isChecked(), true, 'a list keeps the field open for the next line');
+  await modes().getByRole('button', { name: 'Several lines' }).click();
+  assert.equal(await fieldOf(page).getAttribute('rows'), '4');
+  await place().click();
+  await page.getByRole('menuitem', { name: /Kitchen/u }).click();
+  assert.match(await place().innerText(), /Kitchen/u, 'the place chip changes where it goes');
   assert.deepEqual(failures, []);
 });

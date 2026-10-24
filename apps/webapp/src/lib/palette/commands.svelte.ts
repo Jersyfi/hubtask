@@ -27,6 +27,11 @@ export interface Intent {
   readonly layout?: string;
   /** Open the add form, where the screen says an entry may be created. */
   readonly add?: boolean;
+  /**
+   * One of the page menu's own items, by id - what the navigation's row menu asks of a hub or
+   * collection it is not showing. Run only where the screen offers it and it is usable now.
+   */
+  readonly act?: string;
 }
 
 class Commands {

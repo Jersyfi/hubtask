@@ -104,8 +104,13 @@ export interface Drag {
  * is the honest reading of "past the row" when the row is three rows tall.
  */
 const extentOf = (element: HTMLElement) => {
-  const box = element.getBoundingClientRect();
-  return { start: box.top, end: box.bottom };
+  // Where the layout put it, not where a transform drew it: a surface may slide its other members
+  // aside to open the landing gap, and measuring the slide would move the boundary the slide was
+  // made from, so the position would flicker between two answers.
+  const parent = element.offsetParent;
+  const base = parent instanceof HTMLElement && parent !== document.body ? parent.getBoundingClientRect().top + parent.clientTop - parent.scrollTop : -window.scrollY;
+  const start = base + element.offsetTop;
+  return { start, end: start + element.offsetHeight };
 };
 
 export function createDrag(options: DragOptions): Drag {

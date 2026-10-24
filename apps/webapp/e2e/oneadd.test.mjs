@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// One add per screen on a phone (design-system.md §11.8). At 390 px a list of one level adds
-// through its capture line at the top, so its head pins no *Add an entry* over the rows and the
-// add's other ways are in the page menu; a collection of several levels pins its one *Add an
-// entry* above the bottom bar, draws no second one under the rows, and ends far enough down that
-// its last row scrolls out from under that button. At 1280 px nothing of this changes: the head
-// carries *Add an entry*, and a collection keeps its add under the rows.
+// One add (design-system.md §11.8, UC-WRK-26 check 7): capture is the one way an entry is added,
+// and every add control is a door into it that knows where it stands. At 390 px a collection pins
+// no add of its own - the bottom bar's ＋ opens capture pointed at it - and a list keeps capture
+// open for the next line. At 1280 px the head carries *Add an entry*, a collection keeps its add
+// under the rows, and both open capture with the collection's chip.
 //
 // Chromium only: what is walked is layout, with no engine-specific part.
 
@@ -37,39 +36,48 @@ async function open(width, path) {
 }
 
 const adds = (page) => page.locator('main').getByRole('button', { name: 'Add an entry', exact: true });
+const dialogOf = (page) => page.getByRole('dialog', { name: 'Capture' });
 
-test('390 px: a list adds through its capture line, and the head pins no second add', async () => {
-  const { page, context, failures } = await open(390, `/collections/${GROCERIES.id}`);
-  await page.getByRole('textbox', { name: 'New entries, one per line' }).waitFor();
-  assert.equal(await adds(page).count(), 0);
-  // The add's other ways stay, in the page menu the bar carries.
-  await page.locator('[data-bar="menu"] button').click();
-  await page.getByRole('menuitem', { name: 'From a template…' }).waitFor();
-  assert.deepEqual(failures, []);
-  await context.close();
-});
+/** The place capture was opened for, and whether it stays open after Enter. */
+async function opened(page) {
+  const dialog = dialogOf(page);
+  await dialog.getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
+  const place = (await dialog.locator('[data-chip="place"]').innerText()).replace(/\s+/gu, ' ');
+  const keeps = await dialog.getByRole('checkbox', { name: 'Keep capturing' }).isChecked();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  return { place, keeps };
+}
 
-test('390 px: a collection pins one add, and its last row scrolls clear of it', async () => {
-  const { page, context, failures } = await open(390, `/collections/${COLLECTION.id}`);
-  await adds(page).first().waitFor();
-  assert.equal(await adds(page).count(), 1);
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  await page.waitForTimeout(100);
-  const pinned = await adds(page).boundingBox();
-  const last = await page.locator('[data-row]').last().boundingBox();
-  assert.ok(last.y + last.height <= pinned.y, `the last row ends at ${last.y + last.height}, under the add at ${pinned.y}`);
-  assert.deepEqual(failures, []);
-  await context.close();
-});
+for (const [collection, keepsOpen] of [[GROCERIES, true], [COLLECTION, false]]) {
+  test(`390 px: ${collection.name} pins no add of its own, and the bottom bar's ＋ opens capture pointed at it`, async () => {
+    const { page, context, failures } = await open(390, `/collections/${collection.id}`);
+    assert.equal(await adds(page).count(), 0, 'an add pinned over the bottom bar');
+    await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).click();
+    const { place, keeps } = await opened(page);
+    assert.match(place, new RegExp(collection.name, 'u'));
+    assert.equal(keeps, keepsOpen, 'keep capturing where a list is typed line after line');
+    assert.deepEqual(failures, []);
+    await context.close();
+  });
+}
 
-test('1280 px: the head carries the add on a list and a collection, and a collection keeps its add under the rows', async () => {
+test('1280 px: the head carries the add, the end of the list another, and each opens capture there', async () => {
   const list = await open(1280, `/collections/${GROCERIES.id}`);
-  assert.equal(await adds(list.page).count(), 1);
+  assert.equal(await adds(list.page).count(), 2);
+  for (const index of [0, 1]) {
+    await adds(list.page).nth(index).click();
+    assert.match((await opened(list.page)).place, /Groceries/u);
+  }
   assert.deepEqual(list.failures, []);
   await list.context.close();
 
   const collection = await open(1280, `/collections/${COLLECTION.id}`);
   assert.equal(await adds(collection.page).count(), 2);
+  for (const index of [0, 1]) {
+    await adds(collection.page).nth(index).click();
+    assert.match((await opened(collection.page)).place, new RegExp(COLLECTION.name, 'u'));
+  }
   assert.deepEqual(collection.failures, []);
   await collection.context.close();
 });

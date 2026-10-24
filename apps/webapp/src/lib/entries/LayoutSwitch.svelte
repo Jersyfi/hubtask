@@ -4,7 +4,7 @@
   // Which shape the entries are shown in: the head's second row (ADR-0061 decision 4).
   //
   // The manifest reports four layouts and the switch offers three. `LIST_COLLAPSED` and
-  // `LIST_EXPANDED` are one place - the list - with "show what is inside" as a toggle within it,
+  // `LIST_EXPANDED` are one place - the list - with "show what is inside" as a toggle button beside it,
   // because whether the children are shown is a property of the list rather than a fourth
   // rendering of the entries. Both stay the stored values: a saved view that says
   // `LIST_EXPANDED` still means what it meant, and the toggle is what chooses between them.
@@ -14,7 +14,7 @@
   // layout the installation does not report is not offered, and the toggle appears only when
   // both list layouts are.
 
-  import { Checkbox, ViewSwitcher, type IconName, type View } from '@hubtask/design-system/components';
+  import { Button, ViewSwitcher, type IconName, type View } from '@hubtask/design-system/components';
 
   import { manifest } from '../data/capabilities.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -86,16 +86,14 @@
   {/if}
   {#if isList(layout) && hasBothLists}
     <!-- `data-tour`: where the tour tells the levels in a workspace that holds no entry yet. -->
-    <span data-tour="levels-inside"><Checkbox
-      label={t('app.view.show_inside')}
-      checked={layout === EXPANDED}
+    <!-- A toggle of the list's own, not a setting: pressed, every level is shown open. -->
+    <span data-tour="levels-inside"><Button
+      size="sm"
+      tone="subtle"
+      icon="chevrons-up-down"
+      aria-pressed={layout === EXPANDED}
       onclick={() => onlayout(layout === EXPANDED ? COLLAPSED : EXPANDED)}
-      onkeydown={(event: KeyboardEvent) => {
-        if (event.key !== ' ' && event.key !== 'Enter') return;
-        event.preventDefault();
-        onlayout(layout === EXPANDED ? COLLAPSED : EXPANDED);
-      }}
-    /></span>
+    >{t('app.view.show_inside')}</Button></span>
   {/if}
 </div>
 

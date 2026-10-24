@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 
 import type { Container, WorkItem } from '@hubtask/sync-engine';
 
-import { bandsOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery } from './today.ts';
+import { bandsOf, greetingOf, isDueByTonight, isListFigure, isProjectFigure, nextStepQuery } from './today.ts';
 
 const BERLIN = 'Europe/Berlin';
 const AUCKLAND = 'Pacific/Auckland';
@@ -73,4 +73,17 @@ test('a project\'s next step is its soonest open dated entry, at any level', () 
   assert.deepEqual(query.scope, { container_id: 'c-9', include_descendants: true });
   assert.deepEqual(query.sort, [{ field: 'due_at', dir: 'ASC' }]);
   assert.equal(query.page.size, 1);
+});
+
+test('the greeting follows the hour where the person is, not where the device is', () => {
+  // 2026-10-23 06:30 UTC: 08:30 in Berlin, 19:30 in Auckland.
+  const at = Date.UTC(2026, 9, 23, 6, 30);
+  assert.equal(greetingOf(BERLIN, at), 'morning');
+  assert.equal(greetingOf(AUCKLAND, at), 'evening');
+  assert.equal(greetingOf(BERLIN, Date.UTC(2026, 9, 23, 12, 0)), 'day');
+  // The edges: five is morning, eleven the day, six in the evening the evening.
+  assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 5, 0)), 'morning');
+  assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 4, 59)), 'evening');
+  assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 11, 0)), 'day');
+  assert.equal(greetingOf('UTC', Date.UTC(2026, 9, 23, 18, 0)), 'evening');
 });
