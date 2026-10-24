@@ -92,7 +92,8 @@
     flex-direction: column;
     gap: var(--sp-100);
     /* A column is as wide as a card wants to be and no wider; the board scrolls, not the column. */
-    inline-size: calc(var(--sp-1000) * 4);
+    box-sizing: border-box;
+    inline-size: var(--layout-board-column);
     flex: none;
     padding: var(--sp-150);
     border-radius: var(--r-lg);

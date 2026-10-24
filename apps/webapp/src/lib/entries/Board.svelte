@@ -27,6 +27,7 @@
     ErrorState,
     IconButton,
     Inline,
+    Icon,
     LabelChip,
     Menu,
     Skeleton,
@@ -588,6 +589,30 @@
    */
   let board = $state<HTMLElement | null>(null);
 
+  /** Whether columns lie past the board's start and end edge, for the shadows that say so. */
+  let edges = $state({ start: false, end: false });
+
+  function measureEdges() {
+    if (!board || isOneColumn) {
+      edges = { start: false, end: false };
+      return;
+    }
+    // `scrollLeft` runs negative from zero in a right-to-left board, so its size is what counts.
+    const travelled = Math.abs(board.scrollLeft);
+    const room = board.scrollWidth - board.clientWidth;
+    edges = { start: travelled > 1, end: room - travelled > 1 };
+  }
+
+  $effect(() => {
+    if (!board) return;
+    const watched = board;
+    const observer = new ResizeObserver(measureEdges);
+    observer.observe(watched);
+    for (const child of watched.children) observer.observe(child);
+    measureEdges();
+    return () => observer.disconnect();
+  });
+
   /**
    * Where the carried card came from and how much room it takes, read once when the drag begins:
    * the cards it passes slide aside by that much, so the landing place is a real gap and nothing is
@@ -595,15 +620,31 @@
    */
   let dragOrigin = $state<{ key: string; index: number } | null>(null);
   let dragGap = $state<string | undefined>(undefined);
+  /**
+   * Where the carried card's copy starts, in the viewport: the copy is what follows the pointer,
+   * above every column, because a column scrolls its cards and so clips anything inside it that
+   * moves out of it (design-system.md §11.9). The card itself keeps its slot, unseen.
+   */
+  let ghost = $state<{ readonly card: WorkItem; readonly start: string; readonly top: string; readonly width: string } | null>(null);
   $effect(() => {
     const id = drag.id;
     if (id === null) {
       dragOrigin = null;
       dragGap = undefined;
+      ghost = null;
       return;
     }
     untrack(() => {
       const element = board?.querySelector<HTMLElement>(`[data-card="${id}"]`);
+      const card = [...columns.map((column) => column.id), null].flatMap((key) => cardsOf(key)).find((each) => each.id === id);
+      if (element && card) {
+        const box = element.getBoundingClientRect();
+        const isRtl = getComputedStyle(element).direction === 'rtl';
+        // Measured, not designed: the card's own place on the screen when it was picked up, from
+        // the start of the line - the right edge in a right-to-left document.
+        // design-system-lint-ignore: a measured box is physical; the start edge is worked out from it.
+        ghost = { card, start: `${isRtl ? innerWidth - box.right : box.left}px`, top: `${box.top}px`, width: `${box.width}px` };
+      }
       const key = element?.getAttribute('data-column') ?? 'none';
       dragOrigin = { key, index: cardsOf(key === 'none' ? null : key).findIndex((each) => each.id === id) };
       const parent = element?.parentElement;
@@ -726,8 +767,11 @@
     </div>
   {/if}
 
+  <!-- The edges say there are more columns past them: a shadow over the board, not behind it,
+       so the columns cannot cover it. -->
+  <div class="frame" data-more-start={edges.start ? '' : undefined} data-more-end={edges.end ? '' : undefined}>
   <!-- design-system-lint-ignore: the gap is the carried card's measured height, not a design value. -->
-  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} style:--drag-gap={dragGap}>
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
     {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = cardsOf(bucketId)}
@@ -781,8 +825,6 @@
                 data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
                 data-dragging={drag.id === card.id ? '' : undefined}
                 data-shift={shiftOf(card, bucket?.id ?? 'none', cards)}
-                style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
-                style:--drag-offset-inline={drag.id === card.id ? drag.offsetInline : undefined}
               >
                 <!-- The same pick the list has, and deliberately the same code behind it: one
                      selection across both layouts, drawn only while somebody is selecting, and
@@ -831,20 +873,21 @@
                           <LabelChip name={label.name} colorToken={label.color_token} />
                         {/if}
                       {/each}
-                      <!-- The keyboard path to moving a card - the drag is built against it, because
-                           WCAG 2.2 SC 2.5.7 wants a single-pointer alternative and a rank change is
-                           a command before it is a gesture. -->
-                      <span class="menu" data-card-menu={card.id}>
-                        <EntryMenu
-                          bind:this={menus[card.id]}
-                          title={card.title}
-                          items={menuItems(card, cards)}
-                          onselect={(id) => chose(card, cards, id)}
-                        />
-                      </span>
                     </Inline>
                   {/snippet}
                 </WorkItemCard>
+                <!-- In the card's corner rather than a line of its own, shown on hover and focus where
+                     there is a hover. The keyboard path to moving a card - the drag is built against it, because
+                     WCAG 2.2 SC 2.5.7 wants a single-pointer alternative and a rank change is
+                     a command before it is a gesture. -->
+                <span class="menu" data-card-menu={card.id}>
+                  <EntryMenu
+                    bind:this={menus[card.id]}
+                    title={card.title}
+                    items={menuItems(card, cards)}
+                    onselect={(id) => chose(card, cards, id)}
+                  />
+                </span>
                 {#if bulkNote(card.id)}
                   <p class="bulk-note">{bulkNote(card.id)}</p>
                 {/if}
@@ -860,15 +903,29 @@
       {/if}
     {/each}
 
-    <!-- After the columns rather than above them: a new column is added at the end, and the control
-         sits where the column will appear. -->
+    <!-- After the columns rather than above them: a new column is added at the end, and the dashed
+         column sits where it will appear, as the concept draws it. -->
     {#if isBucketBoard && !isReadOnly && mayShape}
-      <div class="add-column">
-        <Button tone="secondary" size="sm" icon="plus" onclick={() => editColumn(undefined)}>
-          {t('app.board.create_column')}
-        </Button>
+      <button type="button" class="add-column" onclick={() => editColumn(undefined)}>
+        <Icon name="plus" size="sm" />{t('app.board.create_column')}
+      </button>
+    {/if}
+
+    {#if ghost}
+      <!-- design-system-lint-ignore: where the card was picked up and how far it travelled are measured, not designed. -->
+      <div
+        class="ghost"
+        aria-hidden="true"
+        style:--ghost-start={ghost.start}
+        style:--ghost-top={ghost.top}
+        style:--ghost-width={ghost.width}
+        style:--drag-offset={drag.offset}
+        style:--drag-offset-inline={drag.offsetInline}
+      >
+        <WorkItemCard title={ghost.card.title} isCompleted={ghost.card.completion?.is_completed ?? false} />
       </div>
     {/if}
+  </div>
   </div>
 {/if}
 
@@ -896,9 +953,7 @@
 {/if}
 
 <style>
-  .menu { display: inline-flex; }
 
-  .add-column { align-self: start; padding: var(--sp-100); }
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 
   /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
@@ -908,9 +963,25 @@
   /* A card is the slot a moment sits over; a column too, for the rare one. */
   .card[data-celebrating] { position: relative; }
 
-  .card > :global(*:last-child) { flex: 1; min-width: 0; }
+  .card > :global(article) { flex: 1; min-width: 0; }
+
+  .card { position: relative; }
+
+  .menu { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); }
+
+  @media (hover: hover) {
+    .card:not(:hover, :focus-within) .menu:not(:has([aria-expanded='true'])) { opacity: 0; }
+  }
 
   .zone { display: flex; }
+
+  /* The lane of cards nobody has put in a column is not a column: dashed and open, as the
+     concept draws it, so it reads as a place to sort out rather than a stage of the work. */
+  .zone[data-column-zone='none'] > :global(.column) {
+    background: transparent;
+    outline: var(--bw-hairline) dashed var(--border-default);
+    outline-offset: calc(-1 * var(--bw-hairline));
+  }
 
   /* `touch-action: none` is what makes a drag possible on a touch screen: without it the browser
      claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
@@ -925,16 +996,32 @@
      the reader is told nothing about (ADR-0063 decision 11). */
   /* Lifted above every column - a later column must never paint over the card being carried -,
      tilted a little so it reads as held, and raised as an overlay is (rule 1). */
+  /* The card keeps its slot, unseen, while its copy is carried: the gaps the others open are
+     measured against the slots, and nothing the column clips is ever in view. */
   .card[data-dragging] {
-    position: relative;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* The carried copy: above every column, tilted a little so it reads as held, and raised as an
+     overlay is (rule 1). Fixed, so no column's scrolling can cut it. */
+  .ghost {
+    position: fixed;
+    inset-block-start: var(--ghost-top);
+    inset-inline-start: var(--ghost-start);
     z-index: var(--z-overlay);
+    inline-size: var(--ghost-width);
     translate: var(--drag-offset-inline) var(--drag-offset);
     rotate: -1.5deg;
     border-radius: var(--r-md);
     box-shadow: var(--shadow-overlay);
-    /* Out of the way of the measuring: what is under the pointer has to be the board. */
+    outline: var(--bw-thick) solid var(--accent-primary);
     pointer-events: none;
   }
+
+  /* A card can be carried: the hand says so, and a press lifts it a little before it moves. */
+  .card { cursor: grab; }
+  .card:active { box-shadow: var(--shadow-raised); }
 
   /* The cards it passes slide aside by its height, so where it lands is a gap and nothing overlaps.
      A transform, so the layout the drag measures does not move (`dragging.svelte.ts`). */
@@ -953,9 +1040,16 @@
   :global([data-motion='reduced']) .card[data-dragging],
   :global([data-motion='reduced']) .card[data-shift] { translate: none; rotate: none; transition: none; }
 
+  @media (prefers-reduced-motion: reduce) { .ghost { rotate: none; } }
+  :global([data-motion='reduced']) .ghost { rotate: none; }
+
   /* The column the pointer is over, so that "where would this land" is a place rather than an
      outline on one card. Rule 3: a border rather than a tint alone. */
   .zone[data-over] { border-radius: var(--r-lg); outline: var(--bw-hairline) dashed var(--border-default); outline-offset: var(--sp-050); }
+
+  /* The gap the cards open is a translate, so the column grows by it too: the last card slides
+     down into room rather than under the column's edge. */
+  .zone[data-over] :global(.cards) { padding-block-end: var(--drag-gap); }
 
   /* A press on a card is a drag in waiting, so the browser's own text selection is out of the way
      and a touch does not scroll while one is being carried. */
@@ -971,8 +1065,54 @@
     gap: var(--sp-200);
     align-items: start;
     overflow-x: auto;
-    padding-block-end: var(--sp-100);
+    /* Room between the columns and the scrollbar under them. */
+    padding-block-end: var(--sp-200);
   }
+
+  .frame { position: relative; }
+
+  .frame::before,
+  .frame::after {
+    content: '';
+    position: absolute;
+    inset-block: 0 var(--sp-200);
+    z-index: var(--z-raised);
+    inline-size: var(--sp-300);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+  }
+
+  .frame::before { inset-inline-start: 0; background: linear-gradient(to right, var(--bg-canvas), transparent); }
+  .frame::after { inset-inline-end: 0; background: linear-gradient(to left, var(--bg-canvas), transparent); }
+
+  :global([dir='rtl']) .frame::before { background: linear-gradient(to left, var(--bg-canvas), transparent); }
+  :global([dir='rtl']) .frame::after { background: linear-gradient(to right, var(--bg-canvas), transparent); }
+
+  .frame[data-more-start]::before,
+  .frame[data-more-end]::after { opacity: 1; }
+
+  /* The next column, dashed where it will stand. */
+  .add-column {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-100);
+    box-sizing: border-box;
+    inline-size: var(--layout-board-column);
+    align-self: start;
+    min-block-size: var(--sp-1000);
+    border: var(--bw-thick) dashed var(--border-default);
+    border-radius: var(--r-lg);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+  }
+  .add-column:hover { border-color: var(--accent-primary); color: var(--text-brand); }
+  .add-column:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* One column on a phone: it takes the width, and the strip above says which and how many. */
   .board[data-one-column] { flex-direction: column; align-items: stretch; overflow-x: visible; }

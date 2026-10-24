@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { formatDateTime, formatDay, formatDue, formatRelative, formatToday } from './datetime.ts';
+import { formatDateTime, formatDay, formatDue, formatDueShort, formatRelative, formatToday } from './datetime.ts';
 
 test('a moment is written the way the locale writes moments', () => {
   // Not the exact string — that is the platform's and it moves between ICU versions. What is
@@ -76,4 +76,22 @@ test('today is the reader’s day on their own clock, not the device’s', () =>
   assert.equal(formatToday('en-GB', 'Pacific/Auckland', late), 'Saturday 24 October');
   assert.equal(formatToday('de', 'Europe/Berlin', late), 'Samstag, 24. Oktober');
   assert.equal(formatToday('en-GB', 'Not/AZone', late).length > 0, true, 'an unknown zone draws a day all the same');
+});
+
+test('a short due names the neighbouring days, the coming week by weekday and the rest by date', () => {
+  const now = Date.parse('2026-10-24T08:00:00Z');
+  const short = (iso: string, options = {}) => formatDueShort(iso, 'en', 'UTC', { now, ...options });
+  assert.equal(short('2026-10-24T15:00:00Z'), 'today 3:00 PM');
+  assert.equal(short('2026-10-25T10:00:00Z'), 'tomorrow 10:00 AM');
+  assert.equal(short('2026-10-23T10:00:00Z', { allDay: true }), 'yesterday');
+  assert.equal(short('2026-10-28T10:00:00Z', { allDay: true }), 'Wed');
+  assert.equal(short('2026-11-12T10:00:00Z', { allDay: true }), 'Nov 12');
+  assert.equal(short('2027-02-01T10:00:00Z', { allDay: true }), 'Feb 1, 2027');
+  assert.equal(formatDueShort('2026-10-25T10:00:00Z', 'de', 'UTC', { now }), 'morgen 10:00');
+});
+
+test('a short due counts days in the zone it is read in, not in UTC', () => {
+  // 23:30 in Berlin on the 24th is still "today" there, though it is the 24th 21:30 UTC.
+  const now = Date.parse('2026-10-24T06:00:00Z');
+  assert.equal(formatDueShort('2026-10-24T21:30:00Z', 'en', 'Europe/Berlin', { now }), 'today 11:30 PM');
 });

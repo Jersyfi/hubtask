@@ -115,12 +115,22 @@ test('chromium: a carried card is held above every column, and the cards it pass
   }
   await page.waitForTimeout(300);
 
+  // The card keeps its slot unseen, and a copy is carried: fixed to the window, so no column's
+  // scrolling cuts it, and above every column and card, so no later column paints over it.
   const held = await page.evaluate((id) => {
-    const carried = document.querySelector(`[data-card="${id}"]`);
-    const others = [...document.querySelectorAll('[data-card]')].filter((each) => each !== carried);
+    const slot = document.querySelector(`[data-card="${id}"]`);
+    const ghost = document.querySelector('.ghost');
     const zOf = (el) => Number(getComputedStyle(el).zIndex) || 0;
-    return { carried: zOf(carried), highest: Math.max(0, ...others.map(zOf)) };
+    const others = [...document.querySelectorAll('[data-card], [data-column-zone]')];
+    return {
+      slot: getComputedStyle(slot).visibility,
+      position: ghost ? getComputedStyle(ghost).position : null,
+      carried: ghost ? zOf(ghost) : 0,
+      highest: Math.max(0, ...others.map(zOf)),
+    };
   }, ITEMS[0].id);
+  assert.equal(held.slot, 'hidden', `the card's own slot is still drawn: ${JSON.stringify(held)}`);
+  assert.equal(held.position, 'fixed', `the carried copy is not fixed to the window: ${JSON.stringify(held)}`);
   assert.ok(held.carried > held.highest, `the carried card is not above the others: ${JSON.stringify(held)}`);
 
   // The column's cards slid down to open the place, and none of them lies over another.

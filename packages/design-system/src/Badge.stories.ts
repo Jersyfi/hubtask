@@ -30,3 +30,10 @@ export const german: Story = {
     'Rule 4: nothing here is a fixed width, so a badge grows with its word and wraps rather than clipping it. Pull Width down to compact on top of this.',
   args: { isLong: true },
 };
+
+export const small: Story = {
+  name: 'The chip size a row carries',
+  about:
+    'The `sm` size beside the default: a label chip’s measure and corner, so a due date on a card or a row reads as one line of facts with its labels, as the concept draws it. The tone and its mark stay - rule 3 does not shrink with the chip.',
+  args: { hasSmall: true },
+};

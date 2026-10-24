@@ -213,4 +213,8 @@
   .detail { color: var(--text-secondary); font-size: var(--fs-075); }
 
   .footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
+
+  /* A card with nothing to say beyond its title is the title alone, not a title and a gap. */
+  .footer:empty,
+  .footer:has(> :global(:only-child:empty)) { display: none; }
 </style>

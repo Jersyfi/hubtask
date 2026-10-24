@@ -90,6 +90,56 @@ export function formatDue(
   ).format(at);
 }
 
+/** The calendar day an instant falls on in a zone, as a day number, for counting days between. */
+function dayNumber(at: number, zone: string): number {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(at);
+  const part = (type: string) => Number(parts.find((each) => each.type === type)?.value);
+  return Date.UTC(part('year'), part('month') - 1, part('day')) / 86_400_000;
+}
+
+/**
+ * When an entry is wanted, in the few characters a row or a card has - "tomorrow 10:00",
+ * "Fri 10:00", "24 Oct", the concept's chips. Still a day and never only a distance: the
+ * neighbouring days by name, the coming week by weekday, the rest by date, with the year only
+ * when it is not this one. The full date is `formatDue`'s, for the entry itself.
+ */
+export function formatDueShort(
+  iso: string,
+  locale: string,
+  zone: string,
+  options: { allDay?: boolean; showZone?: boolean; now?: number } = {},
+): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  const now = options.now ?? Date.now();
+
+  const days = dayNumber(at, zone) - dayNumber(now, zone);
+  const time = options.allDay
+    ? ''
+    : new Intl.DateTimeFormat(locale, {
+        timeZone: zone,
+        hour: 'numeric',
+        minute: '2-digit',
+        ...(options.showZone ? { timeZoneName: 'short' } : {}),
+      }).format(at);
+
+  let day: string;
+  if (Math.abs(days) <= 1) {
+    day = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' }).format(days, 'day');
+  } else if (days > 1 && days < 7) {
+    day = new Intl.DateTimeFormat(locale, { timeZone: zone, weekday: 'short' }).format(at);
+  } else {
+    const sameYear = new Date(at).getUTCFullYear() === new Date(now).getUTCFullYear();
+    day = new Intl.DateTimeFormat(locale, {
+      timeZone: zone,
+      day: 'numeric',
+      month: 'short',
+      ...(sameYear ? {} : { year: 'numeric' }),
+    }).format(at);
+  }
+  return time ? `${day} ${time}` : day;
+}
+
 /** The units a relative phrase is built from, largest first. */
 const UNITS: readonly [Intl.RelativeTimeFormatUnit, number][] = [
   ['year', 365 * 86_400_000],

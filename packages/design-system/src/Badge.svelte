@@ -33,15 +33,20 @@
     emphasis?: BadgeEmphasis;
     /** The mark rule 3 asks for, when the tone's own is not the right one. */
     icon?: IconName;
+    /**
+     * `sm` is the chip a row or a card carries beside a title - a label chip's size and corner, so
+     * a due date and a label read as one line of facts. `md` stands on its own.
+     */
+    size?: 'sm' | 'md';
     children?: Snippet;
   }
 
-  const { tone = 'neutral', emphasis = 'subtle', icon, children }: Props = $props();
+  const { tone = 'neutral', emphasis = 'subtle', icon, size = 'md', children }: Props = $props();
 
   const mark = $derived<IconName | undefined>(icon ?? (tone === 'neutral' ? undefined : STATUS_ICON[tone]));
 </script>
 
-<span class="badge" data-tone={tone} data-emphasis={emphasis}>
+<span class="badge" data-tone={tone} data-emphasis={emphasis} data-size={size}>
   {#if mark}
     <Icon name={mark} size="sm" />
   {/if}
@@ -78,6 +83,15 @@
        two characters rather than asking the columns beside it for room. */
     text-align: start;
     overflow-wrap: break-word;
+  }
+
+  /* The label chip's measure (LabelChip), with the border rule 3 keeps for a state. */
+  .badge[data-size='sm'] {
+    padding: var(--sp-050) var(--sp-100);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-050);
+    line-height: 1;
+    white-space: nowrap;
   }
 
   .badge[data-tone='info'] {
