@@ -102,3 +102,43 @@ test('chromium: 905 px — the same address is a redirect to the entry’s page,
   // cannot claim to have exercised (`fixture.mjs`).
   assert.deepEqual(unstubbed(), []);
 });
+
+test('chromium: 1280 px — the panel lies over the list, is as wide as the person drags it, and can make every entry open whole (UC-WRK-28 check 5)', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, context } = await signedIn(browser, 1280, 900);
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  const row = page.getByRole('link', { name: ENTRY.title });
+  await row.waitFor({ timeout: 15_000 });
+  const listWidth = async () => page.evaluate(() => Math.round(document.querySelector('.entries').getBoundingClientRect().width));
+  const before = await listWidth();
+
+  await row.click();
+  const pane = page.getByRole('complementary', { name: ENTRY.title });
+  await pane.waitFor({ timeout: 5_000 });
+  // Over the list, below the bar: the list keeps its width (design-system.md §11.8).
+  assert.equal(await listWidth(), before, 'opening the panel squeezed the list');
+  const box = await pane.boundingBox();
+  assert.equal(Math.round(box.width), 640, `the panel opens ${box.width} px wide`);
+
+  // Its edge moves by the keyboard and the width is kept by the device.
+  const edge = page.getByRole('separator', { name: 'Width of the panel' });
+  await edge.focus();
+  await page.keyboard.press('ArrowLeft');
+  await page.keyboard.press('ArrowLeft');
+  assert.equal(Math.round((await pane.boundingBox()).width), 672, 'two arrows towards the list widen the panel by two steps');
+  await page.reload();
+  await page.getByRole('complementary', { name: ENTRY.title }).waitFor({ timeout: 10_000 });
+  assert.equal(Math.round((await page.getByRole('complementary', { name: ENTRY.title }).boundingBox()).width), 672, 'the width did not survive a reload');
+
+  // The switch in its head: this entry opens whole now, and so does the next one chosen.
+  const always = page.getByRole('button', { name: 'Always open entries whole' });
+  assert.equal(await always.getAttribute('aria-pressed'), 'false');
+  await always.click();
+  await page.waitForURL(new RegExp(`/items/${ENTRY.id}$`), { timeout: 5_000 });
+  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  await page.getByRole('link', { name: ENTRY.title }).click();
+  await page.waitForURL(new RegExp(`/items/${ENTRY.id}$`), { timeout: 5_000 });
+  assert.deepEqual(failures, []);
+});

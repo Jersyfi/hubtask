@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-12, P-13]
 state: verified
 tasks: [UX-14, UX-12]
-checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/capture/parse.test.ts, apps/webapp/src/lib/capture/target.test.ts, apps/webapp/src/lib/capture/submit.test.ts, apps/webapp/src/lib/shortcuts.test.ts, apps/webapp/e2e/capture.test.mjs, apps/webapp/e2e/engines.test.mjs]
+checked_by: [apps/webapp/src/lib/entries/capture.test.ts, apps/webapp/src/lib/capture/parse.test.ts, apps/webapp/src/lib/capture/suggest.test.ts, apps/webapp/e2e/oneadd.test.mjs, apps/webapp/e2e/rowadd.test.mjs, apps/webapp/src/lib/capture/target.test.ts, apps/webapp/src/lib/capture/submit.test.ts, apps/webapp/src/lib/shortcuts.test.ts, apps/webapp/e2e/capture.test.mjs, apps/webapp/e2e/engines.test.mjs]
 ---
 
 # Capture something from anywhere in one step
@@ -28,6 +28,7 @@ On the board of "Client A" the person presses `Q`, types "Call the electrician t
 4. Without a target it goes to the current collection, else the jumble; Enter creates the entry and a status message names the place with a link and an undo.
 5. Dates are read in the person's language and time zone; "tomorrow" near midnight is the day after the person's today.
 6. Everything the field does is possible with the keyboard alone and announced to a screen reader.
+7. Capture is the one way an entry is added: every add control — a collection's *Add an entry*, the end of a list, a row's ＋, a board column's foot — opens this field with its place, the entry it goes under and the column already chosen, shown as chips that can be changed; while `@`, `#`, `+` or `!` is typed the field lists the matching names; several lines, a template and an import are its modes; and in a list typed line after line the field stays open after Enter.
 
 ## Where it ends
 

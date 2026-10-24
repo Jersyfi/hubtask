@@ -15,10 +15,11 @@
   // five are collapsed", which is why the flattening happens here rather than in a caller.
 
   import Icon from './Icon.svelte';
+  import Menu from './Menu.svelte';
   import type { IconName } from './icons/index.ts';
   import { labelTokens, type LabelToken } from '../dist/tokens.ts';
   import { focusReturn } from './focus.ts';
-  import { openOverlay } from './overlay.ts';
+  import { openOverlay, type MenuItem } from './overlay.ts';
   import Self from './SideNav.svelte';
   import { HOLD_MS, boundariesOf, dropIndex, hasLeftTheHandle, rankIntent } from './reorder.ts';
   import { flattenTree, levelOf, treeIntent, type NavNode as StructureNode } from './structure.ts';
@@ -44,6 +45,14 @@
      * rail, which is a column of marks.
      */
     readonly meta?: string;
+  }
+
+  /** A row's own menu: what can be done to the place the row is (design-system.md §13, G7). */
+  export interface RowMenu {
+    /** What the menu is called: "Actions for Agentur". Resolved text. */
+    readonly label: string;
+    readonly items: readonly MenuItem[];
+    readonly onselect: (itemId: string) => void;
   }
 
   interface Props {
@@ -97,9 +106,18 @@
      * order it is handed and moves nothing by itself, so the order on screen is the server's.
      */
     onreorder?: (id: string, to: number) => void;
+    /**
+     * The row's own menu, where the place has one for this reader: a *⋯* at the end of the row on
+     * hover and focus, and the context-menu key or `Shift+F10` on the focused row. Absent is no
+     * menu (P-05). Not on the rail, which is a column of marks.
+     */
+    rowMenu?: (id: string) => RowMenu | undefined;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate, onreorder }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate, onreorder, rowMenu }: Props = $props();
+
+  /** The row whose menu is open: one at a time, like every menu. */
+  let menuFor = $state<string | null>(null);
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -374,6 +392,11 @@
           choose(row);
         }}
         onkeydown={(event) => {
+          if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && !isRail && rowMenu?.(row.node.id)) {
+            event.preventDefault();
+            menuFor = row.node.id;
+            return;
+          }
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
           choose(row);
@@ -391,7 +414,36 @@
         </span>
         {#if !isRail}
           <span class="label" style:--depth={row.depth}>{row.node.label}</span>
-          {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
+          {@const menu = rowMenu?.(row.node.id)}
+          <!-- The figure and the place's menu share one cell at the end: the figure is drawn, and
+               where the pointer or the focus is the menu takes its place, so a row with a menu wraps
+               exactly where a row without one does. -->
+          {#if row.node.meta || menu}
+            <span class="end">
+              {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
+              {#if menu}
+                <!-- Out of the tab order like the twist: the tree keeps its one stop, and the
+                     keyboard opens the same menu from the row. The span stops the press from
+                     reaching the row, which would navigate. -->
+                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                <span class="more" onclick={(event) => event.stopPropagation()}>
+                  <Menu
+                    label={menu.label}
+                    items={menu.items}
+                    placement={{ side: 'block-end', align: 'end' }}
+                    bind:isOpen={() => menuFor === row.node.id, (open) => (menuFor = open ? row.node.id : null)}
+                    onselect={menu.onselect}
+                  >
+                    {#snippet trigger(props)}
+                      <button type="button" class="more-trigger" tabindex="-1" aria-label={menu.label} title={menu.label} {...props}>
+                        <Icon name="ellipsis" size="sm" />
+                      </button>
+                    {/snippet}
+                  </Menu>
+                </span>
+              {/if}
+            </span>
+          {/if}
           <!-- The grip: what a pointer drags by. Hidden from the accessibility tree, because the
                keys on the row are the same command, and a press on it that does not travel is the
                row's own click. -->
@@ -400,6 +452,7 @@
               <Icon name="grip-vertical" size="sm" />
             </span>
           {/if}
+
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
                through the logical padding, so it mirrors with the document.
                A **control** where the caller named one, because the row itself now goes to the
@@ -634,6 +687,61 @@
     .row:hover .grip,
     .row:focus-within .grip,
     .row[data-dragging] .grip { opacity: 1; }
+
+    .row .more {
+      opacity: 0;
+      transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+    }
+
+    .row:hover .more,
+    .row:focus .more,
+    .row:focus-within .more,
+    .row .more:has([aria-expanded='true']) { opacity: 1; }
+
+    /* Where the menu shows, the figure it covers steps back. */
+    .row:hover .end:has(.more) .meta,
+    .row:focus .end:has(.more) .meta,
+    .row:focus-within .end:has(.more) .meta,
+    .row .end:has([aria-expanded='true']) .meta { opacity: 0; }
+  }
+
+  /* The row's menu, the size of the twist beside it. Faded until the pointer or the focus is on
+     the row where a pointer hovers; always drawn on touch, like the grip. */
+  .end {
+    display: grid;
+    flex: none;
+    align-items: center;
+    justify-items: end;
+  }
+
+  .end > * { grid-area: 1 / 1; }
+
+  /* Where nothing hovers the menu is always drawn, so it has the cell; the figure is on the page. */
+  @media (hover: none) {
+    .end:has(.more) .meta { opacity: 0; }
+  }
+
+  .more { display: inline-flex; }
+
+  .more-trigger {
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--sp-300);
+    block-size: var(--sp-300);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-subtle);
+    cursor: pointer;
+  }
+
+  .more-trigger:hover,
+  .more-trigger[aria-expanded='true'] { background: var(--bg-surface-pressed); color: var(--text-primary); }
+
+  .more-trigger:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
   }
 
   /* Rule 6: the carried row moves by a `translate` and nothing else, raised off the column

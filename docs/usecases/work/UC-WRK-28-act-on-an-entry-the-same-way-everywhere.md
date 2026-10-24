@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-13]
 state: verified
 tasks: [UX-15, UX-16, UX-17]
-checked_by: [apps/webapp/src/lib/entries/entryMenu.test.ts, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/undo.test.mjs, apps/webapp/src/lib/entries/undo.test.ts, test/integration/restore_label_test.go, test/integration/bulk_restore_test.go, apps/webapp/e2e/layoutmemory.test.mjs, apps/webapp/src/lib/entries/layoutmemory.test.ts, apps/webapp/e2e/today.test.mjs]
+checked_by: [apps/webapp/e2e/pane.test.mjs, apps/webapp/src/lib/entries/entryMenu.test.ts, apps/webapp/e2e/entrymenu.test.mjs, apps/webapp/e2e/entrybyrole.test.mjs, apps/webapp/e2e/undo.test.mjs, apps/webapp/src/lib/entries/undo.test.ts, test/integration/restore_label_test.go, test/integration/bulk_restore_test.go, apps/webapp/e2e/layoutmemory.test.mjs, apps/webapp/src/lib/entries/layoutmemory.test.ts, apps/webapp/e2e/today.test.mjs]
 ---
 
 # Act on an entry the same way everywhere
@@ -27,7 +27,7 @@ On the board the person right-clicks a card and moves it to another collection �
 3. Moving to the trash, archiving, removing a label and deleting a label from a collection take effect at once and offer *Undo* for at least eight seconds; actions that cannot be undone ask first.
 4. Selecting several entries works by `Ctrl`/`⌘`-click, and on touch by a long press and the entry
    menu's *Select*, in the list and on the board.
-5. On wide screens, opening an entry from the list, the board or the timeline shows it in the detail pane.
+5. On wide screens, opening an entry from the list, the board or the timeline shows it in a panel over them that the person can widen, or whole as its own page — as the person chose for that device, in its settings or from the panel itself.
 6. The layout chosen for a collection (list, board, timeline) is kept for the person on that device.
 
 ## Where it ends

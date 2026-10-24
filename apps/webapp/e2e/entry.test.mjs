@@ -56,6 +56,24 @@ async function openEntry(browser, width, written) {
   return { page, failures, close: () => context.close(), unstubbed };
 }
 
+
+/**
+ * Types one entry into capture, opened by an add control: the kind chosen first where the control
+ * may add several, then Enter - the field closes once the entry is made.
+ */
+async function captureOne(page, title, kind) {
+  const dialog = page.getByRole('dialog', { name: 'Capture' });
+  const field = dialog.getByRole('textbox', { name: 'What do you want to remember?' });
+  await field.waitFor({ timeout: 5_000 });
+  if (kind) {
+    await dialog.locator('[data-chip="kind"]').click();
+    await page.getByRole('menuitem', { name: kind }).click();
+  }
+  await field.fill(title);
+  await field.press('Enter');
+  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+}
+
 test('chromium: 1280 px — the trail, the head in place, the details rows, the subtree, the tabs', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -159,26 +177,23 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   assert.equal(await page.locator('.level [data-row]').count(), 5);
   // A child from the entry's page: "Add a work package" at the end, "Add an activity" inside a row.
   await page.getByRole('button', { name: 'Add a work package' }).click();
-  const field = page.getByRole('textbox', { name: 'Title' }).last();
-  await field.waitFor({ timeout: 5_000 });
+  await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
   assert.equal(await page.evaluate(() => document.activeElement?.tagName), 'TEXTAREA');
-  await field.fill('Grout');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await captureOne(page, 'Grout');
   await page.waitForTimeout(300);
   const created = written.find((w) => w.method === 'POST' && w.path.endsWith('/items') && w.body?.title === 'Grout');
   assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'WORK_PACKAGE', parent_id: ENTRY.id });
   await page.getByRole('button', { name: `Add an activity inside ${CHILDREN[ENTRY.id][0].title}` }).click();
-  await page.getByRole('textbox', { name: 'Title' }).last().fill('Cut the tiles');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await captureOne(page, 'Cut the tiles');
   await page.waitForTimeout(300);
   const child = written.find((w) => w.method === 'POST' && w.body?.title === 'Cut the tiles');
   assert.deepEqual({ type: child?.body?.type, parent_id: child?.body?.parent_id }, { type: 'ACTIVITY', parent_id: CHILDREN[ENTRY.id][0].id });
   // UC-WRK-03 check 1: the task offers both kinds the manifest permits under it, each by its own
   // control, and an activity is created directly in the task - no chooser in between.
   await page.getByRole('button', { name: 'Add an activity', exact: true }).click();
-  assert.equal(await page.getByRole('combobox', { name: 'Kind of entry' }).count(), 0, 'a chooser for a kind the control already named');
-  await page.getByRole('textbox', { name: 'Title' }).last().fill('Ask about grout colours');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
+  assert.equal(await page.locator('[data-chip="kind"]').count(), 0, 'a chooser for a kind the control already named');
+  await captureOne(page, 'Ask about grout colours');
   await page.waitForTimeout(300);
   const direct = written.find((w) => w.method === 'POST' && w.body?.title === 'Ask about grout colours');
   assert.deepEqual({ type: direct?.body?.type, parent_id: direct?.body?.parent_id }, { type: 'ACTIVITY', parent_id: ENTRY.id });
@@ -601,15 +616,16 @@ test('chromium: 1280 px — the ＋ inside a task offers a work package and an a
   const inside = page.getByRole('button', { name: `Add something inside ${ENTRY.title}` });
   await inside.waitFor({ timeout: 15_000 });
   await inside.click();
-  const kind = page.getByRole('combobox', { name: 'Kind of entry' });
+  // Capture under the task: the kind is a chip offering the two the task takes, by name.
+  const kind = page.locator('[data-chip="kind"]');
   await kind.waitFor({ timeout: 5_000 });
+  await kind.click();
   assert.deepEqual(
-    (await kind.locator('option').allTextContents()).map((each) => each.trim()),
+    (await page.getByRole('menuitem').allTextContents()).map((each) => each.trim()),
     ['Work package', 'Activity'],
   );
-  await kind.selectOption({ label: 'Activity' });
-  await page.getByRole('textbox', { name: 'Title' }).last().fill('Ring the supplier');
-  await page.getByRole('button', { name: 'Create', exact: true }).click();
+  await page.keyboard.press('Escape');
+  await captureOne(page, 'Ring the supplier', 'Activity');
   await page.waitForTimeout(300);
   const created = written.find((w) => w.method === 'POST' && w.body?.title === 'Ring the supplier');
   assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'ACTIVITY', parent_id: ENTRY.id });

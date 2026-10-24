@@ -15,6 +15,8 @@
 
   import { untrack } from 'svelte';
 
+  import { capture as captureField } from '../capture/capture.svelte.ts';
+
   import {
     BucketColumn,
     Button,
@@ -218,7 +220,7 @@
   /** The column the reader chose; `undefined` until they chose one, and then the first is shown. */
   let shownColumn = $state<string | null | undefined>(undefined);
   const strip = $derived<readonly { id: string | null; label: string; count: number }[]>(
-    [...columns, null]
+    [null, ...columns]
       .filter((bucket) => bucket !== null || cardsOf(null).length > 0)
       .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? t('app.board.unbucketed'), count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
   );
@@ -585,6 +587,48 @@
    */
   let board = $state<HTMLElement | null>(null);
 
+  /**
+   * Where the carried card came from and how much room it takes, read once when the drag begins:
+   * the cards it passes slide aside by that much, so the landing place is a real gap and nothing is
+   * drawn over anything (design-system.md §11.9).
+   */
+  let dragOrigin = $state<{ key: string; index: number } | null>(null);
+  let dragGap = $state<string | undefined>(undefined);
+  $effect(() => {
+    const id = drag.id;
+    if (id === null) {
+      dragOrigin = null;
+      dragGap = undefined;
+      return;
+    }
+    untrack(() => {
+      const element = board?.querySelector<HTMLElement>(`[data-card="${id}"]`);
+      const key = element?.getAttribute('data-column') ?? 'none';
+      dragOrigin = { key, index: cardsOf(key === 'none' ? null : key).findIndex((each) => each.id === id) };
+      const parent = element?.parentElement;
+      const rowGap = parent ? Number.parseFloat(getComputedStyle(parent).rowGap) || 0 : 0;
+      // The card's own height and the column's gap: what a card measures, not a design value.
+      dragGap = element ? `${element.offsetHeight + rowGap}px` : undefined;
+    });
+  });
+
+  /** Which way a card slides while another is carried past it, if at all. */
+  function shiftOf(card: WorkItem, key: string, cards: readonly WorkItem[]): 'up' | 'down' | undefined {
+    const origin = dragOrigin;
+    const target = drag.levelKey;
+    const to = drag.position;
+    if (drag.id === null || card.id === drag.id || origin === null || target === null || to === null) return undefined;
+    const index = cards.indexOf(card);
+    if (origin.key === key && target === key) {
+      if (to > origin.index && index > origin.index && index <= to) return 'up';
+      if (to < origin.index && index >= to && index < origin.index) return 'down';
+      return undefined;
+    }
+    if (origin.key === key && index > origin.index) return 'up';
+    if (target === key && index >= to) return 'down';
+    return undefined;
+  }
+
   const cardIdAt = (target: EventTarget | null) =>
     (target as Element | null)?.closest?.('[data-card]')?.getAttribute('data-card') ?? undefined;
 
@@ -681,13 +725,14 @@
     </div>
   {/if}
 
-  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board}>
-    {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
+  <!-- design-system-lint-ignore: the gap is the carried card's measured height, not a design value. -->
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} style:--drag-gap={dragGap}>
+    {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = cardsOf(bucketId)}
-      <!-- The entries with no bucket are their own column, and the API puts that group last. It is
-           shown rather than hidden: a card nobody has put in a column is a card somebody has to
-           find. On a phone only the column the strip chose is drawn. -->
+      <!-- The entries with no bucket are their own lane, first (design-system.md §11.9): a card
+           nobody has put in a column is a card somebody has to find, and it is found before the
+           columns rather than after them. On a phone only the column the strip chose is drawn. -->
       {#if (bucket !== null || cards.length > 0) && (!isOneColumn || (bucket?.id ?? 'none') === shownKey)}
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
@@ -734,12 +779,7 @@
                 data-column={bucket?.id ?? 'none'}
                 data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
                 data-dragging={drag.id === card.id ? '' : undefined}
-                data-drop={drag.id !== null &&
-                drag.id !== card.id &&
-                drag.levelKey === (bucket?.id ?? 'none') &&
-                drag.position === cards.indexOf(card)
-                  ? ''
-                  : undefined}
+                data-shift={shiftOf(card, bucket?.id ?? 'none', cards)}
                 style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
                 style:--drag-offset-inline={drag.id === card.id ? drag.offsetInline : undefined}
               >
@@ -809,6 +849,13 @@
                 {/if}
               </div>
             {/each}
+            <!-- The column's own door to capture: pointed at this column, so an entry lands where it
+                 is added (design-system.md §11.8). The same field as everywhere else. -->
+            {#if mayCreate && !isReadOnly && isBucketBoard}
+              <Button size="sm" tone="subtle" icon="plus" data-opener="add-entry" onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })}>
+                {t('app.entries.add')}
+              </Button>
+            {/if}
           </BucketColumn>
         </div>
       {/if}
@@ -877,28 +924,35 @@
   /* Rule 6: a translate and nothing else, and it is direct manipulation rather than decoration.
      Both axes, because a card carried towards another column that stayed where it was is a card
      the reader is told nothing about (ADR-0063 decision 11). */
+  /* Lifted above every column - a later column must never paint over the card being carried -,
+     tilted a little so it reads as held, and raised as an overlay is (rule 1). */
   .card[data-dragging] {
+    position: relative;
+    z-index: var(--z-overlay);
     translate: var(--drag-offset-inline) var(--drag-offset);
+    rotate: -1.5deg;
     border-radius: var(--r-md);
     box-shadow: var(--shadow-overlay);
     /* Out of the way of the measuring: what is under the pointer has to be the board. */
     pointer-events: none;
   }
 
-  /* Where it would land. Rule 3: an outline rather than a tint, so it reads in greyscale. */
-  .card[data-drop] {
-    outline: var(--bw-thick) dashed var(--accent-primary);
-    outline-offset: var(--sp-025);
-    border-radius: var(--r-md);
-  }
+  /* The cards it passes slide aside by its height, so where it lands is a gap and nothing overlaps.
+     A transform, so the layout the drag measures does not move (`dragging.svelte.ts`). */
+  .card { transition: translate var(--motion-state-duration) var(--motion-state-easing); }
+  .card[data-dragging] { transition: none; }
+  .card[data-shift='down'] { translate: 0 var(--drag-gap); }
+  .card[data-shift='up'] { translate: 0 calc(-1 * var(--drag-gap)); }
 
-  /* Rule 6's floor: under a reduced-motion preference the card does not travel, and the state and
-     the landing slot are what say what is happening. */
+  /* Rule 6's floor: under a reduced-motion preference nothing travels or slides; the column's
+     outline says where the card goes and the card's shadow which one is held. */
   @media (prefers-reduced-motion: reduce) {
-    .card[data-dragging] { translate: none; }
+    .card[data-dragging],
+    .card[data-shift] { translate: none; rotate: none; transition: none; }
   }
 
-  :global([data-motion='reduced']) .card[data-dragging] { translate: none; }
+  :global([data-motion='reduced']) .card[data-dragging],
+  :global([data-motion='reduced']) .card[data-shift] { translate: none; rotate: none; transition: none; }
 
   /* The column the pointer is over, so that "where would this land" is a place rather than an
      outline on one card. Rule 3: a border rather than a tint alone. */

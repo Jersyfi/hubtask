@@ -99,6 +99,12 @@
     notices?: Snippet;
     /** The second row: a `ViewSwitcher`, `Tabs`, or nothing. */
     views?: Snippet;
+    /**
+     * Small controls about the place itself, before the actions: who is in it, the way to its
+     * settings (design-system.md §11.1). The caller's drawing, at the actions' height; it stays
+     * when the head folds, because it is about the place, not a verb.
+     */
+    aside?: Snippet;
   }
 
   const {
@@ -115,6 +121,7 @@
     mark,
     notices,
     views,
+    aside,
   }: Props = $props();
 
   // The way up on a phone: the crumb before the current one, if there is one.
@@ -184,6 +191,7 @@
 
 {#snippet actionBar()}
     <div class="actions">
+      {#if aside}<span class="aside">{@render aside()}</span>{/if}
       {#if primary}
         <span class="primary" data-split={primary.menu && primary.menu.items.length > 0 ? '' : undefined}>
           <Button tone="primary" icon={primary.icon} onclick={primary.onclick} disabledReason={primary.disabledReason} data-tour={primary.tour} data-opener={primary.opener}>
@@ -398,6 +406,8 @@
     outline-offset: var(--sp-025);
     border-radius: var(--r-xs);
   }
+
+  .aside { display: inline-flex; align-items: center; gap: var(--sp-100); }
 
   .notices { display: flex; flex-direction: column; gap: var(--sp-100); }
 

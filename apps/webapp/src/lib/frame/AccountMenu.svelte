@@ -30,14 +30,12 @@
     picture?: string;
     /** A sheet from the bottom on `compact`; a menu behind the avatar above it. */
     isSheet: boolean;
-    /** Whether the trigger carries the name beside the avatar. Only where there is room for it. */
-    hasName?: boolean;
     /** The sheet's state, owned by the frame because the bottom bar is what opens it. */
     isSheetOpen?: boolean;
     onchoose: (id: string) => void;
   }
 
-  let { destinations, name, email, picture, isSheet, hasName = false, isSheetOpen = $bindable(false), onchoose }: Props = $props();
+  let { destinations, name, email, picture, isSheet, isSheetOpen = $bindable(false), onchoose }: Props = $props();
 
   /**
    * The list in three bands: the places that are the reader's own, the ways through, and signing
@@ -101,44 +99,29 @@
       {@render who()}
     {/snippet}
     {#snippet trigger(props)}
-      <!-- The button is named by the person, once: the avatar is decoration here, because a
-           control called "Jérôme Winkel Jérôme Winkel" is a control named twice. The name is drawn
-           beside it only where there is room; the address never is. -->
-      <button type="button" class="account" aria-label={hasName ? undefined : name} {...props}>
+      <!-- The avatar alone at every width, named by the person: the name and the address head
+           the menu it opens (design-system.md §11.2). -->
+      <button type="button" class="account" aria-label={name} {...props}>
         <span aria-hidden="true"><Avatar {name} src={picture} size="sm" /></span>
-        {#if hasName}<span class="name">{name}</span>{/if}
       </button>
     {/snippet}
   </Menu>
 {/if}
 
 <style>
+  /* The bar's square control, the size and hover shape of every other one beside it (§13, G2). */
   .account {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--sp-100);
-    max-inline-size: 100%;
-    min-block-size: var(--density-control-sm-min);
-    padding: var(--sp-025);
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--density-control-sm-min);
+    block-size: var(--density-control-sm-min);
+    padding: 0;
     border: 0;
-    border-radius: var(--r-full);
+    border-radius: var(--r-md);
     background: transparent;
     color: var(--text-primary);
     font: inherit;
     cursor: pointer;
-  }
-
-  /* With the name beside it the control is a pill and the air after the name is the pill's; with
-     the avatar alone it is a **circle** around the avatar - the target is the control's square
-     minimum and the shape is round, because what is inside it is round. The
-     two glyph controls beside it are `IconButton`'s rounded square, which is what every other
-     icon control in the product is. */
-  .account:has(.name) { padding-inline-end: var(--sp-100); }
-
-  .account:not(:has(.name)) {
-    inline-size: var(--density-control-sm-min);
-    justify-content: center;
-    padding: 0;
   }
 
   .account:hover { background: var(--bg-surface-hover); }
@@ -146,16 +129,6 @@
   .account:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);
-  }
-
-  /* One line; a long name loses its end, never the avatar beside it (rule 4). */
-  .account .name {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
   }
 
   .who {

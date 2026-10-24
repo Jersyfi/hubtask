@@ -3,9 +3,9 @@
 
 // A list's screen as UC-WRK-25 draws it, at a phone's width and a desk's. A line of a list is one
 // box and its words - no twist and no type mark beside the box - and it starts near the page's
-// edge rather than two empty columns in. *Views* stands on the heading's edge. While the capture
-// line holds words, what they match under *Recently* stands right under it, before the open
-// entries, so one tap brings an entry back where its name was being typed (check 4).
+// edge rather than two empty columns in. The toolbar stands on the heading's edge. *Recently* ends
+// the list; while capture holds words in a list, what they match of it is offered right under the
+// field, so one press brings an entry back where its name was being typed (check 4).
 //
 // Chromium only: what is walked is layout, with no engine-specific part.
 
@@ -56,22 +56,27 @@ for (const width of [390, 1280]) {
     await context.close();
   });
 
-  test(`${width} px: *Views* stands on the heading's edge`, async () => {
+  test(`${width} px: the toolbar stands on the heading's edge`, async () => {
     const { page, context, failures } = await list(width);
-    const views = await page.getByRole('button', { name: 'Views', exact: true }).boundingBox();
+    const tools = await page.getByRole('toolbar', { name: 'What is shown of the entries' }).boundingBox();
     const edge = await page.locator('main header').first().boundingBox();
-    assert.ok(Math.abs(views.x - edge.x) <= 1, `Views at ${views.x}, the head at ${edge.x}`);
+    assert.ok(Math.abs(tools.x - edge.x) <= 1, `the toolbar at ${tools.x}, the head at ${edge.x}`);
     assert.deepEqual(failures, []);
     await context.close();
   });
 
-  test(`${width} px: what the capture line asks for under *Recently* stands right under it (check 4)`, async () => {
+  test(`${width} px: what capture asks for of *Recently* is offered right under the field (check 4)`, async () => {
     const { page, context, failures } = await list(width);
     const heads = () => page.locator('h2.section-head').allTextContents();
-    assert.equal((await heads()).at(-1)?.trim(), 'Recently', 'with an empty line, Recently ends the list');
-    await page.getByRole('textbox', { name: 'New entries, one per line' }).fill('oat');
-    await page.waitForTimeout(200);
-    assert.equal((await heads())[0]?.trim(), 'Recently', 'with words in the line, Recently comes first');
+    assert.equal((await heads()).at(-1)?.trim(), 'Recently', 'Recently ends the list');
+    await page.locator('body').click({ position: { x: 1, y: 300 } });
+    await page.keyboard.press('q');
+    const dialog = page.getByRole('dialog', { name: 'Capture' });
+    await dialog.getByRole('textbox', { name: 'What do you want to remember?' }).fill('oat');
+    const before = dialog.getByRole('region', { name: 'Ticked before' });
+    await before.waitFor({ timeout: 5_000 });
+    const offered = (await before.getByRole('button').allTextContents()).map((each) => each.trim());
+    assert.ok(offered.length > 0 && offered.every((each) => /oat/iu.test(each)), `offered ${offered}`);
     assert.deepEqual(failures, []);
     await context.close();
   });

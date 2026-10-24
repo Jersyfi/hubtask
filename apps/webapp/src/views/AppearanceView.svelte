@@ -26,10 +26,19 @@
 
   const THEMES = ['system', 'light', 'dark'] as const;
   const MOTIONS = ['system', 'reduced'] as const;
+  const OPENINGS = ['panel', 'whole'] as const;
 
   /** The radio groups' bound values; the device store is told when they move, and says so. */
   let themeChoice = $state<string>(device.theme);
   let motionChoice = $state<string>(device.motion);
+  let openChoice = $state<string>(device.openMode);
+
+  $effect(() => {
+    const choice = OPENINGS.find((each) => each === openChoice) ?? 'panel';
+    if (choice === untrack(() => device.openMode)) return;
+    device.setOpenMode(choice);
+    announcer.say(t('app.profile.open_changed_announced', { choice: t(`app.profile.open_${choice}`) }));
+  });
 
   $effect(() => {
     const choice = THEMES.find((each) => each === themeChoice) ?? 'system';
@@ -69,6 +78,16 @@
             hint={t('app.profile.motion_hint')}
             bind:value={motionChoice}
             options={MOTIONS.map((each) => ({ value: each, label: t(`app.profile.motion_${each}`) }))}
+          />
+        </div>
+        <!-- How an entry opens from a list (design-system.md §11.8): beside it, or whole. The same
+             switch is in the panel's head, where the person notices they want it. -->
+        <div data-setting="open">
+          <Radio
+            label={t('app.profile.open')}
+            hint={t('app.profile.open_hint')}
+            bind:value={openChoice}
+            options={OPENINGS.map((each) => ({ value: each, label: t(`app.profile.open_${each}`) }))}
           />
         </div>
       </Stack>

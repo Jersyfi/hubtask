@@ -143,10 +143,10 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   t.after(() => browser.close());
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
-    await page.getByRole('button', { name: `Actions for ${collection.name}` }).click();
-    // What counts is one setting of the Structure panel (UC-WRK-23).
-    await page.getByRole('menuitem', { name: 'Structure' }).click();
-    const dialog = page.locator('dialog[open] [data-setting="counts"]');
+    // What counts is one setting of the settings page's *Structure* (UC-WRK-23).
+    await page.getByRole('button', { name: `Settings of ${collection.name}` }).click();
+    await page.getByRole('link', { name: 'Structure' }).click();
+    const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });
     const options = await dialog.getByRole('combobox', { name: 'Show' }).locator('option').allTextContents();
     return { page, context, dialog, options };
@@ -159,7 +159,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
     if (request.method() === 'PATCH' && request.url().endsWith('/structure')) resolve(request.postDataJSON());
   }));
   await list.dialog.getByRole('combobox', { name: 'Show' }).selectOption('DUE');
-  await list.page.locator('dialog[open]').getByRole('button', { name: 'Save', exact: true }).click();
+  await list.page.locator('[data-structure-panel]').getByRole('button', { name: 'Save', exact: true }).click();
   assert.deepEqual(await written, { settings: { counts: { figure: 'DUE' } } });
   await list.context.close();
 

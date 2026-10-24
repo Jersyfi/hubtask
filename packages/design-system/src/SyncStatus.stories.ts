@@ -27,7 +27,7 @@ export const reconnecting: Story = {
 export const offline: Story = {
   name: 'Offline',
   about:
-    'The state is a `status` live region: losing the server is announced once, when it happens, and the count that moves afterwards is not — a screen reader narrating a heartbeat would be noise. The live region is read whether or not anything is open, because the mark it belongs to says nothing aloud. The one state somebody has to see first is the bold form (ADR-0061): the warning accent under inverse text, and the word inside.',
+    'The state is a `status` live region: losing the server is announced once, when it happens, and the count that moves afterwards is not — a screen reader narrating a heartbeat would be noise. The live region is read whether or not anything is open, because the mark it belongs to says nothing aloud. Offline is tinted as a warning like reconnecting, not a filled block: working offline is a state the product is built for. Pressed, the surface opens on a band of the state’s tone that names it, and the lines below start on the band’s text edge.',
   args: { mode: 'offline' },
 };
 

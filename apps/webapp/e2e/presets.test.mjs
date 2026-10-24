@@ -86,8 +86,8 @@ async function openPanel(page, collection) {
   await page.goto(`${served.origin}/collections/${collection.id}`);
   await page.getByRole('heading', { name: collection.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   await page.waitForTimeout(600);
-  await page.getByRole('button', { name: `Actions for ${collection.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Structure' }).click();
+  await page.getByRole('button', { name: `Settings of ${collection.name}` }).click();
+  await page.getByRole('link', { name: 'Structure' }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;

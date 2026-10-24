@@ -14,7 +14,7 @@ export default {
 export const beside: Story = {
   name: 'An entry open beside its list',
   about:
-    'From `large` up an entry opens next to where it was chosen (ADR-0061): the list stays, the chosen row stays selected, and the pane holds the same one-column form the entry takes on a phone. An `aside` with its own heading; it takes no focus and traps none — choose another row and the pane follows. `Open as a page` is a link to the entry’s own address, where everything here can also be done.',
+    'From `large` up an entry opens next to where it was chosen (ADR-0061): over the list, below the bar, so the list keeps its width; the chosen row stays selected. An `aside` with its own heading; it takes no focus and traps none — choose another row and the panel follows. Its start edge is a `ResizeHandle` the person drags, and the caller keeps the width. *Open whole* leads to the entry’s own page; the switch beside it makes every entry open whole from now on.',
 };
 
 export const layered: Story = {
@@ -27,6 +27,6 @@ export const layered: Story = {
 export const long: Story = {
   name: 'The same pane in German',
   about:
-    'Rule 4 in `layout.pane.width`: the pane is as wide as the token says and no wider, so a long title wraps inside its head and the controls beside it keep their place. Switch the direction axis: the pane sits at the end of the line in both, with its hairline at the start.',
+    'Rule 4 at `layout.panel.width`, the width it opens at: a long title wraps inside its head and the controls beside it keep their place. Switch the direction axis: the panel sits at the end of the line in both, with its edge and its hairline at the start.',
   args: { mode: 'long' },
 };

@@ -2,8 +2,9 @@
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
 // UC-WRK-25 on a phone (checks 1-6): the grocery list of the shared fixture at 375 × 812 with a
-// touch screen, online and offline. Lines become entries, a leading amount becomes the entry's
-// amount, a tap or a swipe ticks a row, a still hold opens the entry menu and ticks nothing, a ticked
+// touch screen, online and offline. Lines typed into capture become entries, a leading amount
+// becomes the entry's amount, a tap on a row's start or a swipe ticks it and a tap on the rest opens
+// it, a still hold opens the entry menu and ticks nothing, a ticked
 // entry moves under the collection's name for *Done*, an entry under *Recently* comes back as the
 // same entry, open entries sit under their categories in order, and offline the ticks and the
 // captures queue and are pushed when the network returns.
@@ -78,6 +79,14 @@ async function finger(page, rowId, moves, holdMs = 0) {
   );
 }
 
+/** Capture, from the bottom bar's ＋: pointed at the list the phone stands in. */
+async function captureField(page) {
+  await page.getByRole('navigation', { name: 'Sections' }).getByRole('button', { name: 'Capture' }).tap();
+  const field = page.getByRole('dialog', { name: 'Capture' }).getByRole('textbox', { name: 'What do you want to remember?' });
+  await field.waitFor({ timeout: 5_000 });
+  return field;
+}
+
 const sectionOf = (page, rowId) =>
   page.evaluate((id) => {
     let node = document.querySelector(`[data-row="${id}"]`);
@@ -87,9 +96,9 @@ const sectionOf = (page, rowId) =>
 
 test('several lines become one entry each, and a leading amount becomes the amount (checks 1, 2)', async () => {
   const { page, writes, failures, context } = await phone();
-  const field = page.getByLabel('New entries, one per line');
+  const field = await captureField(page);
   await field.fill('3 eggs');
-  await page.getByRole('button', { name: 'Amount 3: keep it in the title' }).waitFor();
+  await page.getByRole('button', { name: 'Keep “3” in the title' }).waitFor();
   await field.fill('- 2 milk\n\nbread\n1 kg apples');
   await field.press('Enter');
   await page.waitForFunction(() => document.querySelector('[data-row]') !== null);
@@ -104,6 +113,8 @@ test('several lines become one entry each, and a leading amount becomes the amou
     ],
   );
   assert.equal(await field.inputValue(), '', 'the created lines leave the field');
+  assert.equal(await field.isVisible(), true, 'a list keeps capture open for the next line');
+  await page.keyboard.press('Escape');
   // The row draws the amount before the title.
   assert.match(await page.locator(`[data-row="${idOf('apples')}"]`).innerText(), /1 kg apples/);
   assert.deepEqual(failures, []);
@@ -119,13 +130,13 @@ test('open entries sit under their categories in the shop\'s order (check 5)', a
   await context.close();
 });
 
-test('a tap on the row ticks it once, on a target of at least 44 by 44, and it moves to the trolley (checks 3, 6)', async () => {
+test('a tap on the row\'s start ticks it once, on a target of at least 44 by 44, and it moves to the trolley (checks 3, 6)', async () => {
   const { page, writes, context } = await phone();
   const row = page.locator(`[data-row="${idOf('salt')}"]`);
-  const box = await row.boundingBox();
+  const box = await row.locator('.leading').boundingBox();
   assert.ok(box.width >= 44 && box.height >= 44, `the tick target is ${box.width} × ${box.height}`);
 
-  await row.locator('.title').tap();
+  await row.locator('.leading').tap({ position: { x: 2, y: 2 } });
   await page.waitForFunction((id) => {
     let node = document.querySelector(`[data-row="${id}"]`);
     while (node && !node.matches?.('h2.section-head, .section-row')) node = node.previousElementSibling;
@@ -136,6 +147,10 @@ test('a tap on the row ticks it once, on a target of at least 44 by 44, and it m
   await page.waitForTimeout(400);
   const ticks = writes.filter((write) => write.path.endsWith(':complete'));
   assert.deepEqual(ticks.map((write) => write.path.split('/').pop()), [`${idOf('salt')}:complete`, `${idOf('bread')}:complete`]);
+  // The rest of the row opens the entry, and ticks nothing.
+  await page.locator(`[data-row="${idOf('milk')}"] .title`).tap();
+  await page.waitForURL(new RegExp(`/items/${idOf('milk')}$`, 'u'), { timeout: 5_000 });
+  assert.equal(writes.filter((write) => write.path.endsWith(`${idOf('milk')}:complete`)).length, 0, 'opening ticked it');
   await context.close();
 });
 
@@ -182,12 +197,13 @@ test('an entry under Recently comes back as the same entry, no new one (check 4)
   });
   assert.deepEqual(recently, [idOf('oat milk'), idOf('coffee'), idOf('tea')]);
 
-  // What the capture line asks for narrows it.
-  await page.getByLabel('New entries, one per line').fill('oat');
-  await page.waitForTimeout(200);
-  assert.equal(await page.locator(`[data-row="${idOf('tea')}"]`).count(), 0);
+  // What capture holds is matched against it, under the field.
+  await (await captureField(page)).fill('oat');
+  const before = page.getByRole('dialog', { name: 'Capture' }).getByRole('region', { name: 'Ticked before' });
+  await before.waitFor({ timeout: 5_000 });
+  assert.equal(await before.getByRole('button', { name: /tea/u }).count(), 0);
 
-  await page.locator(`[data-row="${idOf('oat milk')}"] .title`).tap();
+  await before.getByRole('button', { name: 'Put oat milk back on the list' }).tap();
   await page.waitForTimeout(400);
   assert.ok(writes.some((write) => write.path.endsWith(`${idOf('oat milk')}:reopen`)));
   assert.equal(writes.filter((write) => write.method === 'POST' && write.path === '/api/v1/items').length, 0);
@@ -271,10 +287,10 @@ test('a structure that arrives while the categories are chosen keeps the choice 
 test('a viewer reads the list and is offered nothing that writes (P-05)', async () => {
   const { page, writes, context } = await phone('VIEWER');
   await page.waitForTimeout(800);
-  assert.equal(await page.getByLabel('New entries, one per line').count(), 0, 'a capture line for a viewer');
+  assert.equal(await page.locator('main').getByRole('button', { name: /^Add/u }).count(), 0, 'an add for a viewer');
   assert.equal(await page.getByRole('button', { name: 'Categories' }).count(), 0);
   assert.equal(await page.getByRole('button', { name: 'Rename the section of done entries' }).count(), 0);
-  await page.locator(`[data-row="${idOf('salt')}"] .title`).tap();
+  await page.locator(`[data-row="${idOf('salt')}"] .leading`).tap({ position: { x: 2, y: 2 } });
   await finger(page, idOf('apples'), [[20, 0], [60, 2], [90, 4]]);
   await page.waitForTimeout(400);
   assert.equal(writes.filter((write) => write.path.includes(':complete')).length, 0, 'a viewer ticked');
@@ -308,8 +324,8 @@ test('offline, ticks and captures wait and are sent when the network returns (ch
   await context.setOffline(true);
   await page.waitForFunction(() => document.querySelector('.trigger')?.getAttribute('data-connection') === 'offline', null, { timeout: 5_000 });
 
-  await page.locator(`[data-row="${idOf('bread')}"] .title`).tap();
-  const field = page.getByLabel('New entries, one per line');
+  await page.locator(`[data-row="${idOf('bread')}"] .leading`).tap({ position: { x: 2, y: 2 } });
+  const field = await captureField(page);
   await field.fill('2 lemons');
   await field.press('Enter');
   // Both writes wait in the queue, which the sync mark counts.

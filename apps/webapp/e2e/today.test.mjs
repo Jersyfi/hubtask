@@ -57,6 +57,15 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   await empty.page.goto(`${served.origin}/`);
   await region(empty.page, 'On you').getByText('Nothing assigned to you has a date on it.').waitFor({ timeout: 15_000 });
   assert.equal(await empty.page.getByRole('region', { name: 'Lists' }).count(), 0, 'an empty Lists panel is drawn');
+  // An empty card offers the next act, centred in it (design-system.md §13, G4).
+  const offer = region(empty.page, 'On you').getByRole('button', { name: 'Capture' });
+  await offer.waitFor({ timeout: 5_000 });
+  const centred = await offer.evaluate((button) => {
+    const card = button.closest('section').getBoundingClientRect();
+    const box = button.getBoundingClientRect();
+    return Math.abs(box.left + box.width / 2 - (card.left + card.width / 2));
+  });
+  assert.ok(centred <= 2, `the empty card's act is ${centred} px off centre`);
   assert.deepEqual(empty.failures, []);
 
   // A workspace with no hub at all: one sentence and one action, not empty panels.
@@ -199,5 +208,29 @@ test('chromium: a project\'s step ticked off on Today gives way to the next', as
   // project has no dated step left.
   await projects.getByText('No open step has a date yet.').waitFor({ timeout: 10_000 });
   assert.deepEqual(dayCompletionsSoFar(), [`complete ${TODAY_STEP.id}`]);
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: the day at a glance - a greeting by the hour, figures that lead to their search, and no overdue figure (check 7)', async (t) => {
+  showToday();
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures } = await open(browser);
+  t.after(() => context.close());
+
+  const glance = page.getByRole('list', { name: 'Your day at a glance' });
+  await glance.waitFor({ timeout: 15_000 });
+  const links = await glance.getByRole('link').evaluateAll((all) => all.map((link) => ({ text: link.textContent.replace(/\s+/g, ' ').trim(), href: link.getAttribute('href') })));
+  // Each figure is a way into what it counts.
+  const today = links.find((link) => link.text.endsWith('due today'));
+  assert.ok(today, `no due-today figure: ${JSON.stringify(links)}`);
+  assert.equal(new URLSearchParams(today.href.split('?')[1]).get('f'), 'who:me is:open due:today');
+  assert.ok(links.some((link) => link.text.endsWith('coming up')), 'no coming-up figure');
+  assert.ok(links.some((link) => link.href === '/jumble'), 'no jumble figure for a reader of the jumble');
+  // Nothing says what the person did not do (§11.7).
+  assert.equal(links.some((link) => /overdue/i.test(link.text)), false, `an overdue figure: ${JSON.stringify(links)}`);
+  // The greeting by the hour where the person is, in the head's subtitle.
+  const subtitle = await page.locator('main').getByText(/^(Good morning|Hello|Good evening)/).first().textContent();
+  assert.ok(subtitle.includes(ACCOUNT.display_name.split(' ')[0]), `the greeting does not name the person: ${subtitle}`);
   assert.deepEqual(failures, []);
 });

@@ -71,6 +71,9 @@ async function openCollection(page, collection) {
 }
 
 async function menuRows(page, name) {
+  // A reader with nothing to do to the place itself has no menu at all.
+  await page.waitForTimeout(400);
+  if ((await page.getByRole('button', { name: `Actions for ${name}` }).count()) === 0) return [];
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   const menu = page.getByRole('menu', { name: `Actions for ${name}` });
   await menu.waitFor({ timeout: 5_000 });
@@ -78,17 +81,17 @@ async function menuRows(page, name) {
 }
 
 async function openPanel(page, name) {
-  await menuRows(page, name);
-  await page.getByRole('menuitem', { name: 'Structure' }).click();
+  await page.getByRole('button', { name: `Settings of ${name}` }).click();
+  await page.getByRole('link', { name: 'Structure' }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;
 }
 
-// The sheet's six tabs, all in sight at a phone's width and a desk's: none cut off at the sheet's
-// edge. And on *Labels* each colour is named by its colour, not by the name field's label.
+// The settings page's sections, all in sight at a phone's width and a desk's: none cut off at the
+// screen's edge. And on *Labels* each colour is named by its colour, not by the name field's label.
 for (const width of [390, 1280]) {
-  test(`chromium: ${width} px - every tab of the sheet is in sight, and a label's colours are named`, async (t) => {
+  test(`chromium: ${width} px - every section of the settings is in sight, and a label's colours are named`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await as(browser, 'OWNER', width);
@@ -97,13 +100,10 @@ for (const width of [390, 1280]) {
     await openCollection(page, SHAPES.list);
     await openPanel(page, SHAPES.list.name);
     const panel = page.locator('[data-structure-tabs]');
-    // The sheet slides in from the edge; measured once it is in place.
-    await page.waitForFunction(() => (document.querySelector('[data-structure-tabs] [role="tablist"]')?.getBoundingClientRect().right ?? Infinity) <= innerWidth);
-    const tabs = panel.getByRole('tab');
-    assert.equal(await tabs.count(), 6);
-    const sheet = await panel.getByRole('tablist').boundingBox();
+    const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
+    assert.equal(await tabs.count(), 7);
     for (const box of await tabs.evaluateAll((each) => each.map((tab) => tab.getBoundingClientRect().toJSON()))) {
-      assert.ok(box.right <= sheet.x + sheet.width + 1 && box.right <= width, `a tab ends at ${box.right}, past the sheet's ${sheet.x + sheet.width}`);
+      assert.ok(box.right <= width, `a section ends at ${box.right}, past the screen's ${width}`);
     }
     await tabs.filter({ hasText: 'Labels' }).click();
     const colours = await panel.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));
@@ -345,7 +345,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 
   await openCollection(page, SHAPES.locked);
   // A project opens with what is inside shown, its default view.
-  assert.ok(await page.getByRole('checkbox', { name: 'Show what is inside' }).isChecked(), 'the project did not open as its outline');
+  assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the project did not open as its outline');
   const panel = await openPanel(page, SHAPES.locked.name);
   const views = panel.locator('[data-setting="views"]');
   assert.equal((await views.locator('.head button').first().textContent()).trim(), 'Workspace, locked');
@@ -377,7 +377,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a member - the list as its settings make it, and no Structure panel (check 9)', async (t) => {
+test('chromium: a member - the list as its settings make it, and no settings page (check 9)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await as(browser, 'MEMBER');
@@ -398,5 +398,10 @@ test('chromium: a member - the list as its settings make it, and no Structure pa
   const hubRows = (await hubMenu.count()) === 0 ? [] : await menuRows(page, SHAPE_HUB.name);
   assert.ok(!hubRows.some((row) => row.startsWith('Structure')), `offered ${hubRows}`);
   assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people');
+  assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'a ⚙ to settings the member may not change');
+  // The address alone does not open them either: the page says whose they are.
+  await page.goto(`${served.origin}/collections/${SHAPES.list.id}/settings/structure`);
+  await page.getByText('Only someone who may change how this place is set up sees its settings.').waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('[data-structure-panel]').count(), 0);
   assert.deepEqual(failures, []);
 });

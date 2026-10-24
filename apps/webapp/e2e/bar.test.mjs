@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
+import { COLLECTION as KITCHEN, PERMISSIONS, fallback, signedIn, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -260,10 +260,11 @@ test('chromium: 375 px — the section is behind the drawer, and the bottom bar 
 test('chromium: 375 px — the page menu is in the bar, and it is the head\'s own list', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await open(browser);
-  t.after(close);
-
-  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  // The shared fixture's owner: a place's own menu holds only what may be done to it, and this
+  // walk's own reader holds no role that may do anything to a place.
+  const { page, failures, context } = await signedIn(browser, 375, 812);
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/collections/${KITCHEN.id}`);
   const menu = page.locator('[data-bar="menu"] button');
   await menu.waitFor({ timeout: 15_000 });
 

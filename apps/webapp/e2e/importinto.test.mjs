@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// *Import…* in a collection's add split lands the file in that collection (ux-inventory.md §E4):
+// *Import a file*, a mode of capture opened in a collection, lands the file there (design-system.md §11.8):
 // the dialog says where the entries go, the request names the collection and its hub, the report
 // arrives, no collection is offered to open, and the collection's entries are read again once the
 // job is done - the job writes without a change log entry, so the stream would not say.
@@ -33,7 +33,7 @@ const object = (status) => ({
   created_at: now, ...(status === 'PENDING' ? { upload: { url: '/e2e-upload/errands', method: 'PUT' } } : {}),
 });
 
-test('chromium: Import… in a collection lands the file there and reads its entries again', async (t) => {
+test('chromium: Import a file, from capture in a collection, lands the file there and reads its entries again', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -85,8 +85,9 @@ test('chromium: Import… in a collection lands the file there and reads its ent
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByText(ITEMS[2].title).first().waitFor();
   await page.waitForTimeout(600);
-  await page.getByRole('button', { name: 'More ways to add an entry' }).click();
-  await page.getByRole('menuitem', { name: 'Import…' }).click();
+  await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Capture' }).getByRole('button', { name: 'Import a file' }).click();
+  await page.getByRole('dialog', { name: 'Capture' }).waitFor({ state: 'hidden', timeout: 5_000 });
 
   const dialog = page.locator('dialog[open]');
   await dialog.waitFor({ timeout: 10_000 });

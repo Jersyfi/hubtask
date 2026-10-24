@@ -122,13 +122,15 @@ async function common(page, width) {
   // screenshot and wrong by six pixels for a year: an empty slot that still takes a gap, or a
   // control outside the group that is supposed to balance the other side. Two pixels of slack for
   // sub-pixel rounding, and nothing for anything else.
+  // What is centred is the pair: the field and *Capture* beside it, the two ways into everything
+  // (design-system.md §11.2).
   if (inBar === 1) {
     const centred = await page.evaluate(() => {
-      const field = document.querySelector('header form[role="search"]').getBoundingClientRect();
+      const ways = document.querySelector('header form[role="search"]').closest('.ways').getBoundingClientRect();
       const row = document.querySelector('header form[role="search"]').closest('header').firstElementChild.getBoundingClientRect();
-      return Math.round(field.left + field.width / 2 - (row.left + row.width / 2));
+      return Math.round(ways.left + ways.width / 2 - (row.left + row.width / 2));
     });
-    assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field is ${centred} px off centre`);
+    assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field and Capture are ${centred} px off centre`);
   }
   assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
   // The tour's capture and palette steps (ux-inventory.md §E1): one capture control to point at on
@@ -299,7 +301,7 @@ test('chromium: 600 px — the drawer closed and opened again at once stays open
 });
 
 for (const width of [905, 1280]) {
-  test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar in the bar`, async (t) => {
+  test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar alone in the bar`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures, close } = await open(browser, width);
@@ -407,12 +409,13 @@ for (const width of [905, 1280]) {
         const box = el.getBoundingClientRect();
         return { w: Math.round(box.width), h: Math.round(box.height), radius: getComputedStyle(el).borderRadius };
       };
-      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account') };
+      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account'), toggle: read('[data-toggle]') };
     });
     assert.deepEqual(shapes.notice, shapes.sync, `${width}: the two glyph controls are drawn differently`);
-    assert.equal(shapes.avatar.h, shapes.sync.h, `${width}: the avatar is not as tall as the marks beside it`);
-    // From `large` up the trigger carries the name and is a pill; below it is a circle.
-    assert.equal(shapes.avatar.w === shapes.avatar.h, width < 1280, `${width}: the avatar is ${shapes.avatar.w}x${shapes.avatar.h}`);
+    // One size and one hover shape for every control of the bar (§13, G2): the rail toggle and the
+    // avatar are the marks' square, at every width.
+    assert.deepEqual(shapes.avatar, shapes.sync, `${width}: the avatar is drawn as ${JSON.stringify(shapes.avatar)}`);
+    assert.deepEqual(shapes.toggle, shapes.sync, `${width}: the rail toggle is drawn as ${JSON.stringify(shapes.toggle)}`);
 
     // A device with no network says so, rather than saying it is trying: `navigator.onLine` is
     // false and the mark is the struck cloud ADR-0063 decision 5 names. Trusted in one direction
@@ -433,15 +436,10 @@ for (const width of [905, 1280]) {
     assert.equal(new URL(page.url()).pathname, '/jumble');
     await keeping.getByRole('treeitem', { name: 'Trash' }).click();
     assert.equal(new URL(page.url()).pathname, '/trash');
-    // The trigger is the avatar, named by the person; the name is beside it only from `large`,
-    // and the address is inside rather than in the frame (ADR-0063 decision 6).
+    // The trigger is the avatar alone at every width, named by the person; the name and the
+    // address are inside rather than in the frame (design-system.md §11.2).
     const trigger = page.getByRole('button', { name: ACCOUNT.display_name });
-    // The avatar's initials are always drawn; the name in words only from `large`.
-    assert.equal(
-      (await trigger.textContent()).includes(ACCOUNT.display_name),
-      width >= 1240,
-      `${width}: the trigger draws "${(await trigger.textContent()).trim()}"`,
-    );
+    assert.equal((await trigger.textContent()).includes(ACCOUNT.display_name), false, `${width}: the trigger draws "${(await trigger.textContent()).trim()}"`);
     assert.equal(await page.getByRole('banner', { name: 'Application bar' }).getByText(ACCOUNT.email).count(), 0, `${width}: the bar carries an address`);
     await trigger.click();
     const menu = page.getByRole('menu', { name: 'You' });

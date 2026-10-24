@@ -91,8 +91,11 @@
          row's own, so nothing moves. -->
     <div class="lead">
       {#if toggle}
+        <!-- `sm`, the size of every other control in the bar: one size and one hover shape per row
+             (design-system.md §13, G2). -->
         <IconButton
           icon={toggle.kind === 'drawer' ? 'menu' : 'panel-left'}
+          size="sm"
           label={toggle.label}
           aria-expanded={toggle.isExpanded}
           data-toggle={toggle.kind}

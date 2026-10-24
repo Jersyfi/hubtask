@@ -8,7 +8,7 @@
  * Run `make icons` after changing the list there. Lucide is ISC; the notice is in
  * THIRD-PARTY-LICENSES.md (ADR-0041).
  *
- * 107 icons, 17301 bytes of node data.
+ * 109 icons, 17501 bytes of node data.
  */
 
 import type { IconNode } from './node.ts';
@@ -42,8 +42,10 @@ export const BASE_ICONS = {
   'chevron-up': [["path",{"d":"m18 15-6-6-6 6"}]],
   'chevrons-up-down': [["path",{"d":"m7 15 5 5 5-5"}],["path",{"d":"m7 9 5-5 5 5"}]],
   'external-link': [["path",{"d":"M15 3h6v6"}],["path",{"d":"M10 14 21 3"}],["path",{"d":"M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"}]],
+  'maximize-2': [["path",{"d":"M15 3h6v6"}],["path",{"d":"m21 3-7 7"}],["path",{"d":"m3 21 7-7"}],["path",{"d":"M9 21H3v-6"}]],
   'menu': [["path",{"d":"M4 5h16"}],["path",{"d":"M4 12h16"}],["path",{"d":"M4 19h16"}]],
   'panel-left': [["rect",{"width":"18","height":"18","x":"3","y":"3","rx":"2"}],["path",{"d":"M9 3v18"}]],
+  'panel-right': [["rect",{"width":"18","height":"18","x":"3","y":"3","rx":"2"}],["path",{"d":"M15 3v18"}]],
 
   // State and feedback
   'ban': [["circle",{"cx":"12","cy":"12","r":"10"}],["path",{"d":"M4.929 4.929 19.07 19.071"}]],
@@ -145,4 +147,4 @@ export const BASE_ICONS = {
 } as const satisfies Record<string, readonly IconNode[]>;
 
 /** The base icons that turn round with the writing direction (build/icons.js MIRRORED). */
-export const BASE_MIRRORED = ['arrow-left', 'arrow-right', 'chevron-left', 'chevron-right', 'external-link', 'log-out', 'panel-left'] as const satisfies readonly (keyof typeof BASE_ICONS)[];
+export const BASE_MIRRORED = ['arrow-left', 'arrow-right', 'chevron-left', 'chevron-right', 'external-link', 'log-out', 'panel-left', 'panel-right'] as const satisfies readonly (keyof typeof BASE_ICONS)[];

@@ -22,6 +22,7 @@
 import type { IconName } from '@hubtask/design-system/components';
 
 import type { Area } from './router.ts';
+import { PLACE_ROUTES } from './routes.ts';
 
 export type Group = 'primary' | 'account';
 
@@ -71,7 +72,7 @@ export const DESTINATIONS: readonly Destination[] = [
   // what is the reader's today across every hub, the page the app opens on - not a list of the
   // hubs the tree below it lists (ADR-0063 decision 1). Its id stays `workspace`, the key the
   // drawings and the walks know it by; the workspace keeps its own name for what it is called.
-  { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', 'hub', 'collection', 'item'] },
+  { id: 'workspace', group: 'primary', icon: 'sun', code: 'app.nav.today', target: { kind: 'route', path: '/' }, routes: ['home', ...PLACE_ROUTES, 'item'] },
   { id: 'search', group: 'primary', icon: 'search', code: 'app.nav.search', target: { kind: 'route', path: '/search' }, routes: ['search'] },
   // Capture: the phone's ＋ between Search and the jumble (ux-inventory.md §E0). Only the bottom bar
   // draws it; from `medium` up the bar carries *Capture* as a button of its own, and the column
