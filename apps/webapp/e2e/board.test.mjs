@@ -201,3 +201,22 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   // cannot claim to have exercised (`fixture.mjs`).
   assert.deepEqual(unstubbed(), []);
 });
+
+test('chromium: a board opened at its own address draws its cards, though the manifest arrives after it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, close } = await board(browser);
+  t.after(close);
+
+  // The board is the layout the device remembers; the reload opens it straight away, and the
+  // manifest is the slowest answer on the page - as on a server where it is read cold.
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    if (route.request().url().endsWith('/api/v1/meta/capabilities')) await new Promise((resolve) => setTimeout(resolve, 1500));
+    return stub(route);
+  });
+  await page.reload();
+  await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
+  assert.ok(await page.locator(`[data-card="${ITEMS[0].id}"]`).isVisible(), 'the board drew empty columns');
+  assert.deepEqual(failures, []);
+});

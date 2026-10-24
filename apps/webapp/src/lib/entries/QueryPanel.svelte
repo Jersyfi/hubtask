@@ -164,8 +164,11 @@
   });
 
   // The grouping belongs to the board, so changing the layout changes the document; the order
-  // comes from the *Sort* menu, so a change there does too.
+  // comes from the *Sort* menu, so a change there does too. And the manifest: every part is
+  // checked against it, so a document built before it arrived is one without its grouping - a
+  // board opened at its own address drew empty columns until a reload.
   $effect(() => {
+    void manifest.value;
     void layout;
     void sortField;
     void sortDir;
