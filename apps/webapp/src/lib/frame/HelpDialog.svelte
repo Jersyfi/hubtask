@@ -27,7 +27,7 @@
   }
 </script>
 
-<Dialog title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen>
+<Dialog title={t('app.help.label')} dismissLabel={t('app.palette.close')} bind:isOpen isWide>
   <Stack gap="300">
     {#each SCOPES as scope (scope)}
       <section aria-labelledby={`shortcuts-${scope}`}>
@@ -54,17 +54,50 @@
 </Dialog>
 
 <style>
-  .group { margin: 0 0 var(--sp-100); font-size: var(--fs-075); font-weight: var(--fw-semibold); color: var(--text-secondary); }
-  .list { margin: 0; display: grid; gap: var(--sp-100); }
-  .row { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--sp-100); }
-  dt { margin: 0; }
-  dd { margin: 0; display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-050); }
-  .or { color: var(--text-secondary); font-size: var(--fs-075); }
-  kbd {
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-sm);
-    padding-inline: var(--sp-050);
-    color: var(--text-secondary);
+  .group {
+    margin: 0 0 var(--sp-050);
     font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+    color: var(--text-secondary);
+  }
+
+  /* Two columns that hold: what it does at the start, wrapping where it must; the keys at the end,
+     never broken across lines, so every key of the dialog stands on one edge. */
+  .list { margin: 0; display: grid; grid-template-columns: minmax(0, 1fr) auto; }
+
+  .row { display: contents; }
+
+  dt,
+  dd {
+    padding-block: var(--sp-100);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  .row:first-child > dt,
+  .row:first-child > dd { border-block-start: 0; }
+
+  dt { margin: 0; padding-inline-end: var(--sp-300); color: var(--text-primary); font-size: var(--fs-100); }
+
+  dd {
+    margin: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: end;
+    gap: var(--sp-050);
+    white-space: nowrap;
+  }
+
+  .or { color: var(--text-subtle); font-size: var(--fs-075); }
+
+  kbd {
+    padding: var(--sp-025) var(--sp-050);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-block-end-width: var(--bw-thick);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface-sunken);
+    color: var(--text-primary);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    line-height: 1.4;
   }
 </style>

@@ -39,6 +39,7 @@
     Select,
     Spinner,
     Stack,
+    ViewSwitcher,
   } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -277,7 +278,9 @@
       <p class="quiet" data-arrival-budget>{renderRefusal(suggestions.arrivalBudgetSpent, messages)}</p>
     {/if}
 
-    <Select label={t('app.jumble.showing')} bind:value={filter} options={filters} />
+    <!-- Which arrivals: three states, one chosen - the segments the collection's layouts use, not a
+         field the width of the page. -->
+    <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
 
     {#if selectable && selection.isOn}
       <div class="selection" role="toolbar" aria-label={t('app.jumble.actions')} data-jumble-selection>
@@ -360,8 +363,12 @@
                     </div>
                   </Stack>
                 {:else}
+                  <!-- One arrival among many: its acts at the size a row's are, none of them the
+                       page's one primary. -->
                   <Button
-                    tone="primary"
+                    tone="secondary"
+                    size="sm"
+                    icon="arrow-right"
                     onclick={() => {
                       converting = entry.id;
                       title = subjectOf(entry);
@@ -371,6 +378,7 @@
                   </Button>
                   <Button
                     tone="subtle"
+                    size="sm"
                     isBusy={isWorking}
                     busyLabel={t('app.jumble.working')}
                     onclick={() => void attempt(() => jumble.dismiss(entry.id), t('app.jumble.dismissed_announced'))}
@@ -383,6 +391,7 @@
                   {#if hasAi && (entry.raw_subject?.trim() || entry.raw_body?.trim())}
                     <Button
                       tone="secondary"
+                      size="sm"
                       icon="sparkles"
                       data-ai
                       disabledReason={isPending(suggestions.askingOf(entry.id)) ? t('app.suggestions.pending') : undefined}
