@@ -55,11 +55,12 @@ test('the places opened last are offered with an empty field only, before the ac
   assert.deepEqual(rank([recent, kitchen], 'kitch').map((each) => each.id), ['c1']);
 });
 
-test('an empty field lists a few actions, the screen\'s own first', () => {
+test('an empty field lists a few actions: capturing, then the screen\'s own', () => {
   const many: Candidate[] = Array.from({ length: 14 }, (_, index) => ({ kind: 'action', id: index < 3 ? `a${index}` : `page:a${index}`, label: `Act ${index}` }));
   const empty = rank(many, '');
   assert.equal(empty.length, EMPTY_ACTIONS);
-  assert.ok(empty.every((each) => each.id.startsWith('page:')), `the screen's own come first: ${empty.map((each) => each.id)}`);
+  assert.equal(empty[0]?.id, 'a0', `the frame's first does not lead: ${empty.map((each) => each.id)}`);
+  assert.ok(empty.slice(1).every((each) => each.id.startsWith('page:')), `the screen's own come next: ${empty.map((each) => each.id)}`);
   assert.equal(rank(many, 'act').length, CAPS.action);
 });
 

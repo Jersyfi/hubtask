@@ -83,22 +83,21 @@ test('chromium: 1280 px — a hub is managed from its own row: the menu holds th
   await menu.waitFor({ timeout: 5_000 });
   const items = (await menu.getByRole('menuitem').allTextContents()).map((each) => each.trim());
   // The hub's own acts and nothing about entries (§13, G7).
-  for (const act of ['Edit…', 'Archive', 'Move to the trash']) assert.ok(items.some((each) => each.startsWith(act)), `the menu lacks ${act}: ${items}`);
+  // The same menu as the hub's page has (placeMenu.ts): its settings first, where its name and
+  // look are changed - there is no Edit beside them.
+  for (const act of ['Settings…', 'Archive', 'Move to the trash']) assert.ok(items.some((each) => each.startsWith(act)), `the menu lacks ${act}: ${items}`);
+  assert.equal(items.some((each) => each.startsWith('Edit')), false, `the menu holds Edit beside Settings: ${items}`);
   assert.equal(items.some((each) => /select|entries/i.test(each)), false, `the hub's menu holds an entry act: ${items}`);
-
-  await menu.getByRole('menuitem', { name: 'Edit…' }).click();
-  // The hub's page opens and runs its own Edit, with its own dialog.
-  await page.waitForURL(/\/hubs\//, { timeout: 5_000 });
-  await page.getByRole('dialog').first().waitFor({ timeout: 5_000 });
+  await page.keyboard.press('Escape');
 
   // The keyboard reaches the same menu from the row.
-  await page.keyboard.press('Escape');
   await row.focus();
   await page.keyboard.press('Shift+F10');
   await page.getByRole('menu', { name: 'Manage House' }).waitFor({ timeout: 5_000 });
   // *Settings* is a page of its own, reached from where the place is listed.
   await page.getByRole('menuitem', { name: 'Settings' }).click();
-  await page.waitForURL(/\/hubs\/[^/]+\/settings$/u, { timeout: 5_000 });
+  await page.waitForURL(/\/hubs\/[^/]+\/settings/u, { timeout: 5_000 });
+  await page.getByRole('region', { name: 'General' }).getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });
 
@@ -110,13 +109,13 @@ test('chromium: 1280 px — the sync mark opens on a band naming the state, the 
   await home(page);
 
   await page.locator('header .trigger').click();
-  const band = page.locator('.band');
+  const band = page.locator('p.band[data-tone]');
   await band.waitFor({ timeout: 5_000 });
   assert.equal((await band.innerText()).trim(), 'All synchronised', 'the band names the state, not only the connection');
   const geometry = await page.evaluate(() => {
-    const state = document.querySelector('.band');
+    const state = document.querySelector('p.band[data-tone]');
     const word = state.querySelector('.word').getBoundingClientRect();
-    const line = document.querySelector('.band ~ .body .detail')?.getBoundingClientRect();
+    const line = document.querySelector('p.band[data-tone] ~ .body .detail')?.getBoundingClientRect();
     const surface = state.closest('[popover], .surface')?.getBoundingClientRect() ?? state.parentElement.getBoundingClientRect();
     const box = state.getBoundingClientRect();
     const style = getComputedStyle(state);

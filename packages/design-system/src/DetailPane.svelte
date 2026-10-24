@@ -19,22 +19,31 @@
 
   import type { Snippet } from 'svelte';
 
+  import Checkbox from './Checkbox.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { escapeHandler } from './focus.ts';
   import { layers } from './layers.ts';
+  import VisuallyHidden from './VisuallyHidden.svelte';
 
   interface Props {
     /** What is open. Resolved text (ADR-0011). */
     title: string;
     /** What kind of thing it is, in the manifest's words: "Task", "Work package". */
     kind?: string;
+    /**
+     * Where it is - the hub and the collection - drawn small at the head, as the concept does: the
+     * title is the entry's own field below, so the head says where rather than repeating what.
+     */
+    trail?: readonly string[];
     /** The name of the control that closes it. Required: a pane is always dismissible. */
     dismissLabel: string;
     onClose: () => void;
     /** The name of the control that opens the same thing as a page, and where that is. */
     pageLabel?: string;
+    /** The word drawn on that control - "Full page" - where `pageLabel` is its whole name. */
+    pageWord?: string;
     pageHref?: string;
     onOpenPage?: () => void;
     /** The panel's edge, where the person may drag its width. The caller keeps the width. */
@@ -55,7 +64,7 @@
     children: Snippet;
   }
 
-  const { title, kind, dismissLabel, onClose, pageLabel, pageHref, onOpenPage, resize, whole, children }: Props = $props();
+  const { title, kind, trail, dismissLabel, onClose, pageLabel, pageWord, pageHref, onOpenPage, resize, whole, children }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -80,19 +89,31 @@
     <ResizeHandle label={resize.label} value={resize.value} min={resize.min} max={resize.max} reset={resize.reset} edge="inline-start" onresize={resize.onresize} />
   {/if}
   <header class="head">
+    <!-- Where the entry is, small; its name is read rather than drawn, because the entry's own
+         title field is the first thing below. -->
     <div class="names">
-      {#if kind}<span class="kind">{kind}</span>{/if}
-      <h2 id={titleId} class="title">{title}</h2>
+      {#if trail && trail.length > 0}
+        <span class="trail">
+          {#each trail as step, index (index)}
+            {#if index > 0}<span class="step-mark" aria-hidden="true"><Icon name="chevron-right" size="sm" /></span>{/if}
+            <span>{step}</span>
+          {/each}
+        </span>
+      {:else if kind}
+        <span class="kind">{kind}</span>
+      {/if}
+      <VisuallyHidden><h2 id={titleId}>{title}</h2></VisuallyHidden>
     </div>
     <div class="controls">
       {#if pageLabel && (pageHref || onOpenPage)}
         {#if pageHref}
           <!-- A link, because it goes somewhere: a reader may open it in a new tab, and the
-               router takes it like any other. The name is the label; the mark is decoration. -->
+               router takes it like any other. Where a word is drawn the word is its name (the
+               label is in the name, SC 2.5.3) and the full label its tooltip; else the label. -->
           <a
             class="page"
             href={pageHref}
-            aria-label={pageLabel}
+            aria-label={pageWord ? undefined : pageLabel}
             title={pageLabel}
             onclick={(event) => {
               if (!onOpenPage) return;
@@ -100,22 +121,23 @@
               onOpenPage();
             }}
           >
-            <Icon name="maximize-2" size="sm" />
+            <Icon name="maximize-2" size="sm" />{#if pageWord}<span>{pageWord}</span>{/if}
           </a>
         {:else}
           <IconButton icon="maximize-2" label={pageLabel} size="sm" onclick={onOpenPage} />
         {/if}
       {/if}
-      {#if whole}
-        <!-- A switch, so it says its state: pressed, every entry opens whole from now on. -->
-        <button type="button" class="whole" aria-pressed={whole.isAlways} title={whole.label} aria-label={whole.label} onclick={whole.ontoggle}>
-          <Icon name="panel-right" size="sm" />
-        </button>
-      {/if}
       <IconButton icon="x" label={dismissLabel} size="sm" onclick={onClose} />
     </div>
   </header>
   <div class="body">{@render children()}</div>
+  {#if whole}
+    <!-- The person's standing choice, at the foot where the concept puts it: a checkbox, so it
+         says its state the way every other setting does. -->
+    <div class="foot">
+      <Checkbox label={whole.label} checked={whole.isAlways} onchange={whole.ontoggle} />
+    </div>
+  {/if}
 </aside>
 
 <style>
@@ -137,14 +159,19 @@
     background: var(--bg-surface);
     border-inline-start: var(--bw-hairline) solid var(--border-subtle);
     box-shadow: var(--shadow-overlay);
+    /* The shadow falls on the list beside it and never up over the bar it sits under. */
+    clip-path: inset(0 0 0 calc(-1 * var(--sp-1000)));
+    /* Scrolling to its end stays in it: the page behind neither scrolls on nor bounces. */
+    overscroll-behavior: contain;
   }
+
+  :global([dir='rtl']) .pane { clip-path: inset(0 calc(-1 * var(--sp-1000)) 0 0); }
 
   .head {
     display: flex;
-    align-items: flex-start;
     gap: var(--sp-150);
-    padding: var(--sp-200) var(--sp-300);
-    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    align-items: center;
+    padding: var(--sp-200) var(--sp-300) 0;
   }
 
   .names { display: flex; flex-direction: column; gap: var(--sp-025); flex: 1; min-width: 0; }
@@ -155,13 +182,16 @@
     color: var(--text-subtle);
   }
 
-  .title {
-    margin: 0;
-    font-size: var(--fs-300);
-    font-weight: var(--fw-semibold);
-    line-height: var(--lh-tight);
-    overflow-wrap: anywhere;
+  .trail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-050);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
   }
+
+  .step-mark { display: inline-flex; }
 
   .controls { display: flex; align-items: center; gap: var(--sp-050); flex: none; }
 
@@ -172,33 +202,17 @@
     justify-content: center;
     min-inline-size: var(--density-control-sm-min);
     min-block-size: var(--density-control-sm-min);
+    gap: var(--sp-050);
+    padding-inline: var(--sp-050);
+    box-sizing: border-box;
     border-radius: var(--r-sm);
     color: var(--text-secondary);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+    text-decoration: none;
   }
 
   .page:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
-
-  .whole {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-inline-size: var(--density-control-sm-min);
-    min-block-size: var(--density-control-sm-min);
-    padding: 0;
-    border: 0;
-    border-radius: var(--r-sm);
-    background: transparent;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-
-  .whole:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
-  .whole[aria-pressed='true'] { background: var(--accent-primary-subtle); color: var(--accent-primary); }
-
-  .whole:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-  }
 
   .page:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -208,6 +222,11 @@
   .body {
     flex: 1;
     min-width: 0;
-    padding: var(--sp-300);
+    padding: var(--sp-200) var(--sp-300) var(--sp-300);
+  }
+
+  .foot {
+    padding: var(--sp-150) var(--sp-300) var(--sp-300);
+    color: var(--text-secondary);
   }
 </style>

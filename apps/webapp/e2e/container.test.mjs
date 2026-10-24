@@ -26,7 +26,8 @@ test.after(() => served.close());
 const labelsOf = (menu) => menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim().replace(/…$/, '') ?? ''));
 
 /** The collection's own menu (design-system.md §11.1): what is done to the place itself, trash last. */
-const MENU = ['Edit', 'Move to another hub', 'Archive', 'Move up', 'Move down', 'Move to the trash'];
+// The place's one menu, the same from its page and its row in the navigation (placeMenu.ts).
+const MENU = ['Settings', 'Move to another hub', 'Import', 'Change position', 'Archive', 'Move to the trash'];
 
 async function openCollection(browser, width) {
   const { page, failures, context, unstubbed } = await signedIn(browser, width, 900);
@@ -41,19 +42,20 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   const { page, failures, close, unstubbed } = await openCollection(browser, 1280);
   t.after(close);
 
-  // The head: one add, no split; the people and the ⚙; the place's own menu.
+  // The head: no add - the bar's Capture and the list's own add are the two ways in -; the people
+  // and the ⚙; the place's own menu.
   const head = page.locator('header.head');
-  assert.equal(await head.getByRole('button', { name: 'Add an entry', exact: true }).count(), 1, 'one add in the head');
+  assert.equal(await head.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'a third add in the head');
   assert.equal(await page.getByRole('button', { name: 'More ways to add an entry' }).count(), 0, 'the add carries no split');
-  assert.equal(await head.getByRole('button', { name: 'Filter and sort' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
+  assert.equal(await head.getByRole('button', { name: 'Filter' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
   const settings = head.getByRole('button', { name: `Settings of ${COLLECTION.name}` });
   assert.equal(await settings.count(), 1, 'the ⚙ to the settings stands in the head');
 
-  // The toolbar under it: the layouts at the start; the filter, the views and selecting at the end.
+  // The toolbar under it: the layouts at the start; the filter, the order, the views and selecting at the end.
   const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
   assert.equal(await toolbar.count(), 1);
   assert.equal(await toolbar.getByRole('radiogroup', { name: 'How these entries are shown' }).count(), 1);
-  for (const name of ['Filter and sort', 'Views', 'Select entries']) {
+  for (const name of ['Filter', 'Sort', 'Views', 'Select entries']) {
     assert.equal(await toolbar.getByRole('button', { name }).count(), 1, `${name} is not in the toolbar`);
   }
   assert.equal(await toolbar.evaluate((el) => getComputedStyle(el).position), 'sticky', 'the toolbar stays under the bar');
@@ -63,13 +65,11 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   const menu = page.getByRole('menu', { name: `Actions for ${COLLECTION.name}` });
   await menu.waitFor({ timeout: 5_000 });
   assert.deepEqual(await labelsOf(menu), MENU);
-  // The reasons stay readable: the one collection is first and last in its level.
-  assert.ok((await menu.getByRole('menuitem', { name: /Move up/ }).textContent()).includes('already first'));
 
   await page.keyboard.press('Escape');
 
   // Every dialog of the place's menu opens from it, and Escape brings focus back.
-  for (const [item, title] of [['Edit', 'Edit collection'], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
+  for (const [item, title] of [['Change position…', `Position of ${COLLECTION.name}`], ['Move to the trash', `Move ${COLLECTION.name} to the trash`]]) {
     await trigger.focus();
     await page.keyboard.press('Enter');
     await page.getByRole('menuitem', { name: item }).click();
@@ -92,9 +92,9 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await page.locator('dialog[open]').getByRole('heading', { name: /People/ }).waitFor({ timeout: 5_000 });
   await page.keyboard.press('Escape');
 
-  // The add opens capture pointed at this collection; the tour's last step finds it by its opener.
+  // The list's add opens capture pointed at this collection; the tour's last step finds it by its opener.
   assert.equal(await page.locator('[data-opener="add-entry"]').first().evaluate((el) => el.textContent.trim()), 'Add an entry');
-  await head.getByRole('button', { name: 'Add an entry', exact: true }).click();
+  await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
   const capture = page.getByRole('dialog', { name: 'Capture' });
   await capture.getByRole('textbox', { name: 'What do you want to remember?' }).waitFor({ timeout: 5_000 });
   assert.match(await capture.locator('[data-chip="place"]').innerText(), new RegExp(COLLECTION.name, 'u'));
@@ -113,13 +113,15 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   await switcher.getByRole('radio', { name: 'List' }).click();
   assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the list came back as it was left');
 
-  // The filter: inline, and its count on the button.
-  await toolbar.getByRole('button', { name: 'Filter and sort' }).click();
+  // The filter: inline, not a drawer, from expanded.
+  await toolbar.getByRole('button', { name: 'Filter' }).click();
   const panel = page.getByRole('group', { name: 'Which entries to show' });
   await panel.waitFor({ state: 'visible', timeout: 5_000 });
   assert.equal(await page.locator('dialog[open]').count(), 0, 'inline, not a drawer, from expanded');
-  await page.getByRole('combobox', { name: 'Order by' }).selectOption('title');
-  await page.getByRole('button', { name: 'Filter and sort (1)' }).waitFor({ timeout: 5_000 });
+  // The order is its own menu, and the button says the order chosen.
+  await toolbar.getByRole('button', { name: 'Sort' }).click();
+  await page.getByRole('menuitem', { name: 'title', exact: true }).click();
+  await toolbar.getByRole('button', { name: 'Sorted by title' }).waitFor({ timeout: 5_000 });
 
   assert.deepEqual(failures, []);
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
@@ -169,17 +171,18 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   assert.equal(await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).evaluate((el) => el.getBoundingClientRect().width <= 1), true, 'the h1 is drawn as well as read');
   assert.equal(await page.getByRole('link', { name: HUB.name }).count(), 1, 'the parent as the way up');
 
-  // Folded: the menu holds the place's own actions; the bottom bar's ＋ is the add, pinned nowhere else.
+  // Folded: the menu holds the place's own actions; the bottom bar's ＋ is the add, and the list's
+  // own add at its end, never one pinned over the bottom bar.
   await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
   const menu = page.getByRole('menu');
   assert.deepEqual(await labelsOf(menu), MENU);
   await page.keyboard.press('Escape');
-  assert.equal(await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'a second add pinned over the bottom bar');
+  assert.equal(await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'an add in the head');
 
   // The toolbar: the layouts and one *Filter*, whose sheet holds the views and selecting too.
   const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
   assert.equal(await toolbar.getByRole('button', { name: 'Views' }).count(), 0);
-  await toolbar.getByRole('button', { name: 'Filter and sort' }).click();
+  await toolbar.getByRole('button', { name: 'Filter' }).click();
   const drawer = page.locator('dialog[open]');
   await drawer.waitFor({ timeout: 5_000 });
   assert.equal(await drawer.getByRole('group', { name: 'Which entries to show' }).count(), 1, 'the filter is a drawer below expanded');
@@ -208,7 +211,7 @@ test('chromium: 375 px — the folded head, the filter as a drawer, the board on
   await page.getByRole('radio', { name: 'List' }).click();
   assert.equal(await page.getByRole('checkbox', { name: /Select .*Order the tiles/ }).count(), 0, 'a row carries a pick with nobody selecting');
   assert.equal(await page.locator('main .bar').count(), 0, 'the bulk bar stands above a list nobody is selecting in');
-  await toolbar.getByRole('button', { name: 'Filter and sort' }).click();
+  await toolbar.getByRole('button', { name: 'Filter' }).click();
   await page.locator('dialog[open]').getByRole('button', { name: 'Select entries' }).click();
 
   // The bulk bar: once something is picked it is fixed above the bottom bar, and the bottom bar stays.
@@ -251,10 +254,12 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   t.after(() => context.close());
   await page.goto(`${served.origin}/hubs/${HUB.id}`);
   await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
-  assert.equal(await page.getByRole('button', { name: 'Create collection' }).count(), 1);
-  assert.equal(await page.getByRole('button', { name: /Import/ }).count(), 1);
+  // Creating a collection is the dashed card among the collections, where the new one will stand;
+  // importing is the place's menu, as on a collection.
+  assert.equal(await page.getByRole('main').getByRole('button', { name: /Create collection/ }).count(), 1);
+  assert.equal(await page.getByRole('main').getByRole('button', { name: /Import/ }).count(), 0, 'import beside the head as well as in its menu');
   await page.getByRole('button', { name: `Actions for ${HUB.name}` }).click();
-  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Edit', 'Archive', 'Move up', 'Move down', 'Make private', 'Move to the trash']);
+  assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   // A hub's settings are a page as a collection's are: its general fields, its default, its people.
   await page.getByRole('button', { name: `Settings of ${HUB.name}` }).click();

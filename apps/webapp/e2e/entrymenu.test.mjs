@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { CHILDREN, COLLECTION, ITEMS, signedIn, stub } from './fixture.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -79,7 +80,7 @@ async function readMenu(page, title) {
 /** The four ways in, each answering the same items. */
 async function everyWayIn(page, row, title) {
   const trigger = page.getByRole('button', { name: `Actions for ${title}`, exact: true }).first();
-  await trigger.click();
+  await reveal(trigger);
   const byButton = await readMenu(page, title);
   await row.click({ button: 'right' });
   const byRightClick = await readMenu(page, title);
@@ -106,7 +107,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   const onList = await everyWayIn(list.page, listRow, DATED.title);
   assert.deepEqual(onList, ['Select', ...COMMON]);
   // One item, and the request it sends.
-  await list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first().click();
+  await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Archive' }).click();
   await list.page.waitForTimeout(300);
   assert.ok(list.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:archive`)), 'Archive sent no :archive');
@@ -120,7 +121,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   assert.ok(columns.length > 0, 'the board offers no columns');
   assert.deepEqual(onBoard.filter((label) => !columns.includes(label)), ['Select', ...COMMON]);
   assert.equal(onBoard.indexOf(columns[0]), onBoard.indexOf('Move to another collection') + 1);
-  await list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first().click();
+  await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Move to the trash' }).click();
   await list.page.waitForTimeout(300);
   assert.ok(list.written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${DATED.id}`)), 'the trash sent no DELETE');
@@ -131,7 +132,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   await bar.waitFor({ timeout: 15_000 });
   const onTimeline = await everyWayIn(list.page, bar, DATED.title);
   assert.deepEqual(onTimeline, COMMON);
-  await list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first().click();
+  await reveal(list.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await list.page.getByRole('menuitem', { name: 'Mark as done' }).click();
   await list.page.waitForTimeout(300);
   assert.ok(list.written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${DATED.id}:complete`)), 'Mark as done sent no :complete');
@@ -159,7 +160,7 @@ test('chromium: 1280 px — the list, the board, the timeline, the subtree and s
   await search.page.waitForTimeout(600);
   const inSearch = await everyWayIn(search.page, hit, DATED.title);
   assert.deepEqual(inSearch, COMMON);
-  await search.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first().click();
+  await reveal(search.page.getByRole('button', { name: `Actions for ${DATED.title}`, exact: true }).first());
   await search.page.getByRole('menuitem', { name: 'Copy link' }).waitFor();
   assert.deepEqual(search.failures, []);
 });
@@ -208,10 +209,20 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
   await row.waitFor({ timeout: 15_000 });
   await list.page.waitForTimeout(600);
   await list.page.mouse.move(0, 0);
-  /** Whether every tool of the row - the grip, the labels, ＋ and ⋯ - stands at this opacity. */
+  /**
+   * Whether every tool of the row - the grip, the labels, ＋ and ⋯ - is drawn (1) or out of sight
+   * (0). Out of sight the grip is faded and the others take no width: clipped, not removed, so
+   * they stay in the reading order.
+   */
   const waitFor = (wanted) => list.page.waitForFunction(([id, value]) => {
     const element = document.querySelector(`[data-row="${id}"]`);
-    return [element.querySelector('.grip'), ...element.querySelectorAll('.on-hover')].every((each) => Number(getComputedStyle(each).opacity) === value);
+    const grip = Number(getComputedStyle(element.querySelector('.grip')).opacity) === value;
+    const tools = [...element.querySelectorAll('.on-hover')].every((each) => {
+      const style = getComputedStyle(each);
+      const drawn = style.clipPath === 'none' && each.getBoundingClientRect().width > 4;
+      return drawn === (value === 1);
+    });
+    return grip && tools;
   }, [ITEMS[0].id, wanted], { timeout: 5_000 });
   await waitFor(0);
   assert.equal(await row.locator('.on-hover').count(), 3, 'labels, ＋ and ⋯');
@@ -270,10 +281,13 @@ test('chromium: 375 × 812 — the menu of the last row on screen stays on scree
   // The last ⋯ wholly on screen: the row nearest the foot, where the room below is the least.
   const triggers = page.getByRole('button', { name: /^Actions for / });
   const boxes = await triggers.evaluateAll((all) => all.map((each) => each.getBoundingClientRect().toJSON()));
-  const last = boxes.findLastIndex((box) => box.height > 0 && box.bottom <= 812);
+  // On screen means above the bottom bar, which stands over the page's foot.
+  const foot = await page.evaluate(() => document.querySelector('nav[aria-label="Sections"]')?.getBoundingClientRect().top ?? innerHeight);
+  const last = boxes.findLastIndex((box) => box.height > 0 && box.bottom <= foot);
   assert.ok(last >= 0, 'no row with a ⋯ on screen');
-  assert.ok(boxes[last].top > 812 / 2, `the last row on screen is in the upper half (${boxes[last].top})`);
+  assert.ok(boxes[last].top > foot / 2, `the last row on screen is in the upper half (${boxes[last].top})`);
   const scrolled = await page.evaluate(() => scrollY);
+  // Below `medium` a row's tools are always drawn, so the ⋯ is pressed where it stands.
   await triggers.nth(last).click();
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
@@ -353,7 +367,7 @@ test('chromium: 1280 px — Move to another collection and Duplicate ask first a
   const trigger = page.getByRole('button', { name: `Actions for ${ITEMS[2].title}`, exact: true }).first();
   await trigger.waitFor({ timeout: 15_000 });
   for (const item of ['Move to another collection', 'Duplicate']) {
-    await trigger.click();
+    await reveal(trigger);
     await page.getByRole('menuitem', { name: item }).click();
     await page.getByRole('dialog').waitFor({ timeout: 5_000 });
     assert.deepEqual(written.filter((w) => w.method !== 'GET'), [], `${item} wrote before it was confirmed`);

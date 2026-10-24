@@ -15,6 +15,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, signedIn, stub } from './fixture.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -130,7 +131,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
 
   // There is one way to edit, and it is where the field is shown (ADR-0063 decision 9): the
   // menu offers no second form over the same three fields.
-  await page.getByRole('button', { name: `Actions for ${ENTRY.title}`, exact: true }).click();
+  await reveal(page.getByRole('button', { name: `Actions for ${ENTRY.title}`, exact: true }));
   const menu = page.getByRole('menu');
   await menu.waitFor({ timeout: 5_000 });
   const offered = (await menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent?.trim() ?? '')));
@@ -183,7 +184,7 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   await page.waitForTimeout(300);
   const created = written.find((w) => w.method === 'POST' && w.path.endsWith('/items') && w.body?.title === 'Grout');
   assert.deepEqual({ type: created?.body?.type, parent_id: created?.body?.parent_id }, { type: 'WORK_PACKAGE', parent_id: ENTRY.id });
-  await page.getByRole('button', { name: `Add an activity inside ${CHILDREN[ENTRY.id][0].title}` }).click();
+  await reveal(page.getByRole('button', { name: `Add an activity inside ${CHILDREN[ENTRY.id][0].title}` }));
   await captureOne(page, 'Cut the tiles');
   await page.waitForTimeout(300);
   const child = written.find((w) => w.method === 'POST' && w.body?.title === 'Cut the tiles');
@@ -201,13 +202,13 @@ test('chromium: 1280 px — the trail, the head in place, the details rows, the 
   // server's words rather than offering a refusal (P-05); an activity of a work package may move
   // out to the task. Both rows have the subtree's root as their parent's parent or parent.
   const ownActivity = CHILDREN[ENTRY.id][2];
-  await page.getByRole('button', { name: `Actions for ${ownActivity.title}` }).click();
+  await reveal(page.getByRole('button', { name: `Actions for ${ownActivity.title}` }));
   const out = page.getByRole('menuitem', { name: /Move out one level/ });
   assert.ok((await out.textContent()).includes('An activity has to sit inside another entry.'), 'moving the task\'s activity out is offered without its reason');
   assert.equal(await out.getAttribute('aria-disabled'), 'true');
   await page.keyboard.press('Escape');
   const packActivity = CHILDREN[CHILDREN[ENTRY.id][0].id][0];
-  await page.getByRole('button', { name: `Actions for ${packActivity.title}` }).click();
+  await reveal(page.getByRole('button', { name: `Actions for ${packActivity.title}` }));
   const up = page.getByRole('menuitem', { name: /Move out one level/ });
   assert.notEqual(await up.getAttribute('aria-disabled'), 'true', 'an activity may move out of its work package to the task');
   await page.keyboard.press('Escape');
@@ -614,8 +615,8 @@ test('chromium: 1280 px — the ＋ inside a task offers a work package and an a
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
 
   const inside = page.getByRole('button', { name: `Add something inside ${ENTRY.title}` });
-  await inside.waitFor({ timeout: 15_000 });
-  await inside.click();
+  await inside.waitFor({ state: 'attached', timeout: 15_000 });
+  await reveal(inside);
   // Capture under the task: the kind is a chip offering the two the task takes, by name.
   const kind = page.locator('[data-chip="kind"]');
   await kind.waitFor({ timeout: 5_000 });

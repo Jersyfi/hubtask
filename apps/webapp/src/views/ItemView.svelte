@@ -949,7 +949,7 @@
                the title's line, not on a line of its own above an empty band. -->
           <Menu label={t('app.workspace.actions', { name: item.title })} items={entryMenu} placement={{ side: 'block-end', align: 'end' }} onselect={chooseFromMenu}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} tone="secondary" data-opener="entry-menu" {...props} />
+              <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} size="sm" data-opener="entry-menu" {...props} />
             {/snippet}
           </Menu>
         {/if}
@@ -967,9 +967,9 @@
            Per the effective profile (UC-WRK-23 check 4): a value the type no longer carries here
            stays stored and is not drawn, as its row is not. -->
       <div class="marks">
-        <Badge>{typeName(item.type)}</Badge>
+        <Badge size="sm">{typeName(item.type)}</Badge>
         {#if item.archived_at}
-          <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+          <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
         {#if carries('ASSIGNMENT') || carries('MEMBERS')}<PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />{/if}
         {#if carries('DUE_DATE')}<DueMark {item} />{/if}
@@ -978,9 +978,9 @@
             <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
           {/each}
         {/if}
-        {#if repeatValue && carries('RECURRENCE')}<Badge icon="repeat">{repeatValue}</Badge>{/if}
-        {#if reminderCount > 0 && carries('REMINDER')}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
-        {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
+        {#if repeatValue && carries('RECURRENCE')}<Badge size="sm" icon="repeat">{repeatValue}</Badge>{/if}
+        {#if reminderCount > 0 && carries('REMINDER')}<Badge size="sm" icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
+        {#if item.content_language}<Badge size="sm" icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
       </div>
       <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
            celebrations are off (check 7), or while the entry is open. -->
@@ -1371,7 +1371,9 @@
 
   .details { min-width: 0; }
 
-  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); box-shadow: var(--shadow-raised); }
+  /* A table inside the page or the panel, not a card on it: the border and no shadow of its own,
+     so nothing is a layer over the layer it sits in. */
+  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
 
   .details-summary {
     padding: var(--sp-150) var(--sp-200);

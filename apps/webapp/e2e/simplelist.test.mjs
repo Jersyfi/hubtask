@@ -329,7 +329,7 @@ test('offline, ticks and captures wait and are sent when the network returns (ch
   await field.fill('2 lemons');
   await field.press('Enter');
   // Both writes wait in the queue, which the sync mark counts.
-  await page.waitForFunction(() => document.body.textContent?.includes('Waiting to be sent: 2'), null, { timeout: 5_000 });
+  await page.waitForFunction(() => document.body.textContent?.includes('2 changes are waiting to be sent'), null, { timeout: 5_000 });
 
   isOffline = false;
   await context.setOffline(false);

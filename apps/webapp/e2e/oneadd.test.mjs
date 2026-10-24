@@ -62,10 +62,10 @@ for (const [collection, keepsOpen] of [[GROCERIES, true], [COLLECTION, false]]) 
   });
 }
 
-test('1280 px: the head carries the add, the end of the list another, and each opens capture there', async () => {
+test('1280 px: the end of the list carries the add - the bar has Capture, the head none - and it opens capture there', async () => {
   const list = await open(1280, `/collections/${GROCERIES.id}`);
-  assert.equal(await adds(list.page).count(), 2);
-  for (const index of [0, 1]) {
+  assert.equal(await adds(list.page).count(), 1);
+  for (const index of [0]) {
     await adds(list.page).nth(index).click();
     assert.match((await opened(list.page)).place, /Groceries/u);
   }
@@ -73,8 +73,8 @@ test('1280 px: the head carries the add, the end of the list another, and each o
   await list.context.close();
 
   const collection = await open(1280, `/collections/${COLLECTION.id}`);
-  assert.equal(await adds(collection.page).count(), 2);
-  for (const index of [0, 1]) {
+  assert.equal(await adds(collection.page).count(), 1);
+  for (const index of [0]) {
     await adds(collection.page).nth(index).click();
     assert.match((await opened(collection.page)).place, new RegExp(COLLECTION.name, 'u'));
   }

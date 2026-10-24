@@ -718,7 +718,10 @@
     .end:has(.more) .meta { opacity: 0; }
   }
 
-  .more { display: inline-flex; }
+  /* Taller than the row's line, so it overhangs the row's padding evenly rather than growing the
+     row: a row with a menu is exactly as tall as one without. On the span, which has the row's
+     line; a button's own line is the browser's. */
+  .more { display: inline-flex; margin-block: calc((1lh - var(--sp-400)) / 2); }
 
   /* The place's menu: a target as wide as the twist and the row's height, in the secondary ink so
      it reads on the current row's tint, and raised under the pointer so it stands off that tint. */
@@ -727,7 +730,6 @@
     place-items: center;
     inline-size: var(--sp-400);
     block-size: var(--sp-400);
-    margin-block: calc(var(--sp-050) * -1);
     padding: 0;
     border: 0;
     border-radius: var(--r-sm);

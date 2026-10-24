@@ -496,16 +496,12 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
 
   const tree = page.getByRole('navigation', { name: 'Workspace' });
   await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).waitFor({ timeout: 15_000 });
-  // Unread, so it carries one: the tree cannot know yet, and a hub nobody can open is a hub
-  // nobody can look into.
-  assert.equal(await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).count(), 1, 'an unread hub has no way to be opened');
-
-  // Opened, read, empty: the twist goes, and the row is still the way to the hub's own screen -
+  // The tree reads every hub's collections as it draws, so an empty hub is known empty at once:
+  // no twist that opens onto nothing, and the row is still the way to the hub's own screen -
   // which is where a collection is made.
-  await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).click();
   await page
     .waitForFunction((name) => !document.querySelector(`[aria-label="Show what is in ${name}"], [aria-label="Hide what is in ${name}"]`), EMPTY_HUB.name, { timeout: 10_000 })
-    .catch(() => assert.fail('a hub that was read and holds nothing still offers to be opened'));
+    .catch(() => assert.fail('a hub that holds nothing still offers to be opened'));
   // The hub beside it kept its own, because it has something behind it.
   assert.equal(await tree.getByRole('button', { name: `Show what is in ${HUB.name}` }).count(), 1, 'a hub with a collection lost its twist');
 

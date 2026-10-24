@@ -16,6 +16,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub } from './fixture.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -75,14 +76,14 @@ test('chromium: 1280 px — the trash and the archive from an entry\'s menu take
   const entry = ITEMS[2];
   const menu = page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first();
 
-  await menu.click();
+  await reveal(menu);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Move to the trash' }).click(), `${entry.title} is in the trash.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${entry.id}`)), 'the trash was not at once');
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:restore`)), 'Undo sent no :restore');
   await settle(page);
 
-  await menu.click();
+  await reveal(menu);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Archive' }).click(), `${entry.title} is archived.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:unarchive`)), 'Undo sent no :unarchive');
@@ -172,7 +173,7 @@ test('chromium: 1280 px — offline, Undo is shown and says it waits for the net
   const { page, context, failures } = await list(browser);
   t.after(() => context.close());
   const entry = ITEMS[3];
-  await page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first().click();
+  await reveal(page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first());
   await page.getByRole('menuitem', { name: 'Archive' }).click();
   const message = page.locator('.toast', { hasText: `${entry.title} is archived.` });
   await message.waitFor({ timeout: 5_000 });

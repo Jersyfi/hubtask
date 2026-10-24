@@ -19,6 +19,7 @@ import { chromium } from 'playwright';
 
 import { CHILDREN, COLLECTION, HUB, ITEMS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -33,7 +34,7 @@ test('chromium: Duplicate in an entry page’s subtree opens the copy of that en
 
   await page.goto(`${served.origin}/items/${ITEMS[0].id}`);
   const child = CHILDREN[ITEMS[0].id][0];
-  await page.getByRole('button', { name: `Actions for ${child.title}` }).click();
+  await reveal(page.getByRole('button', { name: `Actions for ${child.title}` }));
   await page.getByRole('menuitem', { name: 'Duplicate' }).click();
   await page.getByRole('dialog', { name: `Duplicate ${child.title}` }).waitFor();
   assert.deepEqual(failures, []);

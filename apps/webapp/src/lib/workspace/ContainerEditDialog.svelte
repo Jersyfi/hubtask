@@ -18,7 +18,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Input, Radio, Stack, Textarea } from '@hubtask/design-system/components';
+  import { Button, Input, Radio, SaveBar, Stack, Textarea } from '@hubtask/design-system/components';
 
   import { announcer } from '../announce.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -58,6 +58,22 @@
 
   const isHub = $derived(container.type === 'HUB');
 
+  /**
+   * How many fields differ from what the place has: as settings the form is the page, and its save
+   * appears only once there is something to save, saying how much (the concept's save bar).
+   */
+  /** The fields as last read or saved, which the change count is measured against. */
+  let baseline = $state<{ name: string; description: string; symbol?: PlaceSymbol; colour?: LabelToken }>({ name: '', description: '' });
+  const changeCount = $derived(
+    [
+      name !== baseline.name,
+      description !== baseline.description,
+      symbol !== baseline.symbol,
+      colour !== baseline.colour,
+      preset !== presetBefore,
+    ].filter(Boolean).length,
+  );
+
   /** The fields as the place has them now; what was tried and not saved is gone. */
   function begin() {
     name = container.name;
@@ -66,6 +82,7 @@
     colour = chosenColour(container);
     presetBefore = container.structure?.preset ?? container.structure?.preset_id ?? '';
     preset = presetBefore;
+    baseline = { name, description, symbol, colour };
     version = container.version;
     failure = undefined;
     isNameMissing = false;
@@ -124,8 +141,12 @@
         await containers.setStructure(container.id, presetChoice(preset), saved.version);
       }
       announcer.say(t('app.workspace.edited_announced', { name: name.trim() }));
-      if (isEmbedded) presetBefore = preset;
-      else isOpen = false;
+      if (isEmbedded) {
+        presetBefore = preset;
+        name = name.trim();
+        description = description.trim();
+        baseline = { name, description, symbol, colour };
+      } else isOpen = false;
     } catch (error) {
       const problem = error as TransportError;
       failure = renderProblem(problem, messages);
@@ -136,7 +157,7 @@
   }
 </script>
 
-<PanelOrDialog {isEmbedded} bind:isOpen title={isEmbedded ? t('app.settings.section_general') : t(isHub ? 'app.workspace.edit_hub' : 'app.workspace.edit_collection')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen actions={isEmbedded ? undefined : footer} title={isEmbedded ? t('app.settings.section_general') : t(isHub ? 'app.workspace.edit_hub' : 'app.workspace.edit_collection')} dismissLabel={t('app.workspace.cancel')}>
   <div bind:this={body}>
     <Stack gap="150">
       <Input
@@ -152,13 +173,26 @@
       {/if}
       {#if failure && !isNameFailure}<p class="failure" role="alert">{failure.message}</p>{/if}
     </Stack>
+    {#if isEmbedded}
+      <SaveBar
+        label={t('app.save_bar.label')}
+        changesLabel={changeCount > 0 ? t('app.save_bar.changes', { count: String(changeCount) }) : undefined}
+        discardLabel={t('app.save_bar.discard')}
+        saveLabel={t('app.workspace.save')}
+        {isSaving}
+        savingLabel={t('app.workspace.saving')}
+        onDiscard={begin}
+        onSave={() => void save()}
+      />
+    {/if}
   </div>
-
-  {#snippet actions()}
-    <Button tone="secondary" onclick={() => (isEmbedded ? begin() : (isOpen = false))}>{isEmbedded ? t('app.save_bar.discard') : t('app.workspace.cancel')}</Button>
-    <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>{t('app.workspace.save')}</Button>
-  {/snippet}
 </PanelOrDialog>
+
+<!-- The dialog's own two; as settings the save bar stands in for them. -->
+{#snippet footer()}
+  <Button tone="secondary" onclick={() => (isOpen = false)}>{t('app.workspace.cancel')}</Button>
+  <Button isBusy={isSaving} busyLabel={t('app.workspace.saving')} onclick={save}>{t('app.workspace.save')}</Button>
+{/snippet}
 
 <style>
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }

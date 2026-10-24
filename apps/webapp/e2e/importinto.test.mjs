@@ -85,11 +85,11 @@ test('chromium: Import a file, from capture in a collection, lands the file ther
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByText(ITEMS[2].title).first().waitFor();
   await page.waitForTimeout(600);
-  await page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true }).click();
-  await page.getByRole('dialog', { name: 'Capture' }).getByRole('button', { name: 'Import a file' }).click();
-  await page.getByRole('dialog', { name: 'Capture' }).waitFor({ state: 'hidden', timeout: 5_000 });
+  // Importing is one of capture's ways of adding: a tab, the import in its panel, the dialog the same.
+  await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+  await page.getByRole('dialog', { name: 'Capture' }).getByRole('tab', { name: 'Import a file' }).click();
 
-  const dialog = page.locator('dialog[open]');
+  const dialog = page.getByRole('dialog', { name: 'Capture' }).getByRole('tabpanel');
   await dialog.waitFor({ timeout: 10_000 });
   assert.equal(await dialog.getByText(`The entries land in ${COLLECTION.name}.`, { exact: false }).count(), 1, 'the dialog does not say where the entries land');
   await dialog.getByRole('button', { name: 'Next' }).click();

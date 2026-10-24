@@ -28,6 +28,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -74,7 +75,7 @@ async function menuRows(page, name) {
   // A reader with nothing to do to the place itself has no menu at all.
   await page.waitForTimeout(400);
   if ((await page.getByRole('button', { name: `Actions for ${name}` }).count()) === 0) return [];
-  await page.getByRole('button', { name: `Actions for ${name}` }).click();
+  await reveal(page.getByRole('button', { name: `Actions for ${name}` }));
   const menu = page.getByRole('menu', { name: `Actions for ${name}` });
   await menu.waitFor({ timeout: 5_000 });
   return menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim() ?? ''));
@@ -130,11 +131,12 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   const kept = await page.locator(`[data-row="${SHAPE_ITEMS[0].id}"]`).first().textContent();
   assert.ok(!kept.includes('2026') && !kept.includes('JW'), `the row draws what a list does not carry: ${kept}`);
   // ...and its filter asks about nothing a list does not carry: no due date to order by.
-  await page.getByRole('button', { name: 'Filter and sort' }).click();
-  const orderBy = page.getByRole('combobox', { name: 'Order by' });
+  await page.getByRole('button', { name: 'Sort' }).click();
+  const orderBy = page.getByRole('menu', { name: 'How the entries are ordered' });
   await orderBy.waitFor({ state: 'visible', timeout: 5_000 });
-  const orders = await orderBy.locator('option').evaluateAll((options) => options.map((option) => option.value));
+  const orders = (await orderBy.getByRole('menuitem').allTextContents()).map((each) => each.trim());
   assert.ok(orders.includes('title') && !orders.includes('due_at'), `the list is ordered by ${orders}`);
+  await page.keyboard.press('Escape');
 
   // Check 4: on an entry, no date, person, label, note editor or child.
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
@@ -309,27 +311,32 @@ test('chromium: the owner - the hub\'s Edit changes its name, description and lo
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
-  // One *Edit* instead of a rename and a separate look; a hub has nowhere to move to (§E9).
+  // One *Settings* instead of a rename and a separate look; a hub has nowhere to move to (§E9).
   const rows = await menuRows(page, SHAPE_HUB.name);
-  assert.ok(rows.includes('Edit…'), rows.join());
-  for (const gone of ['Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
-  await page.getByRole('menuitem', { name: 'Edit…' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit hub' });
-  await dialog.waitFor({ timeout: 5_000 });
+  assert.ok(rows.includes('Settings…'), rows.join());
+  for (const gone of ['Edit…', 'Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
+  await page.getByRole('menuitem', { name: 'Settings…' }).click();
+  const dialog = page.getByRole('region', { name: 'General' });
+  await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByRole('textbox', { name: 'Hub name' }).inputValue(), SHAPE_HUB.name);
+  // Nothing changed, nothing to save: the bar is not there until there is.
+  assert.equal(await page.getByRole('region', { name: 'Unsaved changes' }).count(), 0, 'a save offered with nothing changed');
   // The hub has no preset of its own yet: it starts from the workspace's, and may choose one.
   await dialog.getByRole('radio', { name: 'List' }).waitFor({ timeout: 5_000 });
   assert.ok(await dialog.getByRole('radio', { name: "The workspace's default" }).isChecked());
   await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Chores');
   await dialog.getByRole('textbox', { name: 'Description' }).fill('What the week asks for.');
   await dialog.getByRole('radio', { name: 'List' }).check();
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  assert.match(await bar.innerText(), /3 changes/u);
+  await bar.getByRole('button', { name: 'Save' }).click();
+  await bar.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(renamed.length, 1);
   assert.equal(renamed[0].name, 'Chores');
   assert.equal(renamed[0].description, 'What the week asks for.');
   assert.deepEqual(written, [{ preset: 'LIST' }], 'the preset is its own write, sent as itself');
   // The hub's collections as cards, each a way in.
+  await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   const cards = page.getByRole('list', { name: 'Collections' });
   for (const collection of Object.values(SHAPES)) {
     assert.equal(await cards.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);

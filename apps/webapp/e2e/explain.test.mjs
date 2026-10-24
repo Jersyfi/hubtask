@@ -209,12 +209,15 @@ async function openPart(page, tab, mayShape) {
   // A viewer's page menu may hold nothing at all, so it is not where this starts.
   await page.getByRole('heading', { name: COLLECTION.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
   if (tab !== 'Templates') return undefined;
-  const add = page.locator('header.head').getByRole('button', { name: 'Add an entry', exact: true });
+  // The list's own add, which a reader who may add is offered and nobody else.
+  const add = page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true });
   await page.waitForTimeout(400);
   if ((await add.count()) === 0) return undefined;
-  await add.click();
-  await page.getByRole('dialog', { name: 'Capture' }).getByRole('button', { name: 'From a template' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Templates' });
+  await add.first().click();
+  // The templates are a way of adding: a tab of capture, the list in its panel.
+  const capture = page.getByRole('dialog', { name: 'Capture' });
+  await capture.getByRole('tab', { name: 'From a template' }).click();
+  const dialog = capture.getByRole('tabpanel');
   await dialog.waitFor();
   return dialog;
 }
@@ -314,7 +317,7 @@ for (const width of WIDTHS) {
     await page.locator('.task-row').first().waitFor({ timeout: 15_000 });
     // Selecting is the toolbar's; below `expanded` its *Filter* sheet holds it.
     const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
-    if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter and sort' }).click();
+    if ((await toolbar.getByRole('button', { name: 'Select entries' }).count()) === 0) await toolbar.getByRole('button', { name: 'Filter' }).click();
     await page.getByRole('button', { name: 'Select entries' }).click();
     await page.getByRole('checkbox', { name: `Select ${ITEMS[0].title}` }).check();
     await page.getByLabel('Do this').selectOption({ label: 'Give to somebody' });

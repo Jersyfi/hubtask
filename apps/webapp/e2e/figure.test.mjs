@@ -95,7 +95,8 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
     await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
     const cards = page.getByRole('list', { name: 'Collections' });
     await cards.waitFor({ timeout: 5_000 });
-    assert.equal(await cards.getByRole('listitem').count(), EXPECTED.length, `${width}: one card per collection`);
+    // One card per collection - and, where the reader may create one, the dashed card that does.
+    assert.equal(await cards.locator('[data-card]').count(), EXPECTED.length, `${width}: one card per collection`);
     for (const [collection, head] of EXPECTED) {
       const card = cards.locator(`[data-card="${collection.id}"]`);
       assert.equal(await card.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);
@@ -122,7 +123,8 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
       return { x: Math.round(r.x), y: Math.round(r.y), h: Math.round(r.height) };
     });
     const title = await box(page.getByRole('heading', { name: collection.name, level: 1 }));
-    const primary = await box(page.getByRole('button', { name: 'Add an entry', exact: true }).first());
+    // The head's own control at its end, the ⚙: what a figure beside the title would push.
+    const primary = await box(page.locator('[data-opener="structure"]').first());
     const plain = await box(page.locator(`[data-node="${FIGURES.none.id}"]`));
     const figured = await box(page.locator(`[data-node="${FIGURES.sum.id}"]`));
     const label = await box(page.locator(`[data-node="${FIGURES.sum.id}"] .label`));
@@ -133,7 +135,7 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
   const without = await measure(FIGURES.none);
   const withFigure = await measure(FIGURES.sum);
   assert.deepEqual(withFigure.title, without.title, 'the title moved');
-  assert.deepEqual(withFigure.primary, without.primary, 'the primary action moved');
+  assert.deepEqual(withFigure.primary, without.primary, 'the head\'s ⚙ moved');
   assert.equal(without.figured.h, without.plain.h, 'a row with a figure is taller than one without');
   assert.equal(without.label.x, without.plainLabel.x, 'the label moved');
 });

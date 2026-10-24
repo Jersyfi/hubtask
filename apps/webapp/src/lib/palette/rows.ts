@@ -56,8 +56,8 @@ export interface Row {
 export const CAPS: Readonly<Record<CandidateKind, number>> = { container: 5, action: 7, place: 5, setting: 5, hit: 5, recent: 5 };
 
 /**
- * How many actions an empty palette lists: few enough to read at a glance - the screen's own
- * first, then the frame's. Every other action is a word away.
+ * How many actions an empty palette lists: few enough to read at a glance - capturing, the
+ * screen's own, then the rest of the frame's. Every other action is a word away.
  */
 export const EMPTY_ACTIONS = 5;
 
@@ -106,7 +106,9 @@ export function rank(candidates: readonly Candidate[], words: string, locale?: s
     const isScreens = (each: Candidate) => each.id.startsWith('page:');
     return [
       ...candidates.filter((each) => each.kind === 'recent').slice(0, CAPS.recent),
-      ...[...actions.filter(isScreens), ...actions.filter((each) => !isScreens(each))].slice(0, EMPTY_ACTIONS),
+      // The frame's first - capturing - leads wherever one stands; then the screen's own acts, then
+      // the rest of the frame's.
+      ...((frame) => [...frame.slice(0, 1), ...actions.filter(isScreens), ...frame.slice(1)])(actions.filter((each) => !isScreens(each))).slice(0, EMPTY_ACTIONS),
     ];
   }
   const graded = candidates

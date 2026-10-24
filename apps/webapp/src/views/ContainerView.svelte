@@ -1266,8 +1266,10 @@
             <DetailPane
               title={openItem?.title ?? ''}
               kind={openItem ? offer.level(openItem.type).label : undefined}
+              trail={trail.map((step) => step.label)}
               dismissLabel={t('app.pane.close')}
               pageLabel={t('app.pane.open_page')}
+              pageWord={t('app.pane.page_word')}
               pageHref={`/items/${openItemId}`}
               onOpenPage={() => onnavigate(`/items/${openItemId}`)}
               onClose={closePane}

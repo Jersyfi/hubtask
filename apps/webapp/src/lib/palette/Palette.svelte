@@ -644,6 +644,8 @@
      positioned against this, which is why it is the containing block. */
   .entry { position: relative; display: block; min-inline-size: 0; }
   .keys { position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
+  /* The words make room for the key rather than run under it - a German placeholder is long. */
+  .entry:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .menu[data-host='bar'] {

@@ -1557,15 +1557,26 @@
     .row:has(> .grip) { position: relative; }
     .row > .grip { position: absolute; inset-block: 0; inset-inline-end: 100%; padding-inline-end: var(--sp-050); }
     .row .grip { opacity: 0; transition: opacity var(--motion-state-duration) var(--motion-state-easing); }
-    .row .on-hover { display: none; }
-
-    .row:hover .on-hover,
-    .row:focus-within .on-hover,
-    .row:has(:global([aria-expanded='true'])) .on-hover { display: inline-flex; }
 
     .row:hover .grip,
     .row:focus-within .grip,
     .row[data-dragging] .grip { opacity: 1; }
+  }
+
+  /* Out of sight and out of the row's width, never out of reach: still in the reading order and
+     still focusable, so a screen reader finds a row's menu and the Tab key brings it into view.
+     From `medium` up only: on a narrow window a row's title wraps, and tools arriving on focus
+     would move it. */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (hover: hover) and (width >= 600px) {
+    .row:not(:hover, :focus-within, :has(:global([aria-expanded='true']))) .on-hover {
+      position: absolute;
+      inline-size: var(--sp-025);
+      block-size: var(--sp-025);
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
   }
 
   .grip {

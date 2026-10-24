@@ -17,6 +17,7 @@ import { chromium } from 'playwright';
 
 import { COLLECTION, ITEMS, signedIn } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -42,7 +43,7 @@ for (const width of [390, 1280]) {
       if (request.method() === 'POST' && new URL(request.url()).pathname.endsWith('/api/v1/items')) created.push(request.postDataJSON());
     });
     const row = page.locator(`[data-row="${parent.id}"]`);
-    await row.getByRole('button', { name: `Add something inside ${parent.title}` }).click();
+    await reveal(row.getByRole('button', { name: `Add something inside ${parent.title}` }));
     const dialog = page.getByRole('dialog', { name: 'Capture' });
     const field = dialog.getByRole('textbox', { name: 'What do you want to remember?' });
     await field.waitFor({ timeout: 5_000 });

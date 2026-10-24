@@ -27,6 +27,13 @@ html {
   scroll-padding-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
 }
 
+/* With a trackpad or a mouse the page does not rubber-band at its ends: the bar and an open panel
+   are fixed, so a bounce moved the page out from under them. A finger keeps the pull, which is
+   how a phone reloads. */
+@media (pointer: fine) {
+  html { overscroll-behavior-y: none; }
+}
+
 /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
 @media (width < 600px) {
   html {

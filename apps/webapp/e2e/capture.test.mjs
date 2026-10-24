@@ -153,8 +153,9 @@ test('chromium: the story â€” chips, the entry in the right place on the personâ
   await page.keyboard.press('q');
   await fieldOf(page).fill('Call the electrician tomorrow 11am +Mara !Urgent');
   const chips = dialogOf(page).getByRole('list', { name: 'Recognised' }).getByRole('listitem');
-  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul[aria-label="Recognised"] li').length === 4, null, { timeout: 5_000 });
-  assert.equal(await chips.count(), 4);
+  // The day and its hour are one chip, as the concept draws it: when, then who, then the label.
+  await page.waitForFunction(() => document.querySelectorAll('dialog[open] ul[aria-label="Recognised"] li').length === 3, null, { timeout: 5_000 });
+  assert.equal(await chips.count(), 3);
   assert.match(await dialogOf(page).locator('[data-chip="place"]').innerText(), /Kitchen in House/u, 'the place chip does not name Kitchen');
 
   await page.keyboard.press('Enter');
@@ -431,7 +432,7 @@ test('chromium: every add opens capture pointed at its place - the chip, suggest
     return stub(route);
   });
   const place = () => dialogOf(page).locator('[data-chip="place"]');
-  const modes = () => dialogOf(page).getByRole('group', { name: 'How to add' });
+  const modes = () => dialogOf(page).getByRole('tablist', { name: 'How to add' });
   const keep = () => dialogOf(page).getByRole('checkbox', { name: 'Keep capturing' });
 
   // A collection of several levels: the head's one add opens capture there, one entry at a time.
@@ -442,16 +443,16 @@ test('chromium: every add opens capture pointed at its place - the chip, suggest
   assert.match(await place().innerText(), /Kitchen/u, 'the chip names the collection the add stood in');
   assert.equal(await keep().isChecked(), false);
   assert.deepEqual(
-    (await modes().getByRole('button').allTextContents()).map((each) => each.trim()),
+    (await modes().getByRole('tab').allTextContents()).map((each) => each.trim()),
     ['One entry', 'Several lines', 'From a template', 'Import a file'],
   );
-  assert.equal(await modes().getByRole('button', { name: 'One entry' }).getAttribute('aria-pressed'), 'true');
+  assert.equal(await modes().getByRole('tab', { name: 'One entry' }).getAttribute('aria-selected'), 'true');
 
   // `@` lists the collections as they are typed; picking one writes the whole name.
   await fieldOf(page).pressSequentially('Tiles @Kit');
   const offers = dialogOf(page).getByRole('listbox', { name: 'Collections' });
   await offers.waitFor({ timeout: 5_000 });
-  assert.match(await offers.getByRole('option').first().innerText(), /Kitchen\s*House/u, 'the collection with its hub');
+  assert.match(await offers.getByRole('option').first().innerText(), /Kitchen\s+in House/u, 'the collection with its hub');
   assert.equal(await fieldOf(page).getAttribute('aria-autocomplete'), 'list');
   await page.keyboard.press('Enter');
   assert.equal(await fieldOf(page).inputValue(), 'Tiles @Kitchen ');
@@ -465,7 +466,7 @@ test('chromium: every add opens capture pointed at its place - the chip, suggest
   await fieldOf(page).waitFor({ timeout: 5_000 });
   assert.match(await place().innerText(), /Groceries/u);
   assert.equal(await keep().isChecked(), true, 'a list keeps the field open for the next line');
-  await modes().getByRole('button', { name: 'Several lines' }).click();
+  await modes().getByRole('tab', { name: 'Several lines' }).click();
   assert.equal(await fieldOf(page).getAttribute('rows'), '4');
   await place().click();
   await page.getByRole('menuitem', { name: /Kitchen/u }).click();

@@ -44,6 +44,7 @@ const ROLES = {
   'bg.surface-hover': 'surface',
   'bg.surface-pressed': 'surface',
   'bg.glass': 'surface',
+  'bg.emphasis': 'fill',
   'bg.scrim': ['decorative', 'a dimmer laid over content that is deliberately no longer readable'],
 
   // Text.
