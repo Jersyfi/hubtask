@@ -33,10 +33,10 @@
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
-    "lucide-static": "^1.55.0",
-    "style-dictionary": "^5.6.1",
+    "lucide-static": "^1.59.0",
+    "style-dictionary": "^5.7.0",
     "svelte": "^5.57.2",
-    "svelte-check": "^4.7.6",
+    "svelte-check": "^4.7.7",
     "typescript": "^6.0.3",
     "vite": "^8.3.4"
   },
