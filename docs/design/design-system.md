@@ -296,9 +296,12 @@ indent; the label is the accessible name and the tooltip — and a branch presse
 tree as a flyout `Popover`, so nothing is unreachable. One tab stop, the arrows, `Home` and `End`; in
 the rail the direction keys open and close the flyout.
 A node the caller marks `isMovable` is ranked within its level — its siblings, and at the top level
-its band — by `onreorder(id, to)`: a grip at the row's end that drags as a list row's does (§11.9),
-or `Alt`+`↑`/`↓` on the focused row, `Shift` to the ends; the focus stays with the node. The tree
-names the position; the caller writes it and announces it. No grip in the rail.
+its band — by `onreorder(id, to)`: with a mouse the row itself is the handle, a press that travels
+drags and one that does not opens; on a touch screen a grip at the row's end carries it, because
+there a moving finger scrolls. `Alt`+`↑`/`↓` on the focused row, `Shift` to the ends; the focus
+stays with the node. The tree names the position; the caller writes it and announces it. No grip
+in the rail. A collection's row is indented under its hub; a hub with nothing in it has no twist, and
+a row's *⋯* overhangs the row's padding rather than making the row taller.
 
 **`Drawer` at `block-end` keeps its head while its body scrolls.** With `isResizable` a handle above
 the head sizes it — by pointer, or by arrows, `Home` and `End` — between a third and nine tenths of
@@ -715,10 +718,13 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 * **One `<main>`, one `h1`, a skip link** to `<main>` as the frame's first tab stop.
 * **Every screen carries `PageHeader`**: the trail, the title, one primary action, at most two
   secondary ones, the rest in its menu. **The head is about the place; a toolbar under it is about
-  what the place holds.** On a collection the head carries its people, the ⚙ to its settings, its
-  own menu and the one add; the toolbar under it carries the layouts at the start and the filter,
-  the views and selecting at the end, and stays under the bar while the list scrolls. On `compact`
-  the toolbar keeps the layouts and one *Filter*, whose sheet holds the views and selecting.
+  what the place holds.** On a collection the head carries its people, the ⚙ to its settings and
+  its own menu, and no add: the bar's *Capture* and the list's own add at its end (a column's at its
+  foot, in the brand ink, outlined on hover) are the ways in. The toolbar under it carries the
+  layouts as segments at the start and *Filter*, *Sort*, *Views* and *Select* at the end, and stays
+  under the bar while the list scrolls. On a hub the collections are cards, and a dashed card at
+  their end creates one. On `compact` the toolbar keeps the layouts and one *Filter*, whose sheet
+  holds the views and selecting.
 * **On `compact` the bar carries the title and the page menu.** Every screen with an `h1` hands its
   title to the bar (`page.entitle`, `apps/webapp/src/lib/frame/page.svelte.ts`), and `PageHeader`
   hands its folded menu into the bar's menu slot. The `h1` stays in the content for the reader, not
@@ -773,7 +779,7 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
-under *Edit…* in its menu, beside its name and description: one of the ten label colours and a symbol from the set
+in its settings' *General* section, beside its name and description: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
 in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
@@ -784,9 +790,12 @@ instead of wearing the lock. A value the client does not offer is read as none c
 **A hub or collection is managed from its own row.** Where the reader may change the hub's shape, its
 row and its collections' rows carry a *⋯* — on hover and focus where a pointer hovers, always on
 touch, and the context-menu key or `Shift+F10` on the focused row — named *Manage <name>*. It holds
-the place's own acts and nothing about its entries (§13, G7): *Edit…*, *Move to another hub…* for a
-collection, *Structure…*, *Archive*, *Move to the trash*. Each is the page menu's own act: choosing
-it opens the place's page, which runs it with its own handler. The figure and the *⋯* share one cell
+the place's own acts and nothing about its entries (§13, G7), the same list as the page's *⋯*
+(`placeMenu.ts`): *Settings…*, *Move to another hub…* for a collection, *Import…*, *Change
+position…*, *Archive* (taking effect at once and offering *Undo*), *Make private* where it applies,
+*Move to the trash*. There is no *Edit* beside *Settings*: the name, description and look are the
+settings' *General* section. Each is the page menu's own act: choosing it opens the place's page,
+which runs it with its own handler. The figure and the *⋯* share one cell
 at the end of the row, so a row with a menu wraps where one without does.
 
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
@@ -816,7 +825,8 @@ capability lives, linked to the web app of the signed-in server; nothing else ch
 ### 11.4 Search
 
 **Search is a field and a place.** The palette's field is where a search is typed; `/search` is
-where one is built, also with nothing typed. The field is the bar's from `medium` up; on `compact`
+where one is built, also with nothing typed. The field is the bar's from `medium` up, and in use it
+grows over the space before it - never pushing *Capture* beside it away from a press; on `compact`
 the bottom bar's *Search* opens the palette in a dialog, whose *Open search* leads to the place.
 The two fields carry different accessible names.
 
@@ -989,8 +999,9 @@ It is not dismissible. No banner above a page states the stage or the health rep
 **Today (`/`)** is the page the app opens on and what is the reader's today across every hub
 ([UC-WRK-34](../usecases/work/UC-WRK-34-see-my-day.md)). Its row's word is `app.nav.today`, and it
 carries no head action: a hub is made in the navigation, or from the empty workspace's one action.
-Its subtitle greets the person by the hour where they are, with the first word of their name, beside
-the date. Top to bottom:
+Its heading greets the person by the hour where they are, with the first word of their name, and the
+date stands at the head's end. From `expanded` the panels are two columns, *On you* the wider and
+the others stacked beside it; below, one. Top to bottom:
 
 * **The day at a glance** — a row of figures, each a link to the search that lists it: due today,
   coming up, waiting in the jumble (for a reader of it), open on the person. No overdue figure, for
@@ -1148,11 +1159,15 @@ from `large` up, a redirect to `/items/:itemId` below. Opening from the list set
 keeps the row `aria-current` and the focus in the list.
 
 **The panel lies over the list.** From `large` up the `DetailPane` opens over the content, below the
-bar and at the end of the line, raised as an overlay, so the list keeps its width. It opens at
+bar and at the end of the line, raised as an overlay, so the list keeps its width; its shadow falls
+on the list and never on the bar, and it scrolls without carrying the page. Its head names where the
+entry is (hub › collection), *Full page* and the close; the entry's title is its own field below,
+and the details inside it are a table, not a second raised layer. It opens at
 `layout.panel.width`; its start edge is a `ResizeHandle` between `layout.panel.min` and seven tenths
 of the window, and the width is the device's (§11.10). **The person chooses how an entry opens**:
 in the panel beside the list, or whole, as its page — under *On this device* and, where the
-person notices they want it, by the switch in the panel's head, *Always open entries whole*. Below
+person notices they want it, by the checkbox at the panel's foot, *Always open entries as a full
+page*. Below
 `large` an entry always opens whole.
 
 ### 11.9 Selection, drag and the pointer
@@ -1164,16 +1179,21 @@ rows carry the checkbox, the page head becomes the count and the bulk verbs, and
 Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
 
-**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`), the
-grip, the labels button, ＋ and *⋯* are faded until the pointer is over the row or the focus is in
-it, and while one of them is open; the chips - people, the date, the labels - always stand. Faded,
-not removed: the row keeps its width, the tools keep their place in the tab order, and a
-right-click, `Shift`+`F10` or a hold opens the menu as before. A touch screen draws them always. A
+**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`) and from
+`medium` up, the labels button, ＋ and *⋯* are out of sight until the pointer is over the row or the
+focus is in it, and while one of them is open; the grip stands in the gutter before the row, faded
+the same way; the chips - people, the date, the labels - always stand. Out of sight, not removed:
+the tools take no width, so the chips stand at the row's end, but they keep their place in the
+reading and tab order, and focusing one draws it; a right-click, `Shift`+`F10` or a hold opens the
+menu as before. A touch screen and a narrow window draw them always. A
 mark the type does not carry in the collection (a date on a *List*) is not drawn.
 
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
-one that does not opens the entry. The card follows the pointer on both axes, lifted above every
-column and tilted a little, and the column under it is marked. **The cards it passes slide aside by
+one that does not opens the entry. The card's slot stays, unseen, and a copy fixed to the window
+follows the pointer on both axes, above every column and tilted a little, so no column can paint
+over it or cut it; the column under it is marked and grows by the gap. Columns are
+`layout.board.column` wide; more columns past an edge are said by a fade at that edge, and the last
+column is a dashed *Create column*. A card's *⋯* stands in its corner, drawn on hover and focus. **The cards it passes slide aside by
 its height**, so where it lands is a gap and no card is ever drawn over another; the column it left
 closes up. The slide is a transform, and the drag measures where the layout put each card, never
 where a transform drew it. Under reduced motion nothing travels or slides. The card menu's *move to

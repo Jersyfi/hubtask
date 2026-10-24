@@ -280,7 +280,9 @@
 
     <!-- Which arrivals: three states, one chosen - the segments the collection's layouts use, not a
          field the width of the page. -->
-    <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
+    <div class="states">
+      <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
+    </div>
 
     {#if selectable && selection.isOn}
       <div class="selection" role="toolbar" aria-label={t('app.jumble.actions')} data-jumble-selection>
@@ -474,6 +476,9 @@
 </div>
 
 <style>
+  /* As wide as its segments, at the page's edge - not the width of the page. */
+  .states { display: flex; }
+
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
