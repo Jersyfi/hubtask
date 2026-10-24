@@ -56,17 +56,14 @@ test('chromium: nothing on the reader is a sentence, and an empty workspace is o
   const empty = await signedIn(browser, 1280, 900);
   t.after(() => empty.context.close());
   await empty.page.goto(`${served.origin}/`);
-  await region(empty.page, 'On you').getByText('Nothing assigned to you has a date on it.').waitFor({ timeout: 15_000 });
+  // Nothing on the reader, no list, no project, nothing opened, nothing waiting: not empty cards
+  // but the first steps, each with its act (concept round 2, §1).
+  const steps = empty.page.getByRole('region', { name: 'First steps' });
+  await steps.waitFor({ timeout: 15_000 });
   assert.equal(await empty.page.getByRole('region', { name: 'Lists' }).count(), 0, 'an empty Lists panel is drawn');
-  // An empty card offers the next act, centred in it (design-system.md §13, G4).
-  const offer = region(empty.page, 'On you').getByRole('button', { name: 'Capture' });
-  await offer.waitFor({ timeout: 5_000 });
-  const centred = await offer.evaluate((button) => {
-    const card = button.closest('section').getBoundingClientRect();
-    const box = button.getBoundingClientRect();
-    return Math.abs(box.left + box.width / 2 - (card.left + card.width / 2));
-  });
-  assert.ok(centred <= 2, `the empty card's act is ${centred} px off centre`);
+  assert.equal(await empty.page.getByRole('region', { name: 'Recently opened' }).count(), 0, 'an empty Recently opened panel is drawn');
+  assert.equal(await steps.getByRole('button', { name: 'Capture' }).count(), 1, 'the first steps offer no capture');
+  assert.match((await steps.textContent()) ?? '', /Create a hub/u);
   assert.deepEqual(empty.failures, []);
 
   // A workspace with no hub at all: one sentence and one action, not empty panels.
@@ -157,14 +154,16 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
   assert.match((await projects.textContent()) ?? '', /37% done · 3 of 8/);
   assert.equal(await projects.getByText('Next step').count(), 1);
 
-  // The jumble: how many wait and the first three (check 4).
+  // The jumble as a small inbox: how many wait and the first three, each with its decisions (check 4).
   const jumble = region(page, 'In the jumble');
   await jumble.getByRole('link', { name: TODAY_ARRIVALS[0].raw_subject }).waitFor({ timeout: 5_000 });
   assert.equal(await jumble.getByRole('link', { name: 'No subject' }).count(), 1);
-  assert.equal(await jumble.getByRole('link', { name: 'Open the jumble (2)' }).count(), 1);
+  assert.equal(await jumble.getByRole('link', { name: /^Open the jumble \(2\)/u }).count(), 1);
+  assert.match((await jumble.textContent()) ?? '', /2 waiting/u);
 
-  // Recently opened, said in a sentence while there is nothing yet (check 5).
-  assert.equal(await region(page, 'Recently opened').getByText('What you open is listed here, on this device only.').count(), 1);
+  // Recently opened is not drawn while nothing was opened on this device (check 5): an empty card
+  // is not a card.
+  assert.equal(await page.getByRole('region', { name: 'Recently opened' }).count(), 0);
 
   // Ticking off where it stands is the ordinary completion (check 1): the request, and the row
   // keeps its place, ticked.

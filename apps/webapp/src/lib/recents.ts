@@ -29,6 +29,10 @@ export interface Recent {
   readonly id: string;
   /** The title as it read when it was opened. A title that has since changed is a stale word on a row, not a wrong link. */
   readonly title: string;
+  /** When it was opened, in milliseconds - for "5 minutes ago" on its tile. Absent in a list kept before it was noted. */
+  readonly at?: number;
+  /** Where it lives: an entry's collection, a collection's hub - for its tile's mark and place. Absent on a hub. */
+  readonly placeId?: string;
 }
 
 const KINDS: readonly string[] = ['item', 'collection', 'hub'];
@@ -36,7 +40,13 @@ const KINDS: readonly string[] = ['item', 'collection', 'hub'];
 function isRecent(row: unknown): row is Recent {
   if (typeof row !== 'object' || row === null) return false;
   const each = row as Partial<Recent>;
-  return typeof each.id === 'string' && typeof each.title === 'string' && KINDS.includes(each.kind as string);
+  return (
+    typeof each.id === 'string' &&
+    typeof each.title === 'string' &&
+    KINDS.includes(each.kind as string) &&
+    (each.at === undefined || typeof each.at === 'number') &&
+    (each.placeId === undefined || typeof each.placeId === 'string')
+  );
 }
 
 /**

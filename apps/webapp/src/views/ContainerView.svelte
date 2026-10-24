@@ -678,7 +678,7 @@
   // once the level is known, because the mark on the row is what it says.
   $effect(() => {
     if (!container?.name) return;
-    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name });
+    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name, placeId: container.parent_id ?? undefined });
   });
 
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */

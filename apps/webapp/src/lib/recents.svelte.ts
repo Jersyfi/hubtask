@@ -62,7 +62,7 @@ class Recents {
     // Unchanged is not written: a screen notes what it is showing on every render of it, and
     // rewriting the same list each time would be a write per keystroke for no reader.
     if (!accountId || isUnchanged(this.#rows, row)) return;
-    this.#rows = promote(this.#rows, row);
+    this.#rows = promote(this.#rows, { ...row, at: row.at ?? Date.now() });
     try {
       storage()?.setItem(keyFor(accountId), JSON.stringify(this.#rows));
     } catch {
