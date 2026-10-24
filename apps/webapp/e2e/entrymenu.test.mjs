@@ -217,15 +217,13 @@ test('chromium: 1280 px — a row\'s tools show where the pointer or the keyboar
   const waitFor = (wanted) => list.page.waitForFunction(([id, value]) => {
     const element = document.querySelector(`[data-row="${id}"]`);
     const grip = Number(getComputedStyle(element.querySelector('.grip')).opacity) === value;
-    const tools = [...element.querySelectorAll('.on-hover')].every((each) => {
-      const style = getComputedStyle(each);
-      const drawn = style.clipPath === 'none' && each.getBoundingClientRect().width > 4;
-      return drawn === (value === 1);
-    });
-    return grip && tools;
+    // The tools are one group over the row's end: clipped out of sight, or drawn.
+    const tools = element.querySelector('.tools');
+    const drawn = getComputedStyle(tools).clipPath === 'none' && tools.getBoundingClientRect().width > 4;
+    return grip && drawn === (value === 1);
   }, [ITEMS[0].id, wanted], { timeout: 5_000 });
   await waitFor(0);
-  assert.equal(await row.locator('.on-hover').count(), 3, 'labels, ＋ and ⋯');
+  assert.equal(await row.locator('.tools .on-hover').count(), 3, 'labels, ＋ and ⋯');
   // The label chip stays: it is what the row says.
   assert.equal(await row.locator('[data-token]').first().evaluate((chip) => Number(getComputedStyle(chip).opacity)), 1);
   // The pointer over the row.

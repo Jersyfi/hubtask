@@ -56,6 +56,20 @@
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
+  import {
+    defaultArrangement,
+    offeredFields,
+    offeredGroupings,
+    openingArrangement,
+    rememberArrangement,
+    toggleField,
+    type DonePlacement,
+    type ListArrangement,
+    type ListField,
+    type ListGrouping,
+    type ListOffer,
+  } from '../lib/entries/listview.ts';
+  import { buckets } from '../lib/data/buckets.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
@@ -383,6 +397,77 @@
     return (capability: string) => levels.some((level) => offer.supports(level.type as string, capability).status === 'permitted');
   });
   const summaryAsk = $derived(container ? suggestions.askingOf(container.id) : undefined);
+
+  /**
+   * What this collection's list can show (concept round 2, §2; `listview.ts`): its levels, its
+   * amount, its columns, and which of the fields its levels carry.
+   */
+  const listOffer = $derived.by((): ListOffer | undefined => {
+    if (container?.type !== 'COLLECTION' || !carriedHere) return undefined;
+    const settings = container.structure?.settings;
+    const levels = settings?.levels ?? [];
+    return {
+      isSimple: levels.length === 1,
+      isLevelled: levels.length > 1,
+      offersAmount: Object.values(settings?.fields ?? {}).some((field) => (field?.capabilities ?? []).includes('AMOUNT')),
+      hasColumns: buckets.of(container.id).length > 0,
+      carriesDue: carriedHere('DUE_DATE'),
+      carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
+      carriesLabels: carriedHere('LABELS'),
+    };
+  });
+  /** The arrangement in force: what the device kept for this collection, else the template's. */
+  let arrangement = $state<ListArrangement | undefined>(undefined);
+  $effect(() => {
+    const wanted = id;
+    const account = actor.account?.id;
+    const offered = listOffer;
+    untrack(() => {
+      arrangement = offered ? openingArrangement({ store: deviceStore(), accountId: account, collectionId: wanted, offer: offered }) : undefined;
+    });
+  });
+  $effect(() => {
+    if (container?.type === 'COLLECTION') return untrack(() => buckets.open(container.id));
+  });
+  function arrange(next: ListArrangement) {
+    arrangement = next;
+    rememberArrangement(deviceStore(), actor.account?.id, id, next);
+  }
+  /** *Fields* (L3): every field the collection offers, ticked where it stands as a column. */
+  const fieldsMenu = $derived<MenuItem[]>(
+    listOffer && arrangement
+      ? offeredFields(listOffer).map((field) => ({ id: field, label: t(`app.list.col_${field}`), icon: arrangement?.fields.includes(field) ? ('check' as const) : undefined }))
+      : [],
+  );
+  /** *Group* (L4, L5): by which value, and where what is done goes. */
+  const groupMenu = $derived<MenuItem[]>(
+    listOffer && arrangement
+      ? [
+          ...offeredGroupings(listOffer).map((grouping) => ({ id: `group:${grouping}`, label: t(`app.list.group_${grouping}`), icon: arrangement?.grouping === grouping ? ('check' as const) : undefined })),
+          ...(['inline', 'bottom', 'hidden'] as const).map((done, index) => ({
+            id: `done:${done}`,
+            label: t(`app.list.done_${done}`),
+            icon: arrangement?.done === done ? ('check' as const) : undefined,
+            hasSeparatorBefore: index === 0,
+          })),
+          { id: 'reset', label: t('app.list.reset'), hasSeparatorBefore: true },
+        ]
+      : [],
+  );
+  function choseGroup(chosen: string) {
+    if (!arrangement || !listOffer) return;
+    if (chosen === 'reset') arrange(defaultArrangement(listOffer));
+    else if (chosen.startsWith('group:')) arrange({ ...arrangement, grouping: chosen.slice('group:'.length) as ListGrouping });
+    else if (chosen.startsWith('done:')) arrange({ ...arrangement, done: chosen.slice('done:'.length) as DonePlacement });
+  }
+  /** A column head pressed: that order, and the other direction when it already is. */
+  function sortByColumn(field: string) {
+    if (sortField === field) sortDir = sortDir === 'ASC' ? 'DESC' : 'ASC';
+    else {
+      sortField = field;
+      sortDir = 'ASC';
+    }
+  }
 
 
   // Built from the route rather than from a remembered click, which is what makes a deep link land
@@ -768,7 +853,7 @@
   function choseView(id: string) {
     if (id.startsWith('open:')) {
       const view = heldViews.find((each) => `open:${each.id}` === id);
-      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name);
+      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
     } else if (id === 'save' || id === 'manage') {
       viewsIntent = id;
       isManagingViews = true;
@@ -780,10 +865,15 @@
   }
 
   /** Opens a view: its query and its layout together - the half only a client knows what to do with is the layout. */
-  function applyView(asked: ItemsQuery, appliedLayout: string, name: string) {
+  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[]) {
     query = asked;
     appliedView = asked;
     chooseLayout(appliedLayout);
+    // The fields the view shows, as far as this collection offers them (concept round 2, §2).
+    if (visible && visible.length > 0 && arrangement && listOffer) {
+      const offered = offeredFields(listOffer);
+      arrange({ ...arrangement, fields: offered.filter((field) => visible.includes(field)) });
+    }
     announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
   }
 
@@ -971,6 +1061,20 @@
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
   {#snippet entryTools()}
+    {#if layout !== 'KANBAN' && layout !== 'TIMELINE' && fieldsMenu.length > 0}
+      <!-- *Fields* and *Group* (concept round 2, §2): what stands beside each title, and how the
+           list is grouped - the arrangement, kept on this device for this collection. -->
+      <Menu label={t('app.list.fields_menu')} items={fieldsMenu} onselect={(field) => arrangement && arrange({ ...arrangement, fields: toggleField(arrangement.fields, field as ListField) })}>
+        {#snippet trigger(props)}
+          <Button size="sm" tone="secondary" icon="columns-3" data-opener="fields" {...props}>{t('app.list.fields')}</Button>
+        {/snippet}
+      </Menu>
+      <Menu label={t('app.list.group_menu')} items={groupMenu} onselect={choseGroup}>
+        {#snippet trigger(props)}
+          <Button size="sm" tone="secondary" icon="fold-vertical" data-opener="group" {...props}>{arrangement && arrangement.grouping !== 'none' ? t('app.list.group_named', { by: t(`app.list.group_${arrangement.grouping}`) }) : t('app.list.group')}</Button>
+        {/snippet}
+      </Menu>
+    {/if}
     <Menu label={t('app.query.sort_menu')} items={sortMenu} onselect={choseSort}>
       {#snippet trigger(props)}
         <Button size="sm" tone="secondary" icon="chevrons-up-down" data-opener="sort" {...props}>{sortField === '' ? t('app.query.sort') : t('app.query.sort_named', { field: sortField })}</Button>
@@ -1264,6 +1368,11 @@
               structure={container.structure ?? undefined}
               {mayShape}
               containerVersion={container.version}
+              {arrangement}
+              sortField={sortField === '' ? undefined : sortField}
+              {sortDir}
+              onsort={sortByColumn}
+              sortable={sortFields}
             />
           {/if}
         </div>
@@ -1329,6 +1438,7 @@
     }}
     {query}
     {layout}
+    fields={arrangement?.fields}
     role={structureRole}
     onapply={applyView}
     onexport={(view) => {

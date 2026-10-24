@@ -116,7 +116,7 @@ for (const [name, engine] of Object.entries(ENGINES)) {
 
     await page.goto(`${served.origin}/`);
     // *Today*, drawn: the page the app opens on, past the session and the manifest.
-    await page.getByRole('region', { name: 'On you' }).waitFor({ state: 'visible', timeout: 15_000 });
+    await page.locator('main section.panel').first().waitFor({ state: 'visible', timeout: 15_000 });
     // The navigation's way to make a hub, *＋ New*: the dialog this walk opens below.
     const createHub = page.getByRole('button', { name: 'New', exact: true }).first();
     await createHub.waitFor({ state: 'visible', timeout: 15_000 });

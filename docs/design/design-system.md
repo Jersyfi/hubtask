@@ -1015,12 +1015,16 @@ the others stacked beside it; below, one. Top to bottom:
   collection's colour where it has one; its entries are not rows in the bands.
 * **Projects** — every collection whose figure is *progress*, with the figure and the next due step,
   which can be ticked off there.
-* **In the jumble** — how many wait and the first three, for a reader of the jumble.
-* **Recently opened** — what this device opened last (§11.10), sent nowhere.
+* **In the jumble** — a small inbox for a reader of the jumble: how many wait, and the first three
+  each with its channel, sender and age and *Sort in* and *Dismiss* at the row.
+* **Recently opened** — what this device opened last (§11.10), sent nowhere, as tiles with the
+  place's mark, its place and when.
 
-Every panel says something when it is empty, centred in it, with the next act where there is one
-(*On you* offers *Capture*); a list or project panel with nothing in it is not
-drawn. It uses only existing reads — the workspace-wide search with a filter
+A card with nothing to say is not drawn; with nothing beside it *On you* takes the width. *On you*
+shows six rows at most, then how many more and the way to the search, and its count in its head;
+empty, it says so with *Capture*. A workspace with nothing for the reader yet - no entry on them,
+no list, no project, nothing opened, nothing waiting - shows *First steps* instead, each with its
+act. It uses only existing reads — the workspace-wide search with a filter
 ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
 one anchored query per project, and the jumble's first page.
 
@@ -1048,8 +1052,11 @@ archived container leaves the tree.
   several levels may be added — each one press to change. While `@`, `#`, `+` or `!` is typed it
   lists the matching collections (with their hub), hubs, people and labels: arrows move, Enter or
   Tab take, Escape closes the list alone (`lib/capture/suggest.ts`); the line under the field names
-  the tokens and types their sigil. Its modes are one entry, several lines, from a template and —
-  where the reader may shape the collection — import. *Keep capturing* leaves the field open after
+  the tokens and types their sigil. Its four ways - one entry, several lines, from a template,
+  import - are one segmented switch under the title, chosen before anything is written; a way
+  not open here (a template or an import with no collection, an import without the right to
+  shape) is drawn quieter with its reason. On an entry's page capture is under that entry; on a
+  hub's page it goes to the hub's first collection; a place's *Import…* opens it on its import. *Keep capturing* leaves the field open after
   Enter, on where a list is typed line after line; in such a list what was ticked before and
   matches the line is offered under the field, to put back rather than add twice (UC-WRK-25 check
   4). No list draws an add form of its own.
@@ -1120,8 +1127,23 @@ between columns is the card's menu (§11.9).
    head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
    name. The bottom level has no subtree; its breadcrumb is the way up.
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
-   `DetailPane`.
-4. **Comments and activity**, as tabs.
+   `DetailPane` as a grid of two. It shows what is set; the fields with nothing set wait behind
+   *More fields (n)* - *Add a field* where nothing is set - and are never folded over a standing
+   proposal. The head beside the title carries only the level, the column and *archived*.
+4. **The description, the parts and the activity** in the main column: the description a box,
+   one quiet line while empty; the parts one card; comments and activity as tabs, writing first,
+   the five newest under it, then ten more at a time before the server's older page.
+
+**One list for everything** (concept round 2, §2; `lib/entries/listview.ts`). Every list draws the
+same row - grip, box, the level's mark below the top, title, fields, the tools over its end - in
+the collection's list, the subtree, Today and search; the simple list is the same row without
+the twist. What differs is an arrangement the device keeps per collection and a template brings:
+the **fields** that stand beside each title as columns with a head from `expanded` up (amount,
+column, due, people, labels, parts; *Fields* in the toolbar; a sortable head orders by its field),
+the **grouping** of the top level (none, category, column, assignee, due; *Group*), each group
+under one head with its count and, by column, its own add; and where **done** entries go (where
+they stand, gathered at the end in a folded *Done*, or hidden). Grouped or sorted, a list is not
+its manual order, so nothing is dragged in it; the menu's moves stay.
 
 **A simple list** is how the list layout draws a collection whose levels in force are one
 ([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the open entries under the
@@ -1188,6 +1210,11 @@ the tools take no width, so the chips stand at the row's end, but they keep thei
 reading and tab order, and focusing one draws it; a right-click, `Shift`+`F10` or a hold opens the
 menu as before. A touch screen and a narrow window draw them always. A
 mark the type does not carry in the collection (a date on a *List*) is not drawn.
+
+**A card has fixed zones** (concept round 2, §3), each drawn only where it holds something: a
+cover; the labels above the title, two and "+n"; the title, three lines at most; one footer line
+with the date and the counts - parts done of total, comments, attachments, which `items:query`
+answers with `expand: ["counts"]` - at its start and the people at its end.
 
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
 one that does not opens the entry. The card's slot stays, unseen, and a copy fixed to the window

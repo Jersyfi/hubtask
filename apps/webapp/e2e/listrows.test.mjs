@@ -67,7 +67,7 @@ for (const width of [390, 1280]) {
 
   test(`${width} px: what capture asks for of *Recently* is offered right under the field (check 4)`, async () => {
     const { page, context, failures } = await list(width);
-    const heads = () => page.locator('h2.section-head').allTextContents();
+    const heads = () => page.locator('.level h2.group-head > span:first-child').allTextContents();
     assert.equal((await heads()).at(-1)?.trim(), 'Recently', 'Recently ends the list');
     await page.locator('body').click({ position: { x: 1, y: 300 } });
     await page.keyboard.press('q');

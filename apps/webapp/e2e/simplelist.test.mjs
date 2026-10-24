@@ -90,8 +90,8 @@ async function captureField(page) {
 const sectionOf = (page, rowId) =>
   page.evaluate((id) => {
     let node = document.querySelector(`[data-row="${id}"]`);
-    while (node && !node.matches?.('h2.section-head, .section-row')) node = node.previousElementSibling;
-    return (node?.matches('.section-row') ? node.querySelector('h2') : node)?.textContent?.trim();
+    while (node && !node.matches?.('h2.group-head, .section-row')) node = node.previousElementSibling;
+    return (node?.matches('.section-row') ? node.querySelector('h2') : node)?.querySelector('span')?.textContent?.trim();
   }, rowId);
 
 test('several lines become one entry each, and a leading amount becomes the amount (checks 1, 2)', async () => {
@@ -115,15 +115,18 @@ test('several lines become one entry each, and a leading amount becomes the amou
   assert.equal(await field.inputValue(), '', 'the created lines leave the field');
   assert.equal(await field.isVisible(), true, 'a list keeps capture open for the next line');
   await page.keyboard.press('Escape');
-  // The row draws the amount before the title.
-  assert.match(await page.locator(`[data-row="${idOf('apples')}"]`).innerText(), /1 kg apples/);
+  // The amount is the list's field: a chip beside the title (concept round 2, §2).
+  const apples = page.locator(`[data-row="${idOf('apples')}"]`);
+  assert.equal(await apples.locator('[data-field="amount"]').innerText(), '1 kg');
+  assert.match(await apples.innerText(), /apples/);
   assert.deepEqual(failures, []);
   await context.close();
 });
 
 test('open entries sit under their categories in the shop\'s order (check 5)', async () => {
   const { page, context } = await phone();
-  const heads = await page.locator('h2.section-head').allInnerTexts();
+  // One group head in every list (concept round 2, §2): its name, then how many.
+  const heads = await page.locator('.level h2.group-head > span:first-child').allInnerTexts();
   assert.deepEqual(heads, ['Produce', 'Dairy', 'Bakery', 'Other', 'In the trolley', 'Recently']);
   assert.equal(await sectionOf(page, idOf('milk')), 'Dairy');
   assert.equal(await sectionOf(page, idOf('salt')), 'Other');
@@ -139,8 +142,8 @@ test('a tap on the row\'s start ticks it once, on a target of at least 44 by 44,
   await row.locator('.leading').tap({ position: { x: 2, y: 2 } });
   await page.waitForFunction((id) => {
     let node = document.querySelector(`[data-row="${id}"]`);
-    while (node && !node.matches?.('h2.section-head, .section-row')) node = node.previousElementSibling;
-    return (node?.matches('.section-row') ? node.querySelector('h2') : node)?.textContent?.trim() === 'In the trolley';
+    while (node && !node.matches?.('h2.group-head, .section-row')) node = node.previousElementSibling;
+    return (node?.matches('.section-row') ? node.querySelector('h2') : node)?.querySelector('span')?.textContent?.trim() === 'In the trolley';
   }, idOf('salt'));
   // The checkbox inside the row is the checkbox's own: one press, one tick.
   await page.locator(`[data-row="${idOf('bread')}"] input[type="checkbox"]`).tap();
@@ -188,7 +191,7 @@ test('an entry under Recently comes back as the same entry, no new one (check 4)
   const { page, writes, context } = await phone();
   // Most used first.
   const recently = await page.evaluate(() => {
-    const head = [...document.querySelectorAll('h2.section-head')].find((each) => each.textContent.trim() === 'Recently');
+    const head = [...document.querySelectorAll('h2.group-head')].find((each) => each.querySelector('span')?.textContent.trim() === 'Recently');
     const ids = [];
     for (let node = head?.nextElementSibling; node && !node.matches('h2'); node = node.nextElementSibling) {
       if (node.dataset.row) ids.push(node.dataset.row);
