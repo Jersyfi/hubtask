@@ -5,7 +5,7 @@
   // from the one list (`lib/shortcuts.ts`), and the tour, which was a row of the account group of
   // its own. `?` opens it, and so do the account group and the palette.
 
-  import { Button, Dialog, Stack } from '@hubtask/design-system/components';
+  import { Button, Dialog, Kbd, Stack } from '@hubtask/design-system/components';
 
   import { SHORTCUTS, type Scope } from '../shortcuts.ts';
   import { t } from '../i18n/i18n.svelte.ts';
@@ -39,7 +39,7 @@
               <dd>
                 {#each shortcut.drawn as keys, index (keys)}
                   {#if index > 0}<span class="or">{t('app.shortcuts.or')}</span>{/if}
-                  <kbd>{keys}</kbd>
+                  <Kbd>{keys}</Kbd>
                 {/each}
               </dd>
             </div>
@@ -89,15 +89,4 @@
 
   .or { color: var(--text-subtle); font-size: var(--fs-075); }
 
-  kbd {
-    padding: var(--sp-025) var(--sp-050);
-    border: var(--bw-hairline) solid var(--border-default);
-    border-block-end-width: var(--bw-thick);
-    border-radius: var(--r-sm);
-    background: var(--bg-surface-sunken);
-    color: var(--text-primary);
-    font-family: var(--font-mono);
-    font-size: var(--fs-075);
-    line-height: 1.4;
-  }
 </style>

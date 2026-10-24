@@ -27,7 +27,7 @@
   import { untrack } from 'svelte';
 
   import type { WorkItem } from '@hubtask/sync-engine';
-  import { Button, EmptyState, ErrorState, ListRow, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
+  import { Button, EmptyState, ErrorState, Icon, ListRow, PageHeader, Skeleton, Stack, TaskRow } from '@hubtask/design-system/components';
 
   import { announcer } from '../lib/announce.svelte.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
@@ -241,7 +241,7 @@
       onToggleComplete={() => void toggle(item)}
     >
       {#snippet trailing()}
-        {#if hasPlace}<EntryPlace collectionId={item.collection_id} withHub />{/if}<DueMark {item} isPlain />
+        {#if hasPlace}<EntryPlace collectionId={item.collection_id} withHub />{/if}<DueMark {item} />
         <EntryMenu
           bind:this={menus[item.id]}
           title={item.title}
@@ -288,7 +288,9 @@
     {#if !isLoading && !failure}
       <ul class="glance" aria-label={t('app.today.glance')}>
         <li><a href={`/search?${new URLSearchParams({ f: 'who:me is:open due:today' })}`}><b>{bands.today.length}</b> {t('app.today.glance_today', { count: bands.today.length })}</a></li>
-        <!-- No overdue figure: nothing on Today says what the person did not do (§11.7). -->
+        <!-- What is late, said as late (UC-WRK-34 check 6, as changed): the figure in the danger
+             ink with its mark, so it is not the colour alone (rule 3). -->
+        <li><a data-late={bands.earlier.length > 0 ? '' : undefined} href={`/search?${new URLSearchParams({ f: 'who:me is:open due:overdue' })}`}><b>{bands.earlier.length}</b> {#if bands.earlier.length > 0}<span class="hot-mark" aria-hidden="true"><Icon name="triangle-alert" size="sm" /></span>{/if}{t('app.today.glance_overdue', { count: bands.earlier.length })}</a></li>
         <li><a href={`/search?${new URLSearchParams({ f: 'who:me is:open due:week' })}`}><b>{bands.later.length}</b> {t('app.today.glance_later', { count: bands.later.length })}</a></li>
         {#if hasJumble}
           <li><a href="/jumble"><b>{waiting.length}</b> {t('app.today.glance_jumble', { count: waiting.length })}</a></li>
@@ -561,6 +563,15 @@
   }
 
   .glance a:hover { background: var(--bg-surface-hover); }
+
+  /* Something late: the figure on the danger state's surface, with its mark beside the word
+     (rule 3) - a status, drawn as one. */
+  .glance a[data-late] {
+    border-color: var(--status-danger-border);
+    background: var(--status-danger-surface);
+    color: var(--status-danger-text);
+  }
+  .hot-mark { display: inline-flex; }
 
   .glance b {
     font-size: var(--fs-400);

@@ -99,7 +99,8 @@
     /**
      * Ranks a node among its siblings: `to` is the position it asks for in its level as drawn,
      * the number `rankTarget` answers with (`reorder.ts`). Only a node with `isMovable` offers it:
-     * a grip to drag by, and `Alt+↑`/`↓` (with `Shift`, to the ends) on the focused row.
+     * the row itself carried by a mouse, and `Alt+↑`/`↓` (with `Shift`, to the ends) on the focused
+     * row. A touch screen does not rank in the column: there the place's page does it.
      *
      * A position rather than a command, because a drag lands three rows away as easily as one.
      * The write, and the sentence that says it happened, are the caller's: the tree draws the
@@ -270,8 +271,8 @@
   /**
    * The pointer path to the same call (`reorder.ts`): a drag ends by naming a position in the
    * level, which is what `Alt+↓` names too, so the two cannot disagree about where a row lands.
-   * It starts on the grip only, because the row is a link: a fine pointer once it has travelled,
-   * a coarse one after the hold, as every list here does (design-system.md §11.9).
+   * It starts on the row with a mouse, once the press has travelled past the threshold, so a
+   * press that does not travel is still the row's click (design-system.md §11.9).
    */
   let drag = $state<{ id: string; level: string[]; offset: number; to: number; from: number } | null>(null);
   let hasJustDragged = false;
@@ -450,14 +451,6 @@
                   </Menu>
                 </span>
               {/if}
-            </span>
-          {/if}
-          <!-- The grip, on a touch screen only: there a press that moves scrolls the column, so a
-               finger carries a row by this. Hidden from the accessibility tree, because the keys on
-               the row are the same command. -->
-          {#if isMovable(row)}
-            <span class="grip" data-grip aria-hidden="true" onpointerdown={(event) => beginDrag(event, index)}>
-              <Icon name="grip-vertical" size="sm" />
             </span>
           {/if}
 
@@ -668,23 +661,8 @@
     white-space: nowrap;
   }
 
-  /* The grip, faded until the pointer is over the row or the focus is in it, where a pointer
-     hovers at all (design-system.md §11.9): faded rather than taken out, so the row keeps its
-     width. A touch screen draws it always. `touch-action: none` is what lets a finger drag it at
-     all, and it is on the grip alone, so the column still scrolls everywhere else. */
-  .grip {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    color: var(--text-subtle);
-    cursor: grab;
-    touch-action: none;
-  }
-
-  /* Where a pointer hovers the row itself is carried, so no grip is drawn. */
+  /* Where a pointer hovers the row itself is carried. */
   @media (hover: hover) {
-    .row .grip { display: none; }
-
     .row .more {
       opacity: 0;
       transition: opacity var(--motion-state-duration) var(--motion-state-easing);
@@ -703,7 +681,7 @@
   }
 
   /* The row's menu, the size of the twist beside it. Faded until the pointer or the focus is on
-     the row where a pointer hovers; always drawn on touch, like the grip. */
+     the row where a pointer hovers; not drawn on touch, where the place's page holds it. */
   .end {
     display: grid;
     flex: none;
@@ -713,9 +691,15 @@
 
   .end > * { grid-area: 1 / 1; }
 
-  /* Where nothing hovers the menu is always drawn, so it has the cell; the figure is on the page. */
+  /* The figure is words to read, never a target: a press on the cell is the menu's, which a figure
+     drawn after it in the cell used to take - and the press went on to open the place. */
+  .end > .meta { pointer-events: none; }
+  .end > .more { position: relative; z-index: 1; }
+
+  /* With a finger the column is for going places: the place's menu and its moving are on the
+     place's own page, a few presses further, where they have room (design-system.md §11.1). */
   @media (hover: none) {
-    .end:has(.more) .meta { opacity: 0; }
+    .row .more { display: none; }
   }
 
   /* Taller than the row's line, so it overhangs the row's padding evenly rather than growing the
@@ -724,7 +708,7 @@
   .more { display: inline-flex; margin-block: calc((1lh - var(--sp-400)) / 2); }
 
   /* The place's menu: a target as wide as the twist and the row's height, in the secondary ink so
-     it reads on the current row's tint, and raised under the pointer so it stands off that tint. */
+     it reads on the current row's tint. */
   .more-trigger {
     display: inline-grid;
     place-items: center;
@@ -738,8 +722,10 @@
     cursor: pointer;
   }
 
+  /* Flat, in the row's own plane: under the pointer it takes the brand's tint and ink, which reads
+     as a button on the plain rows and on the current row's tint alike. */
   .more-trigger:hover,
-  .more-trigger[aria-expanded='true'] { background: var(--bg-raised); color: var(--text-primary); box-shadow: var(--shadow-raised); }
+  .more-trigger[aria-expanded='true'] { background: var(--accent-primary-subtle); color: var(--text-brand); }
 
   .more-trigger:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -755,7 +741,7 @@
     pointer-events: none;
   }
 
-  .row[data-dragging] .grip { cursor: grabbing; }
+  .row[data-dragging] { cursor: grabbing; }
 
   /* Where it would land. Rule 3: an outline, not a tint. */
   .row[data-drop] {

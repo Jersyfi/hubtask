@@ -127,8 +127,8 @@ test('chromium: a hub dragged by its row lands where it is let go, and letting g
   const { tree, writes, order } = await workspace(page);
 
   const garden = tree.getByRole('treeitem', { name: 'Garden' });
-  // With a mouse the row is the handle: no grip beside it to aim for (a touch screen keeps one).
-  assert.equal(await garden.locator('[data-grip]').evaluate((node) => getComputedStyle(node).display), 'none');
+  // The row is the handle: no grip beside it to aim for.
+  assert.equal(await garden.locator('[data-grip]').count(), 0);
 
   const from = await garden.locator('.label').boundingBox();
   const travel = await tree.getByRole('treeitem', { name: 'Travel' }).boundingBox();

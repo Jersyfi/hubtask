@@ -33,6 +33,11 @@ export function roleIn(collection: Container): string | null | undefined {
   return people.roleOf(pathOf(collection), actor.account?.id, roleOrder());
 }
 
+/** The reader's role on a hub itself; `undefined` until it is read. */
+export function roleInHub(hub: Container): string | null | undefined {
+  return people.roleOf({ hubId: hub.id }, actor.account?.id, roleOrder());
+}
+
 /**
  * Whether the reader may create in the collection now: `undefined` while the role or the manifest
  * is still out, never "no" for "not yet" (record D14).

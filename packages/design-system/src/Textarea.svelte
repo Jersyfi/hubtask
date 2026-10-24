@@ -112,10 +112,16 @@
     resize: none;
   }
 
+  /* The mark reaches a little past its word on every side - a spread shadow in its own colour,
+     because padding would move the backdrop's words off the field's - with the corners every
+     chip has, so the text never meets the edge of its tint. */
   .backdrop mark {
-    border-radius: var(--r-xs);
+    border-radius: var(--r-sm);
     background: var(--accent-primary-subtle);
+    box-shadow: 0 0 0 var(--bw-thick) var(--accent-primary-subtle);
     color: transparent;
+    box-decoration-break: clone;
+    -webkit-box-decoration-break: clone;
   }
 
   /* The field over its backdrop lets the marks show through. */

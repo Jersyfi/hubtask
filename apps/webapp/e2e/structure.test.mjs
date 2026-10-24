@@ -89,8 +89,8 @@ async function openPanel(page, name) {
   return panel;
 }
 
-// The settings page's sections, all in sight at a phone's width and a desk's: none cut off at the
-// screen's edge. And on *Labels* each colour is named by its colour, not by the name field's label.
+// The settings page's sections at a phone's width and a desk's: none out of reach, none widening the
+// page. And on *Labels* each colour is named by its colour, not by the name field's label.
 for (const width of [390, 1280]) {
   test(`chromium: ${width} px - every section of the settings is in sight, and a label's colours are named`, async (t) => {
     const browser = await chromium.launch();
@@ -103,8 +103,15 @@ for (const width of [390, 1280]) {
     const panel = page.locator('[data-structure-tabs]');
     const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
     assert.equal(await tabs.count(), 7);
-    for (const box of await tabs.evaluateAll((each) => each.map((tab) => tab.getBoundingClientRect().toJSON()))) {
-      assert.ok(box.right <= width, `a section ends at ${box.right}, past the screen's ${width}`);
+    // On a phone the sections are one row of tabs that scrolls sideways; on a desk a column. The
+    // page never widens for them, and each one is reachable - it comes into view when focused.
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sections widened the page');
+    for (let index = 0; index < 7; index += 1) {
+      const box = await tabs.nth(index).evaluate((tab) => {
+        tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return tab.getBoundingClientRect().toJSON();
+      });
+      assert.ok(box.right <= width + 1 && box.left >= -1, `a section stands at ${box.left}-${box.right}, past the screen's ${width}`);
     }
     await tabs.filter({ hasText: 'Labels' }).click();
     const colours = await panel.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));

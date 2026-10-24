@@ -213,10 +213,10 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 22)
+### Wave 1 — nothing works without these (≈ 23)
 Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
-ProgressBar
+ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
@@ -1004,14 +1004,13 @@ date stands at the head's end. From `expanded` the panels are two columns, *On y
 the others stacked beside it; below, one. Top to bottom:
 
 * **The day at a glance** — a row of figures, each a link to the search that lists it: due today,
-  coming up, waiting in the jumble (for a reader of it), open on the person. No overdue figure, for
-  the reason the bands below carry none.
+  overdue (in the danger ink with its mark, where there is any), coming up, waiting in the jumble
+  (for a reader of it), open on the person.
 
-* **On you** — the reader's open dated entries in three bands of their own day: *Earlier* (past
+* **On you** — the reader's open dated entries in three bands of their own day: *Overdue* (past
   due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
   checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
-  the collection's. What is past carries its date and no overdue word or tone: nothing on the page
-  says what the person did not do.
+  the collection's. What is past carries the overdue mark with its date; nothing blames.
 * **Lists** — every collection whose figure is *open*, as one tile with the figure, drawn in the
   collection's colour where it has one; its entries are not rows in the bands.
 * **Projects** — every collection whose figure is *progress*, with the figure and the next due step,

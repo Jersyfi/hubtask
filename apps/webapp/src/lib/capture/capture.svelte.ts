@@ -14,6 +14,11 @@
 export interface Door {
   /** The collection the entry goes into. */
   readonly collectionId?: string;
+  /**
+   * The hub it was opened on, where no collection is named: what is typed goes to the hub's first
+   * collection, and an import makes the file's collections in the hub.
+   */
+  readonly hubId?: string;
   /** The entry it goes under, and that entry's title for the chip that says so. */
   readonly parentId?: string;
   readonly parentTitle?: string;

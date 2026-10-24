@@ -25,7 +25,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Dialog, Icon, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
+  import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
@@ -501,7 +501,7 @@
     {#if context}<span class="context">{context}</span>{/if}
     <!-- What a row is, said to a reader; the group's heading already says it to the eye. -->
     <VisuallyHidden>{kindOf(row)}</VisuallyHidden>
-    {#if shortcut}<kbd aria-hidden="true">{drawnKeysOf(shortcut)[0]}</kbd>{/if}
+    {#if shortcut}<span class="key" aria-hidden="true"><Kbd size="sm">{drawnKeysOf(shortcut)[0]}</Kbd></span>{/if}
   </button>
 {/snippet}
 
@@ -563,7 +563,7 @@
         >
           <Icon name="search" />
           <span class="title">{t(words === '' ? 'app.searchmenu.open' : 'app.searchmenu.all')}</span>
-          <kbd aria-hidden="true">{t('app.searchmenu.enter')}</kbd>
+          <span class="key" aria-hidden="true"><Kbd size="sm">⏎</Kbd></span>
           <VisuallyHidden><span id={enterHintId}>{t('app.palette.enter_hint')}</span></VisuallyHidden>
         </button>
       {/if}
@@ -601,14 +601,19 @@
     onkeydowncapture={keydown}
     data-tour="palette"
   >
-    {@render field()}
-    {#if !isOpen && term === ''}
-      <!-- The way here from anywhere, as the concept draws it: the key at the field's end. -->
-      <kbd class="keys" aria-hidden="true">{drawnKeysOf('palette')[0]}</kbd>
-    {/if}
-    {#if isOpen}
-      {@render list()}
-    {/if}
+    <!-- The field and its list float as one: in use they are drawn over the bar, centred on where
+         the field stands and as wide as the list needs, so nothing beside it moves - the field
+         neither jumps nor pushes *Capture*, which it may cover while open. -->
+    <div class="float">
+      {@render field()}
+      {#if !isOpen && term === ''}
+        <!-- The way here from anywhere, as the concept draws it: the key at the field's end. -->
+        <span class="keys" aria-hidden="true"><Kbd size="sm">{drawnKeysOf('palette')[0]}</Kbd></span>
+      {/if}
+      {#if isOpen}
+        {@render list()}
+      {/if}
+    </div>
   </form>
 {:else}
   <Dialog
@@ -642,10 +647,29 @@
 <style>
   /* The field takes the slot whole; the slot is what is bounded, in `AppBar`. The list is
      positioned against this, which is why it is the containing block. */
-  .entry { position: relative; display: block; min-inline-size: 0; }
-  .keys { position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
+  .entry { position: relative; display: block; min-inline-size: 0; min-block-size: var(--density-control-sm-min); }
+
+  .float { position: relative; }
+
+  /* In use: centred on the field's own middle, the open width, never into the logo's or the
+     account's side of the bar. */
+  .entry:focus-within > .float,
+  .entry[data-open] > .float {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline-start: 50%;
+    z-index: var(--z-popover);
+    inline-size: min(var(--layout-barsearch-open), 100vw - 2 * var(--layout-barsearch-side));
+    min-inline-size: 100%;
+    translate: -50% 0;
+  }
+
+  :global([dir='rtl']) .entry:focus-within > .float,
+  :global([dir='rtl']) .entry[data-open] > .float { translate: 50% 0; }
+
+  .keys { display: inline-flex; position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
   /* The words make room for the key rather than run under it - a German placeholder is long. */
-  .entry:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
+  .float:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .menu[data-host='bar'] {
@@ -728,12 +752,5 @@
 
   .foot { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  kbd {
-    flex: none;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-sm);
-    padding-inline: var(--sp-050);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-  }
+  .key { display: inline-flex; flex: none; }
 </style>

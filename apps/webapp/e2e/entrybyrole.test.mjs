@@ -180,8 +180,11 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     const modes = page.getByRole('dialog', { name: 'Capture' }).getByRole('tablist', { name: 'How to add' });
     await modes.waitFor({ timeout: 5_000 });
     assert.equal(await modes.getByRole('tab', { name: 'From a template' }).count(), 1, 'no way to the templates');
-    // An import may add the file's columns and labels: offered where the collection may be shaped.
-    assert.equal(await modes.getByRole('tab', { name: 'Import a file' }).count(), shapes ? 1 : 0, 'Import among the modes');
+    // An import may add the file's columns and labels: open where the collection may be shaped,
+    // drawn with its reason everywhere else, so the way is known to exist.
+    const importTab = modes.getByRole('tab', { name: /^Import a file/ });
+    assert.equal(await importTab.count(), 1, 'Import among the modes');
+    assert.equal(await importTab.getAttribute('aria-disabled'), shapes ? null : 'true', 'Import open against the role');
     await page.keyboard.press('Escape');
     // The trash takes a subtree with it: the owner's alone.
     assert.equal(rows.includes('Move to the trash'), role === 'OWNER');

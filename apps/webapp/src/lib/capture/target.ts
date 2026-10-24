@@ -39,6 +39,8 @@ export interface Where {
   readonly namedHubId?: string;
   /** The collection the reader stands in: the screen's, or the open entry's. */
   readonly currentCollectionId?: string;
+  /** The hub the reader stands in, on a hub's own page: its first collection they may write in. */
+  readonly currentHubId?: string;
   readonly find: (id: string) => Container | undefined;
   /** A hub's collections in their order; `undefined` while the hub's level is unread. */
   readonly collectionsOf: (hubId: string) => readonly Container[] | undefined;
@@ -68,17 +70,7 @@ export function resolveTarget(where: Where): Target {
     return { kind: 'nowhere' };
   }
 
-  if (where.namedHubId) {
-    const hub = where.find(where.namedHubId);
-    const collections = where.collectionsOf(where.namedHubId);
-    if (!hub || collections === undefined) return { kind: 'pending' };
-    for (const collection of [...collections].sort(byOrder)) {
-      const admitted = where.admits(collection);
-      if (admitted === undefined) return { kind: 'pending' };
-      if (admitted) return { kind: 'collection', collection, hub };
-    }
-    return { kind: 'nowhere', hub };
-  }
+  if (where.namedHubId) return inHub(where.namedHubId, where);
 
   if (where.currentCollectionId) {
     const collection = where.find(where.currentCollectionId);
@@ -88,8 +80,29 @@ export function resolveTarget(where: Where): Target {
     if (admitted) return { kind: 'collection', collection, hub: hubOf(collection, where) };
   }
 
+  // On a hub's page the hub is where the reader is: its first collection, as `#` would choose. A
+  // hub with nowhere to write falls through to the jumble rather than to nowhere - the reader
+  // named nothing.
+  if (!where.currentCollectionId && where.currentHubId) {
+    const there = inHub(where.currentHubId, where);
+    if (there.kind !== 'nowhere') return there;
+  }
+
   if (where.jumbleWritable === undefined) return { kind: 'pending' };
   return where.jumbleWritable ? { kind: 'jumble' } : { kind: 'nowhere' };
+}
+
+/** A hub's first collection the reader may write in, in the hub's order. */
+function inHub(hubId: string, where: Where): Target {
+  const hub = where.find(hubId);
+  const collections = where.collectionsOf(hubId);
+  if (!hub || collections === undefined) return { kind: 'pending' };
+  for (const collection of [...collections].sort(byOrder)) {
+    const admitted = where.admits(collection);
+    if (admitted === undefined) return { kind: 'pending' };
+    if (admitted) return { kind: 'collection', collection, hub };
+  }
+  return { kind: 'nowhere', hub };
 }
 
 /**

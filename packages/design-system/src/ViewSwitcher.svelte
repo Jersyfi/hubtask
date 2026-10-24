@@ -40,9 +40,14 @@
     views: readonly View[];
     selected?: string;
     onselect?: (id: string) => void;
+    /**
+     * Marks alone, for a choice of two or three a head has room for only as icons: each label is
+     * still the radio's name, and its tooltip.
+     */
+    isIconOnly?: boolean;
   }
 
-  let { label, views, selected = $bindable(views[0]?.id ?? ''), onselect }: Props = $props();
+  let { label, views, selected = $bindable(views[0]?.id ?? ''), onselect, isIconOnly = false }: Props = $props();
 
   let group = $state<HTMLElement | null>(null);
   const viewElements: (HTMLButtonElement | null)[] = $state([]);
@@ -87,6 +92,7 @@
      `Menu` does the same for the same reason. -->
 <div
   class="switcher"
+  data-icon-only={isIconOnly ? '' : undefined}
   role="radiogroup"
   aria-label={label}
   tabindex="-1"
@@ -105,6 +111,7 @@
       aria-checked={isChosen}
       aria-disabled={isOff ? 'true' : undefined}
       aria-describedby={isOff ? reasonId(view.id) : undefined}
+      title={isIconOnly ? view.label : undefined}
       tabindex={position === stop ? 0 : -1}
       bind:this={viewElements[position]}
       onclick={() => {
@@ -113,7 +120,7 @@
       }}
     >
       {#if view.icon}<Icon name={view.icon} size="sm" />{/if}
-      <span>{view.label}</span>
+      <span class:named={isIconOnly}>{view.label}</span>
     </button>
   {/each}
 </div>
@@ -125,6 +132,11 @@
 {/each}
 
 <style>
+  .switcher[data-icon-only] .view { padding-inline: var(--sp-100); }
+
+  /* Icon-only: the label is read and not drawn - the name of the radio, never `display: none`. */
+  .named { position: absolute; inline-size: var(--sp-025); block-size: var(--sp-025); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
   .switcher {
     display: inline-flex;
     flex-wrap: wrap;
@@ -134,10 +146,12 @@
        segment raised out of it. */
     padding: var(--sp-025);
     border-radius: var(--r-md);
-    background: var(--bg-surface-sunken);
+    background: var(--bg-recess);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--border-subtle);
   }
 
   .view {
+    position: relative;
     display: inline-flex;
     align-items: center;
     gap: var(--sp-050);

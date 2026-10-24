@@ -69,7 +69,7 @@ test('chromium: 1280 px — a row opens beside the list, stays current and focus
   await pane.waitFor({ state: 'hidden', timeout: 5_000 });
   await row.click();
   await pane.waitFor({ timeout: 5_000 });
-  await pane.getByRole('link', { name: 'Full page' }).click();
+  await pane.getByRole('radio', { name: 'Full page' }).click();
   await page.waitForURL(`**/items/${ENTRY.id}`, { timeout: 5_000 });
   assert.equal(await page.getByRole('heading', { level: 1 }).count(), 1);
   // The back button returns to the collection with the pane, because opening was a navigation.
@@ -132,13 +132,18 @@ test('chromium: 1280 px — the panel lies over the list, is as wide as the pers
   await page.getByRole('complementary', { name: ENTRY.title }).waitFor({ timeout: 10_000 });
   assert.equal(Math.round((await page.getByRole('complementary', { name: ENTRY.title }).boundingBox()).width), 672, 'the width did not survive a reload');
 
-  // The choice at its foot: this entry opens whole now, and so does the next one chosen.
-  const always = page.getByRole('checkbox', { name: 'Always open entries as a full page' });
-  assert.equal(await always.isChecked(), false);
-  await always.click();
+  // The switch in its head: *Full page* opens this entry whole, and the next one chosen too.
+  const views = page.getByRole('radiogroup', { name: 'Open entries as' });
+  assert.equal(await views.getByRole('radio', { name: 'Side panel' }).getAttribute('aria-checked'), 'true');
+  await views.getByRole('radio', { name: 'Full page' }).click();
   await page.waitForURL(new RegExp(`/items/${ENTRY.id}$`), { timeout: 5_000 });
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   await page.getByRole('link', { name: ENTRY.title }).click();
   await page.waitForURL(new RegExp(`/items/${ENTRY.id}$`), { timeout: 5_000 });
+  // And the page carries the same switch back: *Side panel* opens it beside its list again, and
+  // from then on.
+  await page.getByRole('radiogroup', { name: 'Open entries as' }).getByRole('radio', { name: 'Side panel' }).click();
+  await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}\\?item=${ENTRY.id}$`), { timeout: 5_000 });
+  await page.getByRole('complementary', { name: ENTRY.title }).waitFor({ timeout: 5_000 });
   assert.deepEqual(failures, []);
 });

@@ -27,7 +27,7 @@ On *Today* the person sees two tasks due this morning, the shopping list as a ti
 3. Collections with progress show their next due step.
 4. The jumble shows how many arrivals wait and the first three.
 5. Recently opened places on this device are listed.
-6. Nothing on the page says what the person did not do: no "you missed", overdue entries are listed plainly.
+6. What is overdue is said as overdue, without blame: the glance counts it, its band is *Overdue* and its rows carry the overdue mark with the date; no "you missed" anywhere. (Changed 2026-10-24 by the product owner: the person wants to see at once what is late.)
 7. The page greets the person by the time of their day and says at a glance how much is due today, how much is coming up, what waits in the jumble and what is open on them, each figure a link to those entries.
 
 ## Where it ends

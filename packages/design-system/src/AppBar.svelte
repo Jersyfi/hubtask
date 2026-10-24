@@ -171,15 +171,6 @@
     min-inline-size: 0;
   }
 
-  /* In use, the field takes the width its list needs (design-system.md §11.2), and grows over the
-     space before it rather than pushing what stands after it: the slot keeps its size, so a press
-     on the control beside the field - which takes the focus out of it - lands where it was aimed
-     instead of on the place the control had moved away from. */
-  .search:focus-within > :global(*) {
-    position: relative;
-    z-index: var(--z-raised);
-    margin-inline-start: calc(var(--layout-barsearch-width) - var(--layout-barsearch-open));
-  }
 
   /* And centred, which the note above claimed before it was true: the field sat wherever the lead
      happened to end. Centring it needs the two sides to share the free space equally, so in a row

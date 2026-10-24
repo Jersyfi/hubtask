@@ -41,6 +41,7 @@ const ROLES = {
   'bg.surface': 'surface',
   'bg.raised': 'surface',
   'bg.surface-sunken': 'surface',
+  'bg.recess': 'surface',
   'bg.surface-hover': 'surface',
   'bg.surface-pressed': 'surface',
   'bg.glass': 'surface',

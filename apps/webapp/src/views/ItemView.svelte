@@ -44,6 +44,7 @@
     Skeleton,
     Stack,
     Tabs,
+    ViewSwitcher,
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
@@ -89,6 +90,7 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { device } from '../lib/device.svelte.ts';
   import PeopleMarks from '../lib/people/PeopleMarks.svelte';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
@@ -899,7 +901,29 @@
         onmenu={(offered) => page.offer(offered)}
         breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, opener: 'entry-menu', onselect: chooseFromMenu }}
-      />
+      >
+        {#snippet aside()}
+          <!-- The panel's switch, the way back: where an entry could open beside its list, *Side
+               panel* opens this one there and every one after it (design-system.md §11.8). -->
+          {#if viewport.isLarge && item.collection_id}
+            {@const collectionId = item.collection_id}
+            <ViewSwitcher
+              label={t('app.pane.view')}
+              isIconOnly
+              views={[
+                { id: 'panel', label: t('app.pane.view_panel'), icon: 'panel-right' },
+                { id: 'page', label: t('app.pane.view_page'), icon: 'maximize-2' },
+              ]}
+              selected="page"
+              onselect={(id) => {
+                if (id !== 'panel') return;
+                device.setOpenMode('panel');
+                onnavigate?.(`/collections/${collectionId}?item=${item.id}`);
+              }}
+            />
+          {/if}
+        {/snippet}
+      </PageHeader>
     {/if}
 
     <!-- `data-tour`: where the tour points for "what an entry carries". -->

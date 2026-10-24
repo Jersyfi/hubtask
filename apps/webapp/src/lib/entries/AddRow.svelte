@@ -24,7 +24,7 @@
     gap: var(--sp-050);
     min-block-size: var(--density-control-sm-min);
     padding-inline: var(--sp-100);
-    border: var(--bw-hairline) solid transparent;
+    border: 0;
     border-radius: var(--r-md);
     background: transparent;
     color: var(--text-brand);
@@ -34,7 +34,9 @@
     cursor: pointer;
   }
 
-  .add-row:hover { border-color: var(--border-default); background: var(--bg-surface); }
+  /* Under the pointer a quiet tint of its own ink, no frame: it says "press me" without standing
+     up out of the list or the column. */
+  .add-row:hover { background: var(--accent-primary-subtle); }
 
   .add-row:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

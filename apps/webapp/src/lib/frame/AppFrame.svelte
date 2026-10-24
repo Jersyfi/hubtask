@@ -455,7 +455,7 @@
       <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
       {#if isCaptureOffered}
         {#if viewport.isBelowExpanded}
-          <IconButton icon="plus" size="sm" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+          <IconButton icon="plus" size="sm" tone="primary" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
         {:else}
           <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
         {/if}
@@ -743,7 +743,10 @@
     max-block-size: calc(100vh - var(--layout-appbar-height));
     min-width: 0;
     padding: var(--sp-200) var(--sp-150);
-    overflow: auto;
+    /* Down only: the width handle reaches a little past the column's edge to be easy to take,
+       and a column that scrolled sideways for it moved under a trackpad's sideways swipe. */
+    overflow-x: hidden;
+    overflow-y: auto;
     border-inline-end: var(--bw-hairline) solid var(--border-subtle);
   }
 

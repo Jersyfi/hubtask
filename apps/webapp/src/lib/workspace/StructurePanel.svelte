@@ -79,6 +79,15 @@
   }
 
   const { isOpen, container, mayShapeWorkspace = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
+
+  /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
+  let sectionList = $state<HTMLElement | null>(null);
+  $effect(() => {
+    void tab;
+    const list = sectionList;
+    if (!list) return;
+    queueMicrotask(() => list.querySelector<HTMLElement>('a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+  });
   const sections = $derived([...before, { id: 'structure', label: t('app.settings.section_structure') }, ...tabs]);
   let isSavingPreset = $state(false);
 
@@ -593,7 +602,7 @@
 
 <div class="page" data-structure-tabs>
   <nav class="sections" aria-label={t('app.structure.tabs_label')}>
-    <ul>
+    <ul bind:this={sectionList}>
       {#each sections as each (each.id)}
         <li>
           <a
@@ -650,36 +659,58 @@
   .failure { margin: 0; color: var(--text-danger); }
 
   /* The sections at the start and the open one beside them, as the administration draws its
-     areas; on a phone the list wraps above the section, every one in sight. */
+     areas. On a phone they are tabs above the section: one line that scrolls sideways, the open
+     one underlined - the way the capture dialog's tabs look - never buttons wrapping into rows. */
   .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-300); }
-  .sections ul { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-  /* The rows of the navigation column, so a list of places reads as one everywhere (§13 G2). */
+  .sections { min-width: 0; }
+  .sections ul {
+    display: flex;
+    gap: var(--sp-050);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    scrollbar-width: none;
+  }
+  .sections li { flex: none; }
   .sections a {
     display: flex;
     align-items: center;
-    padding-block: var(--density-row-block);
-    padding-inline: var(--sp-150);
-    border-radius: var(--r-md);
+    padding: var(--sp-100) var(--sp-150);
+    border-block-end: var(--bw-ring) solid transparent;
     color: var(--text-secondary);
     font-size: var(--fs-100);
     text-decoration: none;
+    white-space: nowrap;
   }
-  .sections a:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+  .sections a:hover { color: var(--text-primary); }
   .sections a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(var(--sp-025) * -1); }
   /* Rule 3: the open section is announced by `aria-current` and marked, not by colour alone. */
   .sections a[aria-current='page'] {
-    background: var(--bg-surface-pressed);
+    border-block-end-color: var(--accent-primary);
     color: var(--text-primary);
-    font-weight: var(--fw-medium);
-    box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
+    font-weight: var(--fw-semibold);
   }
-  :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
   .section { min-width: 0; }
 
-  /* From `medium` the list stands at the start, as the administration's areas do. */
+  /* From `medium` the list stands at the start as rows of the navigation column, as the
+     administration's areas do (§13 G2). */
   /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
   @media (width >= 600px) {
     .page { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
-    .sections ul { flex-direction: column; flex-wrap: nowrap; }
+    .sections ul { flex-direction: column; overflow-x: visible; border-block-end: 0; }
+    .sections a {
+      padding-block: var(--density-row-block);
+      border-block-end: 0;
+      border-radius: var(--r-md);
+    }
+    .sections a:hover { background: var(--bg-surface-hover); }
+    .sections a[aria-current='page'] {
+      background: var(--bg-surface-pressed);
+      font-weight: var(--fw-medium);
+      box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
+    }
+    :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
   }
 </style>

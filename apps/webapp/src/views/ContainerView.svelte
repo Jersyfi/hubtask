@@ -43,7 +43,6 @@
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
-  import ImportDialog from '../lib/entries/ImportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
@@ -154,10 +153,10 @@
   });
 
   /** The switch in the panel's head: every entry whole from now on, starting with this one. */
-  function alwaysWhole() {
-    const next = device.openMode === 'whole' ? 'panel' : 'whole';
-    device.setOpenMode(next);
-    if (next === 'whole' && openItemId) onnavigate(`/items/${openItemId}`);
+  /** *Full page* in the panel's switch: this entry opens whole, and so does every one after it. */
+  function openWhole() {
+    device.setOpenMode('whole');
+    if (openItemId) onnavigate(`/items/${openItemId}`);
   }
 
   /**
@@ -558,7 +557,14 @@
   let exporting = $state<SavedView | undefined>(undefined);
   let subscribing = $state<SavedView | undefined>(undefined);
   let isManagingMembers = $state(false);
-  let isImporting = $state(false);
+  /**
+   * *Import…* is one of capture's ways of adding: the dialog opens on its tab with this place as
+   * the place, so an import looks and is chosen like every other add (design-system.md §11.8).
+   */
+  function startImport() {
+    if (!container) return;
+    capture.open(container.type === 'HUB' ? { hubId: container.id, mode: 'import' } : { collectionId: container.id, mode: 'import' });
+  }
   /**
    * `STRUCTURE` is what an import takes: on the hub because it creates collections there, on a
    * collection because it may add the file's columns and labels.
@@ -784,7 +790,7 @@
   function choseFromMenu(id: string) {
     if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
-    else if (id === 'import') isImporting = true;
+    else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
     else if (id === 'archive') void toggleArchived();
     else if (id === 'privacy') isChangingPrivacy = true;
@@ -910,7 +916,7 @@
     untrack(() => {
       if (wish.layout && offeredLayouts.includes(wish.layout)) chooseLayout(wish.layout);
       if (wish.act === 'template' && !readOnlyReason) isUsingTemplates = true;
-      else if (wish.act === 'import' && mayShape && !readOnlyReason) isImporting = true;
+      else if (wish.act === 'import' && mayShape && !readOnlyReason) startImport();
       else if (wish.act) {
         const item = pageMenu.find((each) => each.id === wish.act);
         if (item && !item.disabledReason) choseFromMenu(item.id);
@@ -1268,10 +1274,7 @@
               kind={openItem ? offer.level(openItem.type).label : undefined}
               trail={trail.map((step) => step.label)}
               dismissLabel={t('app.pane.close')}
-              pageLabel={t('app.pane.open_page')}
-              pageWord={t('app.pane.page_word')}
-              pageHref={`/items/${openItemId}`}
-              onOpenPage={() => onnavigate(`/items/${openItemId}`)}
+              view={{ label: t('app.pane.view'), panelLabel: t('app.pane.view_panel'), pageLabel: t('app.pane.view_page'), onpage: openWhole }}
               onClose={closePane}
               resize={{
                 label: t('app.pane.width'),
@@ -1281,7 +1284,6 @@
                 reset: panelBounds.reset,
                 onresize: (width) => device.setPanelWidth(width),
               }}
-              whole={{ label: t('app.pane.always_whole'), isAlways: device.openMode === 'whole', ontoggle: alwaysWhole }}
             >
               <ItemView id={openItemId} {onnavigate} isInPane />
             </DetailPane>
@@ -1299,16 +1301,6 @@
     type="COLLECTION"
     parentId={container.id}
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
-  />
-  <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
-{/if}
-
-{#if container?.type === 'COLLECTION' && container.parent_id && mayShape}
-  <ImportDialog
-    bind:isOpen={isImporting}
-    hubId={container.parent_id}
-    collection={{ id: container.id, name: container.name }}
-    {onnavigate}
   />
 {/if}
 

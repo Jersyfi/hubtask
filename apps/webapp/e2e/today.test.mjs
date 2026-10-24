@@ -5,7 +5,7 @@
 // the reader across hubs with the hub's colour, ticked off where it stands (check 1); a list as
 // one tile with its figure (check 2); a project's next due step (check 3); the jumble's count and
 // first three (check 4); what this device opened (check 5); and no word about what the person did
-// not do (check 6). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
+// not do (check 6, since changed: what is late is said as late). Also UC-WRK-20's line between overdue and next, in the reader's zone, and its
 // empty states. Chromium: a layout and a set of requests, with no engine-specific part.
 
 import { test } from 'node:test';
@@ -126,17 +126,19 @@ test('chromium: Today lists what is due on the reader, plainly, and ticks it off
 
   // The day's three bands, in the reader's zone, each with what belongs in it.
   const bands = await mine.locator('h3').allTextContents();
-  assert.deepEqual(bands, ['Earlier', 'Today', 'Coming up']);
+  assert.deepEqual(bands, ['Overdue', 'Today', 'Coming up']);
   const titles = await mine.locator('a[href^="/items/"]').allTextContents();
   assert.deepEqual(titles.map((title) => title.trim()), [PAST.title, TODAYS.title, LATER.title], 'the bands hold the entries out of order');
 
   // A list's entry is the list's tile, not a row (check 2).
   assert.equal(await mine.getByText(LISTED.title).count(), 0, 'a list entry is listed one by one');
 
-  // Check 6: what is past is listed plainly - no overdue word, no warning, anywhere on the page.
+  // Check 6, as the owner changed it: what is late is said as late - the band, and the overdue
+  // mark on its row - and nothing blames ("missed").
   const said = (await page.locator('main').textContent()) ?? '';
-  for (const word of [/overdue/i, /missed/i]) assert.equal(word.test(said), false, `the page says ${word}: ${said}`);
-  assert.equal(await mine.locator('[data-tone="danger"], [data-tone="warning"]').count(), 0, 'a past entry is drawn as a warning');
+  assert.equal(/missed/i.test(said), false, `the page says missed: ${said}`);
+  const late = mine.locator('[class*="task-row"]').filter({ hasText: PAST.title }).first();
+  assert.equal(await late.locator('[data-tone="danger"]').count(), 1, 'a late entry does not say so');
 
   // Each row says its hub in the hub's own colour, beside the hub's name (UC-WRK-33 check 1).
   const pastRow = mine.locator('li, [class*="task-row"]').filter({ hasText: PAST.title }).first();
@@ -212,7 +214,7 @@ test('chromium: a project\'s step ticked off on Today gives way to the next', as
   assert.deepEqual(failures, []);
 });
 
-test('chromium: the day at a glance - a greeting by the hour, figures that lead to their search, and no overdue figure (check 7)', async (t) => {
+test('chromium: the day at a glance - a greeting by the hour, figures that lead to their search, the overdue among them (check 7)', async (t) => {
   showToday();
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -228,8 +230,10 @@ test('chromium: the day at a glance - a greeting by the hour, figures that lead 
   assert.equal(new URLSearchParams(today.href.split('?')[1]).get('f'), 'who:me is:open due:today');
   assert.ok(links.some((link) => link.text.endsWith('coming up')), 'no coming-up figure');
   assert.ok(links.some((link) => link.href === '/jumble'), 'no jumble figure for a reader of the jumble');
-  // Nothing says what the person did not do (§11.7).
-  assert.equal(links.some((link) => /overdue/i.test(link.text)), false, `an overdue figure: ${JSON.stringify(links)}`);
+  // What is late, counted and a way to it (UC-WRK-34 check 6, as changed).
+  const overdue = links.find((link) => link.text.endsWith('overdue'));
+  assert.ok(overdue, `no overdue figure: ${JSON.stringify(links)}`);
+  assert.equal(new URLSearchParams(overdue.href.split('?')[1]).get('f'), 'who:me is:open due:overdue');
   // The greeting by the hour where the person is, as the page's heading.
   const subtitle = await page.locator('main').getByText(/^(Good morning|Hello|Good evening)/).first().textContent();
   assert.ok(subtitle.includes(ACCOUNT.display_name.split(' ')[0]), `the greeting does not name the person: ${subtitle}`);

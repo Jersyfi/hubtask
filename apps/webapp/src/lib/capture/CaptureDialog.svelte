@@ -15,10 +15,10 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Checkbox, Dialog, LabelChip, Menu, Textarea, anchorTo } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Kbd, LabelChip, Menu, Textarea, anchorTo } from '@hubtask/design-system/components';
   import { DEFAULT_TIMEOUT_MS, type Container, type TransportError, type WorkItem } from '@hubtask/sync-engine';
 
-  import { capture, type Mode } from './capture.svelte.ts';
+  import { capture, type Door, type Mode } from './capture.svelte.ts';
   import { SIGILS, offersFor, pick, tokenAt, type Offer, type Sigil, type Token } from './suggest.ts';
   import { offersMakeEntries } from './entries.ts';
   import MakeEntries from './MakeEntries.svelte';
@@ -27,7 +27,7 @@
   import TemplatesDialog from '../entries/TemplatesDialog.svelte';
   import ContainerMark from '../workspace/ContainerMark.svelte';
   import { NOTHING, literalKey, readLine, readTargets, type Chip, type Context, type Named, type Reading } from './parse.ts';
-  import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn } from './places.svelte.ts';
+  import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn, roleInHub } from './places.svelte.ts';
   import { bodyOf, createAll, readLinesOf, type Writer } from './submit.ts';
   import { recognitionOf, resolveTarget, rulesOf, topLevelOf, type Target } from './target.ts';
   import { vocabularyOf } from './words.ts';
@@ -100,22 +100,35 @@
   // Where the reader stands
   // ------------------------------------------------------------------------------------------
 
-  /** The collection of the entry the reader is on, read through the entry page's own read. */
-  let itemCollectionId = $state<string | undefined>(undefined);
+  /** The entry the reader is on, read through the entry page's own read. */
+  let pageItem = $state<WorkItem | undefined>(undefined);
+  const itemCollectionId = $derived(pageItem?.collection_id);
   $effect(() => {
     const id = currentItemId;
     if (!capture.isOpen || !id) {
-      itemCollectionId = undefined;
+      pageItem = undefined;
       return;
     }
     return untrack(() =>
       engine.subscribe<WorkItem>({ path: itemPath(id) }, (next) => {
-        if (next.status === 'ready') itemCollectionId = next.data.collection_id;
+        if (next.status === 'ready') pageItem = next.data;
       }),
     );
   });
 
-  const door = $derived(capture.door);
+  /**
+   * Opened on an entry's page from the bar or `Q`: what is added there goes under that entry, at
+   * the levels its collection lets it hold - the same door a row's ＋ opens, and a chip the
+   * person can take back. An entry that holds nothing below it opens as before.
+   */
+  const pageDoor = $derived.by((): Door | undefined => {
+    if (!pageItem?.collection_id) return undefined;
+    const types = offerIn(containers.find(pageItem.collection_id)?.structure?.settings).childTypes(pageItem.type);
+    if (types.length === 0) return undefined;
+    return { collectionId: pageItem.collection_id, parentId: pageItem.id, parentTitle: pageItem.title, types };
+  });
+
+  const door = $derived(capture.door ?? pageDoor);
   const current = $derived(chosen === 'jumble' ? undefined : (chosen ?? door?.collectionId ?? currentCollectionId ?? itemCollectionId));
   const hubHere = $derived(current ? (containers.find(current)?.parent_id ?? undefined) : currentHubId);
 
@@ -159,6 +172,8 @@
       namedCollectionId: targets.collection?.id,
       namedHubId: targets.collection ? undefined : targets.hub?.id,
       currentCollectionId: current,
+      // Chosen *Jumble* is chosen: the hub the page stands in does not take it back.
+      currentHubId: chosen === 'jumble' ? undefined : (door?.hubId ?? currentHubId),
       find: (id) => containers.find(id),
       collectionsOf: levelOf,
       admits,
@@ -567,6 +582,32 @@
   const mayShapeHere = $derived(collection ? holds(roleIn(collection) ?? undefined, 'STRUCTURE').status === 'permitted' : false);
 
   /**
+   * Opened from a hub's own *Import…*: the file's collections are made in the hub, so on the
+   * import tab the place is the hub itself - until the person chooses a collection instead.
+   */
+  const importHub = $derived(door?.hubId && !door.collectionId && chosen === undefined ? containers.find(door.hubId) : undefined);
+  $effect(() => {
+    const hub = importHub;
+    if (hub) untrack(() => people.open({ hubId: hub.id }));
+  });
+  const mayShapeHub = $derived(importHub ? holds(roleInHub(importHub) ?? undefined, 'STRUCTURE').status === 'permitted' : false);
+
+  /**
+   * Why a way of adding is not open here, or nothing where it is: every way is drawn, so the
+   * person learns it exists and what it needs (design-system.md §4, the reason beside the
+   * control) rather than finding a tab missing.
+   */
+  function modeReason(each: Mode): string | undefined {
+    if (each === 'template') return collection ? undefined : t('app.capture.mode_needs_collection');
+    if (each === 'import') {
+      if (importHub) return mayShapeHub ? undefined : t('app.capture.mode_import_not_yours');
+      if (!collection) return t('app.capture.mode_needs_collection');
+      return mayShapeHere ? undefined : t('app.capture.mode_import_not_yours');
+    }
+    return undefined;
+  }
+
+  /**
    * The four ways of adding are tabs of this one dialog (design-system.md §11.8): a template and an
    * import stay here, under the same chips, so the person always sees where it lands.
    */
@@ -577,16 +618,16 @@
   }
 
   /** The modes on offer here: a template and an import only into a collection, an import only to who may shape it. */
-  const modes = $derived<readonly Mode[]>(['one', 'lines', ...(collection ? (['template'] as const) : []), ...(collection && mayShapeHere ? (['import'] as const) : [])]);
+  const modes: readonly Mode[] = ['one', 'lines', 'template', 'import'];
 
   /** The import's own flow, inside the dialog: closing it is finishing here. */
   let isImportOpen = $state(true);
   $effect(() => {
     if (mode === 'import' && !isImportOpen) untrack(() => capture.close());
   });
-  // A place without the mode chosen falls back to one entry.
+  // A place where the chosen way is not open falls back to one entry.
   $effect(() => {
-    if (!modes.includes(mode)) untrack(() => (mode = 'one'));
+    if (modeReason(mode)) untrack(() => (mode = 'one'));
   });
 
   /** Roving focus over the mode tabs: the arrows move and choose, as a tab list does. */
@@ -653,8 +694,8 @@
       >
         {#snippet trigger(props)}
           <button type="button" class="pill" data-chip="place" {...props}>
-            {#if collection}<ContainerMark look={collection} />{/if}
-            <span class="pill-key">{t('app.capture.place_key')}</span><span class="pill-value">{placeLabel}</span><span class="pill-more" aria-hidden="true">▾</span>
+            {#if mode === 'import' && importHub}<ContainerMark look={importHub} />{:else if collection}<ContainerMark look={collection} />{/if}
+            <span class="pill-key">{t('app.capture.place_key')}</span><span class="pill-value">{mode === 'import' && importHub ? importHub.name : placeLabel}</span><span class="pill-more" aria-hidden="true">▾</span>
           </button>
         {/snippet}
       </Menu>
@@ -726,7 +767,11 @@
             </li>
           {/each}
         </ul>
-        <p class="offers-keys" aria-hidden="true">{t('app.capture.offers_keys')}</p>
+        <p class="offers-keys" aria-hidden="true">
+          <Kbd size="sm">↑</Kbd><Kbd size="sm">↓</Kbd> {t('app.capture.offers_choose')}
+          <Kbd size="sm">⏎</Kbd> {t('app.capture.offers_take')}
+          <Kbd size="sm">Esc</Kbd> {t('app.capture.offers_close')}
+        </p>
       </div>
     {/if}
     {#if collection && mode === 'one' && !text.includes('\n')}
@@ -793,6 +838,16 @@
           onnavigate?.(`/items/${itemId}`);
         }}
       />
+    {:else if mode === 'import' && importHub}
+      <ImportDialog
+        isEmbedded
+        bind:isOpen={isImportOpen}
+        hubId={importHub.id}
+        onnavigate={(path) => {
+          capture.close();
+          onnavigate?.(path);
+        }}
+      />
     {:else if mode === 'import' && collection?.parent_id}
       <ImportDialog
         isEmbedded
@@ -819,14 +874,19 @@
           aria-selected={mode === each}
           aria-controls={`${listId}-mode`}
           tabindex={mode === each ? 0 : -1}
-          onclick={() => chooseMode(each)}
-        >{t(`app.capture.mode_${each}`)}</button>
+          aria-disabled={modeReason(each) ? 'true' : undefined}
+          aria-describedby={modeReason(each) ? `${listId}-why-${each}` : undefined}
+          title={modeReason(each)}
+          onclick={() => {
+            if (!modeReason(each)) chooseMode(each);
+          }}
+        >{t(`app.capture.mode_${each}`)}{#if modeReason(each)}<span class="why" id={`${listId}-why-${each}`}>{modeReason(each)}</span>{/if}</button>
       {/each}
     </div>
     {#if mode === 'one' || mode === 'lines'}
       <div class="actions">
-        <span class="keep"><Checkbox label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>
-        <Button type="submit" tone="primary" size="sm" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}<kbd class="enter" aria-hidden="true">⏎</kbd></Button>
+        <span class="keep"><Checkbox density="sm" label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>
+        <Button type="submit" tone="primary" size="sm" icon="plus" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}<span class="enter" aria-hidden="true"><Kbd size="sm" isOnFill>⏎</Kbd></span></Button>
       </div>
     {/if}
   </form>
@@ -905,7 +965,7 @@
     font-size: var(--fs-100);
   }
 
-  .offers ul { margin: 0; padding: 0; list-style: none; }
+  .offers ul { margin: 0; padding: 0 var(--sp-050); list-style: none; }
 
   .offers-title {
     margin: 0;
@@ -915,11 +975,13 @@
     font-weight: var(--fw-semibold);
   }
 
+  /* Inset from the list's edge and rounded, as every chosen row in a menu is. */
   .offer {
     display: flex;
     align-items: center;
     gap: var(--sp-100);
-    padding: var(--sp-100) var(--sp-150);
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
     cursor: pointer;
   }
 
@@ -929,8 +991,13 @@
   .offer-hint { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-075); white-space: nowrap; }
 
   .offers-keys {
-    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-050);
+    margin: var(--sp-050) 0 0;
     padding: var(--sp-100) var(--sp-150) var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
     color: var(--text-subtle);
     font-size: var(--fs-075);
   }
@@ -965,6 +1032,7 @@
   }
 
   .mode {
+    position: relative;
     margin-block-end: calc(var(--bw-hairline) * -1);
     padding: var(--sp-100) var(--sp-150);
     border: 0;
@@ -977,19 +1045,18 @@
   }
 
   .mode:hover { color: var(--text-primary); }
+  /* A way not open here: drawn, quieter, its reason said to a screen reader and shown on hover. */
+  .mode[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
+  .why { position: absolute; inline-size: var(--sp-025); block-size: var(--sp-025); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
   .mode[aria-selected='true'] { border-block-end-color: var(--accent-primary); color: var(--text-primary); font-weight: var(--fw-semibold); }
 
   /* The footer: keep capturing said quietly, the one button at the end at the small size. */
   .actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
   .keep { color: var(--text-secondary); }
-  .keep :global(.label) { color: var(--text-secondary); font-size: var(--fs-075); }
+  .keep :global(.label) { color: var(--text-secondary); }
 
-  .enter {
-    margin-inline-start: var(--sp-050);
-    font-family: var(--font-mono);
-    font-size: var(--fs-075);
-    opacity: 0.8;
-  }
+  .enter { display: inline-flex; margin-inline-start: var(--sp-050); }
 
   .pill:focus-visible,
   .pill-x:focus-visible,

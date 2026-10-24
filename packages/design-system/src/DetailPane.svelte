@@ -19,12 +19,12 @@
 
   import type { Snippet } from 'svelte';
 
-  import Checkbox from './Checkbox.svelte';
   import Icon from './Icon.svelte';
   import IconButton from './IconButton.svelte';
   import ResizeHandle from './ResizeHandle.svelte';
   import { escapeHandler } from './focus.ts';
   import { layers } from './layers.ts';
+  import ViewSwitcher from './ViewSwitcher.svelte';
   import VisuallyHidden from './VisuallyHidden.svelte';
 
   interface Props {
@@ -40,12 +40,17 @@
     /** The name of the control that closes it. Required: a pane is always dismissible. */
     dismissLabel: string;
     onClose: () => void;
-    /** The name of the control that opens the same thing as a page, and where that is. */
-    pageLabel?: string;
-    /** The word drawn on that control - "Full page" - where `pageLabel` is its whole name. */
-    pageWord?: string;
-    pageHref?: string;
-    onOpenPage?: () => void;
+    /**
+     * How entries open - here beside the list, or as their own page - as one switch of two marks
+     * in the head (design-system.md §11.8): choosing *Full page* opens this one so and every one
+     * after it; the page carries the same switch back. The caller keeps the choice.
+     */
+    view?: {
+      readonly label: string;
+      readonly panelLabel: string;
+      readonly pageLabel: string;
+      readonly onpage: () => void;
+    };
     /** The panel's edge, where the person may drag its width. The caller keeps the width. */
     resize?: {
       readonly label: string;
@@ -55,16 +60,10 @@
       readonly reset: number;
       readonly onresize: (width: number) => void;
     };
-    /** "Always open entries whole": the person's choice, made where they notice they want it. */
-    whole?: {
-      readonly label: string;
-      readonly isAlways: boolean;
-      readonly ontoggle: () => void;
-    };
     children: Snippet;
   }
 
-  const { title, kind, trail, dismissLabel, onClose, pageLabel, pageWord, pageHref, onOpenPage, resize, whole, children }: Props = $props();
+  const { title, kind, trail, dismissLabel, onClose, view, resize, children }: Props = $props();
 
   // Svelte's own id, not a random one: unique per instance and the same on every render, so a
   // prerendered page is identical between builds and a hydrated one matches its markup.
@@ -105,39 +104,24 @@
       <VisuallyHidden><h2 id={titleId}>{title}</h2></VisuallyHidden>
     </div>
     <div class="controls">
-      {#if pageLabel && (pageHref || onOpenPage)}
-        {#if pageHref}
-          <!-- A link, because it goes somewhere: a reader may open it in a new tab, and the
-               router takes it like any other. Where a word is drawn the word is its name (the
-               label is in the name, SC 2.5.3) and the full label its tooltip; else the label. -->
-          <a
-            class="page"
-            href={pageHref}
-            aria-label={pageWord ? undefined : pageLabel}
-            title={pageLabel}
-            onclick={(event) => {
-              if (!onOpenPage) return;
-              event.preventDefault();
-              onOpenPage();
-            }}
-          >
-            <Icon name="maximize-2" size="sm" />{#if pageWord}<span>{pageWord}</span>{/if}
-          </a>
-        {:else}
-          <IconButton icon="maximize-2" label={pageLabel} size="sm" onclick={onOpenPage} />
-        {/if}
+      {#if view}
+        <ViewSwitcher
+          label={view.label}
+          isIconOnly
+          views={[
+            { id: 'panel', label: view.panelLabel, icon: 'panel-right' },
+            { id: 'page', label: view.pageLabel, icon: 'maximize-2' },
+          ]}
+          selected="panel"
+          onselect={(id) => {
+            if (id === 'page') view.onpage();
+          }}
+        />
       {/if}
       <IconButton icon="x" label={dismissLabel} size="sm" onclick={onClose} />
     </div>
   </header>
   <div class="body">{@render children()}</div>
-  {#if whole}
-    <!-- The person's standing choice, at the foot where the concept puts it: a checkbox, so it
-         says its state the way every other setting does. -->
-    <div class="foot">
-      <Checkbox label={whole.label} checked={whole.isAlways} onchange={whole.ontoggle} />
-    </div>
-  {/if}
 </aside>
 
 <style>
@@ -158,6 +142,9 @@
     overflow: auto;
     background: var(--bg-surface);
     border-inline-start: var(--bw-hairline) solid var(--border-subtle);
+    /* The bar's edge, drawn again where the panel lies over it: the line under the bar runs on
+       across the panel as it does across the column. */
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
     box-shadow: var(--shadow-overlay);
     /* The shadow falls on the list beside it and never up over the bar it sits under. */
     clip-path: inset(0 0 0 calc(-1 * var(--sp-1000)));
@@ -196,28 +183,8 @@
   .controls { display: flex; align-items: center; gap: var(--sp-050); flex: none; }
 
   /* The same box as the icon button beside it, so the two read as one pair of controls. */
-  .page {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-inline-size: var(--density-control-sm-min);
-    min-block-size: var(--density-control-sm-min);
-    gap: var(--sp-050);
-    padding-inline: var(--sp-050);
-    box-sizing: border-box;
-    border-radius: var(--r-sm);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-    text-decoration: none;
-  }
 
-  .page:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
 
-  .page:focus-visible {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-  }
 
   .body {
     flex: 1;
@@ -225,8 +192,4 @@
     padding: var(--sp-200) var(--sp-300) var(--sp-300);
   }
 
-  .foot {
-    padding: var(--sp-150) var(--sp-300) var(--sp-300);
-    color: var(--text-secondary);
-  }
 </style>

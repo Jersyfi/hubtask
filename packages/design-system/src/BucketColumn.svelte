@@ -98,7 +98,8 @@
     padding: var(--sp-150);
     border-radius: var(--r-lg);
     /* Rule 1: recessed, because a column is a child region rather than a standalone element. */
-    background: var(--bg-surface-sunken);
+    background: var(--bg-recess);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--border-subtle);
     min-block-size: 0;
   }
 
