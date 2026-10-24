@@ -56,10 +56,10 @@ export interface Row {
 export const CAPS: Readonly<Record<CandidateKind, number>> = { container: 5, action: 7, place: 5, setting: 5, hit: 5, recent: 5 };
 
 /**
- * How many actions an empty palette lists: the frame's common ones and the screen's, which a
- * typed answer's cap would cut before the screen's own primary.
+ * How many actions an empty palette lists: few enough to read at a glance - the screen's own
+ * first, then the frame's. Every other action is a word away.
  */
-export const EMPTY_ACTIONS = 10;
+export const EMPTY_ACTIONS = 5;
 
 /** The groups the list is drawn in, each under its own heading. */
 export type Group = 'places' | 'actions' | 'settings' | 'entries' | 'recent';
@@ -94,17 +94,19 @@ function gradeOf(candidate: Candidate, words: string, locale?: string): Score {
  * drawn, so the group whose best row matches best comes first, and within a group the best row
  * first: "ranked by match" (UC-WRK-27 check 2) inside the heading that says what a row is.
  *
- * With no words the palette is "what can I do, and where was I": the actions in the order they
- * are offered, then the places this device opened last - nothing is ranked against an empty
- * question. A place opened last is offered only then: with words it would repeat a container or
+ * With no words the palette is "where was I, and what can I do here": the places this device
+ * opened last, then the actions - the screen's own before the frame's - and nothing is ranked
+ * against an empty question. A place opened last is offered only then: with words it would repeat a container or
  * an entry found under its own heading. An entry the server returned matches even where no grade
  * here says so - it was found by a word form or by meaning - so it is kept at the lowest grade.
  */
 export function rank(candidates: readonly Candidate[], words: string, locale?: string): readonly Candidate[] {
   if (words.trim() === '') {
+    const actions = candidates.filter((each) => each.kind === 'action');
+    const isScreens = (each: Candidate) => each.id.startsWith('page:');
     return [
-      ...candidates.filter((each) => each.kind === 'action').slice(0, EMPTY_ACTIONS),
       ...candidates.filter((each) => each.kind === 'recent').slice(0, CAPS.recent),
+      ...[...actions.filter(isScreens), ...actions.filter((each) => !isScreens(each))].slice(0, EMPTY_ACTIONS),
     ];
   }
   const graded = candidates

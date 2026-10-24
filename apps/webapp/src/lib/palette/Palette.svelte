@@ -25,7 +25,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Dialog, Icon, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
+  import { Dialog, Icon, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
@@ -499,8 +499,8 @@
     <Icon name={iconOf(row)} />
     <span class="title">{labelOf(row)}</span>
     {#if context}<span class="context">{context}</span>{/if}
-    <!-- Wrapped: a `Badge` is an inline-flex box and would shrink beside a long title. -->
-    <span class="kind"><Badge>{kindOf(row)}</Badge></span>
+    <!-- What a row is, said to a reader; the group's heading already says it to the eye. -->
+    <VisuallyHidden>{kindOf(row)}</VisuallyHidden>
     {#if shortcut}<kbd aria-hidden="true">{drawnKeysOf(shortcut)[0]}</kbd>{/if}
   </button>
 {/snippet}
@@ -592,6 +592,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <form
     class="entry"
+    data-open={isOpen ? '' : undefined}
     role="search"
     aria-label={t('app.search.title')}
     bind:this={form}
@@ -601,6 +602,10 @@
     data-tour="palette"
   >
     {@render field()}
+    {#if !isOpen && term === ''}
+      <!-- The way here from anywhere, as the concept draws it: the key at the field's end. -->
+      <kbd class="keys" aria-hidden="true">{drawnKeysOf('palette')[0]}</kbd>
+    {/if}
     {#if isOpen}
       {@render list()}
     {/if}
@@ -638,6 +643,7 @@
   /* The field takes the slot whole; the slot is what is bounded, in `AppBar`. The list is
      positioned against this, which is why it is the containing block. */
   .entry { position: relative; display: block; min-inline-size: 0; }
+  .keys { position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .menu[data-host='bar'] {
@@ -647,7 +653,7 @@
     z-index: var(--z-popover);
     /* A narrow bar field must not squeeze the list into a column of ellipses. */
     min-inline-size: var(--layout-barsearch-width);
-    max-block-size: 60vh;
+    max-block-size: 70vh;
     overflow-y: auto;
     padding: var(--sp-100);
     border: var(--bw-hairline) solid var(--border-subtle);
@@ -695,7 +701,6 @@
 
   .context { flex: none; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
 
-  .kind { flex: none; white-space: nowrap; }
 
   .quick { display: flex; flex-wrap: wrap; gap: var(--sp-050); padding-inline: var(--sp-100); }
 

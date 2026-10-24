@@ -49,15 +49,17 @@ test('a keyword finds a row in the reader\'s words, but below one that says them
   assert.deepEqual(rank([capture, create], 'create').map((each) => each.id), ['create', 'capture']);
 });
 
-test('the places opened last are offered with an empty field only, after the actions', () => {
+test('the places opened last are offered with an empty field only, before the actions', () => {
   const recent: Candidate = { kind: 'recent', id: 'collection:c1', label: 'Kitchen' };
-  assert.deepEqual(rank([recent, board, kitchen], '').map((each) => each.id), ['open-as:c1:KANBAN', 'collection:c1']);
+  assert.deepEqual(rank([recent, board, kitchen], '').map((each) => each.id), ['collection:c1', 'open-as:c1:KANBAN']);
   assert.deepEqual(rank([recent, kitchen], 'kitch').map((each) => each.id), ['c1']);
 });
 
-test('an empty field lists more actions than a typed answer, so the screen\'s own are not cut', () => {
-  const many: Candidate[] = Array.from({ length: 14 }, (_, index) => ({ kind: 'action', id: `a${index}`, label: `Act ${index}` }));
-  assert.equal(rank(many, '').length, EMPTY_ACTIONS);
+test('an empty field lists a few actions, the screen\'s own first', () => {
+  const many: Candidate[] = Array.from({ length: 14 }, (_, index) => ({ kind: 'action', id: index < 3 ? `a${index}` : `page:a${index}`, label: `Act ${index}` }));
+  const empty = rank(many, '');
+  assert.equal(empty.length, EMPTY_ACTIONS);
+  assert.ok(empty.every((each) => each.id.startsWith('page:')), `the screen's own come first: ${empty.map((each) => each.id)}`);
   assert.equal(rank(many, 'act').length, CAPS.action);
 });
 

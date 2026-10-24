@@ -171,6 +171,13 @@
     min-inline-size: 0;
   }
 
+  /* In use, the field takes the width its list needs (design-system.md §11.2): what is typed and
+     what it found read at one width, and the bar gives the room back when focus leaves. */
+  .search:focus-within {
+    flex-basis: var(--layout-barsearch-open);
+    inline-size: var(--layout-barsearch-open);
+  }
+
   /* And centred, which the note above claimed before it was true: the field sat wherever the lead
      happened to end. Centring it needs the two sides to share the free space equally, so in a row
      that carries a field the lead and the end each take half of what is left and the field lands
