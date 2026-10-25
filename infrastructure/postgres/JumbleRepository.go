@@ -60,17 +60,23 @@ func (r JumbleRepository) Insert(ctx context.Context, entry domain.Entry) error 
 	if err != nil {
 		return err
 	}
+	meantForID, err := optionalUUID(entry.MeantFor.ID)
+	if err != nil {
+		return err
+	}
 
 	if err := queries.InsertJumbleEntry(ctx, sqlc.InsertJumbleEntryParams{
-		ID:          id,
-		Channel:     entry.Channel.String(),
-		Sender:      optionalText(entry.Sender),
-		RawSubject:  optionalText(entry.RawSubject),
-		RawBody:     optionalText(entry.RawBody),
-		Attachments: attachments,
-		Status:      string(entry.Status),
-		ReceivedAt:  timestampOf(entry.ReceivedAt),
-		CreatedBy:   createdBy,
+		ID:           id,
+		Channel:      entry.Channel.String(),
+		Sender:       optionalText(entry.Sender),
+		RawSubject:   optionalText(entry.RawSubject),
+		RawBody:      optionalText(entry.RawBody),
+		Attachments:  attachments,
+		Status:       string(entry.Status),
+		ReceivedAt:   timestampOf(entry.ReceivedAt),
+		CreatedBy:    createdBy,
+		MeantForKind: optionalText(string(entry.MeantFor.Kind)),
+		MeantForID:   meantForID,
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -241,6 +247,14 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 	}
 	if entry.CreatedBy, err = optionalID(row.CreatedBy); err != nil {
 		return domain.Entry{}, err
+	}
+	if kind := domain.TargetKind(stringFrom(row.MeantForKind)); kind == domain.TargetCollection ||
+		kind == domain.TargetItem {
+		meant, err := optionalID(row.MeantForID)
+		if err != nil {
+			return domain.Entry{}, err
+		}
+		entry.MeantFor = domain.MailTarget{Kind: kind, ID: meant}
 	}
 	if row.ProcessedAt.Valid {
 		settled := timeFrom(row.ProcessedAt)

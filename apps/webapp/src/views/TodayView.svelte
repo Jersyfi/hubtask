@@ -44,6 +44,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
+  import { mailAddresses } from '../lib/data/mailaddress.svelte.ts';
+  import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import MailAddressField from '../lib/mail/MailAddressField.svelte';
   import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { today } from '../lib/data/today.svelte.ts';
@@ -97,10 +100,12 @@
 
   // The jumble's only for somebody who reads the workspace itself (UC-JUM-01 check 7): anybody else
   // would be refused the read, and the refusal recorded on every visit here.
+  /** What waits: the undecided arrivals only - one sorted in or dismissed is decided. */
+  const WAITING = 'NEW';
   const hasJumble = $derived(holdsHere('READ') === true);
   $effect(() => {
     if (!hasJumble) return;
-    return untrack(() => jumble.open());
+    return untrack(() => jumble.open(WAITING));
   });
 
   // Every hub's collections, for their figures: the tree's own reads, so a hub the tree has open
@@ -135,8 +140,17 @@
   const failure = $derived(today.state.status === 'failed' ? renderProblem(today.state.error, messages) : undefined);
   const isLoading = $derived(today.state.status === 'loading' || today.state.status === 'idle' || !areCollectionsSettled);
 
-  const waiting = $derived(jumble.of());
-  const isJumbleLoading = $derived(jumble.stateOf().status === 'loading' || jumble.stateOf().status === 'idle');
+  const waiting = $derived(jumble.of(WAITING));
+  // The jumble's address, for the card while nothing waits and for the first steps (concept
+  // round 2, §1): read once; nothing is drawn where the installation has no receiving domain.
+  $effect(() => {
+    if (hasJumble && manifest.value?.features?.mail_addresses === true) untrack(() => void mailAddresses.load({ kind: 'JUMBLE' }));
+  });
+  const jumbleAddress = $derived.by(() => {
+    const read = mailAddresses.of({ kind: 'JUMBLE' });
+    return read && read !== 'failed' && read.available ? read.address : undefined;
+  });
+  const isJumbleLoading = $derived(jumble.stateOf(WAITING).status === 'loading' || jumble.stateOf(WAITING).status === 'idle');
 
   // What this page ticked, by entry: the search is a walk already made and is not re-read for one
   // entry (as on the search page), so the row shows the answer the completion brought back.
@@ -262,7 +276,7 @@
   const hasCompany = $derived(people.along({}).filter((membership) => membership.scope_type === 'TENANT').length > 1);
 
   /** Whether anything stands beside *On you*: an empty card is not drawn, so the column may be empty. */
-  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && waiting.length > 0) || recents.rows.length > 0);
+  const hasSide = $derived(lists.length > 0 || projects.length > 0 || (hasJumble && (waiting.length > 0 || jumbleAddress !== undefined)) || recents.rows.length > 0);
 
   const moment = $derived(celebration.current);
 
@@ -376,6 +390,12 @@
                   {#if !hasCompany}<Button size="sm" tone="secondary" onclick={() => onnavigate?.('/administration/people')}>{t('app.today.step_invite_act')}</Button>{/if}
                 </li>
               {/if}
+              {#if jumbleAddress}
+                <li data-step-mail>
+                  <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_mail')}</span>
+                  <MailAddressField target={{ kind: 'JUMBLE' }} />
+                </li>
+              {/if}
             </ul>
           {:else if isMineEmpty}
             <!-- An empty card offers the next act, centred (§13, G4). -->
@@ -458,7 +478,7 @@
             <Stack gap="100">
               <div class="head-row">
                 <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
-                <span class="head-count">{t(jumble.moreAfter() ? 'app.today.jumble_waiting_more' : 'app.today.jumble_waiting', { count: waiting.length })}</span>
+                <span class="head-count">{t(jumble.moreAfter(WAITING) ? 'app.today.jumble_waiting_more' : 'app.today.jumble_waiting', { count: waiting.length })}</span>
               </div>
               <ul class="inbox">
                 {#each waiting.slice(0, 3) as arrival (arrival.id)}
@@ -475,7 +495,16 @@
                   </li>
                 {/each}
               </ul>
-              <p class="more"><a href="/jumble">{t(jumble.moreAfter() ? 'app.today.jumble_more_than' : 'app.today.jumble_more', { count: waiting.length })} →</a></p>
+              <p class="more"><a href="/jumble">{t(jumble.moreAfter(WAITING) ? 'app.today.jumble_more_than' : 'app.today.jumble_more', { count: waiting.length })} →</a></p>
+            </Stack>
+          </section>
+        {:else if hasJumble && jumbleAddress && !isNewWorkspace}
+          <!-- Nothing waits: the card says where to send things instead of standing empty. -->
+          <section class="panel" aria-labelledby="today-jumble" data-jumble-address>
+            <Stack gap="100">
+              <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
+              <p class="none">{t('app.today.jumble_none')}</p>
+              <MailAddressField target={{ kind: 'JUMBLE' }} lead={t('app.mail.jumble_lead')} />
             </Stack>
           </section>
         {/if}
@@ -532,7 +561,7 @@
 
   /* The first steps of a new workspace: a checklist, each step's act at its end. */
   .steps { display: grid; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-  .steps li { display: flex; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min); }
+  .steps li { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); min-block-size: var(--density-control-sm-min); }
   .step-mark {
     display: inline-grid;
     place-items: center;

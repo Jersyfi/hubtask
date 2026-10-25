@@ -197,12 +197,18 @@ func (s SMTP) compose(message port.Message) string {
 	var out strings.Builder
 	out.WriteString("From: " + s.config.From + "\r\n")
 	out.WriteString("To: " + message.To + "\r\n")
+	if message.ReplyTo != "" {
+		out.WriteString("Reply-To: " + message.ReplyTo + "\r\n")
+	}
 	out.WriteString("Subject: " + mime.QEncoding.Encode("utf-8", message.Subject) + "\r\n")
 	out.WriteString("MIME-Version: 1.0\r\n")
 	out.WriteString("Content-Type: text/plain; charset=utf-8\r\n")
 	// So that a mail client and an autoresponder both know this is machine-generated: RFC 3834
 	// asks for it, and it is what stops an out-of-office reply bouncing around a notification.
 	out.WriteString("Auto-Submitted: auto-generated\r\n")
+	// Hubtask's own mark, for the intake: a notification that finds its way back is discarded
+	// there rather than becoming a comment that notifies again (ADR-0092 decision 7).
+	out.WriteString(port.NotificationHeader + ": 1\r\n")
 	// A body in most languages is not ASCII, and a body with no transfer encoding declared is
 	// 7-bit by definition (RFC 2045 §6.1) - so a German or Arabic sentence sent as it stands is a
 	// message whose declaration is false, and what a relay does with an undeclared 8-bit byte is
@@ -266,7 +272,8 @@ func validate(message port.Message) error {
 	if strings.TrimSpace(message.To) == "" {
 		return port.ErrRecipientMissing
 	}
-	if containsLineBreak(message.To) || containsLineBreak(message.Subject) {
+	if containsLineBreak(message.To) || containsLineBreak(message.Subject) ||
+		containsLineBreak(message.ReplyTo) {
 		return port.ErrHeaderInjection
 	}
 	return nil

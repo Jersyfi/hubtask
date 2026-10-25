@@ -43,6 +43,9 @@ type Bounded struct {
 // path, which is why this is a contains rather than a suffix.
 const mailIntakePath = "/jumble/mail/"
 
+// addressedMailPath is the receiving domain's door (ADR-0092), bounded as the mail door is.
+const addressedMailPath = "/mail/inbound"
+
 // streamSuffix is the one route with no end of its own: a stream is held open until the client
 // leaves or the process drains, which is the opposite of what a request timeout is for.
 const streamSuffix = "/stream"
@@ -73,8 +76,8 @@ func (b Bounded) limitFor(r *http.Request) int64 {
 	if r.Method == http.MethodPut && strings.HasSuffix(r.URL.Path, mediaContentSuffix) {
 		return b.MaxUploadBytes
 	}
-	if r.Method == http.MethodPost && strings.Contains(r.URL.Path, mailIntakePath) &&
-		b.MaxMailBytes > 0 {
+	if r.Method == http.MethodPost && (strings.Contains(r.URL.Path, mailIntakePath) ||
+		strings.HasSuffix(r.URL.Path, addressedMailPath)) && b.MaxMailBytes > 0 {
 		// Only where one is configured. A zero here falls through to the document bound rather
 		// than to no bound at all: a route that reads a whole request into memory is the last
 		// place a missing configuration value should mean "unbounded" (T-17).

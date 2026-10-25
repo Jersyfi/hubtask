@@ -765,6 +765,15 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
+	// Mail addresses for every place (ADR-0092): the jumble's, a collection's and an entry's, on
+	// the operator's receiving domain. Without HUBTASK_MAIL_INBOUND_DOMAIN they read as unavailable.
+	mailAddressWriter := jumbleservice.MailAddressWriter{
+		Addresses:  postgres.NewMailAddressRepository(),
+		Places:     jumbleservice.MailPlaces{Items: items, Containers: containers},
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
+		Domain: cfg.Mail.InboundDomain,
+	}
 	changes := postgres.NewChangeLog()
 	// The one place a lost read access becomes a record a device can act on: every use case
 	// that ends one says what was removed, and this decides who may no longer read what.
@@ -2044,6 +2053,10 @@ func run() error {
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
 			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
+		jumbleservice.CommentJumbleEntry{Writer: jumbleWriter, Catalogue: ruleCatalogue}.Descriptor(),
+		jumbleservice.ShowMailAddress{Writer: mailAddressWriter}.Descriptor(),
+		jumbleservice.RotateMailAddress{Writer: mailAddressWriter}.Descriptor(),
+		jumbleservice.SetMailSenderPolicy{Writer: mailAddressWriter}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2743,6 +2756,23 @@ func run() error {
 				Clock: clockadapter.System{}, IDs: ids,
 			},
 		}
+		// The receiving domain's door (ADR-0092): the inbound service posts each message with the
+		// installation's key, and it goes to the place its address leads to - as the recognised
+		// sender, through the catalogue, or into the jumble.
+		controller.AddressedMail = intake.AddressedMailIntake{
+			Key: cfg.Mail.InboundKey.Reveal(),
+			Deliveries: jumbleservice.DeliverAddressedMail{
+				Addresses: mailAddressWriter.Addresses, Places: mailAddressWriter.Places,
+				Accounts: accounts, Entries: postgres.NewJumbleRepository(cursors),
+				Media: mediaservice.IngestMedia{
+					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
+					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+					Text: forms,
+				},
+				Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
+			},
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call. The listener is the wake-up; without it the stream still works, at its idle
@@ -3304,6 +3334,8 @@ func run() error {
 			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The role somebody was given, and the hub or collection it is on.
 			Grants: grants, Places: containers,
+			// The entry's own address as Reply-To, so an answer becomes a comment (ADR-0092).
+			Replies: jumbleservice.MailReplies{Writer: mailAddressWriter},
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,

@@ -244,6 +244,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-JUM-06](./jumble/UC-JUM-06-dismiss-what-does-not-need-doing.md) | Dismiss what does not need doing | jumble |
 | [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble |
 | [UC-JUM-08](./jumble/UC-JUM-08-sort-arrivals-automatically-with-a-rule.md) | Sort arrivals automatically with a rule | jumble |
+| [UC-JUM-09](./jumble/UC-JUM-09-mail-straight-into-a-collection-or-an-entry.md) | Mail straight into a collection or an entry | jumble |
+| [UC-JUM-10](./jumble/UC-JUM-10-answer-a-notification-by-mail.md) | Answer a notification by mail | jumble |
 | [UC-AUT-01](./automation/UC-AUT-01-write-a-rule-and-switch-it-on.md) | Write a rule and switch it on | automation |
 | [UC-AUT-02](./automation/UC-AUT-02-try-a-rule-before-it-acts.md) | Try a rule before it acts | automation |
 | [UC-AUT-03](./automation/UC-AUT-03-run-a-rule-on-demand.md) | Run a rule when I press a button | automation |

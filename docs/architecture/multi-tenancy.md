@@ -79,6 +79,7 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | Function | Answers | Used by |
 |---|---|---|
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Sign-in before a credential exists (§3) |
+| `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
 | `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |

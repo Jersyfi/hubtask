@@ -363,6 +363,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `jumble.entry_converted` | CommentJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.entry_converted` | ConvertJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.entry_dismissed` | DismissJumbleEntry | `jumble_entry` | INFO | Every time |
 | `jumble.entry_read` | GetJumbleEntry | `jumble_entry` | INFO | When refused |
@@ -378,6 +379,14 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `kudos.given` | GiveKudos | `item` | INFO | When refused |
 | `kudos.read` | ReadKudos | `item` | INFO | When refused |
 | `kudos.taken_back` | TakeBackKudos | `item` | INFO | When refused |
+
+## Mail
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `mail.address_rotated` | RotateMailAddress | `mail_address` | WARNING | Every time |
+| `mail.address_shown` | ShowMailAddress | `mail_address` | NOTICE | Every time |
+| `mail.sender_policy_changed` | SetMailSenderPolicy | `mail_address` | WARNING | Every time |
 
 ## Oauth
 

@@ -68,3 +68,27 @@ type Intake interface {
 	// minted one.
 	RotatedAt(ctx context.Context) (time.Time, error)
 }
+
+// MailAddresses are the places' addresses on the receiving domain (ADR-0092).
+type MailAddresses interface {
+	// TenantOf answers the tenant whose live address has this code, or ErrNotFound. The one call
+	// made before a tenant is known - in the installation scope, through the narrow door.
+	TenantOf(ctx context.Context, code string) (shared.ID, error)
+
+	// Live answers the place's live address, or ErrNotFound for a place that has none yet.
+	Live(ctx context.Context, target domain.MailTarget) (domain.MailAddress, error)
+
+	// ByCode answers the live address with this code, or ErrNotFound.
+	ByCode(ctx context.Context, code string) (domain.MailAddress, error)
+
+	// Replace revokes the place's live address, if any, and stores this one. Called inside one
+	// transaction, so the old and the new never both answer.
+	Replace(ctx context.Context, address domain.MailAddress, at time.Time) error
+
+	// SetPolicy writes who may send. ErrNotFound for an address that was revoked meanwhile.
+	SetPolicy(ctx context.Context, address domain.MailAddress) error
+
+	// CountDelivery counts one delivery in the address's hour and answers how many that hour has
+	// now taken.
+	CountDelivery(ctx context.Context, id shared.ID, now time.Time) (int, error)
+}

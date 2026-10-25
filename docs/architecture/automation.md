@@ -532,3 +532,26 @@ bridge. A future transport would be **JMAP**, not a stateful session protocol.
 **The parser is transport-independent**: bytes in; sender, subject, text and attachments out. The
 use case behind it knows nothing about MIME, so a second transport is only a producer of bytes and a
 source of a tenant.
+
+### 5.1 Addresses for every place
+
+The jumble, every collection and every entry can have an address on the installation's receiving
+domain ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)): `<label>.<code>@<domain>`,
+the code 16 random characters of lowercase base32, the label decoration. The operator sets
+`HUBTASK_MAIL_INBOUND_DOMAIN` and `HUBTASK_MAIL_INBOUND_KEY`; the inbound service posts each raw
+message to `POST /mail/inbound` with the key as bearer token or basic password, and the recipient
+as `?recipient=` or in `X-Original-To`, `Delivered-To`, `To` or `Cc`.
+
+| Address of | Sender recognised and allowed | Otherwise (`MEMBERS`) | Otherwise (`ANYONE`) |
+|---|---|---|---|
+| the jumble | a jumble entry | a jumble entry | a jumble entry |
+| a collection | an entry by the sender: subject → title, text → description, files → attachments | a jumble entry addressed to the collection | an entry by the account that opened the address, headed *From:* |
+| an entry | a comment by the sender, files on the entry | a jumble entry addressed to the entry | a comment by the account that opened the address, headed *From:* |
+
+*Recognised*: an active person account of the workspace has the sender's address, and the inbound
+service reported neither SPF nor DMARC as failed. *Allowed*: the sender's own rights permit the act;
+it goes through `CreateWorkItem`, `AddComment` and `AttachMedia` as that person. A message marked
+as spam always lands in the jumble. A collection or entry that is archived or in the trash answers
+not-found. `Auto-Submitted` other than `no`, or the notification header Hubtask sets on its own
+mail, is accepted and discarded; an address takes 60 deliveries an hour, then 429. A notification
+about an entry carries the entry's address as `Reply-To`.

@@ -1067,6 +1067,8 @@ type JumbleEntry struct {
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
 	CreatedBy    pgtype.UUID
+	MeantForKind *string
+	MeantForID   pgtype.UUID
 }
 
 type JumbleIntake struct {
@@ -1105,6 +1107,21 @@ type LegalHold struct {
 	ReleasedBy     pgtype.UUID
 	ReleasedAt     pgtype.Timestamptz
 	ReleasedReason *string
+}
+
+type MailAddress struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	TargetKind   string
+	TargetID     pgtype.UUID
+	Code         string
+	SenderPolicy string
+	OpenedBy     pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	RevokedAt    pgtype.Timestamptz
+	WindowStart  pgtype.Timestamptz
+	WindowCount  int32
 }
 
 type MediaObject struct {

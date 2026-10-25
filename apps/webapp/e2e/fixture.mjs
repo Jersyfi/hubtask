@@ -1241,6 +1241,8 @@ export function fallback(route, request, path) {
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
+  // No receiving domain unless a walk says otherwise (ADR-0092).
+  if (read === '/mail/addresses') return route.fulfill({ json: { available: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });

@@ -1979,7 +1979,37 @@ class JumbleEntry(TypedDict, total=False):
     target_item_id: str | None
     received_at: Required[str]
     settled_at: str | None
+    meant_for_kind: Literal["COLLECTION", "ITEM"]
+    meant_for_id: str
     arrival_job_id: str | None
+
+class JumbleEntryComment(TypedDict, total=False):
+    item_id: str
+
+class MailAddressTarget(TypedDict, total=False):
+    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
+    target_id: str
+
+class MailSenderPolicyChange(TypedDict, total=False):
+    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
+    target_id: str
+    sender_policy: Required[Literal["MEMBERS", "ANYONE"]]
+
+class MailAddress(TypedDict, total=False):
+    """A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well."""
+    available: Required[bool]
+    address: str
+    target_kind: Literal["JUMBLE", "COLLECTION", "ITEM"]
+    target_id: str
+    sender_policy: Literal["MEMBERS", "ANYONE"]
+    opened_by: str
+    created_at: str
+
+class MailDelivered(TypedDict, total=False):
+    outcome: Required[Literal["JUMBLE_ENTRY", "ENTRY", "COMMENT", "DISCARDED"]]
+    entry_id: str
+    item_id: str
+    comment_id: str
 
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""

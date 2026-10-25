@@ -61,6 +61,7 @@ func serveAuthenticated(
 	mux := NewMux()
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/meta/capabilities", func(http.ResponseWriter, *http.Request) {})
 	mux.HandleFunc(http.MethodGet+" "+APIBasePath+"/containers", func(http.ResponseWriter, *http.Request) {})
+	mux.HandleFunc(http.MethodPost+" "+APIBasePath+"/mail/inbound", func(http.ResponseWriter, *http.Request) {})
 	// The CalDAV tree beside the routes, as main.go mounts it: the one place Basic is taken.
 	routes := Mounted{Router: mux, Path: calendar.Prefix, Prefix: true,
 		Mount: http.HandlerFunc(func(http.ResponseWriter, *http.Request) {})}
@@ -461,5 +462,20 @@ func TestTheCalDavDiscoveryAddressNeedsNoCredentialAndTakesBasic(t *testing.T) {
 	response, _, reached = serveAuthenticated(t, &authenticator{err: shared.ErrUnauthenticated.WithDetail("access.token_unknown")}, wrong)
 	if reached || response.Code != http.StatusUnauthorized || !strings.HasPrefix(response.Header().Get("WWW-Authenticate"), "Basic ") {
 		t.Errorf("a refused Basic credential is a Basic challenge here too: %d %q", response.Code, response.Header().Get("WWW-Authenticate"))
+	}
+}
+
+// The receiving domain's inbound key travels in the Authorization header and is no account's: the
+// middleware leaves it to the route, which compares it itself (ADR-0092).
+func TestTheInboundKeyIsLeftToItsRoute(t *testing.T) {
+	auth := &authenticator{}
+	inbound := httptest.NewRequestWithContext(t.Context(), http.MethodPost, APIBasePath+"/mail/inbound", nil)
+	inbound.Header.Set("Authorization", "Bearer the-installation-inbound-key")
+
+	response, actor, reached := serveAuthenticated(t, auth, inbound)
+
+	if !reached || auth.calls != 0 || actor.IsAuthenticated() {
+		t.Errorf("reached %t, authentication asked %d times, actor %+v, status %d",
+			reached, auth.calls, actor, response.Code)
 	}
 }

@@ -74,6 +74,8 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { copyPlaceAddress } from '../lib/data/mailaddress.svelte.ts';
+  import MailAddressField from '../lib/mail/MailAddressField.svelte';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -833,7 +835,7 @@
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
+      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, hasMail: manifest.value?.features?.mail_addresses === true }, (code) => t(code)),
   );
 
   /**
@@ -878,7 +880,9 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'settings') openStructure('general');
+    if (id === 'mail' && container) {
+      void copyPlaceAddress({ kind: 'COLLECTION', id: container.id }, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
+    } else if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;
@@ -1120,6 +1124,14 @@
       {:else}
         {#snippet generalTab()}
           <ContainerEditDialog isEmbedded isOpen {container} />
+          <!-- The collection's mail address, with who may send and *New address* (ADR-0092 M1-M3). -->
+          {#if container.type === 'COLLECTION'}
+            <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
+              <h2 class="mail-head" id="mail-settings-head">{t('app.mail.section')}</h2>
+              <p class="mail-hint">{t('app.mail.section_hint')}</p>
+              <MailAddressField target={{ kind: 'COLLECTION', id: container.id }} shape="panel" mayShape={mayShape} />
+            </section>
+          {/if}
         {/snippet}
         {#snippet labelsTab()}
           <LabelsDialog isEmbedded isOpen collectionId={container.id} />
@@ -1613,4 +1625,16 @@
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
+
+  .mail-settings {
+    display: grid;
+    gap: var(--sp-100);
+    margin-block-start: var(--sp-400);
+    padding-block-start: var(--sp-300);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  .mail-head { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+
+  .mail-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

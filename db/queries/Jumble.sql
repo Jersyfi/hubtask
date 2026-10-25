@@ -6,11 +6,13 @@
 
 -- name: InsertJumbleEntry :exec
 INSERT INTO jumble_entry (
-  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at, created_by
+  id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at, created_by,
+  meant_for_kind, meant_for_id
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('channel'), sqlc.narg('sender'),
   sqlc.narg('raw_subject'), sqlc.narg('raw_body'), sqlc.arg('attachments'),
-  sqlc.arg('status'), sqlc.arg('received_at'), sqlc.narg('created_by')
+  sqlc.arg('status'), sqlc.arg('received_at'), sqlc.narg('created_by'),
+  sqlc.narg('meant_for_kind'), sqlc.narg('meant_for_id')
 );
 
 -- name: FindJumbleEntry :one
@@ -18,6 +20,7 @@ INSERT INTO jumble_entry (
 -- the events a settlement announces are built from the projection. arrival_job_id as there.
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
        e.target_item_id, e.received_at, e.processed_at, e.created_by,
+       e.meant_for_kind, e.meant_for_id,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -42,6 +45,7 @@ WHERE e.id = sqlc.arg('id');
 -- and named in the workspace's own scope: the table has no row level security.
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
        e.target_item_id, e.received_at, e.processed_at, e.created_by,
+       e.meant_for_kind, e.meant_for_id,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -114,3 +118,53 @@ SELECT count(*) FROM (
   WHERE expired.status <> 'PROCESSED' AND expired.received_at < sqlc.arg('cutoff')
   LIMIT sqlc.arg('ceiling')
 ) AS due;
+
+-- Mail addresses (ADR-0092). The tenant is never a parameter here either, with one exception:
+-- ResolveMailAddress, the inbound route's question before it has a tenant.
+
+-- name: ResolveMailAddress :one
+SELECT resolve_mail_address(sqlc.arg('code'))::uuid AS tenant_id;
+
+-- name: FindLiveMailAddress :one
+SELECT id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
+FROM mail_address
+WHERE target_kind = sqlc.arg('target_kind')
+  AND target_id IS NOT DISTINCT FROM sqlc.narg('target_id')::uuid
+  AND revoked_at IS NULL;
+
+-- name: FindMailAddressByCode :one
+SELECT id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
+FROM mail_address
+WHERE code = lower(sqlc.arg('code')) AND revoked_at IS NULL;
+
+-- name: RevokeMailAddress :exec
+-- Replacing an address is this and the insert below in one transaction: the live index refuses
+-- a second live row, so the old one is revoked first.
+UPDATE mail_address SET revoked_at = sqlc.arg('revoked_at')
+WHERE target_kind = sqlc.arg('target_kind')
+  AND target_id IS NOT DISTINCT FROM sqlc.narg('target_id')::uuid
+  AND revoked_at IS NULL;
+
+-- name: InsertMailAddress :exec
+INSERT INTO mail_address (
+  id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('target_kind'), sqlc.narg('target_id'),
+  sqlc.arg('code'), sqlc.arg('sender_policy'), sqlc.narg('opened_by'), sqlc.narg('created_by'),
+  sqlc.arg('created_at')
+);
+
+-- name: SetMailAddressPolicy :execrows
+UPDATE mail_address
+SET sender_policy = sqlc.arg('sender_policy'), opened_by = sqlc.narg('opened_by')
+WHERE id = sqlc.arg('id') AND revoked_at IS NULL;
+
+-- name: CountMailDelivery :one
+-- One statement, so two deliveries racing both count: the hour starts again once it is over.
+UPDATE mail_address
+SET window_start = CASE WHEN window_start IS NULL OR window_start <= sqlc.arg('now')::timestamptz - interval '1 hour'
+                        THEN sqlc.arg('now')::timestamptz ELSE window_start END,
+    window_count = CASE WHEN window_start IS NULL OR window_start <= sqlc.arg('now')::timestamptz - interval '1 hour'
+                        THEN 1 ELSE window_count + 1 END
+WHERE id = sqlc.arg('id')
+RETURNING window_count;

@@ -106,8 +106,12 @@ type DeliverNotification struct {
 	// Grants and Places name the role somebody was given: the grant, and the hub or collection it
 	// is on (an entry is read through Items). Grants nil leaves the role out of the message - the
 	// membership's withheld sentence; Places nil leaves the place's name out.
-	Grants     GrantReader
-	Places     PlaceReader
+	Grants GrantReader
+	Places PlaceReader
+	// Replies answers the address of the entry a message is about, so an answer by mail becomes a
+	// comment there (ADR-0092 decision 8). Optional: nil, or an installation without a receiving
+	// domain, sends no Reply-To.
+	Replies    ReplyAddresses
 	Mail       mail.Sender
 	Renderer   i18n.Renderer
 	UnitOfWork persistence.UnitOfWork
@@ -416,7 +420,8 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 		params["place"] = d.Renderer.Render(locale, message.PlaceCode, nil)
 	}
 	return d.Mail.Send(ctx, mail.Message{
-		To: loaded.recipient.address,
+		ReplyTo: d.replyTo(ctx, loaded.record),
+		To:      loaded.recipient.address,
 		// The recipient's locale, never the actor's (i18n-l10n.md §1). The port takes it as an
 		// argument for exactly this reason: there is no call that can forget it.
 		Subject: d.Renderer.Render(locale, message.SubjectCode, params),
@@ -633,4 +638,28 @@ func inZone(at time.Time, zone string) string {
 		}
 	}
 	return at.In(location).Format(emergencyTimeLayout) + " (" + location.String() + ")"
+}
+
+// ReplyAddresses answers an entry's mail address, minting it where it has none. Empty where the
+// installation receives no mail at addresses.
+type ReplyAddresses interface {
+	ReplyAddress(ctx context.Context, tenantID, itemID shared.ID) (string, error)
+}
+
+// replyTo is the entry's address for a message about one entry, and nothing otherwise. A failure
+// to read it costs the Reply-To and never the message.
+func (d DeliverNotification) replyTo(ctx context.Context, record domain.Notification) string {
+	if d.Replies == nil || record.ItemID.IsZero() {
+		return ""
+	}
+	switch record.Category {
+	case domain.CategoryAssignment, domain.CategoryComment, domain.CategoryReminder:
+	default:
+		return ""
+	}
+	address, err := d.Replies.ReplyAddress(ctx, record.TenantID, record.ItemID)
+	if err != nil {
+		return ""
+	}
+	return address
 }

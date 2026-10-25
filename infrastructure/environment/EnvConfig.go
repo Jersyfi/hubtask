@@ -80,6 +80,8 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			From:     get("HUBTASK_SMTP_FROM", ""),
 			Security: env.MailSecurity(strings.ToLower(get("HUBTASK_SMTP_SECURITY", string(env.MailSecurityStartTLS)))),
 			Timeout:  getDuration("HUBTASK_SMTP_TIMEOUT", 10*time.Second),
+			// Lowercase, as every address on it is compared.
+			InboundDomain: strings.ToLower(strings.TrimSpace(get("HUBTASK_MAIL_INBOUND_DOMAIN", ""))),
 		},
 		AI: env.AIConfig{
 			// False unless the operator says otherwise, and said in the environment rather than
@@ -222,11 +224,12 @@ func (e *EnvConfig) Load() (env.Config, error) {
 	// Secrets: also available as *_FILE, so that Docker and Kubernetes secrets can be used
 	// without the detour through environment variables.
 	secrets := map[string]*secret.Secret{
-		"HUBTASK_DB_DSN":        &cfg.Database.DSN,
-		"HUBTASK_SECRET_KEY":    &cfg.SecretKey,
-		"HUBTASK_S3_ACCESS_KEY": &cfg.Storage.AccessKey,
-		"HUBTASK_S3_SECRET_KEY": &cfg.Storage.SecretKey,
-		"HUBTASK_SMTP_PASSWORD": &cfg.Mail.Password,
+		"HUBTASK_DB_DSN":           &cfg.Database.DSN,
+		"HUBTASK_SECRET_KEY":       &cfg.SecretKey,
+		"HUBTASK_S3_ACCESS_KEY":    &cfg.Storage.AccessKey,
+		"HUBTASK_S3_SECRET_KEY":    &cfg.Storage.SecretKey,
+		"HUBTASK_SMTP_PASSWORD":    &cfg.Mail.Password,
+		"HUBTASK_MAIL_INBOUND_KEY": &cfg.Mail.InboundKey,
 	}
 	for key, target := range secrets {
 		value, err := getSecret(key)

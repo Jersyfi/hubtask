@@ -216,6 +216,32 @@ export class HubtaskClient {
     return this.call("POST", "/jumble/entries/{entryId}:dismiss", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Settle an entry as a comment on an entry */
+  commentJumbleEntry(entryId: string, body: NonNullable<operations["commentJumbleEntry"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["commentJumbleEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/jumble/entries/{entryId}:comment", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The address a place takes mail at */
+  showMailAddress(options: CallOptions & { readonly query?: NonNullable<operations["showMailAddress"]['parameters']['query']> } = {}): Promise<operations["showMailAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/addresses", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a place's mail address */
+  rotateMailAddress(body: NonNullable<operations["rotateMailAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["rotateMailAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/addresses:rotate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set who may write into a place by mail */
+  setMailSenderPolicy(body: NonNullable<operations["setMailSenderPolicy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["setMailSenderPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/addresses:set-sender-policy", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Deliver a mail to an address on the receiving domain
+   * Public: sent without a bearer where the client holds none. */
+  deliverAddressedMail(body: BodyInit, options: CallOptions & { readonly query?: NonNullable<operations["deliverAddressedMail"]['parameters']['query']> } = {}): Promise<operations["deliverAddressedMail"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/mail/inbound", {  }, options.query, {  }, body, "raw", "message/rfc822", "json", options.signal);
+  }
+
   /** The workspace's automation rules */
   listRules(options: CallOptions & { readonly query?: NonNullable<operations["listRules"]['parameters']['query']> } = {}): Promise<operations["listRules"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/automation/rules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

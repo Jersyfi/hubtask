@@ -2538,6 +2538,24 @@ func (e JumbleEntryChannel) Valid() bool {
 	}
 }
 
+// Defines values for JumbleEntryMeantForKind.
+const (
+	JumbleEntryMeantForKindCOLLECTION JumbleEntryMeantForKind = "COLLECTION"
+	JumbleEntryMeantForKindITEM       JumbleEntryMeantForKind = "ITEM"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryMeantForKind enum.
+func (e JumbleEntryMeantForKind) Valid() bool {
+	switch e {
+	case JumbleEntryMeantForKindCOLLECTION:
+		return true
+	case JumbleEntryMeantForKindITEM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for JumbleEntryStatus.
 const (
 	JumbleEntryStatusDISMISSED JumbleEntryStatus = "DISMISSED"
@@ -2700,6 +2718,129 @@ func (e LegalLinksTermsSetBy) Valid() bool {
 	case LegalLinksTermsSetByINSTALLATION:
 		return true
 	case LegalLinksTermsSetByWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressSenderPolicy.
+const (
+	MailAddressSenderPolicyANYONE  MailAddressSenderPolicy = "ANYONE"
+	MailAddressSenderPolicyMEMBERS MailAddressSenderPolicy = "MEMBERS"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressSenderPolicy enum.
+func (e MailAddressSenderPolicy) Valid() bool {
+	switch e {
+	case MailAddressSenderPolicyANYONE:
+		return true
+	case MailAddressSenderPolicyMEMBERS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressTargetKind.
+const (
+	MailAddressTargetKindCOLLECTION MailAddressTargetKind = "COLLECTION"
+	MailAddressTargetKindITEM       MailAddressTargetKind = "ITEM"
+	MailAddressTargetKindJUMBLE     MailAddressTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressTargetKind enum.
+func (e MailAddressTargetKind) Valid() bool {
+	switch e {
+	case MailAddressTargetKindCOLLECTION:
+		return true
+	case MailAddressTargetKindITEM:
+		return true
+	case MailAddressTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressTargetTargetKind.
+const (
+	MailAddressTargetTargetKindCOLLECTION MailAddressTargetTargetKind = "COLLECTION"
+	MailAddressTargetTargetKindITEM       MailAddressTargetTargetKind = "ITEM"
+	MailAddressTargetTargetKindJUMBLE     MailAddressTargetTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressTargetTargetKind enum.
+func (e MailAddressTargetTargetKind) Valid() bool {
+	switch e {
+	case MailAddressTargetTargetKindCOLLECTION:
+		return true
+	case MailAddressTargetTargetKindITEM:
+		return true
+	case MailAddressTargetTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailDeliveredOutcome.
+const (
+	MailDeliveredOutcomeCOMMENT     MailDeliveredOutcome = "COMMENT"
+	MailDeliveredOutcomeDISCARDED   MailDeliveredOutcome = "DISCARDED"
+	MailDeliveredOutcomeENTRY       MailDeliveredOutcome = "ENTRY"
+	MailDeliveredOutcomeJUMBLEENTRY MailDeliveredOutcome = "JUMBLE_ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the MailDeliveredOutcome enum.
+func (e MailDeliveredOutcome) Valid() bool {
+	switch e {
+	case MailDeliveredOutcomeCOMMENT:
+		return true
+	case MailDeliveredOutcomeDISCARDED:
+		return true
+	case MailDeliveredOutcomeENTRY:
+		return true
+	case MailDeliveredOutcomeJUMBLEENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailSenderPolicyChangeSenderPolicy.
+const (
+	MailSenderPolicyChangeSenderPolicyANYONE  MailSenderPolicyChangeSenderPolicy = "ANYONE"
+	MailSenderPolicyChangeSenderPolicyMEMBERS MailSenderPolicyChangeSenderPolicy = "MEMBERS"
+)
+
+// Valid indicates whether the value is a known member of the MailSenderPolicyChangeSenderPolicy enum.
+func (e MailSenderPolicyChangeSenderPolicy) Valid() bool {
+	switch e {
+	case MailSenderPolicyChangeSenderPolicyANYONE:
+		return true
+	case MailSenderPolicyChangeSenderPolicyMEMBERS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailSenderPolicyChangeTargetKind.
+const (
+	MailSenderPolicyChangeTargetKindCOLLECTION MailSenderPolicyChangeTargetKind = "COLLECTION"
+	MailSenderPolicyChangeTargetKindITEM       MailSenderPolicyChangeTargetKind = "ITEM"
+	MailSenderPolicyChangeTargetKindJUMBLE     MailSenderPolicyChangeTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailSenderPolicyChangeTargetKind enum.
+func (e MailSenderPolicyChangeTargetKind) Valid() bool {
+	switch e {
+	case MailSenderPolicyChangeTargetKindCOLLECTION:
+		return true
+	case MailSenderPolicyChangeTargetKindITEM:
+		return true
+	case MailSenderPolicyChangeTargetKindJUMBLE:
 		return true
 	default:
 		return false
@@ -5553,6 +5694,27 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
+// Defines values for ShowMailAddressParamsTargetKind.
+const (
+	ShowMailAddressParamsTargetKindCOLLECTION ShowMailAddressParamsTargetKind = "COLLECTION"
+	ShowMailAddressParamsTargetKindITEM       ShowMailAddressParamsTargetKind = "ITEM"
+	ShowMailAddressParamsTargetKindJUMBLE     ShowMailAddressParamsTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the ShowMailAddressParamsTargetKind enum.
+func (e ShowMailAddressParamsTargetKind) Valid() bool {
+	switch e {
+	case ShowMailAddressParamsTargetKindCOLLECTION:
+		return true
+	case ShowMailAddressParamsTargetKindITEM:
+		return true
+	case ShowMailAddressParamsTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
 type AcceptedSuggestion struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -6830,7 +6992,7 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open` and `mail_addresses` (a receiving domain is set, so places have mail addresses).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
@@ -8607,9 +8769,13 @@ type JumbleEntry struct {
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`
 	Id          openapi_types.UUID   `json:"id"`
-	RawBody     *string              `json:"raw_body,omitempty"`
-	RawSubject  *string              `json:"raw_subject,omitempty"`
-	ReceivedAt  time.Time            `json:"received_at"`
+	MeantForId  *openapi_types.UUID  `json:"meant_for_id,omitempty"`
+
+	// MeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+	MeantForKind *JumbleEntryMeantForKind `json:"meant_for_kind,omitempty"`
+	RawBody      *string                  `json:"raw_body,omitempty"`
+	RawSubject   *string                  `json:"raw_subject,omitempty"`
+	ReceivedAt   time.Time                `json:"received_at"`
 
 	// Sender Who the transport says it came from. Data, never an identity: a From header authenticates nothing - the intake token does.
 	Sender *string `json:"sender,omitempty"`
@@ -8627,8 +8793,17 @@ type JumbleEntry struct {
 // JumbleEntryChannel defines model for JumbleEntry.Channel.
 type JumbleEntryChannel string
 
+// JumbleEntryMeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+type JumbleEntryMeantForKind string
+
 // JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
 type JumbleEntryStatus string
+
+// JumbleEntryComment defines model for JumbleEntryComment.
+type JumbleEntryComment struct {
+	// ItemId The entry to comment on. Defaults to the one the mail was meant for.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
 
 // JumbleEntryConvert Where the entry becomes work, and what the item is called.
 type JumbleEntryConvert struct {
@@ -8911,6 +9086,65 @@ type Lookalike struct {
 type LookalikePage struct {
 	Items []Lookalike `json:"items"`
 }
+
+// MailAddress A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well.
+type MailAddress struct {
+	Address *string `json:"address,omitempty"`
+
+	// Available False where the installation has no receiving domain; nothing else is set then.
+	Available bool       `json:"available"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// OpenedBy Who opened the address to anyone; their rights bound such mail.
+	OpenedBy     *openapi_types.UUID      `json:"opened_by,omitempty"`
+	SenderPolicy *MailAddressSenderPolicy `json:"sender_policy,omitempty"`
+	TargetId     *openapi_types.UUID      `json:"target_id,omitempty"`
+	TargetKind   *MailAddressTargetKind   `json:"target_kind,omitempty"`
+}
+
+// MailAddressSenderPolicy defines model for MailAddress.SenderPolicy.
+type MailAddressSenderPolicy string
+
+// MailAddressTargetKind defines model for MailAddress.TargetKind.
+type MailAddressTargetKind string
+
+// MailAddressTarget defines model for MailAddressTarget.
+type MailAddressTarget struct {
+	// TargetId The collection or the entry; absent for the jumble.
+	TargetId   *openapi_types.UUID         `json:"target_id,omitempty"`
+	TargetKind MailAddressTargetTargetKind `json:"target_kind"`
+}
+
+// MailAddressTargetTargetKind defines model for MailAddressTarget.TargetKind.
+type MailAddressTargetTargetKind string
+
+// MailDelivered defines model for MailDelivered.
+type MailDelivered struct {
+	CommentId *openapi_types.UUID `json:"comment_id,omitempty"`
+
+	// EntryId The jumble entry.
+	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
+
+	// ItemId The entry created or commented on.
+	ItemId  *openapi_types.UUID  `json:"item_id,omitempty"`
+	Outcome MailDeliveredOutcome `json:"outcome"`
+}
+
+// MailDeliveredOutcome defines model for MailDelivered.Outcome.
+type MailDeliveredOutcome string
+
+// MailSenderPolicyChange defines model for MailSenderPolicyChange.
+type MailSenderPolicyChange struct {
+	SenderPolicy MailSenderPolicyChangeSenderPolicy `json:"sender_policy"`
+	TargetId     *openapi_types.UUID                `json:"target_id,omitempty"`
+	TargetKind   MailSenderPolicyChangeTargetKind   `json:"target_kind"`
+}
+
+// MailSenderPolicyChangeSenderPolicy defines model for MailSenderPolicyChange.SenderPolicy.
+type MailSenderPolicyChangeSenderPolicy string
+
+// MailSenderPolicyChangeTargetKind defines model for MailSenderPolicyChange.TargetKind.
+type MailSenderPolicyChangeTargetKind string
 
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
@@ -13765,6 +13999,12 @@ type SubmitJumbleEntryParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// CommentJumbleEntryParams defines parameters for CommentJumbleEntry.
+type CommentJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
 type ConvertJumbleEntryParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13792,6 +14032,41 @@ type RotateJumbleIntakeParams struct {
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
+}
+
+// ShowMailAddressParams defines parameters for ShowMailAddress.
+type ShowMailAddressParams struct {
+	TargetKind ShowMailAddressParamsTargetKind `form:"target_kind" json:"target_kind"`
+
+	// TargetId The collection or the entry; absent for the jumble.
+	TargetId *openapi_types.UUID `form:"target_id,omitempty" json:"target_id,omitempty"`
+}
+
+// ShowMailAddressParamsTargetKind defines parameters for ShowMailAddress.
+type ShowMailAddressParamsTargetKind string
+
+// RotateMailAddressParams defines parameters for RotateMailAddress.
+type RotateMailAddressParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// SetMailSenderPolicyParams defines parameters for SetMailSenderPolicy.
+type SetMailSenderPolicyParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeliverAddressedMailMultipartBody defines parameters for DeliverAddressedMail.
+type DeliverAddressedMailMultipartBody struct {
+	BodyMime  *string `json:"body-mime,omitempty"`
+	Recipient *string `json:"recipient,omitempty"`
+}
+
+// DeliverAddressedMailParams defines parameters for DeliverAddressedMail.
+type DeliverAddressedMailParams struct {
+	// Recipient The envelope recipient, where the inbound service passes it.
+	Recipient *string `form:"recipient,omitempty" json:"recipient,omitempty"`
 }
 
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
@@ -14444,6 +14719,9 @@ type QueryItemsJSONRequestBody = ItemQuery
 // SubmitJumbleEntryJSONRequestBody defines body for SubmitJumbleEntry for application/json ContentType.
 type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
 
+// CommentJumbleEntryJSONRequestBody defines body for CommentJumbleEntry for application/json ContentType.
+type CommentJumbleEntryJSONRequestBody = JumbleEntryComment
+
 // ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
 type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
 
@@ -14455,6 +14733,15 @@ type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
 
 // ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
 type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
+
+// RotateMailAddressJSONRequestBody defines body for RotateMailAddress for application/json ContentType.
+type RotateMailAddressJSONRequestBody = MailAddressTarget
+
+// SetMailSenderPolicyJSONRequestBody defines body for SetMailSenderPolicy for application/json ContentType.
+type SetMailSenderPolicyJSONRequestBody = MailSenderPolicyChange
+
+// DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
+type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
@@ -18594,6 +18881,24 @@ type ClientInterface interface {
 	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
 	GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// CommentJumbleEntryWithBody Settle an entry as a comment on an entry
+	//
+	// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+	CommentJumbleEntryWithBody(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CommentJumbleEntry Settle an entry as a comment on an entry
+	//
+	// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+	CommentJumbleEntry(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, body CommentJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ConvertJumbleEntryWithBody Turn an entry into work
 	//
 	// Creates a work item at the named destination - through the same use case a plain create goes through, with the same rights checked there - records the provenance on both sides (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of the same entry is refused, and two racing produce one item and one refusal.
@@ -18724,6 +19029,59 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /legal-holds/{holdId}:release (the `ReleaseLegalHold` operationId).
 	ReleaseLegalHold(ctx context.Context, holdId openapi_types.UUID, body ReleaseLegalHoldJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShowMailAddress The address a place takes mail at
+	//
+	// The jumble's, a collection's or an entry's address on the installation's receiving domain, minted on the first read. `available` is false where the installation has no receiving domain - the places then show a hint for administrators instead.
+	//
+	// Corresponds with GET /mail/addresses (the `ShowMailAddress` operationId).
+	ShowMailAddress(ctx context.Context, params *ShowMailAddressParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RotateMailAddressWithBody Replace a place's mail address
+	//
+	// The old address answers not-found from the same instant; who may send stays as it was.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+	RotateMailAddressWithBody(ctx context.Context, params *RotateMailAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RotateMailAddress Replace a place's mail address
+	//
+	// The old address answers not-found from the same instant; who may send stays as it was.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+	RotateMailAddress(ctx context.Context, params *RotateMailAddressParams, body RotateMailAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetMailSenderPolicyWithBody Set who may write into a place by mail
+	//
+	// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+	SetMailSenderPolicyWithBody(ctx context.Context, params *SetMailSenderPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetMailSenderPolicy Set who may write into a place by mail
+	//
+	// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+	SetMailSenderPolicy(ctx context.Context, params *SetMailSenderPolicyParams, body SetMailSenderPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeliverAddressedMailWithBody Deliver a mail to an address on the receiving domain
+	//
+	// The installation's one inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`, `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.
+	// A recognised sender's mail becomes an entry in a collection or a comment on an entry, written as that person; anything not clearly allowed waits in the jumble, meant for the place. A message a machine sent on its own is accepted and discarded. An unknown, replaced or closed address answers `404`; an address past its hourly bound answers `429`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
+	DeliverAddressedMailWithBody(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RequestMediaUploadWithBody performs a POST /media (the `RequestMediaUpload` operationId) request,
 	// with any type of body and a specified content type.
@@ -28095,6 +28453,44 @@ func (c *Client) GetJumbleEntry(ctx context.Context, entryId openapi_types.UUID,
 	return c.Client.Do(req)
 }
 
+// CommentJumbleEntryWithBody Settle an entry as a comment on an entry
+//
+// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+func (c *Client) CommentJumbleEntryWithBody(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCommentJumbleEntryRequestWithBody(c.Server, entryId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CommentJumbleEntry Settle an entry as a comment on an entry
+//
+// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+func (c *Client) CommentJumbleEntry(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, body CommentJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCommentJumbleEntryRequest(c.Server, entryId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ConvertJumbleEntryWithBody Turn an entry into work
 //
 // Creates a work item at the named destination - through the same use case a plain create goes through, with the same rights checked there - records the provenance on both sides (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of the same entry is refused, and two racing produce one item and one refusal.
@@ -28346,6 +28742,119 @@ func (c *Client) ReleaseLegalHoldWithBody(ctx context.Context, holdId openapi_ty
 // Corresponds with POST /legal-holds/{holdId}:release (the `ReleaseLegalHold` operationId).
 func (c *Client) ReleaseLegalHold(ctx context.Context, holdId openapi_types.UUID, body ReleaseLegalHoldJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReleaseLegalHoldRequest(c.Server, holdId, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShowMailAddress The address a place takes mail at
+//
+// The jumble's, a collection's or an entry's address on the installation's receiving domain, minted on the first read. `available` is false where the installation has no receiving domain - the places then show a hint for administrators instead.
+//
+// Corresponds with GET /mail/addresses (the `ShowMailAddress` operationId).
+func (c *Client) ShowMailAddress(ctx context.Context, params *ShowMailAddressParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShowMailAddressRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RotateMailAddressWithBody Replace a place's mail address
+//
+// The old address answers not-found from the same instant; who may send stays as it was.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+func (c *Client) RotateMailAddressWithBody(ctx context.Context, params *RotateMailAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRotateMailAddressRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RotateMailAddress Replace a place's mail address
+//
+// The old address answers not-found from the same instant; who may send stays as it was.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+func (c *Client) RotateMailAddress(ctx context.Context, params *RotateMailAddressParams, body RotateMailAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRotateMailAddressRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetMailSenderPolicyWithBody Set who may write into a place by mail
+//
+// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+func (c *Client) SetMailSenderPolicyWithBody(ctx context.Context, params *SetMailSenderPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetMailSenderPolicyRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetMailSenderPolicy Set who may write into a place by mail
+//
+// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+func (c *Client) SetMailSenderPolicy(ctx context.Context, params *SetMailSenderPolicyParams, body SetMailSenderPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetMailSenderPolicyRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeliverAddressedMailWithBody Deliver a mail to an address on the receiving domain
+//
+// The installation's one inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`, `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.
+// A recognised sender's mail becomes an entry in a collection or a comment on an entry, written as that person; anything not clearly allowed waits in the jumble, meant for the place. A message a machine sent on its own is accepted and discarded. An unknown, replaced or closed address answers `404`; an address past its hourly bound answers `429`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
+func (c *Client) DeliverAddressedMailWithBody(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeliverAddressedMailRequestWithBody(c.Server, params, contentType, body)
 	if err != nil {
 		return nil, err
 	}
@@ -44316,6 +44825,68 @@ func NewGetJumbleEntryRequest(server string, entryId openapi_types.UUID) (*http.
 	return req, nil
 }
 
+// NewCommentJumbleEntryRequest calls the generic CommentJumbleEntry builder with application/json body
+func NewCommentJumbleEntryRequest(server string, entryId openapi_types.UUID, params *CommentJumbleEntryParams, body CommentJumbleEntryJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCommentJumbleEntryRequestWithBody(server, entryId, params, "application/json", bodyReader)
+}
+
+// NewCommentJumbleEntryRequestWithBody constructs an http.Request for the CommentJumbleEntry method, with any body, and a specified content type
+func NewCommentJumbleEntryRequestWithBody(server string, entryId openapi_types.UUID, params *CommentJumbleEntryParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "entryId", entryId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/jumble/entries/%s:comment", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewConvertJumbleEntryRequest calls the generic ConvertJumbleEntry builder with application/json body
 func NewConvertJumbleEntryRequest(server string, entryId openapi_types.UUID, params *ConvertJumbleEntryParams, body ConvertJumbleEntryJSONRequestBody) (*http.Request, error) {
 	var bodyReader io.Reader
@@ -44730,6 +45301,234 @@ func NewReleaseLegalHoldRequestWithBody(server string, holdId openapi_types.UUID
 	queryURL, err := serverURL.Parse(operationPath)
 	if err != nil {
 		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewShowMailAddressRequest constructs an http.Request for the ShowMailAddress method
+func NewShowMailAddressRequest(server string, params *ShowMailAddressParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/addresses")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if queryFrag, err := runtime.StyleParamWithOptions("form", true, "target_kind", params.TargetKind, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+			return nil, err
+		} else {
+			for _, qp := range strings.Split(queryFrag, "&") {
+				rawQueryFragments = append(rawQueryFragments, qp)
+			}
+		}
+
+		if params.TargetId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "target_id", *params.TargetId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewRotateMailAddressRequest calls the generic RotateMailAddress builder with application/json body
+func NewRotateMailAddressRequest(server string, params *RotateMailAddressParams, body RotateMailAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewRotateMailAddressRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewRotateMailAddressRequestWithBody constructs an http.Request for the RotateMailAddress method, with any body, and a specified content type
+func NewRotateMailAddressRequestWithBody(server string, params *RotateMailAddressParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/addresses:rotate")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSetMailSenderPolicyRequest calls the generic SetMailSenderPolicy builder with application/json body
+func NewSetMailSenderPolicyRequest(server string, params *SetMailSenderPolicyParams, body SetMailSenderPolicyJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetMailSenderPolicyRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSetMailSenderPolicyRequestWithBody constructs an http.Request for the SetMailSenderPolicy method, with any body, and a specified content type
+func NewSetMailSenderPolicyRequestWithBody(server string, params *SetMailSenderPolicyParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/addresses:set-sender-policy")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewDeliverAddressedMailRequestWithBody constructs an http.Request for the DeliverAddressedMail method, with any body, and a specified content type
+func NewDeliverAddressedMailRequestWithBody(server string, params *DeliverAddressedMailParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/inbound")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Recipient != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "recipient", *params.Recipient, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
 	}
 
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
@@ -52677,6 +53476,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /jumble/entries/{entryId} (the `GetJumbleEntry` operationId).
 	GetJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, reqEditors ...RequestEditorFn) (*GetJumbleEntryResult, error)
 
+	// CommentJumbleEntryWithBodyWithResponse Settle an entry as a comment on an entry
+	//
+	// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+	CommentJumbleEntryWithBodyWithResponse(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CommentJumbleEntryResult, error)
+
+	// CommentJumbleEntryWithResponse Settle an entry as a comment on an entry
+	//
+	// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+	CommentJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, body CommentJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*CommentJumbleEntryResult, error)
+
 	// ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
 	//
 	// Creates a work item at the named destination - through the same use case a plain create goes through, with the same rights checked there - records the provenance on both sides (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of the same entry is refused, and two racing produce one item and one refusal.
@@ -52815,6 +53632,61 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /legal-holds/{holdId}:release (the `ReleaseLegalHold` operationId).
 	ReleaseLegalHoldWithResponse(ctx context.Context, holdId openapi_types.UUID, body ReleaseLegalHoldJSONRequestBody, reqEditors ...RequestEditorFn) (*ReleaseLegalHoldResult, error)
+
+	// ShowMailAddressWithResponse The address a place takes mail at
+	//
+	// The jumble's, a collection's or an entry's address on the installation's receiving domain, minted on the first read. `available` is false where the installation has no receiving domain - the places then show a hint for administrators instead.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /mail/addresses (the `ShowMailAddress` operationId).
+	ShowMailAddressWithResponse(ctx context.Context, params *ShowMailAddressParams, reqEditors ...RequestEditorFn) (*ShowMailAddressResult, error)
+
+	// RotateMailAddressWithBodyWithResponse Replace a place's mail address
+	//
+	// The old address answers not-found from the same instant; who may send stays as it was.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+	RotateMailAddressWithBodyWithResponse(ctx context.Context, params *RotateMailAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RotateMailAddressResult, error)
+
+	// RotateMailAddressWithResponse Replace a place's mail address
+	//
+	// The old address answers not-found from the same instant; who may send stays as it was.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+	RotateMailAddressWithResponse(ctx context.Context, params *RotateMailAddressParams, body RotateMailAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RotateMailAddressResult, error)
+
+	// SetMailSenderPolicyWithBodyWithResponse Set who may write into a place by mail
+	//
+	// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+	SetMailSenderPolicyWithBodyWithResponse(ctx context.Context, params *SetMailSenderPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetMailSenderPolicyResult, error)
+
+	// SetMailSenderPolicyWithResponse Set who may write into a place by mail
+	//
+	// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+	SetMailSenderPolicyWithResponse(ctx context.Context, params *SetMailSenderPolicyParams, body SetMailSenderPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetMailSenderPolicyResult, error)
+
+	// DeliverAddressedMailWithBodyWithResponse Deliver a mail to an address on the receiving domain
+	//
+	// The installation's one inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`, `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.
+	// A recognised sender's mail becomes an entry in a collection or a comment on an entry, written as that person; anything not clearly allowed waits in the jumble, meant for the place. A message a machine sent on its own is accepted and discarded. An unknown, replaced or closed address answers `404`; an address past its hourly bound answers `429`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
+	DeliverAddressedMailWithBodyWithResponse(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverAddressedMailResult, error)
 
 	// RequestMediaUploadWithBodyWithResponse performs a POST /media (the `RequestMediaUpload` operationId) request,
 	// with any type of body and a specified content type.
@@ -68299,6 +69171,54 @@ func (r GetJumbleEntryResult) ContentType() string {
 	return ""
 }
 
+type CommentJumbleEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *JumbleEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CommentJumbleEntryResult) GetJSON200() *JumbleEntry {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CommentJumbleEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CommentJumbleEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CommentJumbleEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CommentJumbleEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CommentJumbleEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ConvertJumbleEntryResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -68767,6 +69687,198 @@ func (r ReleaseLegalHoldResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReleaseLegalHoldResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShowMailAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MailAddress
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShowMailAddressResult) GetJSON200() *MailAddress {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ShowMailAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ShowMailAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShowMailAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShowMailAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShowMailAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RotateMailAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MailAddress
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r RotateMailAddressResult) GetJSON200() *MailAddress {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RotateMailAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RotateMailAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RotateMailAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RotateMailAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RotateMailAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetMailSenderPolicyResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MailAddress
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetMailSenderPolicyResult) GetJSON200() *MailAddress {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetMailSenderPolicyResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetMailSenderPolicyResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetMailSenderPolicyResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetMailSenderPolicyResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetMailSenderPolicyResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeliverAddressedMailResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON202 the response for an HTTP 202 `application/json` response
+	JSON202 *MailDelivered
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON202 returns the response for an HTTP 202 `application/json` response
+func (r DeliverAddressedMailResult) GetJSON202() *MailDelivered {
+	return r.JSON202
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeliverAddressedMailResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeliverAddressedMailResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeliverAddressedMailResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeliverAddressedMailResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeliverAddressedMailResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -79337,6 +80449,36 @@ func (c *ClientWithResponses) GetJumbleEntryWithResponse(ctx context.Context, en
 	return ParseGetJumbleEntryResult(rsp)
 }
 
+// CommentJumbleEntryWithBodyWithResponse Settle an entry as a comment on an entry
+//
+// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+func (c *ClientWithResponses) CommentJumbleEntryWithBodyWithResponse(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CommentJumbleEntryResult, error) {
+	rsp, err := c.CommentJumbleEntryWithBody(ctx, entryId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCommentJumbleEntryResult(rsp)
+}
+
+// CommentJumbleEntryWithResponse Settle an entry as a comment on an entry
+//
+// What a mail meant for an entry becomes once somebody sorts it in: a comment on that entry - or on the one named - by the caller, with the entry's files attached there. Decided exactly once, like a conversion.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /jumble/entries/{entryId}:comment (the `CommentJumbleEntry` operationId).
+func (c *ClientWithResponses) CommentJumbleEntryWithResponse(ctx context.Context, entryId openapi_types.UUID, params *CommentJumbleEntryParams, body CommentJumbleEntryJSONRequestBody, reqEditors ...RequestEditorFn) (*CommentJumbleEntryResult, error) {
+	rsp, err := c.CommentJumbleEntry(ctx, entryId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCommentJumbleEntryResult(rsp)
+}
+
 // ConvertJumbleEntryWithBodyWithResponse Turn an entry into work
 //
 // Creates a work item at the named destination - through the same use case a plain create goes through, with the same rights checked there - records the provenance on both sides (`origin_jumble_id` on the item, `target_item_id` on the entry), settles the entry as `PROCESSED` and announces `jumble.entry_converted`. Exactly once: a second conversion of the same entry is refused, and two racing produce one item and one refusal.
@@ -79552,6 +80694,97 @@ func (c *ClientWithResponses) ReleaseLegalHoldWithResponse(ctx context.Context, 
 		return nil, err
 	}
 	return ParseReleaseLegalHoldResult(rsp)
+}
+
+// ShowMailAddressWithResponse The address a place takes mail at
+//
+// The jumble's, a collection's or an entry's address on the installation's receiving domain, minted on the first read. `available` is false where the installation has no receiving domain - the places then show a hint for administrators instead.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /mail/addresses (the `ShowMailAddress` operationId).
+func (c *ClientWithResponses) ShowMailAddressWithResponse(ctx context.Context, params *ShowMailAddressParams, reqEditors ...RequestEditorFn) (*ShowMailAddressResult, error) {
+	rsp, err := c.ShowMailAddress(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShowMailAddressResult(rsp)
+}
+
+// RotateMailAddressWithBodyWithResponse Replace a place's mail address
+//
+// The old address answers not-found from the same instant; who may send stays as it was.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+func (c *ClientWithResponses) RotateMailAddressWithBodyWithResponse(ctx context.Context, params *RotateMailAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*RotateMailAddressResult, error) {
+	rsp, err := c.RotateMailAddressWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRotateMailAddressResult(rsp)
+}
+
+// RotateMailAddressWithResponse Replace a place's mail address
+//
+// The old address answers not-found from the same instant; who may send stays as it was.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/addresses:rotate (the `RotateMailAddress` operationId).
+func (c *ClientWithResponses) RotateMailAddressWithResponse(ctx context.Context, params *RotateMailAddressParams, body RotateMailAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*RotateMailAddressResult, error) {
+	rsp, err := c.RotateMailAddress(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRotateMailAddressResult(rsp)
+}
+
+// SetMailSenderPolicyWithBodyWithResponse Set who may write into a place by mail
+//
+// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+func (c *ClientWithResponses) SetMailSenderPolicyWithBodyWithResponse(ctx context.Context, params *SetMailSenderPolicyParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetMailSenderPolicyResult, error) {
+	rsp, err := c.SetMailSenderPolicyWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetMailSenderPolicyResult(rsp)
+}
+
+// SetMailSenderPolicyWithResponse Set who may write into a place by mail
+//
+// `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/addresses:set-sender-policy (the `SetMailSenderPolicy` operationId).
+func (c *ClientWithResponses) SetMailSenderPolicyWithResponse(ctx context.Context, params *SetMailSenderPolicyParams, body SetMailSenderPolicyJSONRequestBody, reqEditors ...RequestEditorFn) (*SetMailSenderPolicyResult, error) {
+	rsp, err := c.SetMailSenderPolicy(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetMailSenderPolicyResult(rsp)
+}
+
+// DeliverAddressedMailWithBodyWithResponse Deliver a mail to an address on the receiving domain
+//
+// The installation's one inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`, `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.
+// A recognised sender's mail becomes an entry in a collection or a comment on an entry, written as that person; anything not clearly allowed waits in the jumble, meant for the place. A message a machine sent on its own is accepted and discarded. An unknown, replaced or closed address answers `404`; an address past its hourly bound answers `429`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
+func (c *ClientWithResponses) DeliverAddressedMailWithBodyWithResponse(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverAddressedMailResult, error) {
+	rsp, err := c.DeliverAddressedMailWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeliverAddressedMailResult(rsp)
 }
 
 // RequestMediaUploadWithBodyWithResponse performs a POST /media (the `RequestMediaUpload` operationId) request,
@@ -91786,6 +93019,39 @@ func ParseGetJumbleEntryResult(rsp *http.Response) (*GetJumbleEntryResult, error
 	return response, nil
 }
 
+// ParseCommentJumbleEntryResult parses an HTTP response from a CommentJumbleEntryWithResponse call
+func ParseCommentJumbleEntryResult(rsp *http.Response) (*CommentJumbleEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CommentJumbleEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest JumbleEntry
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseConvertJumbleEntryResult parses an HTTP response from a ConvertJumbleEntryWithResponse call
 func ParseConvertJumbleEntryResult(rsp *http.Response) (*ConvertJumbleEntryResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -92119,6 +93385,138 @@ func ParseReleaseLegalHoldResult(rsp *http.Response) (*ReleaseLegalHoldResult, e
 			return nil, err
 		}
 		response.ApplicationproblemJSON409 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShowMailAddressResult parses an HTTP response from a ShowMailAddressWithResponse call
+func ParseShowMailAddressResult(rsp *http.Response) (*ShowMailAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShowMailAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MailAddress
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRotateMailAddressResult parses an HTTP response from a RotateMailAddressWithResponse call
+func ParseRotateMailAddressResult(rsp *http.Response) (*RotateMailAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RotateMailAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MailAddress
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetMailSenderPolicyResult parses an HTTP response from a SetMailSenderPolicyWithResponse call
+func ParseSetMailSenderPolicyResult(rsp *http.Response) (*SetMailSenderPolicyResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetMailSenderPolicyResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MailAddress
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeliverAddressedMailResult parses an HTTP response from a DeliverAddressedMailWithResponse call
+func ParseDeliverAddressedMailResult(rsp *http.Response) (*DeliverAddressedMailResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeliverAddressedMailResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 202:
+		var dest MailDelivered
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

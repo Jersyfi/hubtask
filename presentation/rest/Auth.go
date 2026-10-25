@@ -114,6 +114,10 @@ var PublicRoutes = map[string]bool{
 	// The mail door, on the same credential and the same trust model. What arrives here is
 	// a message somebody else's bridge forwarded, and the token is the whole of what says it may.
 	http.MethodPost + " " + APIBasePath + "/jumble/mail/{token}": true,
+	// The receiving domain's door (ADR-0092). Its credential is the installation's inbound key in
+	// the Authorization header, which names no account - so there is nothing for this middleware
+	// to resolve, and the route checks the key itself.
+	http.MethodPost + " " + APIBasePath + "/mail/inbound": true,
 	// The CalDAV discovery address is outside the contract - it is the mount's own path, as
 	// Mounted labels it - and public because RFC 6764 §5 has a client ask it before it has
 	// presented anything: the answer is a redirect into the tree, which asks for the credential
@@ -166,10 +170,21 @@ type Authenticated struct {
 	BaseHost string
 }
 
+// OwnCredentialRoutes carry a credential in the Authorization header that is not an account's: the
+// receiving domain's inbound key (ADR-0092). The middleware leaves the header to the route, which
+// compares it itself - verifying it as an account token would refuse every delivery.
+var OwnCredentialRoutes = map[string]bool{
+	http.MethodPost + " " + APIBasePath + "/mail/inbound": true,
+}
+
 func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	requestID := correlation.RequestIDFrom(r.Context())
 
 	_, route := a.Routes.Handler(r)
+	if OwnCredentialRoutes[route] {
+		a.Next.ServeHTTP(w, r)
+		return
+	}
 	credential, err := credentialOf(r, BasicRoutes[route])
 	if err != nil {
 		WriteUnauthenticated(w, err, requestID)

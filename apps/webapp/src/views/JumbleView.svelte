@@ -50,6 +50,7 @@
   import { askEach } from '../lib/data/askEach.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
+  import MailAddressField from '../lib/mail/MailAddressField.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -249,6 +250,24 @@
     });
   }
 
+  /** A collection's name from the destinations the reader may write into. */
+  function placeName(id: string | null | undefined): string {
+    const found = (jumble.destinations ?? []).find((collection) => collection.id === id);
+    return found ? found.name : t('app.jumble.meant_for_item');
+  }
+
+  /** Sorts a mail into the place it was meant for: an entry there, or a comment on the entry. */
+  async function sortIn(entry: JumbleEntry): Promise<void> {
+    if (!entry.meant_for_id) return;
+    await attempt(async () => {
+      const settled =
+        entry.meant_for_kind === 'ITEM'
+          ? await jumble.comment(entry.id, entry.meant_for_id ?? undefined)
+          : await jumble.convert(entry.id, { collectionId: entry.meant_for_id ?? '', title: subjectOf(entry) });
+      if (settled.target_item_id) onnavigate(`/items/${settled.target_item_id}`);
+    }, t('app.jumble.sorted_announced'));
+  }
+
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.jumble.title')));
@@ -268,6 +287,8 @@
         onmenu={(offered) => page.offer(offered)}
       />
       <p class="quiet">{t('app.jumble.intro')}</p>
+      <!-- The jumble's own address, where people look for it (ADR-0092 M1). -->
+      <MailAddressField target={{ kind: 'JUMBLE' }} lead={t('app.mail.jumble_lead')} mayShape={mayRotate} />
     </div>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
@@ -336,6 +357,22 @@
                   onchange={() => selection.pick(undecided, entry.id)}
                 />
               {:else if mayWrite && entry.status === 'NEW'}
+                {#if entry.meant_for_id && converting !== entry.id}
+                  <!-- Meant for a place, so sorting it in is one step (ADR-0092 decision 5). -->
+                  <Button
+                    tone="primary"
+                    size="sm"
+                    icon="arrow-right"
+                    isBusy={isWorking}
+                    busyLabel={t('app.jumble.converting')}
+                    data-sort-in
+                    onclick={() => void sortIn(entry)}
+                  >
+                    {entry.meant_for_kind === 'ITEM'
+                      ? t('app.jumble.sort_as_comment')
+                      : t('app.jumble.sort_into', { place: placeName(entry.meant_for_id) })}
+                  </Button>
+                {/if}
                 {#if converting === entry.id}
                   <Stack gap="150">
                     <Select
@@ -427,6 +464,13 @@
       </Stack>
     {/if}
 
+
+    {#if mayRotate}
+      <Stack gap="150" data-mail-section>
+        <h2 class="section">{t('app.mail.section')}</h2>
+        <MailAddressField target={{ kind: 'JUMBLE' }} shape="panel" mayShape />
+      </Stack>
+    {/if}
 
     {#if mayRotate}
       <Stack gap="150">

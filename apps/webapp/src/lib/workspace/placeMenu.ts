@@ -22,6 +22,8 @@ export interface PlaceMenuInput {
   readonly privacy?: 'make_private' | 'make_shared';
   /** Why nothing can be changed now, kept on the items that change something. */
   readonly readOnlyReason?: string;
+  /** Whether the installation gives places mail addresses: a collection then offers to copy its own (ADR-0092 M1). */
+  readonly hasMail?: boolean;
 }
 
 /** The items, grouped: set it up, place it, keep it, and the trash last and alone. */
@@ -39,8 +41,13 @@ export function placeMenu(input: PlaceMenuInput, t: (code: string) => string): M
           ? [{ id: 'archive', label: input.archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
           : []),
       ];
+  const mail: MenuItem[] =
+    input.hasMail && input.type === 'COLLECTION' && input.archival === 'active'
+      ? [{ id: 'mail', label: t('app.mail.copy_address'), icon: 'mail' }]
+      : [];
   return [
-    ...shaping,
+    ...mail,
+    ...shaping.map((item, index) => (index === 0 && mail.length > 0 ? { ...item, hasSeparatorBefore: true } : item)),
     ...(input.privacy
       ? [{ id: 'privacy', label: input.privacy === 'make_shared' ? t('app.workspace.make_shared') : t('app.workspace.make_private'), icon: 'lock' as const, hasSeparatorBefore: shaping.length > 0 }]
       : []),

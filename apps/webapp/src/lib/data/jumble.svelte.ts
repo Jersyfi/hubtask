@@ -45,6 +45,9 @@ export interface JumbleEntry {
   readonly settled_at?: string | null;
   /** The job preparing a proposal about it on arrival, while it runs or once it ended refused. */
   readonly arrival_job_id?: string | null;
+  /** The place a mail was addressed to where it waits here instead (ADR-0092). */
+  readonly meant_for_kind?: 'COLLECTION' | 'ITEM' | null;
+  readonly meant_for_id?: string | null;
 }
 
 interface EntryPage {
@@ -201,6 +204,13 @@ class Jumble {
   async whatBecameOf(entryId: string): Promise<JumbleEntry | undefined> {
     const read = await engine.refresh<JumbleEntry>({ path: `${ENTRIES}/${entryId}` });
     return read.status === 'ready' ? read.data : undefined;
+  }
+
+  /** Answers an entry with it: a comment by the reader, the files on that entry (ADR-0092). */
+  async comment(entryId: string, itemId?: string): Promise<JumbleEntry> {
+    return engine.mutate<JumbleEntry>('POST', `${ENTRIES}/${entryId}:comment`,
+      itemId ? { item_id: itemId } : {},
+      { idempotencyKey: crypto.randomUUID(), invalidates: TOUCHES });
   }
 
   /** Decides against one. It stays readable and ages out by retention rule. */

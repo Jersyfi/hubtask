@@ -368,6 +368,11 @@ type MailConfig struct {
 	From     string
 	Security MailSecurity
 	Timeout  time.Duration
+	// InboundDomain is HUBTASK_MAIL_INBOUND_DOMAIN, the receiving domain places' addresses live on
+	// (ADR-0092). Empty: no place shows an address, and the inbound route takes nothing.
+	InboundDomain string
+	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
+	InboundKey secret.Secret
 }
 
 // Configured reports whether this installation sends mail at all. The one reading of it: the
