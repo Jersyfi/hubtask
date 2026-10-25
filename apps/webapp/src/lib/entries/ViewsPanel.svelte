@@ -65,15 +65,17 @@
     /** What the editor currently holds, which is what "save what is on screen" means. */
     query?: ItemsQuery;
     layout: string;
+    /** The fields standing beside each title (concept round 2, §2): saved with the view. */
+    fields?: readonly string[];
     role?: string;
-    /** Applies a view: its query and its layout together. */
-    onapply: (query: ItemsQuery, layout: string, name: string) => void;
+    /** Applies a view: its query, its layout and the fields it shows, together. */
+    onapply: (query: ItemsQuery, layout: string, name: string, fields?: readonly string[]) => void;
     /** Opens the export or the feed dialog for one view. */
     onexport: (view: SavedView) => void;
     onsubscribe: (view: SavedView) => void;
   }
 
-  let { isOpen = $bindable(), intent = 'manage', collectionId, hubId, mayShapeAt, query, layout, role, onapply, onexport, onsubscribe }: Props =
+  let { isOpen = $bindable(), intent = 'manage', collectionId, hubId, mayShapeAt, query, layout, fields, role, onapply, onexport, onsubscribe }: Props =
     $props();
 
   const structure = $derived(holds(role, 'STRUCTURE'));
@@ -149,6 +151,7 @@
           layout,
           query: queryDocumentOf(query, collectionId),
           ...(query?.group ? { grouping: query.group as never } : {}),
+          ...(fields ? { visible_fields: [...fields] } : {}),
         } as never,
         crypto.randomUUID(),
       );
@@ -162,6 +165,7 @@
       queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>),
       view.layout,
       view.name,
+      view.visible_fields ?? undefined,
     );
     isOpen = false;
   }
@@ -182,6 +186,7 @@
           layout,
           query: queryDocumentOf(query, collectionId) as never,
           ...(query?.group ? { grouping: query.group as never } : {}),
+          ...(fields ? { visible_fields: [...fields] } : {}),
         },
         view.version,
       );

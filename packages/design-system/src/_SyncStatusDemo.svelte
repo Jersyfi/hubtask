@@ -5,11 +5,22 @@
   // is written here, and the queue's state is a script the story picks.
 
   import Stack from './Stack.svelte';
-  import SyncStatus, { type Connection, type QueuedChange, type RefusedChange } from './SyncStatus.svelte';
+  import SyncStatus, { type Connection, type QueuedChange, type RefusedChange, type SyncTone } from './SyncStatus.svelte';
   import TaskRow from './TaskRow.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'connected', isSheet = false }: { mode?: 'connected' | 'reconnecting' | 'offline' | 'refused' | 'rows'; isSheet?: boolean } = $props();
+  type Mode = 'connected' | 'busy' | 'reconnecting' | 'offline' | 'refused' | 'conflict' | 'rows';
+  const { mode = 'connected', isSheet = false }: { mode?: Mode; isSheet?: boolean } = $props();
+
+  /** The six headings of the concept, each with its tone. */
+  const HEADINGS: Record<Exclude<Mode, 'rows'>, { headline: string; tone: SyncTone }> = {
+    connected: { headline: 'All synchronised', tone: 'ok' },
+    busy: { headline: 'Synchronising…', tone: 'busy' },
+    offline: { headline: 'Offline – you keep working here', tone: 'warn' },
+    reconnecting: { headline: 'Reconnecting', tone: 'warn' },
+    refused: { headline: '1 change not accepted', tone: 'bad' },
+    conflict: { headline: 'A conflict in 1 entry', tone: 'warn' },
+  };
 
   const WORDS: Record<Connection, string> = {
     connected: 'Connected',
@@ -24,12 +35,15 @@
   ];
 
   let refused = $state<RefusedChange[]>([
-    { id: 'r-1', what: 'Notes changed', where: 'Send the agenda', reason: 'That entry was deleted for good while you were away. What you wrote is kept here.' },
-    { id: 'r-2', what: 'Assigned', where: 'Order lunch', reason: 'You may not change this any more.', onResolve: () => {}, resolveLabel: 'Show both versions' },
+    { id: 'r-1', what: 'Due date changed', where: 'Write the home page', reason: 'The due date lies before the start.', href: '#write-the-home-page' },
+  ]);
+  let conflicts = $state<RefusedChange[]>([
+    { id: 'c-1', what: 'Notes changed', where: 'Quote for Miller', reason: 'It was changed on two devices.', onResolve: () => {}, resolveLabel: 'Resolve' },
   ]);
 
   const connection = $derived<Connection>(mode === 'reconnecting' ? 'reconnecting' : mode === 'offline' ? 'offline' : 'connected');
-  const pending = $derived(mode === 'connected' ? 0 : queued.length);
+  const pending = $derived(mode === 'connected' || mode === 'refused' || mode === 'conflict' ? 0 : queued.length);
+  const heading = $derived(mode === 'rows' ? HEADINGS.connected : HEADINGS[mode]);
 </script>
 
 {#if mode === 'rows'}
@@ -42,17 +56,24 @@
   <SyncStatus
     {connection}
     connectionLabel={WORDS[connection]}
+    headline={heading.headline}
+    tone={heading.tone}
+    onRetry={() => {}}
+    retryLabel="Try again"
+    openLabel="Open the entry"
     pendingCount={pending}
     pendingLabel={pending > 0 ? `${pending} changes waiting` : undefined}
     oldestLabel={pending > 0 ? 'The oldest is from 4 minutes ago.' : undefined}
     syncedLabel={mode === 'connected' ? 'Synchronised at 21:05' : 'Last synchronised at 20:41'}
     queued={pending > 0 ? queued : []}
-    refused={mode === 'refused' ? refused : []}
+    refused={mode === 'refused' ? refused : mode === 'conflict' ? conflicts : []}
     listLabel="The copy and the server"
     {isSheet}
     emptyLabel="Nothing is waiting."
-    refusedLabel="Not accepted"
     dismissLabel="Dismiss"
-    onDismiss={(id) => (refused = refused.filter((change) => change.id !== id))}
+    onDismiss={(id) => {
+      refused = refused.filter((change) => change.id !== id);
+      conflicts = conflicts.filter((change) => change.id !== id);
+    }}
   />
 {/if}

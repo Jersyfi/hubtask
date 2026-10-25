@@ -30,3 +30,10 @@ export const beside: Story = {
     'A plain press on a card’s title opens it beside the board (ADR-0061 decision 4) instead of following the link; a press with Ctrl, ⌘ or Shift is still the browser’s, so a card opens in a new tab as before. The card open beside is announced as current and carries the rail a list row has, so it reads in greyscale (rule 3).',
   args: { mode: 'beside' },
 };
+
+export const zones: Story = {
+  name: 'The zones, sparse and full',
+  about:
+    'Concept round 2, §3: a card has fixed zones in a fixed order, and an empty zone takes no room - so a card with a title alone is as calm as a full one, and a full one stays ordered. The labels above the title, at most two and "+n"; the title, three lines at most; one footer line with the date and the counts at its start and the people at its end.',
+  args: { mode: 'zones' },
+};

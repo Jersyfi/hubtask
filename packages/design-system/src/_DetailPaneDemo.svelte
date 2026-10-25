@@ -16,10 +16,11 @@
   );
 
   let open = $state<number | null>(1);
+  let width = $state(640);
   let chosen = $state<string | undefined>(undefined);
 </script>
 
-<div class="beside">
+<div class="beside" style:--panel-width={`${width}px`}>
   <div class="list">
     <Stack gap="050">
       {#each entries as entry, index (entry)}
@@ -31,11 +32,16 @@
     <DetailPane
       title={entries[open] ?? ''}
       kind={mode === 'long' ? 'Aufgabe' : 'Task'}
+      trail={mode === 'long' ? ['Haushalt', 'Küche'] : ['House', 'Kitchen']}
       dismissLabel={mode === 'long' ? 'Details schließen' : 'Close the details'}
-      pageLabel={mode === 'long' ? 'Als Seite öffnen' : 'Open as a page'}
-      pageHref="/items/1"
-      onOpenPage={() => (chosen = 'page')}
+      view={{
+        label: mode === 'long' ? 'Einträge öffnen als' : 'Open entries as',
+        panelLabel: mode === 'long' ? 'Seitenleiste' : 'Side panel',
+        pageLabel: mode === 'long' ? 'Vollbild' : 'Full page',
+        onpage: () => (chosen = 'page'),
+      }}
       onClose={() => (open = null)}
+      resize={{ label: 'Width of the panel', value: width, min: 480, max: 900, reset: 640, onresize: (next) => (width = next) }}
     >
       <Stack gap="200">
         <p class="notes">

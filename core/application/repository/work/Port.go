@@ -794,6 +794,25 @@ type Labels interface {
 	SetRestored(ctx context.Context, label work.Label, expectedVersion int) error
 }
 
+// ItemTally is what an entry holds besides its own fields: its parts (direct children) and how many
+// of them are done, the comments people wrote on it, and the files attached to it. What a card and
+// a row count beside the title.
+type ItemTally struct {
+	Parts       int
+	PartsDone   int
+	Comments    int
+	Attachments int
+}
+
+// ItemTallies counts what a page of entries holds, for `expand=counts`.
+//
+// One statement for the whole page, as ItemLabels.ListFor is, and for the same reason. Every entry
+// asked about is in the answer, with zeros where it holds nothing: unlike a relation, a count of
+// none is an answer.
+type ItemTallies interface {
+	TallyFor(ctx context.Context, itemIDs []shared.ID) (map[shared.ID]ItemTally, error)
+}
+
 // ItemLabels stores which items carry which labels, and the tags that decide it after a merge.
 //
 // Two tables behind one interface, deliberately. `item_label` is the membership every read goes

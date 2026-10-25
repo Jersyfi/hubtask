@@ -2532,6 +2532,24 @@ func (e JumbleEntryChannel) Valid() bool {
 	}
 }
 
+// Defines values for JumbleEntryMeantForKind.
+const (
+	JumbleEntryMeantForKindCOLLECTION JumbleEntryMeantForKind = "COLLECTION"
+	JumbleEntryMeantForKindITEM       JumbleEntryMeantForKind = "ITEM"
+)
+
+// Valid indicates whether the value is a known member of the JumbleEntryMeantForKind enum.
+func (e JumbleEntryMeantForKind) Valid() bool {
+	switch e {
+	case JumbleEntryMeantForKindCOLLECTION:
+		return true
+	case JumbleEntryMeantForKindITEM:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for JumbleEntryStatus.
 const (
 	JumbleEntryStatusDISMISSED JumbleEntryStatus = "DISMISSED"
@@ -2694,6 +2712,129 @@ func (e LegalLinksTermsSetBy) Valid() bool {
 	case LegalLinksTermsSetByINSTALLATION:
 		return true
 	case LegalLinksTermsSetByWORKSPACE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressSenderPolicy.
+const (
+	MailAddressSenderPolicyANYONE  MailAddressSenderPolicy = "ANYONE"
+	MailAddressSenderPolicyMEMBERS MailAddressSenderPolicy = "MEMBERS"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressSenderPolicy enum.
+func (e MailAddressSenderPolicy) Valid() bool {
+	switch e {
+	case MailAddressSenderPolicyANYONE:
+		return true
+	case MailAddressSenderPolicyMEMBERS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressTargetKind.
+const (
+	MailAddressTargetKindCOLLECTION MailAddressTargetKind = "COLLECTION"
+	MailAddressTargetKindITEM       MailAddressTargetKind = "ITEM"
+	MailAddressTargetKindJUMBLE     MailAddressTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressTargetKind enum.
+func (e MailAddressTargetKind) Valid() bool {
+	switch e {
+	case MailAddressTargetKindCOLLECTION:
+		return true
+	case MailAddressTargetKindITEM:
+		return true
+	case MailAddressTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailAddressTargetTargetKind.
+const (
+	MailAddressTargetTargetKindCOLLECTION MailAddressTargetTargetKind = "COLLECTION"
+	MailAddressTargetTargetKindITEM       MailAddressTargetTargetKind = "ITEM"
+	MailAddressTargetTargetKindJUMBLE     MailAddressTargetTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailAddressTargetTargetKind enum.
+func (e MailAddressTargetTargetKind) Valid() bool {
+	switch e {
+	case MailAddressTargetTargetKindCOLLECTION:
+		return true
+	case MailAddressTargetTargetKindITEM:
+		return true
+	case MailAddressTargetTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailDeliveredOutcome.
+const (
+	MailDeliveredOutcomeCOMMENT     MailDeliveredOutcome = "COMMENT"
+	MailDeliveredOutcomeDISCARDED   MailDeliveredOutcome = "DISCARDED"
+	MailDeliveredOutcomeENTRY       MailDeliveredOutcome = "ENTRY"
+	MailDeliveredOutcomeJUMBLEENTRY MailDeliveredOutcome = "JUMBLE_ENTRY"
+)
+
+// Valid indicates whether the value is a known member of the MailDeliveredOutcome enum.
+func (e MailDeliveredOutcome) Valid() bool {
+	switch e {
+	case MailDeliveredOutcomeCOMMENT:
+		return true
+	case MailDeliveredOutcomeDISCARDED:
+		return true
+	case MailDeliveredOutcomeENTRY:
+		return true
+	case MailDeliveredOutcomeJUMBLEENTRY:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailSenderPolicyChangeSenderPolicy.
+const (
+	MailSenderPolicyChangeSenderPolicyANYONE  MailSenderPolicyChangeSenderPolicy = "ANYONE"
+	MailSenderPolicyChangeSenderPolicyMEMBERS MailSenderPolicyChangeSenderPolicy = "MEMBERS"
+)
+
+// Valid indicates whether the value is a known member of the MailSenderPolicyChangeSenderPolicy enum.
+func (e MailSenderPolicyChangeSenderPolicy) Valid() bool {
+	switch e {
+	case MailSenderPolicyChangeSenderPolicyANYONE:
+		return true
+	case MailSenderPolicyChangeSenderPolicyMEMBERS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailSenderPolicyChangeTargetKind.
+const (
+	MailSenderPolicyChangeTargetKindCOLLECTION MailSenderPolicyChangeTargetKind = "COLLECTION"
+	MailSenderPolicyChangeTargetKindITEM       MailSenderPolicyChangeTargetKind = "ITEM"
+	MailSenderPolicyChangeTargetKindJUMBLE     MailSenderPolicyChangeTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the MailSenderPolicyChangeTargetKind enum.
+func (e MailSenderPolicyChangeTargetKind) Valid() bool {
+	switch e {
+	case MailSenderPolicyChangeTargetKindCOLLECTION:
+		return true
+	case MailSenderPolicyChangeTargetKindITEM:
+		return true
+	case MailSenderPolicyChangeTargetKindJUMBLE:
 		return true
 	default:
 		return false
@@ -5547,6 +5688,48 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
+// Defines values for ShowMailAddressParamsTargetKind.
+const (
+	ShowMailAddressParamsTargetKindCOLLECTION ShowMailAddressParamsTargetKind = "COLLECTION"
+	ShowMailAddressParamsTargetKindITEM       ShowMailAddressParamsTargetKind = "ITEM"
+	ShowMailAddressParamsTargetKindJUMBLE     ShowMailAddressParamsTargetKind = "JUMBLE"
+)
+
+// Valid indicates whether the value is a known member of the ShowMailAddressParamsTargetKind enum.
+func (e ShowMailAddressParamsTargetKind) Valid() bool {
+	switch e {
+	case ShowMailAddressParamsTargetKindCOLLECTION:
+		return true
+	case ShowMailAddressParamsTargetKindITEM:
+		return true
+	case ShowMailAddressParamsTargetKindJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ShowAlexaModelParamsLocale.
+const (
+	DeDE ShowAlexaModelParamsLocale = "de-DE"
+	EnGB ShowAlexaModelParamsLocale = "en-GB"
+	EnUS ShowAlexaModelParamsLocale = "en-US"
+)
+
+// Valid indicates whether the value is a known member of the ShowAlexaModelParamsLocale enum.
+func (e ShowAlexaModelParamsLocale) Valid() bool {
+	switch e {
+	case DeDE:
+		return true
+	case EnGB:
+		return true
+	case EnUS:
+		return true
+	default:
+		return false
+	}
+}
+
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
 type AcceptedSuggestion struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -6824,7 +7007,7 @@ type Capabilities struct {
 	EventTypes   *[]string          `json:"event_types,omitempty"`
 
 	// Features Which optional parts of this installation are configured - what it *can* do, not what the build implements. A client decides from this whether to offer an action at all: offering "send by email" where there is no SMTP server, or "summarise this" where no AI provider is configured, is a dead end the manifest can prevent.
-	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced` and `setup_open`.
+	// The keys are open, and a key that is absent is not a promise in either direction - it is a part of the product that has not been asked to describe itself yet. The ones answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`, `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`, `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open` and `mail_addresses` (a receiving domain is set, so places have mail addresses).
 	// `setup_open` is `true` exactly while the installation has no workspace and nobody in its operator register: then `POST /auth/installation:set-up` is offered, and a client shows the setup in place of the sign-in.
 	// Two of them describe this version rather than its configuration, and every installation of it answers them `true`: `sign_in_rules` (`GET /auth/sign-in-rules` is served) and `search_filter` (`POST /search` takes a `filter`, and answers one without `words`). They are here for a client that also talks to an older server, which does not answer them: it can tell rather than probe.
 	// `structure`, a property of this version as well, says that `/presets` is served, that every container read answers its `structure` and `GET /tenant` the workspace's, and that both can be written (`PATCH /containers/{containerId}/structure`, `PATCH /tenant/structure`). It does not say that entries already obey `levels` and `fields`; a client offers only what they allow either way.
@@ -8425,7 +8608,7 @@ type ItemQuery struct {
 	// Count `exact` counts the whole result with a second query and answers `total`; it is opt-in because it costs a second pass. `estimated` is not served and is refused by name rather than answered with a null total.
 	Count *ItemQueryCount `json:"count,omitempty"`
 
-	// Expand Relations to include, as on `GET /items`. `labels` is served; anything else is `items.expand_not_supported`.
+	// Expand Relations to include, as on `GET /items`. `labels` and `counts` are served (`counts` here only: what each entry holds, counted for the whole page in one query); anything else is `items.expand_not_supported`.
 	Expand *[]string `json:"expand,omitempty"`
 
 	// Filter Either a leaf (`field`, `op`, `value`) or a combination (`op` of `AND`, `OR`, `NOT` with
@@ -8601,9 +8784,13 @@ type JumbleEntry struct {
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`
 	Id          openapi_types.UUID   `json:"id"`
-	RawBody     *string              `json:"raw_body,omitempty"`
-	RawSubject  *string              `json:"raw_subject,omitempty"`
-	ReceivedAt  time.Time            `json:"received_at"`
+	MeantForId  *openapi_types.UUID  `json:"meant_for_id,omitempty"`
+
+	// MeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+	MeantForKind *JumbleEntryMeantForKind `json:"meant_for_kind,omitempty"`
+	RawBody      *string                  `json:"raw_body,omitempty"`
+	RawSubject   *string                  `json:"raw_subject,omitempty"`
+	ReceivedAt   time.Time                `json:"received_at"`
 
 	// Sender Who the transport says it came from. Data, never an identity: a From header authenticates nothing - the intake token does.
 	Sender *string `json:"sender,omitempty"`
@@ -8621,8 +8808,17 @@ type JumbleEntry struct {
 // JumbleEntryChannel defines model for JumbleEntry.Channel.
 type JumbleEntryChannel string
 
+// JumbleEntryMeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+type JumbleEntryMeantForKind string
+
 // JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
 type JumbleEntryStatus string
+
+// JumbleEntryComment defines model for JumbleEntryComment.
+type JumbleEntryComment struct {
+	// ItemId The entry to comment on. Defaults to the one the mail was meant for.
+	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
+}
 
 // JumbleEntryConvert Where the entry becomes work, and what the item is called.
 type JumbleEntryConvert struct {
@@ -8905,6 +9101,65 @@ type Lookalike struct {
 type LookalikePage struct {
 	Items []Lookalike `json:"items"`
 }
+
+// MailAddress A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well.
+type MailAddress struct {
+	Address *string `json:"address,omitempty"`
+
+	// Available False where the installation has no receiving domain; nothing else is set then.
+	Available bool       `json:"available"`
+	CreatedAt *time.Time `json:"created_at,omitempty"`
+
+	// OpenedBy Who opened the address to anyone; their rights bound such mail.
+	OpenedBy     *openapi_types.UUID      `json:"opened_by,omitempty"`
+	SenderPolicy *MailAddressSenderPolicy `json:"sender_policy,omitempty"`
+	TargetId     *openapi_types.UUID      `json:"target_id,omitempty"`
+	TargetKind   *MailAddressTargetKind   `json:"target_kind,omitempty"`
+}
+
+// MailAddressSenderPolicy defines model for MailAddress.SenderPolicy.
+type MailAddressSenderPolicy string
+
+// MailAddressTargetKind defines model for MailAddress.TargetKind.
+type MailAddressTargetKind string
+
+// MailAddressTarget defines model for MailAddressTarget.
+type MailAddressTarget struct {
+	// TargetId The collection or the entry; absent for the jumble.
+	TargetId   *openapi_types.UUID         `json:"target_id,omitempty"`
+	TargetKind MailAddressTargetTargetKind `json:"target_kind"`
+}
+
+// MailAddressTargetTargetKind defines model for MailAddressTarget.TargetKind.
+type MailAddressTargetTargetKind string
+
+// MailDelivered defines model for MailDelivered.
+type MailDelivered struct {
+	CommentId *openapi_types.UUID `json:"comment_id,omitempty"`
+
+	// EntryId The jumble entry.
+	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
+
+	// ItemId The entry created or commented on.
+	ItemId  *openapi_types.UUID  `json:"item_id,omitempty"`
+	Outcome MailDeliveredOutcome `json:"outcome"`
+}
+
+// MailDeliveredOutcome defines model for MailDelivered.Outcome.
+type MailDeliveredOutcome string
+
+// MailSenderPolicyChange defines model for MailSenderPolicyChange.
+type MailSenderPolicyChange struct {
+	SenderPolicy MailSenderPolicyChangeSenderPolicy `json:"sender_policy"`
+	TargetId     *openapi_types.UUID                `json:"target_id,omitempty"`
+	TargetKind   MailSenderPolicyChangeTargetKind   `json:"target_kind"`
+}
+
+// MailSenderPolicyChangeSenderPolicy defines model for MailSenderPolicyChange.SenderPolicy.
+type MailSenderPolicyChangeSenderPolicy string
+
+// MailSenderPolicyChangeTargetKind defines model for MailSenderPolicyChange.TargetKind.
+type MailSenderPolicyChangeTargetKind string
 
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
@@ -9203,6 +9458,29 @@ type OauthGrant struct {
 	// LastUsedAt When a session under this grant last acted, to the minute.
 	LastUsedAt *time.Time `json:"last_used_at,omitempty"`
 	Scopes     []string   `json:"scopes"`
+}
+
+// OauthStandardTokens defines model for OauthStandardTokens.
+type OauthStandardTokens struct {
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+
+	// TokenType Always Bearer.
+	TokenType string `json:"token_type"`
+}
+
+// OauthTokenForm defines model for OauthTokenForm.
+type OauthTokenForm struct {
+	ClientId     *string `json:"client_id,omitempty"`
+	ClientSecret *string `json:"client_secret,omitempty"`
+	Code         *string `json:"code,omitempty"`
+	CodeVerifier *string `json:"code_verifier,omitempty"`
+
+	// GrantType authorization_code to exchange a code, refresh_token to refresh the pair.
+	GrantType    string  `json:"grant_type"`
+	RedirectUri  *string `json:"redirect_uri,omitempty"`
+	RefreshToken *string `json:"refresh_token,omitempty"`
 }
 
 // OauthTokenRequest defines model for OauthTokenRequest.
@@ -12147,6 +12425,55 @@ type ViewExportDocument struct {
 	ViewId    openapi_types.UUID `json:"view_id"`
 }
 
+// VoiceAlias defines model for VoiceAlias.
+type VoiceAlias struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// LabelId A category of the collection, for a name that stands for it.
+	LabelId *openapi_types.UUID `json:"label_id,omitempty"`
+	Phrase  string              `json:"phrase"`
+}
+
+// VoiceInterpretation defines model for VoiceInterpretation.
+type VoiceInterpretation struct {
+	Ambiguous []VoicePlace `json:"ambiguous"`
+
+	// Default The place is the default list, as no place was said.
+	Default bool        `json:"default"`
+	Found   bool        `json:"found"`
+	Place   *VoicePlace `json:"place,omitempty"`
+	Things  []struct {
+		Amount *string `json:"amount,omitempty"`
+		Title  string  `json:"title"`
+	} `json:"things"`
+}
+
+// VoicePlace defines model for VoicePlace.
+type VoicePlace struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	LabelId      *openapi_types.UUID `json:"label_id,omitempty"`
+	Name         string              `json:"name"`
+}
+
+// VoiceSettings defines model for VoiceSettings.
+type VoiceSettings struct {
+	Aliases             []VoiceAlias        `json:"aliases"`
+	DefaultCollectionId *openapi_types.UUID `json:"default_collection_id,omitempty"`
+	Enabled             bool                `json:"enabled"`
+
+	// InstallationSkill Whether the installation publishes a skill every workspace may use.
+	InstallationSkill *bool `json:"installation_skill,omitempty"`
+
+	// SkillId The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.
+	SkillId *string `json:"skill_id,omitempty"`
+}
+
+// VoiceTry defines model for VoiceTry.
+type VoiceTry struct {
+	Locale   *string `json:"locale,omitempty"`
+	Sentence string  `json:"sentence"`
+}
+
 // WebhookDelivery One attempt at one event against one subscription.
 type WebhookDelivery struct {
 	// Attempt Which attempt this is, from one. It carries on across a replay rather than resetting.
@@ -12322,15 +12649,23 @@ type WorkItem struct {
 	CompletionCount *int `json:"completion_count,omitempty"`
 
 	// ContentLanguage BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.
-	ContentLanguage *string                 `json:"content_language,omitempty"`
-	Cover           *Cover                  `json:"cover,omitempty"`
-	CreatedAt       *time.Time              `json:"created_at,omitempty"`
-	CreatedBy       *openapi_types.UUID     `json:"created_by,omitempty"`
-	CustomFields    *map[string]interface{} `json:"custom_fields,omitempty"`
-	DeletedAt       *time.Time              `json:"deleted_at,omitempty"`
-	Depth           *int                    `json:"depth,omitempty"`
-	DueAt           *time.Time              `json:"due_at,omitempty"`
-	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
+	ContentLanguage *string `json:"content_language,omitempty"`
+
+	// Counts What the entry holds besides its own fields, as a card and a row count it: its parts (direct children, those in the trash left out) and how many of them are done, the comments people wrote on it (not the ones the server filed), and its attachments. Only with `expand: ["counts"]` on `POST /items:query`; absent otherwise.
+	Counts *struct {
+		Attachments int `json:"attachments"`
+		Comments    int `json:"comments"`
+		Parts       int `json:"parts"`
+		PartsDone   int `json:"parts_done"`
+	} `json:"counts,omitempty"`
+	Cover        *Cover                  `json:"cover,omitempty"`
+	CreatedAt    *time.Time              `json:"created_at,omitempty"`
+	CreatedBy    *openapi_types.UUID     `json:"created_by,omitempty"`
+	CustomFields *map[string]interface{} `json:"custom_fields,omitempty"`
+	DeletedAt    *time.Time              `json:"deleted_at,omitempty"`
+	Depth        *int                    `json:"depth,omitempty"`
+	DueAt        *time.Time              `json:"due_at,omitempty"`
+	DueDateOnly  *bool                   `json:"due_date_only,omitempty"`
 
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
@@ -13751,6 +14086,12 @@ type SubmitJumbleEntryParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// CommentJumbleEntryParams defines parameters for CommentJumbleEntry.
+type CommentJumbleEntryParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ConvertJumbleEntryParams defines parameters for ConvertJumbleEntry.
 type ConvertJumbleEntryParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -13778,6 +14119,41 @@ type RotateJumbleIntakeParams struct {
 // ListLegalHoldsParams defines parameters for ListLegalHolds.
 type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
+}
+
+// ShowMailAddressParams defines parameters for ShowMailAddress.
+type ShowMailAddressParams struct {
+	TargetKind ShowMailAddressParamsTargetKind `form:"target_kind" json:"target_kind"`
+
+	// TargetId The collection or the entry; absent for the jumble.
+	TargetId *openapi_types.UUID `form:"target_id,omitempty" json:"target_id,omitempty"`
+}
+
+// ShowMailAddressParamsTargetKind defines parameters for ShowMailAddress.
+type ShowMailAddressParamsTargetKind string
+
+// RotateMailAddressParams defines parameters for RotateMailAddress.
+type RotateMailAddressParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// SetMailSenderPolicyParams defines parameters for SetMailSenderPolicy.
+type SetMailSenderPolicyParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// DeliverAddressedMailMultipartBody defines parameters for DeliverAddressedMail.
+type DeliverAddressedMailMultipartBody struct {
+	BodyMime  *string `json:"body-mime,omitempty"`
+	Recipient *string `json:"recipient,omitempty"`
+}
+
+// DeliverAddressedMailParams defines parameters for DeliverAddressedMail.
+type DeliverAddressedMailParams struct {
+	// Recipient The envelope recipient, where the inbound service passes it.
+	Recipient *string `form:"recipient,omitempty" json:"recipient,omitempty"`
 }
 
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
@@ -14020,6 +14396,23 @@ type ShareSavedViewParams struct {
 
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// AnswerAlexaJSONBody defines parameters for AnswerAlexa.
+type AnswerAlexaJSONBody map[string]interface{}
+
+// ShowAlexaModelParams defines parameters for ShowAlexaModel.
+type ShowAlexaModelParams struct {
+	Locale *ShowAlexaModelParamsLocale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// ShowAlexaModelParamsLocale defines parameters for ShowAlexaModel.
+type ShowAlexaModelParamsLocale string
+
+// SaveVoiceSettingsParams defines parameters for SaveVoiceSettings.
+type SaveVoiceSettingsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
@@ -14430,6 +14823,9 @@ type QueryItemsJSONRequestBody = ItemQuery
 // SubmitJumbleEntryJSONRequestBody defines body for SubmitJumbleEntry for application/json ContentType.
 type SubmitJumbleEntryJSONRequestBody = JumbleEntrySubmit
 
+// CommentJumbleEntryJSONRequestBody defines body for CommentJumbleEntry for application/json ContentType.
+type CommentJumbleEntryJSONRequestBody = JumbleEntryComment
+
 // ConvertJumbleEntryJSONRequestBody defines body for ConvertJumbleEntry for application/json ContentType.
 type ConvertJumbleEntryJSONRequestBody = JumbleEntryConvert
 
@@ -14441,6 +14837,15 @@ type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
 
 // ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
 type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
+
+// RotateMailAddressJSONRequestBody defines body for RotateMailAddress for application/json ContentType.
+type RotateMailAddressJSONRequestBody = MailAddressTarget
+
+// SetMailSenderPolicyJSONRequestBody defines body for SetMailSenderPolicy for application/json ContentType.
+type SetMailSenderPolicyJSONRequestBody = MailSenderPolicyChange
+
+// DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
+type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
@@ -14456,6 +14861,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
+
+// ExchangeOauthCodeFormdataRequestBody defines body for ExchangeOauthCode for application/x-www-form-urlencoded ContentType.
+type ExchangeOauthCodeFormdataRequestBody = OauthTokenForm
 
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
@@ -14534,6 +14942,15 @@ type ExportViewJSONRequestBody = ViewExport
 
 // ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
 type ShareSavedViewJSONRequestBody = SavedViewShare
+
+// AnswerAlexaJSONRequestBody defines body for AnswerAlexa for application/json ContentType.
+type AnswerAlexaJSONRequestBody AnswerAlexaJSONBody
+
+// SaveVoiceSettingsJSONRequestBody defines body for SaveVoiceSettings for application/json ContentType.
+type SaveVoiceSettingsJSONRequestBody = VoiceSettings
+
+// TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
+type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -15398,6 +15815,9 @@ type ServerInterface interface {
 	// GetJumbleEntry One jumble entry
 	// (GET /jumble/entries/{entryId})
 	GetJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID)
+	// CommentJumbleEntry Settle an entry as a comment on an entry
+	// (POST /jumble/entries/{entryId}:comment)
+	CommentJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params CommentJumbleEntryParams)
 	// ConvertJumbleEntry Turn an entry into work
 	// (POST /jumble/entries/{entryId}:convert)
 	ConvertJumbleEntry(w http.ResponseWriter, r *http.Request, entryId openapi_types.UUID, params ConvertJumbleEntryParams)
@@ -15425,6 +15845,18 @@ type ServerInterface interface {
 	// ReleaseLegalHold Lift a legal hold
 	// (POST /legal-holds/{holdId}:release)
 	ReleaseLegalHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
+	// ShowMailAddress The address a place takes mail at
+	// (GET /mail/addresses)
+	ShowMailAddress(w http.ResponseWriter, r *http.Request, params ShowMailAddressParams)
+	// RotateMailAddress Replace a place's mail address
+	// (POST /mail/addresses:rotate)
+	RotateMailAddress(w http.ResponseWriter, r *http.Request, params RotateMailAddressParams)
+	// SetMailSenderPolicy Set who may write into a place by mail
+	// (POST /mail/addresses:set-sender-policy)
+	SetMailSenderPolicy(w http.ResponseWriter, r *http.Request, params SetMailSenderPolicyParams)
+	// DeliverAddressedMail Deliver a mail to an address on the receiving domain
+	// (POST /mail/inbound)
+	DeliverAddressedMail(w http.ResponseWriter, r *http.Request, params DeliverAddressedMailParams)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -15653,6 +16085,21 @@ type ServerInterface interface {
 
 	// (POST /views/{viewId}:share)
 	ShareSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ShareSavedViewParams)
+	// AnswerAlexa Answer Alexa
+	// (POST /voice/alexa)
+	AnswerAlexa(w http.ResponseWriter, r *http.Request)
+	// ShowAlexaModel The Alexa interaction model
+	// (GET /voice/alexa/model)
+	ShowAlexaModel(w http.ResponseWriter, r *http.Request, params ShowAlexaModelParams)
+	// ShowVoiceSettings The workspace's voice settings
+	// (GET /voice/settings)
+	ShowVoiceSettings(w http.ResponseWriter, r *http.Request)
+	// SaveVoiceSettings Replace the workspace's voice settings
+	// (PUT /voice/settings)
+	SaveVoiceSettings(w http.ResponseWriter, r *http.Request, params SaveVoiceSettingsParams)
+	// TryVoiceSentence What a spoken sentence would do
+	// (POST /voice:try)
+	TryVoiceSentence(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -25767,6 +26214,56 @@ func (siw *ServerInterfaceWrapper) GetJumbleEntry(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// CommentJumbleEntry operation middleware
+func (siw *ServerInterfaceWrapper) CommentJumbleEntry(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "entryId" -------------
+	var entryId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "entryId", r.PathValue("entryId"), &entryId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "entryId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CommentJumbleEntryParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CommentJumbleEntry(w, r, entryId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ConvertJumbleEntry operation middleware
 func (siw *ServerInterfaceWrapper) ConvertJumbleEntry(w http.ResponseWriter, r *http.Request) {
 
@@ -26074,6 +26571,167 @@ func (siw *ServerInterfaceWrapper) ReleaseLegalHold(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReleaseLegalHold(w, r, holdId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowMailAddress operation middleware
+func (siw *ServerInterfaceWrapper) ShowMailAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ShowMailAddressParams
+
+	// ------------- Required query parameter "target_kind" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, true, "target_kind", r.URL.Query(), &params.TargetKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_kind"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_kind", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "target_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_id", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowMailAddress(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RotateMailAddress operation middleware
+func (siw *ServerInterfaceWrapper) RotateMailAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params RotateMailAddressParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RotateMailAddress(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetMailSenderPolicy operation middleware
+func (siw *ServerInterfaceWrapper) SetMailSenderPolicy(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetMailSenderPolicyParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetMailSenderPolicy(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeliverAddressedMail operation middleware
+func (siw *ServerInterfaceWrapper) DeliverAddressedMail(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params DeliverAddressedMailParams
+
+	// ------------- Optional query parameter "recipient" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "recipient", r.URL.Query(), &params.Recipient, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "recipient"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "recipient", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeliverAddressedMail(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -28629,6 +29287,122 @@ func (siw *ServerInterfaceWrapper) ShareSavedView(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AnswerAlexa operation middleware
+func (siw *ServerInterfaceWrapper) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AnswerAlexa(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowAlexaModel operation middleware
+func (siw *ServerInterfaceWrapper) ShowAlexaModel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ShowAlexaModelParams
+
+	// ------------- Optional query parameter "locale" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "locale", r.URL.Query(), &params.Locale, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "locale"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "locale", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowAlexaModel(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowVoiceSettings operation middleware
+func (siw *ServerInterfaceWrapper) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowVoiceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveVoiceSettings operation middleware
+func (siw *ServerInterfaceWrapper) SaveVoiceSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveVoiceSettingsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveVoiceSettings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TryVoiceSentence operation middleware
+func (siw *ServerInterfaceWrapper) TryVoiceSentence(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TryVoiceSentence(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -28770,6 +29544,16 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:convert", wrapper.ConvertJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:comment", wrapper.CommentJumbleEntry)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/addresses", wrapper.ShowMailAddress)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:rotate", wrapper.RotateMailAddress)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:set-sender-policy", wrapper.SetMailSenderPolicy)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/inbound", wrapper.DeliverAddressedMail)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/voice/settings", wrapper.ShowVoiceSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/voice/settings", wrapper.SaveVoiceSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/voice:try", wrapper.TryVoiceSentence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/voice/alexa/model", wrapper.ShowAlexaModel)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/voice/alexa", wrapper.AnswerAlexa)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)

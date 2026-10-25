@@ -25,7 +25,7 @@
 
   import { untrack } from 'svelte';
 
-  import { Badge, Dialog, Icon, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
+  import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
   import type { Container, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
@@ -499,9 +499,9 @@
     <Icon name={iconOf(row)} />
     <span class="title">{labelOf(row)}</span>
     {#if context}<span class="context">{context}</span>{/if}
-    <!-- Wrapped: a `Badge` is an inline-flex box and would shrink beside a long title. -->
-    <span class="kind"><Badge>{kindOf(row)}</Badge></span>
-    {#if shortcut}<kbd aria-hidden="true">{drawnKeysOf(shortcut)[0]}</kbd>{/if}
+    <!-- What a row is, said to a reader; the group's heading already says it to the eye. -->
+    <VisuallyHidden>{kindOf(row)}</VisuallyHidden>
+    {#if shortcut}<span class="key" aria-hidden="true"><Kbd size="sm">{drawnKeysOf(shortcut)[0]}</Kbd></span>{/if}
   </button>
 {/snippet}
 
@@ -563,7 +563,7 @@
         >
           <Icon name="search" />
           <span class="title">{t(words === '' ? 'app.searchmenu.open' : 'app.searchmenu.all')}</span>
-          <kbd aria-hidden="true">{t('app.searchmenu.enter')}</kbd>
+          <span class="key" aria-hidden="true"><Kbd size="sm">⏎</Kbd></span>
           <VisuallyHidden><span id={enterHintId}>{t('app.palette.enter_hint')}</span></VisuallyHidden>
         </button>
       {/if}
@@ -592,6 +592,7 @@
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
   <form
     class="entry"
+    data-open={isOpen ? '' : undefined}
     role="search"
     aria-label={t('app.search.title')}
     bind:this={form}
@@ -600,10 +601,19 @@
     onkeydowncapture={keydown}
     data-tour="palette"
   >
-    {@render field()}
-    {#if isOpen}
-      {@render list()}
-    {/if}
+    <!-- The field and its list float as one: in use they are drawn over the bar, centred on where
+         the field stands and as wide as the list needs, so nothing beside it moves - the field
+         neither jumps nor pushes *Capture*, which it may cover while open. -->
+    <div class="float">
+      {@render field()}
+      {#if !isOpen && term === ''}
+        <!-- The way here from anywhere, as the concept draws it: the key at the field's end. -->
+        <span class="keys" aria-hidden="true"><Kbd size="sm">{drawnKeysOf('palette')[0]}</Kbd></span>
+      {/if}
+      {#if isOpen}
+        {@render list()}
+      {/if}
+    </div>
   </form>
 {:else}
   <Dialog
@@ -637,7 +647,39 @@
 <style>
   /* The field takes the slot whole; the slot is what is bounded, in `AppBar`. The list is
      positioned against this, which is why it is the containing block. */
-  .entry { position: relative; display: block; min-inline-size: 0; }
+  .entry { position: relative; display: block; min-inline-size: 0; block-size: var(--density-control-sm-min); }
+
+  /* Always drawn over the slot, centred on it, so using it changes one thing - its width - and that
+     change is a movement rather than a jump: the field grows evenly to both sides, never down or up.
+     The slot is the window's middle from `expanded` (AppFrame), so the open field is too. */
+  .float {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 100%;
+    /* Centred on both axes: the field is a hair taller than the slot's control height, and pinned
+       to the slot's top it stood lower than the bar's middle. */
+    translate: -50% -50%;
+    transition: inline-size var(--dur-base) var(--ease-standard);
+  }
+
+  /* In use: the open width, never into the logo's or the account's side of the bar. */
+  .entry:focus-within > .float,
+  .entry[data-open] > .float {
+    z-index: var(--z-popover);
+    inline-size: min(var(--layout-barsearch-open), 100vw - 2 * var(--layout-barsearch-side));
+    min-inline-size: 100%;
+  }
+
+  :global([dir='rtl']) .float { translate: 50% -50%; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .float { transition: none; }
+  }
+
+  .keys { display: inline-flex; position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
+  /* The words make room for the key rather than run under it - a German placeholder is long. */
+  .float:has(> .keys) :global(input) { padding-inline-end: calc(var(--sp-100) + var(--sp-500)); text-overflow: ellipsis; }
   .sheet { display: flex; flex-direction: column; gap: var(--sp-100); }
 
   .menu[data-host='bar'] {
@@ -647,7 +689,7 @@
     z-index: var(--z-popover);
     /* A narrow bar field must not squeeze the list into a column of ellipses. */
     min-inline-size: var(--layout-barsearch-width);
-    max-block-size: 60vh;
+    max-block-size: 70vh;
     overflow-y: auto;
     padding: var(--sp-100);
     border: var(--bw-hairline) solid var(--border-subtle);
@@ -695,7 +737,6 @@
 
   .context { flex: none; color: var(--text-secondary); font-size: var(--fs-075); white-space: nowrap; }
 
-  .kind { flex: none; white-space: nowrap; }
 
   .quick { display: flex; flex-wrap: wrap; gap: var(--sp-050); padding-inline: var(--sp-100); }
 
@@ -721,12 +762,5 @@
 
   .foot { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  kbd {
-    flex: none;
-    border: var(--bw-hairline) solid var(--border-subtle);
-    border-radius: var(--r-sm);
-    padding-inline: var(--sp-050);
-    color: var(--text-secondary);
-    font-size: var(--fs-075);
-  }
+  .key { display: inline-flex; flex: none; }
 </style>

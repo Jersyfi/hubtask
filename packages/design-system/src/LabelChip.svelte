@@ -62,9 +62,13 @@
     display: inline-flex;
     align-items: center;
     gap: var(--sp-050);
-    padding: var(--sp-025) var(--sp-100);
-    border-radius: var(--r-full);
-    font-size: var(--fs-075);
+    /* The concept's chip: small and squared-off, so a row of them reads as marks on the row
+       rather than as buttons beside it. */
+    padding: var(--sp-050) var(--sp-100);
+    border-radius: var(--r-sm);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+    line-height: 1;
     /* Both halves of the pair, always together. The background alone would be a chip whose text is
        the page's colour on a tint that was measured against a different one. */
     background: var(--label-bg);
@@ -97,6 +101,8 @@
     min-inline-size: var(--density-control-sm-min);
     min-block-size: var(--density-control-sm-min);
     margin-inline: calc(var(--sp-100) * -1);
+    /* Taller than the chip, without making it taller: the target overhangs it. */
+    margin-block: calc((var(--density-control-sm-min) - 1lh) / -2);
     padding: 0;
     border: 0;
     background: transparent;

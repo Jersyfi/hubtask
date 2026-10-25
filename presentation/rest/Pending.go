@@ -523,6 +523,48 @@ func (pending) DeliverMail(w http.ResponseWriter, r *http.Request, _ string) {
 	notAvailable(w, r)
 }
 
+func (pending) CommentJumbleEntry(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CommentJumbleEntryParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ShowMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.ShowMailAddressParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RotateMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.RotateMailAddressParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetMailSenderPolicy(
+	w http.ResponseWriter, r *http.Request, _ openapi.SetMailSenderPolicyParams,
+) {
+	notAvailable(w, r)
+}
+
+// The receiving domain's door, pending for the mail door's reason.
+func (pending) DeliverAddressedMail(
+	w http.ResponseWriter, r *http.Request, _ openapi.DeliverAddressedMailParams,
+) {
+	notAvailable(w, r)
+}
+
+func (pending) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SaveVoiceSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveVoiceSettingsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TryVoiceSentence(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ShowAlexaModel(w http.ResponseWriter, r *http.Request, _ openapi.ShowAlexaModelParams) {
+	notAvailable(w, r)
+}
+
+// Alexa's endpoint, pending for the mail door's reason.
+func (pending) AnswerAlexa(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {

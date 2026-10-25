@@ -408,6 +408,20 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 		}
 		item.LabelIds = &labels
 	}
+	// Present only with `expand=counts` on a query, as the labels are.
+	if counts, asked := out["counts"].(usecase.Output); asked {
+		item.Counts = &struct {
+			Attachments int `json:"attachments"`
+			Comments    int `json:"comments"`
+			Parts       int `json:"parts"`
+			PartsDone   int `json:"parts_done"`
+		}{
+			Attachments: counts.Int("attachments"),
+			Comments:    counts.Int("comments"),
+			Parts:       counts.Int("parts"),
+			PartsDone:   counts.Int("parts_done"),
+		}
+	}
 	item.Cover = coverResponse(out["cover"])
 	if values, carried := out["custom_fields"].(map[string]any); carried {
 		item.CustomFields = &values

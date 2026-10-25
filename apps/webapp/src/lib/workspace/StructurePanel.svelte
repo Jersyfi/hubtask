@@ -1,11 +1,13 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // A hub's or a collection's *Structure* panel (UC-WRK-23 checks 1-3, 7): a preset to start
-  // from, and the eight settings, each with where its value comes from, its lock and a reset.
+  // A hub's or a collection's settings page (UC-WRK-23 checks 1-3, 7; design-system.md §11.8):
+  // the sections as a list at the start, the open one beside it - the shape of the administration,
+  // so setting something up looks the same everywhere. Its *Structure* section is a preset to start
+  // from and the eight settings, each with where its value comes from, its lock and a reset.
   //
-  // Opened only for a reader who may change the shape (check 9, P-05): the caller leaves the
-  // menu row out for anybody else. One save per sitting, through the save bar - every setting is
+  // Drawn only for a reader who may change the shape (check 9, P-05): the caller leaves the
+  // way in out for anybody else. One save per sitting, through the save bar - every setting is
   // a field of one form (design-system.md §4, case 4) - and one `PATCH …/structure` that says
   // which preset, which settings and which resets. A lock is a `SourceChip` with the lock beside
   // the setting's name and the control still there, readable and unavailable with its reason
@@ -17,7 +19,7 @@
 
   import { untrack, type Snippet } from 'svelte';
 
-  import { Button, CheckboxGroup, Drawer, Input, Radio, SaveBar, Select, SourceChip, Stack, Tabs } from '@hubtask/design-system/components';
+  import { Button, CheckboxGroup, Input, Radio, SaveBar, Select, SourceChip, Stack } from '@hubtask/design-system/components';
   import type { Container, StructureChange, StructurePreview, StructureSettings } from '@hubtask/sync-engine';
 
   import { announcer } from '../announce.svelte.ts';
@@ -32,7 +34,6 @@
   import NarrowingDialog from './NarrowingDialog.svelte';
   import SavePresetDialog from './SavePresetDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
-  import { viewport } from '../frame/viewport.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -55,7 +56,7 @@
     type SettingName,
   } from './structureDraft.ts';
 
-  /** A tab beside the settings: what it is called, and what it draws while it is the open one. */
+  /** A section beside the structure: what it is called, and what it draws while it is the open one. */
   export interface StructureTab {
     readonly id: string;
     readonly label: string;
@@ -67,13 +68,27 @@
     container: Container;
     /** Whether the reader may change the workspace's shape: *Save as preset* then offers the workspace. */
     mayShapeWorkspace?: boolean;
-    /** The collection's further parts, as tabs after *Settings*; none for a panel of settings alone. */
+    /** The sections before the structure (its general fields) and after it, in the list's order. */
+    before?: readonly StructureTab[];
     tabs?: readonly StructureTab[];
-    /** The open tab's id, `settings` first. Bindable, so a way in can open the panel on its tab. */
+    /** The open section's id; `structure` is the eight settings. */
     tab?: string;
+    /** Where each section lives, and going there: every section has its own address. */
+    hrefOf: (section: string) => string;
+    onsection: (section: string) => void;
   }
 
-  let { isOpen = $bindable(), container, mayShapeWorkspace = false, tabs = [], tab = $bindable('settings') }: Props = $props();
+  const { isOpen, container, mayShapeWorkspace = false, before = [], tabs = [], tab = 'structure', hrefOf, onsection }: Props = $props();
+
+  /** On a phone the sections are one row that scrolls: the open one is always brought into it. */
+  let sectionList = $state<HTMLElement | null>(null);
+  $effect(() => {
+    void tab;
+    const list = sectionList;
+    if (!list) return;
+    queueMicrotask(() => list.querySelector<HTMLElement>('a[aria-current="page"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
+  });
+  const sections = $derived([...before, { id: 'structure', label: t('app.settings.section_structure') }, ...tabs]);
   let isSavingPreset = $state(false);
 
   const structure = $derived(container.structure);
@@ -585,29 +600,31 @@
   {/if}
 {/snippet}
 
-<Drawer
-  bind:isOpen
-  edge={viewport.isCompact ? 'block-end' : 'inline-end'}
-  title={t('app.structure.title', { name: container.name })}
-  dismissLabel={t('app.dismiss')}
->
-  {#if tabs.length > 0}
-    <!-- A collection's further parts as tabs beside its settings (ux-inventory.md §E4): its
-         labels, fields, templates, automation and people, each the same component its dialog
-         was, drawn while its tab is the open one. -->
-    <div data-structure-tabs>
-      <Tabs label={t('app.structure.tabs_label')} tabs={[{ id: 'settings', label: t('app.structure.tab_settings') }, ...tabs]} bind:selected={tab}>
-        {#if tab === 'settings'}
-          {@render settingsBody()}
-        {:else}
-          {@render tabs.find((each) => each.id === tab)?.body()}
-        {/if}
-      </Tabs>
-    </div>
-  {:else}
-    {@render settingsBody()}
-  {/if}
-</Drawer>
+<div class="page" data-structure-tabs>
+  <nav class="sections" aria-label={t('app.structure.tabs_label')}>
+    <ul bind:this={sectionList}>
+      {#each sections as each (each.id)}
+        <li>
+          <a
+            href={hrefOf(each.id)}
+            aria-current={tab === each.id ? 'page' : undefined}
+            onclick={(event) => {
+              event.preventDefault();
+              onsection(each.id);
+            }}>{each.label}</a
+          >
+        </li>
+      {/each}
+    </ul>
+  </nav>
+  <div class="section">
+    {#if tab === 'structure'}
+      {@render settingsBody()}
+    {:else}
+      {@render [...before, ...tabs].find((each) => each.id === tab)?.body()}
+    {/if}
+  </div>
+</div>
 
 {#if narrowing}
   <NarrowingDialog
@@ -641,7 +658,59 @@
   .hint { margin: 0; color: var(--text-secondary); max-width: 64ch; }
   .failure { margin: 0; color: var(--text-danger); }
 
-  /* Six tabs are wider than the sheet. Scrolled, the last ones were cut off with nothing saying
-     there were more; wrapped onto a second line, every tab is in sight. */
-  [data-structure-tabs] :global([role='tablist']) { flex-wrap: wrap; overflow-x: visible; }
+  /* The sections at the start and the open one beside them, as the administration draws its
+     areas. On a phone they are tabs above the section: one line that scrolls sideways, the open
+     one underlined - the way the capture dialog's tabs look - never buttons wrapping into rows. */
+  .page { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-300); }
+  .sections { min-width: 0; }
+  .sections ul {
+    display: flex;
+    gap: var(--sp-050);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    overflow-x: auto;
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    scrollbar-width: none;
+  }
+  .sections li { flex: none; }
+  .sections a {
+    display: flex;
+    align-items: center;
+    padding: var(--sp-100) var(--sp-150);
+    border-block-end: var(--bw-ring) solid transparent;
+    color: var(--text-secondary);
+    font-size: var(--fs-100);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .sections a:hover { color: var(--text-primary); }
+  .sections a:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: calc(var(--sp-025) * -1); }
+  /* Rule 3: the open section is announced by `aria-current` and marked, not by colour alone. */
+  .sections a[aria-current='page'] {
+    border-block-end-color: var(--accent-primary);
+    color: var(--text-primary);
+    font-weight: var(--fw-semibold);
+  }
+  .section { min-width: 0; }
+
+  /* From `medium` the list stands at the start as rows of the navigation column, as the
+     administration's areas do (§13 G2). */
+  /* design-system-lint-ignore: `primitive.breakpoint.medium` (600px); a media query cannot read a custom property. */
+  @media (width >= 600px) {
+    .page { grid-template-columns: minmax(0, max-content) minmax(0, 1fr); }
+    .sections ul { flex-direction: column; overflow-x: visible; border-block-end: 0; }
+    .sections a {
+      padding-block: var(--density-row-block);
+      border-block-end: 0;
+      border-radius: var(--r-md);
+    }
+    .sections a:hover { background: var(--bg-surface-hover); }
+    .sections a[aria-current='page'] {
+      background: var(--bg-surface-pressed);
+      font-weight: var(--fw-medium);
+      box-shadow: inset var(--bw-thick) 0 0 0 var(--accent-primary);
+    }
+    :global([dir='rtl']) .sections a[aria-current='page'] { box-shadow: inset calc(var(--bw-thick) * -1) 0 0 0 var(--accent-primary); }
+  }
 </style>

@@ -243,7 +243,8 @@
     <!-- `settled` rather than `unused`: an empty trash is the good outcome, not a thing nobody
          has got round to — and §4.3 offers nothing to do about it, which is what that kind
          refuses a call to action for. -->
-    <EmptyState kind="settled" title={t('app.trash.empty')} icon="trash" />
+    <!-- The same empty as the archive's: an empty place says what it is for, in one form (G4). -->
+    <EmptyState kind="unused" title={t('app.trash.empty')} description={t('app.trash.empty_body')} icon="trash" />
   {:else}
     <Stack gap="050">
       {#each trash.rows as row (row.id)}

@@ -84,6 +84,19 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
+	t.Run("a mail address names its workspace", func(t *testing.T) {
+		if _, err := super.Exec(ctx, `INSERT INTO mail_address
+			(id, tenant_id, target_kind, code, created_at) VALUES
+			('01936f2a-7c1e-7000-8000-000000145651', '`+tenantB+`', 'JUMBLE', 'doorbdoorbdoorbd', now())`); err != nil {
+			t.Fatalf("seeding the address: %v", err)
+		}
+		var named *string
+		one(t, `SELECT resolve_mail_address('DOORBDOORBDOORBD')::text`, &named)
+		if named == nil || *named != tenantB {
+			t.Errorf("resolve_mail_address answered %v", named)
+		}
+	})
+
 	t.Run("the operator's list and the census count both workspaces", func(t *testing.T) {
 		var listed, active, accounts, workspaces int
 		var unset bool

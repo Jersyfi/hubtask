@@ -34,8 +34,8 @@
     Checkbox,
     EmptyState,
     ErrorState,
+    Icon,
     IconButton,
-    LabelChip,
     LoadMore,
     Menu,
     PageHeader,
@@ -44,6 +44,7 @@
     Skeleton,
     Stack,
     Tabs,
+    ViewSwitcher,
     type ActivityStep,
     type MenuItem,
   } from '@hubtask/design-system/components';
@@ -61,6 +62,7 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import MailDetailRow from '../lib/mail/MailDetailRow.svelte';
   import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -82,14 +84,13 @@
   import CustomFieldPanel from '../lib/entries/CustomFieldPanel.svelte';
   import DetailRow from '../lib/entries/DetailRow.svelte';
   import AmountPanel from '../lib/entries/AmountPanel.svelte';
-  import DueMark from '../lib/entries/DueMark.svelte';
   import EntryList from '../lib/entries/EntryList.svelte';
   import LabelsPanel from '../lib/entries/LabelsPanel.svelte';
   import ReplicaMark from '../lib/frame/ReplicaMark.svelte';
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
-  import PeopleMarks from '../lib/people/PeopleMarks.svelte';
+  import { device } from '../lib/device.svelte.ts';
   import DuePanel from '../lib/entries/DuePanel.svelte';
   import RecurrencePanel from '../lib/entries/RecurrencePanel.svelte';
   import LanguagePicker from '../lib/entries/LanguagePicker.svelte';
@@ -135,6 +136,41 @@
 
   const { id, onnavigate, isInPane = false }: Props = $props();
 
+  /**
+   * Whether the details' fold is open: open from `medium` up, folded on a phone - and opened by a
+   * proposal standing at a detail. Bound rather than recomputed, so the person's own press holds
+   * while anything else on the page changes.
+   */
+  let isDetailsOpen = $state(!viewport.isCompact);
+  $effect(() => {
+    const isCompact = viewport.isCompact;
+    untrack(() => (isDetailsOpen = !isCompact || hasDetailProposal));
+  });
+  $effect(() => {
+    if (hasDetailProposal) isDetailsOpen = true;
+  });
+
+  /** Whether the details show the fields with nothing set too; folded by default. */
+  let isFieldsOpen = $state(false);
+  let detailRowsElement = $state<HTMLElement | null>(null);
+  /** How many detail rows hold nothing, and how many hold something: read off the rows drawn. */
+  let emptyFieldCount = $state(0);
+  let setFieldCount = $state(0);
+  $effect(() => {
+    void item;
+    const rows = detailRowsElement;
+    if (!rows) return;
+    const count = () => {
+      emptyFieldCount = rows.querySelectorAll(':scope > .detail[data-empty]').length;
+      setFieldCount = rows.querySelectorAll(':scope > .detail:not([data-empty])').length;
+    };
+    count();
+    const observer = new MutationObserver(count);
+    observer.observe(rows, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-empty'] });
+    return () => observer.disconnect();
+  });
+
+
   // Read once, and `untrack` says the once is deliberate: `App.svelte` keys this view on the id,
   // so a different entry is a different component rather than the same one asking again. A
   // resource that followed the prop would be a second answer to which entry this screen is.
@@ -154,7 +190,7 @@
   // Not in the pane, where the reader is on the list beside it rather than on this.
   $effect(() => {
     if (isInPane || !item?.title) return;
-    recents.note({ kind: 'item', id: item.id, title: item.title });
+    recents.note({ kind: 'item', id: item.id, title: item.title, placeId: item.collection_id });
   });
 
   /**
@@ -261,6 +297,37 @@
   const commentCount = $derived(thread.state.status === 'ready' ? (thread.state.data.data ?? []).length : undefined);
   const reminderCount = $derived(reminders.of(id).length);
   const rule = $derived(series.of(id));
+  /** The board column the entry stands in, by its name: what it *is* beside its level. */
+  /** The collection's columns, where it has any: what the column mark offers. */
+  const columnsHere = $derived.by(() => {
+    if (!item) return [];
+    // Only where the collection is a board at all: a list's entries have no column to change.
+    const offered = collection?.structure?.settings?.views?.offered as readonly string[] | undefined;
+    if (offered && !offered.includes('KANBAN')) return [];
+    return buckets.of(item.collection_id);
+  });
+  const columnItems = $derived<MenuItem[]>([
+    ...columnsHere.map((column) => ({ id: column.id, label: column.name, icon: column.id === item?.bucket_id ? ('check' as const) : undefined })),
+    { id: 'none', label: t('app.board.unbucketed'), icon: item?.bucket_id ? undefined : ('check' as const), hasSeparatorBefore: true },
+  ]);
+
+  /** Puts the entry in a column, as the board's move does - the done column completes it too. */
+  async function setColumn(bucketId: string | null) {
+    if (!item || (item.bucket_id ?? null) === bucketId) return;
+    const target = columnsHere.find((column) => column.id === bucketId);
+    try {
+      let moved = await items.setBucket(item.id, bucketId, item.version);
+      if (target?.is_done_bucket && !moved.completion?.is_completed) {
+        moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
+        void celebration.celebrate(moved);
+      }
+      announcer.say(t('app.board.moved', { title: item.title, name: target?.name ?? t('app.board.unbucketed'), limit: '' }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
+  const columnName = $derived(item?.bucket_id ? buckets.of(item.collection_id).find((each) => each.id === item?.bucket_id)?.name : undefined);
   const carriedLabels = $derived(
     item ? (item.label_ids ?? []).map((labelId) => labels.of(item.collection_id).find((each) => each.id === labelId)).filter((each) => each !== undefined) : [],
   );
@@ -716,6 +783,8 @@
   // under it - and nothing at all when the manifest announces no AI for this workspace, not
   // disabled with a reason, not rendered empty (ai-first.md §2, absence is absence).
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
+  /** Whether places have mail addresses on this installation (ADR-0092). */
+  const hasMailAddresses = $derived(manifest.value?.features?.mail_addresses === true);
 
   // What stands about this entry, read once - the view is keyed on the id. A reader reads it too:
   // a summary of the discussion is a reading aid (check 8).
@@ -788,6 +857,9 @@
       : 'reading',
   );
   const hasComments = $derived((commentCount ?? 0) > 0);
+
+  /** A proposal waits at a detail: the fields are never folded over it. */
+  const hasDetailProposal = $derived(item ? proposalsAt('due').length + proposalsAt('labels').length > 0 : false);
 
   // What sits under this entry, for the kinds that hold anything: an accepted breakdown
   // creates children, and a screen that showed the proposal but not what it made would leave
@@ -899,7 +971,29 @@
         onmenu={(offered) => page.offer(offered)}
         breadcrumb={{ trail, label: t('app.workspace.trail'), expandLabel: t('app.workspace.expand_trail'), onnavigate: goTo }}
         menu={{ label: t('app.workspace.actions', { name: item.title }), items: entryMenu, opener: 'entry-menu', onselect: chooseFromMenu }}
-      />
+      >
+        {#snippet aside()}
+          <!-- The panel's switch, the way back: where an entry could open beside its list, *Side
+               panel* opens this one there and every one after it (design-system.md §11.8). -->
+          {#if viewport.isLarge && item.collection_id}
+            {@const collectionId = item.collection_id}
+            <ViewSwitcher
+              label={t('app.pane.view')}
+              isIconOnly
+              views={[
+                { id: 'panel', label: t('app.pane.view_panel'), icon: 'panel-right' },
+                { id: 'page', label: t('app.pane.view_page'), icon: 'maximize-2' },
+              ]}
+              selected="page"
+              onselect={(id) => {
+                if (id !== 'panel') return;
+                device.setOpenMode('panel');
+                onnavigate?.(`/collections/${collectionId}?item=${item.id}`);
+              }}
+            />
+          {/if}
+        {/snippet}
+      </PageHeader>
     {/if}
 
     <!-- `data-tour`: where the tour points for "what an entry carries". -->
@@ -949,7 +1043,7 @@
                the title's line, not on a line of its own above an empty band. -->
           <Menu label={t('app.workspace.actions', { name: item.title })} items={entryMenu} placement={{ side: 'block-end', align: 'end' }} onselect={chooseFromMenu}>
             {#snippet trigger(props)}
-              <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} tone="secondary" data-opener="entry-menu" {...props} />
+              <IconButton icon="ellipsis" label={t('app.workspace.actions', { name: item.title })} size="sm" data-opener="entry-menu" {...props} />
             {/snippet}
           </Menu>
         {/if}
@@ -966,21 +1060,24 @@
       <!-- What is set, as chips (design-system.md §11.8: set before empty). Each is also a row below.
            Per the effective profile (UC-WRK-23 check 4): a value the type no longer carries here
            stays stored and is not drawn, as its row is not. -->
+      <!-- Beside the title only what the entry *is*: its level, its column, archived. Who, when and
+           which labels are the details' (concept round 2, §4), not a second row of the same facts. -->
       <div class="marks">
-        <Badge>{typeName(item.type)}</Badge>
+        <Badge size="sm">{typeName(item.type)}</Badge>
+        {#if isWritable && columnsHere.length > 0}
+          <!-- The column is changed here as well as on the board (concept round 3): the mark is
+               the menu of the collection's columns. -->
+          <Menu label={t('app.item.column_menu')} items={columnItems} onselect={(id) => void setColumn(id === 'none' ? null : id)}>
+            {#snippet trigger(props)}
+              <button type="button" class="column-mark" data-column-mark {...props}>
+                <Icon name="columns-3" size="sm" /><span>{columnName ?? t('app.board.unbucketed')}</span><Icon name="chevron-down" size="sm" />
+              </button>
+            {/snippet}
+          </Menu>
+        {:else if columnName}<Badge size="sm" icon="columns-3">{columnName}</Badge>{/if}
         {#if item.archived_at}
-          <Badge icon="archive">{t('app.entries.archived_label')}</Badge>
+          <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
-        {#if carries('ASSIGNMENT') || carries('MEMBERS')}<PeopleMarks assigneeId={item.assignee_id} memberIds={item.member_ids ?? []} />{/if}
-        {#if carries('DUE_DATE')}<DueMark {item} />{/if}
-        {#if carries('LABELS')}
-          {#each carriedLabels as label (label.id)}
-            <LabelChip name={label.name} colorToken={label.color_token} description={label.description} />
-          {/each}
-        {/if}
-        {#if repeatValue && carries('RECURRENCE')}<Badge icon="repeat">{repeatValue}</Badge>{/if}
-        {#if reminderCount > 0 && carries('REMINDER')}<Badge icon="bell">{t('app.item.reminders_count', { count: String(reminderCount) })}</Badge>{/if}
-        {#if item.content_language}<Badge icon="globe">{languageName(item.content_language, messages.locale)}</Badge>{/if}
       </div>
       <!-- Kudos on a finished entry (UC-WRK-29 check 5): nothing is read or drawn while the
            celebrations are off (check 7), or while the entry is open. -->
@@ -991,28 +1088,6 @@
            activity carries none (`domain-model.md` §2), and a field whose every save is refused
            is not a field. While the manifest has not been read, which type this is decides
            nothing yet, so the field is pending rather than absent. -->
-      {#if !isTypeKnown}
-        {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
-      {:else if carries('NOTES') && (isWritable || inlineNotes.trim() !== '')}
-      <textarea
-        class="notes-field"
-        lang={entryLang}
-        aria-label={t('app.entries.notes')}
-        placeholder={t('app.item.notes_placeholder')}
-        rows="3"
-        bind:value={inlineNotes}
-        readonly={!isWritable}
-        oninput={() => (isInlineDirty = true)}
-        onblur={() => void commitInline()}
-        onkeydown={onNotesKey}
-      ></textarea>
-      {/if}
-      {#if hasAi && isTypeKnown && carries('NOTES')}
-        {#if isChangeable}
-          <div class="field-ai"><AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} /></div>
-        {/if}
-        <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
-      {/if}
       {#if writeFailure && !isTitleFailure}
         <p class="failure" role="alert">{writeFailure.message}</p>
       {/if}
@@ -1041,9 +1116,9 @@
       {#if holdsDetails}
         <aside class="details" aria-label={t('app.item.details')}>
           <!-- Open on a phone too while a proposal stands at a detail: it is never hidden in a fold. -->
-          <details class="details-fold" open={!viewport.isCompact || proposalsAt('due').length + proposalsAt('labels').length > 0}>
+          <details class="details-fold" bind:open={isDetailsOpen}>
             <summary class="details-summary">{t('app.item.details')}</summary>
-            <div class="rows">
+            <div class="rows" data-folded={isFieldsOpen || hasDetailProposal ? undefined : ''} bind:this={detailRowsElement}>
               {#if isTypeKnown && isTypeOffered}
                 {@render detailRows()}
               {:else if isTypeKnown}
@@ -1063,11 +1138,43 @@
                 <div class="pending" aria-busy="true"><Skeleton lines={6} /></div>
               {/if}
             </div>
+            <!-- The fields with nothing set wait behind one press: a short entry stays short, a
+                 long one stays ordered (concept round 2, §4). -->
+            {#if isTypeKnown && isTypeOffered && emptyFieldCount > 0 && !hasDetailProposal}
+              <button type="button" class="more-fields" aria-expanded={isFieldsOpen} onclick={() => (isFieldsOpen = !isFieldsOpen)}>
+                <Icon name={isFieldsOpen ? 'chevron-down' : 'chevron-right'} size="sm" />
+                {isFieldsOpen ? t('app.item.fields_fewer') : setFieldCount === 0 ? t('app.item.fields_add') : t('app.item.fields_more', { count: String(emptyFieldCount) })}
+              </button>
+            {/if}
           </details>
         </aside>
       {/if}
 
       <div class="main-column">
+        <!-- The description first in the main column, as the concept draws it: a box that reads
+             as text, one quiet line while empty (concept round 2, §4). -->
+          {#if !isTypeKnown}
+            {#if !typeFailure}<div class="pending" aria-busy="true"><Skeleton lines={3} /></div>{/if}
+          {:else if carries('NOTES') && (isWritable || inlineNotes.trim() !== '')}
+          <textarea
+            class="notes-field"
+            lang={entryLang}
+            aria-label={t('app.entries.notes')}
+            placeholder={t('app.item.notes_placeholder')}
+            rows={inlineNotes.trim() === '' ? 1 : 3}
+            bind:value={inlineNotes}
+            readonly={!isWritable}
+            oninput={() => (isInlineDirty = true)}
+            onblur={() => void commitInline()}
+            onkeydown={onNotesKey}
+          ></textarea>
+          {/if}
+          {#if hasAi && isTypeKnown && carries('NOTES')}
+            {#if isChangeable}
+              <div class="field-ai"><AiAsk {item} place="notes" mayChange={isWritable} standing={standingAt('notes')} /></div>
+            {/if}
+            <AiPlace {item} place="notes" proposals={proposalsAt('notes')} mayChange={isWritable} onclose={closeProposal} />
+          {/if}
 
         {#if !isTypeKnown}
           <!-- What a type holds is the manifest's answer too, so "nothing sits under this" is
@@ -1076,7 +1183,7 @@
         {:else if takesChildren}
           <!-- The whole subtree (decisions 6 and 7): the same tree the expanded list draws, one
                level down, headed by what it holds and how much of it is done. -->
-          <Stack gap="150">
+          <div class="parts"><Stack gap="150">
             <div class="section-head" data-tour="levels">
               <h2 class="section">
                 {subtreeHeading}
@@ -1097,7 +1204,7 @@
               <AiPlace {item} place="steps" proposals={proposalsAt('steps')} mayChange={isChangeable && !isCollectionArchived} onclose={closeProposal} />
             {/if}
             <EntryList bind:this={subtree} collectionId={item.collection_id} root={item} isReadOnly={isCollectionArchived} readOnlyReason={isCollectionArchived ? readOnlyReason : undefined} readOnlyNoticeId={readOnlyNoticeId} {onnavigate} mayShare={mayShareHere} changeRefusal={changeRefusalOf} mayCreate={mayCreateHere} />
-          </Stack>
+          </Stack></div>
         {/if}
 
         <Tabs
@@ -1240,6 +1347,10 @@
                 <AttachmentPanel {item} isChangeable={isWritable} />
               </DetailRow>
             {/if}
+            <!-- The entry's own address: a mail to it becomes a comment here (ADR-0092 M1). -->
+            {#if hasMailAddresses && isWritable}
+              <MailDetailRow itemId={item.id} />
+            {/if}
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
@@ -1321,22 +1432,22 @@
 
   .notes-field {
     inline-size: 100%;
-    max-inline-size: 64ch;
     box-sizing: border-box;
     margin: 0;
     padding: var(--sp-100);
-    border: var(--bw-hairline) solid transparent;
+    border: var(--bw-hairline) solid var(--border-subtle);
     border-radius: var(--r-md);
-    background: transparent;
-    color: var(--text-secondary);
+    background: var(--bg-surface);
+    color: var(--text-primary);
     font: inherit;
     line-height: var(--lh-normal);
     resize: vertical;
     field-sizing: content;
-    min-block-size: calc(var(--density-control-md-min) * 2);
+    min-block-size: var(--density-control-md-min);
   }
 
-  .notes-field:hover:not(:read-only) { background: var(--bg-surface-hover); }
+  .notes-field:placeholder-shown { color: var(--text-subtle); }
+  .notes-field:hover:not(:read-only) { border-color: var(--border-default); }
 
   .notes-field:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
@@ -1344,6 +1455,14 @@
     background: var(--bg-surface);
     border-color: var(--border-subtle);
     color: var(--text-primary);
+  }
+
+  /* The parts as one card: their heading, done of total, the rows and the add. */
+  .parts {
+    padding: var(--sp-150) var(--sp-200);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-surface);
   }
 
   .marks { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
@@ -1371,7 +1490,9 @@
 
   .details { min-width: 0; }
 
-  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-lg); background: var(--bg-surface); box-shadow: var(--shadow-raised); }
+  /* A table inside the page or the panel, not a card on it: the border and no shadow of its own,
+     so nothing is a layer over the layer it sits in. */
+  .details-fold { border: var(--bw-hairline) solid var(--border-subtle); border-radius: var(--r-md); background: var(--bg-surface); }
 
   .details-summary {
     padding: var(--sp-150) var(--sp-200);
@@ -1388,6 +1509,29 @@
   }
 
   .rows { display: flex; flex-direction: column; padding: 0 var(--sp-100) var(--sp-100); }
+
+  /* Folded: the fields with nothing set are out of the way until *More fields* is pressed. */
+  .rows[data-folded] > :global(.detail[data-empty]) { display: none; }
+
+  .more-fields {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    margin: 0 var(--sp-100) var(--sp-100);
+    padding: var(--sp-050) var(--sp-100);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+  .more-fields:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+  .more-fields:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  /* In the panel the details are a grid of two at the top, as the concept draws it. */
+  .columns[data-pane] .rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--sp-200); }
 
   /* design-system-lint-ignore: `primitive.breakpoint.expanded` (905px); a media query cannot read a custom property. */
   @media (width >= 905px) {
@@ -1416,4 +1560,27 @@
   .unread { margin: var(--sp-150) 0 0; color: var(--text-primary); font-size: var(--fs-075); }
 
   .unread-detail { margin: var(--sp-050) 0 var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* The column mark as a menu: a small badge's measure, with the turn that says it opens. */
+  .column-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    box-sizing: border-box;
+    min-block-size: calc(var(--fs-100) + 2 * var(--sp-050) + 2 * var(--bw-hairline));
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--status-neutral-border);
+    border-radius: var(--r-sm);
+    background: var(--status-neutral-surface);
+    color: var(--status-neutral-text);
+    font: inherit;
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .column-mark:hover { border-color: var(--border-default); }
+
+  .column-mark:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

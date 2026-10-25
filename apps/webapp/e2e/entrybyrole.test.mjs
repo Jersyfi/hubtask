@@ -23,6 +23,7 @@ import { chromium } from 'playwright';
 
 import { ACCOUNT, CHILDREN, COLLECTION, HUB, ITEMS, OWNER_GRANTS, PAGE, stub } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { reveal, unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -71,6 +72,7 @@ async function offered(page) {
   await page.getByText(CHILD.title).first().waitFor();
   // The role arrives with the memberships; give the screen the moment to draw it.
   await page.waitForTimeout(600);
+  await unfoldFields(page);
   const count = (locator) => locator.count();
   return {
     complete: (await count(page.getByRole('checkbox', { name: `Mark ${ENTRY.title} as done` }))) === 1,
@@ -142,7 +144,9 @@ test('chromium: a viewer cannot tick off a search result', async (t) => {
 
 /** The container page's menu, opened and closed again. */
 async function pageMenu(page, name) {
-  await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
+  // A reader with nothing to do to the place itself has no menu at all.
+  if ((await page.getByRole('button', { name: `Actions for ${name}` }).count()) === 0) return [];
+  await reveal(page.getByRole('button', { name: `Actions for ${name}` }).first());
   const rows = (await page.getByRole('menuitem').allTextContents()).map((each) => each.trim());
   await page.keyboard.press('Escape');
   return rows;
@@ -161,21 +165,27 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.getByText(ITEMS[2].title).first().waitFor();
     await page.waitForTimeout(600);
     const rows = await pageMenu(page, COLLECTION.name);
-    // The labels, the fields, the templates, the automation and the people are *Structure*'s tabs
-    // (ux-inventory.md §E4), so they are offered exactly where *Structure…* is.
-    for (const shaping of ['Edit…', 'Move to another hub…', 'Structure…']) {
+    // The labels, the fields, the templates, the automation and the people are sections of the
+    // settings page, so they are offered exactly where *Settings…* is.
+    for (const shaping of ['Settings…', 'Move to another hub…']) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
+    assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'no ⚙ beside the menu: the settings are its first item');
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
-    // Used by everybody: the views in their own menu, the templates in the add split, who is here
-    // in the faces.
+    // Used by everybody: the views in the toolbar, the templates among capture's modes, who is
+    // here in the faces.
     assert.ok(!rows.includes('Saved views'), `Saved views is still a row of ${rows}`);
-    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the head');
+    assert.equal(await page.locator('[data-opener="views"]').count(), 1, 'no Views menu in the toolbar');
     assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people in the head');
-    await page.getByRole('button', { name: 'More ways to add an entry' }).click();
-    assert.equal(await page.getByRole('menuitem', { name: 'From a template…' }).count(), 1, 'no way to the templates');
-    // An import may add the file's columns and labels: offered where the collection may be shaped.
-    assert.equal(await page.getByRole('menuitem', { name: 'Import…' }).count(), shapes ? 1 : 0, 'Import… in the add split');
+    await page.getByRole('main').getByRole('button', { name: 'Add an entry', exact: true }).first().click();
+    const modes = page.getByRole('dialog', { name: 'Capture' }).getByRole('tablist', { name: 'How to add' });
+    await modes.waitFor({ timeout: 5_000 });
+    assert.equal(await modes.getByRole('tab', { name: 'From a template' }).count(), 1, 'no way to the templates');
+    // An import may add the file's columns and labels: open where the collection may be shaped,
+    // drawn with its reason everywhere else, so the way is known to exist.
+    const importTab = modes.getByRole('tab', { name: /^Import a file/ });
+    assert.equal(await importTab.count(), 1, 'Import among the modes');
+    assert.equal(await importTab.getAttribute('aria-disabled'), shapes ? null : 'true', 'Import open against the role');
     await page.keyboard.press('Escape');
     // The trash takes a subtree with it: the owner's alone.
     assert.equal(rows.includes('Move to the trash'), role === 'OWNER');
@@ -187,8 +197,9 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.goto(`${served.origin}/hubs/${HUB.id}`);
     await page.getByRole('heading', { name: HUB.name, level: 1 }).waitFor();
     await page.waitForTimeout(600);
-    assert.equal(await page.getByRole('button', { name: 'Create collection' }).count() > 0, shapes, 'Create collection');
-    assert.equal(await page.getByRole('button', { name: 'Import…' }).count() > 0, shapes, 'Import');
+    assert.equal(await page.getByRole('main').getByRole('button', { name: /Create collection/ }).count() > 0, shapes, 'Create collection');
+    // Importing into the hub is its menu's, as on a collection.
+    assert.equal((await pageMenu(page, HUB.name)).includes('Import…'), shapes, 'Import');
     assert.deepEqual(failures, []);
   });
 }
@@ -236,6 +247,7 @@ test('chromium: a member sees the details card on an entry with nothing set, bec
   t.after(() => context.close());
 
   await page.goto(`${served.origin}/items/${ITEMS[2].id}`);
+  await unfoldFields(page);
   await page.locator('aside.details [data-detail="language"]').waitFor();
   assert.equal(await page.locator('aside.details').count(), 1);
   assert.ok(await page.locator('aside.details button.detail-row').count() > 0, 'no row to fill in');

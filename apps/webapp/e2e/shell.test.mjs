@@ -111,7 +111,8 @@ async function common(page, width) {
   // A way to search on every width, and the field exactly where there is room for it. The tree's
   // row is a destination rather than a second field, so it is counted separately: what must never
   // happen is *two fields*, and what must always happen is at least one way through.
-  const inBar = await page.locator('header form[role="search"] input').count();
+  // From `expanded` the field; on `medium` its look, opening the search over the page.
+  const inBar = await page.locator('header form[role="search"] input').count() + await page.locator('header button.seek').count();
   const inNav = await page.getByRole('treeitem', { name: 'Search' }).count() + await page.getByRole('link', { name: 'Search', exact: true }).count();
   assert.equal(inBar, width < 600 ? 0 : 1, `${width}: the bar has ${inBar} search fields`);
   // On `compact` the bottom bar carries Search and it is the only way through, so it is counted
@@ -122,13 +123,15 @@ async function common(page, width) {
   // screenshot and wrong by six pixels for a year: an empty slot that still takes a gap, or a
   // control outside the group that is supposed to balance the other side. Two pixels of slack for
   // sub-pixel rounding, and nothing for anything else.
-  if (inBar === 1) {
+  // What is centred is the field, *Capture* standing past its end (design-system.md §11.2); on
+  // `medium` the field's look shrinks with the bar instead and is not measured here.
+  if (inBar === 1 && (await page.locator('header form[role="search"]').count()) === 1) {
     const centred = await page.evaluate(() => {
-      const field = document.querySelector('header form[role="search"]').getBoundingClientRect();
+      const ways = document.querySelector('header form[role="search"]').closest('.ways').getBoundingClientRect();
       const row = document.querySelector('header form[role="search"]').closest('header').firstElementChild.getBoundingClientRect();
-      return Math.round(field.left + field.width / 2 - (row.left + row.width / 2));
+      return Math.round(ways.left + ways.width / 2 - (row.left + row.width / 2));
     });
-    assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field is ${centred} px off centre`);
+    assert.equal(Math.abs(centred) <= 2, true, `${width}: the bar's field and Capture are ${centred} px off centre`);
   }
   assert.equal(await page.locator('[data-tour="hubs"]').count(), 1, `${width}: the tour's hubs step has ${await page.locator('[data-tour="hubs"]').count()} targets`);
   // The tour's capture and palette steps (ux-inventory.md §E1): one capture control to point at on
@@ -250,10 +253,12 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  // Search is the bar's field here, and it leads to the same destination as the row.
+  // Search is the bar's way into the search over the page here, and it leads to the same
+  // destination as the row.
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-  await page.locator('header form[role="search"] input').fill('milk');
+  await page.locator('header button.seek').click();
+  await page.getByRole('dialog').locator('form[role="search"] input').fill('milk');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
   // The address carries a handle for the words, never the words: what is kept is kept
@@ -299,7 +304,7 @@ test('chromium: 600 px — the drawer closed and opened again at once stays open
 });
 
 for (const width of [905, 1280]) {
-  test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar in the bar`, async (t) => {
+  test(`chromium: ${width} px — the navigation pinned, folding to a rail, the avatar alone in the bar`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures, close } = await open(browser, width);
@@ -392,7 +397,7 @@ for (const width of [905, 1280]) {
     await mark.click();
     const surface = page.getByRole('dialog', { name: 'The copy and the server' });
     await surface.waitFor({ timeout: 5_000 });
-    assert.equal(await surface.getByText('Connected').count(), 1, `${width}: what it opened does not say the state`);
+    assert.equal(await surface.getByText('All synchronised').count(), 1, `${width}: what it opened does not say the state`);
     await page.keyboard.press('Escape');
     await surface.waitFor({ state: 'hidden', timeout: 5_000 }).catch(() => {});
 
@@ -407,12 +412,13 @@ for (const width of [905, 1280]) {
         const box = el.getBoundingClientRect();
         return { w: Math.round(box.width), h: Math.round(box.height), radius: getComputedStyle(el).borderRadius };
       };
-      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account') };
+      return { notice: read('.notice-mark button'), sync: read('.trigger'), avatar: read('.account'), toggle: read('[data-toggle]') };
     });
     assert.deepEqual(shapes.notice, shapes.sync, `${width}: the two glyph controls are drawn differently`);
-    assert.equal(shapes.avatar.h, shapes.sync.h, `${width}: the avatar is not as tall as the marks beside it`);
-    // From `large` up the trigger carries the name and is a pill; below it is a circle.
-    assert.equal(shapes.avatar.w === shapes.avatar.h, width < 1280, `${width}: the avatar is ${shapes.avatar.w}x${shapes.avatar.h}`);
+    // One size and one hover shape for every control of the bar (§13, G2): the rail toggle and the
+    // avatar are the marks' square, at every width.
+    assert.deepEqual(shapes.avatar, shapes.sync, `${width}: the avatar is drawn as ${JSON.stringify(shapes.avatar)}`);
+    assert.deepEqual(shapes.toggle, shapes.sync, `${width}: the rail toggle is drawn as ${JSON.stringify(shapes.toggle)}`);
 
     // A device with no network says so, rather than saying it is trying: `navigator.onLine` is
     // false and the mark is the struck cloud ADR-0063 decision 5 names. Trusted in one direction
@@ -433,15 +439,10 @@ for (const width of [905, 1280]) {
     assert.equal(new URL(page.url()).pathname, '/jumble');
     await keeping.getByRole('treeitem', { name: 'Trash' }).click();
     assert.equal(new URL(page.url()).pathname, '/trash');
-    // The trigger is the avatar, named by the person; the name is beside it only from `large`,
-    // and the address is inside rather than in the frame (ADR-0063 decision 6).
+    // The trigger is the avatar alone at every width, named by the person; the name and the
+    // address are inside rather than in the frame (design-system.md §11.2).
     const trigger = page.getByRole('button', { name: ACCOUNT.display_name });
-    // The avatar's initials are always drawn; the name in words only from `large`.
-    assert.equal(
-      (await trigger.textContent()).includes(ACCOUNT.display_name),
-      width >= 1240,
-      `${width}: the trigger draws "${(await trigger.textContent()).trim()}"`,
-    );
+    assert.equal((await trigger.textContent()).includes(ACCOUNT.display_name), false, `${width}: the trigger draws "${(await trigger.textContent()).trim()}"`);
     assert.equal(await page.getByRole('banner', { name: 'Application bar' }).getByText(ACCOUNT.email).count(), 0, `${width}: the bar carries an address`);
     await trigger.click();
     const menu = page.getByRole('menu', { name: 'You' });
@@ -498,16 +499,12 @@ test('chromium: 1280 px — a hub with nothing in it offers nothing to open, and
 
   const tree = page.getByRole('navigation', { name: 'Workspace' });
   await tree.getByRole('treeitem', { name: EMPTY_HUB.name }).waitFor({ timeout: 15_000 });
-  // Unread, so it carries one: the tree cannot know yet, and a hub nobody can open is a hub
-  // nobody can look into.
-  assert.equal(await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).count(), 1, 'an unread hub has no way to be opened');
-
-  // Opened, read, empty: the twist goes, and the row is still the way to the hub's own screen -
+  // The tree reads every hub's collections as it draws, so an empty hub is known empty at once:
+  // no twist that opens onto nothing, and the row is still the way to the hub's own screen -
   // which is where a collection is made.
-  await tree.getByRole('button', { name: `Show what is in ${EMPTY_HUB.name}` }).click();
   await page
     .waitForFunction((name) => !document.querySelector(`[aria-label="Show what is in ${name}"], [aria-label="Hide what is in ${name}"]`), EMPTY_HUB.name, { timeout: 10_000 })
-    .catch(() => assert.fail('a hub that was read and holds nothing still offers to be opened'));
+    .catch(() => assert.fail('a hub that holds nothing still offers to be opened'));
   // The hub beside it kept its own, because it has something behind it.
   assert.equal(await tree.getByRole('button', { name: `Show what is in ${HUB.name}` }).count(), 1, 'a hub with a collection lost its twist');
 

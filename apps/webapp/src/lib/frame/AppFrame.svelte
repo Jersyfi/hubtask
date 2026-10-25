@@ -23,11 +23,12 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, IconButton, Logo, Menu, NavDrawer, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
+  import { PLACE_ROUTES } from '../routes.ts';
   import { palette } from '../palette/palette.svelte.ts';
   import CaptureDialog from '../capture/CaptureDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
@@ -209,7 +210,7 @@
    * On an entry's page its collection, and nothing until the entry says which - never the workspace.
    */
   const currentNode = $derived(
-    route.name === 'hub' || route.name === 'collection'
+    PLACE_ROUTES.includes(route.name ?? '')
       ? route.params.id
       : route.name === 'item'
         ? page.place
@@ -289,6 +290,36 @@
       isRail = false;
     }
   });
+  /**
+   * The pinned column's width, dragged by its edge from `expanded` up (design-system.md §11.3).
+   * Kept in this browser like the fold, for the same reason; the bounds are the tokens', read from
+   * the document so that no number lives here.
+   */
+  const WIDTH_KEY = 'hubtask.nav.width';
+  const navBounds = $state({ min: 0, max: 0, reset: 0 });
+  let navWidth = $state<number | undefined>(undefined);
+  $effect(() => {
+    const root = getComputedStyle(document.documentElement);
+    const read = (token: string) => Number.parseFloat(root.getPropertyValue(token)) || 0;
+    navBounds.min = read('--layout-sidenav-min');
+    navBounds.max = read('--layout-sidenav-max');
+    navBounds.reset = read('--layout-sidenav-width');
+    try {
+      const kept = Number.parseFloat(localStorage.getItem(WIDTH_KEY) ?? '');
+      navWidth = Number.isFinite(kept) && kept >= navBounds.min && kept <= navBounds.max ? kept : undefined;
+    } catch {
+      navWidth = undefined;
+    }
+  });
+  function resizeNav(width: number) {
+    navWidth = width;
+    try {
+      localStorage.setItem(WIDTH_KEY, String(width));
+    } catch {
+      // A browser that refuses storage still gets the width, for as long as the page is open.
+    }
+  }
+
   function toggleRail() {
     isRail = !isRail;
     try {
@@ -418,7 +449,32 @@
        where it draws: a bar given a search slot shares its free space between the lead and the
        end, and an empty slot squeezed the phone's title to nothing. -->
   {#snippet barSearch()}
-    <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
+    <!-- The two ways into everything stand together in the middle: finding and capturing (§11.2).
+         *Capture* is its mark on `medium`, where the field is narrow. -->
+    {#if viewport.isBelowExpanded}
+      <!-- On `medium` the field would be squeezed between the logo and the end: it is the way into
+           the search instead, shrinking with the bar, and the search opens over the page. -->
+      <div class="ways" data-narrow>
+        <button type="button" class="seek" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" data-tour="palette" onclick={() => palette.summon()}>
+          <Icon name="search" size="sm" />
+          <span class="seek-word">{t('app.palette.placeholder')}</span>
+        </button>
+        {#if isCaptureOffered}
+          <IconButton icon="plus" size="sm" tone="primary" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
+        {/if}
+      </div>
+    {:else}
+      <!-- The field stands in the middle of the window, *Capture* beside it, so opening it grows it
+           evenly to both sides around the window's centre (concept round 3). -->
+      <div class="ways">
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
+        {#if isCaptureOffered}
+          <span class="beside">
+            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+          </span>
+        {/if}
+      </div>
+    {/if}
   {/snippet}
   <AppBar
     label={t('app.nav.bar')}
@@ -433,11 +489,6 @@
     {#snippet brand()}
       <!-- A name rather than a message: the product is called Hubtask in every language. -->
       <a class="home" href="/"><Logo size="md" wordmark="Hubtask" /></a>
-      <!-- On `medium` *Capture* is a mark at the start: the row is too narrow for one more control
-           at the end and the palette's field still centred between the two sides (§11.2). -->
-      {#if isCaptureOffered && !viewport.isCompact && viewport.isBelowExpanded}
-        <IconButton icon="plus" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
-      {/if}
     {/snippet}
     {#snippet menu()}
       <!-- The page's own menu, at the end of the compact bar (ADR-0061 decision 1's table). The
@@ -461,17 +512,12 @@
            the reader may read one and it says something is wrong (ADR-0065 decision 4). It was two
            banners above the head of every page; now it is a mark that says nothing until it is
            pressed, and nothing at all when there is nothing to say. -->
-      <!-- Capture, from every page (UC-WRK-26 check 1): the product's act rather than a page's,
-           here from `medium` up and the bottom bar's ＋ below it. -->
-      {#if isCaptureOffered && !viewport.isBelowExpanded}
-        <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
-      {/if}
       <NoticeMark />
       <SyncLine />
       <!-- Drawn as soon as there is a session, not once the account has arrived: signing out has
            to be reachable while the server is away, and the name is "You" until it is known. -->
       {#if session.isSignedIn && !viewport.isCompact}
-        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} hasName={viewport.isLarge} onchoose={chooseAccount} />
+        <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet={false} onchoose={chooseAccount} />
       {/if}
     {/snippet}
   </AppBar>
@@ -491,7 +537,15 @@
           {/if}
         </NavDrawer>
       {:else}
-        <aside class="sidenav" data-rail={isRail ? '' : undefined} data-tour={section ? undefined : 'hubs'}>
+        <!-- The width a person dragged travels as a custom property through the CSS object model,
+             which the content security policy allows where it refuses a `style` attribute. The pixels are
+             the person's own drag, not a design value. design-system-lint-ignore -->
+        <aside
+          class="sidenav"
+          data-rail={isRail ? '' : undefined}
+          data-tour={section ? undefined : 'hubs'}
+          style:--nav-width={navWidth && !isRail ? `${navWidth}px` : undefined}
+        >
           {#if section}
             <!-- The section's own list, in place of the tree (ADR-0063 decision 7). The tour's
                  `hubs` step points at the tree, so it does not point here: a step that pointed at
@@ -499,6 +553,17 @@
             <SectionNav label={section.label} groups={section.groups} current={sectionRow} {isRail} onnavigate={go} />
           {:else}
             <WorkspaceNav current={currentNode} {isRail} onnavigate={go} />
+          {/if}
+          {#if !isRail && navBounds.max > 0}
+            <ResizeHandle
+              label={t('app.nav.width')}
+              value={navWidth ?? navBounds.reset}
+              min={navBounds.min}
+              max={navBounds.max}
+              reset={navBounds.reset}
+              edge="inline-end"
+              onresize={resizeNav}
+            />
           {/if}
         </aside>
       {/if}
@@ -598,12 +663,12 @@
     <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
-  {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
+  {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
   {#if isCaptureOffered && capture.isOpen}
-    <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} />
+    <CaptureDialog currentCollectionId={captureHere.collection} currentItemId={captureHere.item} currentHubId={captureHere.hub} onnavigate={go} />
   {/if}
   {#if isHelpOpen}
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
@@ -642,6 +707,56 @@
     color: var(--text-primary);
   }
 
+  /* The field takes what the bar's search slot gives; *Capture* keeps its own width beside it. */
+  .ways {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+  }
+
+  .ways > :global(:first-child) {
+    flex: 1;
+    min-inline-size: 0;
+  }
+
+  .ways > :global(:not(:first-child)) { flex: none; }
+
+  /* From `expanded`: the field alone takes the slot, so the slot's centre - the window's - is the
+     field's; *Capture* stands just past its end, outside the slot. */
+  .ways:not([data-narrow]) { position: relative; }
+
+  .beside {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: calc(100% + var(--sp-100));
+    translate: 0 -50%;
+    display: flex;
+  }
+
+  /* On `medium`: a field's look, the way into the dialog search; its words give way first. */
+  .seek {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+    block-size: var(--density-control-sm-min);
+    padding-inline: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--fs-075);
+    cursor: text;
+  }
+
+  .seek:hover { border-color: var(--text-secondary); }
+
+  .seek:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .seek-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
+
   .home {
     display: inline-flex;
     color: var(--text-primary);
@@ -673,11 +788,14 @@
     /* The token is the whole column, padding included: at exactly `expanded` the content beside
        it has to be `medium` wide, or the page head folds as if on a phone. */
     box-sizing: border-box;
-    inline-size: var(--layout-sidenav-width);
+    inline-size: var(--nav-width, var(--layout-sidenav-width));
     max-block-size: calc(100vh - var(--layout-appbar-height));
     min-width: 0;
     padding: var(--sp-200) var(--sp-150);
-    overflow: auto;
+    /* Down only: the width handle reaches a little past the column's edge to be easy to take,
+       and a column that scrolled sideways for it moved under a trackpad's sideways swipe. */
+    overflow-x: hidden;
+    overflow-y: auto;
     border-inline-end: var(--bw-hairline) solid var(--border-subtle);
   }
 

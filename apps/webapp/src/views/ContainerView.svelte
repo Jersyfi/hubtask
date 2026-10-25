@@ -43,7 +43,6 @@
   import TemplatesDialog from '../lib/entries/TemplatesDialog.svelte';
   import ViewsPanel from '../lib/entries/ViewsPanel.svelte';
   import ExportDialog from '../lib/entries/ExportDialog.svelte';
-  import ImportDialog from '../lib/entries/ImportDialog.svelte';
   import FeedsDialog from '../lib/entries/FeedsDialog.svelte';
   import TimelineView from '../lib/entries/TimelineView.svelte';
   import CustomFieldsDialog from '../lib/entries/CustomFieldsDialog.svelte';
@@ -57,10 +56,27 @@
   import EmergencyNotice from '../lib/workspace/EmergencyNotice.svelte';
   import { actor } from '../lib/data/account.svelte.ts';
   import { deviceStore, openingLayout, rememberLayout } from '../lib/entries/layoutmemory.ts';
+  import {
+    defaultArrangement,
+    offeredFields,
+    offeredGroupings,
+    openingArrangement,
+    rememberArrangement,
+    toggleField,
+    type DonePlacement,
+    type ListArrangement,
+    type ListField,
+    type ListGrouping,
+    type ListOffer,
+  } from '../lib/entries/listview.ts';
+  import { buckets } from '../lib/data/buckets.svelte.ts';
   import { accounts } from '../lib/data/accounts.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
+  import { copyPlaceAddress } from '../lib/data/mailaddress.svelte.ts';
+  import MailAddressField from '../lib/mail/MailAddressField.svelte';
+  import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
   import { feeds, views as savedViews } from '../lib/data/views.svelte.ts';
@@ -75,6 +91,9 @@
   import { byItem } from '../lib/data/bulk.ts';
   import CreateContainerDialog from '../lib/workspace/CreateContainerDialog.svelte';
   import ContainerEditDialog from '../lib/workspace/ContainerEditDialog.svelte';
+  import PositionDialog from '../lib/workspace/PositionDialog.svelte';
+  import { offerUndo } from '../lib/entries/undo.svelte.ts';
+  import { placeMenu } from '../lib/workspace/placeMenu.ts';
   import ContainerMark from '../lib/workspace/ContainerMark.svelte';
   import CollectionCards from '../lib/workspace/CollectionCards.svelte';
   import { ownsHub, privacyAction, shutOut } from '../lib/workspace/privacy.ts';
@@ -85,6 +104,8 @@
   import { page } from '../lib/frame/page.svelte.ts';
   import { recents } from '../lib/recents.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
+  import { device } from '../lib/device.svelte.ts';
+  import { capture } from '../lib/capture/capture.svelte.ts';
 
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -115,16 +136,43 @@
      * navigations, so the address, a reload and the back button agree.
      */
     openItemId?: string;
+    /**
+     * The settings section open, on `/…/:id/settings/:section` (design-system.md §11.8): this
+     * screen then draws the place's settings instead of what it holds. Absent on the place itself.
+     */
+    section?: string;
     onnavigate: (path: string) => void;
   }
 
-  const { id, openItemId, onnavigate }: Props = $props();
+  const { id, openItemId, section, onnavigate }: Props = $props();
 
   /** The open entry, for the pane's head: read by the view inside; this only needs its words. */
   const openItem = $derived(openItemId ? items.find(openItemId) : undefined);
 
   function openBeside(itemId: string) {
     onnavigate(`/collections/${id}?item=${encodeURIComponent(itemId)}`);
+  }
+
+  /**
+   * How a row opens its entry (design-system.md §11.8): beside the list in the panel, from `large`
+   * up and where the person keeps the panel; whole, as its page, otherwise. Undefined lets the row
+   * go to the page itself.
+   */
+  const opensBeside = $derived(viewport.isLarge && device.openMode === 'panel');
+
+  /** The panel's width bounds: the tokens' floor, seven tenths of the window at most. */
+  const panelBounds = $derived.by(() => {
+    void viewport.isLarge;
+    const root = getComputedStyle(document.documentElement);
+    const read = (token: string) => Number.parseFloat(root.getPropertyValue(token)) || 0;
+    return { min: read('--layout-panel-min'), reset: read('--layout-panel-width'), max: Math.round(window.innerWidth * 0.7) };
+  });
+
+  /** The switch in the panel's head: every entry whole from now on, starting with this one. */
+  /** *Full page* in the panel's switch: this entry opens whole, and so does every one after it. */
+  function openWhole() {
+    device.setOpenMode('whole');
+    if (openItemId) onnavigate(`/items/${openItemId}`);
   }
 
   /**
@@ -352,6 +400,77 @@
   });
   const summaryAsk = $derived(container ? suggestions.askingOf(container.id) : undefined);
 
+  /**
+   * What this collection's list can show (concept round 2, §2; `listview.ts`): its levels, its
+   * amount, its columns, and which of the fields its levels carry.
+   */
+  const listOffer = $derived.by((): ListOffer | undefined => {
+    if (container?.type !== 'COLLECTION' || !carriedHere) return undefined;
+    const settings = container.structure?.settings;
+    const levels = settings?.levels ?? [];
+    return {
+      isSimple: levels.length === 1,
+      isLevelled: levels.length > 1,
+      offersAmount: Object.values(settings?.fields ?? {}).some((field) => (field?.capabilities ?? []).includes('AMOUNT')),
+      hasColumns: buckets.of(container.id).length > 0,
+      carriesDue: carriedHere('DUE_DATE'),
+      carriesPeople: carriedHere('ASSIGNMENT') || carriedHere('MEMBERS'),
+      carriesLabels: carriedHere('LABELS'),
+    };
+  });
+  /** The arrangement in force: what the device kept for this collection, else the template's. */
+  let arrangement = $state<ListArrangement | undefined>(undefined);
+  $effect(() => {
+    const wanted = id;
+    const account = actor.account?.id;
+    const offered = listOffer;
+    untrack(() => {
+      arrangement = offered ? openingArrangement({ store: deviceStore(), accountId: account, collectionId: wanted, offer: offered }) : undefined;
+    });
+  });
+  $effect(() => {
+    if (container?.type === 'COLLECTION') return untrack(() => buckets.open(container.id));
+  });
+  function arrange(next: ListArrangement) {
+    arrangement = next;
+    rememberArrangement(deviceStore(), actor.account?.id, id, next);
+  }
+  /** *Fields* (L3): every field the collection offers, ticked where it stands as a column. */
+  const fieldsMenu = $derived<MenuItem[]>(
+    listOffer && arrangement
+      ? offeredFields(listOffer).map((field) => ({ id: field, label: t(`app.list.col_${field}`), icon: arrangement?.fields.includes(field) ? ('check' as const) : undefined }))
+      : [],
+  );
+  /** *Group* (L4, L5): by which value, and where what is done goes. */
+  const groupMenu = $derived<MenuItem[]>(
+    listOffer && arrangement
+      ? [
+          ...offeredGroupings(listOffer).map((grouping) => ({ id: `group:${grouping}`, label: t(`app.list.group_${grouping}`), icon: arrangement?.grouping === grouping ? ('check' as const) : undefined })),
+          ...(['inline', 'bottom', 'hidden'] as const).map((done, index) => ({
+            id: `done:${done}`,
+            label: t(`app.list.done_${done}`),
+            icon: arrangement?.done === done ? ('check' as const) : undefined,
+            hasSeparatorBefore: index === 0,
+          })),
+          { id: 'reset', label: t('app.list.reset'), hasSeparatorBefore: true },
+        ]
+      : [],
+  );
+  function choseGroup(chosen: string) {
+    if (!arrangement || !listOffer) return;
+    if (chosen === 'reset') arrange(defaultArrangement(listOffer));
+    else if (chosen.startsWith('group:')) arrange({ ...arrangement, grouping: chosen.slice('group:'.length) as ListGrouping });
+    else if (chosen.startsWith('done:')) arrange({ ...arrangement, done: chosen.slice('done:'.length) as DonePlacement });
+  }
+  /** A column head pressed: that order, and the other direction when it already is. */
+  function sortByColumn(field: string) {
+    if (sortField === field) sortDir = sortDir === 'ASC' ? 'DESC' : 'ASC';
+    else {
+      sortField = field;
+      sortDir = 'ASC';
+    }
+  }
+
 
   // Built from the route rather than from a remembered click, which is what makes a deep link land
   // with a correct trail: a trail assembled from navigation history would be empty after a reload,
@@ -385,12 +504,9 @@
         ? containers.collectionsOf(container.parent_id)
         : [],
   );
-  const position = $derived(siblings.findIndex((entry) => entry.id === id));
-  const canMoveUp = $derived(position > 0);
-  const canMoveDown = $derived(position >= 0 && position < siblings.length - 1);
 
   /**
-   * Ranks this container one place up or down.
+   * Ranks a place of this level one step up or down - the position dialog offers it for every row.
    *
    * The keyboard path: WCAG 2.2 SC 2.5.7 wants a single-pointer alternative to every drag, and
    * the drag is built **against** this rather than the other way round. A rank change is a command before it is a gesture.
@@ -400,27 +516,30 @@
    * goes through `:move` naming the hub it is already in, which the operation documents as a
    * reorder.
    */
-  async function moveBy(offset: number) {
-    if (!container || position < 0) return;
-    const target = position + offset;
+  async function moveSibling(placeId: string, offset: number) {
+    if (!container) return;
+    const from = siblings.findIndex((entry) => entry.id === placeId);
+    const moved = siblings[from];
+    if (from < 0 || !moved) return;
+    const target = from + offset;
     if (target < 0 || target >= siblings.length) return;
 
     failure = undefined;
     try {
       if (container.type === 'HUB') {
-        await containers.reorder(container.id, siblings, target, crypto.randomUUID());
+        await containers.reorder(placeId, siblings, target, crypto.randomUUID());
       } else if (container.parent_id) {
         await containers.move(
-          container.id,
+          placeId,
           container.parent_id,
-          anchorFor(siblings, container.id, target),
+          anchorFor(siblings, placeId, target),
           crypto.randomUUID(),
         );
       }
       // Said out loud, as an entry's rank change is: the control kept focus and its name, and
       // the list quietly rearranged itself (4.1.3).
       announcer.say(
-        t('app.rank.announced', { title: container.name, position: target + 1, count: siblings.length }),
+        t('app.rank.announced', { title: moved.name, position: target + 1, count: siblings.length }),
       );
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
@@ -439,6 +558,9 @@
           name: container.name,
         }),
       );
+      // Archiving is offered back for the message's while, as every act that takes something out
+      // of sight is (UC-WRK-28 check 3): no question first, and no way lost.
+      if (archiving) offerUndo({ kind: 'place-archived', containerId: container.id, name: container.name });
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
     }
@@ -506,7 +628,6 @@
   // No subscription of its own: a collection renders either the list or the board, and both open
   // the level already. A third reader of one list is what the stores exist to avoid.
   /** *Edit*: its name, description, colour and symbol (UC-WRK-33), and a hub's preset. */
-  let isEditing = $state(false);
   let isUsingTemplates = $state(false);
   let isManagingViews = $state(false);
   /** Which act of the *Views* menu opened the views dialog: saving, or changing one. */
@@ -520,14 +641,19 @@
    * or one of the collection's parts - labels, fields, templates, automation, people
    * (ux-inventory.md §E4).
    */
-  let isShaping = $state(false);
-  let shapingTab = $state('settings');
   let isManagingFeeds = $state(false);
   /** The view an export or a subscription is about, if either is open. */
   let exporting = $state<SavedView | undefined>(undefined);
   let subscribing = $state<SavedView | undefined>(undefined);
   let isManagingMembers = $state(false);
-  let isImporting = $state(false);
+  /**
+   * *Import…* is one of capture's ways of adding: the dialog opens on its tab with this place as
+   * the place, so an import looks and is chosen like every other add (design-system.md §11.8).
+   */
+  function startImport() {
+    if (!container) return;
+    capture.open(container.type === 'HUB' ? { hubId: container.id, mode: 'import' } : { collectionId: container.id, mode: 'import' });
+  }
   /**
    * `STRUCTURE` is what an import takes: on the hub because it creates collections there, on a
    * collection because it may add the file's columns and labels.
@@ -641,7 +767,7 @@
   // once the level is known, because the mark on the row is what it says.
   $effect(() => {
     if (!container?.name) return;
-    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name });
+    recents.note({ kind: container.type === 'HUB' ? 'hub' : 'collection', id: container.id, title: container.name, placeId: container.parent_id ?? undefined });
   });
 
   /** The list, for the head's primary action: the form is the list's, the button is the head's. */
@@ -661,11 +787,14 @@
   );
 
   /** Creating from the head: on a board or the timeline, the list is where the form lives. */
+  /**
+   * The page's *Add an entry*: capture, pointed at this collection (design-system.md §11.8). One
+   * feature for every way of adding; its modes are the split this button used to carry - several
+   * lines, a template, a file - and a list typed line after line keeps the field open.
+   */
   function addFromHead(several = false) {
     if (!container || addDisabledReason) return;
-    if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
-    // After the layout switch the list is mounted on the next tick.
-    queueMicrotask(() => list?.addEntry(several));
+    capture.open({ collectionId: container.id, mode: several ? 'lines' : 'one', keepsOpen: splitsLines });
   }
 
   /**
@@ -699,68 +828,16 @@
   const mayChangeSome = $derived(mayDo(myRole, 'change', true) === true);
   /** Whether the reader may put this container in the trash: `DELETE_CONTAINER`, the owner's alone. */
   const mayDelete = $derived(holds(structureRole, 'DELETE_CONTAINER').status === 'permitted');
-  /** The menu rows that change the workspace's shape, or none where the reader's role may not. */
-  function shaping<T>(rows: readonly T[]): readonly T[] {
-    return mayShape ? rows : [];
-  }
+
 
   /**
-   * The *Structure* panel's row (UC-WRK-23 checks 1, 9): only where the container answers its
-   * structure, and - through `shaping` - only for a reader who may change the shape. What counts
-   * is one of its settings, no longer a row of its own.
+   * The place's own menu, the same items as its row in the navigation (`placeMenu`, design-system.md
+   * §11.8): what is done to the place itself, for whom it may be done. Entries are the toolbar's.
    */
-  const structureRow = $derived(
-    container?.structure ? [{ id: 'structure', label: t('app.structure.menu'), icon: 'settings' as const, disabledReason: readOnlyReason }] : [],
-  );
-
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : [
-          // The way into the selection mode, where a screen's verbs are (ADR-0063 decision 8).
-          // Only on a collection: a hub holds collections, and nothing acts on those in bulk.
-          ...(container.type === 'COLLECTION' && mayChangeSome
-            ? [{ id: 'select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, hasSeparatorBefore: false }]
-            : []),
-          // What changes the shape of the workspace - its name, its place, its order, its archive -
-          // only for a role that may (UC-WRK-01 check 6, P-05); `shaping` drops the rest.
-          ...shaping<MenuItem>([
-          // *Edit*: the name, the description, the colour and symbol, and a hub's preset.
-          { id: 'edit', label: t('app.workspace.edit'), icon: 'pencil', disabledReason: readOnlyReason },
-          // A hub sits in nothing, so only a collection moves to another hub (ux-inventory.md §E9).
-          ...(container.type === 'COLLECTION' ? [{ id: 'move', label: t('app.move.to_hub'), disabledReason: readOnlyReason }] : []),
-          ...(archival !== 'inherited'
-            ? [{ id: 'archive', label: archival === 'archived' ? t('app.workspace.unarchive') : t('app.workspace.archive'), icon: 'archive' as const }]
-            : []),
-          { id: 'up', label: t('app.rank.up'), icon: 'chevron-up', disabledReason: canMoveUp ? undefined : t('app.rank.already_first') },
-          { id: 'down', label: t('app.rank.down'), icon: 'chevron-down', disabledReason: canMoveDown ? undefined : t('app.rank.already_last') },
-          ]),
-          // The labels, the fields, the templates, the automation and the people are *Structure*'s
-          // tabs (ux-inventory.md §E4), offered to whom the shape belongs; everybody reaches the
-          // people by the faces in the head and a template by the add button's *From a template*
-          // (UC-WRK-09 check 7). The views, the export and the subscriptions are the head's *Views*
-          // menu, and only there (ux-inventory.md §E9).
-          ...shaping(structureRow.map((row) => ({ ...row, hasSeparatorBefore: true }))),
-          ...(privacyControl
-            ? [
-                {
-                  id: 'privacy',
-                  label: privacyControl === 'make_shared' ? t('app.workspace.make_shared') : t('app.workspace.make_private'),
-                  icon: 'lock' as const,
-                },
-              ]
-            : []),
-          ...(mayDelete
-            ? [{
-                id: 'trash',
-                label: t('app.workspace.trash'),
-                icon: 'trash' as const,
-                isDestructive: true,
-                hasSeparatorBefore: true,
-                disabledReason: readOnlyReason,
-              }]
-            : []),
-        ],
+      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, hasMail: manifest.value?.features?.mail_addresses === true }, (code) => t(code)),
   );
 
   /**
@@ -780,7 +857,7 @@
   function choseView(id: string) {
     if (id.startsWith('open:')) {
       const view = heldViews.find((each) => `open:${each.id}` === id);
-      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name);
+      if (view) applyView(queryOf(view.query as Record<string, unknown>, view.grouping as Record<string, unknown>), view.layout, view.name, view.visible_fields ?? undefined);
     } else if (id === 'save' || id === 'manage') {
       viewsIntent = id;
       isManagingViews = true;
@@ -792,29 +869,40 @@
   }
 
   /** Opens a view: its query and its layout together - the half only a client knows what to do with is the layout. */
-  function applyView(asked: ItemsQuery, appliedLayout: string, name: string) {
+  function applyView(asked: ItemsQuery, appliedLayout: string, name: string, visible?: readonly string[]) {
     query = asked;
     appliedView = asked;
     chooseLayout(appliedLayout);
+    // The fields the view shows, as far as this collection offers them (concept round 2, §2).
+    if (visible && visible.length > 0 && arrangement && listOffer) {
+      const offered = offeredFields(listOffer);
+      arrange({ ...arrangement, fields: offered.filter((field) => visible.includes(field)) });
+    }
     announcer.say(t('app.views.layout_applied', { name, layout: t(`app.view.${appliedLayout}`) }));
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'select') selection.start();
-    else if (id === 'edit') isEditing = true;
+    if (id === 'mail' && container) {
+      void copyPlaceAddress({ kind: 'COLLECTION', id: container.id }, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
+    } else if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
+    else if (id === 'import') startImport();
+    else if (id === 'position') isPositioning = true;
     else if (id === 'archive') void toggleArchived();
-    else if (id === 'up') void moveBy(-1);
-    else if (id === 'down') void moveBy(1);
-    else if (id === 'structure') openStructure('settings');
     else if (id === 'privacy') isChangingPrivacy = true;
     else if (id === 'trash') isTrashing = true;
   }
 
-  /** The *Structure* panel, open on one of its tabs. */
+  /** The place's position among its siblings, changed one step at a time (`PositionDialog`). */
+  let isPositioning = $state(false);
+
+  /** Where this place's settings live: a page with a section each, as the administration's areas are. */
+  const settingsPath = $derived(`/${container?.type === 'HUB' ? 'hubs' : 'collections'}/${id}/settings`);
+  const isSettings = $derived(section !== undefined);
+
+  /** The settings page, open on one of its sections. */
   function openStructure(tab: string) {
-    shapingTab = tab;
-    isShaping = true;
+    onnavigate(`${settingsPath}/${tab}`);
   }
 
   /**
@@ -847,76 +935,54 @@
               onclick: () => addFromHead(),
               disabledReason: addDisabledReason,
               opener: 'add-entry',
-              menu: {
-                label: t('app.entries.add_ways'),
-                items: [
-                  { id: 'template', label: t('app.templates.from'), icon: 'layout-template', disabledReason: readOnlyReason },
-                  ...(splitsLines ? [{ id: 'lines', label: t('app.entries.add_lines'), icon: 'menu' as const, disabledReason: addDisabledReason }] : []),
-                  // Into this collection (ux-inventory.md §E4); absent where the reader may not shape it.
-                  ...(mayShape ? [{ id: 'import', label: t('app.import.open'), icon: 'cloud-upload' as const, disabledReason: readOnlyReason }] : []),
-                ],
-                onselect: (way: string) => {
-                  if (way === 'lines') addFromHead(true);
-                  else if (way === 'import') isImporting = true;
-                  else isUsingTemplates = true;
-                },
-              },
             }
           : undefined,
   );
-  const headSecondary = $derived<readonly [] | readonly [PageAction]>(
-    container?.type === 'HUB'
-      ? mayShape
-        ? [
-            {
-              label: t('app.import.open'),
-              onclick: () => (isImporting = true),
-              disabledReason: readOnlyReason,
-            },
-          ]
-        : []
-      : [
-          {
-            label: filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'),
-            icon: 'funnel',
-            onclick: () => (isFilterOpen = !isFilterOpen),
-            opener: 'filter',
-          },
-        ],
-  );
+  /** The head draws no secondary action: import is the place's menu's, the filter the toolbar's. */
+  const headSecondary: readonly [] = [];
   /**
-   * Whether the head pins no add on this screen: a list of one level on a phone, where the capture
-   * line open at the top is the add and the bottom bar's *Capture* sits under it. A pinned *Add an
-   * entry* over the rows was a third way to do one thing; its other ways - a template, several
-   * lines - join the page menu, so nothing it offered is gone.
+   * The order, the toolbar's own menu (design-system.md §11.1): the fields the installation lets
+   * the entries be ordered by, narrowed to what this collection carries, and the direction.
    */
-  const isAddInList = $derived(
-    viewport.isCompact &&
-      container?.type === 'COLLECTION' &&
-      (container.structure?.settings?.levels?.length ?? 0) === 1 &&
-      layout !== 'KANBAN' &&
-      layout !== 'TIMELINE',
-  );
+  let sortField = $state('');
+  let sortDir = $state<'ASC' | 'DESC'>('ASC');
+  const sortFields = $derived(offeredByProfile(sortableFields(manifest.value), carriedHere).map((field) => field.field));
+  const sortMenu = $derived<MenuItem[]>([
+    { id: 'field:', label: t('app.query.sort_manual'), icon: sortField === '' ? 'check' : undefined },
+    ...sortFields.map((field) => ({ id: `field:${field}`, label: field, icon: sortField === field ? ('check' as const) : undefined })),
+    ...(sortField === ''
+      ? []
+      : [
+          { id: 'dir:ASC', label: t('app.query.ascending'), icon: sortDir === 'ASC' ? ('check' as const) : undefined, hasSeparatorBefore: true },
+          { id: 'dir:DESC', label: t('app.query.descending'), icon: sortDir === 'DESC' ? ('check' as const) : undefined },
+        ]),
+  ]);
+  function choseSort(id: string) {
+    if (id.startsWith('field:')) sortField = id.slice('field:'.length);
+    else if (id === 'dir:ASC' || id === 'dir:DESC') sortDir = id.slice('dir:'.length) as 'ASC' | 'DESC';
+  }
+
+  /** The filter's words: how many conditions hold, or the plain verb. */
+  const filterLabel = $derived(filterCount > 0 ? t('app.query.filter_count', { count: String(filterCount) }) : t('app.query.show'));
+  /** Whether the toolbar offers the selection mode, where a screen's verbs are (ADR-0063 decision 8). */
+  const maySelect = $derived(container?.type === 'COLLECTION' && mayChangeSome);
+  /** Whether the head offers the ⚙ to the place's settings: to whom the shape belongs (UC-WRK-23 checks 1, 9). */
+  const showsSettings = $derived(mayShape && Boolean(container?.structure));
+  /**
+   * What the toolbar and the ⚙ offer, as the palette lists them: the palette lists what the
+   * screen offers (UC-WRK-27 check 2), wherever on the screen it stands.
+   */
+  const toolActs = $derived<readonly Act[]>([
+    ...(container?.type === 'COLLECTION' ? [{ id: 'page:filter', label: filterLabel, icon: 'funnel' as const, run: () => (isFilterOpen = !isFilterOpen) }] : []),
+    ...(maySelect ? [{ id: 'page:menu-select', label: t('app.bulk.select_mode'), icon: 'square-check' as const, run: () => selection.start() }] : []),
+    ...(showsSettings && !readOnlyReason ? [{ id: 'page:menu-structure', label: t('app.settings.open', { name: container?.name ?? '' }), icon: 'settings' as const, run: () => openStructure('general') }] : []),
+  ]);
   const headMenu = $derived({
     label: t('app.workspace.actions', { name: container?.name ?? '' }),
     items: pageMenu,
     onselect: choseFromMenu,
     opener: 'container-menu',
   });
-  /** The menu the head draws: the page menu, led by the add's other ways where no add is pinned. */
-  const headMenuShown = $derived(
-    isAddInList && headPrimary?.menu
-      ? {
-          ...headMenu,
-          items: [
-            ...headPrimary.menu.items.map((item) => ({ ...item, id: `add-${item.id}` })),
-            ...pageMenu.map((item, index) => (index === 0 ? { ...item, hasSeparatorBefore: true } : item)),
-          ],
-          onselect: (id: string) => (id.startsWith('add-') ? headPrimary.menu?.onselect(id.slice(4)) : choseFromMenu(id)),
-        }
-      : headMenu,
-  );
-
   /** The other layouts this collection is shown in, as the palette's *Show as …*. */
   const layoutActs = $derived<readonly Act[]>(
     offeredLayouts
@@ -934,7 +1000,7 @@
   );
 
   // What the palette may list here: the head's own lists, then the views, then the layouts.
-  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...viewActs, ...layoutActs]));
+  $effect(() => commands.offer('page', [...actionsOfHead('page', { primary: headPrimary, secondary: headSecondary, menu: headMenu }), ...toolActs, ...viewActs, ...layoutActs]));
 
   // A wish the palette left for this collection - a layout, or the add form - taken once and acted
   // on only where this screen's own answers allow it. It wins over any layout this screen would
@@ -945,6 +1011,12 @@
     if (!wish) return;
     untrack(() => {
       if (wish.layout && offeredLayouts.includes(wish.layout)) chooseLayout(wish.layout);
+      if (wish.act === 'template' && !readOnlyReason) isUsingTemplates = true;
+      else if (wish.act === 'import' && mayShape && !readOnlyReason) startImport();
+      else if (wish.act) {
+        const item = pageMenu.find((each) => each.id === wish.act);
+        if (item && !item.disabledReason) choseFromMenu(item.id);
+      }
       if (wish.add && mayCreateIn(container, myRole, manifest.value)) {
         if (layout === 'KANBAN' || layout === 'TIMELINE') layout = listLayout;
         isAddWished = true;
@@ -994,7 +1066,118 @@
     {#if container.figure}<CollectionFigure figure={container.figure} name={container.name} />{/if}
     {#if hasMilestone && container.milestone}<ContainerMilestone milestone={container.milestone} />{/if}
   {/snippet}
+  {#snippet entryTools()}
+    {#if layout !== 'KANBAN' && layout !== 'TIMELINE' && fieldsMenu.length > 0}
+      <!-- *Fields* and *Group* (concept round 2, §2): what stands beside each title, and how the
+           list is grouped - the arrangement, kept on this device for this collection. -->
+      <Menu label={t('app.list.fields_menu')} items={fieldsMenu} onselect={(field) => arrangement && arrange({ ...arrangement, fields: toggleField(arrangement.fields, field as ListField) })}>
+        {#snippet trigger(props)}
+          <Button size="sm" tone="secondary" icon="columns-3" data-opener="fields" {...props}>{t('app.list.fields')}</Button>
+        {/snippet}
+      </Menu>
+      <Menu label={t('app.list.group_menu')} items={groupMenu} onselect={choseGroup}>
+        {#snippet trigger(props)}
+          <Button size="sm" tone="secondary" icon="fold-vertical" data-opener="group" {...props}>{arrangement && arrangement.grouping !== 'none' ? t('app.list.group_named', { by: t(`app.list.group_${arrangement.grouping}`) }) : t('app.list.group')}</Button>
+        {/snippet}
+      </Menu>
+    {/if}
+    <Menu label={t('app.query.sort_menu')} items={sortMenu} onselect={choseSort}>
+      {#snippet trigger(props)}
+        <Button size="sm" tone="secondary" icon="chevrons-up-down" data-opener="sort" {...props}>{sortField === '' ? t('app.query.sort') : t('app.query.sort_named', { field: sortField })}</Button>
+      {/snippet}
+    </Menu>
+    <!-- The saved views, saving, the export and the calendar subscriptions (design-system.md §11.8). -->
+    <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
+      {#snippet trigger(props)}
+        <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
+      {/snippet}
+    </Menu>
+    {#if maySelect}
+      <Button size="sm" tone="secondary" icon="square-check" data-opener="select" onclick={() => { isFilterOpen = false; selection.start(); }}>{t('app.bulk.select_mode')}</Button>
+    {/if}
+  {/snippet}
   {#snippet ownMark()}<ContainerMark look={container} size="md" />{/snippet}
+  {#if isSettings}
+    <Stack gap="300">
+      <!-- The place's settings (design-system.md §11.8): the trail back to the place, one title,
+           and the sections beside each other - for whom the shape belongs, and nobody else. -->
+      <PageHeader
+        title={t('app.settings.title')}
+        isTitleInBar={viewport.isCompact}
+        breadcrumb={{
+          trail: [
+            ...trail.slice(0, -1),
+            { id: container.id, label: container.name, href: container.type === 'HUB' ? `/hubs/${container.id}` : `/collections/${container.id}` },
+            { id: 'settings', label: t('app.settings.title') },
+          ],
+          label: t('app.workspace.trail'),
+          expandLabel: t('app.workspace.expand_trail'),
+          onnavigate: (crumbId) => {
+            const crumb = containers.find(crumbId);
+            if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
+          },
+        }}
+        mark={ownMark}
+      />
+      {#if !showsSettings || !container.structure}
+        <EmptyState kind="filtered" title={t('app.settings.not_yours')} />
+      {:else if readOnlyReason}
+        <ReadOnlyNotice text={readOnlyReason} textId={readOnlyNoticeId} />
+      {:else}
+        {#snippet generalTab()}
+          <ContainerEditDialog isEmbedded isOpen {container} />
+          <!-- The collection's mail address, with who may send and *New address* (ADR-0092 M1-M3). -->
+          {#if container.type === 'COLLECTION'}
+            <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
+              <h2 class="mail-head" id="mail-settings-head">{t('app.mail.section')}</h2>
+              <p class="mail-hint">{t('app.mail.section_hint')}</p>
+              <MailAddressField target={{ kind: 'COLLECTION', id: container.id }} shape="panel" mayShape={mayShape} />
+            </section>
+          {/if}
+        {/snippet}
+        {#snippet labelsTab()}
+          <LabelsDialog isEmbedded isOpen collectionId={container.id} />
+        {/snippet}
+        {#snippet fieldsTab()}
+          <CustomFieldsDialog isEmbedded isOpen collectionId={container.id} role={structureRole} />
+        {/snippet}
+        {#snippet templatesTab()}
+          <TemplatesDialog
+            isEmbedded
+            isOpen
+            collectionId={container.id}
+            path={containerPath}
+            role={structureRole}
+            onopened={(itemId) => onnavigate(`/items/${itemId}`)}
+          />
+        {/snippet}
+        {#snippet automationTab()}
+          <PoliciesDialog isEmbedded isOpen {container} path={containerPath} role={structureRole} />
+        {/snippet}
+        {#snippet peopleTab()}
+          <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
+        {/snippet}
+        <StructurePanel
+          isOpen
+          tab={section || 'general'}
+          {container}
+          {mayShapeWorkspace}
+          hrefOf={(each) => `${settingsPath}/${each}`}
+          onsection={(each) => onnavigate(`${settingsPath}/${each}`)}
+          before={[{ id: 'general', label: t('app.settings.section_general'), body: generalTab }]}
+          tabs={container.type === 'COLLECTION'
+            ? [
+                { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
+                { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
+                { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
+                { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
+                { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
+              ]
+            : [{ id: 'people', label: t('app.structure.tab_people'), body: peopleTab }]}
+        />
+      {/if}
+    </Stack>
+  {:else}
   <Stack gap="300">
     <!-- The head (ADR-0061 decision 4): where this is, what it is called, the one thing one does
          here most, and the rest behind a menu in three groups. The hub's primary is what a hub is
@@ -1016,9 +1199,8 @@
           if (crumb) onnavigate(crumb.type === 'HUB' ? `/hubs/${crumbId}` : `/collections/${crumbId}`);
         },
       }}
-      primary={isAddInList ? undefined : headPrimary}
       secondary={headSecondary}
-      menu={headMenuShown}
+      menu={headMenu}
       figure={(container.type === 'COLLECTION' && (container.figure || hasAi)) || hasMilestone ? collectionFigure : undefined}
       mark={ownMark}
     >
@@ -1042,18 +1224,7 @@
           <p class="failure" role="alert">{failure.message}</p>
         {/if}
       {/snippet}
-      {#snippet views()}
-        {#if container.type === 'COLLECTION'}
-          <!-- The three layouts, with "show what is inside" within the list; beside them the one
-               *Views* menu (design-system.md §11.8): the saved views, saving, the export and the
-               calendar subscriptions. -->
-          <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
-          <Menu label={t('app.views.menu')} items={viewsMenu} onselect={choseView}>
-            {#snippet trigger(props)}
-              <Button size="sm" tone="secondary" icon="saved-view" data-opener="views" {...props}>{t('app.views.menu')}</Button>
-            {/snippet}
-          </Menu>
-        {/if}
+      {#snippet aside()}
         {#if memberIds.length === 0}
           <!-- Nobody to show yet: the way to the people stays, as their mark (ux-inventory.md §E9). -->
           <IconButton icon="users" label={t('app.people.title')} size="sm" data-opener="members" onclick={() => (isManagingMembers = true)} />
@@ -1074,8 +1245,22 @@
             </span>
           </button>
         {/if}
+        <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
+
+    {#if container.type === 'COLLECTION'}
+      <!-- The toolbar (design-system.md §11.1): about the entries, where the head is about the
+           place. The layouts at the start; the filter, the views and selecting at the end. On a
+           phone the filter is one button whose sheet holds the rest. -->
+      <div class="toolbar" role="toolbar" aria-label={t('app.toolbar.entries')}>
+        <LayoutSwitch {layout} offered={offeredLayouts} reported={offer.layouts} onlayout={chooseLayout} />
+        <div class="tools">
+          <Button size="sm" tone={filterCount > 0 ? 'primary' : 'secondary'} icon="funnel" data-opener="filter" aria-expanded={isFilterOpen} onclick={() => (isFilterOpen = !isFilterOpen)}>{filterLabel}</Button>
+          {#if !viewport.isBelowExpanded}{@render entryTools()}{/if}
+        </div>
+      </div>
+    {/if}
 
     {#if container.type === 'HUB' && container.private}
       <!-- Who opened this hub through the emergency access, and the opener's own hour (ADR-0073 §4). -->
@@ -1107,9 +1292,12 @@
           {/snippet}
         </EmptyState>
       {:else}
-        <!-- The way to a new collection is the head's primary action now; the collections are
-             cards with what counts in each (ux-inventory.md §E4). -->
-        <CollectionCards {collections} />
+        <!-- The collections as cards with what counts in each (ux-inventory.md §E4), the way to a
+             new one the last card, where they are. -->
+        <CollectionCards
+          {collections}
+          create={mayShape ? { label: t('app.workspace.create_collection'), onclick: () => (isCreatingCollection = true), disabledReason: readOnlyReason } : undefined}
+        />
       {/if}
     {:else}
       <!-- What the reader has asked of the entries. Everything offered comes from the manifest:
@@ -1118,11 +1306,12 @@
            `expanded`, a drawer from the bottom below it. -->
       {#if viewport.isBelowExpanded}
         <Drawer bind:isOpen={isFilterOpen} edge="block-end" title={t('app.query.title')} dismissLabel={t('app.dismiss')}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
+          <div class="sheet-tools">{@render entryTools()}</div>
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
         </Drawer>
       {:else}
         <div class="filter" hidden={!isFilterOpen}>
-          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} />
+          <QueryPanel {layout} applied={appliedView} onquery={(asked) => (query = asked)} oncount={(count) => (filterCount = count)} custom={customFieldFilters} carried={carriedHere} bind:sortField bind:sortDir />
         </div>
       {/if}
 
@@ -1138,7 +1327,8 @@
       <!-- The list, and from `large` the pane beside it (ADR-0061 decision 4): the entry the
            address names, in the same form it takes on a phone. The pane is a place, not a
            feature - `/items/:id` is still the entry's address and this only draws it here. -->
-      <div class="split" data-pane={openItemId ? '' : undefined}>
+      <!-- design-system-lint-ignore: the panel's width is the person's drag, kept by the device. -->
+      <div class="split" data-pane={openItemId ? '' : undefined} style:--panel-width={device.panelWidth ? `${device.panelWidth}px` : undefined}>
         <div class="entries">
           {#if layout === 'TIMELINE'}
             <TimelineView
@@ -1146,7 +1336,7 @@
               {query}
               {isReadOnly}
               changeRefusal={changeRefusalOf}
-              onopen={(itemId) => (viewport.isLarge ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
+              onopen={(itemId) => (opensBeside ? openBeside(itemId) : onnavigate(`/items/${itemId}`))}
               currentId={openItemId}
               {onnavigate}
               mayCreate={mayCreateHere}
@@ -1158,7 +1348,7 @@
               isReadOnly={isReadOnly}
               {query}
               {lastResults}
-              onopen={viewport.isLarge ? openBeside : undefined}
+              onopen={opensBeside ? openBeside : undefined}
               currentId={openItemId}
               {onnavigate}
               mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
@@ -1179,7 +1369,7 @@
               {query}
               isExpanded={layout === 'LIST_EXPANDED'}
               {lastResults}
-              onopen={viewport.isLarge ? openBeside : undefined}
+              onopen={opensBeside ? openBeside : undefined}
               currentId={openItemId}
               {onnavigate}
               mayShare={holds(myRole ?? undefined, 'MANAGE_MEMBERS').status === 'permitted'}
@@ -1189,6 +1379,11 @@
               structure={container.structure ?? undefined}
               {mayShape}
               containerVersion={container.version}
+              {arrangement}
+              sortField={sortField === '' ? undefined : sortField}
+              {sortDir}
+              onsort={sortByColumn}
+              sortable={sortFields}
             />
           {/if}
         </div>
@@ -1197,11 +1392,18 @@
             <DetailPane
               title={openItem?.title ?? ''}
               kind={openItem ? offer.level(openItem.type).label : undefined}
+              trail={trail.map((step) => step.label)}
               dismissLabel={t('app.pane.close')}
-              pageLabel={t('app.pane.open_page')}
-              pageHref={`/items/${openItemId}`}
-              onOpenPage={() => onnavigate(`/items/${openItemId}`)}
+              view={{ label: t('app.pane.view'), panelLabel: t('app.pane.view_panel'), pageLabel: t('app.pane.view_page'), onpage: openWhole }}
               onClose={closePane}
+              resize={{
+                label: t('app.pane.width'),
+                value: device.panelWidth ?? panelBounds.reset,
+                min: panelBounds.min,
+                max: panelBounds.max,
+                reset: panelBounds.reset,
+                onresize: (width) => device.setPanelWidth(width),
+              }}
             >
               <ItemView id={openItemId} {onnavigate} isInPane />
             </DetailPane>
@@ -1210,6 +1412,7 @@
       </div>
     {/if}
   </Stack>
+  {/if}
 {/if}
 
 {#if container?.type === 'HUB'}
@@ -1219,64 +1422,19 @@
     parentId={container.id}
     oncreated={(collectionId) => onnavigate(`/collections/${collectionId}`)}
   />
-  <ImportDialog bind:isOpen={isImporting} hubId={container.id} {onnavigate} />
-{/if}
-
-{#if container?.type === 'COLLECTION' && container.parent_id && mayShape}
-  <ImportDialog
-    bind:isOpen={isImporting}
-    hubId={container.parent_id}
-    collection={{ id: container.id, name: container.name }}
-    {onnavigate}
-  />
 {/if}
 
 {#if container && mayShape}
-  <ContainerEditDialog bind:isOpen={isEditing} {container} />
-{/if}
-
-{#if container?.structure && mayShape}
-  {#snippet labelsTab()}
-    <LabelsDialog isEmbedded isOpen={isShaping} collectionId={container.id} />
-  {/snippet}
-  {#snippet fieldsTab()}
-    <CustomFieldsDialog isEmbedded isOpen={isShaping} collectionId={container.id} role={structureRole} />
-  {/snippet}
-  {#snippet templatesTab()}
-    <TemplatesDialog
-      isEmbedded
-      isOpen={isShaping}
-      collectionId={container.id}
-      path={containerPath}
-      role={structureRole}
-      onopened={(itemId) => {
-        isShaping = false;
-        onnavigate(`/items/${itemId}`);
-      }}
-    />
-  {/snippet}
-  {#snippet automationTab()}
-    <PoliciesDialog isEmbedded isOpen={isShaping} {container} path={containerPath} role={structureRole} />
-  {/snippet}
-  {#snippet peopleTab()}
-    <MembersDialog isEmbedded isOpen={isShaping} title={t('app.people.title')} scope={memberScope} path={memberPath} />
-  {/snippet}
-  <StructurePanel
-    bind:isOpen={isShaping}
-    bind:tab={shapingTab}
-    {container}
-    {mayShapeWorkspace}
-    tabs={container.type === 'COLLECTION'
-      ? [
-          { id: 'labels', label: t('app.structure.tab_labels'), body: labelsTab },
-          { id: 'fields', label: t('app.structure.tab_fields'), body: fieldsTab },
-          { id: 'templates', label: t('app.structure.tab_templates'), body: templatesTab },
-          { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
-          { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
-        ]
-      : [{ id: 'people', label: t('app.structure.tab_people'), body: peopleTab }]}
+  <PositionDialog
+    bind:isOpen={isPositioning}
+    id={container.id}
+    name={container.name}
+    siblings={siblings.map((each) => ({ id: each.id, name: each.name }))}
+    onmove={(placeId, offset) => void moveSibling(placeId, offset)}
   />
 {/if}
+
+
 
 {#if container?.type === 'COLLECTION'}
   <ViewsPanel
@@ -1291,6 +1449,7 @@
     }}
     {query}
     {layout}
+    fields={arrangement?.fields}
     role={structureRole}
     onapply={applyView}
     onexport={(view) => {
@@ -1411,13 +1570,26 @@
 
   .entries { flex: 1; min-width: 0; }
 
-  /* The pane keeps to the top while the list scrolls under it, and scrolls inside itself. */
-  .split[data-pane] > :global(aside) {
+
+  /* The entries' toolbar stays under the bar while the list scrolls (design-system.md §11.1): the
+     layouts at the start, the rest at the end, one line where it fits. */
+  .toolbar {
     position: sticky;
-    inset-block-start: calc(var(--layout-appbar-height) + var(--sp-200));
-    max-block-size: calc(100vh - var(--layout-appbar-height) - var(--sp-400));
-    overflow: auto;
+    inset-block-start: var(--layout-appbar-height);
+    z-index: var(--z-raised);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--sp-150);
+    padding-block: var(--sp-100);
+    border-block-end: var(--bw-hairline) solid var(--border-subtle);
+    background: var(--bg-canvas);
   }
+
+  .tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
+
+  .sheet-tools { display: flex; flex-wrap: wrap; gap: var(--sp-100); margin-block-end: var(--sp-200); }
 
   .filter[hidden] { display: none; }
 
@@ -1452,4 +1624,16 @@
 
   .failure { margin: 0; color: var(--text-danger); font-size: var(--fs-075); max-width: 64ch; }
 
+
+  .mail-settings {
+    display: grid;
+    gap: var(--sp-100);
+    margin-block-start: var(--sp-400);
+    padding-block-start: var(--sp-300);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+  }
+
+  .mail-head { margin: 0; font-family: var(--font-display); font-size: var(--fs-200); font-weight: var(--fw-semibold); }
+
+  .mail-hint { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

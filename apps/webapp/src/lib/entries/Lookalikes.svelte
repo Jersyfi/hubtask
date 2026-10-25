@@ -2,8 +2,8 @@
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
   // Entries that look like the title being typed, named by their titles, under the field
-  // (UC-AI-04 check 7). The seam every place that creates an entry mounts: the add form today, the
-  // capture line and the turning of text into entries next.
+  // (UC-AI-04 check 7). The seam every place that creates an entry mounts: capture, the one add,
+  // today, and the turning of text into entries next.
   //
   // Nothing is drawn while nothing is near, and nothing at all without AI and search by meaning -
   // absence is absence (ai-first.md §2). It offers nothing to press but the entries themselves:

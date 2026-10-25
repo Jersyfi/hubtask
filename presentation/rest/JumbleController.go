@@ -270,6 +270,12 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 		job := uuidValue(id)
 		entry.ArrivalJobId = &job
 	}
+	if kind := out.String("meant_for_kind"); kind != "" {
+		meant := openapi.JumbleEntryMeantForKind(kind)
+		entry.MeantForKind = &meant
+		id := uuidValue(out.String("meant_for_id"))
+		entry.MeantForId = &id
+	}
 	return entry
 }
 

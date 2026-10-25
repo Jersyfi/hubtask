@@ -38,7 +38,16 @@ type Message struct {
 	// Body is the rendered message. Plain text, because what it contains is a sentence and a link
 	// and an HTML alternative would only be a second place for content to appear.
 	Body string
+	// ReplyTo is where an answer goes: the address of the entry the message is about, on the
+	// installation's receiving domain (ADR-0092 decision 8). Empty for none. Not a caller's free
+	// choice either - it is minted by this system and checked like To.
+	ReplyTo string
 }
+
+// NotificationHeader marks every message this system sends. The mail intake discards a message
+// carrying it, so a notification that comes back - forwarded by a rule, bounced by a server - ends
+// there rather than becoming a comment that notifies again (ADR-0092 decision 7).
+const NotificationHeader = "X-Hubtask-Notification"
 
 // ErrRecipientMissing is a message with nowhere to go. Internal rather than validation: whoever
 // built this message had a decision in hand that said there was an address (notification.Decide),

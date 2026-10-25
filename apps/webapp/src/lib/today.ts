@@ -94,3 +94,17 @@ export function nextStepQuery(collectionId: string) {
     page: { size: 1 },
   };
 }
+
+/** The part of the day a greeting names, by the hour where the person is. */
+export type DayPart = 'morning' | 'day' | 'evening';
+
+/**
+ * Morning from five, the day from eleven, the evening from six - read in the person's zone, not the
+ * device's, so a person travelling is greeted by the day they live in.
+ */
+export function greetingOf(zone: string, now: number): DayPart {
+  const hour = Number(new Intl.DateTimeFormat('en-GB', { hour: 'numeric', hourCycle: 'h23', timeZone: zone }).format(now));
+  if (hour >= 5 && hour < 11) return 'morning';
+  if (hour >= 11 && hour < 18) return 'day';
+  return 'evening';
+}

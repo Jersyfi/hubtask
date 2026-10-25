@@ -15,7 +15,8 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub } from './fixture.mjs';
+import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub, openSettings } from './fixture.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -75,14 +76,14 @@ test('chromium: 1280 px — the trash and the archive from an entry\'s menu take
   const entry = ITEMS[2];
   const menu = page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first();
 
-  await menu.click();
+  await reveal(menu);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Move to the trash' }).click(), `${entry.title} is in the trash.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/items/${entry.id}`)), 'the trash was not at once');
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:restore`)), 'Undo sent no :restore');
   await settle(page);
 
-  await menu.click();
+  await reveal(menu);
   await undoAfterEightSeconds(page, () => page.getByRole('menuitem', { name: 'Archive' }).click(), `${entry.title} is archived.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'POST' && w.path.endsWith(`/items/${entry.id}:unarchive`)), 'Undo sent no :unarchive');
@@ -109,17 +110,13 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   assert.ok(written.some((w) => w.method === 'PUT' && w.path.endsWith(`/items/${tagged.id}/labels/${label.id}`)), 'Undo did not put it back');
   await settle(page);
 
-  // A label deleted from the collection, from *Structure → Labels*. The panel is modal: its own list
-  // of deleted labels is the way back while it is open, and the message stands with its Undo once
-  // it is closed.
-  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  // The labels are a tab of *Structure* (ux-inventory.md §E4).
-  await page.getByRole('menuitem', { name: 'Structure…' }).click();
-  await page.getByRole('tab', { name: 'Labels' }).click();
+  // A label deleted from the collection, from *Settings → Labels*: a page, not a modal, so the
+  // message stands with its Undo at once beside the list of deleted labels.
+  // The labels are a section of the settings page (design-system.md §11.8).
+  await openSettings(page, COLLECTION.name);
+  await page.getByRole('link', { name: 'Labels' }).click();
   await undoAfterEightSeconds(page, async () => {
     await page.getByRole('button', { name: `Delete ${label.name}` }).click();
-    await page.keyboard.press('Escape');
-    await page.getByRole('dialog').waitFor({ state: 'detached', timeout: 5_000 });
   }, `${label.name} is deleted.`);
   await page.waitForTimeout(300);
   assert.ok(written.some((w) => w.method === 'DELETE' && w.path.endsWith(`/labels/${label.id}`)), 'the label was not deleted at once');
@@ -127,7 +124,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: 1280 px — *Structure → Labels* lists a deleted label with the way back', async (t) => {
+test('chromium: 1280 px — *Settings → Labels* lists a deleted label with the way back', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, context, failures, written } = await list(browser);
@@ -135,10 +132,8 @@ test('chromium: 1280 px — *Structure → Labels* lists a deleted label with th
   const gone = { id: '01a0e2e0-0000-7000-8000-0000000000e9', collection_id: COLLECTION.id, name: 'Waiting', color_token: 'amber', description: null, version: 2, deleted_at: '2026-10-20T09:00:00Z' };
   await context.route('**/api/v1/containers/*/labels?include_deleted=true', (route) => route.fulfill({ json: [...LABELS, gone] }));
 
-  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  // The labels are a tab of *Structure* (ux-inventory.md §E4).
-  await page.getByRole('menuitem', { name: 'Structure…' }).click();
-  await page.getByRole('tab', { name: 'Labels' }).click();
+  await openSettings(page, COLLECTION.name);
+  await page.getByRole('link', { name: 'Labels' }).click();
   await page.getByRole('heading', { name: 'Deleted labels' }).waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: `Bring ${gone.name} back` }).click();
   await page.waitForTimeout(300);
@@ -154,7 +149,7 @@ test('chromium: 1280 px — a selection moved to the trash comes back as one ato
   const parent = ITEMS[0];
   const child = CHILDREN[parent.id][0];
 
-  await page.getByRole('checkbox', { name: 'Show what is inside' }).click();
+  await page.getByRole('button', { name: 'Show what is inside', exact: true }).click();
   await page.locator(`[data-row="${child.id}"] a`).first().waitFor({ timeout: 5_000 });
   // Picked child first, so the order back has to be the hierarchy's and not the selection's.
   await page.locator(`[data-row="${child.id}"] a`).first().click({ modifiers: ['ControlOrMeta'] });
@@ -178,7 +173,7 @@ test('chromium: 1280 px — offline, Undo is shown and says it waits for the net
   const { page, context, failures } = await list(browser);
   t.after(() => context.close());
   const entry = ITEMS[3];
-  await page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first().click();
+  await reveal(page.getByRole('button', { name: `Actions for ${entry.title}`, exact: true }).first());
   await page.getByRole('menuitem', { name: 'Archive' }).click();
   const message = page.locator('.toast', { hasText: `${entry.title} is archived.` });
   await message.waitFor({ timeout: 5_000 });

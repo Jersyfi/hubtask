@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import Avatar from './Avatar.svelte';
   import BucketColumn from './BucketColumn.svelte';
   import IconButton from './IconButton.svelte';
   import Inline from './Inline.svelte';
@@ -8,7 +9,7 @@
   import ViewSwitcher, { type View } from './ViewSwitcher.svelte';
   import WorkItemCard from './WorkItemCard.svelte';
 
-  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' | 'phone' | 'beside' } = $props();
+  const { mode = 'board' }: { mode?: 'board' | 'overLimit' | 'covers' | 'long' | 'phone' | 'beside' | 'zones' } = $props();
 
   // The card open beside the board: a plain press on a title opens it here rather than following
   // the link; a press with a modifier still opens the link in a new tab.
@@ -22,7 +23,32 @@
     isDone?: boolean;
     cover?: { kind: 'COLOR' | 'IMAGE'; token?: string };
     labels?: { name: string; token: string }[];
+    /** What the footer counts, and who is on it. */
+    due?: string;
+    counts?: string;
+    people?: string[];
   }
+
+  // The card's zones, sparse and full side by side: a title alone, a date and a person, everything.
+  const zones: Column[] = [
+    {
+      id: 'zones',
+      name: 'Doing',
+      cards: [
+        { id: 'z1', title: 'Check the logo' },
+        { id: 'z2', title: 'Call Mr Müller', due: 'today 9:00', people: ['BO'] },
+        {
+          id: 'z3',
+          title: 'Write the home page and agree the tone for every sub-page with the client before the translations are ordered',
+          cover: { kind: 'COLOR', token: 'violet' },
+          labels: [{ name: 'Design', token: 'blue' }, { name: 'Urgent', token: 'red' }, { name: 'Text', token: 'green' }, { name: 'Web', token: 'teal' }],
+          due: 'tomorrow 10:00',
+          counts: '☑ 1/3 · 💬 4 · 📎 2',
+          people: ['JW', 'AB'],
+        },
+      ],
+    },
+  ];
 
   const columns: Column[] = [
     {
@@ -98,7 +124,7 @@
   ];
 
   const all = $derived(
-    mode === 'overLimit' ? overLimit : mode === 'covers' ? covers : mode === 'long' ? long : columns,
+    mode === 'overLimit' ? overLimit : mode === 'covers' ? covers : mode === 'long' ? long : mode === 'zones' ? zones : columns,
   );
 
   // On a phone the board is one column at a time (ADR-0061 decision 4): the strip above says which
@@ -139,14 +165,18 @@
           coverKind={card.cover?.kind ?? null}
           coverColorToken={card.cover?.token ?? null}
         >
+          {#snippet labels()}
+            {#each (card.labels ?? []).slice(0, 2) as label (label.name)}
+              <LabelChip name={label.name} colorToken={label.token} />
+            {/each}
+            {#if (card.labels ?? []).length > 2}<span class="more">+{(card.labels ?? []).length - 2}</span>{/if}
+          {/snippet}
           {#snippet footer()}
-            {#if card.labels}
-              <Inline gap="050">
-                {#each card.labels as label (label.name)}
-                  <LabelChip name={label.name} colorToken={label.token} />
-                {/each}
-              </Inline>
-            {/if}
+            {#if card.due}<span>{card.due}</span>{/if}
+            {#if card.counts}<span>{card.counts}</span>{/if}
+          {/snippet}
+          {#snippet people()}
+            {#each card.people ?? [] as initials (initials)}<Avatar name={initials} size="sm" />{/each}
           {/snippet}
         </WorkItemCard>
       {/each}
@@ -156,6 +186,8 @@
 </div>
 
 <style>
+  .more { color: var(--text-secondary); font-size: var(--fs-050); }
+
   /* The board scrolls sideways, not the page: a wide board that widened the document would take
      every other region with it. */
   .board {

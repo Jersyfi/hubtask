@@ -119,20 +119,21 @@ test('chromium: 1280 px — editing changes the colour and the symbol, and "none
     if (request.method() === 'PATCH' && request.url().endsWith(`/api/v1/containers/${LOOK_HUB.id}`)) sent.push({ ...request.postDataJSON(), ifMatch: request.headers()['if-match'] });
   });
 
+  // The look is changed in the hub's settings, which its menu opens.
   await page.getByRole('button', { name: `Actions for ${LOOK_HUB.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Edit' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit hub' });
-  await dialog.waitFor({ timeout: 5_000 });
+  await page.getByRole('menuitem', { name: 'Settings' }).click();
+  const dialog = page.getByRole('region', { name: 'General' });
+  await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   // It opens on what the hub has now.
   assert.ok(await dialog.getByRole('radio', { name: 'Violet' }).isChecked());
   assert.ok(await dialog.getByRole('radio', { name: 'Briefcase' }).isChecked());
 
   await choose(dialog, 'No colour');
   await choose(dialog, 'House');
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await dialog.waitFor({ state: 'detached', timeout: 5_000 });
+  await page.getByRole('region', { name: 'Unsaved changes' }).getByRole('button', { name: 'Save' }).click();
+  await page.waitForFunction(() => !document.querySelector('[data-save-bar][data-open]'), null, { timeout: 5_000 });
 
-  // With the version the dialog opened on, so a change that lost a race is refused (ADR-0025).
+  // With the version the settings opened on, so a change that lost a race is refused (ADR-0025).
   assert.equal(sent.length, 1);
   assert.deepEqual({ icon: sent[0].icon, color_token: sent[0].color_token }, { icon: 'house', color_token: null });
   assert.ok(sent[0].ifMatch?.includes(String(LOOK_HUB.version)), sent[0].ifMatch);

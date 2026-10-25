@@ -94,6 +94,60 @@ test('chromium: a card is carried from anywhere on it, and the click that ends t
   assert.deepEqual(unstubbed(), []);
 });
 
+test('chromium: a carried card is held above every column, and the cards it passes open a gap rather than lie under it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await board(browser);
+  t.after(close);
+
+  const card = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  const zone = page.locator(`[data-column-zone="${BUCKETS[1].id}"]`);
+  const from = await card.boundingBox();
+  const to = await zone.boundingBox();
+  const resting = await zone.locator('[data-card]').evaluateAll((all) => all.map((each) => Math.round(each.getBoundingClientRect().top)));
+
+  // Held over the top of the next column, not yet let go.
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  for (let step = 1; step <= 12; step += 1) {
+    await page.mouse.move(from.x + from.width / 2 + ((to.x + to.width / 2 - from.x - from.width / 2) * step) / 12, from.y + ((to.y + 40 - from.y) * step) / 12);
+    await page.waitForTimeout(20);
+  }
+  await page.waitForTimeout(300);
+
+  // The card keeps its slot unseen, and a copy is carried: fixed to the window, so no column's
+  // scrolling cuts it, and above every column and card, so no later column paints over it.
+  const held = await page.evaluate((id) => {
+    const slot = document.querySelector(`[data-card="${id}"]`);
+    const ghost = document.querySelector('.ghost');
+    const zOf = (el) => Number(getComputedStyle(el).zIndex) || 0;
+    const others = [...document.querySelectorAll('[data-card], [data-column-zone]')];
+    return {
+      slot: getComputedStyle(slot).visibility,
+      position: ghost ? getComputedStyle(ghost).position : null,
+      carried: ghost ? zOf(ghost) : 0,
+      highest: Math.max(0, ...others.map(zOf)),
+    };
+  }, ITEMS[0].id);
+  assert.equal(held.slot, 'hidden', `the card's own slot is still drawn: ${JSON.stringify(held)}`);
+  assert.equal(held.position, 'fixed', `the carried copy is not fixed to the window: ${JSON.stringify(held)}`);
+  assert.ok(held.carried > held.highest, `the carried card is not above the others: ${JSON.stringify(held)}`);
+
+  // The column's cards slid down to open the place, and none of them lies over another.
+  const sliding = await zone.locator('[data-card]').evaluateAll((all) => all.map((each) => {
+    const box = each.getBoundingClientRect();
+    return { top: Math.round(box.top), bottom: Math.round(box.bottom), shift: each.getAttribute('data-shift') };
+  }));
+  if (resting.length > 0) {
+    assert.ok(sliding.some((each) => each.shift === 'down'), `nothing slid aside: ${JSON.stringify(sliding)}`);
+    assert.ok(sliding[0].top > resting[0], `the first card did not move down: ${resting[0]} -> ${sliding[0].top}`);
+  }
+  for (let i = 1; i < sliding.length; i += 1) assert.ok(sliding[i].top >= sliding[i - 1].bottom - 1, `two cards overlap: ${JSON.stringify(sliding)}`);
+
+  await page.mouse.up();
+  assert.deepEqual(failures, []);
+});
+
 test('chromium: a press that does not travel is still the click it always was', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
@@ -146,4 +200,41 @@ test('chromium: a finger that moves at once is scrolling, and one that waits is 
   // Nothing was answered by a guess: a shape this fixture never prepared is a shape the walk
   // cannot claim to have exercised (`fixture.mjs`).
   assert.deepEqual(unstubbed(), []);
+});
+
+test('chromium: a board opened at its own address draws its cards, though the manifest arrives after it', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, context, failures, close } = await board(browser);
+  t.after(close);
+
+  // The board is the layout the device remembers; the reload opens it straight away, and the
+  // manifest is the slowest answer on the page - as on a server where it is read cold.
+  await context.unroute('**/api/v1/**');
+  await context.route('**/api/v1/**', async (route) => {
+    if (route.request().url().endsWith('/api/v1/meta/capabilities')) await new Promise((resolve) => setTimeout(resolve, 1500));
+    return stub(route);
+  });
+  await page.reload();
+  await page.locator('[data-card]').first().waitFor({ timeout: 15_000 });
+  assert.ok(await page.locator(`[data-card="${ITEMS[0].id}"]`).isVisible(), 'the board drew empty columns');
+  assert.deepEqual(failures, []);
+});
+
+test('chromium: a card says what it holds - its parts, comments and files - and a title alone takes no more room', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const { page, failures, close } = await board(browser);
+  t.after(close);
+
+  const full = page.locator(`[data-card="${ITEMS[0].id}"]`);
+  const text = (await full.innerText()).replace(/\s+/g, ' ');
+  assert.match(text, /1\/3/u, `the parts are not counted: ${text}`);
+  assert.equal(await full.getByText('1 of 3 parts done').count(), 1, 'the parts are not said in words');
+  assert.equal(await full.getByText('2 comments').count(), 1, 'the comments are not said');
+  assert.equal(await full.getByText('1 attachment').count(), 1, 'the file is not said');
+  // A card holding nothing draws no footer line at all.
+  const bare = page.locator(`[data-card="${ITEMS[2].id}"]`);
+  assert.equal(await bare.locator('.footer:visible').count(), 0, 'an empty footer line on a card that holds nothing');
+  assert.deepEqual(failures, []);
 });

@@ -5,7 +5,7 @@
   import Inline from './Inline.svelte';
   import Stack from './Stack.svelte';
 
-  const { isLong = false, hasBold = false }: { isLong?: boolean; hasBold?: boolean } = $props();
+  const { isLong = false, hasBold = false, hasSmall = false }: { isLong?: boolean; hasBold?: boolean; hasSmall?: boolean } = $props();
 
   const words = $derived(
     isLong
@@ -29,6 +29,13 @@
       <Badge tone="success" emphasis="bold">{words.ok}</Badge>
       <Badge tone="warning" emphasis="bold">{words.warn}</Badge>
       <Badge tone="danger" emphasis="bold">{words.fail}</Badge>
+    </Inline>
+  {/if}
+  {#if hasSmall}
+    <Inline gap="100" align="center">
+      <Badge size="sm" icon="calendar">{isLong ? 'morgen 10:00' : 'tomorrow 10:00'}</Badge>
+      <Badge size="sm" tone="warning" icon="clock">{isLong ? 'heute 15:00' : 'today 3:00 PM'}</Badge>
+      <Badge size="sm" tone="danger">{words.warn} · {isLong ? 'Mo' : 'Mon'}</Badge>
     </Inline>
   {/if}
 </Stack>

@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { FIGURE_HUB, FIGURES, showFigures, signedIn } from './fixture.mjs';
+import { FIGURE_HUB, FIGURES, showFigures, signedIn, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -95,7 +95,8 @@ test('chromium: 390 and 1280 px — the hub draws its collections as cards, each
     await page.getByRole('heading', { name: FIGURE_HUB.name, level: 1 }).waitFor({ state: 'attached', timeout: 15_000 });
     const cards = page.getByRole('list', { name: 'Collections' });
     await cards.waitFor({ timeout: 5_000 });
-    assert.equal(await cards.getByRole('listitem').count(), EXPECTED.length, `${width}: one card per collection`);
+    // One card per collection - and, where the reader may create one, the dashed card that does.
+    assert.equal(await cards.locator('[data-card]').count(), EXPECTED.length, `${width}: one card per collection`);
     for (const [collection, head] of EXPECTED) {
       const card = cards.locator(`[data-card="${collection.id}"]`);
       assert.equal(await card.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);
@@ -122,7 +123,8 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
       return { x: Math.round(r.x), y: Math.round(r.y), h: Math.round(r.height) };
     });
     const title = await box(page.getByRole('heading', { name: collection.name, level: 1 }));
-    const primary = await box(page.getByRole('button', { name: 'Add an entry', exact: true }).first());
+    // The head's own control at its end, the place's menu: what a figure beside the title would push.
+    const primary = await box(page.getByRole('button', { name: `Actions for ${collection.name}` }).first());
     const plain = await box(page.locator(`[data-node="${FIGURES.none.id}"]`));
     const figured = await box(page.locator(`[data-node="${FIGURES.sum.id}"]`));
     const label = await box(page.locator(`[data-node="${FIGURES.sum.id}"] .label`));
@@ -133,7 +135,7 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
   const without = await measure(FIGURES.none);
   const withFigure = await measure(FIGURES.sum);
   assert.deepEqual(withFigure.title, without.title, 'the title moved');
-  assert.deepEqual(withFigure.primary, without.primary, 'the primary action moved');
+  assert.deepEqual(withFigure.primary, without.primary, 'the head\'s ⚙ moved');
   assert.equal(without.figured.h, without.plain.h, 'a row with a figure is taller than one without');
   assert.equal(without.label.x, without.plainLabel.x, 'the label moved');
 });
@@ -143,10 +145,10 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   t.after(() => browser.close());
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
-    await page.getByRole('button', { name: `Actions for ${collection.name}` }).click();
-    // What counts is one setting of the Structure panel (UC-WRK-23).
-    await page.getByRole('menuitem', { name: 'Structure' }).click();
-    const dialog = page.locator('dialog[open] [data-setting="counts"]');
+    // What counts is one setting of the settings page's *Structure* (UC-WRK-23).
+    await openSettings(page, collection.name);
+    await page.getByRole('link', { name: 'Structure' }).click();
+    const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });
     const options = await dialog.getByRole('combobox', { name: 'Show' }).locator('option').allTextContents();
     return { page, context, dialog, options };
@@ -159,7 +161,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
     if (request.method() === 'PATCH' && request.url().endsWith('/structure')) resolve(request.postDataJSON());
   }));
   await list.dialog.getByRole('combobox', { name: 'Show' }).selectOption('DUE');
-  await list.page.locator('dialog[open]').getByRole('button', { name: 'Save', exact: true }).click();
+  await list.page.locator('[data-structure-panel]').getByRole('button', { name: 'Save', exact: true }).click();
   assert.deepEqual(await written, { settings: { counts: { figure: 'DUE' } } });
   await list.context.close();
 

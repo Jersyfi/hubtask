@@ -19,7 +19,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { PERMISSIONS, fallback, unstubbedSoFar } from './fixture.mjs';
+import { COLLECTION as KITCHEN, PERMISSIONS, fallback, signedIn, unstubbedSoFar } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -153,7 +153,7 @@ test('chromium: the administration is a section, and the tree is not in it', asy
   assert.equal(rows[0], 'The workspace', `the first row is ${JSON.stringify(rows[0])}`);
   // Eighteen, the overview, "Presets", "Sign-in" and "Machines and apps" among them: the number
   // moves when the section gains a screen, which is what this assertion is for.
-  assert.equal(rows.length, 18, `the section holds ${rows.length} rows`);
+  assert.equal(rows.length, 19, `the section holds ${rows.length} rows`);
   // Exact again: "People" and "People's requests" are both rows of this list.
   assert.equal(await section.getByRole('treeitem', { name: 'People', exact: true }).getAttribute('aria-current'), 'page');
 
@@ -260,10 +260,11 @@ test('chromium: 375 px — the section is behind the drawer, and the bottom bar 
 test('chromium: 375 px — the page menu is in the bar, and it is the head\'s own list', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
-  const { page, failures, close } = await open(browser);
-  t.after(close);
-
-  await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
+  // The shared fixture's owner: a place's own menu holds only what may be done to it, and this
+  // walk's own reader holds no role that may do anything to a place.
+  const { page, failures, context } = await signedIn(browser, 375, 812);
+  t.after(() => context.close());
+  await page.goto(`${served.origin}/collections/${KITCHEN.id}`);
   const menu = page.locator('[data-bar="menu"] button');
   await menu.waitFor({ timeout: 15_000 });
 

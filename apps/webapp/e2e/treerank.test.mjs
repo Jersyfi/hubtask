@@ -119,7 +119,7 @@ test('chromium: Alt+arrows rank a hub, the focus stays with it, and the move is 
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a hub dragged by its grip lands where it is let go, and letting go opens nothing', async (t) => {
+test('chromium: a hub dragged by its row lands where it is let go, and letting go opens nothing', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await signedIn(browser, 1280, 900);
@@ -127,13 +127,10 @@ test('chromium: a hub dragged by its grip lands where it is let go, and letting 
   const { tree, writes, order } = await workspace(page);
 
   const garden = tree.getByRole('treeitem', { name: 'Garden' });
-  const grip = garden.locator('[data-grip]');
-  // Faded until the pointer is over the row, and there once it is.
-  assert.equal(await grip.evaluate((node) => getComputedStyle(node).opacity), '0');
-  await garden.hover();
-  await page.waitForFunction((node) => getComputedStyle(node).opacity === '1', await grip.elementHandle(), { timeout: 2_000 });
+  // The row is the handle: no grip beside it to aim for.
+  assert.equal(await garden.locator('[data-grip]').count(), 0);
 
-  const from = await grip.boundingBox();
+  const from = await garden.locator('.label').boundingBox();
   const travel = await tree.getByRole('treeitem', { name: 'Travel' }).boundingBox();
   const path = page.url();
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
@@ -150,9 +147,8 @@ test('chromium: a hub dragged by its grip lands where it is let go, and letting 
   await said(page).filter({ hasText: 'Garden is now number 3 of 3.' }).waitFor({ timeout: 5_000 });
   assert.equal(page.url(), path, 'letting go of the drag opened the hub');
 
-  // A press on the grip that does not travel is the row's own click, and writes nothing.
-  await tree.getByRole('treeitem', { name: 'Studio' }).hover();
-  await tree.getByRole('treeitem', { name: 'Studio' }).locator('[data-grip]').click();
+  // A press on the row that does not travel is the row's own click, and writes nothing.
+  await tree.getByRole('treeitem', { name: 'Studio' }).locator('.label').click();
   await page.waitForURL(`**/hubs/${id('02')}`, { timeout: 5_000 });
   assert.equal(writes.length, 1);
   assert.deepEqual(failures, []);
@@ -165,7 +161,9 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
   t.after(() => context.close());
   const { tree, writes, order } = await workspace(page);
 
-  await tree.getByRole('button', { name: /Garden/ }).click();
+  const twist = tree.getByRole('button', { name: 'Show what is in Garden' });
+  await twist.waitFor({ timeout: 5_000 });
+  await twist.click();
   const beds = tree.getByRole('treeitem', { name: 'Beds' });
   await beds.waitFor({ timeout: 5_000 });
   await beds.focus();
@@ -177,8 +175,7 @@ test('chromium: a collection ranks among its hub’s collections by the same mov
   // The level is the hub's: dragging a collection far past the last hub still lands it last among
   // the collections, and never among the hubs.
   const seeds = tree.getByRole('treeitem', { name: 'Seeds' });
-  await seeds.hover();
-  const from = await seeds.locator('[data-grip]').boundingBox();
+  const from = await seeds.locator('.label').boundingBox();
   await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
   await page.mouse.down();
   await page.mouse.move(from.x + from.width / 2, from.y - 60, { steps: 10 });

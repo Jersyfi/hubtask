@@ -50,6 +50,12 @@
     completeDisabledReason?: string;
     /** The name of the control that shows or hides the children. */
     expandLabel?: string;
+    /**
+     * Whether the row keeps the twist's place. A level keeps it on every row, so the titles of the
+     * level line up whether or not a row has children; a list of rows from anywhere - *Today*, a
+     * search - opens nothing in place, and the empty place would only push the title in.
+     */
+    hasTwist?: boolean;
     onToggleComplete?: () => void;
     onToggleExpand?: () => void;
     /** Labels, a badge, a menu. Not part of the row's own activation. */
@@ -74,6 +80,7 @@
     completeLabel,
     completeDisabledReason,
     expandLabel,
+    hasTwist = true,
     onToggleComplete,
     onToggleExpand,
     trailing,
@@ -99,16 +106,18 @@
   <ListRow {href} onactivate={onOpen} isSelected={isCurrent} {trailing}>
     {#snippet leading()}
       <!-- The twist first, so the titles of a level line up whether or not a row has children. -->
-      <span class="twist">
-        {#if expansion !== 'leaf' && expandLabel}
-          <IconButton
-            icon={expansion === 'expanded' ? 'chevron-down' : 'chevron-right'}
-            label={expandLabel}
-            size="sm"
-            onclick={() => onToggleExpand?.()}
-          />
-        {/if}
-      </span>
+      {#if hasTwist}
+        <span class="twist">
+          {#if expansion !== 'leaf' && expandLabel}
+            <IconButton
+              icon={expansion === 'expanded' ? 'chevron-down' : 'chevron-right'}
+              label={expandLabel}
+              size="sm"
+              onclick={() => onToggleExpand?.()}
+            />
+          {/if}
+        </span>
+      {/if}
       <!-- A checkbox, not an icon button, because that is what completion is: a two-state control
            a screen reader announces as checked or not. Its label is announced and not drawn — the
            title beside it is what the reader sees, and "Completed" printed against every row would
@@ -120,7 +129,9 @@
         disabledReason={completeDisabledReason}
         onchange={() => onToggleComplete?.()}
       />
-      <span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>
+      <!-- The level's mark below the top only: a top-level row is the collection's own kind, and
+           its indent and twist already say where a nested one stands. -->
+      {#if depth > 0}<span class="mark" aria-hidden="true"><Icon name={mark} size="sm" /></span>{/if}
     {/snippet}
 
     <span class="title">{title}</span>
@@ -145,8 +156,28 @@
     .task-row { padding-inline-start: calc(min(var(--depth), 3) * var(--sp-200)); }
   }
 
-  .twist,
-  .mark { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  /* The concept's row: a card of the surface on the canvas, one line high, its corners rounded and
+     a gap to the next, so a list reads as entries rather than as lines of a table. */
+  .task-row > :global(.row) {
+    min-block-size: var(--sp-500);
+    padding-block: var(--sp-025);
+    padding-inline: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid transparent;
+    background: var(--bg-surface);
+  }
+
+  .task-row > :global(.row:hover) { border-color: var(--border-subtle); background: var(--bg-surface); }
+
+  /* The entry open beside the list: outlined in the brand and tinted, as the concept marks it;
+     the outline is what says it in greyscale (rule 3). */
+  .task-row > :global(.row[data-selected]) {
+    border-color: var(--accent-primary);
+    background: var(--accent-primary-subtle);
+    box-shadow: none;
+  }
+
+  .twist { display: inline-flex; flex: none; width: var(--sp-400); justify-content: center; }
+  .mark { display: inline-flex; flex: none; width: var(--sp-300); justify-content: center; }
 
   .mark { color: var(--text-subtle); }
 

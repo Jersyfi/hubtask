@@ -59,6 +59,7 @@ test('the administration area is exactly these screens, by name', () => {
     'runs',
     'service-accounts',
     'sign-in-settings',
+    'voice',
     'webhooks',
     'workspace-settings',
   ]);

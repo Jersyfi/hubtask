@@ -57,6 +57,7 @@ import (
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -79,6 +80,7 @@ import (
 	secretvalue "github.com/Jersyfi/hubtask/core/shared/secret"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
+	"github.com/Jersyfi/hubtask/infrastructure/alexa"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
@@ -107,6 +109,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
+	voicepresentation "github.com/Jersyfi/hubtask/presentation/voice"
 	"github.com/Jersyfi/hubtask/presentation/webui"
 	"github.com/Jersyfi/hubtask/presentation/worker"
 
@@ -764,6 +767,25 @@ func run() error {
 		Events:     outbox,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
+	}
+	// Mail addresses for every place (ADR-0092): the jumble's, a collection's and an entry's, on
+	// the operator's receiving domain. Without HUBTASK_MAIL_INBOUND_DOMAIN they read as unavailable.
+	mailAddressWriter := jumbleservice.MailAddressWriter{
+		Addresses:  postgres.NewMailAddressRepository(),
+		Places:     jumbleservice.MailPlaces{Items: items, Containers: containers},
+		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
+		Domain: cfg.Mail.InboundDomain,
+	}
+	// Voice assistants (ADR-0093): a workspace's settings and spoken names, and the assistant that
+	// does what is said through the catalogue as the person who linked it.
+	voiceAssistant := voiceservice.Assistant{
+		Catalogue: ruleCatalogue, Settings: postgres.NewVoiceRepository(), UnitOfWork: unitOfWork,
+	}
+	voiceWriter := voiceservice.SettingsWriter{
+		Settings: postgres.NewVoiceRepository(), Assistant: voiceAssistant, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		SkillIDs: cfg.Voice.AlexaSkillIDs,
 	}
 	changes := postgres.NewChangeLog()
 	// The one place a lost read access becomes a record a device can act on: every use case
@@ -2044,6 +2066,14 @@ func run() error {
 			AI:     suggestionservice.Availability{Providers: budgetedAi},
 			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
+		jumbleservice.CommentJumbleEntry{Writer: jumbleWriter, Catalogue: ruleCatalogue}.Descriptor(),
+		voiceservice.ShowVoiceSettings{Writer: voiceWriter}.Descriptor(),
+		voiceservice.SaveVoiceSettings{Writer: voiceWriter}.Descriptor(),
+		voiceservice.TryVoiceSentence{Writer: voiceWriter}.Descriptor(),
+		voiceservice.ShowAlexaModel{Writer: voiceWriter}.Descriptor(),
+		jumbleservice.ShowMailAddress{Writer: mailAddressWriter}.Descriptor(),
+		jumbleservice.RotateMailAddress{Writer: mailAddressWriter}.Descriptor(),
+		jumbleservice.SetMailSenderPolicy{Writer: mailAddressWriter}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2257,7 +2287,7 @@ func run() error {
 		}.Descriptor(),
 		work.QueryItems{
 			Gate:  entryGate,
-			Items: items, ItemLabels: itemLabels, Containers: containers,
+			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three
@@ -2743,6 +2773,23 @@ func run() error {
 				Clock: clockadapter.System{}, IDs: ids,
 			},
 		}
+		// The receiving domain's door (ADR-0092): the inbound service posts each message with the
+		// installation's key, and it goes to the place its address leads to - as the recognised
+		// sender, through the catalogue, or into the jumble.
+		controller.AddressedMail = intake.AddressedMailIntake{
+			Key: cfg.Mail.InboundKey.Reveal(),
+			Deliveries: jumbleservice.DeliverAddressedMail{
+				Addresses: mailAddressWriter.Addresses, Places: mailAddressWriter.Places,
+				Accounts: accounts, Entries: postgres.NewJumbleRepository(cursors),
+				Media: mediaservice.IngestMedia{
+					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
+					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+					Text: forms,
+				},
+				Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
+				Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
+			},
+		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
 		// call. The listener is the wake-up; without it the stream still works, at its idle
@@ -2933,6 +2980,19 @@ func run() error {
 			// `admin:tenants` loses it when the register does not name its holder, so a token
 			// minted last month by somebody since removed stops reaching the control plane.
 			Operators: postgres.NewOperatorRepository(),
+		}
+
+		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token
+		// authenticated as every other bearer is, the sentence done through the catalogue.
+		controller.Alexa = voicepresentation.Alexa{
+			Verifier: &alexa.Verifier{Client: outboundClient},
+			Authenticate: func(ctx context.Context, token, locale string) (appshared.ActorContext, error) {
+				return authenticate.Execute(ctx, identity.AuthenticateTokenCommand{
+					Credential: token, RequestedLocale: locale,
+					FallbackLocale: cfg.Locale.DefaultLocale, FallbackTimeZone: cfg.Locale.DefaultTimeZone,
+				})
+			},
+			Assistant: voiceAssistant, Renderer: renderer, SkillIDs: cfg.Voice.AlexaSkillIDs,
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per
@@ -3304,6 +3364,8 @@ func run() error {
 			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The role somebody was given, and the hub or collection it is on.
 			Grants: grants, Places: containers,
+			// The entry's own address as Reply-To, so an answer becomes a comment (ADR-0092).
+			Replies: jumbleservice.MailReplies{Writer: mailAddressWriter},
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,

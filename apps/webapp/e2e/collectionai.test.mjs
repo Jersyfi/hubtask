@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { AI_MANIFEST, COLLECTION, ITEMS, MANIFEST, forgetUnstubbed, stub, unstubbedSoFar } from './fixture.mjs';
+import { AI_MANIFEST, COLLECTION, ITEMS, MANIFEST, forgetUnstubbed, stub, unstubbedSoFar, openSettings } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -113,11 +113,10 @@ test('chromium: a template drafted for the collection stands in Structure → Te
   t.after(() => browser.close());
   const { context, page, failures } = await at(browser, true);
   t.after(() => context.close());
-  await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).click();
-  await page.getByRole('menuitem', { name: 'Structure' }).click();
-  const panel = page.locator('dialog[open]');
-  await panel.getByRole('tab', { name: 'Templates' }).click();
-  const draft = panel.locator('[data-ai="template"]');
+  await openSettings(page, COLLECTION.name);
+  const panel = page.getByRole('main');
+  await panel.getByRole('link', { name: 'Templates' }).click();
+  const draft = panel.locator('[data-ai="template"]').first();
   await draft.getByText('Room by room', { exact: true }).waitFor({ timeout: 10_000 });
   assert.equal(await draft.getByText('Strip the walls').count(), 1, 'the draft without its tree');
   assert.equal(await draft.getByRole('button', { name: 'Keep as a template' }).count(), 1);

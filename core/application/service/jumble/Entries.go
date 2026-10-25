@@ -328,5 +328,9 @@ func entryOutput(entry domain.Entry) usecase.Output {
 	if !entry.ArrivalJobID.IsZero() {
 		out["arrival_job_id"] = entry.ArrivalJobID.String()
 	}
+	if !entry.MeantFor.IsZero() {
+		out["meant_for_kind"] = string(entry.MeantFor.Kind)
+		out["meant_for_id"] = entry.MeantFor.ID.String()
+	}
 	return out
 }

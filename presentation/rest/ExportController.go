@@ -138,9 +138,9 @@ func (c *RestController) ExportItems(
 		return
 	}
 
-	in := queryInput(body.Query, document.Query, false)
+	in := queryInput(body.Query, document.Query, expansions{})
 	// What a walk decides for itself: every page, and rows rather than groups.
-	for _, part := range []string{"cursor", "size", "count", "group_by", "expand_labels"} {
+	for _, part := range []string{"cursor", "size", "count", "group_by", "expand_labels", "expand_counts"} {
 		delete(in, part)
 	}
 	out, err := c.UseCases.Invoke(r.Context(), exportItemsUseCase, actorOf(r), in)

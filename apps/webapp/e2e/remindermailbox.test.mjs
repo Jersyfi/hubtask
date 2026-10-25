@@ -14,6 +14,7 @@ import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
 import { ITEMS, OTHER, signedIn, stub } from './fixture.mjs';
+import { unfoldFields } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const ENTRY = ITEMS[0];
@@ -41,6 +42,7 @@ async function composeFor(browser, assignee) {
   });
   await page.goto(`${served.origin}/items/${ENTRY.id}`);
   await page.getByRole('textbox', { name: 'Title' }).first().waitFor({ timeout: 15_000 });
+  await unfoldFields(page);
   await page.locator('[data-detail="reminders"]').click();
   const editor = page.getByRole('dialog', { name: 'Reminders' });
   await editor.waitFor({ timeout: 5_000 });

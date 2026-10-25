@@ -113,10 +113,19 @@
   <Stack gap="100">
     <h2 class="section">{t('app.archive.entries_title')}</h2>
     <p class="quiet">{t('app.archive.entries')}</p>
-    <ListRow href={ARCHIVED_ENTRIES} onactivate={() => onnavigate?.(ARCHIVED_ENTRIES)}>
-      {#snippet leading()}<Icon name="search" size="sm" />{/snippet}
-      {t('app.archive.entries_search')}
-    </ListRow>
+    <!-- A way to another screen, drawn as the toolbar's buttons are and starting on the page's edge
+         (G1); a link, so it opens in a new tab like any other. -->
+    <div>
+      <a
+        class="to-search"
+        href={ARCHIVED_ENTRIES}
+        onclick={(event) => {
+          if (!onnavigate || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          onnavigate(ARCHIVED_ENTRIES);
+        }}><Icon name="search" size="sm" />{t('app.archive.entries_search')}</a
+      >
+    </div>
   </Stack>
 </Stack>
 
@@ -126,4 +135,24 @@
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; max-width: 64ch; color: var(--text-secondary); font-size: var(--fs-075); }
+
+  .to-search {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    min-block-size: var(--density-control-sm-min);
+    padding-inline: var(--sp-150);
+    box-sizing: border-box;
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-primary);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+    text-decoration: none;
+  }
+
+  .to-search:hover { background: var(--bg-surface-hover); }
+
+  .to-search:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

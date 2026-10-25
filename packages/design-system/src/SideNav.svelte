@@ -15,10 +15,11 @@
   // five are collapsed", which is why the flattening happens here rather than in a caller.
 
   import Icon from './Icon.svelte';
+  import Menu from './Menu.svelte';
   import type { IconName } from './icons/index.ts';
   import { labelTokens, type LabelToken } from '../dist/tokens.ts';
   import { focusReturn } from './focus.ts';
-  import { openOverlay } from './overlay.ts';
+  import { openOverlay, type MenuItem } from './overlay.ts';
   import Self from './SideNav.svelte';
   import { HOLD_MS, boundariesOf, dropIndex, hasLeftTheHandle, rankIntent } from './reorder.ts';
   import { flattenTree, levelOf, treeIntent, type NavNode as StructureNode } from './structure.ts';
@@ -44,6 +45,14 @@
      * rail, which is a column of marks.
      */
     readonly meta?: string;
+  }
+
+  /** A row's own menu: what can be done to the place the row is (design-system.md §13, G7). */
+  export interface RowMenu {
+    /** What the menu is called: "Actions for Agentur". Resolved text. */
+    readonly label: string;
+    readonly items: readonly MenuItem[];
+    readonly onselect: (itemId: string) => void;
   }
 
   interface Props {
@@ -90,16 +99,26 @@
     /**
      * Ranks a node among its siblings: `to` is the position it asks for in its level as drawn,
      * the number `rankTarget` answers with (`reorder.ts`). Only a node with `isMovable` offers it:
-     * a grip to drag by, and `Alt+↑`/`↓` (with `Shift`, to the ends) on the focused row.
+     * the row itself carried by a mouse, and `Alt+↑`/`↓` (with `Shift`, to the ends) on the focused
+     * row. A touch screen does not rank in the column: there the place's page does it.
      *
      * A position rather than a command, because a drag lands three rows away as easily as one.
      * The write, and the sentence that says it happened, are the caller's: the tree draws the
      * order it is handed and moves nothing by itself, so the order on screen is the server's.
      */
     onreorder?: (id: string, to: number) => void;
+    /**
+     * The row's own menu, where the place has one for this reader: a *⋯* at the end of the row on
+     * hover and focus, and the context-menu key or `Shift+F10` on the focused row. Absent is no
+     * menu (P-05). Not on the rail, which is a column of marks.
+     */
+    rowMenu?: (id: string) => RowMenu | undefined;
   }
 
-  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate, onreorder }: Props = $props();
+  let { label, nodes, current, expanded = $bindable([]), isRail = false, flyoutLabel, branchLabel, onnavigate, onreorder, rowMenu }: Props = $props();
+
+  /** The row whose menu is open: one at a time, like every menu. */
+  let menuFor = $state<string | null>(null);
 
   let tree = $state<HTMLElement | null>(null);
   let active = $state(0);
@@ -252,8 +271,8 @@
   /**
    * The pointer path to the same call (`reorder.ts`): a drag ends by naming a position in the
    * level, which is what `Alt+↓` names too, so the two cannot disagree about where a row lands.
-   * It starts on the grip only, because the row is a link: a fine pointer once it has travelled,
-   * a coarse one after the hold, as every list here does (design-system.md §11.9).
+   * It starts on the row with a mouse, once the press has travelled past the threshold, so a
+   * press that does not travel is still the row's click (design-system.md §11.9).
    */
   let drag = $state<{ id: string; level: string[]; offset: number; to: number; from: number } | null>(null);
   let hasJustDragged = false;
@@ -365,6 +384,14 @@
         aria-current={row.node.id === current ? 'page' : undefined}
         aria-keyshortcuts={isMovable(row) ? 'Alt+ArrowUp Alt+ArrowDown' : undefined}
         data-dragging={drag?.id === row.node.id ? '' : undefined}
+        style:--depth={row.depth}
+        onpointerdown={(event) => {
+          // Where a pointer hovers, the row itself is what is carried - a press that travels, as a
+          // card on the board (design-system.md §11.9); its menu and its twist keep their own press.
+          if (event.pointerType !== 'mouse' || !isMovable(row)) return;
+          if ((event.target as Element).closest('.more, .twist')) return;
+          beginDrag(event, index);
+        }}
         data-drop={dropTarget === row.node.id ? '' : undefined}
         style:--drag-offset={drag?.id === row.node.id ? `${drag.offset}px` : undefined}
         tabindex={index === focused ? 0 : -1}
@@ -374,6 +401,11 @@
           choose(row);
         }}
         onkeydown={(event) => {
+          if ((event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) && !isRail && rowMenu?.(row.node.id)) {
+            event.preventDefault();
+            menuFor = row.node.id;
+            return;
+          }
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
           choose(row);
@@ -390,16 +422,38 @@
           {/if}
         </span>
         {#if !isRail}
-          <span class="label" style:--depth={row.depth}>{row.node.label}</span>
-          {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
-          <!-- The grip: what a pointer drags by. Hidden from the accessibility tree, because the
-               keys on the row are the same command, and a press on it that does not travel is the
-               row's own click. -->
-          {#if isMovable(row)}
-            <span class="grip" data-grip aria-hidden="true" onpointerdown={(event) => beginDrag(event, index)}>
-              <Icon name="grip-vertical" size="sm" />
+          <span class="label">{row.node.label}</span>
+          {@const menu = rowMenu?.(row.node.id)}
+          <!-- The figure and the place's menu share one cell at the end: the figure is drawn, and
+               where the pointer or the focus is the menu takes its place, so a row with a menu wraps
+               exactly where a row without one does. -->
+          {#if row.node.meta || menu}
+            <span class="end">
+              {#if row.node.meta}<span class="meta">{row.node.meta}</span>{/if}
+              {#if menu}
+                <!-- Out of the tab order like the twist: the tree keeps its one stop, and the
+                     keyboard opens the same menu from the row. The span stops the press from
+                     reaching the row, which would navigate. -->
+                <!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+                <span class="more" onclick={(event) => event.stopPropagation()}>
+                  <Menu
+                    label={menu.label}
+                    items={menu.items}
+                    placement={{ side: 'block-end', align: 'end' }}
+                    bind:isOpen={() => menuFor === row.node.id, (open) => (menuFor = open ? row.node.id : null)}
+                    onselect={menu.onselect}
+                  >
+                    {#snippet trigger(props)}
+                      <button type="button" class="more-trigger" tabindex="-1" aria-label={menu.label} title={menu.label} {...props}>
+                        <Icon name="ellipsis" size="sm" />
+                      </button>
+                    {/snippet}
+                  </Menu>
+                </span>
+              {/if}
             </span>
           {/if}
+
           <!-- And the twist at the end of the row, where the reading direction ends: `inline-end`
                through the logical padding, so it mirrors with the document.
                A **control** where the caller named one, because the row itself now goes to the
@@ -422,11 +476,11 @@
             >
               <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
             </button>
-          {:else}
+          {:else if row.isBranch}
+            <!-- Only a row that opens reserves the twist's room: a leaf's figure and menu reach the
+                 row's end rather than stopping a twist's width short of it. -->
             <span class="twist" aria-hidden="true">
-              {#if row.isBranch}
-                <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
-              {/if}
+              <Icon name={row.isExpanded ? 'chevron-down' : 'chevron-right'} size="sm" />
             </span>
           {/if}
         {/if}
@@ -484,12 +538,14 @@
     font-weight: var(--fw-semibold);
   }
 
+  /* A level in is the whole row in - the mark with the words - so a collection reads as its hub's
+     (the concept's tree); the rail keeps every mark in one column. */
   .row {
     display: flex;
     align-items: center;
     gap: var(--density-row-gap);
     padding-block: var(--density-row-block);
-    padding-inline: var(--sp-100);
+    padding-inline: calc(var(--sp-100) + var(--depth, 0) * var(--sp-300)) var(--sp-100);
     border-radius: var(--r-md);
     color: var(--text-secondary);
     font-size: var(--fs-100);
@@ -584,7 +640,6 @@
   .label {
     flex: 1;
     min-width: 0;
-    padding-inline-start: calc(var(--depth) * var(--sp-200));
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 2;
@@ -606,34 +661,75 @@
     white-space: nowrap;
   }
 
-  /* The grip, faded until the pointer is over the row or the focus is in it, where a pointer
-     hovers at all (design-system.md §11.9): faded rather than taken out, so the row keeps its
-     width. A touch screen draws it always. `touch-action: none` is what lets a finger drag it at
-     all, and it is on the grip alone, so the column still scrolls everywhere else. */
-  .grip {
-    display: inline-flex;
-    flex: none;
-    align-items: center;
-    color: var(--text-subtle);
-    cursor: grab;
-    touch-action: none;
-  }
-
-  /* Where a pointer hovers, the grip stands in the gutter before the row, as on a list's rows, so
-     it takes no width from the label: a row with a grip wraps exactly where one without does. */
+  /* Where a pointer hovers the row itself is carried. */
   @media (hover: hover) {
-    .row:has(.grip) { position: relative; }
-
-    .row .grip {
-      position: absolute;
-      inset-inline-start: calc(-1 * var(--sp-150));
+    .row .more {
       opacity: 0;
       transition: opacity var(--motion-state-duration) var(--motion-state-easing);
     }
 
-    .row:hover .grip,
-    .row:focus-within .grip,
-    .row[data-dragging] .grip { opacity: 1; }
+    .row:hover .more,
+    .row:focus .more,
+    .row:focus-within .more,
+    .row .more:has([aria-expanded='true']) { opacity: 1; }
+
+    /* Where the menu shows, the figure it covers steps back. */
+    .row:hover .end:has(.more) .meta,
+    .row:focus .end:has(.more) .meta,
+    .row:focus-within .end:has(.more) .meta,
+    .row .end:has([aria-expanded='true']) .meta { opacity: 0; }
+  }
+
+  /* The row's menu, the size of the twist beside it. Faded until the pointer or the focus is on
+     the row where a pointer hovers; not drawn on touch, where the place's page holds it. */
+  .end {
+    display: grid;
+    flex: none;
+    align-items: center;
+    justify-items: end;
+  }
+
+  .end > * { grid-area: 1 / 1; }
+
+  /* The figure is words to read, never a target: a press on the cell is the menu's, which a figure
+     drawn after it in the cell used to take - and the press went on to open the place. */
+  .end > .meta { pointer-events: none; }
+  .end > .more { position: relative; z-index: 1; }
+
+  /* With a finger the column is for going places: the place's menu and its moving are on the
+     place's own page, a few presses further, where they have room (design-system.md §11.1). */
+  @media (hover: none) {
+    .row .more { display: none; }
+  }
+
+  /* Taller than the row's line, so it overhangs the row's padding evenly rather than growing the
+     row: a row with a menu is exactly as tall as one without. On the span, which has the row's
+     line; a button's own line is the browser's. */
+  .more { display: inline-flex; margin-block: calc((1lh - var(--sp-400)) / 2); }
+
+  /* The place's menu: a target as wide as the twist and the row's height, in the secondary ink so
+     it reads on the current row's tint. */
+  .more-trigger {
+    display: inline-grid;
+    place-items: center;
+    inline-size: var(--sp-400);
+    block-size: var(--sp-400);
+    padding: 0;
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+  }
+
+  /* Flat, in the row's own plane: under the pointer it takes the brand's tint and ink, which reads
+     as a button on the plain rows and on the current row's tint alike. */
+  .more-trigger:hover,
+  .more-trigger[aria-expanded='true'] { background: var(--accent-primary-subtle); color: var(--text-brand); }
+
+  .more-trigger:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
   }
 
   /* Rule 6: the carried row moves by a `translate` and nothing else, raised off the column
@@ -645,7 +741,7 @@
     pointer-events: none;
   }
 
-  .row[data-dragging] .grip { cursor: grabbing; }
+  .row[data-dragging] { cursor: grabbing; }
 
   /* Where it would land. Rule 3: an outline, not a tint. */
   .row[data-drop] {

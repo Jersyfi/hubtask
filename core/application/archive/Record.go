@@ -687,6 +687,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"item_embedding": "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
 	"sync_device":    "a device registration carries a push token, and §8.4's reasoning covers it",
 	"jumble_intake":  "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
+	"mail_address":   "an address's code is a key to a place, §8.4's reasoning again: a restored code would let in mail from whoever held the old one, and a place mints a new address on its next read",
+	"voice_setting":  "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
+	"voice_alias":    "the spoken names go with the voice settings and name places by identifier; they are set again with them",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",

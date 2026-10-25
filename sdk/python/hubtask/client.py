@@ -187,6 +187,46 @@ class Client:
         """Decide against an entry"""
         return self._call("POST", "/jumble/entries/{entryId}:dismiss", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
 
+    def comment_jumble_entry(self, entry_id: str, body: "JumbleEntryComment", *, idempotency_key: str | None = None) -> "JumbleEntry":
+        """Settle an entry as a comment on an entry"""
+        return self._call("POST", "/jumble/entries/{entryId}:comment", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def show_mail_address(self, *, query: dict[str, Any] | None = None) -> "MailAddress":
+        """The address a place takes mail at"""
+        return self._call("GET", "/mail/addresses", {}, query, {}, None, "none", None, "json")
+
+    def rotate_mail_address(self, body: "MailAddressTarget", *, idempotency_key: str | None = None) -> "MailAddress":
+        """Replace a place's mail address"""
+        return self._call("POST", "/mail/addresses:rotate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def set_mail_sender_policy(self, body: "MailSenderPolicyChange", *, idempotency_key: str | None = None) -> "MailAddress":
+        """Set who may write into a place by mail"""
+        return self._call("POST", "/mail/addresses:set-sender-policy", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def deliver_addressed_mail(self, body: bytes, *, query: dict[str, Any] | None = None) -> "MailDelivered":
+        """Deliver a mail to an address on the receiving domain"""
+        return self._call("POST", "/mail/inbound", {}, query, {}, body, "raw", "message/rfc822", "json")
+
+    def show_voice_settings(self) -> "VoiceSettings":
+        """The workspace's voice settings"""
+        return self._call("GET", "/voice/settings", {}, None, {}, None, "none", None, "json")
+
+    def save_voice_settings(self, body: "VoiceSettings", *, idempotency_key: str | None = None) -> "VoiceSettings":
+        """Replace the workspace's voice settings"""
+        return self._call("PUT", "/voice/settings", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def try_voice_sentence(self, body: "VoiceTry") -> "VoiceInterpretation":
+        """What a spoken sentence would do"""
+        return self._call("POST", "/voice:try", {}, None, {}, body, "json", "application/json", "json")
+
+    def show_alexa_model(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The Alexa interaction model"""
+        return self._call("GET", "/voice/alexa/model", {}, query, {}, None, "none", None, "json")
+
+    def answer_alexa(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Answer Alexa"""
+        return self._call("POST", "/voice/alexa", {}, None, {}, body, "json", "application/json", "json")
+
     def list_rules(self, *, query: dict[str, Any] | None = None) -> "AutomationRulePage":
         """The workspace's automation rules"""
         return self._call("GET", "/automation/rules", {}, query, {}, None, "none", None, "json")
@@ -1139,7 +1179,7 @@ class Client:
         """Consent to an app's request for bounded access"""
         return self._call("POST", "/oauth/authorize", {}, None, {}, body, "json", "application/json", "json")
 
-    def exchange_oauth_code(self, body: "OauthTokenRequest") -> "SessionTokens":
+    def exchange_oauth_code(self, body: "OauthTokenRequest") -> "OauthStandardTokens":
         """Exchange the code for the pair"""
         return self._call("POST", "/oauth/token", {}, None, {}, body, "json", "application/json", "json")
 

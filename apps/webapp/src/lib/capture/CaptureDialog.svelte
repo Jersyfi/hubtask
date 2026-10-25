@@ -15,14 +15,19 @@
 
   import { untrack } from 'svelte';
 
-  import { Button, Dialog, LabelChip, Textarea } from '@hubtask/design-system/components';
+  import { Button, Checkbox, Dialog, Kbd, LabelChip, Menu, Textarea, anchorTo } from '@hubtask/design-system/components';
   import { DEFAULT_TIMEOUT_MS, type Container, type TransportError, type WorkItem } from '@hubtask/sync-engine';
 
-  import { capture } from './capture.svelte.ts';
+  import { capture, type Door, type Mode } from './capture.svelte.ts';
+  import { SIGILS, offersFor, pick, tokenAt, type Offer, type Sigil, type Token } from './suggest.ts';
   import { offersMakeEntries } from './entries.ts';
   import MakeEntries from './MakeEntries.svelte';
+  import Lookalikes from '../entries/Lookalikes.svelte';
+  import ImportDialog from '../entries/ImportDialog.svelte';
+  import TemplatesDialog from '../entries/TemplatesDialog.svelte';
+  import ContainerMark from '../workspace/ContainerMark.svelte';
   import { NOTHING, literalKey, readLine, readTargets, type Chip, type Context, type Named, type Reading } from './parse.ts';
-  import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn } from './places.svelte.ts';
+  import { admits, jumbleWritable, liveCollections, liveHubs, openLevels, openRoles, pathOf, roleIn, roleInHub } from './places.svelte.ts';
   import { bodyOf, createAll, readLinesOf, type Writer } from './submit.ts';
   import { recognitionOf, resolveTarget, rulesOf, topLevelOf, type Target } from './target.ts';
   import { vocabularyOf } from './words.ts';
@@ -31,7 +36,7 @@
   import { accounts } from '../data/accounts.svelte.ts';
   import { manifest } from '../data/capabilities.svelte.ts';
   import { itemAccess } from '../data/capability.ts';
-  import { rootTypes } from '../data/capability.svelte.ts';
+  import { holds, offerIn, rootTypes } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { archivalOf } from '../data/containers.ts';
   import { engine } from '../data/engine.ts';
@@ -42,6 +47,7 @@
   import { people } from '../data/people.svelte.ts';
   import { suggestions } from '../data/suggestions.svelte.ts';
   import { captureRulesOf, unitsOf } from '../entries/capture.ts';
+  import { narrow, partition } from '../entries/simplelist.ts';
   import { offerUndo } from '../entries/undo.svelte.ts';
   import { formatDue } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -55,9 +61,27 @@
     currentItemId?: string;
     /** The hub the reader stands in, which settles an `@` name two hubs share. */
     currentHubId?: string;
+    /** Where a mode that is a screen of its own - a template, an import - takes the person. */
+    onnavigate?: (path: string) => void;
   }
 
-  const { currentCollectionId, currentItemId, currentHubId }: Props = $props();
+  const { currentCollectionId, currentItemId, currentHubId, onnavigate }: Props = $props();
+
+  /** The place chosen in the dialog's own chip, over the door's and the route's: a collection, or the jumble. */
+  let chosen = $state<string | undefined>(undefined);
+  /** The level chosen where the door offers several. */
+  let chosenType = $state<string | undefined>(undefined);
+  /** Whether the entry still goes under the door's entry; its chip takes it out. */
+  let isUnderParent = $state(true);
+  let mode = $state<Mode>('one');
+  /** Whether the field stays open after Enter, for a list typed line after line. */
+  let keepsOpen = $state(false);
+  /** Where the caret stands, for the token it is in. */
+  let caret = $state(0);
+  /** The suggestion the arrows stand on. */
+  let active = $state(0);
+  /** A token the person dismissed with Escape: its list stays shut until the token changes. */
+  let dismissed = $state<string | undefined>(undefined);
 
   let text = $state('');
   /** The chips taken back in this text: their words stay in the title. */
@@ -76,22 +100,36 @@
   // Where the reader stands
   // ------------------------------------------------------------------------------------------
 
-  /** The collection of the entry the reader is on, read through the entry page's own read. */
-  let itemCollectionId = $state<string | undefined>(undefined);
+  /** The entry the reader is on, read through the entry page's own read. */
+  let pageItem = $state<WorkItem | undefined>(undefined);
+  const itemCollectionId = $derived(pageItem?.collection_id);
   $effect(() => {
     const id = currentItemId;
     if (!capture.isOpen || !id) {
-      itemCollectionId = undefined;
+      pageItem = undefined;
       return;
     }
     return untrack(() =>
       engine.subscribe<WorkItem>({ path: itemPath(id) }, (next) => {
-        if (next.status === 'ready') itemCollectionId = next.data.collection_id;
+        if (next.status === 'ready') pageItem = next.data;
       }),
     );
   });
 
-  const current = $derived(currentCollectionId ?? itemCollectionId);
+  /**
+   * Opened on an entry's page from the bar or `Q`: what is added there goes under that entry, at
+   * the levels its collection lets it hold - the same door a row's ＋ opens, and a chip the
+   * person can take back. An entry that holds nothing below it opens as before.
+   */
+  const pageDoor = $derived.by((): Door | undefined => {
+    if (!pageItem?.collection_id) return undefined;
+    const types = offerIn(containers.find(pageItem.collection_id)?.structure?.settings).childTypes(pageItem.type);
+    if (types.length === 0) return undefined;
+    return { collectionId: pageItem.collection_id, parentId: pageItem.id, parentTitle: pageItem.title, types };
+  });
+
+  const door = $derived(capture.door ?? pageDoor);
+  const current = $derived(chosen === 'jumble' ? undefined : (chosen ?? door?.collectionId ?? currentCollectionId ?? itemCollectionId));
   const hubHere = $derived(current ? (containers.find(current)?.parent_id ?? undefined) : currentHubId);
 
   // Every hub's collections while open, so `@` finds a collection wherever it is.
@@ -134,6 +172,8 @@
       namedCollectionId: targets.collection?.id,
       namedHubId: targets.collection ? undefined : targets.hub?.id,
       currentCollectionId: current,
+      // Chosen *Jumble* is chosen: the hub the page stands in does not take it back.
+      currentHubId: chosen === 'jumble' ? undefined : (door?.hubId ?? currentHubId),
       find: (id) => containers.find(id),
       collectionsOf: levelOf,
       admits,
@@ -167,14 +207,22 @@
 
   const settings = $derived(collection?.structure?.settings);
   const rules = $derived(collection ? rulesOf(settings, rootTypes(), offered) : undefined);
-  const entryType = $derived(topLevelOf(settings, rootTypes()));
+  /** The levels the door offers, where it named them: under an entry, its child levels. */
+  const doorTypes = $derived(door?.types && door.types.length > 0 && (!door.collectionId || door.collectionId === current) ? door.types : undefined);
+  const entryType = $derived(chosenType ?? doorTypes?.[0] ?? topLevelOf(settings, rootTypes()));
+  /** The entry it goes under, while the door's collection is still the target. */
+  const parentId = $derived(isUnderParent && door?.parentId && door.collectionId === collection?.id ? door.parentId : undefined);
+  const bucketId = $derived(door?.bucketId && door.collectionId === collection?.id ? door.bucketId : undefined);
   /** Lines and amounts, by the rule the list's own capture line reads too (`captureRulesOf`). */
   const lineRules = $derived(
     collection && entryType ? captureRulesOf(collection.structure, entryType, unitsOf(t('app.entries.capture_units'))) : undefined,
   );
   /** The person took the amount back into the title from its chip, for this text. */
   let keepsWhole = $state(false);
-  const amountRules = $derived(lineRules ? { ...lineRules, readsAmount: lineRules.readsAmount && !keepsWhole } : undefined);
+  // *Several lines* splits them wherever the collection would join them.
+  const amountRules = $derived(
+    lineRules ? { ...lineRules, readsAmount: lineRules.readsAmount && !keepsWhole, splitsLines: lineRules.splitsLines || mode === 'lines' } : undefined,
+  );
 
   const peopleThere = $derived.by((): readonly Named[] => {
     if (!collection) return [];
@@ -203,6 +251,27 @@
     const first = amountRules.splitsLines ? (text.split(/\r?\n/u).find((line) => line.trim() !== '') ?? '') : text;
     return readLinesOf(first, amountRules, readOne).lines[0]?.amount;
   });
+
+  /**
+   * In a list typed line after line, what was ticked before and holds what is typed (UC-WRK-25
+   * check 4): one press puts the same entry back on the list instead of adding it twice.
+   */
+  const tickedBefore = $derived.by((): readonly WorkItem[] => {
+    if (!collection || !lineRules?.splitsLines || mode !== 'one' || text.includes('\n')) return [];
+    const typed = readLinesOf(text, amountRules ?? lineRules, readOne).lines[0]?.reading.title ?? '';
+    if (typed.trim() === '') return [];
+    return narrow(partition(items.inCollection(collection.id), now).recently, typed).slice(0, 4);
+  });
+
+  async function putBack(entry: WorkItem) {
+    try {
+      await items.setCompleted(entry.id, false, crypto.randomUUID());
+      announcer.say(t('app.entries.reopened_announced', { title: entry.title }));
+      finish('');
+    } catch (failure) {
+      error = say(failure);
+    }
+  }
 
   // ------------------------------------------------------------------------------------------
   // What the field says
@@ -272,7 +341,10 @@
     literal = new Set();
     keepsWhole = false;
     attempt = undefined;
-    if (rest === '') capture.close();
+    if (rest !== '') return;
+    // *Keep capturing*: the field empties and keeps the focus for the next line.
+    if (keepsOpen) void Promise.resolve().then(() => field?.querySelector('textarea')?.focus());
+    else capture.close();
   }
 
   async function submit() {
@@ -315,7 +387,7 @@
         return;
       }
       const bodies = lines.map((each) =>
-        bodyOf(each.reading, { collectionId: place.id, type: entryType }, { now, zone: context.zone }, each.amount),
+        bodyOf(each.reading, { collectionId: place.id, type: entryType, parentId, bucketId }, { now, zone: context.zone }, each.amount),
       );
       const outcome = await createAll(writer, bodies, keysFor(text, bodies.length), lines.map((each) => each.line), rest);
       if (outcome.kind !== 'items') return;
@@ -356,13 +428,235 @@
     return () => clearTimeout(timer);
   });
 
+  // ------------------------------------------------------------------------------------------
+  // Suggestions while a token is typed (design-system.md §11.8)
+  // ------------------------------------------------------------------------------------------
+
+  const token = $derived(capture.isOpen ? tokenAt(text, caret) : undefined);
+
+  const candidatesOf = (sigil: Sigil): readonly Offer[] => {
+    if (sigil === '@') return context.collections.map((each) => ({ id: each.id, name: each.name, hint: hubName(each.hubId) }));
+    if (sigil === '#') return context.hubs.map((each) => ({ id: each.id, name: each.name }));
+    if (sigil === '+') return peopleThere.map((each) => ({ id: each.id, name: each.name }));
+    return labelsThere.map((each) => ({ id: each.id, name: each.name }));
+  };
+
+  /**
+   * A token the field already read as a chip needs no list - the name is whole - and one the person
+   * took back into the title asked for none.
+   */
+  const isSettled = (at: Token) =>
+    reading.chips.some((chip) => chip.start === at.start) || literal.has(literalKey(SIGILS[at.sigil], `${at.sigil}${at.query}`));
+  const offers = $derived(
+    token && `${token.sigil}${token.query}@${token.start}` !== dismissed && !isSettled(token)
+      ? offersFor(token.query, candidatesOf(token.sigil))
+      : [],
+  );
+  $effect(() => {
+    void offers;
+    active = 0;
+  });
+
+  const listId = $props.id();
+
+  /** What the line read, marked in the field behind the words (the mockup's highlighted token). */
+  const marks = $derived([
+    ...reading.chips.map((chip) => ({ start: chip.start, end: chip.end })),
+    // The token being typed is marked too: it already does something.
+    ...(token && offers.length > 0 ? [{ start: token.start, end: token.end }] : []),
+  ]);
+  /**
+   * Under the field: what the words became that the field itself cannot show - a day and a time
+   * in full, a person and a label by name, an amount. The place and the hub are the chip above.
+   */
+  const shownChips = $derived(reading.chips.filter((chip) => chip.kind !== 'collection' && chip.kind !== 'hub' && chip.kind !== 'time'));
+  /** The time, said on the day's chip as one due date - "Fri 24 Oct · 10:00" - or alone. */
+  const timeChip = $derived(reading.chips.find((chip) => chip.kind === 'time'));
+  const dayChip = $derived(reading.chips.find((chip) => chip.kind === 'date'));
+  const dueLabel = (chip: Chip) =>
+    chip.kind === 'date' && timeChip ? `${chipLabel(chip)} · ${chipLabel(timeChip)}` : chipLabel(chip);
+  /** Taking the due date back keeps the day and its time in the title together. */
+  function keepDueInTitle(chip: Chip) {
+    if (chip.kind === 'date' && timeChip) literal = new Set([...literal, literalKey(timeChip.kind, timeChip.text)]);
+    keepInTitle(chip);
+  }
+
+  /** The list of offers is a layer anchored under the field, so the dialog never changes size for it. */
+  let offersLayer = $state<HTMLElement | null>(null);
+  $effect(() => {
+    const area = field?.querySelector('textarea');
+    if (offers.length === 0 || !area || !offersLayer) return;
+    return anchorTo(area, offersLayer, { placement: { side: 'block-end', align: 'start' } });
+  });
+
+  /** A collection's mark for an offered `@` name, and its hub. */
+  const containerOf = (id: string) => containers.find(id);
+
+  /** A level's name as the collection calls it. */
+  const offerLevelName = (type: string) => offerIn(collection?.structure?.settings).level(type).label;
+
+  function readCaret(event: Event) {
+    caret = (event.currentTarget as HTMLTextAreaElement | null)?.selectionStart ?? text.length;
+  }
+
+  function choose(offer: Offer) {
+    if (!token) return;
+    const next = pick(text, token, offer.name);
+    text = next.text;
+    caret = next.caret;
+    const area = field?.querySelector('textarea');
+    void Promise.resolve().then(() => {
+      area?.focus();
+      area?.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
+  /** The hint line's sigils: pressed, the sigil is typed at the caret and its list opens. */
+  function insertSigil(sigil: Sigil) {
+    const area = field?.querySelector('textarea');
+    const at = area?.selectionStart ?? text.length;
+    const before = text.slice(0, at);
+    const lead = before === '' || /\s$/u.test(before) ? '' : ' ';
+    text = `${before}${lead}${sigil}${text.slice(at)}`;
+    caret = at + lead.length + 1;
+    void Promise.resolve().then(() => {
+      area?.focus();
+      area?.setSelectionRange(caret, caret);
+    });
+  }
+
   function keydown(event: KeyboardEvent) {
+    if (offers.length > 0 && token) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        active = (active + (event.key === 'ArrowDown' ? 1 : offers.length - 1)) % offers.length;
+        return;
+      }
+      if ((event.key === 'Enter' || event.key === 'Tab') && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        const offer = offers[active];
+        if (offer) choose(offer);
+        return;
+      }
+      if (event.key === 'Escape') {
+        // The list closes first; the dialog stays.
+        event.preventDefault();
+        event.stopPropagation();
+        dismissed = `${token.sigil}${token.query}@${token.start}`;
+        return;
+      }
+    }
     // Enter captures; Shift+Enter starts a new line, which becomes an entry of its own where the
     // collection splits lines and is joined where it does not.
     if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return;
     event.preventDefault();
     void submit();
   }
+
+  // ------------------------------------------------------------------------------------------
+  // Where it goes, and in what mode
+  // ------------------------------------------------------------------------------------------
+
+  /** The places the chip offers: the jumble where the reader may write there, and every collection they may add to. */
+  const places = $derived<readonly { id: string; label: string }[]>([
+    ...(jumbleWritable() ? [{ id: 'jumble', label: t('app.capture.place_jumble') }] : []),
+    ...liveCollections()
+      .filter((each) => admits(each) !== false)
+      .map((each) => ({ id: each.id, label: hubName(each.parent_id) ? t('app.capture.place_in_hub', { place: each.name, hub: hubName(each.parent_id) ?? '' }) : each.name })),
+  ]);
+
+  const placeLabel = $derived(
+    target.kind === 'collection'
+      ? target.hub
+        ? t('app.capture.place_in_hub', { place: target.collection.name, hub: target.hub.name })
+        : target.collection.name
+      : target.kind === 'jumble'
+        ? t('app.capture.place_jumble')
+        : // A place chosen and still being read is named as it was offered, not "nowhere".
+          target.kind === 'pending' && current
+          ? (places.find((each) => each.id === current)?.label ?? t('app.capture.resolving'))
+          : t('app.capture.place_none'),
+  );
+
+  /** Import asks STRUCTURE on the collection: offered only to who may shape it (P-05). */
+  const mayShapeHere = $derived(collection ? holds(roleIn(collection) ?? undefined, 'STRUCTURE').status === 'permitted' : false);
+
+  /**
+   * Opened from a hub's own *Import…*: the file's collections are made in the hub, so on the
+   * import tab the place is the hub itself - until the person chooses a collection instead.
+   */
+  const importHub = $derived(door?.hubId && !door.collectionId && chosen === undefined ? containers.find(door.hubId) : undefined);
+  $effect(() => {
+    const hub = importHub;
+    if (hub) untrack(() => people.open({ hubId: hub.id }));
+  });
+  const mayShapeHub = $derived(importHub ? holds(roleInHub(importHub) ?? undefined, 'STRUCTURE').status === 'permitted' : false);
+
+  /**
+   * Why a way of adding is not open here, or nothing where it is: every way is drawn, so the
+   * person learns it exists and what it needs (design-system.md §4, the reason beside the
+   * control) rather than finding a tab missing.
+   */
+  function modeReason(each: Mode): string | undefined {
+    if (each === 'template') return collection ? undefined : t('app.capture.mode_needs_collection');
+    if (each === 'import') {
+      if (importHub) return mayShapeHub ? undefined : t('app.capture.mode_import_not_yours');
+      if (!collection) return t('app.capture.mode_needs_collection');
+      return mayShapeHere ? undefined : t('app.capture.mode_import_not_yours');
+    }
+    return undefined;
+  }
+
+  /**
+   * The four ways of adding are tabs of this one dialog (design-system.md §11.8): a template and an
+   * import stay here, under the same chips, so the person always sees where it lands.
+   */
+  function chooseMode(next: Mode) {
+    mode = next;
+    if (next === 'import') isImportOpen = true;
+    if (next === 'one' || next === 'lines') void Promise.resolve().then(() => field?.querySelector('textarea')?.focus());
+  }
+
+  /** The modes on offer here: a template and an import only into a collection, an import only to who may shape it. */
+  const modes: readonly Mode[] = ['one', 'lines', 'template', 'import'];
+
+  /** The import's own flow, inside the dialog: closing it is finishing here. */
+  let isImportOpen = $state(true);
+  $effect(() => {
+    if (mode === 'import' && !isImportOpen) untrack(() => capture.close());
+  });
+  // A place where the chosen way is not open falls back to one entry.
+  $effect(() => {
+    if (modeReason(mode)) untrack(() => (mode = 'one'));
+  });
+
+  /** Roving focus over the mode tabs: the arrows move and choose, as a tab list does. */
+  function modeKey(event: KeyboardEvent) {
+    const at = modes.indexOf(mode);
+    const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
+    if (step === 0) return;
+    event.preventDefault();
+    const direction = getComputedStyle(event.currentTarget as Element).direction === 'rtl' ? -step : step;
+    const next = modes[(at + direction + modes.length) % modes.length];
+    if (!next) return;
+    chooseMode(next);
+    void Promise.resolve().then(() => (event.currentTarget as HTMLElement | null)?.querySelector<HTMLElement>(`[data-mode='${next}']`)?.focus());
+  }
+
+  // A door sets what it knows when the field opens; the person's own choices start fresh.
+  $effect(() => {
+    if (!capture.isOpen) return;
+    const opened = door;
+    untrack(() => {
+      chosen = undefined;
+      chosenType = undefined;
+      isUnderParent = true;
+      mode = opened?.mode ?? 'one';
+      isImportOpen = true;
+      // Opened from anywhere on a list typed line after line, the field stays for the next line.
+      keepsOpen = opened?.keepsOpen ?? lineRules?.splitsLines ?? false;
+    });
+  });
 
   // A fresh field each time it opens.
   $effect(() => {
@@ -378,7 +672,7 @@
   });
 </script>
 
-<Dialog title={t('app.capture.title')} dismissLabel={t('app.capture.close')} isOpen={capture.isOpen} onClose={() => capture.close()}>
+<Dialog title={t('app.capture.title')} dismissLabel={t('app.capture.close')} isOpen={capture.isOpen} onClose={() => capture.close()} isWide>
   <form
     class="capture"
     bind:this={field}
@@ -387,21 +681,139 @@
       void submit();
     }}
   >
+    <!-- The ways of adding first, as one segmented switch under the title (concept round 2, §5):
+         the way is chosen before anything is written - several lines change the field, a
+         template and a file replace it. *One entry* is chosen, so a quick capture costs nothing. -->
+    <div class="modes" role="tablist" aria-label={t('app.capture.modes')} tabindex="-1" onkeydown={modeKey}>
+      {#each modes as each (each)}
+        <button
+          type="button"
+          class="mode"
+          role="tab"
+          id={`${listId}-tab-${each}`}
+          data-mode={each}
+          aria-selected={mode === each}
+          aria-controls={`${listId}-mode`}
+          tabindex={mode === each ? 0 : -1}
+          aria-disabled={modeReason(each) ? 'true' : undefined}
+          aria-describedby={modeReason(each) ? `${listId}-why-${each}` : undefined}
+          title={modeReason(each)}
+          onclick={() => {
+            if (!modeReason(each)) chooseMode(each);
+          }}
+        >{t(`app.capture.mode_${each}`)}{#if modeReason(each)}<span class="why" id={`${listId}-why-${each}`}>{modeReason(each)}</span>{/if}</button>
+      {/each}
+    </div>
+
+    <!-- Where it goes, as pills at the top rather than a sentence under the field: the place, the
+         entry it goes under, the level - each one press to change. -->
+    <div class="where" role="group" aria-label={t('app.capture.where_group')}>
+      <Menu
+        label={t('app.capture.place_choose')}
+        items={places.map((each) => ({ id: each.id, label: each.label }))}
+        onselect={(id) => {
+          chosen = id;
+          field?.querySelector('textarea')?.focus();
+        }}
+      >
+        {#snippet trigger(props)}
+          <button type="button" class="pill" data-chip="place" {...props}>
+            {#if mode === 'import' && importHub}<ContainerMark look={importHub} />{:else if collection}<ContainerMark look={collection} />{/if}
+            <span class="pill-key">{t('app.capture.place_key')}</span><span class="pill-value">{mode === 'import' && importHub ? importHub.name : placeLabel}</span><span class="pill-more" aria-hidden="true">▾</span>
+          </button>
+        {/snippet}
+      </Menu>
+      {#if parentId && door?.parentTitle}
+        <span class="pill" data-chip="parent">
+          <span class="pill-key">{t('app.capture.parent_key')}</span><span class="pill-value">{door.parentTitle}</span>
+          <button type="button" class="pill-x" aria-label={t('app.capture.parent_remove', { title: door.parentTitle })} onclick={() => (isUnderParent = false)}>×</button>
+        </span>
+      {/if}
+      {#if doorTypes && doorTypes.length > 1 && (mode === 'one' || mode === 'lines')}
+        <Menu
+          label={t('app.capture.kind_choose')}
+          items={doorTypes.map((type) => ({ id: type, label: offerLevelName(type) }))}
+          onselect={(type) => (chosenType = type)}
+        >
+          {#snippet trigger(props)}
+            <button type="button" class="pill" data-chip="kind" {...props}>
+              <span class="pill-key">{t('app.capture.kind_key')}</span><span class="pill-value">{offerLevelName(entryType ?? '')}</span><span class="pill-more" aria-hidden="true">▾</span>
+            </button>
+          {/snippet}
+        </Menu>
+      {/if}
+    </div>
+
+    <div class="panel" id={`${listId}-mode`} role="tabpanel" aria-labelledby={`${listId}-tab-${mode}`}>
+    {#if mode === 'one' || mode === 'lines'}
     <Textarea
       label={t('app.capture.field')}
-      rows={1}
+      isLabelHidden
+      rows={mode === 'lines' ? 4 : 1}
       bind:value={text}
-      placeholder={t('app.capture.placeholder')}
-      hint={isWaiting ? t('app.capture.resolving') : where}
+      {marks}
+      placeholder={mode === 'lines' ? t('app.capture.placeholder_lines') : t('app.capture.placeholder')}
+      hint={isWaiting ? t('app.capture.resolving') : target.kind === 'nowhere' || target.kind === 'jumble' ? where : undefined}
       {error}
       autocomplete="off"
+      aria-autocomplete="list"
+      aria-controls={offers.length > 0 ? `${listId}-offers` : undefined}
+      aria-activedescendant={offers.length > 0 ? `${listId}-offer-${active}` : undefined}
       onkeydown={keydown}
-      oninput={() => {
+      onkeyup={readCaret}
+      onclick={readCaret}
+      oninput={(event: Event) => {
         now = Date.now();
         error = undefined;
+        readCaret(event);
       }}
     />
-    {#if amount || reading.chips.length > 0}
+    {#if offers.length > 0 && token}
+      <!-- What the token may name, as it is typed: a layer under the field with its title, each
+           name with its mark and where it lives, and the keys that work it. -->
+      <div class="offers" bind:this={offersLayer}>
+        <p class="offers-title" aria-hidden="true">{t(`app.capture.offers_${SIGILS[token.sigil]}`)}</p>
+        <ul id={`${listId}-offers`} role="listbox" aria-label={t(`app.capture.offers_${SIGILS[token.sigil]}`)}>
+          {#each offers as offer, index (offer.id)}
+            {@const place = token.sigil === '@' || token.sigil === '#' ? containerOf(offer.id) : undefined}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <li
+              id={`${listId}-offer-${index}`}
+              role="option"
+              aria-selected={index === active}
+              class="offer"
+              onmousedown={(event) => event.preventDefault()}
+              onclick={() => choose(offer)}
+            >
+              {#if place}<ContainerMark look={place} />{/if}
+              <span class="offer-name">{offer.name}</span>
+              {#if offer.hint}<span class="offer-hint">{t('app.capture.offer_in', { hub: offer.hint })}</span>{/if}
+            </li>
+          {/each}
+        </ul>
+        <p class="offers-keys" aria-hidden="true">
+          <Kbd size="sm">↑</Kbd><Kbd size="sm">↓</Kbd> {t('app.capture.offers_choose')}
+          <Kbd size="sm">⏎</Kbd> {t('app.capture.offers_take')}
+          <Kbd size="sm">Esc</Kbd> {t('app.capture.offers_close')}
+        </p>
+      </div>
+    {/if}
+    {#if collection && mode === 'one' && !text.includes('\n')}
+      <!-- What already looks like it, while it is typed (UC-AI-04 check 7): nothing when nothing is. -->
+      <Lookalikes title={reading.title} />
+    {/if}
+    {#if tickedBefore.length > 0}
+      <!-- Already on the list and ticked: the same entry back, rather than a second of it. -->
+      <section class="before" aria-label={t('app.capture.ticked_before')}>
+        <h3>{t('app.capture.ticked_before')}</h3>
+        <ul>
+          {#each tickedBefore as entry (entry.id)}
+            <li><Button size="sm" tone="subtle" icon="rotate-ccw" onclick={() => void putBack(entry)}>{t('app.capture.put_back', { title: entry.title })}</Button></li>
+          {/each}
+        </ul>
+      </section>
+    {/if}
+    {#if amount || shownChips.length > 0 || (timeChip && !dayChip)}
       <ul class="chips" aria-label={t('app.capture.recognised')}>
         {#if amount}
           <!-- The split Enter will make, before it makes it: removing the chip keeps the number in
@@ -418,30 +830,248 @@
             />
           </li>
         {/if}
-        {#each reading.chips as chip (`${chip.kind}:${chip.start}`)}
+        {#each [...shownChips, ...(timeChip && !dayChip ? [timeChip] : [])] as chip (`${chip.kind}:${chip.start}`)}
           <li>
             <LabelChip
-              name={chipLabel(chip)}
-              colorToken={colorOf(chip)}
+              name={dueLabel(chip)}
+              colorToken={colorOf(chip) ?? (chip.kind === 'date' || chip.kind === 'time' ? 'amber' : undefined)}
               description={t('app.capture.chip_kind', { kind: chip.kind })}
-              removeLabel={t('app.capture.keep_in_title', { kind: chip.kind, text: chip.text })}
-              onRemove={() => keepInTitle(chip)}
+              removeLabel={t('app.capture.keep_in_title', { kind: chip.kind, text: chip.kind === 'date' && timeChip ? `${chip.text} ${timeChip.text}` : chip.text })}
+              onRemove={() => keepDueInTitle(chip)}
             />
           </li>
         {/each}
       </ul>
     {/if}
-    <div class="actions">
-      <Button type="submit" tone="primary" icon="plus" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}</Button>
+    <!-- The tokens the field reads here, said rather than remembered; each one types its sigil. -->
+    <div class="hint-line" role="group" aria-label={t('app.capture.tokens')}>
+      {#each Object.entries(SIGILS).filter(([sigil]) => sigil === '@' || sigil === '#' || (sigil === '+' && recognition.person) || (sigil === '!' && recognition.label)) as [sigil, kind] (sigil)}
+        <button type="button" class="token" onclick={() => insertSigil(sigil as Sigil)}><b>{sigil}</b> {t(`app.capture.token_${kind}`)}</button>
+      {/each}
+      {#if recognition.date}<span class="token-plain">{t('app.capture.token_date')}</span>{/if}
     </div>
+    {:else if mode === 'template' && collection}
+      <TemplatesDialog
+        isEmbedded
+        isOpen
+        collectionId={collection.id}
+        path={pathOf(collection)}
+        role={roleIn(collection) ?? undefined}
+        onopened={(itemId) => {
+          capture.close();
+          onnavigate?.(`/items/${itemId}`);
+        }}
+      />
+    {:else if mode === 'import' && importHub}
+      <ImportDialog
+        isEmbedded
+        bind:isOpen={isImportOpen}
+        hubId={importHub.id}
+        onnavigate={(path) => {
+          capture.close();
+          onnavigate?.(path);
+        }}
+      />
+    {:else if mode === 'import' && collection?.parent_id}
+      <ImportDialog
+        isEmbedded
+        bind:isOpen={isImportOpen}
+        hubId={collection.parent_id}
+        collection={{ id: collection.id, name: collection.name }}
+        onnavigate={(path) => {
+          capture.close();
+          onnavigate?.(path);
+        }}
+      />
+    {/if}
+    </div>
+
+    {#if mode === 'one' || mode === 'lines'}
+      <div class="actions">
+        <span class="keep"><Checkbox density="sm" label={t('app.capture.keep_open')} bind:checked={keepsOpen} /></span>
+        <Button type="submit" tone="primary" size="sm" icon="plus" {isBusy} busyLabel={t('app.capture.submitting')}>{t('app.capture.submit')}<span class="enter" aria-hidden="true"><Kbd size="sm" isOnFill>⏎</Kbd></span></Button>
+      </div>
+    {/if}
   </form>
-  {#if collection && actor.account && (offersMakeEntries(text, { aiOn: manifest.value?.features?.ai_suggestions === true, intoCollection: true }) || suggestions.askingOf(actor.account.id)?.operation === 'entries')}
-    <MakeEntries accountId={actor.account.id} collection={collection} {text} ondone={() => finish('')} />
+  {#if collection && actor.account && (mode === 'one' || mode === 'lines') && (offersMakeEntries(text, { aiOn: manifest.value?.features?.ai_suggestions === true, intoCollection: true }) || suggestions.askingOf(actor.account.id)?.operation === 'entries')}
+    <MakeEntries
+      accountId={actor.account.id}
+      {collection}
+      {text}
+      ondone={() => {
+        // *Take all* closes the field (UC-AI-09 check 3), whether or not it was kept open.
+        finish('');
+        capture.close();
+      }}
+    />
   {/if}
 </Dialog>
 
 <style>
+  /* The mockup's rhythm: the pills, the field, what it read and the tokens, the tabs, the footer. */
   .capture { display: flex; flex-direction: column; gap: var(--sp-150); }
+  .panel { display: flex; flex-direction: column; gap: var(--sp-150); min-width: 0; }
+  /* The line itself reads larger than the furniture around it, as the mockup draws it. */
+  .panel :global(.textarea) { padding-block: var(--sp-150); font-size: var(--fs-200); }
+  .before h3 { margin: 0 0 var(--sp-050); color: var(--text-secondary); font-size: var(--fs-075); font-weight: var(--fw-semibold); }
+  .before ul { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
   .chips { display: flex; flex-wrap: wrap; gap: var(--sp-050); margin: 0; padding: 0; list-style: none; }
-  .actions { display: flex; justify-content: flex-end; }
+
+  /* The place, the parent and the level: rounded pills that open their choice. */
+  .where { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    max-inline-size: 100%;
+    min-block-size: var(--sp-400);
+    padding-inline: var(--sp-100) var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-full);
+    background: var(--bg-canvas);
+    color: var(--text-primary);
+    font: inherit;
+    font-size: var(--fs-075);
+  }
+
+  button.pill { cursor: pointer; }
+  button.pill:hover { background: var(--bg-surface-hover); }
+
+  .pill-key { color: var(--text-secondary); }
+  .pill-value { font-weight: var(--fw-medium); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .pill-more { color: var(--text-subtle); }
+
+  .pill-x {
+    padding: 0 var(--sp-050);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  .pill-x:hover { background: var(--bg-surface-hover); color: var(--text-primary); }
+
+  /* The offers: a layer under the field, in the top layer, so nothing in the dialog moves. */
+  .offers {
+    position: fixed;
+    z-index: var(--z-overlay);
+    inline-size: min(var(--layout-barsearch-width), 90vw);
+    margin-block-start: var(--sp-050);
+    padding-block: var(--sp-050);
+    border: var(--bw-hairline) solid var(--border-subtle);
+    border-radius: var(--r-lg);
+    background: var(--bg-raised);
+    box-shadow: var(--shadow-overlay);
+    font-size: var(--fs-100);
+  }
+
+  .offers ul { margin: 0; padding: 0 var(--sp-050); list-style: none; }
+
+  .offers-title {
+    margin: 0;
+    padding: var(--sp-100) var(--sp-150) var(--sp-050);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+    font-weight: var(--fw-semibold);
+  }
+
+  /* Inset from the list's edge and rounded, as every chosen row in a menu is. */
+  .offer {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    padding: var(--sp-100);
+    border-radius: var(--r-md);
+    cursor: pointer;
+  }
+
+  .offer[aria-selected='true'] { background: var(--accent-primary-subtle); }
+
+  .offer-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .offer-hint { margin-inline-start: auto; color: var(--text-subtle); font-size: var(--fs-075); white-space: nowrap; }
+
+  .offers-keys {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--sp-050);
+    margin: var(--sp-050) 0 0;
+    padding: var(--sp-100) var(--sp-150) var(--sp-050);
+    border-block-start: var(--bw-hairline) solid var(--border-subtle);
+    color: var(--text-subtle);
+    font-size: var(--fs-075);
+  }
+
+  /* The tokens the field reads, each a dashed button that types its sigil. */
+  .hint-line { display: flex; flex-wrap: wrap; gap: var(--sp-050); align-items: center; }
+
+  .token,
+  .token-plain {
+    padding: var(--sp-025) var(--sp-100);
+    border-radius: var(--r-sm);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--fs-075);
+  }
+
+  .token {
+    border: var(--bw-hairline) dashed var(--border-default);
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .token:hover { color: var(--text-primary); border-style: solid; }
+  .token b { color: var(--text-brand); font-family: var(--font-mono); }
+
+  /* The modes as tabs with an underline, the chosen one marked by it. */
+  .modes {
+    display: flex;
+    padding: var(--sp-025);
+    border-radius: var(--r-md);
+    background: var(--bg-recess);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--border-subtle);
+  }
+
+  .mode {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    padding: var(--sp-050) var(--sp-100);
+    border: 0;
+    border-radius: var(--r-sm);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--fs-075);
+    font-weight: var(--fw-medium);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    cursor: pointer;
+  }
+
+  .mode:hover:not([aria-disabled='true']) { color: var(--text-primary); }
+  /* A way not open here: drawn, quieter, its reason said to a screen reader and shown on hover. */
+  .mode[aria-disabled='true'] { color: var(--text-subtle); cursor: not-allowed; }
+  .why { position: absolute; inline-size: var(--sp-025); block-size: var(--sp-025); overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+  .mode[aria-selected='true'] { background: var(--bg-surface); color: var(--text-primary); font-weight: var(--fw-semibold); box-shadow: var(--shadow-raised); }
+
+  /* The footer: keep capturing said quietly, the one button at the end at the small size. */
+  .actions { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-150); }
+  .keep { color: var(--text-secondary); }
+  .keep :global(.label) { color: var(--text-secondary); }
+
+  .enter { display: inline-flex; margin-inline-start: var(--sp-050); }
+
+  .pill:focus-visible,
+  .pill-x:focus-visible,
+  .token:focus-visible,
+  .mode:focus-visible {
+    outline: var(--bw-ring) solid var(--focus-ring);
+    outline-offset: var(--sp-025);
+  }
 </style>

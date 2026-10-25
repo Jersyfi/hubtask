@@ -27,6 +27,8 @@ export interface Vocabulary {
   readonly days: readonly string[];
   /** "o'clock", "Uhr": what makes a bare number a time. */
   readonly hour: readonly string[];
+  /** "on", "at", "am", "um": a word before a day or a time that belongs to it, not to the title. */
+  readonly on: readonly string[];
   readonly am: readonly string[];
   readonly pm: readonly string[];
   /** Monday first: index 0 is Monday, 6 is Sunday. Folded. */
@@ -78,6 +80,7 @@ export function vocabularyOf(t: Translate): Vocabulary {
     inWords: formsOf(t('app.capture.words.in')),
     days: formsOf(t('app.capture.words.days')),
     hour: formsOf(t('app.capture.words.hour')),
+    on: formsOf(t('app.capture.words.on')),
     am: formsOf(t('app.capture.words.am')),
     pm: formsOf(t('app.capture.words.pm')),
     weekdays: names(language, { weekday: 'long' }, 7, (index) => A_MONDAY + index * DAY),

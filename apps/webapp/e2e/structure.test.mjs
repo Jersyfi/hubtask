@@ -26,8 +26,9 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub } from './fixture.mjs';
+import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings } from './fixture.mjs';
 import { serve } from './serve.mjs';
+import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -71,24 +72,27 @@ async function openCollection(page, collection) {
 }
 
 async function menuRows(page, name) {
-  await page.getByRole('button', { name: `Actions for ${name}` }).click();
+  // A reader with nothing to do to the place itself has no menu at all.
+  await page.waitForTimeout(400);
+  if ((await page.getByRole('button', { name: `Actions for ${name}` }).count()) === 0) return [];
+  await reveal(page.getByRole('button', { name: `Actions for ${name}` }));
   const menu = page.getByRole('menu', { name: `Actions for ${name}` });
   await menu.waitFor({ timeout: 5_000 });
   return menu.getByRole('menuitem').evaluateAll((items) => items.map((item) => item.querySelector('.label')?.textContent.trim() ?? ''));
 }
 
 async function openPanel(page, name) {
-  await menuRows(page, name);
-  await page.getByRole('menuitem', { name: 'Structure' }).click();
+  await openSettings(page, name);
+  await page.getByRole('link', { name: 'Structure' }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });
   return panel;
 }
 
-// The sheet's six tabs, all in sight at a phone's width and a desk's: none cut off at the sheet's
-// edge. And on *Labels* each colour is named by its colour, not by the name field's label.
+// The settings page's sections at a phone's width and a desk's: none out of reach, none widening the
+// page. And on *Labels* each colour is named by its colour, not by the name field's label.
 for (const width of [390, 1280]) {
-  test(`chromium: ${width} px - every tab of the sheet is in sight, and a label's colours are named`, async (t) => {
+  test(`chromium: ${width} px - every section of the settings is in sight, and a label's colours are named`, async (t) => {
     const browser = await chromium.launch();
     t.after(() => browser.close());
     const { context, page, failures } = await as(browser, 'OWNER', width);
@@ -97,13 +101,17 @@ for (const width of [390, 1280]) {
     await openCollection(page, SHAPES.list);
     await openPanel(page, SHAPES.list.name);
     const panel = page.locator('[data-structure-tabs]');
-    // The sheet slides in from the edge; measured once it is in place.
-    await page.waitForFunction(() => (document.querySelector('[data-structure-tabs] [role="tablist"]')?.getBoundingClientRect().right ?? Infinity) <= innerWidth);
-    const tabs = panel.getByRole('tab');
-    assert.equal(await tabs.count(), 6);
-    const sheet = await panel.getByRole('tablist').boundingBox();
-    for (const box of await tabs.evaluateAll((each) => each.map((tab) => tab.getBoundingClientRect().toJSON()))) {
-      assert.ok(box.right <= sheet.x + sheet.width + 1 && box.right <= width, `a tab ends at ${box.right}, past the sheet's ${sheet.x + sheet.width}`);
+    const tabs = panel.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link');
+    assert.equal(await tabs.count(), 7);
+    // On a phone the sections are one row of tabs that scrolls sideways; on a desk a column. The
+    // page never widens for them, and each one is reachable - it comes into view when focused.
+    assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), 'the sections widened the page');
+    for (let index = 0; index < 7; index += 1) {
+      const box = await tabs.nth(index).evaluate((tab) => {
+        tab.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        return tab.getBoundingClientRect().toJSON();
+      });
+      assert.ok(box.right <= width + 1 && box.left >= -1, `a section stands at ${box.left}-${box.right}, past the screen's ${width}`);
     }
     await tabs.filter({ hasText: 'Labels' }).click();
     const colours = await panel.getByRole('radio').evaluateAll((each) => each.map((radio) => radio.getAttribute('aria-label')));
@@ -130,11 +138,12 @@ test('chromium: the owner - a list offers what a list offers, and its panel says
   const kept = await page.locator(`[data-row="${SHAPE_ITEMS[0].id}"]`).first().textContent();
   assert.ok(!kept.includes('2026') && !kept.includes('JW'), `the row draws what a list does not carry: ${kept}`);
   // ...and its filter asks about nothing a list does not carry: no due date to order by.
-  await page.getByRole('button', { name: 'Filter and sort' }).click();
-  const orderBy = page.getByRole('combobox', { name: 'Order by' });
+  await page.getByRole('button', { name: 'Sort' }).click();
+  const orderBy = page.getByRole('menu', { name: 'How the entries are ordered' });
   await orderBy.waitFor({ state: 'visible', timeout: 5_000 });
-  const orders = await orderBy.locator('option').evaluateAll((options) => options.map((option) => option.value));
+  const orders = (await orderBy.getByRole('menuitem').allTextContents()).map((each) => each.trim());
   assert.ok(orders.includes('title') && !orders.includes('due_at'), `the list is ordered by ${orders}`);
+  await page.keyboard.press('Escape');
 
   // Check 4: on an entry, no date, person, label, note editor or child.
   await page.goto(`${served.origin}/items/${SHAPE_ITEMS[0].id}`);
@@ -309,27 +318,32 @@ test('chromium: the owner - the hub\'s Edit changes its name, description and lo
   await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   await page.getByRole('heading', { name: SHAPE_HUB.name, level: 1 }).waitFor({ timeout: 15_000 });
   await page.waitForTimeout(600);
-  // One *Edit* instead of a rename and a separate look; a hub has nowhere to move to (§E9).
+  // One *Settings* instead of a rename and a separate look; a hub has nowhere to move to (§E9).
   const rows = await menuRows(page, SHAPE_HUB.name);
-  assert.ok(rows.includes('Edit…'), rows.join());
-  for (const gone of ['Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
-  await page.getByRole('menuitem', { name: 'Edit…' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Edit hub' });
-  await dialog.waitFor({ timeout: 5_000 });
+  assert.ok(rows.includes('Settings…'), rows.join());
+  for (const gone of ['Edit…', 'Rename', 'Colour and symbol…', 'Move to another hub…']) assert.ok(!rows.includes(gone), `${gone} in ${rows}`);
+  await page.getByRole('menuitem', { name: 'Settings…' }).click();
+  const dialog = page.getByRole('region', { name: 'General' });
+  await dialog.getByRole('textbox', { name: 'Hub name' }).waitFor({ timeout: 5_000 });
   assert.equal(await dialog.getByRole('textbox', { name: 'Hub name' }).inputValue(), SHAPE_HUB.name);
+  // Nothing changed, nothing to save: the bar is not there until there is.
+  assert.equal(await page.getByRole('region', { name: 'Unsaved changes' }).count(), 0, 'a save offered with nothing changed');
   // The hub has no preset of its own yet: it starts from the workspace's, and may choose one.
   await dialog.getByRole('radio', { name: 'List' }).waitFor({ timeout: 5_000 });
   assert.ok(await dialog.getByRole('radio', { name: "The workspace's default" }).isChecked());
   await dialog.getByRole('textbox', { name: 'Hub name' }).fill('Chores');
   await dialog.getByRole('textbox', { name: 'Description' }).fill('What the week asks for.');
   await dialog.getByRole('radio', { name: 'List' }).check();
-  await dialog.getByRole('button', { name: 'Save' }).click();
-  await dialog.waitFor({ state: 'hidden', timeout: 5_000 });
+  const bar = page.getByRole('region', { name: 'Unsaved changes' });
+  assert.match(await bar.innerText(), /3 changes/u);
+  await bar.getByRole('button', { name: 'Save' }).click();
+  await bar.waitFor({ state: 'detached', timeout: 5_000 });
   assert.equal(renamed.length, 1);
   assert.equal(renamed[0].name, 'Chores');
   assert.equal(renamed[0].description, 'What the week asks for.');
   assert.deepEqual(written, [{ preset: 'LIST' }], 'the preset is its own write, sent as itself');
   // The hub's collections as cards, each a way in.
+  await page.goto(`${served.origin}/hubs/${SHAPE_HUB.id}`);
   const cards = page.getByRole('list', { name: 'Collections' });
   for (const collection of Object.values(SHAPES)) {
     assert.equal(await cards.getByRole('link', { name: collection.name }).getAttribute('href'), `/collections/${collection.id}`);
@@ -345,7 +359,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
 
   await openCollection(page, SHAPES.locked);
   // A project opens with what is inside shown, its default view.
-  assert.ok(await page.getByRole('checkbox', { name: 'Show what is inside' }).isChecked(), 'the project did not open as its outline');
+  assert.equal(await page.getByRole('button', { name: 'Show what is inside', exact: true }).getAttribute('aria-pressed'), 'true', 'the project did not open as its outline');
   const panel = await openPanel(page, SHAPES.locked.name);
   const views = panel.locator('[data-setting="views"]');
   assert.equal((await views.locator('.head button').first().textContent()).trim(), 'Workspace, locked');
@@ -377,7 +391,7 @@ test('chromium: an administrator - a lock shows its value and who set it, and ca
   assert.deepEqual(failures, []);
 });
 
-test('chromium: a member - the list as its settings make it, and no Structure panel (check 9)', async (t) => {
+test('chromium: a member - the list as its settings make it, and no settings page (check 9)', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { context, page, failures } = await as(browser, 'MEMBER');
@@ -398,5 +412,10 @@ test('chromium: a member - the list as its settings make it, and no Structure pa
   const hubRows = (await hubMenu.count()) === 0 ? [] : await menuRows(page, SHAPE_HUB.name);
   assert.ok(!hubRows.some((row) => row.startsWith('Structure')), `offered ${hubRows}`);
   assert.equal(await page.locator('[data-opener="members"]').count(), 1, 'no way to the people');
+  assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'a ⚙ to settings the member may not change');
+  // The address alone does not open them either: the page says whose they are.
+  await page.goto(`${served.origin}/collections/${SHAPES.list.id}/settings/structure`);
+  await page.getByText('Only someone who may change how this place is set up sees its settings.').waitFor({ timeout: 15_000 });
+  assert.equal(await page.locator('[data-structure-panel]').count(), 0);
   assert.deepEqual(failures, []);
 });

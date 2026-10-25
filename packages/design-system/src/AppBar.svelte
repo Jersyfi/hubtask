@@ -91,8 +91,11 @@
          row's own, so nothing moves. -->
     <div class="lead">
       {#if toggle}
+        <!-- `sm`, the size of every other control in the bar: one size and one hover shape per row
+             (design-system.md §13, G2). -->
         <IconButton
           icon={toggle.kind === 'drawer' ? 'menu' : 'panel-left'}
+          size="sm"
           label={toggle.label}
           aria-expanded={toggle.isExpanded}
           data-toggle={toggle.kind}
@@ -168,6 +171,7 @@
     min-inline-size: 0;
   }
 
+
   /* And centred, which the note above claimed before it was true: the field sat wherever the lead
      happened to end. Centring it needs the two sides to share the free space equally, so in a row
      that carries a field the lead and the end each take half of what is left and the field lands
@@ -177,6 +181,9 @@
   .row[data-search] .lead,
   .row[data-search] .end {
     flex: 1 1 0;
+    /* Never narrower than what they hold: on a narrow window the field gives way, not the logo or
+       the account - a field that ran under the logo was the bar failing at both. */
+    min-inline-size: max-content;
   }
 
   /* The end grows now, so its contents have to be told to stay at the end of it: a box that used

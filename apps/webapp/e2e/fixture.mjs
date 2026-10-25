@@ -64,7 +64,8 @@ const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-000000000
  */
 const inDays = (days) => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
 export const ITEMS = [
-  item('31', 'Order the tiles for the splashback and the floor', { label_ids: [LABELS[0].id], labels: [LABELS[0]], bucket_id: BUCKETS[0].id }),
+  // What `expand: ["counts"]` answers for it: three parts, one done, two comments, a file.
+  item('31', 'Order the tiles for the splashback and the floor', { label_ids: [LABELS[0].id], labels: [LABELS[0]], bucket_id: BUCKETS[0].id, counts: { parts: 3, parts_done: 1, comments: 2, attachments: 1 } }),
   item('32', 'Book the electrician', { label_ids: [LABELS[1].id], labels: [LABELS[1]], bucket_id: BUCKETS[1].id, due_at: `${inDays(2)}T09:00:00Z` }),
   item('33', 'Measure the worktop', { bucket_id: BUCKETS[0].id }),
   item('34', 'Choose the paint', { bucket_id: null }),
@@ -803,12 +804,13 @@ function celebrationRoute(route, request, url, path) {
  * asks for it (`showLooks`) or the preview is started with `HUBTASK_FIXTURE_LOOKS=1`.
  *
  * It answers writes: a hub or collection created or changed here is read back as written, so the
- * walk proves the dialog sent what the navigation then draws.
+ * walk proves the dialog sent what the navigation then draws. Each carries its structure, as every
+ * read of a container does (`Container.structure`).
  */
-export const LOOK_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Agency', icon: 'briefcase', color_token: 'violet', order_key: 'a3', version: 1 };
-export const LOOK_PRIVATE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000082', type: 'HUB', parent_id: null, name: 'Family', icon: 'heart', color_token: 'magenta', order_key: 'a4', version: 1, private: true };
-export const LOOK_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Clients', icon: 'rocket', color_token: 'amber', order_key: 'a0', version: 1 };
-export const PLAIN_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000084', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Invoices', order_key: 'a1', version: 1 };
+export const LOOK_HUB = { id: '01a0e2e0-0000-7000-8000-000000000081', type: 'HUB', parent_id: null, name: 'Agency', icon: 'briefcase', color_token: 'violet', order_key: 'a3', version: 1, structure: DEFAULT_STRUCTURE };
+export const LOOK_PRIVATE_HUB = { id: '01a0e2e0-0000-7000-8000-000000000082', type: 'HUB', parent_id: null, name: 'Family', icon: 'heart', color_token: 'magenta', order_key: 'a4', version: 1, private: true, structure: DEFAULT_STRUCTURE };
+export const LOOK_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000083', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Clients', icon: 'rocket', color_token: 'amber', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
+export const PLAIN_COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000084', type: 'COLLECTION', parent_id: LOOK_HUB.id, name: 'Invoices', order_key: 'a1', version: 1, structure: DEFAULT_STRUCTURE };
 export const LOOK_ITEMS = [
   item('85', 'Send the offer to the bakery', { collection_id: LOOK_COLLECTION.id, due_at: `${inDays(-1)}T09:00:00Z` }),
   item('86', 'Pay the tiler', { collection_id: PLAIN_COLLECTION.id, due_at: `${inDays(3)}T09:00:00Z` }),
@@ -1239,6 +1241,10 @@ export function fallback(route, request, path) {
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
+  // No receiving domain unless a walk says otherwise (ADR-0092).
+  if (read === '/mail/addresses') return route.fulfill({ json: { available: false } });
+  // Voice switched off and nothing named, as a workspace starts (ADR-0093).
+  if (read === '/voice/settings' && request.method() === 'GET') return route.fulfill({ json: { enabled: false, aliases: [], installation_skill: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });
@@ -1344,4 +1350,13 @@ export async function newRows(page, { scope = page, name = 'New' } = {}) {
 export async function chooseNew(page, row, { scope = page } = {}) {
   await scope.getByRole('button', { name: 'New', exact: true }).first().click();
   await page.getByRole('menu').getByRole('menuitem', { name: row, exact: true }).click();
+}
+
+/**
+ * Opens a place's settings the way a person does: its menu, *Settings…* first in it. The head has
+ * no ⚙ of its own beside the menu (concept round 3).
+ */
+export async function openSettings(page, name) {
+  await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
+  await page.getByRole('menuitem', { name: 'Settings…' }).click();
 }

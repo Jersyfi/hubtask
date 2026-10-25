@@ -1,6 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
+  import AddRow from './AddRow.svelte';
   // The collection as a board: one grouped query, one column per bucket.
   //
   // It is not a list fetched and then sorted in the browser. `group_by` is what turns the read into
@@ -15,6 +16,8 @@
 
   import { untrack } from 'svelte';
 
+  import { capture as captureField } from '../capture/capture.svelte.ts';
+
   import {
     BucketColumn,
     Button,
@@ -23,11 +26,12 @@
     EmptyState,
     ErrorState,
     IconButton,
-    Inline,
+    Icon,
     LabelChip,
     Menu,
     Skeleton,
     ViewSwitcher,
+    VisuallyHidden,
     WorkItemCard,
     rankIntent,
     rankTarget,
@@ -218,7 +222,7 @@
   /** The column the reader chose; `undefined` until they chose one, and then the first is shown. */
   let shownColumn = $state<string | null | undefined>(undefined);
   const strip = $derived<readonly { id: string | null; label: string; count: number }[]>(
-    [...columns, null]
+    [null, ...columns]
       .filter((bucket) => bucket !== null || cardsOf(null).length > 0)
       .map((bucket) => ({ id: bucket?.id ?? null, label: bucket?.name ?? t('app.board.unbucketed'), count: countOf(bucket?.id ?? null) ?? cardsOf(bucket?.id ?? null).length })),
   );
@@ -585,6 +589,88 @@
    */
   let board = $state<HTMLElement | null>(null);
 
+  /** Whether columns lie past the board's start and end edge, for the shadows that say so. */
+  let edges = $state({ start: false, end: false });
+
+  function measureEdges() {
+    if (!board || isOneColumn) {
+      edges = { start: false, end: false };
+      return;
+    }
+    // `scrollLeft` runs negative from zero in a right-to-left board, so its size is what counts.
+    const travelled = Math.abs(board.scrollLeft);
+    const room = board.scrollWidth - board.clientWidth;
+    edges = { start: travelled > 1, end: room - travelled > 1 };
+  }
+
+  $effect(() => {
+    if (!board) return;
+    const watched = board;
+    const observer = new ResizeObserver(measureEdges);
+    observer.observe(watched);
+    for (const child of watched.children) observer.observe(child);
+    measureEdges();
+    return () => observer.disconnect();
+  });
+
+  /**
+   * Where the carried card came from and how much room it takes, read once when the drag begins:
+   * the cards it passes slide aside by that much, so the landing place is a real gap and nothing is
+   * drawn over anything (design-system.md §11.9).
+   */
+  let dragOrigin = $state<{ key: string; index: number } | null>(null);
+  let dragGap = $state<string | undefined>(undefined);
+  /**
+   * Where the carried card's copy starts, in the viewport: the copy is what follows the pointer,
+   * above every column, because a column scrolls its cards and so clips anything inside it that
+   * moves out of it (design-system.md §11.9). The card itself keeps its slot, unseen.
+   */
+  let ghost = $state<{ readonly card: WorkItem; readonly start: string; readonly top: string; readonly width: string } | null>(null);
+  $effect(() => {
+    const id = drag.id;
+    if (id === null) {
+      dragOrigin = null;
+      dragGap = undefined;
+      ghost = null;
+      return;
+    }
+    untrack(() => {
+      const element = board?.querySelector<HTMLElement>(`[data-card="${id}"]`);
+      const card = [...columns.map((column) => column.id), null].flatMap((key) => cardsOf(key)).find((each) => each.id === id);
+      if (element && card) {
+        const box = element.getBoundingClientRect();
+        const isRtl = getComputedStyle(element).direction === 'rtl';
+        // Measured, not designed: the card's own place on the screen when it was picked up, from
+        // the start of the line - the right edge in a right-to-left document.
+        // design-system-lint-ignore: a measured box is physical; the start edge is worked out from it.
+        ghost = { card, start: `${isRtl ? innerWidth - box.right : box.left}px`, top: `${box.top}px`, width: `${box.width}px` };
+      }
+      const key = element?.getAttribute('data-column') ?? 'none';
+      dragOrigin = { key, index: cardsOf(key === 'none' ? null : key).findIndex((each) => each.id === id) };
+      const parent = element?.parentElement;
+      const rowGap = parent ? Number.parseFloat(getComputedStyle(parent).rowGap) || 0 : 0;
+      // The card's own height and the column's gap: what a card measures, not a design value.
+      dragGap = element ? `${element.offsetHeight + rowGap}px` : undefined;
+    });
+  });
+
+  /** Which way a card slides while another is carried past it, if at all. */
+  function shiftOf(card: WorkItem, key: string, cards: readonly WorkItem[]): 'up' | 'down' | undefined {
+    const origin = dragOrigin;
+    const target = drag.levelKey;
+    const to = drag.position;
+    if (drag.id === null || card.id === drag.id || origin === null || target === null || to === null) return undefined;
+    const index = cards.indexOf(card);
+    if (origin.key === key && target === key) {
+      if (to > origin.index && index > origin.index && index <= to) return 'up';
+      if (to < origin.index && index >= to && index < origin.index) return 'down';
+      return undefined;
+    }
+    if (origin.key === key && index > origin.index) return 'up';
+    if (target === key && index >= to) return 'down';
+    return undefined;
+  }
+
   const cardIdAt = (target: EventTarget | null) =>
     (target as Element | null)?.closest?.('[data-card]')?.getAttribute('data-card') ?? undefined;
 
@@ -596,6 +682,29 @@
     const node = board;
     if (!node) return;
     return attachEntryGestures(node, { idAt: cardIdAt, open: (id) => menus[id]?.open(0), ignore: '[data-card]' });
+  });
+
+  /**
+   * A click anywhere on a card opens it, not only on its title (concept round 3): a press that
+   * moves is the drag, whose release the drag helper keeps from becoming a click, and a press held
+   * still on a touch screen is the menu. The title stays the link the keyboard and a middle click
+   * reach; the card's own controls keep their clicks.
+   */
+  $effect(() => {
+    const node = board;
+    if (!node) return;
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (selection.isOn) return;
+      const target = event.target as Element | null;
+      if (target?.closest('a, button, input, label, select, textarea, [role="menu"], [role="menuitem"]')) return;
+      const id = cardIdAt(target);
+      if (!id) return;
+      if (onopen) onopen(id);
+      else onnavigate?.(`/items/${id}`);
+    };
+    node.addEventListener('click', onClick);
+    return () => node.removeEventListener('click', onClick);
   });
 
   /**
@@ -681,13 +790,17 @@
     </div>
   {/if}
 
-  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board}>
-    {#each [...columns, null] as bucket (bucket?.id ?? 'none')}
+  <!-- The edges say there are more columns past them: a shadow over the board, not behind it,
+       so the columns cannot cover it. -->
+  <div class="frame" data-more-start={edges.start ? '' : undefined} data-more-end={edges.end ? '' : undefined}>
+  <!-- design-system-lint-ignore: the gap is the carried card's measured height, not a design value. -->
+  <div class="board" data-one-column={isOneColumn ? '' : undefined} bind:this={board} onscroll={measureEdges} style:--drag-gap={dragGap}>
+    {#each [null, ...columns] as bucket (bucket?.id ?? 'none')}
       {@const bucketId = bucket?.id ?? null}
       {@const cards = cardsOf(bucketId)}
-      <!-- The entries with no bucket are their own column, and the API puts that group last. It is
-           shown rather than hidden: a card nobody has put in a column is a card somebody has to
-           find. On a phone only the column the strip chose is drawn. -->
+      <!-- The entries with no bucket are their own lane, first (design-system.md §11.9): a card
+           nobody has put in a column is a card somebody has to find, and it is found before the
+           columns rather than after them. On a phone only the column the strip chose is drawn. -->
       {#if (bucket !== null || cards.length > 0) && (!isOneColumn || (bucket?.id ?? 'none') === shownKey)}
         <!-- The column as a drop zone. `elementFromPoint` reads this while a card is being carried
              across the board, which is why it is the whole column rather than the list of cards:
@@ -734,14 +847,7 @@
                 data-column={bucket?.id ?? 'none'}
                 data-celebrating={moment && moment.item.id === card.id ? '' : undefined}
                 data-dragging={drag.id === card.id ? '' : undefined}
-                data-drop={drag.id !== null &&
-                drag.id !== card.id &&
-                drag.levelKey === (bucket?.id ?? 'none') &&
-                drag.position === cards.indexOf(card)
-                  ? ''
-                  : undefined}
-                style:--drag-offset={drag.id === card.id ? drag.offset : undefined}
-                style:--drag-offset-inline={drag.id === card.id ? drag.offsetInline : undefined}
+                data-shift={shiftOf(card, bucket?.id ?? 'none', cards)}
               >
                 <!-- The same pick the list has, and deliberately the same code behind it: one
                      selection across both layouts, drawn only while somebody is selecting, and
@@ -779,50 +885,85 @@
                   coverImageUrl={media.coverUrl(coverImageIdOf(card.cover), Date.now()) ?? null}
                   coverAlt=""
                 >
-                  {#snippet footer()}
-                    <Inline gap="050">
-                      <!-- The same two facts the list row carries, in the space a card has. -->
-                      <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
-                      <DueMark item={card} />
-                      {#each (card.label_ids ?? []) as labelId (labelId)}
-                        {@const label = available.find((each) => each.id === labelId)}
-                        {#if label}
-                          <LabelChip name={label.name} colorToken={label.color_token} />
-                        {/if}
-                      {/each}
-                      <!-- The keyboard path to moving a card - the drag is built against it, because
-                           WCAG 2.2 SC 2.5.7 wants a single-pointer alternative and a rank change is
-                           a command before it is a gesture. -->
-                      <span class="menu" data-card-menu={card.id}>
-                        <EntryMenu
-                          bind:this={menus[card.id]}
-                          title={card.title}
-                          items={menuItems(card, cards)}
-                          onselect={(id) => chose(card, cards, id)}
-                        />
+                  <!-- The card's zones (concept round 2, §3): labels above the title, at most two and
+                       "+n"; one footer line with the date and the counts, the people at its end. -->
+                  {#snippet labels()}
+                    {@const carried = (card.label_ids ?? []).map((labelId) => available.find((each) => each.id === labelId)).filter((label) => label !== undefined)}
+                    {#each carried.slice(0, 2) as label (label.id)}
+                      <LabelChip name={label.name} colorToken={label.color_token} />
+                    {/each}
+                    {#if carried.length > 2}
+                      <span class="more-labels" title={carried.slice(2).map((label) => label.name).join(', ')}>
+                        <span aria-hidden="true">+{carried.length - 2}</span><VisuallyHidden>{t('app.board.more_labels', { count: String(carried.length - 2) })}</VisuallyHidden>
                       </span>
-                    </Inline>
+                    {/if}
+                  {/snippet}
+                  {#snippet footer()}
+                    <DueMark item={card} />
+                    {#if card.counts && card.counts.parts > 0}
+                      <span class="count"><Icon name="square-check" size="sm" /><span aria-hidden="true">{card.counts.parts_done}/{card.counts.parts}</span><VisuallyHidden>{t('app.board.parts_done', { done: String(card.counts.parts_done), count: String(card.counts.parts) })}</VisuallyHidden></span>
+                    {/if}
+                    {#if card.counts && card.counts.comments > 0}
+                      <span class="count"><Icon name="message-square" size="sm" /><span aria-hidden="true">{card.counts.comments}</span><VisuallyHidden>{t('app.board.comments', { count: String(card.counts.comments) })}</VisuallyHidden></span>
+                    {/if}
+                    {#if card.counts && card.counts.attachments > 0}
+                      <span class="count"><Icon name="paperclip" size="sm" /><span aria-hidden="true">{card.counts.attachments}</span><VisuallyHidden>{t('app.board.attachments', { count: String(card.counts.attachments) })}</VisuallyHidden></span>
+                    {/if}
+                  {/snippet}
+                  {#snippet people()}
+                    <PeopleMarks assigneeId={card.assignee_id} memberIds={card.member_ids ?? []} />
                   {/snippet}
                 </WorkItemCard>
+                <!-- In the card's corner rather than a line of its own, shown on hover and focus where
+                     there is a hover. The keyboard path to moving a card - the drag is built against it, because
+                     WCAG 2.2 SC 2.5.7 wants a single-pointer alternative and a rank change is
+                     a command before it is a gesture. -->
+                <span class="menu" data-card-menu={card.id}>
+                  <EntryMenu
+                    bind:this={menus[card.id]}
+                    title={card.title}
+                    items={menuItems(card, cards)}
+                    onselect={(id) => chose(card, cards, id)}
+                  />
+                </span>
                 {#if bulkNote(card.id)}
                   <p class="bulk-note">{bulkNote(card.id)}</p>
                 {/if}
               </div>
             {/each}
+            <!-- The column's own door to capture: pointed at this column, so an entry lands where it
+                 is added (design-system.md §11.8). The same field as everywhere else. -->
+            {#if mayCreate && !isReadOnly && isBucketBoard}
+              <AddRow label={t('app.entries.add')} onclick={() => captureField.open({ collectionId, bucketId: bucket?.id })} />
+            {/if}
           </BucketColumn>
         </div>
       {/if}
     {/each}
 
-    <!-- After the columns rather than above them: a new column is added at the end, and the control
-         sits where the column will appear. -->
+    <!-- After the columns rather than above them: a new column is added at the end, and the dashed
+         column sits where it will appear, as the concept draws it. -->
     {#if isBucketBoard && !isReadOnly && mayShape}
-      <div class="add-column">
-        <Button tone="secondary" size="sm" icon="plus" onclick={() => editColumn(undefined)}>
-          {t('app.board.create_column')}
-        </Button>
+      <button type="button" class="add-column" onclick={() => editColumn(undefined)}>
+        <Icon name="plus" size="sm" />{t('app.board.create_column')}
+      </button>
+    {/if}
+
+    {#if ghost}
+      <!-- design-system-lint-ignore: where the card was picked up and how far it travelled are measured, not designed. -->
+      <div
+        class="ghost"
+        aria-hidden="true"
+        style:--ghost-start={ghost.start}
+        style:--ghost-top={ghost.top}
+        style:--ghost-width={ghost.width}
+        style:--drag-offset={drag.offset}
+        style:--drag-offset-inline={drag.offsetInline}
+      >
+        <WorkItemCard title={ghost.card.title} isCompleted={ghost.card.completion?.is_completed ?? false} />
       </div>
     {/if}
+  </div>
   </div>
 {/if}
 
@@ -850,9 +991,7 @@
 {/if}
 
 <style>
-  .menu { display: inline-flex; }
 
-  .add-column { align-self: start; padding: var(--sp-100); }
   .notice { margin: 0; color: var(--text-secondary); max-width: 64ch; }
 
   /* The card's wrapper carries what the two paths read — the identity a key press finds, and the
@@ -862,9 +1001,38 @@
   /* A card is the slot a moment sits over; a column too, for the rare one. */
   .card[data-celebrating] { position: relative; }
 
-  .card > :global(*:last-child) { flex: 1; min-width: 0; }
+  .card > :global(article) { flex: 1; min-width: 0; }
+
+  .card { position: relative; }
+
+  .menu { position: absolute; inset-block-start: var(--sp-050); inset-inline-end: var(--sp-050); }
+
+  @media (hover: hover) {
+    .card:not(:hover, :focus-within) .menu:not(:has([aria-expanded='true'])) { opacity: 0; }
+  }
 
   .zone { display: flex; }
+
+  /* A count on the card's footer: its mark and its number, the number said in words to a reader. */
+  .count { display: inline-flex; align-items: center; gap: var(--sp-025); font-variant-numeric: tabular-nums; }
+  .more-labels {
+    display: inline-flex;
+    align-items: center;
+    padding: var(--sp-025) var(--sp-050);
+    border-radius: var(--r-sm);
+    background: var(--bg-surface-sunken);
+    color: var(--text-secondary);
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+  }
+
+  /* The lane of cards nobody has put in a column is not a column: dashed and open, as the
+     concept draws it, so it reads as a place to sort out rather than a stage of the work. */
+  .zone[data-column-zone='none'] > :global(.column) {
+    background: transparent;
+    outline: var(--bw-hairline) dashed var(--border-default);
+    outline-offset: calc(-1 * var(--bw-hairline));
+  }
 
   /* `touch-action: none` is what makes a drag possible on a touch screen: without it the browser
      claims the gesture for scrolling, and the board scrolls sideways, so it would claim it at
@@ -877,32 +1045,63 @@
   /* Rule 6: a translate and nothing else, and it is direct manipulation rather than decoration.
      Both axes, because a card carried towards another column that stayed where it was is a card
      the reader is told nothing about (ADR-0063 decision 11). */
+  /* Lifted above every column - a later column must never paint over the card being carried -,
+     tilted a little so it reads as held, and raised as an overlay is (rule 1). */
+  /* The card keeps its slot, unseen, while its copy is carried: the gaps the others open are
+     measured against the slots, and nothing the column clips is ever in view. */
   .card[data-dragging] {
-    translate: var(--drag-offset-inline) var(--drag-offset);
-    border-radius: var(--r-md);
-    box-shadow: var(--shadow-overlay);
-    /* Out of the way of the measuring: what is under the pointer has to be the board. */
+    visibility: hidden;
     pointer-events: none;
   }
 
-  /* Where it would land. Rule 3: an outline rather than a tint, so it reads in greyscale. */
-  .card[data-drop] {
-    outline: var(--bw-thick) dashed var(--accent-primary);
-    outline-offset: var(--sp-025);
+  /* The carried copy: above every column, tilted a little so it reads as held, and raised as an
+     overlay is (rule 1). Fixed, so no column's scrolling can cut it. */
+  .ghost {
+    position: fixed;
+    inset-block-start: var(--ghost-top);
+    inset-inline-start: var(--ghost-start);
+    z-index: var(--z-overlay);
+    inline-size: var(--ghost-width);
+    translate: var(--drag-offset-inline) var(--drag-offset);
+    rotate: -1.5deg;
     border-radius: var(--r-md);
+    box-shadow: var(--shadow-overlay);
+    outline: var(--bw-thick) solid var(--accent-primary);
+    pointer-events: none;
   }
 
-  /* Rule 6's floor: under a reduced-motion preference the card does not travel, and the state and
-     the landing slot are what say what is happening. */
+  /* A card can be carried: the hand says so, and a press lifts it a little before it moves. */
+  .card { cursor: pointer; }
+  .card:active { cursor: grabbing; }
+  .card:active { box-shadow: var(--shadow-raised); }
+
+  /* The cards it passes slide aside by its height, so where it lands is a gap and nothing overlaps.
+     A transform, so the layout the drag measures does not move (`dragging.svelte.ts`). */
+  .card { transition: translate var(--motion-state-duration) var(--motion-state-easing); }
+  .card[data-dragging] { transition: none; }
+  .card[data-shift='down'] { translate: 0 var(--drag-gap); }
+  .card[data-shift='up'] { translate: 0 calc(-1 * var(--drag-gap)); }
+
+  /* Rule 6's floor: under a reduced-motion preference nothing travels or slides; the column's
+     outline says where the card goes and the card's shadow which one is held. */
   @media (prefers-reduced-motion: reduce) {
-    .card[data-dragging] { translate: none; }
+    .card[data-dragging],
+    .card[data-shift] { translate: none; rotate: none; transition: none; }
   }
 
-  :global([data-motion='reduced']) .card[data-dragging] { translate: none; }
+  :global([data-motion='reduced']) .card[data-dragging],
+  :global([data-motion='reduced']) .card[data-shift] { translate: none; rotate: none; transition: none; }
+
+  @media (prefers-reduced-motion: reduce) { .ghost { rotate: none; } }
+  :global([data-motion='reduced']) .ghost { rotate: none; }
 
   /* The column the pointer is over, so that "where would this land" is a place rather than an
      outline on one card. Rule 3: a border rather than a tint alone. */
   .zone[data-over] { border-radius: var(--r-lg); outline: var(--bw-hairline) dashed var(--border-default); outline-offset: var(--sp-050); }
+
+  /* The gap the cards open is a translate, so the column grows by it too: the last card slides
+     down into room rather than under the column's edge. */
+  .zone[data-over] :global(.cards) { padding-block-end: var(--drag-gap); }
 
   /* A press on a card is a drag in waiting, so the browser's own text selection is out of the way
      and a touch does not scroll while one is being carried. */
@@ -918,8 +1117,60 @@
     gap: var(--sp-200);
     align-items: start;
     overflow-x: auto;
-    padding-block-end: var(--sp-100);
+    /* Room between the columns and the scrollbar under them, and round the columns for the dashed
+       outline the column under a carried card draws outside itself - a scroller clips at its
+       padding edge, so without it the outline was cut at the board's sides and top. The margin
+       gives the room back, so the columns stay where the page's edge is. */
+    padding-block: var(--sp-100) var(--sp-200);
+    padding-inline: var(--sp-100);
+    margin-block-start: calc(var(--sp-100) * -1);
+    margin-inline: calc(var(--sp-100) * -1);
   }
+
+  .frame { position: relative; }
+
+  .frame::before,
+  .frame::after {
+    content: '';
+    position: absolute;
+    inset-block: 0 var(--sp-200);
+    z-index: var(--z-raised);
+    inline-size: var(--sp-300);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity var(--motion-state-duration) var(--motion-state-easing);
+  }
+
+  .frame::before { inset-inline-start: 0; background: linear-gradient(to right, var(--bg-canvas), transparent); }
+  .frame::after { inset-inline-end: 0; background: linear-gradient(to left, var(--bg-canvas), transparent); }
+
+  :global([dir='rtl']) .frame::before { background: linear-gradient(to left, var(--bg-canvas), transparent); }
+  :global([dir='rtl']) .frame::after { background: linear-gradient(to right, var(--bg-canvas), transparent); }
+
+  .frame[data-more-start]::before,
+  .frame[data-more-end]::after { opacity: 1; }
+
+  /* The next column, dashed where it will stand. */
+  .add-column {
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    gap: var(--sp-100);
+    box-sizing: border-box;
+    inline-size: var(--layout-board-column);
+    align-self: start;
+    min-block-size: var(--sp-1000);
+    border: var(--bw-thick) dashed var(--border-default);
+    border-radius: var(--r-lg);
+    background: transparent;
+    color: var(--text-secondary);
+    font: inherit;
+    font-weight: var(--fw-medium);
+    cursor: pointer;
+  }
+  .add-column:hover { border-color: var(--accent-primary); color: var(--text-brand); }
+  .add-column:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 
   /* One column on a phone: it takes the width, and the strip above says which and how many. */
   .board[data-one-column] { flex-direction: column; align-items: stretch; overflow-x: visible; }

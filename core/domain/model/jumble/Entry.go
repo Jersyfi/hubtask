@@ -118,6 +118,10 @@ type Entry struct {
 	// undecided entry on its arrival (UC-JUM-07 check 10) while it runs or once it ended refused,
 	// so a card can follow it. Zero otherwise.
 	ArrivalJobID shared.ID
+	// MeantFor is the place a mail was addressed to when it landed here instead (ADR-0092
+	// decision 5): a collection or an entry, so sorting it in is one step. Zero for everything
+	// that was meant for the jumble itself.
+	MeantFor MailTarget
 }
 
 // NewEntryInput is what an arrival needs.
@@ -131,7 +135,9 @@ type NewEntryInput struct {
 	RawSubject  string
 	RawBody     string
 	Attachments []shared.ID
-	Now         time.Time
+	// MeantFor is the place the arrival was addressed to, where it was not the jumble.
+	MeantFor MailTarget
+	Now      time.Time
 }
 
 // NewEntry validates one arrival.
@@ -191,9 +197,18 @@ func NewEntry(in NewEntryInput) (Entry, error) {
 		ID: in.ID, TenantID: in.TenantID, Channel: in.Channel,
 		Sender: sender, CreatedBy: in.CreatedBy, RawSubject: subject, RawBody: body,
 		Attachments: attachments,
+		MeantFor:    meantFor(in.MeantFor),
 		Status:      StatusNew,
 		ReceivedAt:  in.Now.UTC(),
 	}, nil
+}
+
+// meantFor keeps a collection or an entry and drops the jumble itself, which needs no pointer.
+func meantFor(target MailTarget) MailTarget {
+	if target.Kind == TargetCollection || target.Kind == TargetItem {
+		return target
+	}
+	return MailTarget{}
 }
 
 // Convert marks the entry as become work.

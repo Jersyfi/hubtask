@@ -91,8 +91,8 @@
     <div class="bar" role="region" aria-label={label} bind:this={bar}>
       <span class="count" aria-hidden="true">{changesLabel}</span>
       <span class="actions">
-        <Button tone="subtle" onclick={() => onDiscard?.()}>{discardLabel}</Button>
-        <Button tone="primary" isBusy={isSaving} busyLabel={savingLabel} onclick={() => onSave?.()}>{saveLabel}</Button>
+        <Button tone="secondary" size="sm" onclick={() => onDiscard?.()}>{discardLabel}</Button>
+        <Button tone="primary" size="sm" isBusy={isSaving} busyLabel={savingLabel} onclick={() => onSave?.()}>{saveLabel}</Button>
       </span>
     </div>
   {/if}
@@ -123,6 +123,8 @@
     white-space: nowrap;
   }
 
+  /* The concept's bar: the emphasis surface, rounded and set off the form's edge, so it reads as
+     the one thing to do before leaving rather than as one more row of the form. */
   .bar {
     display: flex;
     flex-wrap: wrap;
@@ -130,18 +132,39 @@
     justify-content: space-between;
     gap: var(--sp-100) var(--sp-200);
     box-sizing: border-box;
-    min-block-size: var(--layout-bottombar-height);
-    padding: var(--sp-100) var(--sp-200);
-    border-block-start: var(--bw-hairline) solid var(--border-default);
-    background: var(--bg-surface);
+    margin-block: var(--sp-100);
+    padding-block: var(--sp-100);
+    padding-inline: var(--sp-200) var(--sp-150);
+    border-radius: var(--r-md);
+    background: var(--bg-emphasis);
+    color: var(--text-inverse);
+    box-shadow: var(--shadow-overlay);
     animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
   .count {
-    color: var(--text-primary);
     font-size: var(--fs-100);
     font-weight: var(--fw-medium);
   }
+
+  /* The two buttons in the bar's colours: Discard outlined in the text's colour, Save filled with
+     it - the inverse of the page's pair, so the save stays the stronger of the two. */
+  .bar :global(.button[data-tone='secondary']) {
+    border-color: currentColor;
+    background: transparent;
+    color: inherit;
+  }
+
+  .bar :global(.button[data-tone='primary']) {
+    border-color: var(--text-inverse);
+    background: var(--text-inverse);
+    color: var(--bg-emphasis);
+  }
+
+  /* The page's ring is the brand colour, which the bar is made of: here it is the text's. */
+  .bar :global(.button:focus-visible) { outline-color: var(--text-inverse); }
+
+  .bar :global(.button[data-tone='primary']:hover:not([aria-disabled='true'])) { background: var(--text-inverse); opacity: 0.9; }
 
   .actions { display: inline-flex; flex-wrap: wrap; gap: var(--sp-100); }
 

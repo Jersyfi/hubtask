@@ -67,6 +67,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'machines', pattern: '/administration/machines', area: 'administration' },
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
+  { name: 'voice', pattern: '/administration/voice', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
   // The rule editor: a rule drawn as a path. `new` before `:id`, so that a rule whose
   // identifier happened to be `new` could not exist and the two do not compete.
@@ -108,6 +109,12 @@ export const ROUTES: readonly Route[] = [
   { name: 'item', pattern: '/items/:id' },
   { name: 'hub', pattern: '/hubs/:id' },
   { name: 'collection', pattern: '/collections/:id' },
+  // A place's settings, a section each (design-system.md §11.8): an address, so a section is
+  // linked, reloaded and gone back to like any page. The bare path opens the first section.
+  { name: 'hub-settings', pattern: '/hubs/:id/settings' },
+  { name: 'hub-settings-section', pattern: '/hubs/:id/settings/:section' },
+  { name: 'collection-settings', pattern: '/collections/:id/settings' },
+  { name: 'collection-settings-section', pattern: '/collections/:id/settings/:section' },
   // The level above the workspaces (ADR-0070 §5). Its own area, excluded from the shells as
   // administration is: an administrator runs a workspace and an operator runs the installation, and
   // a shell that shipped one because it shipped the other would ship the control plane by accident.
@@ -152,6 +159,12 @@ export function movedTo(name: string | null): string | undefined {
 
 /** The instance area's own prefix, for the same reason (ADR-0070 §5). */
 export const INSTANCE_PREFIX = '/instance';
+
+/** The routes that draw a hub or a collection: the place itself, and its settings (`ContainerView`). */
+export const PLACE_ROUTES: readonly string[] = ['hub', 'collection', 'hub-settings', 'hub-settings-section', 'collection-settings', 'collection-settings-section'];
+
+/** Whether a route is a place's settings, with or without its section named. */
+export const isSettingsRoute = (name: string | null): boolean => name !== null && /-settings(-section)?$/u.test(name);
 
 /**
  * What `/collections/:id?item=:itemId` means at a width (ADR-0061 decision 4): from `large` up,

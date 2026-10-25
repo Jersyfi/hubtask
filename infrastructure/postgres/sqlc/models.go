@@ -1067,6 +1067,8 @@ type JumbleEntry struct {
 	ReceivedAt   pgtype.Timestamptz
 	ProcessedAt  pgtype.Timestamptz
 	CreatedBy    pgtype.UUID
+	MeantForKind *string
+	MeantForID   pgtype.UUID
 }
 
 type JumbleIntake struct {
@@ -1105,6 +1107,21 @@ type LegalHold struct {
 	ReleasedBy     pgtype.UUID
 	ReleasedAt     pgtype.Timestamptz
 	ReleasedReason *string
+}
+
+type MailAddress struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	TargetKind   string
+	TargetID     pgtype.UUID
+	Code         string
+	SenderPolicy string
+	OpenedBy     pgtype.UUID
+	CreatedBy    pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+	RevokedAt    pgtype.Timestamptz
+	WindowStart  pgtype.Timestamptz
+	WindowCount  int32
 }
 
 type MediaObject struct {
@@ -1648,6 +1665,25 @@ type UsageRecord struct {
 	Metric   string
 	Value    int64
 	Closing  *int64
+}
+
+type VoiceAlias struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Phrase       string
+	Folded       string
+	CollectionID pgtype.UUID
+	LabelID      pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type VoiceSetting struct {
+	TenantID            pgtype.UUID
+	Enabled             bool
+	DefaultCollectionID pgtype.UUID
+	SkillID             *string
+	UpdatedAt           pgtype.Timestamptz
+	UpdatedBy           pgtype.UUID
 }
 
 type WebauthnCredential struct {

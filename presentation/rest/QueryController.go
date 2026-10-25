@@ -38,13 +38,13 @@ func (c *RestController) QueryItems(w http.ResponseWriter, r *http.Request) {
 		WriteProblem(w, err, requestID)
 		return
 	}
-	labels, err := expansionsOf(body.Expand)
+	asked, err := expansionsAllowing(body.Expand, true)
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
 	}
 
-	out, err := c.UseCases.Invoke(r.Context(), queryItemsUseCase, actor, queryInput(body, document, labels))
+	out, err := c.UseCases.Invoke(r.Context(), queryItemsUseCase, actor, queryInput(body, document, asked))
 	if err != nil {
 		WriteProblem(w, err, requestID)
 		return
@@ -80,13 +80,14 @@ func decodeQuery(r *http.Request, into *openapi.ItemQuery) (map[string]any, erro
 // in the domain (core/domain/model/view), so this layer neither validates nor reshapes them - a
 // second reading here would be a second place for the grammar to be wrong, and the MCP and
 // automation channels would not go through it (ADR-0005, ADR-0026).
-func queryInput(body openapi.ItemQuery, document map[string]any, labels bool) usecase.Input {
+func queryInput(body openapi.ItemQuery, document map[string]any, asked expansions) usecase.Input {
 	in := usecase.Input{
 		"scope_container_id": optionalUUIDField(body.Scope.ContainerId),
 		"scope_item_id":      optionalUUIDField(body.Scope.ItemId),
 		"include_archived":   optionalBoolField(body.IncludeArchived),
 		"include_trashed":    optionalBoolField(body.IncludeTrashed),
-		"expand_labels":      labels,
+		"expand_labels":      asked.labels,
+		"expand_counts":      asked.counts,
 	}
 	if body.Scope.IncludeDescendants != nil {
 		in["include_descendants"] = *body.Scope.IncludeDescendants

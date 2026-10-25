@@ -22,15 +22,15 @@ In `D1` the person creates the collection "Groceries" and picks the preset *List
 
 ## How to check
 
-1. A person who may change a collection's shape chooses one of the presets *List*, *Tasks*, *Project* and *Flow* when creating a hub or a collection, and changes it later from the collection's *Structure* panel.
+1. A person who may change a collection's shape chooses one of the presets *List*, *Tasks*, *Project* and *Flow* when creating a hub or a collection, and changes it later from the collection's settings (*Settings → Structure*).
 2. Each preset is a set of values for eight settings — levels and their names, fields, views, what counts, what completion does, what capture recognises, how success is shown, and what runs by itself — and every setting can be changed on its own for a hub or a collection.
-3. The panel names, for every setting, where its value comes from (Hubtask's default, the installation, the plan, the workspace, the hub, this collection) and whether it is locked, and offers to reset a value set here.
+3. The settings name, for every setting, where its value comes from (Hubtask's default, the installation, the plan, the workspace, the hub, this collection) and whether it is locked, and offers to reset a value set here.
 4. A collection offers only what its settings allow: on an entry of a *List* collection there is no date, person, label, note editor or child entry, and the list offers no board or timeline.
 5. A setting can narrow what the installation's profile allows but never widen it; a request that would widen it is refused with `capability_not_supported`.
 6. A person may name the levels (for example "item" instead of "task"); the name is shown everywhere the level is named and is treated as their content (rule 10); without a name the translated default is shown.
 7. An administrator locks a setting for the workspace; a hub or collection then shows the value with the lock and who set it, and cannot change it.
 8. The effective settings of a collection are readable and writable through the API, MCP and `hubctl` with the same refusals as in the web app.
-9. A member without the right to change the shape sees the collection as its settings make it and is not offered the *Structure* panel.
+9. A member without the right to change the shape sees the collection as its settings make it and is not offered the collection's settings.
 
 ## Where it ends
 

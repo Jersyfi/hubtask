@@ -49,6 +49,9 @@ const ROWS: readonly [string, Record<string, boolean | undefined>, Partial<Where
   ['the current collection', { kitchen: true }, { currentCollectionId: 'kitchen' }, 'collection:kitchen'],
   ['the current collection archived or refused: the jumble', { kitchen: false }, { currentCollectionId: 'kitchen' }, 'jumble'],
   ['no current collection: the jumble', {}, {}, 'jumble'],
+  ['on a hub’s page: the hub’s first collection that admits', { attic: true, kitchen: true }, { currentHubId: 'house' }, 'collection:attic'],
+  ['on a hub’s page where nothing admits: the jumble, not nowhere', { attic: false, kitchen: false, old: false }, { currentHubId: 'house' }, 'jumble'],
+  ['the current collection wins over the hub', { attic: true, kitchen: true }, { currentCollectionId: 'kitchen', currentHubId: 'house' }, 'collection:kitchen'],
   ['no jumble either: nowhere', { kitchen: false }, { currentCollectionId: 'kitchen', jumbleWritable: false }, 'nowhere'],
   ['the manifest unread: pending, not nowhere', {}, { jumbleWritable: undefined }, 'pending'],
   // D14: the same keys must not land in the jumble because Enter came before the role arrived.

@@ -216,6 +216,58 @@ export class HubtaskClient {
     return this.call("POST", "/jumble/entries/{entryId}:dismiss", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
   }
 
+  /** Settle an entry as a comment on an entry */
+  commentJumbleEntry(entryId: string, body: NonNullable<operations["commentJumbleEntry"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["commentJumbleEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/jumble/entries/{entryId}:comment", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The address a place takes mail at */
+  showMailAddress(options: CallOptions & { readonly query?: NonNullable<operations["showMailAddress"]['parameters']['query']> } = {}): Promise<operations["showMailAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/addresses", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace a place's mail address */
+  rotateMailAddress(body: NonNullable<operations["rotateMailAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["rotateMailAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/addresses:rotate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Set who may write into a place by mail */
+  setMailSenderPolicy(body: NonNullable<operations["setMailSenderPolicy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["setMailSenderPolicy"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/addresses:set-sender-policy", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Deliver a mail to an address on the receiving domain
+   * Public: sent without a bearer where the client holds none. */
+  deliverAddressedMail(body: BodyInit, options: CallOptions & { readonly query?: NonNullable<operations["deliverAddressedMail"]['parameters']['query']> } = {}): Promise<operations["deliverAddressedMail"]['responses'][202]['content']["application/json"]> {
+    return this.call("POST", "/mail/inbound", {  }, options.query, {  }, body, "raw", "message/rfc822", "json", options.signal);
+  }
+
+  /** The workspace's voice settings */
+  showVoiceSettings(options: CallOptions = {}): Promise<operations["showVoiceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/voice/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Replace the workspace's voice settings */
+  saveVoiceSettings(body: NonNullable<operations["saveVoiceSettings"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["saveVoiceSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/voice/settings", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** What a spoken sentence would do */
+  tryVoiceSentence(body: NonNullable<operations["tryVoiceSentence"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["tryVoiceSentence"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/voice:try", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The Alexa interaction model */
+  showAlexaModel(options: CallOptions & { readonly query?: NonNullable<operations["showAlexaModel"]['parameters']['query']> } = {}): Promise<operations["showAlexaModel"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/voice/alexa/model", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Answer Alexa
+   * Public: sent without a bearer where the client holds none. */
+  answerAlexa(body: NonNullable<operations["answerAlexa"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["answerAlexa"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/voice/alexa", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's automation rules */
   listRules(options: CallOptions & { readonly query?: NonNullable<operations["listRules"]['parameters']['query']> } = {}): Promise<operations["listRules"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/automation/rules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
@@ -1436,7 +1488,7 @@ export class HubtaskClient {
 
   /** Exchange the code for the pair
    * Public: sent without a bearer where the client holds none. */
-  exchangeOauthCode(body: NonNullable<operations["exchangeOauthCode"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exchangeOauthCode"]['responses'][201]['content']["application/json"]> {
+  exchangeOauthCode(body: NonNullable<operations["exchangeOauthCode"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["exchangeOauthCode"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/oauth/token", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 

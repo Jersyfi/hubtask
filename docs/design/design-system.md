@@ -213,10 +213,10 @@ attributes selected by a stylesheet, never as an inline `style`:
 [ADR-0028](../adr/ADR-0028-embedded-web-ui.md)'s `style-src 'self'` has no `'unsafe-inline'`, so a
 `style="gap: …"` is refused — silently, in production only. Every component inherits that.
 
-### Wave 1 — nothing works without these (≈ 22)
+### Wave 1 — nothing works without these (≈ 23)
 Icon · Button · IconButton · Input · CodeField · Textarea · Select · Checkbox · CheckboxGroup · Radio · Switch ·
 Tooltip · Menu · Popover · Dialog · Toast · Banner · Avatar · AvatarGroup · Badge · Spinner ·
-ProgressBar
+ProgressBar · Kbd
 
 `CheckboxGroup` is the fieldset `Radio` is, for several answers: a question that needs at least one
 is wrong as a group, so its error is said once under the group and every box is `aria-invalid`,
@@ -296,9 +296,12 @@ indent; the label is the accessible name and the tooltip — and a branch presse
 tree as a flyout `Popover`, so nothing is unreachable. One tab stop, the arrows, `Home` and `End`; in
 the rail the direction keys open and close the flyout.
 A node the caller marks `isMovable` is ranked within its level — its siblings, and at the top level
-its band — by `onreorder(id, to)`: a grip at the row's end that drags as a list row's does (§11.9),
-or `Alt`+`↑`/`↓` on the focused row, `Shift` to the ends; the focus stays with the node. The tree
-names the position; the caller writes it and announces it. No grip in the rail.
+its band — by `onreorder(id, to)`: with a mouse the row itself is the handle, a press that travels
+drags and one that does not opens; on a touch screen a grip at the row's end carries it, because
+there a moving finger scrolls. `Alt`+`↑`/`↓` on the focused row, `Shift` to the ends; the focus
+stays with the node. The tree names the position; the caller writes it and announces it. No grip
+in the rail. A collection's row is indented under its hub; a hub with nothing in it has no twist, and
+a row's *⋯* overhangs the row's padding rather than making the row taller.
 
 **`Drawer` at `block-end` keeps its head while its body scrolls.** With `isResizable` a handle above
 the head sizes it — by pointer, or by arrows, `Home` and `End` — between a third and nine tenths of
@@ -374,8 +377,8 @@ button. `Callout` is **not a `Banner`**: documentation, true whenever read, `rol
 dismissed. `ParameterTable` is a **`Table` underneath**, with *required* as a word (rule 3) and a
 deprecated field marked and kept.
 
-### Wave 5 — the shell (6)
-AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo
+### Wave 5 — the shell (7)
+AppBar · NavDrawer · BottomBar · PageHeader · DetailPane · Logo · ResizeHandle
 
 The five that hold every page up ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md)), and
 the mark the bar carries; how the product uses them is §11.
@@ -395,6 +398,10 @@ the mark the bar carries; how the product uses them is §11.
 * **`DetailPane`** — the column beside the content from `large` up: a head with the type, a close
   and an "open as a page", and a slot. Below `large` it renders nothing and the caller navigates. An
   `aside` landmark with its own heading; it takes no focus and is not a dialog.
+* **`ResizeHandle`** — the edge a person drags to widen or narrow a region: the navigation column
+  and the entry panel. A `separator` with its value; the arrows move it, Home and End go to its
+  bounds, a double-click puts the default back. It owns no width: the region does, and the device
+  keeps it (§11.10).
 * **`Logo`** — the Hubtask mark of §9, alone or with the wordmark, in four size steps of the space
   scale: `sm` draws the reduced form, every larger step the full one. `color` draws the `brand.*`
   tokens, `mono` the colour of the text around it. Not an `Icon` — an icon is `currentColor` only
@@ -450,8 +457,9 @@ below it.
    and a screen with several has misread it.
 4. **Everything grows by 40 %.** German, Finnish and Russian break any layout measured against
    English. No fixed widths outside genuine exceptions.
-5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`. The app is fully operable by
-   keyboard. A box sized in percent is `border-box`, and a scroll container keeps a gutter no
+5. **Focus is always visible.** 2 px ring, 2 px offset, `--focus-ring`; a text field, a select and a
+   search field instead turn their own border into the 2 px focus colour, the edge the person sees.
+   The app is fully operable by keyboard. A box sized in percent is `border-box`, and a scroll container keeps a gutter no
    narrower than the focus ring, or the container cuts the ring.
 6. **Motion only in `opacity` and `transform`.** Layout is never animated. A component animates
    through a `motion.<role>` token — a duration paired with an easing — never a primitive. The roles
@@ -709,7 +717,14 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   content's `bg.canvas` (rule 1).
 * **One `<main>`, one `h1`, a skip link** to `<main>` as the frame's first tab stop.
 * **Every screen carries `PageHeader`**: the trail, the title, one primary action, at most two
-  secondary ones, the rest in its menu.
+  secondary ones, the rest in its menu. **The head is about the place; a toolbar under it is about
+  what the place holds.** On a collection the head carries its people and its own menu (*Settings…*
+  is its first item; no ⚙ beside it), and no add: the bar's *Capture* and the list's own add at its end (a column's at its
+  foot, in the brand ink, outlined on hover) are the ways in. The toolbar under it carries the
+  layouts as segments at the start and *Filter*, *Sort*, *Views* and *Select* at the end, and stays
+  under the bar while the list scrolls. On a hub the collections are cards, and a dashed card at
+  their end creates one. On `compact` the toolbar keeps the layouts and one *Filter*, whose sheet
+  holds the views and selecting.
 * **On `compact` the bar carries the title and the page menu.** Every screen with an `h1` hands its
   title to the bar (`page.entitle`, `apps/webapp/src/lib/frame/page.svelte.ts`), and `PageHeader`
   hands its folded menu into the bar's menu slot. The `h1` stays in the content for the reader, not
@@ -730,21 +745,27 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the mark and the wordmark · *＋* (*Capture*, `Q`, its mark alone) · the palette's field (*Search or run a command*, `⌘K`) | the notice mark · the connection mark · the account menu |
-| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) | *＋ Capture* (`Q`) · the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
+| ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
   [ADR-0065](../adr/ADR-0065-the-second-walk-of-the-shell.md)). Its only page control is the page's
   folded menu on `compact`. *Capture* is no page's action but the product's: it opens the capture
   field wherever the reader is (UC-WRK-26), from `medium` up here and on `compact` as the bottom
-  bar's ＋ (§11.3). On `medium` it is its mark alone, beside the wordmark: the end has no room for
-  one more control with the palette's field still centred between the two sides. It is drawn only where the reader may create somewhere — in the jumble or in a
+  bar's ＋ (§11.3). It stands beside the palette's field, the two ways into everything together in
+  the middle; from `expanded` the field alone is centred on the window and *Capture* stands past its
+  end, on `medium` *Capture* is its mark alone. It is drawn only where the reader may create somewhere — in the jumble or in a
   collection they see — and absent otherwise (P-05).
-* **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
-  bar's *Search* opens the palette in a dialog.
-* **The bar carries the person, the menu their name.** The account trigger is the avatar alone below
-  `large`, avatar and display name from `large` up. The name and the e-mail head the menu. On
-  `compact` the account group is *You* in the bottom bar.
+* **The palette's field sits in the middle of the window** from `expanded` (§11.4). Used, it grows
+  evenly to both sides around that middle, animated and at its height, and never into the logo's or
+  the end's room (`layout.barsearch.side`). Below `expanded` there is no room for a field that grows:
+  the field's look opens the palette in a dialog over the page, and shrinks with the bar before the
+  logo or the end would give way; on `compact` the bottom bar's *Search* does the same.
+* **The bar carries the person, the menu their name.** The account trigger is the avatar alone at
+  every width; the name and the e-mail head the menu. On `compact` the account group is *You* in the
+  bottom bar.
+* **One control size.** The rail toggle, the notice mark, the connection mark and the avatar are
+  the same square with the same hover shape (§13, G2).
 * The two marks are §11.6. Nothing else moves into the bar beyond *Capture*.
 
 ### 11.3 One navigation list
@@ -762,13 +783,24 @@ route, a group, an icon, a message code and, where the mobile build needs it, an
 | `keeping` | Archive, Trash | Pinned to the foot of the column on every width, after a hairline — where a reader looks when something is **missing** |
 
 **A hub or collection wears its own symbol and colour** (UC-WRK-33), chosen when it is created and
-under *Edit…* in its menu, beside its name and description: one of the ten label colours and a symbol from the set
+in its settings' *General* section, beside its name and description: one of the ten label colours and a symbol from the set
 `build/icons.js` declares for it, each optional. The colour is drawn as the label's measured pair —
 its ink on its tile — in the tree's mark, before the page head's title, and beside an entry's place
 in a list that mixes collections (*Today*, search); *Today* puts the hub's mark before it. It is the place's, never a level's (§6),
 and never says anything alone: the name stands beside it. A place nobody chose for keeps its type's
 mark and no tile; a private hub with a symbol of its own says *Private* at the end of its row
 instead of wearing the lock. A value the client does not offer is read as none chosen.
+
+**A hub or collection is managed from its own row.** Where the reader may change the hub's shape, its
+row and its collections' rows carry a *⋯* — on hover and focus where a pointer hovers, always on
+touch, and the context-menu key or `Shift+F10` on the focused row — named *Manage <name>*. It holds
+the place's own acts and nothing about its entries (§13, G7), the same list as the page's *⋯*
+(`placeMenu.ts`): *Settings…*, *Move to another hub…* for a collection, *Import…*, *Change
+position…*, *Archive* (taking effect at once and offering *Undo*), *Make private* where it applies,
+*Move to the trash*. There is no *Edit* beside *Settings*: the name, description and look are the
+settings' *General* section. Each is the page menu's own act: choosing it opens the place's page,
+which runs it with its own handler. The figure and the *⋯* share one cell
+at the end of the row, so a row with a menu wraps where one without does.
 
 **The account group is not in the column.** It is the bar's account menu from `medium` up and *You*
 on `compact`. Its rows, in `navigation.ts`'s order: the display name and e-mail as the head; *Your
@@ -788,7 +820,7 @@ section is never a client decision.
 |---|---|
 | `compact` | `BottomBar`: the `places` destinations, with *Capture* between *Search* and *Jumble*, and *You*. *Capture* is the list's one act among the places (`navigation.ts`, a `capture` target): drawn as a button, never current, its mark filled; only the bottom bar draws it, the bar carrying its own button from `medium` up. `NavDrawer` from ☰: the `tree` and `keeping` bands only, so no destination is drawn twice |
 | `medium` | `NavDrawer`: one `SideNav` with all three bands |
-| ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10) |
+| ≥ `expanded` | `SideNav` pinned, foldable to a rail (§4, wave 2); whether it is folded is the device's (§11.10). Its end edge is a `ResizeHandle`: dragged, or moved by the arrows, between `layout.sidenav.min` and `layout.sidenav.max`, a double-click back to `layout.sidenav.width`; the width is the device's (§11.10) |
 
 In a build that excludes the administration area — the installed mobile clients
 ([ADR-0032](../adr/ADR-0032-client-capability-matrix.md)) — the administration row names where the
@@ -797,7 +829,8 @@ capability lives, linked to the web app of the signed-in server; nothing else ch
 ### 11.4 Search
 
 **Search is a field and a place.** The palette's field is where a search is typed; `/search` is
-where one is built, also with nothing typed. The field is the bar's from `medium` up; on `compact`
+where one is built, also with nothing typed. The field is the bar's from `medium` up, and in use it
+grows over the space before it - never pushing *Capture* beside it away from a press; on `compact`
 the bottom bar's *Search* opens the palette in a dialog, whose *Open search* leads to the place.
 The two fields carry different accessible names.
 
@@ -938,11 +971,17 @@ mark says only that there is something; pressed it says all of it in a `Popover`
 | Connected, nothing waiting | The quiet dot, `status.success` | Nothing more |
 | Writes waiting | The dot with the count | How many |
 | Reconnecting | The ring, turning in the `pending` motion role, `status.warning` | That it is trying |
-| Offline | The struck cloud, `status.danger` | That it is not connected |
+| Offline | The struck cloud, `status.warning` — tinted like reconnecting, not a filled block: working offline is a state the product is built for | That it is not connected |
 | Something was refused | The mark with a `status.danger` dot | That there is something to read |
 
-Pressed: the sentence, the last synchronisation, what is queued, what was refused and why, and the
-retry. **Connected means the stream was accepted**, not that a record arrived.
+Pressed: one band across the whole surface naming the most pressing of six states, in this order — a
+conflict (`status.warning`, the two-way mark), changes not accepted (`status.danger`), offline,
+reconnecting (both `status.warning`), synchronising (the brand tint) and all synchronised
+(`status.success`). Under it, on the band's text edge: the count and the age of the oldest change,
+each waiting change on one quiet line, or the last synchronisation; a refusal as the entry's name and
+the reason. **At most one action per state**: *Try again* while not connected, *Open the entry* for a
+refusal (with *Dismiss* beside it), *Resolve* for a conflict. **Connected means the stream was
+accepted**, not that a record arrived.
 
 **The notice mark** (`apps/webapp/src/lib/frame/NoticeMark.svelte`) is drawn always, signed in or
 not:
@@ -964,22 +1003,32 @@ It is not dismissible. No banner above a page states the stage or the health rep
 **Today (`/`)** is the page the app opens on and what is the reader's today across every hub
 ([UC-WRK-34](../usecases/work/UC-WRK-34-see-my-day.md)). Its row's word is `app.nav.today`, and it
 carries no head action: a hub is made in the navigation, or from the empty workspace's one action.
-Top to bottom:
+Its heading greets the person by the hour where they are, with the first word of their name, and the
+date stands at the head's end. From `expanded` the panels are two columns, *On you* the wider and
+the others stacked beside it; below, one. Top to bottom:
 
-* **On you** — the reader's open dated entries in three bands of their own day: *Earlier* (past
+* **The day at a glance** — a row of figures, each a link to the search that lists it: due today,
+  overdue (in the danger ink with its mark, where there is any), coming up, waiting in the jumble
+  (for a reader of it), open on the person.
+
+* **On you** — the reader's open dated entries in three bands of their own day: *Overdue* (past
   due), *Today* (due before their next day begins) and *Coming up*. Each row has its working
   checkbox — the ordinary completion, queued while offline — and its place, the hub's mark before
-  the collection's. What is past carries its date and no overdue word or tone: nothing on the page
-  says what the person did not do.
-* **Lists** — every collection whose figure is *open*, as one tile with the figure; its entries are
-  not rows in the bands.
+  the collection's. What is past carries the overdue mark with its date; nothing blames.
+* **Lists** — every collection whose figure is *open*, as one tile with the figure, drawn in the
+  collection's colour where it has one; its entries are not rows in the bands.
 * **Projects** — every collection whose figure is *progress*, with the figure and the next due step,
   which can be ticked off there.
-* **In the jumble** — how many wait and the first three, for a reader of the jumble.
-* **Recently opened** — what this device opened last (§11.10), sent nowhere.
+* **In the jumble** — a small inbox for a reader of the jumble: how many wait, and the first three
+  each with its channel, sender and age and *Sort in* and *Dismiss* at the row.
+* **Recently opened** — what this device opened last (§11.10), sent nowhere, as tiles with the
+  place's mark, its place and when.
 
-Every panel says something when it is empty; a list or project panel with nothing in it is not
-drawn. It uses only existing reads — the workspace-wide search with a filter
+A card with nothing to say is not drawn; with nothing beside it *On you* takes the width. *On you*
+shows six rows at most, then how many more and the way to the search, and its count in its head;
+empty, it says so with *Capture*. A workspace with nothing for the reader yet - no entry on them,
+no list, no project, nothing opened, nothing waiting - shows *First steps* instead, each with its
+act. It uses only existing reads — the workspace-wide search with a filter
 ([ADR-0064](../adr/ADR-0064-the-workspace-wide-read.md)), each hub's collections with their figures,
 one anchored query per project, and the jumble's first page.
 
@@ -997,40 +1046,55 @@ archived container leaves the tree.
 * **On a hub**: *Create collection*, with *Import* as the secondary action (`POST /imports` needs
   `STRUCTURE` on the hub). The file goes through the media flow; the report is drawn by the same
   component as a restore's dry run, refused rows beneath it by number and code.
-* **On a collection**: *Add entry*, with a submenu for creating from a template and — where the
-  reader may shape the collection — *Import*, which lands the file's entries there and says so
-  before the kind is chosen; the filter is the secondary action with a count — inline from
+* **On a collection**: *Add entry*, which opens capture pointed at the collection — no split, its
+  other ways being capture's modes. The filter is the toolbar's, with its count — inline from
   `expanded` up, a `Drawer` below.
-* **One add on a phone.** On `compact` the head pins its primary above the bottom bar, and the page
-  ends a control's height lower so its last row scrolls clear of it. A collection then draws no
-  second *Add entry* under its rows; a list of one level pins none, because its capture line at the
-  top is the add, and the submenu's ways join the page menu.
+* **One add.** Capture is the one way an entry is added (UC-WRK-26 check 7). Every add control is a
+  door into it that already knows where it stands: the head's *Add entry*, the end of a list, a
+  row's ＋ (the entry it goes under), a board column's foot (the column). The dialog shows what the
+  door knew as chips at its top — *In:* the place, *Under:* the parent with its ×, *Kind:* where
+  several levels may be added — each one press to change. While `@`, `#`, `+` or `!` is typed it
+  lists the matching collections (with their hub), hubs, people and labels: arrows move, Enter or
+  Tab take, Escape closes the list alone (`lib/capture/suggest.ts`); the line under the field names
+  the tokens and types their sigil. Its four ways - one entry, several lines, from a template,
+  import - are one segmented switch under the title, chosen before anything is written; a way
+  not open here (a template or an import with no collection, an import without the right to
+  shape) is drawn quieter with its reason. On an entry's page capture is under that entry; on a
+  hub's page it goes to the hub's first collection; a place's *Import…* opens it on its import. *Keep capturing* leaves the field open after
+  Enter, on where a list is typed line after line; in such a list what was ticked before and
+  matches the line is offered under the field, to put back rather than add twice (UC-WRK-25 check
+  4). No list draws an add form of its own.
+* **On a phone** the head pins a hub's primary above the bottom bar, and the page ends a control's
+  height lower so its last row scrolls clear of it. A collection pins none: the bottom bar's ＋ opens
+  capture pointed at it.
 
-**The page menu has three groups in a fixed order**: act on it — select (a collection), *Edit*
-(name, description, colour and symbol, and a hub's default preset), move to another hub (a
-collection; a hub sits in nothing), archive, rank up, rank down; set it up — structure; and trash,
-last and alone. An item unusable now stays with its reason. The people are the head's faces for
+**The place's own menu** holds what is done to the place itself, in a fixed order: *Edit* (name,
+description, colour and symbol, and a hub's default preset), move to another hub (a collection; a
+hub sits in nothing), *Change position…* (the level in its order, Up and Down on every place of it, the one it was opened from marked), archive; privacy; and trash, last and alone. Selecting
+entries is the toolbar's; *Settings…* opens the settings page; the same menu is the place's row menu in the
+navigation (§11.3). An item unusable now stays with its reason. The people are the head's faces for
 everybody. **A hub's collections are cards** in a grid, each with its mark, description and the
 figure its own head shows (UC-WRK-29); one column on `compact`.
 
-**The *Structure* panel** (UC-WRK-23) is a hub's or a collection's preset and its eight settings,
-in one `Drawer` and one save bar: each setting with its `SourceChip`, a reset where the value is set
-here, and a lock drawn as the chip's lock with the controls still readable and unavailable, their
-reason naming who set it (§4, cases 2 and 6). Only a reader who may change the shape is offered it.
-The settings are its first tab; a collection's labels, fields, templates, automation (the
-policies) and people are the tabs after it, a hub's people the one after it — each the same
-component that is a dialog elsewhere (`PanelOrDialog`).
+**Settings are pages** (UC-WRK-23): `/collections/:id/settings/:section` and
+`/hubs/:id/settings/:section`, in the administration's shape — the sections as a list at the start,
+the open one beside it, each at its own address. *General* is the edit dialog's fields in place;
+*Structure* is the preset and the eight settings in one save bar: each setting with its
+`SourceChip`, a reset where the value is set here, and a lock drawn as the chip's lock with the
+controls still readable and unavailable, their reason naming who set it (§4, cases 2 and 6). A
+collection's labels, fields, templates, automation (the policies) and people follow, a hub's people
+— each the same component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
+the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
 (`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
-also reachable where it is used — templates from the primary action's submenu, people from the
-member avatars — opening the same dialog. Beside the layout switch is the one *Views* menu: the
-saved views that apply here, each opened by its row with its query and layout, then saving what is
+also reachable where it is used — templates from capture's modes, people from the member avatars —
+opening the same dialog. In the toolbar is the one *Views* menu: the saved views that apply here, each opened by its row with its query and layout, then saving what is
 on screen, renaming, sharing or deleting a view, exporting the list as it is filtered, and the
 calendar subscriptions; the page menu carries none of them.
 
 **Presets** (UC-WRK-30). Wherever a preset is offered — *Create collection*, *Create hub*, the
-*Structure* panel's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
+*Structure* section's picker, a hub's *Edit* — each is marked with where it comes from: Hubtask's,
 the installation's, the workspace's, yours. *Save as preset* sits under the panel's picker and saves what is in force, so it is
 unavailable with its reason while the save bar holds changes; its dialog offers *For me*, *For the
 workspace* (only to a reader who may shape the workspace) and *Replace* a preset the reader may
@@ -1053,7 +1117,10 @@ between columns is the card's menu (§11.9).
 **An entry screen**, top to bottom:
 
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
-   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
+   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
+   one height whether or not they carry a mark. Where the collection has columns and the reader may
+   write, the column's chip is the menu that moves the entry to another column, the done column
+   completing it as a drop on the board does.
    A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
    entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
    may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
@@ -1067,24 +1134,39 @@ between columns is the card's menu (§11.9).
    head; which levels are open is the device's (§11.10). Depth comes from the tree, never a type
    name. The bottom level has no subtree; its breadcrumb is the way up.
 3. **The details column**, beside the text from `expanded` up, below it on `compact` and in the
-   `DetailPane`.
-4. **Comments and activity**, as tabs.
+   `DetailPane` as a grid of two. It shows what is set; the fields with nothing set wait behind
+   *More fields (n)* - *Add a field* where nothing is set - and are never folded over a standing
+   proposal. The head beside the title carries only the level, the column and *archived*.
+4. **The description, the parts and the activity** in the main column: the description a box,
+   one quiet line while empty; the parts one card; comments and activity as tabs, writing first,
+   the five newest under it, then ten more at a time before the server's older page.
+
+**One list for everything** (concept round 2, §2; `lib/entries/listview.ts`). Every list draws the
+same row - grip, box, the level's mark below the top, title, fields, the tools over its end - in
+the collection's list, the subtree, Today and search; the simple list is the same row without
+the twist. **The twist is drawn only on an entry with parts** (its counts, or its children once
+read); a row without one keeps the twist's room, so every title of a level starts at one line, and
+a simple list's box stands in the middle of its tick target, clear of the row's edge. What differs is an arrangement the device keeps per collection and a template brings:
+the **fields** that stand beside each title as columns with a head from `expanded` up (amount,
+column, due, people, labels, parts; *Fields* in the toolbar; a sortable head orders by its field),
+the **grouping** of the top level (none, category, column, assignee, due; *Group*), each group
+under one head with its count, the list's one add at its end; and where **done** entries go (where
+they stand, gathered at the end in a folded *Done*, or hidden). Grouped or sorted, a list is not
+its manual order, so nothing is dragged in it; the menu's moves stay.
 
 **A simple list** is how the list layout draws a collection whose levels in force are one
-([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the capture line at its top, then
-the open entries under the collection's categories in their order, the entries ticked in the last 24
-hours under the collection's name for done entries (*Done* without one), and the older ones under
-*Recently*, most often completed first and narrowed by what the capture line holds; while the line
-holds words, *Recently* stands right under it, before the open entries. A line is its box and its
-words, with no twist and no type mark: the list has one level. The capture line
-takes several lines as several entries and reads a leading amount where the collection offers one,
-showing it as a chip before submitting. A row is ticked by a tap anywhere but its controls, a target
-the whole row's width and the spacious density's height, or by a swipe towards the inline end; a still
-hold opens the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
-and the grip drags within its section. The title is not a link there: *Open* is in the row's menu,
-beside the amount and the category. For somebody who may change the shape, the *Done* heading can be
-renamed and *Categories* chosen and ordered where the list is used; the *Structure* panel opens the
-same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
+([UC-WRK-25](../usecases/work/UC-WRK-25-keep-a-simple-list.md)): the open entries under the
+collection's categories in their order, the entries ticked in the last 24 hours under the
+collection's name for done entries (*Done* without one), and the older ones under *Recently*, most
+often completed first. A line is its box and its words, with no twist and no type mark: the list has
+one level. Capture, opened there, takes several lines as several entries and reads a leading amount
+where the collection offers one, showing it as a chip before submitting. **The checkbox ticks; the row opens**, here as in every list: a
+row is ticked by a tap on its start — a target of at least 44 points around the box — or by a swipe
+towards the inline end, and a tap anywhere else but its controls opens the entry; a still hold opens
+the row's menu with *Select* first ([ADR-0088](../adr/ADR-0088-a-long-press-opens-the-entry-menu.md)),
+and the grip drags within its section. The row's menu holds the amount and the category. For somebody who may change the shape, the *Done* heading can be
+renamed and *Categories* chosen and ordered where the list is used; the *Structure* section opens
+the same dialog. The logic is `lib/entries/capture.ts`, `simplelist.ts` and `swipe.ts`, the board's
 swipe included.
 
 **One way to edit.** No edit form. Title, notes and completion are edited in place; every other
@@ -1106,25 +1188,57 @@ the button is absent and the part says where a policy is set, linked for a reade
 from `large` up, a redirect to `/items/:itemId` below. Opening from the list sets the parameter and
 keeps the row `aria-current` and the focus in the list.
 
+**The panel lies over the list.** From `large` up the `DetailPane` opens over the content, below the
+bar and at the end of the line, raised as an overlay, so the list keeps its width; its shadow falls
+on the list and never on the bar, and it scrolls without carrying the page; the bar's line runs on
+across its top. Its head names where the entry is (hub › collection), the view switch and the close;
+the entry's title is its own field below,
+and the details inside it are a table, not a second raised layer. It opens at
+`layout.panel.width`; its start edge is a `ResizeHandle` between `layout.panel.min` and seven tenths
+of the window, and the width is the device's (§11.10). **The person chooses how an entry opens**:
+in the panel beside the list, or whole, as its page — under *On this device* and, where the
+person notices they want it, by one switch of two marks, *Side panel | Full page*, in the panel's
+head and in the entry page's head alike: choosing opens this entry that way and every one after
+it, so the way back is where the way there was. Below
+`large` an entry always opens whole.
+
 ### 11.9 Selection, drag and the pointer
 
 **Selection is a mode, off by default.** No list draws a selection control until somebody selects:
-the page menu's *Select*, the entry menu's *Select* (a long press on a coarse pointer opens it), or
+the toolbar's *Select*, the entry menu's *Select* (a long press on a coarse pointer opens it), or
 `Ctrl`/`Cmd`-click on a row. While on,
 rows carry the checkbox, the page head becomes the count and the bulk verbs, and `Escape` ends it.
 Otherwise a row's leading slot holds the completion checkbox only, and the type is a mark on the
 title's line. List and board share one selection store; switching keeps the selection.
 
-**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`), the
-grip, the labels button, ＋ and *⋯* are faded until the pointer is over the row or the focus is in
-it, and while one of them is open; the chips - people, the date, the labels - always stand. Faded,
-not removed: the row keeps its width, the tools keep their place in the tab order, and a
-right-click, `Shift`+`F10` or a hold opens the menu as before. A touch screen draws them always. A
+**A list row's tools show where the reader is.** Where the pointer hovers (`hover: hover`) and from
+`medium` up, the labels button, ＋ and *⋯* are out of sight until the pointer is over the row or the
+focus is in it, and while one of them is open; the grip stands in the gutter before the row, faded
+the same way; the chips - people, the date, the labels - always stand. Out of sight, not removed:
+the tools take no width, so the chips stand at the row's end, but they keep their place in the
+reading and tab order, and focusing one draws it; a right-click, `Shift`+`F10` or a hold opens the
+menu as before. A touch screen and a narrow window draw them always. A
 mark the type does not carry in the collection (a date on a *List*) is not drawn.
 
+**A card has fixed zones** (concept round 2, §3), each drawn only where it holds something: a
+cover; the labels above the title, two and "+n"; the title, three lines at most; one footer line
+with the date and the counts - parts done of total, comments, attachments, which `items:query`
+answers with `expand: ["counts"]` - at its start and the people at its end.
+
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
-one that does not opens the entry. The card follows the pointer on both axes and the column under it
-is marked. The card menu's *move to column* stays as SC 2.5.7's alternative.
+one that does not opens the entry - anywhere on the card, not only on its title (a touch screen's
+press held still is the card's menu, ADR-0088). The board leaves room round its columns, so the
+dashed outline of the column under a carried card is never cut at the board's edge. The card's slot stays, unseen, and a copy fixed to the window
+follows the pointer on both axes, above every column and tilted a little, so no column can paint
+over it or cut it; the column under it is marked and grows by the gap. Columns are
+`layout.board.column` wide; more columns past an edge are said by a fade at that edge, and the last
+column is a dashed *Create column*. A card's *⋯* stands in its corner, drawn on hover and focus. **The cards it passes slide aside by
+its height**, so where it lands is a gap and no card is ever drawn over another; the column it left
+closes up. The slide is a transform, and the drag measures where the layout put each card, never
+where a transform drew it. Under reduced motion nothing travels or slides. The card menu's *move to
+column* stays as SC 2.5.7's alternative. **Entries without a column have a lane of their own,
+first**: what nobody has put in a column is found before the columns, and a board with entries and
+no columns is that one lane.
 
 **Pointer and touch: one layout, two input rules.** Layout is width alone. What the pointer changes
 is written here and lives in `apps/webapp/src/lib/frame/viewport.svelte.ts` and the drag helper; no
@@ -1151,6 +1265,9 @@ write falls back in silence where storage is refused.
 | The theme — System, Light or Dark | `localStorage` | `lib/theme.ts`, the one setter of `data-theme` ([ADR-0043](../adr/ADR-0043-theme-per-device.md)) |
 | Reduced motion | `localStorage` | `lib/motion.ts`, the one setter of `data-motion` (rule 6) |
 | Whether the navigation is folded to a rail | `localStorage` | `AppFrame` |
+| How wide the pinned navigation is | `localStorage`, `hubtask.nav.width`, kept only inside the tokens' bounds | `AppFrame` |
+| How an entry opens from a list — in the panel, or whole | `localStorage`, `hubtask.entries.open` | `lib/device.svelte.ts` |
+| How wide the entry panel is | `localStorage`, `hubtask.panel.width` | `lib/device.svelte.ts`, `ContainerView` |
 | What was opened last, for *Today* | `localStorage` | `lib/recents.svelte.ts` |
 | Which levels of an entry's subtree are open | `sessionStorage`, per entry | `EntryList` |
 | The layout chosen for a collection — list, board, timeline — per person | `localStorage`, `hubtask.layout.<account>.<collection>`; a layout the collection no longer offers gives way to its default | `lib/entries/layoutmemory.ts`, `ContainerView` |
@@ -1212,3 +1329,22 @@ week ([`i18n-l10n.md`](../architecture/i18n-l10n.md) §2), the celebrations and
   derived from the name. There is no logo upload.
 * The marks live in `apps/webapp/src/lib/signin/ProviderMark.svelte` until a second client draws
   one; then they move into the design system with a story and a row in §4.
+
+---
+
+## 13. The grammar
+
+Every screen follows eight rules, so that the product reads as one system and not as screens built
+one at a time. G1–G4 are measured by a layout walk per screen at 390, 800, 1280 and 1600 pixels in
+both modes; G5–G8 by the walks of each act.
+
+| # | Rule |
+|---|---|
+| G1 | **One edge.** The trail, the title, the toolbar and the content of a page share one inline-start edge. |
+| G2 | **One control size.** Every icon control in one region — the bar, a toolbar, a row — is the same square with the same hover shape; text buttons share one height per density. |
+| G3 | **Text never breaks inside a word.** Names in rows, tabs, chips, menus and the tree are one line cut with an ellipsis and the full name as their title, or wrap between words where two lines are the drawing (the tree, a card's title); buttons never wrap. |
+| G4 | **What is centred.** Empty states, a page's single message and a lone primary action are centred in their region; forms, lists, tables and settings start at the edge; a dialog's actions end at the inline end. |
+| G5 | **Where feedback goes.** A field's error under the field, a summary at the form's top on submit and the focus on the first; a refused act as a toast with the reason; a page-wide problem as one banner under the page head; a done act as a toast with *Undo* where it can be undone; loading as a skeleton in place. |
+| G6 | **One surface per job.** A dialog creates or decides; a popover changes one value; the entry panel shows one entry beside its list; a page holds settings. |
+| G7 | **A menu holds one object.** An entry's menu acts on entries, a collection's on the collection, a hub's on the hub. |
+| G8 | **Every field everywhere.** A value an entry carries is changed with the same editor in every place the entry is shown whole, and seen where it is summarised. |

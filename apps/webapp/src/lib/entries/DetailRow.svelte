@@ -45,6 +45,9 @@
   let isOpen = $state(false);
 </script>
 
+<!-- `data-empty`: a field with nothing set, which the details fold away under *More fields* until
+     somebody asks for it (concept round 2, §4). -->
+<div class="detail" data-empty={value === undefined ? '' : undefined}>
 {#if ask || below}
   <div class="with-ai">
     <div class="line">
@@ -56,6 +59,7 @@
 {:else}
   {@render row()}
 {/if}
+</div>
 
 {#snippet row()}
 {#if isReadOnly}
@@ -91,6 +95,9 @@
 {/snippet}
 
 <style>
+  /* A row of its own in the rows' grid, and gone with nothing in it when the reader may only read. */
+  .detail { display: contents; }
+
   .with-ai { display: flex; flex-direction: column; gap: var(--sp-050); }
   .line { display: flex; align-items: center; gap: var(--sp-050); }
   .line > :global(:first-child) { flex: 1 1 auto; min-width: 0; }

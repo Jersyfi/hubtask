@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
@@ -109,5 +110,59 @@ func TestAMailRefusedBelowKeepsItsCode(t *testing.T) {
 	}
 	if !strings.Contains(response.Body.String(), "mail.attachment_too_large") {
 		t.Errorf("the problem is %s", response.Body)
+	}
+}
+
+// The receiving domain's route (ADR-0092): a wrong key answers the not-found an unwired route
+// does, the right one hands the bytes and the named recipient over and answers 202 with what the
+// message became.
+type addressedDoor struct {
+	recipient string
+	raw       []byte
+}
+
+func (d *addressedDoor) Authorized(header string) bool { return header == "Bearer k" }
+
+func (d *addressedDoor) Deliver(
+	_ context.Context, recipient string, raw []byte,
+) (jumbleservice.MailDeliveryResult, error) {
+	d.recipient, d.raw = recipient, raw
+	return jumbleservice.MailDeliveryResult{
+		Outcome: jumbleservice.MailBecameEntry, ItemID: shared.ID("0192f000-0000-7000-8000-0000000000e2"),
+	}, nil
+}
+
+func TestTheInboundRouteTakesOnlyTheKey(t *testing.T) {
+	door := &addressedDoor{}
+	controller := NewRestController()
+	controller.AddressedMail = door
+	send := func(key string) *httptest.ResponseRecorder {
+		request := httptest.NewRequestWithContext(t.Context(), http.MethodPost,
+			APIBasePath+"/mail/inbound?recipient=a.bbbbbbbbbbbbbbbb%40in.example.test",
+			strings.NewReader("From: a@example.org\r\n\r\nhi\r\n"))
+		request.Header.Set("Content-Type", "message/rfc822")
+		request.Header.Set("Authorization", key)
+		recorder := httptest.NewRecorder()
+		controller.Routes().ServeHTTP(recorder, request)
+		return recorder
+	}
+
+	if response := send("Bearer wrong"); response.Code != http.StatusNotFound || door.raw != nil {
+		t.Fatalf("a wrong key answered %d and reached the door: %t", response.Code, door.raw != nil)
+	}
+	response := send("Bearer k")
+	if response.Code != http.StatusAccepted {
+		t.Fatalf("the key answered %d: %s", response.Code, response.Body)
+	}
+	if door.recipient != "a.bbbbbbbbbbbbbbbb@in.example.test" || !strings.Contains(string(door.raw), "hi") {
+		t.Errorf("handed %q and %q", door.recipient, door.raw)
+	}
+	var answered struct {
+		Outcome string `json:"outcome"`
+		ItemID  string `json:"item_id"`
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &answered); err != nil ||
+		answered.Outcome != "ENTRY" || answered.ItemID != "0192f000-0000-7000-8000-0000000000e2" {
+		t.Errorf("answered %s (%v)", response.Body, err)
 	}
 }

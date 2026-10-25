@@ -39,6 +39,7 @@ import (
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
@@ -360,6 +361,14 @@ func Descriptors() []usecase.Descriptor {
 		jumbleservice.DismissJumbleEntry{}.Descriptor(),
 		jumbleservice.SuggestFromJumbleEntry{}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{}.Descriptor(),
+		jumbleservice.CommentJumbleEntry{}.Descriptor(),
+		voiceservice.ShowVoiceSettings{}.Descriptor(),
+		voiceservice.SaveVoiceSettings{}.Descriptor(),
+		voiceservice.TryVoiceSentence{}.Descriptor(),
+		voiceservice.ShowAlexaModel{}.Descriptor(),
+		jumbleservice.ShowMailAddress{}.Descriptor(),
+		jumbleservice.RotateMailAddress{}.Descriptor(),
+		jumbleservice.SetMailSenderPolicy{}.Descriptor(),
 		adminservice.ReadInstanceSettings{}.Descriptor(),
 		adminservice.WriteInstanceSettings{}.Descriptor(),
 		adminservice.ListOperators{}.Descriptor(),

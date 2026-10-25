@@ -263,7 +263,8 @@ test('German: relative days, the hour word, weekdays and dates as German writes 
   assert.deepEqual(read('Miete 3. Mai', german).due, { date: '2027-05-03' });
   assert.deepEqual(read('Miete in 3 Tagen', german).due, { date: '2026-10-24' });
   // German writes no am or pm: "3 am Montag" is "3 on Monday", never three in the morning.
-  assert.deepEqual(read('Ruf 3 am Montag an', german).kinds, ['date:Montag']);
+  assert.deepEqual(read('Ruf 3 am Montag an', german).kinds, ['date:am Montag']);
+  assert.equal(read('Ruf 3 am Montag an', german).title, 'Ruf 3 an');
   // An English word in a German line is text.
   assert.deepEqual(read('Miete tomorrow', german).kinds, []);
 });
@@ -274,6 +275,21 @@ test('the words and the names come from one language: a catalogue without the wo
   assert.equal(fallen.language, 'en');
   assert.ok(fallen.weekdays.includes('friday'));
   assert.ok(!fallen.weekdays.includes('freitag'));
+});
+
+test('a bare hour after a day is its time where the line ends or a token follows, a count before a word', () => {
+  const german = { words: vocabulary('de') };
+  assert.deepEqual(read('Startseite texten morgen 10 @Kitchen', german).due, { date: '2026-10-22', time: '10:00' });
+  assert.deepEqual(read('Startseite texten morgen 10', german).kinds, ['date:morgen', 'time:10']);
+  assert.equal(read('Kaufe morgen 10 Eier', german).title, 'Kaufe 10 Eier');
+  assert.equal(read('Buy tomorrow 10 eggs').title, 'Buy 10 eggs');
+});
+
+test('the word before a day or a time is the day\'s, not the title\'s', () => {
+  const german = { words: vocabulary('de') };
+  assert.equal(read('Anruf am 30.10.', german).title, 'Anruf');
+  assert.deepEqual(read('Anruf am Freitag um 9 Uhr', german).kinds, ['date:am Freitag', 'time:um 9 Uhr']);
+  assert.equal(read('Meet on Friday at 10:00').title, 'Meet');
 });
 
 test('every word code the source has, the German catalogue has too', () => {

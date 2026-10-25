@@ -92,12 +92,14 @@
     flex-direction: column;
     gap: var(--sp-100);
     /* A column is as wide as a card wants to be and no wider; the board scrolls, not the column. */
-    inline-size: calc(var(--sp-1000) * 4);
+    box-sizing: border-box;
+    inline-size: var(--layout-board-column);
     flex: none;
     padding: var(--sp-150);
     border-radius: var(--r-lg);
     /* Rule 1: recessed, because a column is a child region rather than a standalone element. */
-    background: var(--bg-surface-sunken);
+    background: var(--bg-recess);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--border-subtle);
     min-block-size: 0;
   }
 

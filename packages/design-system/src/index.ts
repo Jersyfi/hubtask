@@ -28,6 +28,7 @@ export { default as CheckboxGroup, type CheckboxOption } from './CheckboxGroup.s
 export { default as CodeField } from './CodeField.svelte';
 export { default as Dialog } from './Dialog.svelte';
 export { default as Icon } from './Icon.svelte';
+export { default as Kbd } from './Kbd.svelte';
 export { default as IconButton } from './IconButton.svelte';
 export { default as Input } from './Input.svelte';
 export { default as Menu } from './Menu.svelte';
@@ -61,7 +62,7 @@ export { default as Tooltip } from './Tooltip.svelte';
 // Wave 2 - the structure a screen is built out of.
 export { default as Breadcrumb } from './Breadcrumb.svelte';
 export { default as Drawer } from './Drawer.svelte';
-export { default as SideNav } from './SideNav.svelte';
+export { default as SideNav, type RowMenu } from './SideNav.svelte';
 export { default as Tabs, type Tab } from './Tabs.svelte';
 export { default as Toolbar } from './Toolbar.svelte';
 export { default as ReadOnlyNotice } from './ReadOnlyNotice.svelte';
@@ -84,6 +85,7 @@ export { default as BottomBar, type Destination } from './BottomBar.svelte';
 export { default as DetailPane } from './DetailPane.svelte';
 export { default as Logo } from './Logo.svelte';
 export { type LogoSize } from './mark.ts';
+export { default as ResizeHandle } from './ResizeHandle.svelte';
 
 // Wave 3 - Hubtask's own. CapabilityGate comes first because every screen after it needs one.
 export { default as CapabilityGate, type GateStatus } from './CapabilityGate.svelte';

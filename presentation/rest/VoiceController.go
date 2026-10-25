@@ -1,0 +1,214 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright (c) 2026 Jérôme Bastian Winkel
+
+package rest
+
+import (
+	"context"
+	"io"
+	"net/http"
+
+	appshared "github.com/Jersyfi/hubtask/core/application/shared"
+	"github.com/Jersyfi/hubtask/core/application/usecase"
+	"github.com/Jersyfi/hubtask/core/shared/correlation"
+	"github.com/Jersyfi/hubtask/presentation/openapi"
+	"github.com/Jersyfi/hubtask/presentation/voice"
+)
+
+// Voice assistants (ADR-0093). The controller maps documents; who may change the settings and
+// what a sentence does are decided inwards of here.
+
+const (
+	showVoiceSettingsUseCase = "ShowVoiceSettings"
+	saveVoiceSettingsUseCase = "SaveVoiceSettings"
+	tryVoiceSentenceUseCase  = "TryVoiceSentence"
+	showAlexaModelUseCase    = "ShowAlexaModel"
+)
+
+// AlexaAnswerer serves Alexa's endpoint. Not a catalogue entry: it proves its caller with Amazon's
+// signature and the linked account's token, not with this API's credentials.
+type AlexaAnswerer interface {
+	Handle(ctx context.Context, header http.Header, body []byte) (voice.Response, error)
+}
+
+// ShowVoiceSettings answers GET /voice/settings. Written out rather than through the identity
+// helper, for ListServiceAccounts' reason: with no parameters, the helper's closure gives the
+// linter nothing to trace the request's context through.
+func (c *RestController) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), showVoiceSettingsUseCase, actorOf(r), usecase.Input{})
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, voiceSettingsResponse(out))
+}
+
+// SaveVoiceSettings answers PUT /voice/settings.
+func (c *RestController) SaveVoiceSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveVoiceSettingsParams) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		var body openapi.VoiceSettings
+		if err := decodeJSON(r, &body); err != nil {
+			return nil, err
+		}
+		aliases := make([]any, 0, len(body.Aliases))
+		for _, alias := range body.Aliases {
+			row := map[string]any{"phrase": alias.Phrase, "collection_id": alias.CollectionId.String()}
+			if alias.LabelId != nil {
+				row["label_id"] = alias.LabelId.String()
+			}
+			aliases = append(aliases, row)
+		}
+		input := usecase.Input{"enabled": body.Enabled, "aliases": aliases}
+		if body.DefaultCollectionId != nil {
+			input["default_collection_id"] = body.DefaultCollectionId.String()
+		}
+		if body.SkillId != nil {
+			input["skill_id"] = *body.SkillId
+		}
+		return c.UseCases.Invoke(r.Context(), saveVoiceSettingsUseCase, actor, input)
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, voiceSettingsResponse(out))
+	})
+}
+
+// TryVoiceSentence answers POST /voice:try.
+func (c *RestController) TryVoiceSentence(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.VoiceTry
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	input := usecase.Input{"sentence": body.Sentence}
+	if body.Locale != nil {
+		input["locale"] = *body.Locale
+	}
+	out, err := c.UseCases.Invoke(r.Context(), tryVoiceSentenceUseCase, actorOf(r), input)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, interpretationResponse(out))
+}
+
+// ShowAlexaModel answers GET /voice/alexa/model.
+func (c *RestController) ShowAlexaModel(w http.ResponseWriter, r *http.Request, params openapi.ShowAlexaModelParams) {
+	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
+		input := usecase.Input{}
+		if params.Locale != nil {
+			input["locale"] = string(*params.Locale)
+		}
+		return c.UseCases.Invoke(r.Context(), showAlexaModelUseCase, actor, input)
+	}, func(out usecase.Output) {
+		writeJSON(w, r, http.StatusOK, out["model"])
+	})
+}
+
+// AnswerAlexa answers POST /voice/alexa.
+//
+// A request that is not Alexa's, or not for this installation, answers the pending not-found an
+// unwired route answers: a forger learns nothing about which check failed.
+func (c *RestController) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.Alexa == nil {
+		c.pending.AnswerAlexa(w, r)
+		return
+	}
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		c.pending.AnswerAlexa(w, r)
+		return
+	}
+	answer, err := c.Alexa.Handle(r.Context(), r.Header, body)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
+
+func voicePlace(place map[string]any) openapi.VoicePlace {
+	collection, _ := place["collection_id"].(string)
+	name, _ := place["name"].(string)
+	value := openapi.VoicePlace{CollectionId: uuidValue(collection), Name: name}
+	if label, _ := place["label_id"].(string); label != "" {
+		id := uuidValue(label)
+		value.LabelId = &id
+	}
+	return value
+}
+
+func voiceSettingsResponse(out usecase.Output) openapi.VoiceSettings {
+	settings := openapi.VoiceSettings{Aliases: []openapi.VoiceAlias{}}
+	settings.Enabled, _ = out["enabled"].(bool)
+	if installation, ok := out["installation_skill"].(bool); ok {
+		settings.InstallationSkill = &installation
+	}
+	if id := out.String("default_collection_id"); id != "" {
+		value := uuidValue(id)
+		settings.DefaultCollectionId = &value
+	}
+	if skill := out.String("skill_id"); skill != "" {
+		settings.SkillId = &skill
+	}
+	if rows, ok := out["aliases"].([]any); ok {
+		for _, raw := range rows {
+			row, _ := raw.(map[string]any)
+			phrase, _ := row["phrase"].(string)
+			collection, _ := row["collection_id"].(string)
+			alias := openapi.VoiceAlias{Phrase: phrase, CollectionId: uuidValue(collection)}
+			if label, _ := row["label_id"].(string); label != "" {
+				id := uuidValue(label)
+				alias.LabelId = &id
+			}
+			settings.Aliases = append(settings.Aliases, alias)
+		}
+	}
+	return settings
+}
+
+// interpretationResponse maps what a sentence would do.
+func interpretationResponse(out usecase.Output) openapi.VoiceInterpretation {
+	answer := openapi.VoiceInterpretation{Ambiguous: []openapi.VoicePlace{}}
+	answer.Found, _ = out["found"].(bool)
+	answer.Default, _ = out["default"].(bool)
+	if things, ok := out["things"].([]any); ok {
+		for _, raw := range things {
+			thing, _ := raw.(map[string]any)
+			title, _ := thing["title"].(string)
+			amount, _ := thing["amount"].(string)
+			entry := struct {
+				Amount *string `json:"amount,omitempty"`
+				Title  string  `json:"title"`
+			}{Title: title}
+			if amount != "" {
+				entry.Amount = &amount
+			}
+			answer.Things = append(answer.Things, entry)
+		}
+	}
+	if answer.Things == nil {
+		answer.Things = answer.Things[:0]
+	}
+	if place, ok := out["place"].(map[string]any); ok {
+		value := voicePlace(place)
+		answer.Place = &value
+	}
+	if places, ok := out["ambiguous"].([]any); ok {
+		for _, raw := range places {
+			if place, ok := raw.(map[string]any); ok {
+				answer.Ambiguous = append(answer.Ambiguous, voicePlace(place))
+			}
+		}
+	}
+	return answer
+}

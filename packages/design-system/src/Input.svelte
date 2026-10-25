@@ -121,13 +121,11 @@
   .shell:has(.reveal) { padding-inline-end: var(--sp-025); }
   .reveal { display: flex; }
 
-  /* The ring goes on the shell, not on the control, so an icon inside it is inside the ring too -
-     and through `:has(:focus-visible)` rather than `:focus-within`, because the latter also rings
-     a field somebody clicked into, which rule 5 is not about. */
+  /* Focused, the field's own border takes the focus colour and doubles inward (design-system.md
+     §10): the edge the person sees is the field's, not a second ring a gap outside it. */
   .shell:has(.input:focus-visible) {
-    outline: var(--bw-ring) solid var(--focus-ring);
-    outline-offset: var(--sp-025);
-    border-color: var(--border-strong);
+    border-color: var(--focus-ring);
+    box-shadow: inset 0 0 0 var(--bw-hairline) var(--focus-ring);
   }
 
   .shell[data-invalid] { border-color: var(--status-danger-border); border-width: var(--bw-thick); background: var(--status-danger-surface); }

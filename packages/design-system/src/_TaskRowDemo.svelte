@@ -7,7 +7,7 @@
   import Stack from './Stack.svelte';
   import TaskRow from './TaskRow.svelte';
 
-  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' | 'beside' | 'table' } = $props();
+  const { mode = 'levels' }: { mode?: 'levels' | 'collapsed' | 'unknown' | 'long' | 'phone' | 'subtree' | 'beside' | 'table' | 'anywhere' } = $props();
 
   // The three levels of domain-model.md §3.4, at the depths they sit at.
   const levels = [
@@ -93,6 +93,7 @@
       isCurrent={openId === row.id}
       completeLabel={`Mark “${row.title}” as done`}
       expandLabel={row.expansion === 'expanded' ? 'Hide what is inside' : 'Show what is inside'}
+      hasTwist={mode !== 'anywhere'}
       onToggleComplete={() =>
         (done = done.includes(row.id) ? done.filter((id) => id !== row.id) : [...done, row.id])}
     >

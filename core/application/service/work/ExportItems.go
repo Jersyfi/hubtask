@@ -112,7 +112,7 @@ func (h ExportItems) Descriptor() usecase.Descriptor {
 	for _, field := range query.Input {
 		// The export walks every page itself and renders rows, never groups.
 		switch field.Name {
-		case "cursor", "size", "count", "group_by", "expand_labels":
+		case "cursor", "size", "count", "group_by", "expand_labels", "expand_counts":
 			continue
 		}
 		input = append(input, field)

@@ -113,17 +113,20 @@
     text-align: start;
   }
 
+  /* The option's size on the row, so `1lh` below is the option's line. */
   .row {
     display: grid;
     grid-template-columns: auto 1fr;
     align-items: start;
     gap: var(--sp-025) var(--sp-100);
+    font-size: var(--fs-100);
   }
 
+  /* Centred on the option's first line, as the checkbox is. */
   .control {
     position: relative;
     display: inline-flex;
-    margin-block-start: var(--sp-025);
+    margin-block-start: calc((1lh - var(--sp-250)) / 2);
   }
 
   .native {

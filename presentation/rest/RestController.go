@@ -88,6 +88,12 @@ type RestController struct {
 	// MailIntake serves the mail door beside it: the same credential, and a body that is
 	// the message itself rather than a shape somebody had to agree on.
 	MailIntake MailDeliverer
+	// AddressedMail serves the receiving domain's inbound route (ADR-0092). Nil leaves it answering
+	// the pending 404.
+	AddressedMail AddressedMailDeliverer
+	// Alexa serves the voice assistant's endpoint (ADR-0093). Nil leaves it answering the pending
+	// 404.
+	Alexa AlexaAnswerer
 
 	// Stream serves `GET /stream`, which is not a catalogue entry either: it is a connection being
 	// held rather than an operation being invoked, so there is nothing for MCP or an automation

@@ -23,7 +23,8 @@
   // **Each step is announced**: the heading changes and the announcer says it, so a reader
   // who is not looking hears where they are.
 
-  import { Button, Dialog, Inline, ProgressBar, Radio, Select, Stack, UploadField } from '@hubtask/design-system/components';
+  import { Button, Inline, ProgressBar, Radio, Select, Stack, UploadField } from '@hubtask/design-system/components';
+  import PanelOrDialog from '../workspace/PanelOrDialog.svelte';
   import { untrack } from 'svelte';
 
   import { announcer } from '../announce.svelte.ts';
@@ -55,6 +56,8 @@
   import RestoreReport from '../restore/RestoreReport.svelte';
 
   interface Props {
+    /** Drawn inside capture's *Import a file* mode rather than as a dialog of its own. */
+    isEmbedded?: boolean;
     isOpen?: boolean;
     /** The hub the imported collections land under, or the hub of the collection. */
     hubId: string;
@@ -64,7 +67,7 @@
     onnavigate: (path: string) => void;
   }
 
-  let { isOpen = $bindable(false), hubId, collection, onnavigate }: Props = $props();
+  let { isEmbedded = false, isOpen = $bindable(false), hubId, collection, onnavigate }: Props = $props();
 
   type Step = 'kind' | 'file' | 'mapping' | 'run';
   const STEPS: readonly Step[] = ['kind', 'file', 'mapping', 'run'];
@@ -253,7 +256,7 @@
   ]);
 </script>
 
-<Dialog bind:isOpen title={t('app.import.title')} dismissLabel={t('app.workspace.cancel')}>
+<PanelOrDialog {isEmbedded} bind:isOpen title={t('app.import.title')} dismissLabel={t('app.workspace.cancel')}>
   <div bind:this={stepBody}>
   <Stack gap="150">
     <h3 class="step" aria-live="polite">{heading}</h3>
@@ -404,7 +407,7 @@
     {/if}
   </Stack>
   </div>
-</Dialog>
+</PanelOrDialog>
 
 <style>
   .step {

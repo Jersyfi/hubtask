@@ -103,8 +103,22 @@ func (c *RestController) GetWorkItem(
 // `?expand=` binds as one empty string rather than as no parameter, and a client that always sends
 // the parameter and leaves it empty is asking for the plain entry.
 func expansionsOf(expand *[]string) (labels bool, err error) {
+	asked, err := expansionsAllowing(expand, false)
+	return asked.labels, err
+}
+
+// expansions is what a read was asked to include besides the entries themselves.
+type expansions struct {
+	labels bool
+	// counts is served by `POST /items:query` alone: what each entry holds, counted for the page.
+	counts bool
+}
+
+// expansionsAllowing reads `expand`, refusing `counts` where the endpoint does not serve it.
+func expansionsAllowing(expand *[]string, mayCount bool) (expansions, error) {
+	var asked expansions
 	if expand == nil {
-		return false, nil
+		return asked, nil
 	}
 
 	for _, relation := range *expand {
@@ -112,15 +126,24 @@ func expansionsOf(expand *[]string) (labels bool, err error) {
 		case "":
 			continue
 		case "labels":
-			labels = true
+			asked.labels = true
+		case "counts":
+			if !mayCount {
+				return expansions{}, expandNotSupported(relation)
+			}
+			asked.counts = true
 		default:
-			return false, shared.ErrValidation.
-				WithDetail("items.expand_not_supported").
-				WithParams(map[string]string{"value": relation}).
-				WithFields(shared.FieldError{Path: "/expand", Code: "items.expand_not_supported"})
+			return expansions{}, expandNotSupported(relation)
 		}
 	}
-	return labels, nil
+	return asked, nil
+}
+
+func expandNotSupported(relation string) error {
+	return shared.ErrValidation.
+		WithDetail("items.expand_not_supported").
+		WithParams(map[string]string{"value": relation}).
+		WithFields(shared.FieldError{Path: "/expand", Code: "items.expand_not_supported"})
 }
 
 // ListWorkItems answers GET /items.

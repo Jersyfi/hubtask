@@ -65,3 +65,10 @@ export const inTableRow: Story = {
     'A row whose completion box is unavailable, beside the same row with it available: the reason is a bubble at the box, so the two rows are the same height.',
   args: { mode: 'table' },
 };
+
+export const anywhere: Story = {
+  name: 'Rows from anywhere, without the twist',
+  about:
+    'Rows gathered from many places - *Today*, a search - open nothing in place, so they leave the twist out (`hasTwist={false}`) and the checkbox starts at the row’s edge. A level keeps the twist’s place on every row, so its titles line up whether or not a row has children; compare with the first story.',
+  args: { mode: 'anywhere' },
+};

@@ -37,8 +37,15 @@
     coverImageUrl?: string | null;
     /** What a screen reader is told the cover is. Empty where it is decoration. */
     coverAlt?: string;
-    /** Labels, a badge, a count. */
+    /**
+     * The card's zones (concept round 2, §3), each drawn only where it holds something, so a card
+     * with a title alone is as calm as a full one: the labels above the title, at most two and
+     * "+n"; then the title, three lines at most; then one footer line - the date and the counts
+     * at its start (`footer`), the people at its end (`people`).
+     */
+    labels?: Snippet;
     footer?: Snippet;
+    people?: Snippet;
     children?: Snippet;
     /** A change on its way to the server: the `pending` role beside a word. Resolved text. */
     pendingLabel?: string;
@@ -55,7 +62,9 @@
     coverColorToken,
     coverImageUrl,
     coverAlt = '',
+    labels,
     footer,
+    people,
     children,
   }: Props = $props();
 
@@ -76,6 +85,7 @@
   {/if}
 
   <div class="body">
+    {#if labels}<div class="labels">{@render labels()}</div>{/if}
     {#if href}
       <a
         class="title"
@@ -94,7 +104,12 @@
       <span class="pending"><span class="pending-mark" aria-hidden="true"><Icon name="cloud-upload" size="sm" /></span>{pendingLabel}</span>
     {/if}
     {#if children}<div class="detail">{@render children()}</div>{/if}
-    {#if footer}<div class="footer">{@render footer()}</div>{/if}
+    {#if footer || people}
+      <div class="footer">
+        {#if footer}{@render footer()}{/if}
+        {#if people}<span class="people">{@render people()}</span>{/if}
+      </div>
+    {/if}
   </div>
 </article>
 
@@ -195,11 +210,19 @@
     min-width: 0;
   }
 
+  /* Three lines at most: a long title is read whole in the panel, and the card stays a card. */
   .title {
+    display: -webkit-box;
+    overflow: hidden;
     color: var(--text-primary);
     font-size: var(--fs-100);
+    font-weight: var(--fw-medium);
+    line-height: var(--lh-snug);
     text-decoration: none;
     overflow-wrap: anywhere;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
 
   a.title:hover { text-decoration: underline; }
@@ -212,5 +235,19 @@
 
   .detail { color: var(--text-secondary); font-size: var(--fs-075); }
 
-  .footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050); }
+  .labels { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
+
+  /* A card without labels has no labels zone: an empty one kept its gap above the title, so a card
+     of a title alone had more room at the top than at the bottom. */
+  .labels:not(:has(*)) { display: none; }
+
+  /* One line: what is dated and counted at the start, the people at the end. */
+  .footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
+  .people { display: inline-flex; margin-inline-start: auto; }
+
+  /* A card with nothing to say beyond its title is the title alone, not a title and a gap: the
+     footer goes when nothing in it is drawn - no date, no count, nobody on it. */
+  .footer:empty,
+  .footer:has(> :global(:only-child:empty)),
+  .footer:not(:has(> :global(:not(.people)))):has(> .people:empty) { display: none; }
 </style>

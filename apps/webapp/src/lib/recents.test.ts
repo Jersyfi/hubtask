@@ -50,3 +50,15 @@ test('one account, one key', () => {
   assert.equal(keyFor('01a0'), 'hubtask.recent.01a0');
   assert.notEqual(keyFor('01a0'), keyFor('01a1'));
 });
+
+test('a row keeps when it was opened and where it lives, and a list from before reads as it was', () => {
+  const kept = parse(JSON.stringify([
+    { kind: 'item', id: 'a', title: 'Tiles', at: 1_700_000_000_000, placeId: 'kitchen' },
+    { kind: 'hub', id: 'b', title: 'House' },
+    { kind: 'item', id: 'c', title: 'Odd', at: 'yesterday' },
+  ]));
+  assert.deepEqual(kept.map((row) => row.id), ['a', 'b'], 'a row with a time that is not a number is not trusted');
+  assert.equal(kept[0]?.at, 1_700_000_000_000);
+  assert.equal(kept[0]?.placeId, 'kitchen');
+  assert.equal(kept[1]?.at, undefined);
+});

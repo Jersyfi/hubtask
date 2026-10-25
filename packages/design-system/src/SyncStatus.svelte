@@ -22,12 +22,17 @@
   import Drawer from './Drawer.svelte';
   import Icon from './Icon.svelte';
   import Popover from './Popover.svelte';
-  import Stack from './Stack.svelte';
   import VisuallyHidden from './VisuallyHidden.svelte';
   import type { IconName } from './icons/index.ts';
 
   /** Where the connection stands. */
   export type Connection = 'connected' | 'reconnecting' | 'offline';
+
+  /**
+   * The surface's heading, the most pressing of six states (design-system.md §11.6): a conflict,
+   * a refusal, offline, reconnecting, sending, all synchronised - each its tone.
+   */
+  export type SyncTone = 'ok' | 'busy' | 'warn' | 'bad';
 
   /** One change waiting to be sent: what it did, and where. Resolved text. */
   export interface QueuedChange {
@@ -56,6 +61,15 @@
     connection: Connection;
     /** The word for the connection state. Resolved. */
     connectionLabel: string;
+    /** The surface's heading - "All synchronised", "1 change not accepted" - resolved. */
+    headline?: string;
+    /** Its tone; the band's colour and mark follow it. */
+    tone?: SyncTone;
+    /** Trying now, where something waits for the connection: the surface's one action. */
+    onRetry?: () => void;
+    retryLabel?: string;
+    /** The way to an entry a refusal is about. */
+    openLabel?: string;
     /** How many changes wait. Zero renders no count. */
     pendingCount?: number;
     /** "3 changes waiting" - resolved, with the count already in it. */
@@ -70,8 +84,7 @@
     listLabel: string;
     /** "Nothing waiting" - the list when it is empty. */
     emptyLabel: string;
-    /** The heading over the refused changes, and the word on each dismiss. */
-    refusedLabel?: string;
+    /** The word on each dismiss. */
     dismissLabel?: string;
     onDismiss?: (id: string) => void;
     /**
@@ -87,6 +100,11 @@
   const {
     connection,
     connectionLabel,
+    headline,
+    tone,
+    onRetry,
+    retryLabel,
+    openLabel,
     pendingCount = 0,
     pendingLabel,
     oldestLabel,
@@ -95,7 +113,6 @@
     refused = [],
     listLabel,
     emptyLabel,
-    refusedLabel,
     dismissLabel,
     onDismiss,
     isSheet = false,
@@ -108,6 +125,14 @@
   };
 
   const hasSomething = $derived(queued.length > 0 || refused.length > 0);
+  /** Without a heading from the caller, the connection is the heading. */
+  const toneShown = $derived<SyncTone>(tone ?? (connection === 'connected' ? 'ok' : 'warn'));
+  const BAND_MARKS: Record<SyncTone, IconName> = { ok: 'circle-check', busy: 'loader-circle', warn: 'cloud-off', bad: 'circle-alert' };
+  /** A conflict is the one refusal with a way through it: its band carries the two-way mark. */
+  const isConflict = $derived(refused.some((change) => change.onResolve !== undefined));
+  const bandMark = $derived<IconName>(
+    isConflict ? 'arrow-right-left' : toneShown === 'warn' && connection === 'reconnecting' ? 'loader-circle' : BAND_MARKS[toneShown],
+  );
   /** What puts the dot on the mark: something to read, whether it was refused or never arrived. */
   const hasRefusal = $derived(refused.length > 0);
   /** Nothing to say: connected, nothing waiting, nothing refused. The quietest the mark gets. */
@@ -117,53 +142,52 @@
 </script>
 
 {#snippet inside()}
-  <!-- A floor on the width, so the surface beside a bar's control is not squeezed into a column
-       of two words by the edge it is anchored against. -->
-  <div class="panel">
-    <Stack gap="150">
-    <p class="detail" data-connection={connection}>
-      <span class="mark"><Icon name={MARKS[connection]} size="sm" /></span>
-      <span class="word">{connectionLabel}</span>
+  <!-- The concept's surface: one band across the whole width naming the most pressing state, the
+       lines under it on one indent, and at most one action (design-system.md §11.6). -->
+  <div class="panel" data-tone={toneShown}>
+    <p class="band" data-tone={toneShown}>
+      <span class="mark" data-spin={bandMark === 'loader-circle' ? '' : undefined}><Icon name={bandMark} size="sm" /></span>
+      <span class="word">{headline ?? connectionLabel}</span>
     </p>
-    {#if syncedLabel}<p class="detail">{syncedLabel}</p>{/if}
-    {#if pendingLabel && pendingCount > 0}<p class="detail">{pendingLabel}</p>{/if}
-    {#if oldestLabel}<p class="detail">{oldestLabel}</p>{/if}
-    {#if !hasSomething}
-      <p class="detail">{emptyLabel}</p>
-    {/if}
-    {#if queued.length > 0}
-      <ul class="list">
-        {#each queued as change (change.id)}
-          <li class="change">
-            <span class="what">{change.what}</span>
-            {#if change.href}<a class="where" href={change.href}>{change.where}</a>{:else}<span class="where">{change.where}</span>{/if}
-          </li>
-        {/each}
-      </ul>
-    {/if}
-    {#if refused.length > 0}
-      <section class="refused" aria-label={refusedLabel}>
-        {#if refusedLabel}<h3 class="heading">{refusedLabel}</h3>{/if}
+    <div class="body">
+      {#if refused.length > 0}
         <ul class="list">
           {#each refused as change (change.id)}
             <li class="change" data-refused>
-              <span class="what">{change.what}</span>
-              {#if change.href}<a class="where" href={change.href}>{change.where}</a>{:else}<span class="where">{change.where}</span>{/if}
-              <span class="reason">{change.reason}</span>
+              <span class="said"><b class="where">{change.where}</b> – {change.reason}</span>
               <span class="actions">
                 {#if change.onResolve && change.resolveLabel}
-                  <Button size="sm" onclick={change.onResolve}>{change.resolveLabel}</Button>
+                  <Button size="sm" tone="primary" onclick={change.onResolve}>{change.resolveLabel}</Button>
+                {:else if change.href && openLabel}
+                  <a class="open" href={change.href}>{openLabel}</a>
                 {/if}
-                {#if onDismiss && dismissLabel}
-                  <Button size="sm" tone="subtle" icon="x" onclick={() => onDismiss(change.id)}>{dismissLabel}</Button>
+                {#if onDismiss && dismissLabel && !change.onResolve}
+                  <Button size="sm" tone="secondary" onclick={() => onDismiss(change.id)}>{dismissLabel}</Button>
                 {/if}
               </span>
             </li>
           {/each}
         </ul>
-      </section>
-    {/if}
-    </Stack>
+      {:else}
+        {#if pendingLabel && pendingCount > 0}<p class="detail">{pendingLabel}</p>{/if}
+        {#if oldestLabel && pendingCount > 0}<p class="detail">{oldestLabel}</p>{/if}
+        {#if syncedLabel && pendingCount === 0}<p class="detail">{syncedLabel}</p>{/if}
+        {#if !hasSomething}<p class="detail">{emptyLabel}</p>{/if}
+        {#if queued.length > 0}
+          <ul class="list queued" aria-label={listLabel}>
+            {#each queued as change (change.id)}
+              <li class="line">
+                <span class="what">{change.what}</span> ·
+                {#if change.href}<a class="where" href={change.href}>{change.where}</a>{:else}<span class="where">{change.where}</span>{/if}
+              </li>
+            {/each}
+          </ul>
+        {/if}
+        {#if onRetry && retryLabel && connection !== 'connected'}
+          <span class="actions"><Button size="sm" tone="secondary" onclick={onRetry}>{retryLabel}</Button></span>
+        {/if}
+      {/if}
+    </div>
   </div>
 {/snippet}
 
@@ -211,7 +235,8 @@
     color: var(--text-secondary);
   }
 
-  .panel { min-inline-size: 24ch; }
+  /* The surface's padding is given back so the band runs edge to edge, as the concept draws it. */
+  .panel { min-inline-size: 30ch; margin: calc(var(--sp-200) * -1); }
 
   /* The one control: a mark, a count where anything waits, and a dot where anything was refused.
      Drawn as `IconButton` draws one - the same square target, the same radius, the same hover -
@@ -253,11 +278,9 @@
      whether there is anything waiting behind the mark. It is not a reason to say nothing in colour. */
   .trigger[data-connection='connected'] { background: var(--status-success-surface); color: var(--status-success-text); }
   .trigger[data-connection='reconnecting'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
-  .trigger[data-connection='offline'] {
-    background: var(--status-warning-accent);
-    color: var(--text-inverse);
-    font-weight: var(--fw-semibold);
-  }
+  /* Offline is a warning, tinted like the others: a filled block in a row of quiet squares read as
+     an alarm, and working offline is a state the product is built for, not a failure. */
+  .trigger[data-connection='offline'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
 
   .count { font-variant-numeric: tabular-nums; }
 
@@ -274,10 +297,36 @@
 
   .mark { display: inline-flex; }
 
-  .detail[data-connection='connected'] { border-radius: var(--r-sm); background: var(--status-success-surface); color: var(--status-success-text); }
-  .detail[data-connection='offline'] { border-radius: var(--r-sm); background: var(--status-danger-surface); color: var(--status-danger-text); }
+  /* The band: the state in its tone across the whole width, its mark before its words. */
+  .band {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    margin: 0;
+    padding: var(--sp-150) var(--sp-200);
+    font-size: var(--fs-100);
+    font-weight: var(--fw-semibold);
+  }
 
-  .detail .word { margin-inline-start: var(--sp-050); }
+  .band[data-tone='ok'] { background: var(--status-success-surface); color: var(--status-success-text); }
+  .band[data-tone='busy'] { background: var(--accent-primary-subtle); color: var(--text-brand); }
+  .band[data-tone='warn'] { background: var(--status-warning-surface); color: var(--status-warning-text); }
+  .band[data-tone='bad'] { background: var(--status-danger-surface); color: var(--status-danger-text); }
+
+  /* The lines under the band, on the band's text edge. */
+  .body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-050);
+    padding: var(--sp-150) var(--sp-200) var(--sp-200) calc(var(--sp-200) + var(--fs-100) + var(--sp-100));
+    color: var(--text-secondary);
+    font-size: var(--fs-075);
+  }
+
+  /* A waiting change is one quiet line: what, then where. */
+  .queued { gap: var(--sp-025); }
+  .line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .line .what { color: var(--text-secondary); }
 
   /* The `pending` role: a continuous indicator with no beginning and no end, so its easing is
      linear and it never arrives (design-system.md §6 rule 6). Transform only; reduced motion
@@ -330,14 +379,26 @@
     flex-wrap: wrap;
   }
 
-  .heading {
-    margin: 0;
+  .said { color: var(--text-secondary); }
+  .said .where { color: var(--text-primary); font-weight: var(--fw-semibold); }
+
+  .actions { margin-block-start: var(--sp-100); }
+
+  .open {
+    display: inline-flex;
+    align-items: center;
+    padding-inline: var(--sp-150);
+    border: var(--bw-hairline) solid var(--border-default);
+    border-radius: var(--r-md);
+    color: var(--text-primary);
     font-size: var(--fs-075);
-    font-weight: var(--fw-medium);
-    color: var(--text-secondary);
+    text-decoration: none;
   }
 
+  .open:hover { background: var(--bg-surface-hover); }
+
   /* Rule 5: the ring on the links the list carries. */
+  .open:focus-visible,
   .where:focus-visible {
     outline: var(--bw-ring) solid var(--focus-ring);
     outline-offset: var(--sp-025);

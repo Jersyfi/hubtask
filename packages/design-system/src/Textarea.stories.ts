@@ -35,3 +35,10 @@ export const inTableRow: Story = {
   about: 'The same in a table row: the row keeps its height whether the control is available or not.',
   args: { mode: 'table' },
 };
+
+export const marked: Story = {
+  name: 'Marked tokens, label read not drawn',
+  about:
+    'The capture line: what the field read stands marked behind the words as they are typed, and the label is read but not drawn because the dialog around it says what the field is for. Typing on keeps the marks under their words.',
+  args: { mode: 'marked' },
+};

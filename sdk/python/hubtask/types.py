@@ -1979,7 +1979,80 @@ class JumbleEntry(TypedDict, total=False):
     target_item_id: str | None
     received_at: Required[str]
     settled_at: str | None
+    meant_for_kind: Literal["COLLECTION", "ITEM"]
+    meant_for_id: str
     arrival_job_id: str | None
+
+class JumbleEntryComment(TypedDict, total=False):
+    item_id: str
+
+class MailAddressTarget(TypedDict, total=False):
+    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
+    target_id: str
+
+class MailSenderPolicyChange(TypedDict, total=False):
+    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
+    target_id: str
+    sender_policy: Required[Literal["MEMBERS", "ANYONE"]]
+
+class MailAddress(TypedDict, total=False):
+    """A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well."""
+    available: Required[bool]
+    address: str
+    target_kind: Literal["JUMBLE", "COLLECTION", "ITEM"]
+    target_id: str
+    sender_policy: Literal["MEMBERS", "ANYONE"]
+    opened_by: str
+    created_at: str
+
+class MailDelivered(TypedDict, total=False):
+    outcome: Required[Literal["JUMBLE_ENTRY", "ENTRY", "COMMENT", "DISCARDED"]]
+    entry_id: str
+    item_id: str
+    comment_id: str
+
+class OauthTokenForm(TypedDict, total=False):
+    grant_type: Required[str]
+    code: str
+    redirect_uri: str
+    code_verifier: str
+    client_id: str
+    client_secret: str
+    refresh_token: str
+
+class OauthStandardTokens(TypedDict, total=False):
+    access_token: Required[str]
+    token_type: Required[str]
+    expires_in: Required[int]
+    refresh_token: Required[str]
+
+class VoiceSettings(TypedDict, total=False):
+    enabled: Required[bool]
+    default_collection_id: str
+    skill_id: str
+    installation_skill: bool
+    aliases: Required[list["VoiceAlias"]]
+
+class VoiceAlias(TypedDict, total=False):
+    phrase: Required[str]
+    collection_id: Required[str]
+    label_id: str
+
+class VoiceTry(TypedDict, total=False):
+    sentence: Required[str]
+    locale: str
+
+class VoicePlace(TypedDict, total=False):
+    collection_id: Required[str]
+    label_id: str
+    name: Required[str]
+
+class VoiceInterpretation(TypedDict, total=False):
+    things: Required[list[dict[str, Any]]]
+    found: Required[bool]
+    default: Required[bool]
+    place: "VoicePlace"
+    ambiguous: Required[list["VoicePlace"]]
 
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""
@@ -2225,6 +2298,7 @@ class WorkItem(TypedDict, total=False):
     amount: str | None
     notes: str | None
     completion: Required["Completion"]
+    counts: dict[str, Any]
     completion_count: int
     bucket_id: str | None
     order_key: str

@@ -1447,7 +1447,10 @@ CREATE TABLE jumble_entry (
   processed_at timestamptz,
   -- The account that submitted the entry, where an account did; empty for a mail or a webhook
   -- (migration 0196). What keeps a kept-out person's own capture out of AI (data-protection.md §4.1).
-  created_by   uuid
+  created_by   uuid,
+  -- The place a mail was addressed to where it waits here instead (migration 0201, ADR-0092).
+  meant_for_kind text,
+  meant_for_id   uuid
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
@@ -1459,6 +1462,60 @@ CREATE TABLE jumble_intake (
   rotated_at timestamptz NOT NULL
 );
 CREATE UNIQUE INDEX jumble_intake_token_uq ON jumble_intake (token_hash);
+
+-- Mail addresses for every place (migration 0201, ADR-0092): the code is the key, unique across
+-- the installation; at most one live address per place.
+CREATE TABLE mail_address (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  target_kind   text NOT NULL CHECK (target_kind IN ('JUMBLE','COLLECTION','ITEM')),
+  target_id     uuid,
+  code          text NOT NULL,
+  sender_policy text NOT NULL DEFAULT 'MEMBERS' CHECK (sender_policy IN ('MEMBERS','ANYONE')),
+  opened_by     uuid,
+  created_by    uuid,
+  created_at    timestamptz NOT NULL,
+  revoked_at    timestamptz,
+  window_start  timestamptz,
+  window_count  integer NOT NULL DEFAULT 0,
+  CHECK ((target_kind = 'JUMBLE') = (target_id IS NULL)),
+  UNIQUE (tenant_id, id)
+);
+CREATE UNIQUE INDEX mail_address_code_uq ON mail_address (code);
+CREATE UNIQUE INDEX mail_address_live_uq ON mail_address
+  (tenant_id, target_kind, coalesce(target_id, '00000000-0000-0000-0000-000000000000'::uuid))
+  WHERE revoked_at IS NULL;
+
+-- The inbound route's one question before it has a tenant (multi-tenancy.md §2.1).
+CREATE OR REPLACE FUNCTION resolve_mail_address(address_code text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT tenant_id FROM mail_address
+  WHERE code = lower(address_code) AND revoked_at IS NULL
+  LIMIT 1
+$$;
+
+-- Voice assistants (migration 0202, ADR-0093): a workspace's settings and the names people may
+-- say for a place.
+CREATE TABLE voice_setting (
+  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  enabled               boolean NOT NULL DEFAULT false,
+  default_collection_id uuid,
+  skill_id              text,
+  updated_at            timestamptz NOT NULL,
+  updated_by            uuid
+);
+
+CREATE TABLE voice_alias (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  phrase        text NOT NULL,
+  folded        text NOT NULL,
+  collection_id uuid NOT NULL,
+  label_id      uuid,
+  created_at    timestamptz NOT NULL,
+  UNIQUE (tenant_id, id)
+);
+CREATE UNIQUE INDEX voice_alias_phrase_uq ON voice_alias (tenant_id, folded);
 
 CREATE TABLE auto_assign_policy (
   id          uuid PRIMARY KEY,
@@ -2681,7 +2738,7 @@ BEGIN
     'activity_entry',
     'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','rule_occurrence','jumble_intake',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_address','voice_setting','voice_alias',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',

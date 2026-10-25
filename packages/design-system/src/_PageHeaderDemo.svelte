@@ -3,6 +3,7 @@
 <script lang="ts">
   import Banner from './Banner.svelte';
   import Icon from './Icon.svelte';
+  import IconButton from './IconButton.svelte';
   import PageHeader from './PageHeader.svelte';
   import ProgressBar from './ProgressBar.svelte';
   import Stack from './Stack.svelte';
@@ -87,6 +88,10 @@
             The hub this collection is in was archived, so nothing here can change until it is restored.
           </Banner>
         {/if}
+      {/snippet}
+      {#snippet aside()}
+        <!-- About the place, not a verb: the way to its settings stays when the head folds. -->
+        <IconButton icon="settings" size="sm" label={isLong ? 'Einstellungen' : 'Settings'} onclick={() => (chosen = 'settings')} />
       {/snippet}
       {#snippet views()}
         <ViewSwitcher label="How these entries are shown" views={layouts} bind:selected={layout} />

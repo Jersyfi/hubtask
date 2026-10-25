@@ -12,10 +12,12 @@ import (
 	"mime/multipart"
 	"mime/quotedprintable"
 	"net/mail"
+	"net/textproto"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	port "github.com/Jersyfi/hubtask/core/port/mail"
 )
 
 // The mail parser: arbitrary bytes from the internet become the four things a jumble entry
@@ -97,6 +99,13 @@ type Mail struct {
 	// an identity: a From header authenticates nothing (security.md §4), and every consumer of
 	// this field treats it as text somebody typed.
 	Sender string
+	// SenderName is the display name the From header carried, decoded. As untrusted as the address.
+	SenderName string
+	// Recipients are the addresses the message names as where it went: the envelope headers an
+	// inbound service writes first (X-Original-To, Delivered-To), then To and Cc. Lowercased.
+	Recipients []string
+	// Signals are what the headers say about the message rather than in it.
+	Signals MailSignals
 	// Subject is the decoded subject line, RFC 2047 words included.
 	Subject string
 	// Text is what a person reads: the plain part where there is one, and the HTML part's source
@@ -108,6 +117,20 @@ type Mail struct {
 	// alongside" means, and keeping it out of Text is what stops a second copy of the same message
 	// from being the message.
 	Attachments []MailAttachment
+}
+
+// MailSignals are the headers that decide where a message may go (ADR-0092 decisions 5 and 7).
+type MailSignals struct {
+	// Automatic is a message a machine sent on its own: `Auto-Submitted` other than `no` (RFC 3834),
+	// or Hubtask's own notification header. Such a message is discarded - a loop ends at its first
+	// turn.
+	Automatic bool
+	// Spam is the inbound service's verdict where it wrote one: `X-Spam-Flag: YES`, an
+	// `X-Spam-Status` beginning with yes, or Mailgun's `X-Mailgun-Sflag: Yes`.
+	Spam bool
+	// AuthFailed is SPF or DMARC reported as failed in `Authentication-Results` or `Received-SPF`.
+	// The sender is then nobody the workspace knows.
+	AuthFailed bool
 }
 
 // MailAttachment is one file out of a message.
@@ -150,8 +173,11 @@ func ParseMail(raw []byte, limits MailLimits) (Mail, error) {
 	}
 
 	parsed := Mail{
-		Sender:  senderOf(message.Header),
-		Subject: decodeHeader(message.Header.Get("Subject")),
+		Sender:     senderOf(message.Header),
+		SenderName: senderNameOf(message.Header),
+		Recipients: recipientsOf(message.Header),
+		Signals:    signalsOf(message.Header),
+		Subject:    decodeHeader(message.Header.Get("Subject")),
 	}
 
 	walk := &mailWalk{limits: limits}
@@ -386,6 +412,71 @@ func senderOf(header mail.Header) string {
 		return address.Address
 	}
 	return strings.TrimSpace(decodeHeader(raw))
+}
+
+// senderNameOf is the From header's display name, or nothing.
+func senderNameOf(header mail.Header) string {
+	address, err := mail.ParseAddress(header.Get("From"))
+	if err != nil {
+		return ""
+	}
+	return sanitiseText(address.Name)
+}
+
+// recipientsOf lists where the message says it went, envelope headers first.
+func recipientsOf(header mail.Header) []string {
+	var found []string
+	seen := map[string]bool{}
+	add := func(address string) {
+		address = strings.ToLower(strings.TrimSpace(address))
+		if address == "" || seen[address] {
+			return
+		}
+		seen[address] = true
+		found = append(found, address)
+	}
+	for _, name := range []string{"X-Original-To", "Delivered-To", "Envelope-To"} {
+		for _, value := range header[textproto.CanonicalMIMEHeaderKey(name)] {
+			if parsed, err := mail.ParseAddress(value); err == nil {
+				add(parsed.Address)
+			} else {
+				add(value)
+			}
+		}
+	}
+	for _, name := range []string{"To", "Cc"} {
+		list, err := header.AddressList(name)
+		if err != nil {
+			continue
+		}
+		for _, address := range list {
+			add(address.Address)
+		}
+	}
+	return found
+}
+
+// signalsOf reads the headers that decide where a message may go.
+func signalsOf(header mail.Header) MailSignals {
+	auto := strings.ToLower(strings.TrimSpace(header.Get("Auto-Submitted")))
+	signals := MailSignals{
+		Automatic: (auto != "" && auto != "no") || header.Get(port.NotificationHeader) != "",
+	}
+	if strings.EqualFold(strings.TrimSpace(header.Get("X-Spam-Flag")), "yes") ||
+		strings.HasPrefix(strings.ToLower(strings.TrimSpace(header.Get("X-Spam-Status"))), "yes") ||
+		strings.EqualFold(strings.TrimSpace(header.Get("X-Mailgun-Sflag")), "yes") {
+		signals.Spam = true
+	}
+	for _, value := range header[textproto.CanonicalMIMEHeaderKey("Authentication-Results")] {
+		lower := strings.ToLower(value)
+		if strings.Contains(lower, "spf=fail") || strings.Contains(lower, "dmarc=fail") {
+			signals.AuthFailed = true
+		}
+	}
+	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(header.Get("Received-SPF"))), "fail") {
+		signals.AuthFailed = true
+	}
+	return signals
 }
 
 // decodeHeader turns RFC 2047 encoded words into text, and leaves what it cannot decode alone.

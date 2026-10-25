@@ -575,9 +575,10 @@
     {/if}
 
     <div class="aside">
+      <!-- Outlined, so its box starts on the page's edge with the field above it (G1). -->
       <Button
         size="sm"
-        tone="subtle"
+        tone="secondary"
         icon={advanced ? 'sliders-horizontal' : 'pencil'}
         onclick={() => (advanced = !advanced)}
       >
@@ -690,6 +691,7 @@
           {isCompleted}
           completeLabel={t(isCompleted ? 'app.entries.reopen' : 'app.entries.complete', { title: hit.title })}
           completeDisabledReason={completeReason(hit)}
+          hasTwist={false}
           onToggleComplete={() => {
             if (completeReason(hit) === undefined) void toggleComplete(hit.id, hit.title, isCompleted);
           }}
@@ -724,7 +726,8 @@
 </Stack>
 
 <style>
-  .term { flex: 1 1 24ch; min-width: 0; max-width: 48ch; }
+  /* As wide as a sentence of search words, the width the results below are read at. */
+  .term { flex: 1 1 24ch; min-width: 0; max-width: 72ch; }
 
   .aside { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 

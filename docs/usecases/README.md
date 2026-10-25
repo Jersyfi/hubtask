@@ -236,6 +236,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
+| [UC-WRK-35](./work/UC-WRK-35-put-things-on-a-list-by-voice.md) | Put things on a list by voice | work |
 | [UC-JUM-01](./jumble/UC-JUM-01-jot-something-down-before-deciding-what-it-is.md) | Jot something down before deciding what it is | jumble |
 | [UC-JUM-02](./jumble/UC-JUM-02-give-the-jumble-an-address-and-replace-it.md) | Give the jumble an address, and replace it when it leaks | jumble |
 | [UC-JUM-03](./jumble/UC-JUM-03-forward-mail-into-the-jumble.md) | Forward mail into the jumble | jumble |
@@ -244,6 +245,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-JUM-06](./jumble/UC-JUM-06-dismiss-what-does-not-need-doing.md) | Dismiss what does not need doing | jumble |
 | [UC-JUM-07](./jumble/UC-JUM-07-ask-ai-what-an-entry-should-become.md) | Ask AI what a jumble entry should become | jumble |
 | [UC-JUM-08](./jumble/UC-JUM-08-sort-arrivals-automatically-with-a-rule.md) | Sort arrivals automatically with a rule | jumble |
+| [UC-JUM-09](./jumble/UC-JUM-09-mail-straight-into-a-collection-or-an-entry.md) | Mail straight into a collection or an entry | jumble |
+| [UC-JUM-10](./jumble/UC-JUM-10-answer-a-notification-by-mail.md) | Answer a notification by mail | jumble |
 | [UC-AUT-01](./automation/UC-AUT-01-write-a-rule-and-switch-it-on.md) | Write a rule and switch it on | automation |
 | [UC-AUT-02](./automation/UC-AUT-02-try-a-rule-before-it-acts.md) | Try a rule before it acts | automation |
 | [UC-AUT-03](./automation/UC-AUT-03-run-a-rule-on-demand.md) | Run a rule when I press a button | automation |

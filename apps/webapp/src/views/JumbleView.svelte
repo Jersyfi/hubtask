@@ -39,6 +39,7 @@
     Select,
     Spinner,
     Stack,
+    ViewSwitcher,
   } from '@hubtask/design-system/components';
 
   import { manifest } from '../lib/data/capabilities.svelte.ts';
@@ -49,6 +50,7 @@
   import { askEach } from '../lib/data/askEach.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
+  import MailAddressField from '../lib/mail/MailAddressField.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -248,6 +250,24 @@
     });
   }
 
+  /** A collection's name from the destinations the reader may write into. */
+  function placeName(id: string | null | undefined): string {
+    const found = (jumble.destinations ?? []).find((collection) => collection.id === id);
+    return found ? found.name : t('app.jumble.meant_for_item');
+  }
+
+  /** Sorts a mail into the place it was meant for: an entry there, or a comment on the entry. */
+  async function sortIn(entry: JumbleEntry): Promise<void> {
+    if (!entry.meant_for_id) return;
+    await attempt(async () => {
+      const settled =
+        entry.meant_for_kind === 'ITEM'
+          ? await jumble.comment(entry.id, entry.meant_for_id ?? undefined)
+          : await jumble.convert(entry.id, { collectionId: entry.meant_for_id ?? '', title: subjectOf(entry) });
+      if (settled.target_item_id) onnavigate(`/items/${settled.target_item_id}`);
+    }, t('app.jumble.sorted_announced'));
+  }
+
   // The bar carries the page's title on a phone (ADR-0061 decision 1's table); the head then
   // reads its heading rather than drawing it, so the screen keeps one heading.
   $effect(() => page.entitle(t('app.jumble.title')));
@@ -267,6 +287,8 @@
         onmenu={(offered) => page.offer(offered)}
       />
       <p class="quiet">{t('app.jumble.intro')}</p>
+      <!-- The jumble's own address, where people look for it (ADR-0092 M1). -->
+      <MailAddressField target={{ kind: 'JUMBLE' }} lead={t('app.mail.jumble_lead')} mayShape={mayRotate} />
     </div>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
@@ -277,7 +299,11 @@
       <p class="quiet" data-arrival-budget>{renderRefusal(suggestions.arrivalBudgetSpent, messages)}</p>
     {/if}
 
-    <Select label={t('app.jumble.showing')} bind:value={filter} options={filters} />
+    <!-- Which arrivals: three states, one chosen - the segments the collection's layouts use, not a
+         field the width of the page. -->
+    <div class="states">
+      <ViewSwitcher label={t('app.jumble.showing')} views={filters.map((each) => ({ id: each.value, label: each.label }))} selected={filter} onselect={(id) => (filter = id as typeof filter)} />
+    </div>
 
     {#if selectable && selection.isOn}
       <div class="selection" role="toolbar" aria-label={t('app.jumble.actions')} data-jumble-selection>
@@ -331,6 +357,22 @@
                   onchange={() => selection.pick(undecided, entry.id)}
                 />
               {:else if mayWrite && entry.status === 'NEW'}
+                {#if entry.meant_for_id && converting !== entry.id}
+                  <!-- Meant for a place, so sorting it in is one step (ADR-0092 decision 5). -->
+                  <Button
+                    tone="primary"
+                    size="sm"
+                    icon="arrow-right"
+                    isBusy={isWorking}
+                    busyLabel={t('app.jumble.converting')}
+                    data-sort-in
+                    onclick={() => void sortIn(entry)}
+                  >
+                    {entry.meant_for_kind === 'ITEM'
+                      ? t('app.jumble.sort_as_comment')
+                      : t('app.jumble.sort_into', { place: placeName(entry.meant_for_id) })}
+                  </Button>
+                {/if}
                 {#if converting === entry.id}
                   <Stack gap="150">
                     <Select
@@ -360,8 +402,12 @@
                     </div>
                   </Stack>
                 {:else}
+                  <!-- One arrival among many: its acts at the size a row's are, none of them the
+                       page's one primary. -->
                   <Button
-                    tone="primary"
+                    tone="secondary"
+                    size="sm"
+                    icon="arrow-right"
                     onclick={() => {
                       converting = entry.id;
                       title = subjectOf(entry);
@@ -371,6 +417,7 @@
                   </Button>
                   <Button
                     tone="subtle"
+                    size="sm"
                     isBusy={isWorking}
                     busyLabel={t('app.jumble.working')}
                     onclick={() => void attempt(() => jumble.dismiss(entry.id), t('app.jumble.dismissed_announced'))}
@@ -383,6 +430,7 @@
                   {#if hasAi && (entry.raw_subject?.trim() || entry.raw_body?.trim())}
                     <Button
                       tone="secondary"
+                      size="sm"
                       icon="sparkles"
                       data-ai
                       disabledReason={isPending(suggestions.askingOf(entry.id)) ? t('app.suggestions.pending') : undefined}
@@ -416,6 +464,13 @@
       </Stack>
     {/if}
 
+
+    {#if mayRotate}
+      <Stack gap="150" data-mail-section>
+        <h2 class="section">{t('app.mail.section')}</h2>
+        <MailAddressField target={{ kind: 'JUMBLE' }} shape="panel" mayShape />
+      </Stack>
+    {/if}
 
     {#if mayRotate}
       <Stack gap="150">
@@ -465,6 +520,9 @@
 </div>
 
 <style>
+  /* As wide as its segments, at the page's edge - not the width of the page. */
+  .states { display: flex; }
+
   .section { margin: 0; font-family: var(--font-display); font-size: var(--fs-300); font-weight: var(--fw-semibold); }
 
   .quiet { margin: 0; color: var(--text-secondary); }
