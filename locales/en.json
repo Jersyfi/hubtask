@@ -6418,7 +6418,7 @@
   "app.voice.step_endpoint_hint": "Under Endpoint choose HTTPS, enter this address and \"My development endpoint has a certificate from a trusted certificate authority\".",
   "app.voice.endpoint": "Endpoint",
   "app.voice.step_linking": "Set up account linking",
-  "app.voice.step_linking_hint": "Under Account Linking switch it on and choose \"Auth Code Grant\". Paste the vendor ID from the Alexa Redirect URLs there (the last part of each address) and make the linking here; then copy each value into the console.",
+  "app.voice.step_linking_hint": "Under Account Linking switch it on, choose \"Auth Code Grant\" and tick PKCE (SHA-256) - without it Alexa sends no PKCE proof and signing in ends without a link. Paste the vendor ID from the Alexa Redirect URLs there (the last part of each address) and make the linking here; then copy each value into the console.",
   "app.voice.vendor_id": "Vendor ID",
   "app.voice.vendor_id_hint": "The end of an Alexa Redirect URL: …/api/skill/link/<vendor ID>",
   "app.voice.vendor_first": "Enter the vendor ID first.",
@@ -6441,5 +6441,11 @@
   "app.voice.step_skill_id_hint": "At the top of the skill in the console: Copy Skill ID. Hubtask answers only this skill.",
   "app.voice.skill_id": "Skill ID",
   "app.voice.step_test": "Link and try it",
-  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with your Hubtask account. Then say \"Alexa, open Hubtask\"."
+  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with your Hubtask account. Then say \"Alexa, open Hubtask\".",
+  "app.voice.pkce": "PKCE",
+  "app.voice.scope_hint": "Enter each scope on its own with \"+ Add scope\".",
+  "app.consent.incomplete": "An app is asking here, but its request lacks something Hubtask requires. It is set in the app that offers the link:",
+  "app.consent.missing_redirect_uri": "The return address (redirect_uri).",
+  "app.consent.missing_code_challenge": "The PKCE proof (code_challenge). For Alexa: switch PKCE with SHA-256 on under Account Linking in the developer console.",
+  "app.consent.missing_scope": "The permissions (scope). For Alexa: enter the scopes from Administration → Voice assistants under Account Linking."
 }

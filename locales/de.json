@@ -6415,7 +6415,7 @@
   "app.voice.step_endpoint_hint": "Unter Endpoint HTTPS wählen, diese Adresse eintragen und „My development endpoint has a certificate from a trusted certificate authority“.",
   "app.voice.endpoint": "Endpunkt",
   "app.voice.step_linking": "Kontoverknüpfung einrichten",
-  "app.voice.step_linking_hint": "Unter Account Linking einschalten und „Auth Code Grant“ wählen. Die Vendor-ID aus den Alexa Redirect URLs dort hier eintragen (das letzte Stück jeder Adresse) und die Verknüpfung anlegen; dann jeden Wert in die Konsole kopieren.",
+  "app.voice.step_linking_hint": "Unter Account Linking einschalten, „Auth Code Grant“ wählen und den Haken bei PKCE setzen (SHA-256) – ohne ihn schickt Alexa keinen PKCE-Nachweis und die Anmeldung endet ohne Verknüpfung. Die Vendor-ID aus den Alexa Redirect URLs dort hier eintragen (das letzte Stück jeder Adresse) und die Verknüpfung anlegen; dann jeden Wert in die Konsole kopieren.",
   "app.voice.vendor_id": "Vendor-ID",
   "app.voice.vendor_id_hint": "Das Ende einer Alexa Redirect URL: …/api/skill/link/<Vendor-ID>",
   "app.voice.vendor_first": "Zuerst die Vendor-ID eintragen.",
@@ -6438,5 +6438,11 @@
   "app.voice.step_skill_id_hint": "Oben am Skill in der Konsole: Copy Skill ID. Hubtask antwortet nur diesem Skill.",
   "app.voice.skill_id": "Skill-ID",
   "app.voice.step_test": "Verknüpfen und ausprobieren",
-  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann „Alexa, öffne Hubtask“ sagen."
+  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann „Alexa, öffne Hubtask“ sagen.",
+  "app.voice.pkce": "PKCE",
+  "app.voice.scope_hint": "Jeden Scope einzeln mit „+ Add scope“ eintragen.",
+  "app.consent.incomplete": "Eine App fragt hier an, aber ihrer Anfrage fehlt etwas, das Hubtask verlangt. Das wird in der App eingestellt, die die Verknüpfung anbietet:",
+  "app.consent.missing_redirect_uri": "Die Rücksprungadresse (redirect_uri).",
+  "app.consent.missing_code_challenge": "Der PKCE-Nachweis (code_challenge). Bei Alexa: in der Developer Console unter Account Linking PKCE mit SHA-256 einschalten.",
+  "app.consent.missing_scope": "Die Berechtigungen (scope). Bei Alexa: unter Account Linking die Scopes aus Administration → Sprachassistenten eintragen."
 }

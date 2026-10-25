@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { completionUrl, declineUrl, readRequest } from './oauth.ts';
+import { completionUrl, declineUrl, missingParts, readRequest } from './oauth.ts';
 
 const full =
   '?client_id=c1&redirect_uri=https%3A%2F%2Fapp.example%2Fcb&scope=items%3Aread%20items%3Awrite' +
@@ -81,4 +81,16 @@ test('anything that is not a navigation is refused', () => {
     assert.equal(completionUrl(hostile, 'c', undefined), undefined);
     assert.equal(declineUrl(hostile, undefined), undefined);
   }
+});
+
+test('a request without PKCE or scope says what it lacks, the way Alexa sends one with PKCE off', () => {
+  const alexa = '?client_id=c-1&response_type=code&state=s&redirect_uri=https%3A%2F%2Fpitangui.amazon.com%2Fapi%2Fskill%2Flink%2FM1';
+  assert.equal(readRequest(alexa), undefined);
+  assert.deepEqual(missingParts(alexa), ['code_challenge', 'scope']);
+  assert.deepEqual(missingParts(`${alexa}&scope=items%3Aread&code_challenge=x&code_challenge_method=S256`), []);
+});
+
+test('no app asking is not an incomplete request', () => {
+  assert.deepEqual(missingParts(''), []);
+  assert.deepEqual(missingParts('?state=s'), []);
 });
