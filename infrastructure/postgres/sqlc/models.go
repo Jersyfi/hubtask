@@ -829,6 +829,8 @@ type Container struct {
 	DeletedByType *string
 	DeletedByID   pgtype.UUID
 	Private       bool
+	Handle        *string
+	ItemCounter   int64
 }
 
 type ContainerMilestone struct {
@@ -1794,4 +1796,5 @@ type WorkItem struct {
 	CompletionCount       int32
 	FlowStartedAt         pgtype.Timestamptz
 	FlowFinishedAt        pgtype.Timestamptz
+	Number                *int64
 }

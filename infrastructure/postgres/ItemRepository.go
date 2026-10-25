@@ -1397,6 +1397,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		CreatedAt:          timeFrom(row.CreatedAt),
 		UpdatedAt:          timeFrom(row.UpdatedAt),
 		Version:            int(row.Version),
+		Number:             int64Of(row.Number),
 	}, nil
 }
 

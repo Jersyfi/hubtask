@@ -41,7 +41,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id

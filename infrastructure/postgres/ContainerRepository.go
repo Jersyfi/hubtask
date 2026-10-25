@@ -514,6 +514,7 @@ func containerFrom(row sqlc.FindContainerRow) (work.Container, error) {
 		UpdatedAt:        timeFrom(row.UpdatedAt),
 		Version:          int(row.Version),
 		Private:          row.Private,
+		Handle:           stringFrom(row.Handle),
 	}, nil
 }
 

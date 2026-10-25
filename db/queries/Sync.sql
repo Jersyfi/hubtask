@@ -136,7 +136,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -181,7 +181,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > sqlc.arg('after')
 ORDER BY wi.id
