@@ -160,11 +160,7 @@ func (h ShowAlexaModel) invoke(ctx context.Context, actor appshared.ActorContext
 	if err := w.authorize(ctx, actor, voiceSettingsReadAction, automationManage); err != nil {
 		return nil, err
 	}
-	_, known, err := w.Assistant.places(ctx, actor)
-	if err != nil {
-		return nil, err
-	}
-	return usecase.Output{"model": AlexaModel(domain.LanguageOf(in.String("locale")), known)}, nil
+	return usecase.Output{"model": AlexaModel(domain.LanguageOf(in.String("locale")))}, nil
 }
 
 func placeOutput(place domain.Place) map[string]any {
@@ -287,7 +283,7 @@ func (h TryVoiceSentence) Descriptor() usecase.Descriptor {
 func (h ShowAlexaModel) Descriptor() usecase.Descriptor {
 	return usecase.Descriptor{
 		Name:        ShowAlexaModelName,
-		Summary:     "The Alexa interaction model for the workspace, its lists and spoken names included, to paste into the Alexa developer console.",
+		Summary:     "The Alexa interaction model to paste into the Alexa developer console. The same for every workspace: its lists reach Alexa with every answer, so new ones need no new model.",
 		SideEffects: "None. Reads only.",
 		TokenScope:  automationManage,
 		ReadOnly:    true,

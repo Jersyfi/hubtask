@@ -60,6 +60,10 @@ func (a *assistant) Today(context.Context, appshared.ActorContext, domain.Langua
 	return voiceservice.Reply{}, shared.ErrForbidden
 }
 
+func (a *assistant) Places(context.Context, appshared.ActorContext) []domain.Known {
+	return []domain.Known{{Place: domain.Place{CollectionID: "c1", Name: "Metro"}, Name: "Metro"}}
+}
+
 func alexa(settings domain.Settings) (Alexa, *assistant) {
 	helper := &assistant{settings: settings}
 	return Alexa{
@@ -156,6 +160,11 @@ func TestTheInstallationsSkillAndTheConversation(t *testing.T) {
 	welcome, err := handler.Handle(context.Background(), http.Header{}, body(t, "good", skill, "LaunchRequest", "", nil, now))
 	if err != nil || welcome.Response.ShouldEndSession {
 		t.Errorf("the welcome closed the session: %+v, %v", welcome.Response, err)
+	}
+	// The workspace's own list names reach Alexa with the answer, not through the pasted model.
+	if len(welcome.Response.Directives) != 1 ||
+		welcome.Response.Directives[0].(map[string]any)["type"] != "Dialog.UpdateDynamicEntities" {
+		t.Errorf("the welcome taught Alexa no lists: %+v", welcome.Response.Directives)
 	}
 	refused, _ := handler.Handle(context.Background(), http.Header{}, body(t, "good", skill, "IntentRequest", voiceservice.IntentToday, nil, now))
 	if refused.Response.OutputSpeech.Text != "de-DE|voice.not_allowed_here" {

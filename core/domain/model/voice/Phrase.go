@@ -43,10 +43,40 @@ type Addition struct {
 }
 
 // targetMarkers are the words that put a place after the things, longest first so "auf die"
-// wins over "auf".
+// wins over "auf". A place is not always a list one puts things *on*: a store is something one
+// buys *at* ("Gemüsebrühe bei Metro"), a project something one does things *for*, a folder
+// something things go *in* - every one of them is a marker.
 var targetMarkers = map[Language][]string{
-	German:  {"auf die", "auf den", "auf das", "auf meine", "auf unsere", "in die", "in den", "in das", "zur", "zum", "zu", "auf", "in", "für", "fuer"},
-	English: {"onto the", "onto my", "on the", "on my", "on our", "to the", "to my", "to our", "into the", "in the", "onto", "to", "on", "for"},
+	German: {
+		"auf die", "auf den", "auf das", "auf meine", "auf unsere", "in die", "in den", "in das",
+		"in meine", "in unsere", "bei der", "bei dem", "für die", "für den", "für das", "fuer die",
+		"fuer den", "fuer das", "zur", "zum", "beim", "bei", "zu", "auf", "in", "für", "fuer",
+	},
+	English: {
+		"onto the", "onto my", "on the", "on my", "on our", "to the", "to my", "to our", "into the",
+		"in the", "in my", "for the", "for my", "at the", "onto", "into", "to", "on", "for", "at", "in",
+	},
+}
+
+// targetTails are the words a sentence may end on after its place, which are how it was said and
+// not the place: "Gemüsebrühe bei Metro kaufen", "trag das in Büro ein", "add milk to Costco please".
+var targetTails = map[Language]map[string]bool{
+	German: {
+		"kaufen": true, "besorgen": true, "holen": true, "mitbringen": true, "mitnehmen": true,
+		"hinzufügen": true, "hinzufuegen": true, "eintragen": true, "setzen": true, "schreiben": true,
+		"notieren": true, "aufnehmen": true, "anlegen": true, "packen": true, "erledigen": true,
+		"hinzu": true, "ein": true, "an": true, "dazu": true, "bitte": true, "noch": true,
+	},
+	English: {"please": true, "too": true, "as well": true, "buy": true, "get": true},
+}
+
+// withoutTail takes the words after the place off: "Metro kaufen" is the place "Metro".
+func withoutTail(target string, language Language) string {
+	words := strings.Fields(target)
+	for len(words) > 1 && targetTails[language][strings.ToLower(words[len(words)-1])] {
+		words = words[:len(words)-1]
+	}
+	return strings.Join(words, " ")
 }
 
 // listWords are what a person adds to a list's name and what the name is without: "die
@@ -88,7 +118,7 @@ func ParseAddition(sentence string, language Language) Addition {
 	}
 	return Addition{
 		Things: splitThings(strings.TrimSpace(padded[:at]), language),
-		Target: strings.TrimSpace(padded[at+length:]),
+		Target: withoutTail(strings.TrimSpace(padded[at+length:]), language),
 	}
 }
 
@@ -100,7 +130,7 @@ func WithoutTarget(sentence string, language Language) Addition {
 // TargetWithout is a spoken place with the words for "list" and the articles taken off: "die
 // Metro-Liste" → "metro", "Einkaufsliste" → "einkauf".
 func TargetWithout(target string, language Language) string {
-	words := strings.Fields(Fold(target))
+	words := strings.Fields(Fold(withoutTail(target, language)))
 	for len(words) > 0 && isArticle(words[0], language) {
 		words = words[1:]
 	}
@@ -123,7 +153,7 @@ func isArticle(word string, language Language) bool {
 	switch language {
 	case German:
 		switch word {
-		case "die", "der", "das", "den", "meine", "meiner", "unsere", "unserer":
+		case "die", "der", "das", "den", "dem", "meine", "meiner", "meinen", "unsere", "unserer", "unseren":
 			return true
 		}
 	default:
