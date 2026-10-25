@@ -2718,72 +2718,12 @@ func (e LegalLinksTermsSetBy) Valid() bool {
 	}
 }
 
-// Defines values for MailAddressSenderPolicy.
-const (
-	MailAddressSenderPolicyANYONE  MailAddressSenderPolicy = "ANYONE"
-	MailAddressSenderPolicyMEMBERS MailAddressSenderPolicy = "MEMBERS"
-)
-
-// Valid indicates whether the value is a known member of the MailAddressSenderPolicy enum.
-func (e MailAddressSenderPolicy) Valid() bool {
-	switch e {
-	case MailAddressSenderPolicyANYONE:
-		return true
-	case MailAddressSenderPolicyMEMBERS:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MailAddressTargetKind.
-const (
-	MailAddressTargetKindCOLLECTION MailAddressTargetKind = "COLLECTION"
-	MailAddressTargetKindITEM       MailAddressTargetKind = "ITEM"
-	MailAddressTargetKindJUMBLE     MailAddressTargetKind = "JUMBLE"
-)
-
-// Valid indicates whether the value is a known member of the MailAddressTargetKind enum.
-func (e MailAddressTargetKind) Valid() bool {
-	switch e {
-	case MailAddressTargetKindCOLLECTION:
-		return true
-	case MailAddressTargetKindITEM:
-		return true
-	case MailAddressTargetKindJUMBLE:
-		return true
-	default:
-		return false
-	}
-}
-
-// Defines values for MailAddressTargetTargetKind.
-const (
-	MailAddressTargetTargetKindCOLLECTION MailAddressTargetTargetKind = "COLLECTION"
-	MailAddressTargetTargetKindITEM       MailAddressTargetTargetKind = "ITEM"
-	MailAddressTargetTargetKindJUMBLE     MailAddressTargetTargetKind = "JUMBLE"
-)
-
-// Valid indicates whether the value is a known member of the MailAddressTargetTargetKind enum.
-func (e MailAddressTargetTargetKind) Valid() bool {
-	switch e {
-	case MailAddressTargetTargetKindCOLLECTION:
-		return true
-	case MailAddressTargetTargetKindITEM:
-		return true
-	case MailAddressTargetTargetKindJUMBLE:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for MailDeliveredOutcome.
 const (
-	MailDeliveredOutcomeCOMMENT     MailDeliveredOutcome = "COMMENT"
-	MailDeliveredOutcomeDISCARDED   MailDeliveredOutcome = "DISCARDED"
-	MailDeliveredOutcomeENTRY       MailDeliveredOutcome = "ENTRY"
-	MailDeliveredOutcomeJUMBLEENTRY MailDeliveredOutcome = "JUMBLE_ENTRY"
+	MailDeliveredOutcomeCOMMENT   MailDeliveredOutcome = "COMMENT"
+	MailDeliveredOutcomeDISCARDED MailDeliveredOutcome = "DISCARDED"
+	MailDeliveredOutcomeENTRY     MailDeliveredOutcome = "ENTRY"
+	MailDeliveredOutcomeJUMBLE    MailDeliveredOutcome = "JUMBLE"
 )
 
 // Valid indicates whether the value is a known member of the MailDeliveredOutcome enum.
@@ -2795,46 +2735,88 @@ func (e MailDeliveredOutcome) Valid() bool {
 		return true
 	case MailDeliveredOutcomeENTRY:
 		return true
-	case MailDeliveredOutcomeJUMBLEENTRY:
+	case MailDeliveredOutcomeJUMBLE:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for MailSenderPolicyChangeSenderPolicy.
+// Defines values for MailReason.
 const (
-	MailSenderPolicyChangeSenderPolicyANYONE  MailSenderPolicyChangeSenderPolicy = "ANYONE"
-	MailSenderPolicyChangeSenderPolicyMEMBERS MailSenderPolicyChangeSenderPolicy = "MEMBERS"
+	AUTOMATIC        MailReason = "AUTOMATIC"
+	NOROUTE          MailReason = "NO_ROUTE"
+	NOTPERMITTED     MailReason = "NOT_PERMITTED"
+	SENDERBLOCKED    MailReason = "SENDER_BLOCKED"
+	SENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
+	SPAM             MailReason = "SPAM"
+	UNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
+	UNPARSEABLE      MailReason = "UNPARSEABLE"
 )
 
-// Valid indicates whether the value is a known member of the MailSenderPolicyChangeSenderPolicy enum.
-func (e MailSenderPolicyChangeSenderPolicy) Valid() bool {
+// Valid indicates whether the value is a known member of the MailReason enum.
+func (e MailReason) Valid() bool {
 	switch e {
-	case MailSenderPolicyChangeSenderPolicyANYONE:
+	case AUTOMATIC:
 		return true
-	case MailSenderPolicyChangeSenderPolicyMEMBERS:
+	case NOROUTE:
+		return true
+	case NOTPERMITTED:
+		return true
+	case SENDERBLOCKED:
+		return true
+	case SENDERNOTALLOWED:
+		return true
+	case SPAM:
+		return true
+	case UNKNOWNPLACE:
+		return true
+	case UNPARSEABLE:
 		return true
 	default:
 		return false
 	}
 }
 
-// Defines values for MailSenderPolicyChangeTargetKind.
+// Defines values for MailReceiptOutcome.
 const (
-	MailSenderPolicyChangeTargetKindCOLLECTION MailSenderPolicyChangeTargetKind = "COLLECTION"
-	MailSenderPolicyChangeTargetKindITEM       MailSenderPolicyChangeTargetKind = "ITEM"
-	MailSenderPolicyChangeTargetKindJUMBLE     MailSenderPolicyChangeTargetKind = "JUMBLE"
+	MailReceiptOutcomeCOMMENT   MailReceiptOutcome = "COMMENT"
+	MailReceiptOutcomeDISCARDED MailReceiptOutcome = "DISCARDED"
+	MailReceiptOutcomeENTRY     MailReceiptOutcome = "ENTRY"
+	MailReceiptOutcomeJUMBLE    MailReceiptOutcome = "JUMBLE"
 )
 
-// Valid indicates whether the value is a known member of the MailSenderPolicyChangeTargetKind enum.
-func (e MailSenderPolicyChangeTargetKind) Valid() bool {
+// Valid indicates whether the value is a known member of the MailReceiptOutcome enum.
+func (e MailReceiptOutcome) Valid() bool {
 	switch e {
-	case MailSenderPolicyChangeTargetKindCOLLECTION:
+	case MailReceiptOutcomeCOMMENT:
 		return true
-	case MailSenderPolicyChangeTargetKindITEM:
+	case MailReceiptOutcomeDISCARDED:
 		return true
-	case MailSenderPolicyChangeTargetKindJUMBLE:
+	case MailReceiptOutcomeENTRY:
+		return true
+	case MailReceiptOutcomeJUMBLE:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailSendersLevel.
+const (
+	ANYONE            MailSendersLevel = "ANYONE"
+	MEMBERS           MailSendersLevel = "MEMBERS"
+	MEMBERSANDALLOWED MailSendersLevel = "MEMBERS_AND_ALLOWED"
+)
+
+// Valid indicates whether the value is a known member of the MailSendersLevel enum.
+func (e MailSendersLevel) Valid() bool {
+	switch e {
+	case ANYONE:
+		return true
+	case MEMBERS:
+		return true
+	case MEMBERSANDALLOWED:
 		return true
 	default:
 		return false
@@ -5688,27 +5670,6 @@ func (e ListJumbleEntriesParamsChannel) Valid() bool {
 	}
 }
 
-// Defines values for ShowMailAddressParamsTargetKind.
-const (
-	ShowMailAddressParamsTargetKindCOLLECTION ShowMailAddressParamsTargetKind = "COLLECTION"
-	ShowMailAddressParamsTargetKindITEM       ShowMailAddressParamsTargetKind = "ITEM"
-	ShowMailAddressParamsTargetKindJUMBLE     ShowMailAddressParamsTargetKind = "JUMBLE"
-)
-
-// Valid indicates whether the value is a known member of the ShowMailAddressParamsTargetKind enum.
-func (e ShowMailAddressParamsTargetKind) Valid() bool {
-	switch e {
-	case ShowMailAddressParamsTargetKindCOLLECTION:
-		return true
-	case ShowMailAddressParamsTargetKindITEM:
-		return true
-	case ShowMailAddressParamsTargetKindJUMBLE:
-		return true
-	default:
-		return false
-	}
-}
-
 // Defines values for ShowAlexaModelParamsLocale.
 const (
 	DeDE ShowAlexaModelParamsLocale = "de-DE"
@@ -7141,6 +7102,12 @@ type CollectionFigure struct {
 
 // CollectionFigureKind defines model for CollectionFigure.Kind.
 type CollectionFigureKind string
+
+// CollectionHandle defines model for CollectionHandle.
+type CollectionHandle struct {
+	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
+	Handle       string              `json:"handle"`
+}
 
 // Comment defines model for Comment.
 type Comment struct {
@@ -8787,9 +8754,12 @@ type JumbleEntry struct {
 	Attachments []openapi_types.UUID `json:"attachments"`
 	Channel     JumbleEntryChannel   `json:"channel"`
 	Id          openapi_types.UUID   `json:"id"`
-	MeantForId  *openapi_types.UUID  `json:"meant_for_id,omitempty"`
 
-	// MeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+	// IntakeReason Why a message waits in the jumble or was dropped.
+	IntakeReason *MailReason         `json:"intake_reason,omitempty"`
+	MeantForId   *openapi_types.UUID `json:"meant_for_id,omitempty"`
+
+	// MeantForKind The place a mail named where it landed in the jumble instead - its sender was not admitted or may not write there, or the provider marked it as spam.
 	MeantForKind *JumbleEntryMeantForKind `json:"meant_for_kind,omitempty"`
 	RawBody      *string                  `json:"raw_body,omitempty"`
 	RawSubject   *string                  `json:"raw_subject,omitempty"`
@@ -8811,7 +8781,7 @@ type JumbleEntry struct {
 // JumbleEntryChannel defines model for JumbleEntry.Channel.
 type JumbleEntryChannel string
 
-// JumbleEntryMeantForKind The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.
+// JumbleEntryMeantForKind The place a mail named where it landed in the jumble instead - its sender was not admitted or may not write there, or the provider marked it as spam.
 type JumbleEntryMeantForKind string
 
 // JumbleEntryStatus An entry is decided about exactly once. `DISMISSED` is a state, not a deletion - the entry stays readable and ages out by retention rule.
@@ -9105,40 +9075,12 @@ type LookalikePage struct {
 	Items []Lookalike `json:"items"`
 }
 
-// MailAddress A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well.
-type MailAddress struct {
-	Address *string `json:"address,omitempty"`
-
-	// Available False where the installation has no receiving domain; nothing else is set then.
-	Available bool       `json:"available"`
-	CreatedAt *time.Time `json:"created_at,omitempty"`
-
-	// OpenedBy Who opened the address to anyone; their rights bound such mail.
-	OpenedBy     *openapi_types.UUID      `json:"opened_by,omitempty"`
-	SenderPolicy *MailAddressSenderPolicy `json:"sender_policy,omitempty"`
-	TargetId     *openapi_types.UUID      `json:"target_id,omitempty"`
-	TargetKind   *MailAddressTargetKind   `json:"target_kind,omitempty"`
-}
-
-// MailAddressSenderPolicy defines model for MailAddress.SenderPolicy.
-type MailAddressSenderPolicy string
-
-// MailAddressTargetKind defines model for MailAddress.TargetKind.
-type MailAddressTargetKind string
-
-// MailAddressTarget defines model for MailAddressTarget.
-type MailAddressTarget struct {
-	// TargetId The collection or the entry; absent for the jumble.
-	TargetId   *openapi_types.UUID         `json:"target_id,omitempty"`
-	TargetKind MailAddressTargetTargetKind `json:"target_kind"`
-}
-
-// MailAddressTargetTargetKind defines model for MailAddressTarget.TargetKind.
-type MailAddressTargetTargetKind string
-
 // MailDelivered defines model for MailDelivered.
 type MailDelivered struct {
 	CommentId *openapi_types.UUID `json:"comment_id,omitempty"`
+
+	// Duplicate The message had been received before; nothing was done again.
+	Duplicate *bool `json:"duplicate,omitempty"`
 
 	// EntryId The jumble entry.
 	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
@@ -9146,23 +9088,81 @@ type MailDelivered struct {
 	// ItemId The entry created or commented on.
 	ItemId  *openapi_types.UUID  `json:"item_id,omitempty"`
 	Outcome MailDeliveredOutcome `json:"outcome"`
+
+	// Reason Why a message waits in the jumble or was dropped.
+	Reason *MailReason `json:"reason,omitempty"`
 }
 
 // MailDeliveredOutcome defines model for MailDelivered.Outcome.
 type MailDeliveredOutcome string
 
-// MailSenderPolicyChange defines model for MailSenderPolicyChange.
-type MailSenderPolicyChange struct {
-	SenderPolicy MailSenderPolicyChangeSenderPolicy `json:"sender_policy"`
-	TargetId     *openapi_types.UUID                `json:"target_id,omitempty"`
-	TargetKind   MailSenderPolicyChangeTargetKind   `json:"target_kind"`
+// MailReason Why a message waits in the jumble or was dropped.
+type MailReason string
+
+// MailReceipt defines model for MailReceipt.
+type MailReceipt struct {
+	// Door inbound for the operator's service, or the connected mailbox's address.
+	Door    string              `json:"door"`
+	EntryId *openapi_types.UUID `json:"entry_id,omitempty"`
+	Id      openapi_types.UUID  `json:"id"`
+	ItemId  *openapi_types.UUID `json:"item_id,omitempty"`
+	Outcome MailReceiptOutcome  `json:"outcome"`
+
+	// Reason Why a message waits in the jumble or was dropped.
+	Reason     *MailReason `json:"reason,omitempty"`
+	ReceivedAt time.Time   `json:"received_at"`
+	Sender     string      `json:"sender"`
+	Subject    string      `json:"subject"`
 }
 
-// MailSenderPolicyChangeSenderPolicy defines model for MailSenderPolicyChange.SenderPolicy.
-type MailSenderPolicyChangeSenderPolicy string
+// MailReceiptOutcome defines model for MailReceipt.Outcome.
+type MailReceiptOutcome string
 
-// MailSenderPolicyChangeTargetKind defines model for MailSenderPolicyChange.TargetKind.
-type MailSenderPolicyChangeTargetKind string
+// MailReceiptList defines model for MailReceiptList.
+type MailReceiptList struct {
+	Receipts []MailReceipt `json:"receipts"`
+}
+
+// MailSenderRoute defines model for MailSenderRoute.
+type MailSenderRoute struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// Match An address or an @domain.
+	Match string `json:"match"`
+}
+
+// MailSenders defines model for MailSenders.
+type MailSenders struct {
+	// Allowed Addresses and @domains admitted under MEMBERS_AND_ALLOWED.
+	Allowed *[]string `json:"allowed,omitempty"`
+
+	// Blocked Addresses and @domains whose mail is dropped, before every level.
+	Blocked *[]string `json:"blocked,omitempty"`
+
+	// Level Who may write. MEMBERS write as themselves; under the other two a sender who is not a member writes through the account that saved the settings.
+	Level *MailSendersLevel `json:"level,omitempty"`
+}
+
+// MailSendersLevel Who may write. MEMBERS write as themselves; under the other two a sender who is not a member writes through the account that saved the settings.
+type MailSendersLevel string
+
+// MailSettings defines model for MailSettings.
+type MailSettings struct {
+	// Address The workspace's own address there, name@domain.
+	Address *string `json:"address,omitempty"`
+
+	// DefaultCollectionId Where a message naming no place goes; absent for the jumble.
+	DefaultCollectionId *openapi_types.UUID `json:"default_collection_id,omitempty"`
+
+	// Domain The operator's receiving domain; absent where the installation has none.
+	Domain  *string `json:"domain,omitempty"`
+	Enabled *bool   `json:"enabled,omitempty"`
+
+	// Name The workspace's name on the operator's receiving domain, unique on the installation.
+	Name         *string            `json:"name,omitempty"`
+	SenderRoutes *[]MailSenderRoute `json:"sender_routes,omitempty"`
+	Senders      *MailSenders       `json:"senders,omitempty"`
+}
 
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
@@ -13483,6 +13483,12 @@ type ListBackupsAtTargetParams struct {
 	Refresh *bool `form:"refresh,omitempty" json:"refresh,omitempty"`
 }
 
+// SetCollectionHandleParams defines parameters for SetCollectionHandle.
+type SetCollectionHandleParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // ListContainersParams defines parameters for ListContainers.
 type ListContainersParams struct {
 	Type            *ContainerTypeFilter `form:"type,omitempty" json:"type,omitempty"`
@@ -14127,29 +14133,6 @@ type ListLegalHoldsParams struct {
 	IncludeReleased *bool `form:"include_released,omitempty" json:"include_released,omitempty"`
 }
 
-// ShowMailAddressParams defines parameters for ShowMailAddress.
-type ShowMailAddressParams struct {
-	TargetKind ShowMailAddressParamsTargetKind `form:"target_kind" json:"target_kind"`
-
-	// TargetId The collection or the entry; absent for the jumble.
-	TargetId *openapi_types.UUID `form:"target_id,omitempty" json:"target_id,omitempty"`
-}
-
-// ShowMailAddressParamsTargetKind defines parameters for ShowMailAddress.
-type ShowMailAddressParamsTargetKind string
-
-// RotateMailAddressParams defines parameters for RotateMailAddress.
-type RotateMailAddressParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-}
-
-// SetMailSenderPolicyParams defines parameters for SetMailSenderPolicy.
-type SetMailSenderPolicyParams struct {
-	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
-	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
-}
-
 // DeliverAddressedMailMultipartBody defines parameters for DeliverAddressedMail.
 type DeliverAddressedMailMultipartBody struct {
 	BodyMime  *string `json:"body-mime,omitempty"`
@@ -14160,6 +14143,12 @@ type DeliverAddressedMailMultipartBody struct {
 type DeliverAddressedMailParams struct {
 	// Recipient The envelope recipient, where the inbound service passes it.
 	Recipient *string `form:"recipient,omitempty" json:"recipient,omitempty"`
+}
+
+// SaveMailSettingsParams defines parameters for SaveMailSettings.
+type SaveMailSettingsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
 // RequestMediaUploadParams defines parameters for RequestMediaUpload.
@@ -14664,6 +14653,9 @@ type CreateBackupTargetJSONRequestBody = BackupTargetCreate
 // StartBackupJSONRequestBody defines body for StartBackup for application/json ContentType.
 type StartBackupJSONRequestBody = BackupStart
 
+// SetCollectionHandleJSONRequestBody defines body for SetCollectionHandle for application/json ContentType.
+type SetCollectionHandleJSONRequestBody = CollectionHandle
+
 // CreateContainerJSONRequestBody defines body for CreateContainer for application/json ContentType.
 type CreateContainerJSONRequestBody = ContainerCreate
 
@@ -14844,14 +14836,11 @@ type PlaceLegalHoldJSONRequestBody = LegalHoldCreate
 // ReleaseLegalHoldJSONRequestBody defines body for ReleaseLegalHold for application/json ContentType.
 type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
-// RotateMailAddressJSONRequestBody defines body for RotateMailAddress for application/json ContentType.
-type RotateMailAddressJSONRequestBody = MailAddressTarget
-
-// SetMailSenderPolicyJSONRequestBody defines body for SetMailSenderPolicy for application/json ContentType.
-type SetMailSenderPolicyJSONRequestBody = MailSenderPolicyChange
-
 // DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
 type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
+
+// SaveMailSettingsJSONRequestBody defines body for SaveMailSettings for application/json ContentType.
+type SaveMailSettingsJSONRequestBody = MailSettings
 
 // RequestMediaUploadJSONRequestBody defines body for RequestMediaUpload for application/json ContentType.
 type RequestMediaUploadJSONRequestBody = MediaUploadRequest
@@ -15455,6 +15444,9 @@ type ServerInterface interface {
 
 	// (GET /calendar/{token}.ics)
 	GetCalendarFeedDocument(w http.ResponseWriter, r *http.Request, token string)
+	// SetCollectionHandle Give a collection another handle
+	// (PUT /collections/{collection_id}/handle)
+	SetCollectionHandle(w http.ResponseWriter, r *http.Request, collectionId openapi_types.UUID, params SetCollectionHandleParams)
 
 	// (GET /containers)
 	ListContainers(w http.ResponseWriter, r *http.Request, params ListContainersParams)
@@ -15851,18 +15843,18 @@ type ServerInterface interface {
 	// ReleaseLegalHold Lift a legal hold
 	// (POST /legal-holds/{holdId}:release)
 	ReleaseLegalHold(w http.ResponseWriter, r *http.Request, holdId openapi_types.UUID)
-	// ShowMailAddress The address a place takes mail at
-	// (GET /mail/addresses)
-	ShowMailAddress(w http.ResponseWriter, r *http.Request, params ShowMailAddressParams)
-	// RotateMailAddress Replace a place's mail address
-	// (POST /mail/addresses:rotate)
-	RotateMailAddress(w http.ResponseWriter, r *http.Request, params RotateMailAddressParams)
-	// SetMailSenderPolicy Set who may write into a place by mail
-	// (POST /mail/addresses:set-sender-policy)
-	SetMailSenderPolicy(w http.ResponseWriter, r *http.Request, params SetMailSenderPolicyParams)
-	// DeliverAddressedMail Deliver a mail to an address on the receiving domain
+	// DeliverAddressedMail Deliver a mail to the operator's receiving domain
 	// (POST /mail/inbound)
 	DeliverAddressedMail(w http.ResponseWriter, r *http.Request, params DeliverAddressedMailParams)
+	// ListMailReceipts What the mail intake received
+	// (GET /mail/receipts)
+	ListMailReceipts(w http.ResponseWriter, r *http.Request)
+	// ShowMailSettings The workspace's mail intake
+	// (GET /mail/settings)
+	ShowMailSettings(w http.ResponseWriter, r *http.Request)
+	// SaveMailSettings Replace the workspace's mail intake settings
+	// (PUT /mail/settings)
+	SaveMailSettings(w http.ResponseWriter, r *http.Request, params SaveMailSettingsParams)
 
 	// (POST /media)
 	RequestMediaUpload(w http.ResponseWriter, r *http.Request, params RequestMediaUploadParams)
@@ -20940,6 +20932,56 @@ func (siw *ServerInterfaceWrapper) GetCalendarFeedDocument(w http.ResponseWriter
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCalendarFeedDocument(w, r, token)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetCollectionHandle operation middleware
+func (siw *ServerInterfaceWrapper) SetCollectionHandle(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "collection_id" -------------
+	var collectionId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "collection_id", r.PathValue("collection_id"), &collectionId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "collection_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetCollectionHandleParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetCollectionHandle(w, r, collectionId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -26586,134 +26628,6 @@ func (siw *ServerInterfaceWrapper) ReleaseLegalHold(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
-// ShowMailAddress operation middleware
-func (siw *ServerInterfaceWrapper) ShowMailAddress(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params ShowMailAddressParams
-
-	// ------------- Required query parameter "target_kind" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, true, "target_kind", r.URL.Query(), &params.TargetKind, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_kind"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_kind", Err: err})
-		}
-		return
-	}
-
-	// ------------- Optional query parameter "target_id" -------------
-
-	err = runtime.BindQueryParameterWithOptions("form", true, false, "target_id", r.URL.Query(), &params.TargetId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
-	if err != nil {
-		var requiredError *runtime.RequiredParameterError
-		if errors.As(err, &requiredError) {
-			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "target_id"})
-		} else {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "target_id", Err: err})
-		}
-		return
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.ShowMailAddress(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// RotateMailAddress operation middleware
-func (siw *ServerInterfaceWrapper) RotateMailAddress(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params RotateMailAddressParams
-
-	headers := r.Header
-
-	// ------------- Optional header parameter "Idempotency-Key" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
-		var IdempotencyKey IdempotencyKey
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
-			return
-		}
-
-		params.IdempotencyKey = &IdempotencyKey
-
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.RotateMailAddress(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// SetMailSenderPolicy operation middleware
-func (siw *ServerInterfaceWrapper) SetMailSenderPolicy(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-	_ = err
-
-	// Parameter object where we will unmarshal all parameters from the context
-	var params SetMailSenderPolicyParams
-
-	headers := r.Header
-
-	// ------------- Optional header parameter "Idempotency-Key" -------------
-	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
-		var IdempotencyKey IdempotencyKey
-		n := len(valueList)
-		if n != 1 {
-			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
-			return
-		}
-
-		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
-		if err != nil {
-			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
-			return
-		}
-
-		params.IdempotencyKey = &IdempotencyKey
-
-	}
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.SetMailSenderPolicy(w, r, params)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // DeliverAddressedMail operation middleware
 func (siw *ServerInterfaceWrapper) DeliverAddressedMail(w http.ResponseWriter, r *http.Request) {
 
@@ -26738,6 +26652,75 @@ func (siw *ServerInterfaceWrapper) DeliverAddressedMail(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.DeliverAddressedMail(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMailReceipts operation middleware
+func (siw *ServerInterfaceWrapper) ListMailReceipts(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMailReceipts(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowMailSettings operation middleware
+func (siw *ServerInterfaceWrapper) ShowMailSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowMailSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveMailSettings operation middleware
+func (siw *ServerInterfaceWrapper) SaveMailSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveMailSettingsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveMailSettings(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -29551,9 +29534,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:suggest", wrapper.SuggestFromJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:dismiss", wrapper.DismissJumbleEntry)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:comment", wrapper.CommentJumbleEntry)
-	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/addresses", wrapper.ShowMailAddress)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:rotate", wrapper.RotateMailAddress)
-	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:set-sender-policy", wrapper.SetMailSenderPolicy)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/settings", wrapper.ShowMailSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/mail/settings", wrapper.SaveMailSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/receipts", wrapper.ListMailReceipts)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/collections/{collection_id}/handle", wrapper.SetCollectionHandle)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/inbound", wrapper.DeliverAddressedMail)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/voice/settings", wrapper.ShowVoiceSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/voice/settings", wrapper.SaveVoiceSettings)

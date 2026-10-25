@@ -32,6 +32,7 @@ import (
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	metaservice "github.com/Jersyfi/hubtask/core/application/service/meta"
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
@@ -366,9 +367,10 @@ func Descriptors() []usecase.Descriptor {
 		voiceservice.SaveVoiceSettings{}.Descriptor(),
 		voiceservice.TryVoiceSentence{}.Descriptor(),
 		voiceservice.ShowAlexaModel{}.Descriptor(),
-		jumbleservice.ShowMailAddress{}.Descriptor(),
-		jumbleservice.RotateMailAddress{}.Descriptor(),
-		jumbleservice.SetMailSenderPolicy{}.Descriptor(),
+		mailservice.ShowMailSettings{}.Descriptor(),
+		mailservice.SaveMailSettings{}.Descriptor(),
+		mailservice.ListMailReceipts{}.Descriptor(),
+		mailservice.SetCollectionHandle{}.Descriptor(),
 		adminservice.ReadInstanceSettings{}.Descriptor(),
 		adminservice.WriteInstanceSettings{}.Descriptor(),
 		adminservice.ListOperators{}.Descriptor(),

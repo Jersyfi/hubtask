@@ -13,12 +13,12 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
-// AddressedMailIntake is the receiving domain's one door (ADR-0092): the inbound service posts each
-// raw message, authenticated by the installation's inbound key, and the parsed message goes to the
-// place its address leads to.
+// AddressedMailIntake is the operator's inbound service's door (ADR-0094 decision 1): the service
+// posts each raw message, authenticated by the installation's inbound key, and the parsed message
+// goes into the intake of the workspace its address names.
 //
-// The parser is MailIntake's, unchanged: what differs is only where the tenant comes from - the
-// address's code rather than a token in the path.
+// The parser is MailIntake's, unchanged; a connected mailbox hands its messages to the same use case
+// through Parsed.
 type AddressedMailIntake struct {
 	Deliveries AddressedMailDeliverer
 	Limits     MailLimits
@@ -30,7 +30,7 @@ type AddressedMailIntake struct {
 // AddressedMailDeliverer is the use case this hands a parsed message to.
 type AddressedMailDeliverer interface {
 	Execute(
-		ctx context.Context, mail jumbleservice.AddressedMail,
+		ctx context.Context, mail jumbleservice.ReceivedMail,
 	) (jumbleservice.MailDeliveryResult, error)
 }
 
@@ -70,19 +70,29 @@ func (i AddressedMailIntake) Authorized(header string) bool {
 func (i AddressedMailIntake) Deliver(
 	ctx context.Context, recipient string, raw []byte,
 ) (jumbleservice.MailDeliveryResult, error) {
-	mail := jumbleservice.AddressedMail{Raw: raw}
+	var recipients []string
 	if recipient = strings.TrimSpace(recipient); recipient != "" {
 		for _, one := range strings.Split(recipient, ",") {
-			mail.Recipients = append(mail.Recipients, strings.TrimSpace(one))
+			recipients = append(recipients, strings.TrimSpace(one))
 		}
 	}
+	mail, err := Parsed(raw, recipients, i.Limits)
+	if err != nil {
+		return jumbleservice.MailDeliveryResult{}, err
+	}
+	return i.Deliveries.Execute(ctx, mail)
+}
 
-	parsed, err := ParseMail(raw, i.Limits)
+// Parsed is a raw message as the intake takes it: the recipients the door knows first, then the
+// message's own; an unparseable message is kept as bytes rather than refused.
+func Parsed(raw []byte, recipients []string, limits MailLimits) (jumbleservice.ReceivedMail, error) {
+	mail := jumbleservice.ReceivedMail{Raw: raw, Recipients: recipients}
+	parsed, err := ParseMail(raw, limits)
 	switch {
 	case err != nil && shared.AsError(err).DetailCode == CodeMailUnparseable:
 		mail.Unparseable = true
 	case err != nil:
-		return jumbleservice.MailDeliveryResult{}, err
+		return jumbleservice.ReceivedMail{}, err
 	default:
 		mail.Recipients = append(mail.Recipients, parsed.Recipients...)
 		mail.Sender, mail.SenderName = parsed.Sender, parsed.SenderName
@@ -91,6 +101,7 @@ func (i AddressedMailIntake) Deliver(
 		mail.Automatic = parsed.Signals.Automatic
 		mail.Spam = parsed.Signals.Spam
 		mail.AuthFailed = parsed.Signals.AuthFailed
+		mail.MessageID = parsed.MessageID
 	}
-	return i.Deliveries.Execute(ctx, mail)
+	return mail, nil
 }

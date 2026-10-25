@@ -48,6 +48,7 @@ import (
 	jobservice "github.com/Jersyfi/hubtask/core/application/service/job"
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	"github.com/Jersyfi/hubtask/core/application/service/lifecycle"
+	mailservice "github.com/Jersyfi/hubtask/core/application/service/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	"github.com/Jersyfi/hubtask/core/application/service/meta"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
@@ -768,14 +769,13 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids,
 	}
-	// Mail addresses for every place (ADR-0092): the jumble's, a collection's and an entry's, on
-	// the operator's receiving domain. Without HUBTASK_MAIL_INBOUND_DOMAIN they read as unavailable.
-	mailAddressWriter := jumbleservice.MailAddressWriter{
-		Addresses:  postgres.NewMailAddressRepository(),
-		Places:     jumbleservice.MailPlaces{Items: items, Containers: containers},
+	// The mail intake (ADR-0094): its settings, its log and the collections' handles. Without
+	// HUBTASK_MAIL_INBOUND_DOMAIN a workspace receives through connected mailboxes only.
+	mailIntake := postgres.NewMailIntakeRepository()
+	mailWriter := mailservice.Writer{
+		Settings: mailIntake, Receipts: mailIntake, Places: mailIntake, Containers: containers,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
-		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
-		Domain: cfg.Mail.InboundDomain,
+		Clock: clockadapter.System{}, Domain: cfg.Mail.InboundDomain,
 	}
 	// Voice assistants (ADR-0093): a workspace's settings and spoken names, and the assistant that
 	// does what is said through the catalogue as the person who linked it.
@@ -2071,9 +2071,10 @@ func run() error {
 		voiceservice.SaveVoiceSettings{Writer: voiceWriter}.Descriptor(),
 		voiceservice.TryVoiceSentence{Writer: voiceWriter}.Descriptor(),
 		voiceservice.ShowAlexaModel{Writer: voiceWriter}.Descriptor(),
-		jumbleservice.ShowMailAddress{Writer: mailAddressWriter}.Descriptor(),
-		jumbleservice.RotateMailAddress{Writer: mailAddressWriter}.Descriptor(),
-		jumbleservice.SetMailSenderPolicy{Writer: mailAddressWriter}.Descriptor(),
+		mailservice.ShowMailSettings{Writer: mailWriter}.Descriptor(),
+		mailservice.SaveMailSettings{Writer: mailWriter}.Descriptor(),
+		mailservice.ListMailReceipts{Writer: mailWriter}.Descriptor(),
+		mailservice.SetCollectionHandle{Writer: mailWriter}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2773,13 +2774,13 @@ func run() error {
 				Clock: clockadapter.System{}, IDs: ids,
 			},
 		}
-		// The receiving domain's door (ADR-0092): the inbound service posts each message with the
-		// installation's key, and it goes to the place its address leads to - as the recognised
-		// sender, through the catalogue, or into the jumble.
+		// The operator's inbound service's door (ADR-0094): it posts each message with the
+		// installation's key, and the intake files it where it is meant to go - as the admitted
+		// sender, through the catalogue, or into the jumble with the reason.
 		controller.AddressedMail = intake.AddressedMailIntake{
 			Key: cfg.Mail.InboundKey.Reveal(),
-			Deliveries: jumbleservice.DeliverAddressedMail{
-				Addresses: mailAddressWriter.Addresses, Places: mailAddressWriter.Places,
+			Deliveries: jumbleservice.ReceiveMail{
+				Settings: mailIntake, Receipts: mailIntake, Places: mailIntake,
 				Accounts: accounts, Entries: postgres.NewJumbleRepository(cursors),
 				Media: mediaservice.IngestMedia{
 					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
@@ -3364,8 +3365,9 @@ func run() error {
 			Accesses: postgres.NewEmergencyAccessRepository(),
 			// The role somebody was given, and the hub or collection it is on.
 			Grants: grants, Places: containers,
-			// The entry's own address as Reply-To, so an answer becomes a comment (ADR-0092).
-			Replies: jumbleservice.MailReplies{Writer: mailAddressWriter},
+			// The entry's ticket key on the intake's address as Reply-To, so an answer becomes a
+			// comment (ADR-0094).
+			Replies: mailservice.Replies{Writer: mailWriter},
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,

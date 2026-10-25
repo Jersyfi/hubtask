@@ -276,6 +276,10 @@ func jumbleEntryResponse(out usecase.Output) openapi.JumbleEntry {
 		id := uuidValue(out.String("meant_for_id"))
 		entry.MeantForId = &id
 	}
+	if reason := out.String("intake_reason"); reason != "" {
+		value := openapi.MailReason(reason)
+		entry.IntakeReason = &value
+	}
 	return entry
 }
 

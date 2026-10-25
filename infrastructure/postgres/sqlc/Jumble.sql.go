@@ -93,7 +93,7 @@ func (q *Queries) DeleteExpiredJumbleEntries(ctx context.Context, arg DeleteExpi
 const findJumbleEntry = `-- name: FindJumbleEntry :one
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
        e.target_item_id, e.received_at, e.processed_at, e.created_by,
-       e.meant_for_kind, e.meant_for_id,
+       e.meant_for_kind, e.meant_for_id, e.intake_reason,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -117,6 +117,7 @@ type FindJumbleEntryRow struct {
 	CreatedBy    pgtype.UUID
 	MeantForKind *string
 	MeantForID   pgtype.UUID
+	IntakeReason *string
 	ArrivalJobID pgtype.UUID
 }
 
@@ -140,6 +141,7 @@ func (q *Queries) FindJumbleEntry(ctx context.Context, id pgtype.UUID) (FindJumb
 		&i.CreatedBy,
 		&i.MeantForKind,
 		&i.MeantForID,
+		&i.IntakeReason,
 		&i.ArrivalJobID,
 	)
 	return i, err
@@ -261,12 +263,12 @@ const insertJumbleEntry = `-- name: InsertJumbleEntry :exec
 
 INSERT INTO jumble_entry (
   id, tenant_id, channel, sender, raw_subject, raw_body, attachments, status, received_at, created_by,
-  meant_for_kind, meant_for_id
+  meant_for_kind, meant_for_id, intake_reason
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   $7, $8, $9,
-  $10, $11
+  $10, $11, $12
 )
 `
 
@@ -282,6 +284,7 @@ type InsertJumbleEntryParams struct {
 	CreatedBy    pgtype.UUID
 	MeantForKind *string
 	MeantForID   pgtype.UUID
+	IntakeReason *string
 }
 
 // The jumble (domain-model.md §2): entries arrive, are decided about exactly once, and the
@@ -302,6 +305,7 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 		arg.CreatedBy,
 		arg.MeantForKind,
 		arg.MeantForID,
+		arg.IntakeReason,
 	)
 	return err
 }
@@ -344,7 +348,7 @@ func (q *Queries) InsertMailAddress(ctx context.Context, arg InsertMailAddressPa
 const listJumbleEntries = `-- name: ListJumbleEntries :many
 SELECT e.id, e.tenant_id, e.channel, e.sender, e.raw_subject, e.raw_body, e.attachments, e.status,
        e.target_item_id, e.received_at, e.processed_at, e.created_by,
-       e.meant_for_kind, e.meant_for_id,
+       e.meant_for_kind, e.meant_for_id, e.intake_reason,
        (SELECT j.id FROM job j
         WHERE e.status = 'NEW' AND j.tenant_id = current_tenant_id() AND j.kind = 'ai.suggest_arrival'
           AND j.dedupe_key = e.id::text AND j.state IN ('PENDING', 'RUNNING', 'FAILED')
@@ -379,6 +383,7 @@ type ListJumbleEntriesRow struct {
 	CreatedBy    pgtype.UUID
 	MeantForKind *string
 	MeantForID   pgtype.UUID
+	IntakeReason *string
 	ArrivalJobID pgtype.UUID
 }
 
@@ -425,6 +430,7 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 			&i.CreatedBy,
 			&i.MeantForKind,
 			&i.MeantForID,
+			&i.IntakeReason,
 			&i.ArrivalJobID,
 		); err != nil {
 			return nil, err

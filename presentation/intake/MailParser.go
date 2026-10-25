@@ -117,6 +117,9 @@ type Mail struct {
 	// alongside" means, and keeping it out of Text is what stops a second copy of the same message
 	// from being the message.
 	Attachments []MailAttachment
+	// MessageID is the Message-ID header without its angle brackets, which is what makes a message
+	// received twice one message (ADR-0094 decision 6). Empty where the sender wrote none.
+	MessageID string
 }
 
 // MailSignals are the headers that decide where a message may go (ADR-0092 decisions 5 and 7).
@@ -178,6 +181,7 @@ func ParseMail(raw []byte, limits MailLimits) (Mail, error) {
 		Recipients: recipientsOf(message.Header),
 		Signals:    signalsOf(message.Header),
 		Subject:    decodeHeader(message.Header.Get("Subject")),
+		MessageID:  messageIDOf(message.Header.Get("Message-Id")),
 	}
 
 	walk := &mailWalk{limits: limits}
@@ -635,4 +639,15 @@ func charsetReader(charset string, input io.Reader) (io.Reader, error) {
 func refusal(code string) error {
 	return shared.ErrValidation.WithDetail(code).
 		WithFields(shared.FieldError{Path: "/body", Code: code})
+}
+
+// messageIDOf is the identifier between the angle brackets, bounded: a header is what the sender
+// wrote, and a receipt keys on it.
+func messageIDOf(header string) string {
+	id := strings.TrimSpace(header)
+	id = strings.TrimSuffix(strings.TrimPrefix(id, "<"), ">")
+	if len(id) > 500 || strings.ContainsAny(id, " \r\n\t") {
+		return ""
+	}
+	return id
 }

@@ -1,0 +1,82 @@
+-- The mail intake (ADR-0094). The tenant is never a parameter except where no tenant is known yet:
+-- row level security bounds every other statement to the tenant of the running transaction.
+
+-- name: FindMailSetting :one
+SELECT enabled, name, default_collection_id, sender_level, allowed, blocked,
+       sender_routes::text AS sender_routes, opened_by, updated_at
+FROM mail_setting
+WHERE tenant_id = current_tenant_id();
+
+-- name: UpsertMailSetting :exec
+INSERT INTO mail_setting (
+  tenant_id, enabled, name, default_collection_id, sender_level, allowed, blocked, sender_routes,
+  opened_by, updated_at, updated_by
+) VALUES (
+  current_tenant_id(), sqlc.arg('enabled'), sqlc.narg('name'), sqlc.narg('default_collection_id'),
+  sqlc.arg('sender_level'), sqlc.arg('allowed')::text[], sqlc.arg('blocked')::text[],
+  sqlc.arg('sender_routes')::jsonb, sqlc.narg('opened_by'), sqlc.arg('updated_at'),
+  sqlc.narg('updated_by')
+)
+ON CONFLICT (tenant_id) DO UPDATE
+SET enabled = EXCLUDED.enabled, name = EXCLUDED.name,
+    default_collection_id = EXCLUDED.default_collection_id, sender_level = EXCLUDED.sender_level,
+    allowed = EXCLUDED.allowed, blocked = EXCLUDED.blocked, sender_routes = EXCLUDED.sender_routes,
+    opened_by = EXCLUDED.opened_by, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by;
+
+-- name: MailWorkspaceNameTaken :one
+SELECT mail_workspace_name_taken(sqlc.arg('name')::text, current_tenant_id())::boolean AS taken;
+
+-- name: ResolveMailWorkspace :one
+-- Before any tenant is known: the function reads past row level security, and only an enabled row.
+SELECT resolve_mail_workspace(sqlc.arg('name')::text)::uuid AS tenant_id;
+
+-- name: MailReceiptExists :one
+SELECT EXISTS (SELECT 1 FROM mail_receipt WHERE message_id = sqlc.arg('message_id'))::boolean AS seen;
+
+-- name: InsertMailReceipt :execrows
+-- A message received twice at once keeps the first receipt; the second inserts nothing.
+INSERT INTO mail_receipt (
+  id, tenant_id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('message_id'), sqlc.arg('received_at'),
+  sqlc.arg('sender'), sqlc.arg('subject'), sqlc.arg('outcome'), sqlc.arg('reason'),
+  sqlc.narg('item_id'), sqlc.narg('entry_id'), sqlc.arg('door')
+)
+ON CONFLICT (tenant_id, message_id) DO NOTHING;
+
+-- name: RecentMailReceipts :many
+SELECT id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
+FROM mail_receipt
+ORDER BY received_at DESC, id DESC
+LIMIT sqlc.arg('max_rows');
+
+-- name: DeleteMailReceiptsBefore :execrows
+DELETE FROM mail_receipt WHERE received_at < sqlc.arg('before');
+
+-- name: CollectionByHandle :one
+-- A live collection in a live hub: a trashed or archived one takes no mail, and the message goes
+-- to the jumble saying so.
+SELECT c.id
+FROM container c
+JOIN container hub ON hub.id = c.parent_id
+WHERE c.handle = sqlc.arg('handle') AND c.type = 'COLLECTION'
+  AND c.deleted_at IS NULL AND c.archived_at IS NULL
+  AND hub.deleted_at IS NULL AND hub.archived_at IS NULL;
+
+-- name: ItemByKey :one
+SELECT wi.id
+FROM work_item wi
+JOIN container c ON c.id = wi.collection_id
+WHERE c.handle = sqlc.arg('handle') AND wi.number = sqlc.arg('number')::bigint
+  AND wi.deleted_at IS NULL AND c.deleted_at IS NULL;
+
+-- name: SetCollectionHandle :execrows
+UPDATE container SET handle = sqlc.arg('handle')
+WHERE id = sqlc.arg('id') AND type = 'COLLECTION';
+
+-- name: ItemKey :one
+-- An entry's ticket key, for the Reply-To of a notification about it.
+SELECT c.handle, wi.number
+FROM work_item wi
+JOIN container c ON c.id = wi.collection_id
+WHERE wi.id = sqlc.arg('id') AND wi.deleted_at IS NULL;

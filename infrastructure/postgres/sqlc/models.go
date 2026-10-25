@@ -1071,6 +1071,7 @@ type JumbleEntry struct {
 	CreatedBy    pgtype.UUID
 	MeantForKind *string
 	MeantForID   pgtype.UUID
+	IntakeReason *string
 }
 
 type JumbleIntake struct {
@@ -1124,6 +1125,34 @@ type MailAddress struct {
 	RevokedAt    pgtype.Timestamptz
 	WindowStart  pgtype.Timestamptz
 	WindowCount  int32
+}
+
+type MailReceipt struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	MessageID  string
+	ReceivedAt pgtype.Timestamptz
+	Sender     string
+	Subject    string
+	Outcome    string
+	Reason     string
+	ItemID     pgtype.UUID
+	EntryID    pgtype.UUID
+	Door       string
+}
+
+type MailSetting struct {
+	TenantID            pgtype.UUID
+	Enabled             bool
+	Name                *string
+	DefaultCollectionID pgtype.UUID
+	SenderLevel         string
+	Allowed             []string
+	Blocked             []string
+	SenderRoutes        []byte
+	OpenedBy            pgtype.UUID
+	UpdatedAt           pgtype.Timestamptz
+	UpdatedBy           pgtype.UUID
 }
 
 type MediaObject struct {

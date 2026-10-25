@@ -21,13 +21,14 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/openapi"
 )
 
-// Mail addresses for every place (ADR-0092). The controller maps documents; who may see or
-// change an address, and where a delivery goes, are decided inwards of here.
+// The mail intake (ADR-0094). The controller maps documents; who may see or change the settings,
+// and where a delivery goes, are decided inwards of here.
 
 const (
-	showMailAddressUseCase     = "ShowMailAddress"
-	rotateMailAddressUseCase   = "RotateMailAddress"
-	setMailSenderPolicyUseCase = "SetMailSenderPolicy"
+	showMailSettingsUseCase    = "ShowMailSettings"
+	saveMailSettingsUseCase    = "SaveMailSettings"
+	listMailReceiptsUseCase    = "ListMailReceipts"
+	setCollectionHandleUseCase = "SetCollectionHandle"
 	commentJumbleEntryUseCase  = "CommentJumbleEntry"
 )
 
@@ -38,59 +39,58 @@ type AddressedMailDeliverer interface {
 	Deliver(ctx context.Context, recipient string, raw []byte) (jumbleservice.MailDeliveryResult, error)
 }
 
-// ShowMailAddress answers GET /mail/addresses.
-func (c *RestController) ShowMailAddress(
-	w http.ResponseWriter, r *http.Request, params openapi.ShowMailAddressParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		input := usecase.Input{"target_kind": string(params.TargetKind)}
-		if params.TargetId != nil {
-			input["target_id"] = params.TargetId.String()
-		}
-		return c.UseCases.Invoke(r.Context(), showMailAddressUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, mailAddressResponse(out))
-	})
+// ShowMailSettings answers GET /mail/settings.
+func (c *RestController) ShowMailSettings(w http.ResponseWriter, r *http.Request) {
+	c.mailDocument(w, r, showMailSettingsUseCase, usecase.Input{}, &openapi.MailSettings{})
 }
 
-// RotateMailAddress answers POST /mail/addresses:rotate.
-func (c *RestController) RotateMailAddress(
-	w http.ResponseWriter, r *http.Request, _ openapi.RotateMailAddressParams,
-) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.MailAddressTarget
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		input := usecase.Input{"target_kind": string(body.TargetKind)}
-		if body.TargetId != nil {
-			input["target_id"] = body.TargetId.String()
-		}
-		return c.UseCases.Invoke(r.Context(), rotateMailAddressUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, mailAddressResponse(out))
-	})
+// SaveMailSettings answers PUT /mail/settings.
+func (c *RestController) SaveMailSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveMailSettingsParams) {
+	var body map[string]any
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	c.mailDocument(w, r, saveMailSettingsUseCase, usecase.Input(body), &openapi.MailSettings{})
 }
 
-// SetMailSenderPolicy answers POST /mail/addresses:set-sender-policy.
-func (c *RestController) SetMailSenderPolicy(
-	w http.ResponseWriter, r *http.Request, _ openapi.SetMailSenderPolicyParams,
+// ListMailReceipts answers GET /mail/receipts.
+func (c *RestController) ListMailReceipts(w http.ResponseWriter, r *http.Request) {
+	c.mailDocument(w, r, listMailReceiptsUseCase, usecase.Input{}, &openapi.MailReceiptList{})
+}
+
+// SetCollectionHandle answers PUT /collections/{collection_id}/handle.
+func (c *RestController) SetCollectionHandle(
+	w http.ResponseWriter, r *http.Request, collectionID openapi_types.UUID, _ openapi.SetCollectionHandleParams,
 ) {
-	c.identity(w, r, func(actor appshared.ActorContext) (usecase.Output, error) {
-		var body openapi.MailSenderPolicyChange
-		if err := decodeJSON(r, &body); err != nil {
-			return nil, err
-		}
-		input := usecase.Input{
-			"target_kind": string(body.TargetKind), "sender_policy": string(body.SenderPolicy),
-		}
-		if body.TargetId != nil {
-			input["target_id"] = body.TargetId.String()
-		}
-		return c.UseCases.Invoke(r.Context(), setMailSenderPolicyUseCase, actor, input)
-	}, func(out usecase.Output) {
-		writeJSON(w, r, http.StatusOK, mailAddressResponse(out))
-	})
+	var body openapi.CollectionHandle
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	input := usecase.Input{"collection_id": collectionID.String(), "handle": body.Handle}
+	c.mailDocument(w, r, setCollectionHandleUseCase, input, &openapi.CollectionHandle{})
+}
+
+// mailDocument invokes a use case as the caller and answers its output in the contract's shape,
+// mapped through its JSON spelling: the output already uses the contract's words.
+func (c *RestController) mailDocument(
+	w http.ResponseWriter, r *http.Request, name string, input usecase.Input, target any,
+) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	out, err := c.UseCases.Invoke(r.Context(), name, actorOf(r), input)
+	if err == nil {
+		err = throughJSON(out, target)
+	}
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	writeJSON(w, r, http.StatusOK, target)
 }
 
 // CommentJumbleEntry answers POST /jumble/entries/{entryId}:comment.
@@ -166,6 +166,13 @@ func (c *RestController) DeliverAddressedMail(
 		return
 	}
 	answer := openapi.MailDelivered{Outcome: openapi.MailDeliveredOutcome(result.Outcome)}
+	if result.Reason != "" {
+		reason := openapi.MailReason(result.Reason)
+		answer.Reason = &reason
+	}
+	if result.Duplicate {
+		answer.Duplicate = &result.Duplicate
+	}
 	if !result.EntryID.IsZero() {
 		answer.EntryId = uuidPointer(result.EntryID)
 	}
@@ -176,36 +183,6 @@ func (c *RestController) DeliverAddressedMail(
 		answer.CommentId = uuidPointer(result.CommentID)
 	}
 	writeJSON(w, r, http.StatusAccepted, answer)
-}
-
-// mailAddressResponse maps the address document.
-func mailAddressResponse(out usecase.Output) openapi.MailAddress {
-	available, _ := out["available"].(bool)
-	answer := openapi.MailAddress{Available: available}
-	if !available {
-		return answer
-	}
-	if text := out.String("address"); text != "" {
-		answer.Address = &text
-	}
-	if kind := out.String("target_kind"); kind != "" {
-		value := openapi.MailAddressTargetKind(kind)
-		answer.TargetKind = &value
-	}
-	if id := out.String("target_id"); id != "" {
-		value := uuidValue(id)
-		answer.TargetId = &value
-	}
-	if policy := out.String("sender_policy"); policy != "" {
-		value := openapi.MailAddressSenderPolicy(policy)
-		answer.SenderPolicy = &value
-	}
-	if id := out.String("opened_by"); id != "" {
-		value := uuidValue(id)
-		answer.OpenedBy = &value
-	}
-	answer.CreatedAt = timePointer(out["created_at"])
-	return answer
 }
 
 // mimeFields reads the named fields of a multipart form and nothing else: Mailgun's shape, where

@@ -6,6 +6,7 @@ package intake
 import (
 	"context"
 	"encoding/base64"
+	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"testing"
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
@@ -33,13 +34,13 @@ func TestTheInboundKeyOpensTheDoor(t *testing.T) {
 	}
 }
 
-type recordingDeliveries struct{ got jumbleservice.AddressedMail }
+type recordingDeliveries struct{ got jumbleservice.ReceivedMail }
 
 func (r *recordingDeliveries) Execute(
-	_ context.Context, mail jumbleservice.AddressedMail,
+	_ context.Context, mail jumbleservice.ReceivedMail,
 ) (jumbleservice.MailDeliveryResult, error) {
 	r.got = mail
-	return jumbleservice.MailDeliveryResult{Outcome: jumbleservice.MailBecameEntry}, nil
+	return jumbleservice.MailDeliveryResult{Outcome: mailmodel.OutcomeEntry}, nil
 }
 
 func TestTheHeadersSayWhereAndWhatKind(t *testing.T) {

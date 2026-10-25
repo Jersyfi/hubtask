@@ -529,16 +529,16 @@ func (pending) CommentJumbleEntry(
 	notAvailable(w, r)
 }
 
-func (pending) ShowMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.ShowMailAddressParams) {
+func (pending) ShowMailSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SaveMailSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveMailSettingsParams) {
 	notAvailable(w, r)
 }
 
-func (pending) RotateMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.RotateMailAddressParams) {
-	notAvailable(w, r)
-}
+func (pending) ListMailReceipts(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
-func (pending) SetMailSenderPolicy(
-	w http.ResponseWriter, r *http.Request, _ openapi.SetMailSenderPolicyParams,
+func (pending) SetCollectionHandle(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.SetCollectionHandleParams,
 ) {
 	notAvailable(w, r)
 }

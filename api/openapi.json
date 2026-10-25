@@ -1044,65 +1044,112 @@
         }
       }
     },
-    "/mail/addresses": {
+    "/mail/settings": {
       "get": {
         "tags": [
           "jumble"
         ],
-        "operationId": "showMailAddress",
-        "summary": "The address a place takes mail at",
-        "description": "The jumble's, a collection's or an entry's address on the installation's receiving domain, minted on the first read. `available` is false where the installation has no receiving domain - the places then show a hint for administrators instead.\n",
-        "parameters": [
-          {
-            "name": "target_kind",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "JUMBLE",
-                "COLLECTION",
-                "ITEM"
-              ]
+        "operationId": "showMailSettings",
+        "summary": "The workspace's mail intake",
+        "description": "Whether the workspace takes mail, its name on the operator's receiving domain and the address that makes, the collection a message naming no place goes to, who may write, and the rules that file a sender's mail. For the workspace's administrators.\n",
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailSettings"
+                }
+              }
             }
           },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "saveMailSettings",
+        "summary": "Replace the workspace's mail intake settings",
+        "description": "Whoever saves is the account a sender who is not a member writes through, under `MEMBERS_AND_ALLOWED` and `ANYONE`, with a From line above the text. A name another workspace holds answers `409`.\n",
+        "parameters": [
           {
-            "name": "target_id",
-            "in": "query",
-            "required": false,
-            "description": "The collection or the entry; absent for the jumble.",
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/mail/receipts": {
+      "get": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "listMailReceipts",
+        "summary": "What the mail intake received",
+        "description": "The newest hundred messages of the last 30 days: when, from whom, what each became and, where it waits in the jumble or was dropped, why.\n",
+        "responses": {
+          "200": {
+            "description": "The receipts, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailReceiptList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/collections/{collection_id}/handle": {
+      "put": {
+        "tags": [
+          "containers"
+        ],
+        "operationId": "setCollectionHandle",
+        "summary": "Give a collection another handle",
+        "description": "The short name a mail subject (`#einkauf`), an address and the collection's ticket keys (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old handle no longer arrives here.\n",
+        "parameters": [
+          {
+            "name": "collection_id",
+            "in": "path",
+            "required": true,
             "schema": {
               "type": "string",
               "format": "uuid"
             }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The address",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MailAddress"
-                }
-              }
-            }
           },
-          "4XX": {
-            "$ref": "#/components/responses/Problem"
-          }
-        }
-      }
-    },
-    "/mail/addresses:rotate": {
-      "post": {
-        "tags": [
-          "jumble"
-        ],
-        "operationId": "rotateMailAddress",
-        "summary": "Replace a place's mail address",
-        "description": "The old address answers not-found from the same instant; who may send stays as it was.\n",
-        "parameters": [
           {
             "$ref": "#/components/parameters/IdempotencyKey"
           }
@@ -1112,58 +1159,18 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/MailAddressTarget"
+                "$ref": "#/components/schemas/CollectionHandle"
               }
             }
           }
         },
         "responses": {
           "200": {
-            "description": "The new address",
+            "description": "The handle now in force",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MailAddress"
-                }
-              }
-            }
-          },
-          "4XX": {
-            "$ref": "#/components/responses/Problem"
-          }
-        }
-      }
-    },
-    "/mail/addresses:set-sender-policy": {
-      "post": {
-        "tags": [
-          "jumble"
-        ],
-        "operationId": "setMailSenderPolicy",
-        "summary": "Set who may write into a place by mail",
-        "description": "`MEMBERS` (the default): people of the workspace act as themselves, everybody else waits in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who sent it.\n",
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/IdempotencyKey"
-          }
-        ],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MailSenderPolicyChange"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The address with its policy",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MailAddress"
+                  "$ref": "#/components/schemas/CollectionHandle"
                 }
               }
             }
@@ -1181,8 +1188,8 @@
         ],
         "operationId": "deliverAddressedMail",
         "security": [],
-        "summary": "Deliver a mail to an address on the receiving domain",
-        "description": "The installation's one inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`, `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.\nA recognised sender's mail becomes an entry in a collection or a comment on an entry, written as that person; anything not clearly allowed waits in the jumble, meant for the place. A message a machine sent on its own is accepted and discarded. An unknown, replaced or closed address answers `404`; an address past its hourly bound answers `429`.\n",
+        "summary": "Deliver a mail to the operator's receiving domain",
+        "description": "The installation's inbound route: the inbound service the receiving domain's MX points at posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic credentials. The workspace is the one an address names - `<workspace>@`, `<workspace>+<tag>@` or `<handle>.<workspace>@` at the receiving domain - whose intake is on.\nThe message is filed by the intake's routing order: a ticket key in the address or the subject makes it a comment, a handle a new entry in that collection, then the sender rules and the default collection; anything else, and anything from a sender the level does not admit, waits in the jumble with the reason. A message received before answers what it became then, with `duplicate`. An address naming no workspace answers `404`.\n",
         "parameters": [
           {
             "name": "recipient",
@@ -24592,11 +24599,14 @@
               "COLLECTION",
               "ITEM"
             ],
-            "description": "The place a mail was addressed to where it landed in the jumble instead - its sender was unknown or not allowed, or the inbound service marked it as spam.\n"
+            "description": "The place a mail named where it landed in the jumble instead - its sender was not admitted or may not write there, or the provider marked it as spam.\n"
           },
           "meant_for_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "intake_reason": {
+            "$ref": "#/components/schemas/MailReason"
           },
           "arrival_job_id": {
             "type": [
@@ -24618,96 +24628,184 @@
           }
         }
       },
-      "MailAddressTarget": {
+      "MailSettings": {
         "type": "object",
-        "required": [
-          "target_kind"
-        ],
         "properties": {
-          "target_kind": {
-            "type": "string",
-            "enum": [
-              "JUMBLE",
-              "COLLECTION",
-              "ITEM"
-            ]
+          "enabled": {
+            "type": "boolean"
           },
-          "target_id": {
+          "name": {
+            "type": "string",
+            "pattern": "^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$",
+            "description": "The workspace's name on the operator's receiving domain, unique on the installation."
+          },
+          "default_collection_id": {
             "type": "string",
             "format": "uuid",
-            "description": "The collection or the entry; absent for the jumble."
-          }
-        }
-      },
-      "MailSenderPolicyChange": {
-        "type": "object",
-        "required": [
-          "target_kind",
-          "sender_policy"
-        ],
-        "properties": {
-          "target_kind": {
-            "type": "string",
-            "enum": [
-              "JUMBLE",
-              "COLLECTION",
-              "ITEM"
-            ]
+            "description": "Where a message naming no place goes; absent for the jumble."
           },
-          "target_id": {
-            "type": "string",
-            "format": "uuid"
+          "senders": {
+            "$ref": "#/components/schemas/MailSenders"
           },
-          "sender_policy": {
+          "sender_routes": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/MailSenderRoute"
+            }
+          },
+          "domain": {
             "type": "string",
-            "enum": [
-              "MEMBERS",
-              "ANYONE"
-            ]
-          }
-        }
-      },
-      "MailAddress": {
-        "type": "object",
-        "description": "A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well.\n",
-        "required": [
-          "available"
-        ],
-        "properties": {
-          "available": {
-            "type": "boolean",
-            "description": "False where the installation has no receiving domain; nothing else is set then."
+            "readOnly": true,
+            "description": "The operator's receiving domain; absent where the installation has none."
           },
           "address": {
-            "type": "string"
-          },
-          "target_kind": {
             "type": "string",
-            "enum": [
-              "JUMBLE",
-              "COLLECTION",
-              "ITEM"
-            ]
-          },
-          "target_id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "sender_policy": {
+            "readOnly": true,
+            "description": "The workspace's own address there, name@domain."
+          }
+        }
+      },
+      "MailSenders": {
+        "type": "object",
+        "properties": {
+          "level": {
             "type": "string",
             "enum": [
               "MEMBERS",
+              "MEMBERS_AND_ALLOWED",
               "ANYONE"
-            ]
+            ],
+            "description": "Who may write. MEMBERS write as themselves; under the other two a sender who is not a member writes through the account that saved the settings.\n"
           },
-          "opened_by": {
+          "allowed": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string"
+            },
+            "description": "Addresses and @domains admitted under MEMBERS_AND_ALLOWED."
+          },
+          "blocked": {
+            "type": "array",
+            "maxItems": 200,
+            "items": {
+              "type": "string"
+            },
+            "description": "Addresses and @domains whose mail is dropped, before every level."
+          }
+        }
+      },
+      "MailSenderRoute": {
+        "type": "object",
+        "required": [
+          "match",
+          "collection_id"
+        ],
+        "properties": {
+          "match": {
             "type": "string",
-            "format": "uuid",
-            "description": "Who opened the address to anyone; their rights bound such mail."
+            "description": "An address or an @domain."
           },
-          "created_at": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          }
+        }
+      },
+      "MailReceiptList": {
+        "type": "object",
+        "required": [
+          "receipts"
+        ],
+        "properties": {
+          "receipts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailReceipt"
+            }
+          }
+        }
+      },
+      "MailReceipt": {
+        "type": "object",
+        "required": [
+          "id",
+          "received_at",
+          "sender",
+          "subject",
+          "outcome",
+          "door"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "received_at": {
             "type": "string",
             "format": "date-time"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "ENTRY",
+              "COMMENT",
+              "JUMBLE",
+              "DISCARDED"
+            ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MailReason"
+          },
+          "item_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "entry_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "door": {
+            "type": "string",
+            "description": "inbound for the operator's service, or the connected mailbox's address."
+          }
+        }
+      },
+      "MailReason": {
+        "type": "string",
+        "description": "Why a message waits in the jumble or was dropped.",
+        "enum": [
+          "NO_ROUTE",
+          "UNKNOWN_PLACE",
+          "SENDER_NOT_ALLOWED",
+          "NOT_PERMITTED",
+          "SPAM",
+          "UNPARSEABLE",
+          "SENDER_BLOCKED",
+          "AUTOMATIC"
+        ]
+      },
+      "CollectionHandle": {
+        "type": "object",
+        "required": [
+          "handle"
+        ],
+        "properties": {
+          "handle": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9]{1,19}$"
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid",
+            "readOnly": true
           }
         }
       },
@@ -24720,11 +24818,18 @@
           "outcome": {
             "type": "string",
             "enum": [
-              "JUMBLE_ENTRY",
               "ENTRY",
               "COMMENT",
+              "JUMBLE",
               "DISCARDED"
             ]
+          },
+          "reason": {
+            "$ref": "#/components/schemas/MailReason"
+          },
+          "duplicate": {
+            "type": "boolean",
+            "description": "The message had been received before; nothing was done again."
           },
           "entry_id": {
             "type": "string",

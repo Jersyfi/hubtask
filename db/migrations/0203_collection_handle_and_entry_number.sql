@@ -127,14 +127,8 @@ CREATE TRIGGER work_item_number BEFORE INSERT OR UPDATE OF collection_id ON work
   FOR EACH ROW EXECUTE FUNCTION work_item_assign_number();
 
 -- +goose Down
-DROP TRIGGER IF EXISTS work_item_number ON work_item;
-DROP TRIGGER IF EXISTS container_handle ON container;
-DROP FUNCTION IF EXISTS work_item_assign_number();
-DROP FUNCTION IF EXISTS container_assign_handle();
-DROP FUNCTION IF EXISTS container_free_handle(uuid, text, uuid);
-DROP FUNCTION IF EXISTS container_handle_base(text);
-DROP INDEX IF EXISTS work_item_number_idx;
-DROP INDEX IF EXISTS container_handle_uq;
-ALTER TABLE work_item DROP COLUMN IF EXISTS number;
-ALTER TABLE container DROP COLUMN IF EXISTS item_counter;
-ALTER TABLE container DROP COLUMN IF EXISTS handle;
+DO $forward_only$
+BEGIN
+  RAISE EXCEPTION 'migrations are forward-only (AGENTS.md rule 12); recovery is a restore, not a down migration'
+    USING ERRCODE = 'feature_not_supported';
+END $forward_only$;
