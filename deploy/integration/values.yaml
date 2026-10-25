@@ -35,10 +35,13 @@ config:
   # by RFC 2606, and that is the truth of this environment - nothing leaves it. The day a walk
   # needs a receiver that answers, its host goes on this list, which is what the list is for.
   # The second is the AI model the installation offers its workspaces (Claude, through its
-  # OpenAI-compatible endpoint).
+  # OpenAI-compatible endpoint). The third is where Amazon publishes the certificate every Alexa
+  # request is signed with (ADR-0093 decision 4): without it no request can be proven Alexa's, and
+  # every spoken sentence is refused before it is read.
   egressAllowedHosts:
     - webhook.invalid
     - api.anthropic.com
+    - s3.amazonaws.com
   extraEnv:
     # The application's mail path (smtp.yaml): a catcher in this namespace, reached by the name
     # its certificate carries, on production's port, with the default - STARTTLS - security.
