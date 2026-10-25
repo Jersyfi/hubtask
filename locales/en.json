@@ -6300,7 +6300,6 @@
   "app.mail.jumble_lead": "Mail to this address without a handle lands here:",
   "app.mail.section": "E-mail",
   "app.mail.section_hint": "Forward a mail to this address and it becomes an entry in this collection, with its files.",
-  "app.mail.copy_address": "Copy the mail handle",
   "app.mail.copied_menu": "{subject} copied. Write it in the subject of a mail to the intake.",
   "app.mail.copy_failed": "The address could not be copied: {address}",
   "app.jumble.meant_for_collection": "Meant for {place}",
@@ -6518,6 +6517,6 @@
   "app.mail.handle_saved": "The handle is now {handle}.",
   "app.mail.unchanged": "Unchanged",
   "app.mail.subject_hint": "With #handle in the subject a mail lands in that collection.",
-  "app.mail.jumble_settings_hint": "Where mail goes and who may write is under Administration → E-mail.",
+  "app.mail.jumble_settings_hint": "Where mail goes and who may write is set on the mail page of the administration.",
   "app.mail.open_settings": "Open the mail settings"
 }

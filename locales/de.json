@@ -6297,7 +6297,6 @@
   "app.mail.jumble_lead": "Mails an diese Adresse ohne Kennung landen hier:",
   "app.mail.section": "E-Mail",
   "app.mail.section_hint": "Leite eine Mail an diese Adresse weiter, dann wird sie mit ihren Dateien ein Eintrag in dieser Sammlung.",
-  "app.mail.copy_address": "Mail-Kennung kopieren",
   "app.mail.copied_menu": "{subject} kopiert. In den Betreff einer Mail an den Eingang schreiben.",
   "app.mail.copy_failed": "Die Adresse ließ sich nicht kopieren: {address}",
   "app.jumble.meant_for_collection": "Für {place}",
@@ -6515,6 +6514,6 @@
   "app.mail.handle_saved": "Die Kennung ist jetzt {handle}.",
   "app.mail.unchanged": "Unverändert",
   "app.mail.subject_hint": "Mit #kennung im Betreff landet eine Mail in der Sammlung.",
-  "app.mail.jumble_settings_hint": "Wohin Mails gehen und wer schreiben darf, steht unter Administration → E-Mail.",
+  "app.mail.jumble_settings_hint": "Wohin Mails gehen und wer schreiben darf, stellst du in der Administration auf der Mail-Seite ein.",
   "app.mail.open_settings": "Mail-Einstellungen öffnen"
 }

@@ -74,7 +74,6 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { copyHandle } from '../lib/data/mailintake.svelte.ts';
   import HandleField from '../lib/mail/HandleField.svelte';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
@@ -837,7 +836,7 @@
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, hasMail: Boolean(container.handle) }, (code) => t(code)),
+      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason }, (code) => t(code)),
   );
 
   /**
@@ -882,9 +881,7 @@
   }
 
   function choseFromMenu(id: string) {
-    if (id === 'mail' && container) {
-      if (container.handle) void copyHandle(container.handle, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
-    } else if (id === 'settings') openStructure('general');
+    if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
     else if (id === 'position') isPositioning = true;

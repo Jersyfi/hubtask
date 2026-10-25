@@ -1014,10 +1014,6 @@
       {:else if item.cover?.kind === 'COLOR' && item.cover.color_token}
         <div class="cover-stripe" data-token={item.cover.color_token} aria-hidden="true"></div>
       {/if}
-      {#if ticketKey}
-        {@const key = ticketKey}
-        <button type="button" class="ticket-key" aria-label={t('app.entries.ticket_key', { key })} onclick={() => void copyTicketKey(key)}>{key}</button>
-      {/if}
       <div class="title-row">
         <!-- Completing the entry from its own page: the same control the row has, the same write. -->
         {#if isChangeable}
@@ -1044,6 +1040,12 @@
           onblur={() => void commitInline()}
           onkeydown={onTitleKey}
         ></textarea>
+        <!-- The ticket key at the end of the title's line, not above it: no room is taken from the
+             head where no cover is set. -->
+        {#if ticketKey}
+          {@const key = ticketKey}
+          <button type="button" class="ticket-key" aria-label={t('app.entries.ticket_key', { key })} onclick={() => void copyTicketKey(key)}>{key}</button>
+        {/if}
         {#if hasAi}
           <AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
         {/if}
@@ -1396,10 +1398,11 @@
 
   .title-row { display: flex; align-items: center; gap: var(--sp-150); }
 
-  /* The ticket key above the title: quiet, in the code face, and a button because a click copies
-     it - the reference a person pastes into a mail subject. */
+  /* The ticket key at the end of the title's line: quiet, in the code face, and a button because a
+     click copies it - the reference a person pastes into a mail subject. */
   .ticket-key {
-    align-self: flex-start;
+    flex: none;
+    white-space: nowrap;
     padding: 0 var(--sp-050);
     border: var(--bw-hairline) solid transparent;
     border-radius: var(--r-sm);
