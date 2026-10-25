@@ -28,7 +28,7 @@ The comment is on the entry, by Anna, without the quoted notification below it.
    about an entry carries the entry's ticket key on the intake's address as `Reply-To`
    (`familie+web-42@in.example.app`), and Hubtask's own notification header.
 2. A reply from the recipient becomes a comment by them on that entry, with the quoted text cut -
-   the ticket key routes it (UC-JUM-09 check 2), so it needs no secret of its own.
+   the ticket key routes it (UC-JUM-12 check 2), so it needs no secret of its own.
 3. A notification that comes back by itself — an out-of-office answer, a bounce — stores nothing.
 
 ## Where it ends

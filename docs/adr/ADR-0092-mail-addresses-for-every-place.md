@@ -6,7 +6,7 @@ eine Möglichkeit geben, … vollumfängliches Feature"; "ADRs und Decisions hie
 
 **Rule lives in:** superseded - see ADR-0094; [automation.md](../architecture/automation.md) §5,
 [multi-tenancy.md](../architecture/multi-tenancy.md) §2.1 (the door `resolve_mail_address`),
-[UC-JUM-09](../usecases/jumble/UC-JUM-09-receive-mail-into-a-place.md),
+[UC-JUM-09](../usecases/jumble/UC-JUM-09-mail-straight-into-a-collection-or-an-entry.md),
 [UC-JUM-10](../usecases/jumble/UC-JUM-10-answer-a-notification-by-mail.md)
 
 ## Context

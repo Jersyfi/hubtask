@@ -1,5 +1,5 @@
 ---
-id: UC-JUM-09
+id: UC-JUM-12
 title: Receive mail into a place
 context: jumble
 actors: [PE-person, PE-member, PE-operator]

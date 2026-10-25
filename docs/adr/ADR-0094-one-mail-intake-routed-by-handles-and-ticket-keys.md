@@ -7,7 +7,7 @@ unterstützt wird. SMTP Empfang wird nicht benötigt … wofür ich dir hiermit 
 **Supersedes:** [ADR-0040](./ADR-0040-no-imap-intake.md), [ADR-0092](./ADR-0092-mail-addresses-for-every-place.md)
 
 **Rule lives in:** [automation.md](../architecture/automation.md) §5,
-[UC-JUM-09](../usecases/jumble/UC-JUM-09-receive-mail-into-a-place.md),
+[UC-JUM-12](../usecases/jumble/UC-JUM-12-receive-mail-into-a-place.md),
 [UC-JUM-10](../usecases/jumble/UC-JUM-10-answer-a-notification-by-mail.md),
 [UC-JUM-11](../usecases/jumble/UC-JUM-11-set-up-the-mail-intake.md)
 
