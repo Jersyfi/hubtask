@@ -6573,5 +6573,6 @@
   "app.mail.mailbox_remove": "Disconnect",
   "app.mail.mailbox_removed": "{address} is disconnected.",
   "app.mail.mailbox_read_at": "Last read {when}",
-  "app.mail.mailbox_waiting": "Read for the first time in a moment."
+  "app.mail.mailbox_waiting": "Read for the first time in a moment.",
+  "app.mail.reason.REFUSED_BY_PLACE": "The place does not take that, such as no comments"
 }

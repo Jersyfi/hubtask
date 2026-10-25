@@ -33,6 +33,9 @@ const (
 	ReasonSenderNotAllowed Reason = "SENDER_NOT_ALLOWED"
 	// ReasonNotPermitted: the sender is a member who may not write there.
 	ReasonNotPermitted Reason = "NOT_PERMITTED"
+	// ReasonRefusedByPlace: the place keeps nothing of the kind - a comment on a list that keeps
+	// no comments.
+	ReasonRefusedByPlace Reason = "REFUSED_BY_PLACE"
 	// ReasonSpam: the provider marked the message.
 	ReasonSpam Reason = "SPAM"
 	// ReasonUnparseable: the message could not be read; the raw message is attached.

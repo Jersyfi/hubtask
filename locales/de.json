@@ -6570,5 +6570,6 @@
   "app.mail.mailbox_remove": "Trennen",
   "app.mail.mailbox_removed": "{address} ist getrennt.",
   "app.mail.mailbox_read_at": "Zuletzt gelesen {when}",
-  "app.mail.mailbox_waiting": "Wird gleich zum ersten Mal gelesen."
+  "app.mail.mailbox_waiting": "Wird gleich zum ersten Mal gelesen.",
+  "app.mail.reason.REFUSED_BY_PLACE": "Der Ort nimmt das nicht an, etwa keine Kommentare"
 }

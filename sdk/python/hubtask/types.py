@@ -2060,7 +2060,7 @@ class MailReceipt(TypedDict, total=False):
     entry_id: str
     door: Required[str]
 
-MailReason = Literal["NO_ROUTE", "UNKNOWN_PLACE", "SENDER_NOT_ALLOWED", "NOT_PERMITTED", "SPAM", "UNPARSEABLE", "SENDER_BLOCKED", "AUTOMATIC", "TOO_MANY"]
+MailReason = Literal["NO_ROUTE", "UNKNOWN_PLACE", "SENDER_NOT_ALLOWED", "NOT_PERMITTED", "REFUSED_BY_PLACE", "SPAM", "UNPARSEABLE", "SENDER_BLOCKED", "AUTOMATIC", "TOO_MANY"]
 
 class CollectionHandle(TypedDict, total=False):
     handle: Required[str]

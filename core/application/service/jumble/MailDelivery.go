@@ -310,9 +310,13 @@ func (h ReceiveMail) file(
 		return h.toJumble(ctx, tenantID, message, stored, decided.target, decided.reason)
 	}
 	result, err := h.write(ctx, decided.actor, decided.target, message, stored, decided.behalf)
-	if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
+	switch {
+	case errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound):
 		// The sender may not do this there - the jumble waits for somebody who may.
 		return h.toJumble(ctx, tenantID, message, stored, decided.target, mail.ReasonNotPermitted)
+	case errors.Is(err, shared.ErrValidation) || errors.Is(err, shared.ErrCapabilityNotSupported):
+		// The place keeps nothing of the kind - a reply to an entry on a list without comments.
+		return h.toJumble(ctx, tenantID, message, stored, decided.target, mail.ReasonRefusedByPlace)
 	}
 	return result, err
 }
@@ -364,6 +368,14 @@ func (h ReceiveMail) write(
 				input["notes"] = cutBytes(strings.TrimSpace(text), domain.MaxBodyBytes)
 			}
 			out, err := h.Catalogue.Invoke(ctx, createWorkItemName, actor, input)
+			afterwards := ""
+			if err != nil && input["notes"] != nil && errors.Is(err, shared.ErrCapabilityNotSupported) {
+				// The collection keeps no description - a shopping list: the entry without one, and
+				// the mail's text as its first comment where the collection keeps comments.
+				afterwards = input.String("notes")
+				delete(input, "notes")
+				out, err = h.Catalogue.Invoke(ctx, createWorkItemName, actor, input)
+			}
 			if err != nil {
 				return err
 			}
@@ -372,6 +384,13 @@ func (h ReceiveMail) write(
 				return shared.ErrInternal.WithDetail("mail.entry_incomplete").WithCause(err)
 			}
 			result = MailDeliveryResult{Outcome: mail.OutcomeEntry, ItemID: itemID}
+			if afterwards != "" {
+				if _, err := h.Catalogue.Invoke(ctx, addCommentName, actor, usecase.Input{
+					"item_id": itemID.String(), "body": afterwards,
+				}); err != nil && !errors.Is(err, shared.ErrCapabilityNotSupported) {
+					return err
+				}
+			}
 		default:
 			body := strings.TrimSpace(text)
 			if body == "" || (onBehalf && strings.TrimSpace(domain.CutQuotedReply(message.Body)) == "") {
@@ -390,6 +409,11 @@ func (h ReceiveMail) write(
 			if _, err := h.Catalogue.Invoke(ctx, attachMediaName, actor, usecase.Input{
 				"item_id": result.ItemID.String(), "media_id": file.String(),
 			}); err != nil {
+				if errors.Is(err, shared.ErrCapabilityNotSupported) {
+					// A place that keeps no attachments takes the mail without its files; the
+					// unattached uploads go with the media reconciliation.
+					break
+				}
 				return err
 			}
 		}

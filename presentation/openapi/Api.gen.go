@@ -2747,6 +2747,7 @@ const (
 	AUTOMATIC        MailReason = "AUTOMATIC"
 	NOROUTE          MailReason = "NO_ROUTE"
 	NOTPERMITTED     MailReason = "NOT_PERMITTED"
+	REFUSEDBYPLACE   MailReason = "REFUSED_BY_PLACE"
 	SENDERBLOCKED    MailReason = "SENDER_BLOCKED"
 	SENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
 	SPAM             MailReason = "SPAM"
@@ -2763,6 +2764,8 @@ func (e MailReason) Valid() bool {
 	case NOROUTE:
 		return true
 	case NOTPERMITTED:
+		return true
+	case REFUSEDBYPLACE:
 		return true
 	case SENDERBLOCKED:
 		return true

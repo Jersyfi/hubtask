@@ -162,6 +162,8 @@ type call struct {
 type catalogue struct {
 	calls  []call
 	refuse error
+	// hidden refuses a field the way a collection's structure does: notes on a shopping list.
+	hidden map[string]bool
 }
 
 func (c *catalogue) Invoke(
@@ -170,6 +172,12 @@ func (c *catalogue) Invoke(
 	c.calls = append(c.calls, call{name: name, actor: actor, in: in})
 	if c.refuse != nil && name != attachMediaName {
 		return nil, c.refuse
+	}
+	if _, notes := in["notes"]; notes && c.hidden["notes"] && name == createWorkItemName {
+		return nil, shared.ErrCapabilityNotSupported.WithDetail("items.capability_hidden")
+	}
+	if c.hidden[name] {
+		return nil, shared.ErrCapabilityNotSupported.WithDetail("items.capability_hidden")
 	}
 	switch name {
 	case createWorkItemName:
@@ -433,5 +441,38 @@ func TestCommentingAnEntryAnswersThroughTheCatalogue(t *testing.T) {
 	_ = other.store.Insert(context.Background(), plain)
 	if _, err := (CommentJumbleEntry{Writer: other.writer, Catalogue: &catalogue{}}).Execute(context.Background(), actor(), entryID, ""); !errors.Is(err, shared.ErrValidation) {
 		t.Errorf("no destination answered %v", err)
+	}
+}
+
+// A shopping list keeps no description: the entry is made without, the text becomes its first
+// comment, and a place that keeps no files takes the mail without them.
+func TestAPlaceThatKeepsNoNotesStillTakesTheMail(t *testing.T) {
+	rig := newIntakeRig()
+	rig.catalogue.hidden = map[string]bool{"notes": true, attachMediaName: true}
+	result := rig.deliver(t, ReceivedMail{
+		Sender: "anna@example.org", Subject: "Gemüsebrühe #einkauf", Body: "Zwei Packungen.", MessageID: "n1",
+		Attachments: []mediaservice.IngestedFile{{FileName: "a.pdf", Content: []byte("%PDF")}},
+	})
+	if result.Outcome != mail.OutcomeEntry {
+		t.Fatalf("became %+v", result)
+	}
+	var created, commented bool
+	for _, made := range rig.catalogue.calls {
+		if made.name == createWorkItemName && made.in["notes"] == nil {
+			created = true
+		}
+		if made.name == addCommentName && made.in["body"] == "Zwei Packungen." {
+			commented = true
+		}
+	}
+	if !created || !commented {
+		t.Errorf("calls %+v", rig.catalogue.calls)
+	}
+
+	// A place that refuses outright sends the mail to the jumble rather than losing it.
+	rig = newIntakeRig()
+	rig.catalogue.refuse = shared.ErrValidation
+	if result := rig.deliver(t, ReceivedMail{Sender: "anna@example.org", Subject: "#einkauf", MessageID: "n2"}); result.Outcome != mail.OutcomeJumble || result.Reason != mail.ReasonRefusedByPlace {
+		t.Errorf("a refused write became %+v", result)
 	}
 }

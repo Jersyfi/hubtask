@@ -20,6 +20,7 @@ export type MailReason =
   | 'UNKNOWN_PLACE'
   | 'SENDER_NOT_ALLOWED'
   | 'NOT_PERMITTED'
+  | 'REFUSED_BY_PLACE'
   | 'SPAM'
   | 'UNPARSEABLE'
   | 'SENDER_BLOCKED'
