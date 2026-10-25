@@ -7,7 +7,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { forwardTo, navigableUrl, readArrival, returnState, startRequest } from './oidc.ts';
+import { forwardTo, isOwnPath, navigableUrl, readArrival, returnState, startRequest } from './oidc.ts';
 
 test('a code and a state are the handoff', () => {
   const arrival = readArrival('?code=abc&state=xyz');
@@ -140,4 +140,11 @@ test('a code goes nowhere but a host beneath this one, by the same scheme', () =
   ]) {
     assert.equal(forwardTo(stranger, installation, '?code=abc&state=xyz'), undefined, stranger);
   }
+});
+
+test('only a path on this origin is a place to return to after the provider', () => {
+  assert.equal(isOwnPath('/oauth/consent?client_id=c&scope=items%3Aread'), true);
+  assert.equal(isOwnPath('//evil.example/x'), false);
+  assert.equal(isOwnPath('/\\evil.example'), false);
+  assert.equal(isOwnPath('https://evil.example'), false);
 });

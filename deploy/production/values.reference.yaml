@@ -54,6 +54,8 @@ config:
   # a workspace's identity provider. Mandatory in provider operation (T-07) - an empty list means
   # "anywhere public" and /meta/health says so on every pod, which is A-14 firing from the first
   # day. Set by the operator; a workspace that names a receiver not on it is refused at delivery.
+  # An installation that answers Alexa (ADR-0093) adds s3.amazonaws.com: Amazon's signing
+  # certificate is fetched from there, and without it every Alexa request is refused.
   egressAllowedHosts: []
   extraEnv:
     # Exactly the origin the browser sends, scheme included: the chart refuses a bare host name

@@ -33,3 +33,24 @@ func TestSettingsRefuseWhatCannotBeSpokenOrStored(t *testing.T) {
 		}
 	}
 }
+
+func TestTheInvocationIsTheWorkspacesOrTheLanguagesDefault(t *testing.T) {
+	if got := (Settings{}).Invocation(German); got != "digitale pinnwand" {
+		t.Errorf("German default %q", got)
+	}
+	if got := (Settings{}).Invocation(English); got != "list helper" {
+		t.Errorf("English default %q", got)
+	}
+	if got := (Settings{InvocationName: "  Meine   Küche "}).Invocation(German); got != "meine küche" {
+		t.Errorf("own name %q", got)
+	}
+	for name, valid := range map[string]bool{
+		"meine küche": true, "mom's list": true, "x": false, "listenhelfer": false, "öffne pinnwand": false, "pinnwand mit liste": false, "pinnwand die": false, "list for me": false, "alexa listen": false, "listen skill": false,
+		"liste 2": false, "3 listen": false, strings.Repeat("a", 51): false,
+	} {
+		err := Settings{InvocationName: name}.Validate()
+		if (err == nil) != valid {
+			t.Errorf("%q: valid %v, got %v", name, valid, err)
+		}
+	}
+}

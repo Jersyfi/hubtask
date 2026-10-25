@@ -91,7 +91,8 @@
 
   function finishHere(): void {
     if (arrival.kind === 'handoff') {
-      void oidc.complete(arrival.handoff).then((ok) => ok && onnavigate?.('/'));
+      // Back to where the sign-in began - an app's consent request among others - or the overview.
+      void oidc.complete(arrival.handoff).then((ok) => ok && onnavigate?.(oidc.takeReturn() ?? '/'));
     } else {
       // The provider refused, or there is no flow in this address at all. Both end here, and
       // saying which would tell somebody standing at the callback whether a handle they do not

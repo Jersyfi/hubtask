@@ -159,3 +159,8 @@ export function forwardTo(base: string, here: Here, search: string): string | un
   const path = parsed.pathname.replace(/\/+$/, '');
   return `${parsed.origin}${path}/auth/callback${search}`;
 }
+
+/** A path on this origin, never another host: `/x`, not `//evil.example` or `https://…`. */
+export function isOwnPath(path: string): boolean {
+  return path.startsWith('/') && !path.startsWith('//') && !path.startsWith('/\\');
+}

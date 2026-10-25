@@ -175,20 +175,65 @@ func TestTheInterpretationDoesNothing(t *testing.T) {
 	}
 }
 
-func TestTheModelCarriesTheListsByEveryName(t *testing.T) {
-	model := AlexaModel(domain.German, []domain.Known{
-		{Place: domain.Place{CollectionID: einkauf, Name: "Einkauf"}, Name: "Einkauf"},
-		{Place: domain.Place{CollectionID: einkauf, Name: "Einkauf"}, Name: "Kühlschrank", IsAlias: true},
-	})
+// The workspace's lists are not in the pasted model: they reach Alexa with every answer, by
+// every name - so a list made tomorrow is heard without the model being pasted again.
+func TestTheListsReachAlexaAtRunTimeByEveryName(t *testing.T) {
+	model := AlexaModel(domain.German, "")
 	language := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
-	if language["invocationName"] != InvocationName {
+	if language["invocationName"] != "digitale pinnwand" {
 		t.Errorf("invocation %v", language["invocationName"])
 	}
-	types := language["types"].([]any)
-	lists := types[0].(map[string]any)["values"].([]any)
-	first := lists[0].(map[string]any)["name"].(map[string]any)
-	synonyms := first["synonyms"].([]any)
-	if first["value"] != "Einkauf" || len(lists) != 1 || len(synonyms) < 2 {
-		t.Errorf("list values %+v", lists)
+	own := AlexaModel(domain.German, " Meine  Küche ")["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
+	if own["invocationName"] != "meine küche" {
+		t.Errorf("own invocation %v", own["invocationName"])
+	}
+	directive := DynamicEntities([]domain.Known{
+		{Place: domain.Place{CollectionID: einkauf, Name: "Einkauf"}, Name: "Einkauf"},
+		{Place: domain.Place{CollectionID: einkauf, Name: "Einkauf"}, Name: "Kühlschrank", IsAlias: true},
+	}, domain.German)
+	if directive["type"] != "Dialog.UpdateDynamicEntities" || directive["updateBehavior"] != "REPLACE" {
+		t.Fatalf("directive %+v", directive)
+	}
+	values := directive["types"].([]any)[0].(map[string]any)["values"].([]any)
+	first := values[0].(map[string]any)["name"].(map[string]any)
+	if first["value"] != "Einkauf" || len(values) != 1 || len(first["synonyms"].([]any)) < 2 {
+		t.Errorf("values %+v", values)
+	}
+	if DynamicEntities(nil, domain.German) != nil {
+		t.Error("a workspace without lists sends a directive")
+	}
+	many := make([]domain.Known, 0, MaxDynamicPlaces+5)
+	for index := range MaxDynamicPlaces + 5 {
+		name := "Liste " + string(rune('A'+index%26)) + string(rune('a'+index/26))
+		many = append(many, domain.Known{Place: domain.Place{CollectionID: "c", Name: name}, Name: name})
+	}
+	if got := len(DynamicEntities(many, domain.German)["types"].([]any)[0].(map[string]any)["values"].([]any)); got != MaxDynamicPlaces {
+		t.Errorf("%d values, want Alexa's %d", got, MaxDynamicPlaces)
+	}
+}
+
+// The welcome and the help speak of the person's own lists, not of a shopping list they may not
+// have; a workspace with none yet still hears a sentence that reads.
+func TestTheGuideNamesThePersonsOwnLists(t *testing.T) {
+	known := []domain.Known{
+		{Place: domain.Place{CollectionID: "c1", Name: "Metro"}, Name: "Metro"},
+		{Place: domain.Place{CollectionID: "c2", Name: "Akquise"}, Name: "Akquise"},
+		{Place: domain.Place{CollectionID: "c1", LabelID: "l1", Name: "Metro, Getränke"}, Name: "Getränke", Category: true},
+		{Place: domain.Place{CollectionID: "c1", Name: "Metro"}, Name: "Großmarkt", IsAlias: true},
+	}
+	params := withExamples(map[string]string{"list": "X"}, known, domain.German)
+	if params["first"] != "Metro" || params["second"] != "Akquise" || params["lists"] != "Metro und Akquise" || params["list"] != "X" {
+		t.Errorf("got %+v", params)
+	}
+	empty := withExamples(nil, nil, domain.English)
+	if empty["first"] != "Shopping" || empty["lists"] != "Shopping" {
+		t.Errorf("without lists: %+v", empty)
+	}
+	if guide := Guide("voice.help", known, domain.German); guide.Code != "voice.help" || !guide.Open || guide.Params["first"] != "Metro" {
+		t.Errorf("guide %+v", guide)
+	}
+	helper, _ := assistant(domain.Settings{Enabled: true})
+	if places := helper.Places(context.Background(), person); len(places) == 0 {
+		t.Error("the person's places were not read")
 	}
 }

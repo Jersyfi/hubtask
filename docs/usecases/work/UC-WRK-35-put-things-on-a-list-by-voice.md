@@ -21,9 +21,11 @@ few minutes, whether Hubtask runs at home or at an operator's.
 ## Story
 
 Anna says "Alexa, sag Hubtask: zwei Liter Milch und Butter auf die Einkaufsliste". Alexa answers
-"Notiert auf Einkauf: 2 l Milch und Butter", and both entries are in *Einkauf*. "Reis auf die
-Metro-Liste" files rice under the category *Metro*. "Was steht auf der Einkaufsliste?" reads the
-open entries; "Butter ist erledigt" ticks it off. The workspace's administrator switched voice on,
+"In Einkauf notiert: 2 l Milch und Butter", and both entries are in *Einkauf*. A place is said the
+way its kind is spoken of: "Gemüsebrühe bei Metro kaufen" for the store, "Angebot schreiben für
+Akquise" for the project, "Steuerbescheid in Büro" for the folder. "Was steht bei Metro?" reads the
+open entries; "Gemüsebrühe ist erledigt" ticks it off. Asked for help, Alexa names Anna's own lists
+rather than a shopping list she may not have. The workspace's administrator switched voice on,
 chose *Einkauf* as the default list, named the fridge as another name for it, tried a sentence on
 the page, and connected Alexa by copying each value into Amazon's console.
 

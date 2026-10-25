@@ -926,8 +926,9 @@ paths:
       operationId: showAlexaModel
       summary: The Alexa interaction model
       description: >
-        The interaction model to paste into the Alexa developer console's JSON editor, the
-        workspace's lists and spoken names included.
+        The interaction model to paste into the Alexa developer console's JSON editor. It names
+        no workspace's lists: those reach Alexa at run time with every answer, so a list made or
+        renamed later works without pasting the model again.
       parameters:
         - name: locale
           in: query
@@ -17908,6 +17909,14 @@ components:
         skill_id:
           type: string
           description: The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.
+        invocation_name:
+          type: string
+          minLength: 2
+          maxLength: 50
+          description: >
+            What follows "Alexa, sag" or "Alexa, ask", lower case: two words at least, which Amazon
+            requires, written apart the way Alexa's speech recognition writes them. Absent for the
+            language's default, "digitale pinnwand" or "list helper".
         installation_skill:
           type: boolean
           readOnly: true

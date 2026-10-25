@@ -20,6 +20,8 @@ export interface VoiceSettings {
   readonly enabled: boolean;
   readonly default_collection_id?: string | null;
   readonly skill_id?: string | null;
+  /** What follows "Alexa, sag"; absent for the language's default. */
+  readonly invocation_name?: string | null;
   readonly installation_skill?: boolean;
   readonly aliases: readonly VoiceAlias[];
 }

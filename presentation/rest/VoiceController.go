@@ -5,7 +5,9 @@ package rest
 
 import (
 	"context"
+	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
@@ -66,6 +68,9 @@ func (c *RestController) SaveVoiceSettings(w http.ResponseWriter, r *http.Reques
 		input := usecase.Input{"enabled": body.Enabled, "aliases": aliases}
 		if body.DefaultCollectionId != nil {
 			input["default_collection_id"] = body.DefaultCollectionId.String()
+		}
+		if body.InvocationName != nil {
+			input["invocation_name"] = *body.InvocationName
 		}
 		if body.SkillId != nil {
 			input["skill_id"] = *body.SkillId
@@ -130,6 +135,11 @@ func (c *RestController) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
 	}
 	answer, err := c.Alexa.Handle(r.Context(), r.Header, body)
 	if err != nil {
+		// The caller learns nothing about which check failed; the operator does. The cause says
+		// which - a certificate the egress allowlist kept out, a signature that did not match, a
+		// skill this installation does not answer - and never the request's token or body.
+		slog.WarnContext(r.Context(), "an Alexa request was refused",
+			slog.String("request_id", requestID), slog.String("error", errorWithCause(err)))
 		WriteProblem(w, err, requestID)
 		return
 	}
@@ -159,6 +169,9 @@ func voiceSettingsResponse(out usecase.Output) openapi.VoiceSettings {
 	}
 	if skill := out.String("skill_id"); skill != "" {
 		settings.SkillId = &skill
+	}
+	if name := out.String("invocation_name"); name != "" {
+		settings.InvocationName = &name
 	}
 	if rows, ok := out["aliases"].([]any); ok {
 		for _, raw := range rows {
@@ -211,4 +224,14 @@ func interpretationResponse(out usecase.Output) openapi.VoiceInterpretation {
 		}
 	}
 	return answer
+}
+
+// errorWithCause is an error for the log with the cause it wraps: the refusal's code alone does
+// not say which of Alexa's checks failed.
+func errorWithCause(err error) string {
+	text := err.Error()
+	if cause := errors.Unwrap(err); cause != nil && cause.Error() != text {
+		text += ": " + cause.Error()
+	}
+	return text
 }

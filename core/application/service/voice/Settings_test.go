@@ -101,3 +101,25 @@ func TestASentenceIsTriedAndTheModelShown(t *testing.T) {
 		t.Errorf("model %v", err)
 	}
 }
+
+// The workspace chooses the name its skill is spoken to by, and the model carries it.
+func TestTheInvocationNameIsTheWorkspacesChoice(t *testing.T) {
+	w, saved := writer(domain.Settings{}, &authorizer{})
+	out, err := SaveVoiceSettings{Writer: w}.Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"enabled": true, "invocation_name": "  Meine   Küche "})
+	if err != nil || saved.settings.InvocationName != "meine küche" || out["invocation_name"] != "meine küche" {
+		t.Fatalf("saved %+v, answered %+v, %v", saved.settings, out, err)
+	}
+	model, err := ShowAlexaModel{Writer: w}.Descriptor().Handler.Invoke(context.Background(), person, usecase.Input{"locale": "de-DE"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	language := model["model"].(map[string]any)["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
+	if language["invocationName"] != "meine küche" {
+		t.Errorf("model invocation %v", language["invocationName"])
+	}
+	if _, err := (SaveVoiceSettings{Writer: w}).Descriptor().Handler.Invoke(context.Background(), person,
+		usecase.Input{"invocation_name": "alexa liste"}); !errors.Is(err, shared.ErrValidation) {
+		t.Errorf("a wake word in the name answered %v", err)
+	}
+}

@@ -56,6 +56,25 @@ export function readRequest(search: string): AuthorizationRequest | undefined {
   };
 }
 
+/** A part of an authorization request an app can leave out, and the request then cannot proceed. */
+export type MissingPart = 'redirect_uri' | 'code_challenge' | 'scope';
+
+/**
+ * What an app's request lacks, where an app plainly sent one: `client_id` is there, and something
+ * `readRequest` needs is not. Empty where nothing is missing - or where no app asked at all, a
+ * bookmark or a reload, which the screen tells apart. The commonest case is an Alexa skill whose
+ * console has PKCE switched off: Alexa then sends no `code_challenge`.
+ */
+export function missingParts(search: string): MissingPart[] {
+  const query = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
+  if ((query.get('client_id') ?? '') === '') return [];
+  const missing: MissingPart[] = [];
+  if ((query.get('redirect_uri') ?? '') === '') missing.push('redirect_uri');
+  if ((query.get('code_challenge') ?? '') === '') missing.push('code_challenge');
+  if ((query.get('scope') ?? '').trim() === '') missing.push('scope');
+  return missing;
+}
+
 /**
  * Where the browser goes once the person has decided.
  *

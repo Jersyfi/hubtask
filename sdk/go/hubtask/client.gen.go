@@ -12476,6 +12476,9 @@ type VoiceSettings struct {
 	// InstallationSkill Whether the installation publishes a skill every workspace may use.
 	InstallationSkill *bool `json:"installation_skill,omitempty"`
 
+	// InvocationName What follows "Alexa, sag" or "Alexa, ask", lower case: two words at least, which Amazon requires, written apart the way Alexa's speech recognition writes them. Absent for the language's default, "digitale pinnwand" or "list helper".
+	InvocationName *string `json:"invocation_name,omitempty"`
+
 	// SkillId The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.
 	SkillId *string `json:"skill_id,omitempty"`
 }
@@ -20411,7 +20414,7 @@ type ClientInterface interface {
 
 	// ShowAlexaModel The Alexa interaction model
 	//
-	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 	//
 	// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
 	ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -31387,7 +31390,7 @@ func (c *Client) AnswerAlexa(ctx context.Context, body AnswerAlexaJSONRequestBod
 
 // ShowAlexaModel The Alexa interaction model
 //
-// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 //
 // Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
 func (c *Client) ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55620,7 +55623,7 @@ type ClientWithResponsesInterface interface {
 
 	// ShowAlexaModelWithResponse The Alexa interaction model
 	//
-	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -83770,7 +83773,7 @@ func (c *ClientWithResponses) AnswerAlexaWithResponse(ctx context.Context, body 
 
 // ShowAlexaModelWithResponse The Alexa interaction model
 //
-// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 //
 // Returns a wrapper object for the known response body format(s).
 //

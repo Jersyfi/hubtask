@@ -2053,6 +2053,7 @@ class VoiceSettings(TypedDict, total=False):
     enabled: Required[bool]
     default_collection_id: str
     skill_id: str
+    invocation_name: str
     installation_skill: bool
     aliases: Required[list["VoiceAlias"]]
 
