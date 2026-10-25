@@ -137,8 +137,13 @@
   }
 
   // *Try a sentence*: what Alexa would do, without doing it.
-  let sentence = $state(t('app.voice.try_example'));
-  let locale = $state(messages.locale.startsWith('de') ? 'de-DE' : 'en-US');
+  // The interface's language until somebody chooses another: read when the catalogue has loaded,
+  // not when the page was first drawn.
+  const spoken = $derived(messages.locale.startsWith('de') ? 'de-DE' : 'en-US');
+  let chosenLocale = $state<string | undefined>(undefined);
+  const locale = $derived(chosenLocale ?? spoken);
+  let typed = $state<string | undefined>(undefined);
+  const sentence = $derived(typed ?? t('app.voice.try_example'));
   let tried = $state<VoiceInterpretation | undefined>(undefined);
   let tryFailure = $state<string | undefined>(undefined);
   async function tryIt() {
@@ -188,7 +193,8 @@
     }
   }
 
-  let modelLocale = $state(messages.locale.startsWith('de') ? 'de-DE' : 'en-US');
+  let chosenModelLocale = $state<string | undefined>(undefined);
+  const modelLocale = $derived(chosenModelLocale ?? spoken);
   let modelFailure = $state<string | undefined>(undefined);
   async function copyModel() {
     modelFailure = undefined;
@@ -272,8 +278,8 @@
               <h2 class="section" id="voice-try">{t('app.voice.section_try')}</h2>
               <p class="quiet small">{t('app.voice.try_hint')}</p>
               <div class="try">
-                <Input label={t('app.voice.try_sentence')} bind:value={sentence} />
-                <Select label={t('app.voice.try_language')} options={locales} bind:value={locale} />
+                <Input label={t('app.voice.try_sentence')} bind:value={() => sentence, (next) => (typed = next)} />
+                <Select label={t('app.voice.try_language')} options={locales} bind:value={() => locale, (next) => (chosenLocale = next)} />
                 <Button tone="secondary" onclick={() => void tryIt()}>{t('app.voice.try')}</Button>
               </div>
               {#if tryFailure}<Banner tone="danger">{tryFailure}</Banner>{/if}
@@ -308,7 +314,7 @@
                     <h3>{t('app.voice.step_model')}</h3>
                     <p class="quiet small">{t('app.voice.step_model_hint')}</p>
                     <div class="try">
-                      <Select label={t('app.voice.try_language')} options={locales} bind:value={modelLocale} />
+                      <Select label={t('app.voice.try_language')} options={locales} bind:value={() => modelLocale, (next) => (chosenModelLocale = next)} />
                       <Button tone="secondary" icon={copied === 'model' ? 'check' : 'copy'} onclick={() => void copyModel()}>{t('app.voice.copy_model')}</Button>
                     </div>
                     {#if modelFailure}<Banner tone="danger">{modelFailure}</Banner>{/if}
