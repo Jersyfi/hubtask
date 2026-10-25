@@ -14,7 +14,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { FIGURE_HUB, FIGURES, showFigures, signedIn } from './fixture.mjs';
+import { FIGURE_HUB, FIGURES, showFigures, signedIn, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -123,8 +123,8 @@ test('chromium: 1280 px — a figure moves neither the title nor the row it stan
       return { x: Math.round(r.x), y: Math.round(r.y), h: Math.round(r.height) };
     });
     const title = await box(page.getByRole('heading', { name: collection.name, level: 1 }));
-    // The head's own control at its end, the ⚙: what a figure beside the title would push.
-    const primary = await box(page.locator('[data-opener="structure"]').first());
+    // The head's own control at its end, the place's menu: what a figure beside the title would push.
+    const primary = await box(page.getByRole('button', { name: `Actions for ${collection.name}` }).first());
     const plain = await box(page.locator(`[data-node="${FIGURES.none.id}"]`));
     const figured = await box(page.locator(`[data-node="${FIGURES.sum.id}"]`));
     const label = await box(page.locator(`[data-node="${FIGURES.sum.id}"] .label`));
@@ -146,7 +146,7 @@ test('chromium: 1280 px — the control offers what the structure allows, and wr
   const choicesOf = async (collection) => {
     const { page, context } = await open(browser, 1280, collection);
     // What counts is one setting of the settings page's *Structure* (UC-WRK-23).
-    await page.getByRole('button', { name: `Settings of ${collection.name}` }).click();
+    await openSettings(page, collection.name);
     await page.getByRole('link', { name: 'Structure' }).click();
     const dialog = page.locator('[data-setting="counts"]');
     await dialog.waitFor({ timeout: 5_000 });

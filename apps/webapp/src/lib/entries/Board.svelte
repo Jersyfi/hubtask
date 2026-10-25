@@ -685,6 +685,29 @@
   });
 
   /**
+   * A click anywhere on a card opens it, not only on its title (concept round 3): a press that
+   * moves is the drag, whose release the drag helper keeps from becoming a click, and a press held
+   * still on a touch screen is the menu. The title stays the link the keyboard and a middle click
+   * reach; the card's own controls keep their clicks.
+   */
+  $effect(() => {
+    const node = board;
+    if (!node) return;
+    const onClick = (event: MouseEvent) => {
+      if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      if (selection.isOn) return;
+      const target = event.target as Element | null;
+      if (target?.closest('a, button, input, label, select, textarea, [role="menu"], [role="menuitem"]')) return;
+      const id = cardIdAt(target);
+      if (!id) return;
+      if (onopen) onopen(id);
+      else onnavigate?.(`/items/${id}`);
+    };
+    node.addEventListener('click', onClick);
+    return () => node.removeEventListener('click', onClick);
+  });
+
+  /**
    * `Ctrl`/`⌘`-click picks a card (UC-WRK-28 check 4), captured before the link under it, as the
    * list does.
    */
@@ -1048,7 +1071,8 @@
   }
 
   /* A card can be carried: the hand says so, and a press lifts it a little before it moves. */
-  .card { cursor: grab; }
+  .card { cursor: pointer; }
+  .card:active { cursor: grabbing; }
   .card:active { box-shadow: var(--shadow-raised); }
 
   /* The cards it passes slide aside by its height, so where it lands is a gap and nothing overlaps.
@@ -1093,8 +1117,14 @@
     gap: var(--sp-200);
     align-items: start;
     overflow-x: auto;
-    /* Room between the columns and the scrollbar under them. */
-    padding-block-end: var(--sp-200);
+    /* Room between the columns and the scrollbar under them, and round the columns for the dashed
+       outline the column under a carried card draws outside itself - a scroller clips at its
+       padding edge, so without it the outline was cut at the board's sides and top. The margin
+       gives the room back, so the columns stay where the page's edge is. */
+    padding-block: var(--sp-100) var(--sp-200);
+    padding-inline: var(--sp-100);
+    margin-block-start: calc(var(--sp-100) * -1);
+    margin-inline: calc(var(--sp-100) * -1);
   }
 
   .frame { position: relative; }

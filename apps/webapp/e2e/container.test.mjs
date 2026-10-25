@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, COLLECTION, HUB, LABELS, signedIn } from './fixture.mjs';
+import { BUCKETS, COLLECTION, HUB, LABELS, signedIn, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 
@@ -43,13 +43,12 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   t.after(close);
 
   // The head: no add - the bar's Capture and the list's own add are the two ways in -; the people
-  // and the ⚙; the place's own menu.
+  // and the place's own menu, *Settings…* first in it - no ⚙ beside it.
   const head = page.locator('header.head');
   assert.equal(await head.getByRole('button', { name: 'Add an entry', exact: true }).count(), 0, 'a third add in the head');
   assert.equal(await page.getByRole('button', { name: 'More ways to add an entry' }).count(), 0, 'the add carries no split');
   assert.equal(await head.getByRole('button', { name: 'Filter' }).count(), 0, 'the filter is the toolbar\'s, not the head\'s');
-  const settings = head.getByRole('button', { name: `Settings of ${COLLECTION.name}` });
-  assert.equal(await settings.count(), 1, 'the ⚙ to the settings stands in the head');
+  assert.equal(await head.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).count(), 0, 'a ⚙ beside the menu');
 
   // The toolbar under it: the layouts at the start; the filter, the order, the views and selecting at the end.
   const toolbar = page.getByRole('toolbar', { name: 'What is shown of the entries' });
@@ -129,13 +128,13 @@ test('chromium: 1280 px — the head, the menu in three groups, and every dialog
   assert.deepEqual(unstubbed(), []);
 });
 
-test('chromium: 1280 px — the ⚙ opens the settings as a page, a section each at its own address', async (t) => {
+test('chromium: 1280 px — *Settings…* opens the settings as a page, a section each at its own address', async (t) => {
   const browser = await chromium.launch();
   t.after(() => browser.close());
   const { page, failures, close } = await openCollection(browser, 1280);
   t.after(close);
 
-  await page.locator('header.head').getByRole('button', { name: `Settings of ${COLLECTION.name}` }).click();
+  await openSettings(page, COLLECTION.name);
   await page.waitForURL(new RegExp(`/collections/${COLLECTION.id}/settings/general$`, 'u'), { timeout: 5_000 });
   await page.getByRole('heading', { name: 'Settings', level: 1 }).waitFor({ timeout: 5_000 });
   // No drawer over the collection: the settings are the page.
@@ -262,7 +261,7 @@ test('chromium: 1280 px — the hub: create a collection primary, import beside 
   assert.deepEqual(await labelsOf(page.getByRole('menu')), ['Settings', 'Import', 'Change position', 'Archive', 'Make private', 'Move to the trash']);
   await page.keyboard.press('Escape');
   // A hub's settings are a page as a collection's are: its general fields, its default, its people.
-  await page.getByRole('button', { name: `Settings of ${HUB.name}` }).click();
+  await openSettings(page, HUB.name);
   await page.waitForURL(new RegExp(`/hubs/${HUB.id}/settings/general$`, 'u'), { timeout: 5_000 });
   assert.deepEqual(
     (await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link').allTextContents()).map((each) => each.trim()),

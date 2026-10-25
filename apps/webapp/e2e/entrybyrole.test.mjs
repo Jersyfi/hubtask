@@ -166,11 +166,11 @@ for (const [role, shapes] of [['OWNER', true], ['MEMBER', false]]) {
     await page.waitForTimeout(600);
     const rows = await pageMenu(page, COLLECTION.name);
     // The labels, the fields, the templates, the automation and the people are sections of the
-    // settings page, so they are offered exactly where its ⚙ is.
+    // settings page, so they are offered exactly where *Settings…* is.
     for (const shaping of ['Settings…', 'Move to another hub…']) {
       assert.equal(rows.includes(shaping), shapes, `${shaping} in ${rows}`);
     }
-    assert.equal(await page.locator('[data-opener="structure"]').count(), shapes ? 1 : 0, 'the ⚙ to the settings');
+    assert.equal(await page.locator('[data-opener="structure"]').count(), 0, 'no ⚙ beside the menu: the settings are its first item');
     for (const moved of ['Labels', 'Custom fields', 'Templates', 'Policies', 'People']) assert.ok(!rows.includes(moved), `${moved} is still a row of ${rows}`);
     // Used by everybody: the views in the toolbar, the templates among capture's modes, who is
     // here in the faces.

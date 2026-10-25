@@ -92,6 +92,10 @@
     font-size: var(--fs-050);
     line-height: 1;
     white-space: nowrap;
+    /* One height with and without its mark: the mark is a line of `fs-100`, so a badge of words
+       alone stood shorter beside one that carried a mark. */
+    box-sizing: border-box;
+    min-block-size: calc(var(--fs-100) + 2 * var(--sp-050) + 2 * var(--bw-hairline));
   }
 
   .badge[data-tone='info'] {

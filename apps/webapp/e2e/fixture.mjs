@@ -1349,3 +1349,12 @@ export async function chooseNew(page, row, { scope = page } = {}) {
   await scope.getByRole('button', { name: 'New', exact: true }).first().click();
   await page.getByRole('menu').getByRole('menuitem', { name: row, exact: true }).click();
 }
+
+/**
+ * Opens a place's settings the way a person does: its menu, *Settings…* first in it. The head has
+ * no ⚙ of its own beside the menu (concept round 3).
+ */
+export async function openSettings(page, name) {
+  await page.getByRole('button', { name: `Actions for ${name}` }).first().click();
+  await page.getByRole('menuitem', { name: 'Settings…' }).click();
+}

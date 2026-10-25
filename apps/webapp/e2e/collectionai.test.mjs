@@ -13,7 +13,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { AI_MANIFEST, COLLECTION, ITEMS, MANIFEST, forgetUnstubbed, stub, unstubbedSoFar } from './fixture.mjs';
+import { AI_MANIFEST, COLLECTION, ITEMS, MANIFEST, forgetUnstubbed, stub, unstubbedSoFar, openSettings } from './fixture.mjs';
 import { serve } from './serve.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -113,7 +113,7 @@ test('chromium: a template drafted for the collection stands in Structure → Te
   t.after(() => browser.close());
   const { context, page, failures } = await at(browser, true);
   t.after(() => context.close());
-  await page.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).click();
+  await openSettings(page, COLLECTION.name);
   const panel = page.getByRole('main');
   await panel.getByRole('link', { name: 'Templates' }).click();
   const draft = panel.locator('[data-ai="template"]').first();

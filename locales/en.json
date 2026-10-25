@@ -6339,5 +6339,8 @@
   "mail.code_short": "The address could not be made.",
   "mail.address_raced": "Somebody made this address at the same moment. Try again.",
   "mail.entry_incomplete": "The mail could not be written in.",
-  "app.today.jumble_none": "Nothing waits."
+  "app.today.jumble_none": "Nothing waits.",
+  "app.rank.up_named": "Move {name} up",
+  "app.rank.down_named": "Move {name} down",
+  "app.item.column_menu": "Move to a column"
 }

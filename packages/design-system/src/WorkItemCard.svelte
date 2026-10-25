@@ -237,6 +237,10 @@
 
   .labels { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
 
+  /* A card without labels has no labels zone: an empty one kept its gap above the title, so a card
+     of a title alone had more room at the top than at the bottom. */
+  .labels:not(:has(*)) { display: none; }
+
   /* One line: what is dated and counted at the start, the people at the end. */
   .footer { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); color: var(--text-secondary); font-size: var(--fs-075); }
   .people { display: inline-flex; margin-inline-start: auto; }

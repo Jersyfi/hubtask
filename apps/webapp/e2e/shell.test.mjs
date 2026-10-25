@@ -111,7 +111,8 @@ async function common(page, width) {
   // A way to search on every width, and the field exactly where there is room for it. The tree's
   // row is a destination rather than a second field, so it is counted separately: what must never
   // happen is *two fields*, and what must always happen is at least one way through.
-  const inBar = await page.locator('header form[role="search"] input').count();
+  // From `expanded` the field; on `medium` its look, opening the search over the page.
+  const inBar = await page.locator('header form[role="search"] input').count() + await page.locator('header button.seek').count();
   const inNav = await page.getByRole('treeitem', { name: 'Search' }).count() + await page.getByRole('link', { name: 'Search', exact: true }).count();
   assert.equal(inBar, width < 600 ? 0 : 1, `${width}: the bar has ${inBar} search fields`);
   // On `compact` the bottom bar carries Search and it is the only way through, so it is counted
@@ -122,9 +123,9 @@ async function common(page, width) {
   // screenshot and wrong by six pixels for a year: an empty slot that still takes a gap, or a
   // control outside the group that is supposed to balance the other side. Two pixels of slack for
   // sub-pixel rounding, and nothing for anything else.
-  // What is centred is the pair: the field and *Capture* beside it, the two ways into everything
-  // (design-system.md §11.2).
-  if (inBar === 1) {
+  // What is centred is the field, *Capture* standing past its end (design-system.md §11.2); on
+  // `medium` the field's look shrinks with the bar instead and is not measured here.
+  if (inBar === 1 && (await page.locator('header form[role="search"]').count()) === 1) {
     const centred = await page.evaluate(() => {
       const ways = document.querySelector('header form[role="search"]').closest('.ways').getBoundingClientRect();
       const row = document.querySelector('header form[role="search"]').closest('header').firstElementChild.getBoundingClientRect();
@@ -252,10 +253,12 @@ test('chromium: 600 px — the drawer holds both groups, the avatar is in the ba
   await drawer.waitFor({ timeout: 5_000 });
   const rows = (await drawer.getByRole('treeitem').allTextContents()).map((row) => row.trim());
   assert.deepEqual(rows, [...PRIMARY, 'House', 'Archive', 'Trash'], `the drawer holds ${JSON.stringify(rows)}`);
-  // Search is the bar's field here, and it leads to the same destination as the row.
+  // Search is the bar's way into the search over the page here, and it leads to the same
+  // destination as the row.
   await page.keyboard.press('Escape');
   await drawer.waitFor({ state: 'hidden', timeout: 5_000 });
-  await page.locator('header form[role="search"] input').fill('milk');
+  await page.locator('header button.seek').click();
+  await page.getByRole('dialog').locator('form[role="search"] input').fill('milk');
   await page.keyboard.press('Enter');
   await page.waitForFunction(() => location.pathname === '/search', null, { timeout: 5_000 });
   // The address carries a handle for the words, never the words: what is kept is kept

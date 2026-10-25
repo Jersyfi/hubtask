@@ -26,7 +26,7 @@ import { join, dirname } from 'node:path';
 
 import { chromium } from 'playwright';
 
-import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub } from './fixture.mjs';
+import { ACCOUNT, OTHER, OWNER_GRANTS, PAGE, SHAPE_HUB, SHAPE_ITEMS, SHAPES, forgetUnstubbed, showStructures, stub, openSettings } from './fixture.mjs';
 import { serve } from './serve.mjs';
 import { reveal } from './reveal.mjs';
 
@@ -82,7 +82,7 @@ async function menuRows(page, name) {
 }
 
 async function openPanel(page, name) {
-  await page.getByRole('button', { name: `Settings of ${name}` }).click();
+  await openSettings(page, name);
   await page.getByRole('link', { name: 'Structure' }).click();
   const panel = page.locator('[data-structure-panel]');
   await panel.waitFor({ timeout: 5_000 });

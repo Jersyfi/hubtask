@@ -16,7 +16,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { BUCKETS, FIGURES, ITEMS, showFigures, signedIn, stub } from './fixture.mjs';
+import { BUCKETS, FIGURES, ITEMS, showFigures, signedIn, stub, openSettings } from './fixture.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
 const served = await serve(DIST);
@@ -117,7 +117,7 @@ test('chromium: UC-WRK-31 check 2 — the Structure panel says the flow keeps it
   t.after(() => browser.close());
   const { page, failures, context, written } = await flow(browser, 1280);
   t.after(() => context.close());
-  await page.getByRole('button', { name: `Settings of ${FLOW.name}` }).click();
+  await openSettings(page, FLOW.name);
   await page.getByRole('link', { name: 'Structure' }).click();
   const section = page.locator('[data-setting="automation"]');
   await section.waitFor({ timeout: 5_000 });

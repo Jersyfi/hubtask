@@ -23,7 +23,7 @@
   import type { Snippet } from 'svelte';
   import { untrack } from 'svelte';
 
-  import { AppBar, Banner, BottomBar, Button, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
+  import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
   import SectionNav from './SectionNav.svelte';
@@ -451,16 +451,30 @@
   {#snippet barSearch()}
     <!-- The two ways into everything stand together in the middle: finding and capturing (§11.2).
          *Capture* is its mark on `medium`, where the field is narrow. -->
-    <div class="ways">
-      <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
-      {#if isCaptureOffered}
-        {#if viewport.isBelowExpanded}
+    {#if viewport.isBelowExpanded}
+      <!-- On `medium` the field would be squeezed between the logo and the end: it is the way into
+           the search instead, shrinking with the bar, and the search opens over the page. -->
+      <div class="ways" data-narrow>
+        <button type="button" class="seek" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" data-tour="palette" onclick={() => palette.summon()}>
+          <Icon name="search" size="sm" />
+          <span class="seek-word">{t('app.palette.placeholder')}</span>
+        </button>
+        {#if isCaptureOffered}
           <IconButton icon="plus" size="sm" tone="primary" label={t('app.capture.open_field')} data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()} />
-        {:else}
-          <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
         {/if}
-      {/if}
-    </div>
+      </div>
+    {:else}
+      <!-- The field stands in the middle of the window, *Capture* beside it, so opening it grows it
+           evenly to both sides around the window's centre (concept round 3). -->
+      <div class="ways">
+        <Palette host="bar" onnavigate={go} onaccount={accountVerb} here={captureHere} />
+        {#if isCaptureOffered}
+          <span class="beside">
+            <Button size="sm" tone="primary" icon="plus" data-tour="capture" aria-keyshortcuts="Q" onclick={() => capture.summon()}>{t('app.capture.open_field')}</Button>
+          </span>
+        {/if}
+      </div>
+    {/if}
   {/snippet}
   <AppBar
     label={t('app.nav.bar')}
@@ -649,7 +663,7 @@
     <AccountMenu destinations={accountGroup} name={actor.account?.display_name ?? t('app.nav.you')} email={actor.account?.email} picture={accounts.pictureOf(actor.account?.id)} isSheet bind:isSheetOpen={isAccountOpen} onchoose={chooseAccount} />
   {/if}
   <!-- The palette's second drawing, below `medium`: the same field and list, in a dialog. -->
-  {#if session.isSignedIn && viewport.isCompact && palette.isOpen}
+  {#if session.isSignedIn && viewport.isBelowExpanded && palette.isOpen}
     <Palette host="dialog" onnavigate={go} onaccount={accountVerb} here={captureHere} />
   {/if}
   <!-- One capture field for the three ways in: `Q`, the bar's button, the bottom bar's ＋. -->
@@ -707,6 +721,41 @@
   }
 
   .ways > :global(:not(:first-child)) { flex: none; }
+
+  /* From `expanded`: the field alone takes the slot, so the slot's centre - the window's - is the
+     field's; *Capture* stands just past its end, outside the slot. */
+  .ways:not([data-narrow]) { position: relative; }
+
+  .beside {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: calc(100% + var(--sp-100));
+    translate: 0 -50%;
+    display: flex;
+  }
+
+  /* On `medium`: a field's look, the way into the dialog search; its words give way first. */
+  .seek {
+    display: flex;
+    align-items: center;
+    gap: var(--sp-100);
+    min-inline-size: 0;
+    block-size: var(--density-control-sm-min);
+    padding-inline: var(--sp-100);
+    border: var(--bw-hairline) solid var(--border-strong);
+    border-radius: var(--r-md);
+    background: var(--bg-surface);
+    color: var(--text-secondary);
+    font: inherit;
+    font-size: var(--fs-075);
+    cursor: text;
+  }
+
+  .seek:hover { border-color: var(--text-secondary); }
+
+  .seek:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
+
+  .seek-word { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-inline-size: 0; }
 
   .home {
     display: inline-flex;

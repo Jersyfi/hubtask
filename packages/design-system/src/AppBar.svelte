@@ -181,6 +181,9 @@
   .row[data-search] .lead,
   .row[data-search] .end {
     flex: 1 1 0;
+    /* Never narrower than what they hold: on a narrow window the field gives way, not the logo or
+       the account - a field that ran under the logo was the bar failing at both. */
+    min-inline-size: max-content;
   }
 
   /* The end grows now, so its contents have to be told to stay at the end of it: a box that used

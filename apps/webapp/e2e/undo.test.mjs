@@ -15,7 +15,7 @@ import { join, dirname } from 'node:path';
 import { chromium } from 'playwright';
 
 import { serve } from './serve.mjs';
-import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub } from './fixture.mjs';
+import { CHILDREN, COLLECTION, ITEMS, LABELS, signedIn, stub, openSettings } from './fixture.mjs';
 import { reveal } from './reveal.mjs';
 
 const DIST = join(dirname(fileURLToPath(import.meta.url)), '..', 'dist');
@@ -113,7 +113,7 @@ test('chromium: 1280 px — a label taken off an entry and a label deleted from 
   // A label deleted from the collection, from *Settings → Labels*: a page, not a modal, so the
   // message stands with its Undo at once beside the list of deleted labels.
   // The labels are a section of the settings page (design-system.md §11.8).
-  await page.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).click();
+  await openSettings(page, COLLECTION.name);
   await page.getByRole('link', { name: 'Labels' }).click();
   await undoAfterEightSeconds(page, async () => {
     await page.getByRole('button', { name: `Delete ${label.name}` }).click();
@@ -132,7 +132,7 @@ test('chromium: 1280 px — *Settings → Labels* lists a deleted label with the
   const gone = { id: '01a0e2e0-0000-7000-8000-0000000000e9', collection_id: COLLECTION.id, name: 'Waiting', color_token: 'amber', description: null, version: 2, deleted_at: '2026-10-20T09:00:00Z' };
   await context.route('**/api/v1/containers/*/labels?include_deleted=true', (route) => route.fulfill({ json: [...LABELS, gone] }));
 
-  await page.getByRole('button', { name: `Settings of ${COLLECTION.name}` }).click();
+  await openSettings(page, COLLECTION.name);
   await page.getByRole('link', { name: 'Labels' }).click();
   await page.getByRole('heading', { name: 'Deleted labels' }).waitFor({ timeout: 5_000 });
   await page.getByRole('button', { name: `Bring ${gone.name} back` }).click();

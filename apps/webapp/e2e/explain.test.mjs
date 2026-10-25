@@ -201,7 +201,8 @@ const VIEWS = [
 async function openPart(page, tab, mayShape) {
   await page.goto(`${served.origin}/collections/${COLLECTION.id}`);
   if (mayShape) {
-    await page.locator('[data-opener="structure"]').click();
+    await page.getByRole('button', { name: `Actions for ${COLLECTION.name}` }).first().click();
+    await page.getByRole('menuitem', { name: 'Settings…' }).click();
     await page.getByRole('navigation', { name: 'Parts of the structure' }).getByRole('link', { name: tab }).click();
     const part = page.getByRole('region', { name: tab === 'Fields' ? 'Custom fields' : tab });
     await part.waitFor({ timeout: 5_000 });

@@ -6336,5 +6336,8 @@
   "mail.code_short": "Die Adresse ließ sich nicht anlegen.",
   "mail.address_raced": "Jemand hat diese Adresse im selben Moment angelegt. Versuch es noch einmal.",
   "mail.entry_incomplete": "Die Mail ließ sich nicht eintragen.",
-  "app.today.jumble_none": "Nichts wartet."
+  "app.today.jumble_none": "Nichts wartet.",
+  "app.rank.up_named": "{name} nach oben",
+  "app.rank.down_named": "{name} nach unten",
+  "app.item.column_menu": "In eine Spalte verschieben"
 }

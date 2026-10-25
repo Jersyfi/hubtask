@@ -298,6 +298,35 @@
   const reminderCount = $derived(reminders.of(id).length);
   const rule = $derived(series.of(id));
   /** The board column the entry stands in, by its name: what it *is* beside its level. */
+  /** The collection's columns, where it has any: what the column mark offers. */
+  const columnsHere = $derived.by(() => {
+    if (!item) return [];
+    // Only where the collection is a board at all: a list's entries have no column to change.
+    const offered = collection?.structure?.settings?.views?.offered as readonly string[] | undefined;
+    if (offered && !offered.includes('KANBAN')) return [];
+    return buckets.of(item.collection_id);
+  });
+  const columnItems = $derived<MenuItem[]>([
+    ...columnsHere.map((column) => ({ id: column.id, label: column.name, icon: column.id === item?.bucket_id ? ('check' as const) : undefined })),
+    { id: 'none', label: t('app.board.unbucketed'), icon: item?.bucket_id ? undefined : ('check' as const), hasSeparatorBefore: true },
+  ]);
+
+  /** Puts the entry in a column, as the board's move does - the done column completes it too. */
+  async function setColumn(bucketId: string | null) {
+    if (!item || (item.bucket_id ?? null) === bucketId) return;
+    const target = columnsHere.find((column) => column.id === bucketId);
+    try {
+      let moved = await items.setBucket(item.id, bucketId, item.version);
+      if (target?.is_done_bucket && !moved.completion?.is_completed) {
+        moved = await items.setCompleted(moved.id, true, crypto.randomUUID());
+        void celebration.celebrate(moved);
+      }
+      announcer.say(t('app.board.moved', { title: item.title, name: target?.name ?? t('app.board.unbucketed'), limit: '' }));
+    } catch (error) {
+      writeFailure = renderProblem(error as never, messages);
+    }
+  }
+
   const columnName = $derived(item?.bucket_id ? buckets.of(item.collection_id).find((each) => each.id === item?.bucket_id)?.name : undefined);
   const carriedLabels = $derived(
     item ? (item.label_ids ?? []).map((labelId) => labels.of(item.collection_id).find((each) => each.id === labelId)).filter((each) => each !== undefined) : [],
@@ -1035,7 +1064,17 @@
            which labels are the details' (concept round 2, §4), not a second row of the same facts. -->
       <div class="marks">
         <Badge size="sm">{typeName(item.type)}</Badge>
-        {#if columnName}<Badge size="sm" icon="columns-3">{columnName}</Badge>{/if}
+        {#if isWritable && columnsHere.length > 0}
+          <!-- The column is changed here as well as on the board (concept round 3): the mark is
+               the menu of the collection's columns. -->
+          <Menu label={t('app.item.column_menu')} items={columnItems} onselect={(id) => void setColumn(id === 'none' ? null : id)}>
+            {#snippet trigger(props)}
+              <button type="button" class="column-mark" data-column-mark {...props}>
+                <Icon name="columns-3" size="sm" /><span>{columnName ?? t('app.board.unbucketed')}</span><Icon name="chevron-down" size="sm" />
+              </button>
+            {/snippet}
+          </Menu>
+        {:else if columnName}<Badge size="sm" icon="columns-3">{columnName}</Badge>{/if}
         {#if item.archived_at}
           <Badge size="sm" icon="archive">{t('app.entries.archived_label')}</Badge>
         {/if}
@@ -1521,4 +1560,27 @@
   .unread { margin: var(--sp-150) 0 0; color: var(--text-primary); font-size: var(--fs-075); }
 
   .unread-detail { margin: var(--sp-050) 0 var(--sp-150); color: var(--text-subtle); font-size: var(--fs-075); }
+
+  /* The column mark as a menu: a small badge's measure, with the turn that says it opens. */
+  .column-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sp-050);
+    box-sizing: border-box;
+    min-block-size: calc(var(--fs-100) + 2 * var(--sp-050) + 2 * var(--bw-hairline));
+    padding: var(--sp-050) var(--sp-100);
+    border: var(--bw-hairline) solid var(--status-neutral-border);
+    border-radius: var(--r-sm);
+    background: var(--status-neutral-surface);
+    color: var(--status-neutral-text);
+    font: inherit;
+    font-size: var(--fs-050);
+    font-weight: var(--fw-medium);
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .column-mark:hover { border-color: var(--border-default); }
+
+  .column-mark:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
 </style>

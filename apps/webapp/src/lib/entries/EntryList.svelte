@@ -447,12 +447,15 @@
     const rows: Row[] = [];
     parents.forEach((item, index) => {
       const archival = archivalOfItem(item, isUnderArchive);
-      // Whether it *may* hold children is the collection's answer; whether it *does* is not known
-      // until it is opened, which is why the twist appears for any type that takes them.
+      // Whether it *may* hold children is the collection's answer; whether it *does* is what the
+      // row's counts say, or its children once read - a twist that opens onto nothing is a promise
+      // the row cannot keep (concept round 3). Where neither is known yet, the type decides.
+      const known = item.counts ? item.counts.parts > 0 : undefined;
+      const held = items.hasChildrenOf(item.id) ? items.childrenOf(item.id).length > 0 : undefined;
       rows.push({
         item,
         depth,
-        takesChildren: childTypes(item.type).length > 0,
+        takesChildren: childTypes(item.type).length > 0 && (held ?? known ?? true),
         siblings: parents,
         index,
         parentId,
@@ -1299,11 +1302,6 @@
             {#each group.rows as row (row.item.id)}
               {@render entryRow(row)}
             {/each}
-            {#if arrangement?.grouping === 'column' && !isReadOnly && mayCreate && topTypes().length > 0 && !viewport.isCompact}
-              <div class="group-add">
-                <AddRow label={t('app.entries.add')} onclick={() => captureField.open({ collectionId, bucketId: group.key ?? undefined, types: topTypes() })} />
-              </div>
-            {/if}
           {/each}
           {#if arranged.done.length > 0}
             <!-- What is done, gathered at the end and folded (L5): one press away, never gone. -->
@@ -1595,6 +1593,10 @@
   .sub-empty { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-050) var(--sp-100); }
   .sub-none { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); flex-basis: 100%; }
 
+  /* The first add's mark under the sentence's first letter: its own padding pulled back, so the
+     line and the adds share one start (concept round 3). */
+  .sub-empty > :global(.add-row:first-of-type) { margin-inline-start: calc(var(--sp-100) * -1); }
+
   /* What `Stack gap="050"` was, written here because the level now owns a state of its own: a row
      being dragged is drawn differently, and a primitive that decorated would stop being one. */
   /* The concept's rhythm: one row-card under the next with a small gap (design-system.md §11.8). */
@@ -1608,8 +1610,9 @@
 
   /* A simple list's row ticks under a sideways swipe; scrolling stays the browser's. */
   .level[data-simple] .row { touch-action: pan-y; }
-  /* The tick's target: the row's start, at least 44 points square, the box at its edge. */
-  .level[data-simple] .row :global(.leading) { min-inline-size: var(--sp-600); min-block-size: var(--sp-600); }
+  /* The tick's target: the row's start, at least 44 points square, the box in its middle - at its
+     edge the box sat on the card's border and its title far off to the side (concept round 3). */
+  .level[data-simple] .row :global(.leading) { min-inline-size: var(--sp-600); min-block-size: var(--sp-600); justify-content: center; }
 
   .section-row { display: flex; align-items: center; gap: var(--sp-050); }
 
@@ -1714,7 +1717,7 @@
     .cell:empty { display: inline-flex; }
     .cell[data-field='amount'] { inline-size: var(--sp-1000); }
     .cell[data-field='column'] { inline-size: calc(var(--sp-1000) * 1.5); }
-    .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2); }
+    .cell[data-field='due'] { inline-size: calc(var(--sp-1000) * 2.5); }
     .cell[data-field='people'] { inline-size: var(--sp-1000); }
     .cell[data-field='labels'] { inline-size: calc(var(--sp-1000) * 2.25); }
     .cell[data-field='progress'] { inline-size: var(--sp-600); }
@@ -1778,7 +1781,6 @@
   .done-head { color: var(--text-secondary); cursor: pointer; border-radius: var(--r-sm); }
   .done-head:hover { background: var(--bg-surface-hover); }
   .done-head:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); outline-offset: var(--sp-025); }
-  .group-add { padding-inline: var(--sp-050); }
 
   .amount {
     padding: var(--sp-025) var(--sp-100);

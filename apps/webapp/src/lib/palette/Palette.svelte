@@ -647,25 +647,35 @@
 <style>
   /* The field takes the slot whole; the slot is what is bounded, in `AppBar`. The list is
      positioned against this, which is why it is the containing block. */
-  .entry { position: relative; display: block; min-inline-size: 0; min-block-size: var(--density-control-sm-min); }
+  .entry { position: relative; display: block; min-inline-size: 0; block-size: var(--density-control-sm-min); }
 
-  .float { position: relative; }
+  /* Always drawn over the slot, centred on it, so using it changes one thing - its width - and that
+     change is a movement rather than a jump: the field grows evenly to both sides, never down or up.
+     The slot is the window's middle from `expanded` (AppFrame), so the open field is too. */
+  .float {
+    position: absolute;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    inline-size: 100%;
+    /* Centred on both axes: the field is a hair taller than the slot's control height, and pinned
+       to the slot's top it stood lower than the bar's middle. */
+    translate: -50% -50%;
+    transition: inline-size var(--dur-base) var(--ease-standard);
+  }
 
-  /* In use: centred on the field's own middle, the open width, never into the logo's or the
-     account's side of the bar. */
+  /* In use: the open width, never into the logo's or the account's side of the bar. */
   .entry:focus-within > .float,
   .entry[data-open] > .float {
-    position: absolute;
-    inset-block-start: 0;
-    inset-inline-start: 50%;
     z-index: var(--z-popover);
     inline-size: min(var(--layout-barsearch-open), 100vw - 2 * var(--layout-barsearch-side));
     min-inline-size: 100%;
-    translate: -50% 0;
   }
 
-  :global([dir='rtl']) .entry:focus-within > .float,
-  :global([dir='rtl']) .entry[data-open] > .float { translate: 50% 0; }
+  :global([dir='rtl']) .float { translate: 50% -50%; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .float { transition: none; }
+  }
 
   .keys { display: inline-flex; position: absolute; inset-block-start: 50%; inset-inline-end: var(--sp-100); transform: translateY(-50%); pointer-events: none; }
   /* The words make room for the key rather than run under it - a German placeholder is long. */

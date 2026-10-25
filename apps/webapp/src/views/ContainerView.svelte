@@ -504,10 +504,9 @@
         ? containers.collectionsOf(container.parent_id)
         : [],
   );
-  const position = $derived(siblings.findIndex((entry) => entry.id === id));
 
   /**
-   * Ranks this container one place up or down.
+   * Ranks a place of this level one step up or down - the position dialog offers it for every row.
    *
    * The keyboard path: WCAG 2.2 SC 2.5.7 wants a single-pointer alternative to every drag, and
    * the drag is built **against** this rather than the other way round. A rank change is a command before it is a gesture.
@@ -517,27 +516,30 @@
    * goes through `:move` naming the hub it is already in, which the operation documents as a
    * reorder.
    */
-  async function moveBy(offset: number) {
-    if (!container || position < 0) return;
-    const target = position + offset;
+  async function moveSibling(placeId: string, offset: number) {
+    if (!container) return;
+    const from = siblings.findIndex((entry) => entry.id === placeId);
+    const moved = siblings[from];
+    if (from < 0 || !moved) return;
+    const target = from + offset;
     if (target < 0 || target >= siblings.length) return;
 
     failure = undefined;
     try {
       if (container.type === 'HUB') {
-        await containers.reorder(container.id, siblings, target, crypto.randomUUID());
+        await containers.reorder(placeId, siblings, target, crypto.randomUUID());
       } else if (container.parent_id) {
         await containers.move(
-          container.id,
+          placeId,
           container.parent_id,
-          anchorFor(siblings, container.id, target),
+          anchorFor(siblings, placeId, target),
           crypto.randomUUID(),
         );
       }
       // Said out loud, as an entry's rank change is: the control kept focus and its name, and
       // the list quietly rearranged itself (4.1.3).
       announcer.say(
-        t('app.rank.announced', { title: container.name, position: target + 1, count: siblings.length }),
+        t('app.rank.announced', { title: moved.name, position: target + 1, count: siblings.length }),
       );
     } catch (error) {
       failure = renderProblem(error as TransportError, messages);
@@ -1243,10 +1245,7 @@
             </span>
           </button>
         {/if}
-        {#if showsSettings}
-          <!-- The place's settings (design-system.md §11.1): to whom its shape belongs. -->
-          <IconButton icon="settings" size="sm" label={t('app.settings.open', { name: container.name })} disabledReason={readOnlyReason} data-opener="structure" onclick={() => openStructure('general')} />
-        {/if}
+        <!-- No ⚙ beside the place's menu: *Settings…* is its first item (concept round 3). -->
       {/snippet}
     </PageHeader>
 
@@ -1431,7 +1430,7 @@
     id={container.id}
     name={container.name}
     siblings={siblings.map((each) => ({ id: each.id, name: each.name }))}
-    onmove={(offset) => void moveBy(offset)}
+    onmove={(placeId, offset) => void moveSibling(placeId, offset)}
   />
 {/if}
 

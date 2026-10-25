@@ -718,8 +718,8 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 * **One `<main>`, one `h1`, a skip link** to `<main>` as the frame's first tab stop.
 * **Every screen carries `PageHeader`**: the trail, the title, one primary action, at most two
   secondary ones, the rest in its menu. **The head is about the place; a toolbar under it is about
-  what the place holds.** On a collection the head carries its people, the ⚙ to its settings and
-  its own menu, and no add: the bar's *Capture* and the list's own add at its end (a column's at its
+  what the place holds.** On a collection the head carries its people and its own menu (*Settings…*
+  is its first item; no ⚙ beside it), and no add: the bar's *Capture* and the list's own add at its end (a column's at its
   foot, in the brand ink, outlined on hover) are the ways in. The toolbar under it carries the
   layouts as segments at the start and *Filter*, *Sort*, *Views* and *Select* at the end, and stays
   under the bar while the list scrolls. On a hub the collections are cards, and a dashed card at
@@ -745,7 +745,7 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
 | Width | Start | Middle | End |
 |---|---|---|---|
 | `compact` | ☰, opening the `NavDrawer` | the page's title | the notice mark · the connection mark · the page menu |
-| `medium` | ☰ | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
+| `medium` | ☰ | the mark and the wordmark · a field's look that opens the palette in a dialog (*Search or run a command*, `⌘K`), shrinking with the bar, with *＋* (*Capture*, `Q`, its mark alone) beside it | the notice mark · the connection mark · the account menu |
 | ≥ `expanded` | the rail toggle | the mark and the wordmark · the palette's field (*Search or run a command*, `⌘K`) with *＋ Capture* (`Q`) beside it | the notice mark · the connection mark · the account menu |
 
 * **No page action in the bar** ([ADR-0061](../adr/ADR-0061-page-anatomy-and-the-shell.md),
@@ -753,10 +753,14 @@ detail pane (wave 5, §4), drawn from the five widths (§6). Reasons:
   folded menu on `compact`. *Capture* is no page's action but the product's: it opens the capture
   field wherever the reader is (UC-WRK-26), from `medium` up here and on `compact` as the bottom
   bar's ＋ (§11.3). It stands beside the palette's field, the two ways into everything together in
-  the middle and centred as one; on `medium` it is its mark alone. It is drawn only where the reader may create somewhere — in the jumble or in a
+  the middle; from `expanded` the field alone is centred on the window and *Capture* stands past its
+  end, on `medium` *Capture* is its mark alone. It is drawn only where the reader may create somewhere — in the jumble or in a
   collection they see — and absent otherwise (P-05).
-* **The palette's field sits in the middle**, from `medium` up (§11.4); on `compact` the bottom
-  bar's *Search* opens the palette in a dialog.
+* **The palette's field sits in the middle of the window** from `expanded` (§11.4). Used, it grows
+  evenly to both sides around that middle, animated and at its height, and never into the logo's or
+  the end's room (`layout.barsearch.side`). Below `expanded` there is no room for a field that grows:
+  the field's look opens the palette in a dialog over the page, and shrinks with the bar before the
+  logo or the end would give way; on `compact` the bottom bar's *Search* does the same.
 * **The bar carries the person, the menu their name.** The account trigger is the avatar alone at
   every width; the name and the e-mail head the menu. On `compact` the account group is *You* in the
   bottom bar.
@@ -1066,8 +1070,8 @@ archived container leaves the tree.
 
 **The place's own menu** holds what is done to the place itself, in a fixed order: *Edit* (name,
 description, colour and symbol, and a hub's default preset), move to another hub (a collection; a
-hub sits in nothing), archive, rank up, rank down; privacy; and trash, last and alone. Selecting
-entries is the toolbar's, the settings the ⚙'s; the same menu is the place's row menu in the
+hub sits in nothing), *Change position…* (the level in its order, Up and Down on every place of it, the one it was opened from marked), archive; privacy; and trash, last and alone. Selecting
+entries is the toolbar's; *Settings…* opens the settings page; the same menu is the place's row menu in the
 navigation (§11.3). An item unusable now stays with its reason. The people are the head's faces for
 everybody. **A hub's collections are cards** in a grid, each with its mark, description and the
 figure its own head shows (UC-WRK-29); one column on `compact`.
@@ -1080,7 +1084,7 @@ the open one beside it, each at its own address. *General* is the edit dialog's 
 controls still readable and unavailable, their reason naming who set it (§4, cases 2 and 6). A
 collection's labels, fields, templates, automation (the policies) and people follow, a hub's people
 — each the same component that is a dialog elsewhere (`PanelOrDialog`). Only a reader who may change
-the shape is offered the ⚙; anybody else at the address reads whose the settings are.
+the shape is offered *Settings…*; anybody else at the address reads whose the settings are.
 What a collection's structure does not offer is not drawn anywhere: no field row, child, twist,
 view or bulk operation for it — the installation's manifest narrowed to the structure in force
 (`apps/webapp/src/lib/data/offer.ts`). A set-up dialog used daily is
@@ -1113,7 +1117,10 @@ between columns is the card's menu (§11.9).
 **An entry screen**, top to bottom:
 
 1. **The head**: the completion checkbox, the title and the notes edited in place — an input that
-   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips.
+   looks like text until focused, the same `PATCH` and conflict path — and the set values as chips,
+   one height whether or not they carry a mark. Where the collection has columns and the reader may
+   write, the column's chip is the menu that moves the entry to another column, the done column
+   completing it as a drop on the board does.
    A set cover is drawn above the title; no room is taken for an absent one. Its menu is the one
    entry menu (UC-WRK-28 check 2) without *Open*, the page being the entry open; where the reader
    may not share, *People* reads who has access in *Share*'s place. Moving it to the trash leaves
@@ -1137,11 +1144,13 @@ between columns is the card's menu (§11.9).
 **One list for everything** (concept round 2, §2; `lib/entries/listview.ts`). Every list draws the
 same row - grip, box, the level's mark below the top, title, fields, the tools over its end - in
 the collection's list, the subtree, Today and search; the simple list is the same row without
-the twist. What differs is an arrangement the device keeps per collection and a template brings:
+the twist. **The twist is drawn only on an entry with parts** (its counts, or its children once
+read); a row without one keeps the twist's room, so every title of a level starts at one line, and
+a simple list's box stands in the middle of its tick target, clear of the row's edge. What differs is an arrangement the device keeps per collection and a template brings:
 the **fields** that stand beside each title as columns with a head from `expanded` up (amount,
 column, due, people, labels, parts; *Fields* in the toolbar; a sortable head orders by its field),
 the **grouping** of the top level (none, category, column, assignee, due; *Group*), each group
-under one head with its count and, by column, its own add; and where **done** entries go (where
+under one head with its count, the list's one add at its end; and where **done** entries go (where
 they stand, gathered at the end in a folded *Done*, or hidden). Grouped or sorted, a list is not
 its manual order, so nothing is dragged in it; the menu's moves stay.
 
@@ -1217,7 +1226,9 @@ with the date and the counts - parts done of total, comments, attachments, which
 answers with `expand: ["counts"]` - at its start and the people at its end.
 
 **The board's card is the thing you move.** No grip. A press that travels past the threshold drags;
-one that does not opens the entry. The card's slot stays, unseen, and a copy fixed to the window
+one that does not opens the entry - anywhere on the card, not only on its title (a touch screen's
+press held still is the card's menu, ADR-0088). The board leaves room round its columns, so the
+dashed outline of the column under a carried card is never cut at the board's edge. The card's slot stays, unseen, and a copy fixed to the window
 follows the pointer on both axes, above every column and tilted a little, so no column can paint
 over it or cut it; the column under it is marked and grows by the gap. Columns are
 `layout.board.column` wide; more columns past an edge are said by a fade at that edge, and the last
