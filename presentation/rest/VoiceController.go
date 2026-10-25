@@ -69,6 +69,9 @@ func (c *RestController) SaveVoiceSettings(w http.ResponseWriter, r *http.Reques
 		if body.DefaultCollectionId != nil {
 			input["default_collection_id"] = body.DefaultCollectionId.String()
 		}
+		if body.InvocationName != nil {
+			input["invocation_name"] = *body.InvocationName
+		}
 		if body.SkillId != nil {
 			input["skill_id"] = *body.SkillId
 		}
@@ -166,6 +169,9 @@ func voiceSettingsResponse(out usecase.Output) openapi.VoiceSettings {
 	}
 	if skill := out.String("skill_id"); skill != "" {
 		settings.SkillId = &skill
+	}
+	if name := out.String("invocation_name"); name != "" {
+		settings.InvocationName = &name
 	}
 	if rows, ok := out["aliases"].([]any); ok {
 		for _, raw := range rows {

@@ -6409,7 +6409,7 @@
   "app.voice.installation_skill": "This installation publishes a Hubtask skill. Enable it in the Alexa app, link your Hubtask account there, and say \"Alexa, open Hubtask\".",
   "app.voice.alexa_hint": "Your own skill, free in Amazon's Alexa developer console. It stays in development and works on every Echo of your Amazon account. Amazon calls this installation over HTTPS, so it has to be reachable from the internet with a valid certificate - through a reverse proxy or a tunnel where it runs at home.",
   "app.voice.step_skill": "Create the skill",
-  "app.voice.step_skill_hint": "In developer.amazon.com/alexa/console/ask: Create skill, name it Hubtask, choose your language, the Custom model and \"Provision your own\". Set the invocation name:",
+  "app.voice.step_skill_hint": "In developer.amazon.com/alexa/console/ask: Create skill, name it Hubtask, choose your language, the Custom model and \"Provision your own\". You choose the invocation name here; it is also in the model you paste in the next step.",
   "app.voice.invocation": "Invocation name",
   "app.voice.step_model": "Paste the language model",
   "app.voice.step_model_hint": "Copy the model and paste it under Interaction Model → JSON Editor, then Save and Build. Once is enough: your lists are not in the model, Hubtask teaches them to Alexa with every answer - new and renamed lists work at once.",
@@ -6441,11 +6441,14 @@
   "app.voice.step_skill_id_hint": "At the top of the skill in the console: Copy Skill ID. Hubtask answers only this skill.",
   "app.voice.skill_id": "Skill ID",
   "app.voice.step_test": "Link and try it",
-  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with the Hubtask account. Then always address Hubtask: \"Alexa, ask Hubtask: stock cubes at Costco\" or \"Alexa, open Hubtask\". Without \"Hubtask\" a sentence goes to Amazon's own list.",
+  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with the Hubtask account. Then always use the invocation name: \"Alexa, ask {name}: stock cubes at Costco\" or \"Alexa, open {name}\". Without it a sentence goes to Amazon's own list.",
   "app.voice.pkce": "PKCE",
   "app.voice.scope_hint": "Enter each scope on its own with \"+ Add scope\".",
   "app.consent.incomplete": "An app is asking here, but its request lacks something Hubtask requires. It is set in the app that offers the link:",
   "app.consent.missing_redirect_uri": "The return address (redirect_uri).",
   "app.consent.missing_code_challenge": "The PKCE proof (code_challenge). For Alexa: switch PKCE with SHA-256 on under Account Linking in the developer console.",
-  "app.consent.missing_scope": "The permissions (scope). For Alexa: enter the scopes from Administration → Voice assistants under Account Linking."
+  "app.consent.missing_scope": "The permissions (scope). For Alexa: enter the scopes from Administration → Voice assistants under Account Linking.",
+  "app.voice.invocation_hint": "What follows \"Alexa, ask …\": best two real words your Echo understands across the room. Not \"Alexa\", \"Echo\", \"skill\" or \"app\". Leave empty for the default.",
+  "app.voice.invocation_now": "Invocation name",
+  "voice.invocation_invalid": "An invocation name has 2 to 50 characters, starts with a letter, holds only letters and spaces, and not \"Alexa\", \"Echo\", \"skill\" or \"app\"."
 }

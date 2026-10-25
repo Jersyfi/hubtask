@@ -24806,6 +24806,12 @@
             "type": "string",
             "description": "The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used."
           },
+          "invocation_name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 50,
+            "description": "What follows \"Alexa, sag\" or \"Alexa, ask\", lower case: two plain words an Echo hears across a room. Absent for the language's default, \"listen helfer\" or \"list helper\".\n"
+          },
           "installation_skill": {
             "type": "boolean",
             "readOnly": true,

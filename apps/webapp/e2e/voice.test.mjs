@@ -81,6 +81,12 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       await alexa.locator('[data-copy="token"]').getByText(`${served.origin}/api/v1/oauth/token`).waitFor();
       // PKCE is a switch in Alexa's console; without it Alexa sends no challenge and linking fails.
       await alexa.locator('[data-copy="pkce"]').getByText('SHA-256').waitFor();
+      // The invocation name: two plain words by default, the administrator's own once chosen.
+      await alexa.locator('[data-copy="invocation"]').getByText('list helper').waitFor();
+      await alexa.getByLabel('Invocation name').first().fill('Kitchen Lists');
+      await alexa.getByRole('button', { name: 'Save' }).first().click();
+      await alexa.locator('[data-copy="invocation"]').getByText('kitchen lists').waitFor({ timeout: 5_000 });
+      assert.equal(writes.at(-1).body.invocation_name, 'kitchen lists');
       await alexa.getByLabel('Vendor ID').fill('M2AB3CD');
       await alexa.getByRole('button', { name: 'Make the linking' }).click();
       await alexa.locator('[data-copy="client"]').getByText('01a0e2e0-0000-7000-8000-00000000a1e1').waitFor({ timeout: 5_000 });

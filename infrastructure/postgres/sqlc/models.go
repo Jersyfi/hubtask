@@ -1684,6 +1684,7 @@ type VoiceSetting struct {
 	SkillID             *string
 	UpdatedAt           pgtype.Timestamptz
 	UpdatedBy           pgtype.UUID
+	InvocationName      *string
 }
 
 type WebauthnCredential struct {
