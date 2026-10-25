@@ -1,5 +1,5 @@
 -- The name a workspace's Alexa skill is spoken to by (ADR-0093): empty for the language's default,
--- "listen helfer" or "list helper". A made-up word such as "hubtask" is heard poorly across a room,
+-- "hub task" or "list helper". A made-up word such as "hubtask" is heard poorly across a room,
 -- so the administrator chooses one the household's Echo understands.
 
 -- +goose Up

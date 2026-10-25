@@ -35,7 +35,7 @@ func TestSettingsRefuseWhatCannotBeSpokenOrStored(t *testing.T) {
 }
 
 func TestTheInvocationIsTheWorkspacesOrTheLanguagesDefault(t *testing.T) {
-	if got := (Settings{}).Invocation(German); got != "listen helfer" {
+	if got := (Settings{}).Invocation(German); got != "hub task" {
 		t.Errorf("German default %q", got)
 	}
 	if got := (Settings{}).Invocation(English); got != "list helper" {
@@ -45,7 +45,7 @@ func TestTheInvocationIsTheWorkspacesOrTheLanguagesDefault(t *testing.T) {
 		t.Errorf("own name %q", got)
 	}
 	for name, valid := range map[string]bool{
-		"meine küche": true, "mom's list": true, "x": false, "alexa listen": false, "listen skill": false,
+		"meine küche": true, "mom's list": true, "x": false, "listenhelfer": false, "alexa listen": false, "listen skill": false,
 		"liste 2": false, "3 listen": false, strings.Repeat("a", 51): false,
 	} {
 		err := Settings{InvocationName: name}.Validate()

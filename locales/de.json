@@ -6445,7 +6445,7 @@
   "app.consent.missing_redirect_uri": "Die Rücksprungadresse (redirect_uri).",
   "app.consent.missing_code_challenge": "Der PKCE-Nachweis (code_challenge). Bei Alexa: in der Developer Console unter Account Linking PKCE mit SHA-256 einschalten.",
   "app.consent.missing_scope": "Die Berechtigungen (scope). Bei Alexa: unter Account Linking die Scopes aus Administration → Sprachassistenten eintragen.",
-  "app.voice.invocation_hint": "Was nach „Alexa, sag …“ kommt: am besten zwei echte Wörter, die dein Echo quer durch den Raum versteht. Nicht „Alexa“, „Echo“, „Skill“ oder „App“. Leer lassen für den Standard.",
+  "app.voice.invocation_hint": "Was nach „Alexa, sag …“ kommt: mindestens zwei Wörter, die Alexa getrennt schreibt. Zwei Hauptwörter schreibt Alexa zusammen („listenhelfer“) – das passt dann nicht. Prüfe in der Alexa-App unter Aktivität, wie Alexa deinen Namen schreibt. Nicht „Alexa“, „Echo“, „Skill“ oder „App“. Leer lassen für den Standard.",
   "app.voice.invocation_now": "Aufrufname",
-  "voice.invocation_invalid": "Ein Aufrufname hat 2 bis 50 Zeichen, beginnt mit einem Buchstaben, enthält nur Buchstaben und Leerzeichen und nicht „Alexa“, „Echo“, „Skill“ oder „App“."
+  "voice.invocation_invalid": "Ein Aufrufname hat mindestens zwei Wörter, höchstens 50 Zeichen, beginnt mit einem Buchstaben, enthält nur Buchstaben und Leerzeichen und nicht „Alexa“, „Echo“, „Skill“ oder „App“."
 }

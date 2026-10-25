@@ -269,7 +269,7 @@ func (h SaveVoiceSettings) Descriptor() usecase.Descriptor {
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether spoken entries are taken."},
 			{Name: "default_collection_id", Kind: usecase.KindID, Description: "Where a thing said without a place goes."},
 			{Name: "skill_id", Kind: usecase.KindString, Description: "The workspace's own Alexa skill, amzn1.ask.skill.…; empty for the installation's."},
-			{Name: "invocation_name", Kind: usecase.KindString, Description: "What follows \"Alexa, sag\": two plain words; empty for the language's default, \"listen helfer\" or \"list helper\"."},
+			{Name: "invocation_name", Kind: usecase.KindString, Description: "What follows \"Alexa, sag\": two words at least, written apart as Alexa writes them; empty for the language's default, \"hub task\" or \"list helper\"."},
 			{Name: "aliases", Kind: usecase.KindList, Description: "The names people may say: objects of phrase, collection_id and, for a category, label_id."},
 		},
 		Audit: usecase.AuditDeclaration{

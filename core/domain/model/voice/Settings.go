@@ -36,10 +36,12 @@ type Settings struct {
 	Aliases        []Alias
 }
 
-// defaultInvocations are two plain words each: an Echo across a room hears real words far better
-// than a made-up one ("hubtask" was heard as "hub task", "hab task"), and neither is a word Alexa
-// keeps for its own lists ("Liste") or its own to-dos ("Aufgaben").
-var defaultInvocations = map[Language]string{German: "listen helfer", English: "list helper"}
+// defaultInvocations are two words, which Amazon requires, that the language's speech
+// recognition writes apart: German joins two nouns into one ("Listen Helfer" arrives as
+// "listenhelfer" and never matches), but keeps an English loanword pair apart - and "hub task" is
+// how the Echo heard the product's own name. Neither is a word Alexa keeps for its own lists
+// ("Liste") or its own to-dos ("Aufgaben").
+var defaultInvocations = map[Language]string{German: "hub task", English: "list helper"}
 
 // DefaultInvocation is the name a workspace that chose none is spoken to by.
 func DefaultInvocation(language Language) string { return defaultInvocations[language] }
@@ -63,10 +65,11 @@ var reservedInvocationWords = map[string]bool{
 	"alexa": true, "amazon": true, "echo": true, "computer": true, "skill": true, "app": true,
 }
 
-// validInvocation applies Amazon's rules: letters (the language's own included), spaces, a dot or
-// an apostrophe; two to fifty characters; no wake word; starting with a letter.
+// validInvocation applies Amazon's rules: two words at least; letters (the language's own
+// included), spaces, a dot or an apostrophe; two to fifty characters; no wake word; starting with
+// a letter.
 func validInvocation(name string) bool {
-	if utf8.RuneCountInString(name) < 2 || utf8.RuneCountInString(name) > 50 {
+	if len(strings.Fields(name)) < 2 || utf8.RuneCountInString(name) > 50 {
 		return false
 	}
 	for index, r := range name {
