@@ -30,10 +30,14 @@ type Receipts interface {
 	Seen(ctx context.Context, messageID string) (bool, error)
 	// Record writes the receipt; false for a message that already has one.
 	Record(ctx context.Context, receipt domain.Receipt) (bool, error)
+	// CountFrom is how many messages the sender sent since the instant.
+	CountFrom(ctx context.Context, sender string, since time.Time) (int, error)
 	// Recent answers the newest receipts first.
 	Recent(ctx context.Context, limit int) ([]domain.Receipt, error)
-	// Forget removes what was received before the instant, for the retention of the log.
-	Forget(ctx context.Context, before time.Time) (int64, error)
+	// DeleteExpired and CountExpired are the retention run's: one batch of the receipts older than
+	// the cutoff, and how many there are, counted no higher than the ceiling.
+	DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error)
+	CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error)
 }
 
 // Places resolves what a message names: a collection by its handle, an entry by its ticket key.

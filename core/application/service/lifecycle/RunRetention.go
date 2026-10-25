@@ -53,6 +53,8 @@ type RunRetention struct {
 	// Deliveries is the webhook delivery log's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before.
 	Deliveries ExpiringDeliveries
+	// MailReceipts is the mail intake's log's remover (ADR-0094). Optional, the deliveries' reason.
+	MailReceipts ExpiringRows
 	// Proposals is the suggestion store's remover. Optional for the outbox's reason: an
 	// installation wired without it sweeps exactly what it did before, and what it would have
 	// removed is a working note rather than personal content nobody looks at - a suggestion's
@@ -311,6 +313,13 @@ func (h RunRetention) Execute(
 		return outcome, err
 	}
 
+	receipts := Outcome{}
+	if h.MailReceipts != nil {
+		if receipts, err = h.sweepHeldByTenant(ctx, started, domain.KindMailReceipt, h.MailReceipts); err != nil {
+			return outcome, err
+		}
+	}
+
 	sessions, err := h.sweepSessions(ctx, started)
 	if err != nil {
 		return outcome, err
@@ -380,6 +389,7 @@ func (h RunRetention) Execute(
 	// reporting nothing removed and no reason why.
 	outcome.add(inbox)
 	outcome.add(deliveries)
+	outcome.add(receipts)
 	outcome.add(rules)
 	outcome.Matched += sessions.Matched
 	outcome.Removed += sessions.Removed

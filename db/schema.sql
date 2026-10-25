@@ -845,10 +845,15 @@ CREATE TABLE container (
   version      integer NOT NULL DEFAULT 1,
   -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
+  -- A collection's short name and the count its entries' numbers come from (migration 0203,
+  -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry.
+  handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
+  item_counter bigint NOT NULL DEFAULT 0,
   CHECK ((type = 'HUB') = (parent_id IS NULL)),
   CONSTRAINT container_private_hub_check CHECK (NOT private OR type = 'HUB')
 );
 CREATE UNIQUE INDEX container_tenant_id_uq ON container (tenant_id, id);
+CREATE UNIQUE INDEX container_handle_uq ON container (tenant_id, handle) WHERE handle IS NOT NULL;
 ALTER TABLE container ADD CONSTRAINT container_parent_id_fkey
     FOREIGN KEY (tenant_id, parent_id) REFERENCES container (tenant_id, id) ON DELETE RESTRICT;
 CREATE UNIQUE INDEX container_name_uq
@@ -995,7 +1000,9 @@ CREATE TABLE work_item (
   CONSTRAINT work_item_bucket_id_fkey
     FOREIGN KEY (tenant_id, bucket_id) REFERENCES bucket (tenant_id, id) ON DELETE SET NULL (bucket_id),
   CONSTRAINT work_item_collection_id_fkey
-    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  -- The entry's number in its collection (migration 0203, ADR-0094).
+  number       bigint
 );
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
 CREATE UNIQUE INDEX wi_calendar_uid_uq ON work_item (tenant_id, calendar_uid)
@@ -1450,7 +1457,9 @@ CREATE TABLE jumble_entry (
   created_by   uuid,
   -- The place a mail was addressed to where it waits here instead (migration 0201, ADR-0092).
   meant_for_kind text,
-  meant_for_id   uuid
+  meant_for_id   uuid,
+  -- Why the mail intake put a message here (migration 0204, ADR-0094).
+  intake_reason  text
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
 
@@ -1463,36 +1472,52 @@ CREATE TABLE jumble_intake (
 );
 CREATE UNIQUE INDEX jumble_intake_token_uq ON jumble_intake (token_hash);
 
--- Mail addresses for every place (migration 0201, ADR-0092): the code is the key, unique across
--- the installation; at most one live address per place.
-CREATE TABLE mail_address (
-  id            uuid PRIMARY KEY,
-  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
-  target_kind   text NOT NULL CHECK (target_kind IN ('JUMBLE','COLLECTION','ITEM')),
-  target_id     uuid,
-  code          text NOT NULL,
-  sender_policy text NOT NULL DEFAULT 'MEMBERS' CHECK (sender_policy IN ('MEMBERS','ANYONE')),
-  opened_by     uuid,
-  created_by    uuid,
-  created_at    timestamptz NOT NULL,
-  revoked_at    timestamptz,
-  window_start  timestamptz,
-  window_count  integer NOT NULL DEFAULT 0,
-  CHECK ((target_kind = 'JUMBLE') = (target_id IS NULL)),
-  UNIQUE (tenant_id, id)
+-- The mail intake (migration 0204, ADR-0094): a workspace's settings - its name on the operator's
+-- receiving domain unique on the installation - and a receipt per message, one per Message-ID.
+CREATE TABLE mail_setting (
+  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  enabled               boolean NOT NULL DEFAULT false,
+  name                  text CHECK (name IS NULL OR name ~ '^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$'),
+  default_collection_id uuid,
+  sender_level          text NOT NULL DEFAULT 'MEMBERS'
+                        CHECK (sender_level IN ('MEMBERS', 'MEMBERS_AND_ALLOWED', 'ANYONE')),
+  allowed               text[] NOT NULL DEFAULT '{}',
+  blocked               text[] NOT NULL DEFAULT '{}',
+  sender_routes         jsonb NOT NULL DEFAULT '[]'::jsonb,
+  opened_by             uuid,
+  updated_at            timestamptz NOT NULL,
+  updated_by            uuid
 );
-CREATE UNIQUE INDEX mail_address_code_uq ON mail_address (code);
-CREATE UNIQUE INDEX mail_address_live_uq ON mail_address
-  (tenant_id, target_kind, coalesce(target_id, '00000000-0000-0000-0000-000000000000'::uuid))
-  WHERE revoked_at IS NULL;
+CREATE UNIQUE INDEX mail_setting_name_uq ON mail_setting (name) WHERE name IS NOT NULL;
 
 -- The inbound route's one question before it has a tenant (multi-tenancy.md §2.1).
-CREATE OR REPLACE FUNCTION resolve_mail_address(address_code text) RETURNS uuid
+CREATE OR REPLACE FUNCTION resolve_mail_workspace(workspace_name text) RETURNS uuid
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
-  SELECT tenant_id FROM mail_address
-  WHERE code = lower(address_code) AND revoked_at IS NULL
+  SELECT tenant_id FROM mail_setting
+  WHERE name = lower(workspace_name) AND enabled
   LIMIT 1
 $$;
+
+CREATE OR REPLACE FUNCTION mail_workspace_name_taken(workspace_name text, self uuid) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM mail_setting WHERE name = lower(workspace_name) AND tenant_id <> self)
+$$;
+
+CREATE TABLE mail_receipt (
+  id          uuid PRIMARY KEY,
+  tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  message_id  text NOT NULL,
+  received_at timestamptz NOT NULL,
+  sender      text NOT NULL,
+  subject     text NOT NULL,
+  outcome     text NOT NULL CHECK (outcome IN ('ENTRY', 'COMMENT', 'JUMBLE', 'DISCARDED')),
+  reason      text NOT NULL DEFAULT '',
+  item_id     uuid,
+  entry_id    uuid,
+  door        text NOT NULL,
+  UNIQUE (tenant_id, message_id)
+);
+CREATE INDEX mail_receipt_recent_idx ON mail_receipt (tenant_id, received_at DESC);
 
 -- Voice assistants (migration 0202, ADR-0093): a workspace's settings and the names people may
 -- say for a place.
@@ -2738,7 +2763,7 @@ BEGIN
     'activity_entry',
     'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_address','voice_setting','voice_alias',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_setting','mail_receipt','voice_setting','voice_alias',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',

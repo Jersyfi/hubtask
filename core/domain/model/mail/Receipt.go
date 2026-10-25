@@ -41,7 +41,12 @@ const (
 	ReasonBlocked Reason = "SENDER_BLOCKED"
 	// ReasonAutomatic: an auto-reply or a bounce, or one of Hubtask's own notifications. Discarded.
 	ReasonAutomatic Reason = "AUTOMATIC"
+	// ReasonTooMany: the sender passed the hourly bound. Discarded, so a flood fills nothing.
+	ReasonTooMany Reason = "TOO_MANY"
 )
+
+// MailsPerSenderPerHour is how many messages one sender may send into a workspace in an hour.
+const MailsPerSenderPerHour = 30
 
 // Receipt is the intake's record of one message: it makes a redelivery a no-op and is the log
 // the administrators read (ADR-0094 decision 6).

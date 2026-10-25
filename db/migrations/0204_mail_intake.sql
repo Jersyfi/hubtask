@@ -79,6 +79,11 @@ GRANT SELECT, INSERT, DELETE ON mail_receipt TO hubtask_app;
 -- Why a message waits in the jumble, beside the place it was meant for (0201).
 ALTER TABLE jumble_entry ADD COLUMN IF NOT EXISTS intake_reason text;
 
+-- ADR-0092's random codes go: a collection's handle and an entry's ticket key name the place now,
+-- and a notification's reply goes to the key on the intake's address.
+DROP FUNCTION IF EXISTS resolve_mail_address(text);
+DROP TABLE IF EXISTS mail_address;
+
 -- +goose Down
 DO $forward_only$
 BEGIN

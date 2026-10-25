@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/jumble"
@@ -208,6 +209,13 @@ func (h ReceiveMail) decide(
 		return route{discard: true, reason: mail.ReasonAutomatic}, nil
 	case settings.Senders.Blocks(sender):
 		return route{discard: true, reason: mail.ReasonBlocked}, nil
+	}
+	sent, err := h.Receipts.CountFrom(ctx, cut(senderWithin(message.Sender), 320), h.Clock.Now().Add(-time.Hour))
+	if err != nil {
+		return route{}, err
+	}
+	if sent >= mail.MailsPerSenderPerHour {
+		return route{discard: true, reason: mail.ReasonTooMany}, nil
 	}
 
 	target, reason, err := h.target(ctx, settings, message, sender)

@@ -221,6 +221,14 @@ var catalogue = []Kind{
 		Blockable: []string{BlockedByLegalHold},
 	},
 	{
+		// The mail intake's log, one receipt per message (ADR-0094 decision 6). Thirty days: long
+		// enough to answer "where did my mail go", and a redelivery after that is a new message.
+		Name: KindMailReceipt, Anchor: AnchorCreatedAt, DefaultDays: 30,
+		Actions: []Action{ActionHardDelete},
+		// A tenant-wide hold and nothing narrower - a receipt sits in no container.
+		Blockable: []string{BlockedByLegalHold},
+	},
+	{
 		// The outbox's own rows - ADR-0007's second countermeasure, without which the outbox is the
 		// one table in this schema that only ever grows: an event's job is done the moment every
 		// consumer has had it, and the row lives on afterwards for the day somebody has to
@@ -297,6 +305,7 @@ const (
 	KindActivityEntry   DataKind = "ACTIVITY_ENTRY"
 	KindRuleRun         DataKind = "RULE_RUN"
 	KindWebhookDelivery DataKind = "WEBHOOK_DELIVERY"
+	KindMailReceipt     DataKind = "MAIL_RECEIPT"
 	// KindOutboxEvent is how long a dispatched event stays readable after every consumer has had it
 	// (ADR-0007's second countermeasure).
 	KindOutboxEvent           DataKind = "OUTBOX_EVENT"

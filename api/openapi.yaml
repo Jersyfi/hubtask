@@ -17849,6 +17849,7 @@ components:
         - UNPARSEABLE
         - SENDER_BLOCKED
         - AUTOMATIC
+        - TOO_MANY
 
     CollectionHandle:
       type: object

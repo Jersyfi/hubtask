@@ -2750,6 +2750,7 @@ const (
 	SENDERBLOCKED    MailReason = "SENDER_BLOCKED"
 	SENDERNOTALLOWED MailReason = "SENDER_NOT_ALLOWED"
 	SPAM             MailReason = "SPAM"
+	TOOMANY          MailReason = "TOO_MANY"
 	UNKNOWNPLACE     MailReason = "UNKNOWN_PLACE"
 	UNPARSEABLE      MailReason = "UNPARSEABLE"
 )
@@ -2768,6 +2769,8 @@ func (e MailReason) Valid() bool {
 	case SENDERNOTALLOWED:
 		return true
 	case SPAM:
+		return true
+	case TOOMANY:
 		return true
 	case UNKNOWNPLACE:
 		return true

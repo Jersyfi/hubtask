@@ -34,29 +34,6 @@ func (q *Queries) CountExpiredJumbleEntries(ctx context.Context, arg CountExpire
 	return count, err
 }
 
-const countMailDelivery = `-- name: CountMailDelivery :one
-UPDATE mail_address
-SET window_start = CASE WHEN window_start IS NULL OR window_start <= $1::timestamptz - interval '1 hour'
-                        THEN $1::timestamptz ELSE window_start END,
-    window_count = CASE WHEN window_start IS NULL OR window_start <= $1::timestamptz - interval '1 hour'
-                        THEN 1 ELSE window_count + 1 END
-WHERE id = $2
-RETURNING window_count
-`
-
-type CountMailDeliveryParams struct {
-	Now pgtype.Timestamptz
-	ID  pgtype.UUID
-}
-
-// One statement, so two deliveries racing both count: the hour starts again once it is over.
-func (q *Queries) CountMailDelivery(ctx context.Context, arg CountMailDeliveryParams) (int32, error) {
-	row := q.db.QueryRow(ctx, countMailDelivery, arg.Now, arg.ID)
-	var window_count int32
-	err := row.Scan(&window_count)
-	return window_count, err
-}
-
 const deleteExpiredJumbleEntries = `-- name: DeleteExpiredJumbleEntries :execrows
 DELETE FROM jumble_entry
 WHERE id IN (
@@ -182,83 +159,6 @@ func (q *Queries) FindJumbleIntakeByToken(ctx context.Context, tokenHash []byte)
 	return i, err
 }
 
-const findLiveMailAddress = `-- name: FindLiveMailAddress :one
-SELECT id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
-FROM mail_address
-WHERE target_kind = $1
-  AND target_id IS NOT DISTINCT FROM $2::uuid
-  AND revoked_at IS NULL
-`
-
-type FindLiveMailAddressParams struct {
-	TargetKind string
-	TargetID   pgtype.UUID
-}
-
-type FindLiveMailAddressRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	TargetKind   string
-	TargetID     pgtype.UUID
-	Code         string
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-}
-
-func (q *Queries) FindLiveMailAddress(ctx context.Context, arg FindLiveMailAddressParams) (FindLiveMailAddressRow, error) {
-	row := q.db.QueryRow(ctx, findLiveMailAddress, arg.TargetKind, arg.TargetID)
-	var i FindLiveMailAddressRow
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.TargetKind,
-		&i.TargetID,
-		&i.Code,
-		&i.SenderPolicy,
-		&i.OpenedBy,
-		&i.CreatedBy,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
-const findMailAddressByCode = `-- name: FindMailAddressByCode :one
-SELECT id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
-FROM mail_address
-WHERE code = lower($1) AND revoked_at IS NULL
-`
-
-type FindMailAddressByCodeRow struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	TargetKind   string
-	TargetID     pgtype.UUID
-	Code         string
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-}
-
-func (q *Queries) FindMailAddressByCode(ctx context.Context, code string) (FindMailAddressByCodeRow, error) {
-	row := q.db.QueryRow(ctx, findMailAddressByCode, code)
-	var i FindMailAddressByCodeRow
-	err := row.Scan(
-		&i.ID,
-		&i.TenantID,
-		&i.TargetKind,
-		&i.TargetID,
-		&i.Code,
-		&i.SenderPolicy,
-		&i.OpenedBy,
-		&i.CreatedBy,
-		&i.CreatedAt,
-	)
-	return i, err
-}
-
 const insertJumbleEntry = `-- name: InsertJumbleEntry :exec
 
 INSERT INTO jumble_entry (
@@ -306,41 +206,6 @@ func (q *Queries) InsertJumbleEntry(ctx context.Context, arg InsertJumbleEntryPa
 		arg.MeantForKind,
 		arg.MeantForID,
 		arg.IntakeReason,
-	)
-	return err
-}
-
-const insertMailAddress = `-- name: InsertMailAddress :exec
-INSERT INTO mail_address (
-  id, tenant_id, target_kind, target_id, code, sender_policy, opened_by, created_by, created_at
-) VALUES (
-  $1, current_tenant_id(), $2, $3,
-  $4, $5, $6, $7,
-  $8
-)
-`
-
-type InsertMailAddressParams struct {
-	ID           pgtype.UUID
-	TargetKind   string
-	TargetID     pgtype.UUID
-	Code         string
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-}
-
-func (q *Queries) InsertMailAddress(ctx context.Context, arg InsertMailAddressParams) error {
-	_, err := q.db.Exec(ctx, insertMailAddress,
-		arg.ID,
-		arg.TargetKind,
-		arg.TargetID,
-		arg.Code,
-		arg.SenderPolicy,
-		arg.OpenedBy,
-		arg.CreatedBy,
-		arg.CreatedAt,
 	)
 	return err
 }
@@ -443,40 +308,6 @@ func (q *Queries) ListJumbleEntries(ctx context.Context, arg ListJumbleEntriesPa
 	return items, nil
 }
 
-const resolveMailAddress = `-- name: ResolveMailAddress :one
-
-SELECT resolve_mail_address($1)::uuid AS tenant_id
-`
-
-// Mail addresses (ADR-0092). The tenant is never a parameter here either, with one exception:
-// ResolveMailAddress, the inbound route's question before it has a tenant.
-func (q *Queries) ResolveMailAddress(ctx context.Context, code string) (pgtype.UUID, error) {
-	row := q.db.QueryRow(ctx, resolveMailAddress, code)
-	var tenant_id pgtype.UUID
-	err := row.Scan(&tenant_id)
-	return tenant_id, err
-}
-
-const revokeMailAddress = `-- name: RevokeMailAddress :exec
-UPDATE mail_address SET revoked_at = $1
-WHERE target_kind = $2
-  AND target_id IS NOT DISTINCT FROM $3::uuid
-  AND revoked_at IS NULL
-`
-
-type RevokeMailAddressParams struct {
-	RevokedAt  pgtype.Timestamptz
-	TargetKind string
-	TargetID   pgtype.UUID
-}
-
-// Replacing an address is this and the insert below in one transaction: the live index refuses
-// a second live row, so the old one is revoked first.
-func (q *Queries) RevokeMailAddress(ctx context.Context, arg RevokeMailAddressParams) error {
-	_, err := q.db.Exec(ctx, revokeMailAddress, arg.RevokedAt, arg.TargetKind, arg.TargetID)
-	return err
-}
-
 const setJumbleIntakeToken = `-- name: SetJumbleIntakeToken :exec
 INSERT INTO jumble_intake (tenant_id, token_hash, rotated_at)
 VALUES (current_tenant_id(), $1, $2)
@@ -494,26 +325,6 @@ type SetJumbleIntakeTokenParams struct {
 func (q *Queries) SetJumbleIntakeToken(ctx context.Context, arg SetJumbleIntakeTokenParams) error {
 	_, err := q.db.Exec(ctx, setJumbleIntakeToken, arg.TokenHash, arg.RotatedAt)
 	return err
-}
-
-const setMailAddressPolicy = `-- name: SetMailAddressPolicy :execrows
-UPDATE mail_address
-SET sender_policy = $1, opened_by = $2
-WHERE id = $3 AND revoked_at IS NULL
-`
-
-type SetMailAddressPolicyParams struct {
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	ID           pgtype.UUID
-}
-
-func (q *Queries) SetMailAddressPolicy(ctx context.Context, arg SetMailAddressPolicyParams) (int64, error) {
-	result, err := q.db.Exec(ctx, setMailAddressPolicy, arg.SenderPolicy, arg.OpenedBy, arg.ID)
-	if err != nil {
-		return 0, err
-	}
-	return result.RowsAffected(), nil
 }
 
 const settleJumbleEntry = `-- name: SettleJumbleEntry :execrows

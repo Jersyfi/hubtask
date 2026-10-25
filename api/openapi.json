@@ -24789,7 +24789,8 @@
           "SPAM",
           "UNPARSEABLE",
           "SENDER_BLOCKED",
-          "AUTOMATIC"
+          "AUTOMATIC",
+          "TOO_MANY"
         ]
       },
       "CollectionHandle": {

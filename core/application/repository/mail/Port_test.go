@@ -20,8 +20,10 @@ func (store) Save(context.Context, domain.Settings, shared.ID, time.Time) error 
 func (store) WorkspaceNamed(context.Context, string) (shared.ID, error)         { return "", nil }
 func (store) Seen(context.Context, string) (bool, error)                        { return false, nil }
 func (store) Record(context.Context, domain.Receipt) (bool, error)              { return true, nil }
+func (store) CountFrom(context.Context, string, time.Time) (int, error)         { return 0, nil }
 func (store) Recent(context.Context, int) ([]domain.Receipt, error)             { return nil, nil }
-func (store) Forget(context.Context, time.Time) (int64, error)                  { return 0, nil }
+func (store) DeleteExpired(context.Context, time.Time, int) (int, error)        { return 0, nil }
+func (store) CountExpired(context.Context, time.Time, int) (int, error)         { return 0, nil }
 func (store) CollectionByHandle(context.Context, string) (shared.ID, error)     { return "", nil }
 func (store) ItemByKey(context.Context, domain.Key) (shared.ID, error)          { return "", nil }
 

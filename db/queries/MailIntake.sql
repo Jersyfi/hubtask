@@ -44,14 +44,31 @@ INSERT INTO mail_receipt (
 )
 ON CONFLICT (tenant_id, message_id) DO NOTHING;
 
+-- name: CountMailReceiptsFrom :one
+-- How many messages one sender sent since an instant: the intake's hourly bound per sender.
+SELECT count(*) FROM mail_receipt
+WHERE sender = sqlc.arg('sender') AND received_at >= sqlc.arg('since');
+
 -- name: RecentMailReceipts :many
 SELECT id, message_id, received_at, sender, subject, outcome, reason, item_id, entry_id, door
 FROM mail_receipt
 ORDER BY received_at DESC, id DESC
 LIMIT sqlc.arg('max_rows');
 
--- name: DeleteMailReceiptsBefore :execrows
-DELETE FROM mail_receipt WHERE received_at < sqlc.arg('before');
+-- name: DeleteExpiredMailReceipts :execrows
+-- The retention run's batch: the oldest receipts past the period (ADR-0094, 30 days).
+DELETE FROM mail_receipt
+WHERE id IN (
+  SELECT due.id FROM mail_receipt AS due
+  WHERE due.received_at < sqlc.arg('cutoff')
+  ORDER BY due.received_at
+  LIMIT sqlc.arg('batch')
+);
+
+-- name: CountExpiredMailReceipts :one
+SELECT count(*) FROM (
+  SELECT 1 FROM mail_receipt WHERE received_at < sqlc.arg('cutoff') LIMIT sqlc.arg('ceiling')
+) AS due;
 
 -- name: CollectionByHandle :one
 -- A live collection in a live hub: a trashed or archived one takes no mail, and the message goes

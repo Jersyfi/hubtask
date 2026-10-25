@@ -88,6 +88,8 @@ func DefaultPolicies() []Policy {
 		// and no lower bound for the jumble's reason: a tenant asking for a shorter delivery log
 		// is asking for less to be kept.
 		{DataKind: KindWebhookDelivery, RetainDays: 30},
+		// The mail intake's log, thirty days, the delivery log's reasoning.
+		{DataKind: KindMailReceipt, RetainDays: 30},
 		// Idempotency keys. One day, the data catalogue's promise, and the day is the lower
 		// bound: api-guidelines.md §5 promises a replay for at least that long.
 		{DataKind: KindIdempotencyKey, RetainDays: 1, MinDays: 1},

@@ -1112,21 +1112,6 @@ type LegalHold struct {
 	ReleasedReason *string
 }
 
-type MailAddress struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	TargetKind   string
-	TargetID     pgtype.UUID
-	Code         string
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	RevokedAt    pgtype.Timestamptz
-	WindowStart  pgtype.Timestamptz
-	WindowCount  int32
-}
-
 type MailReceipt struct {
 	ID         pgtype.UUID
 	TenantID   pgtype.UUID

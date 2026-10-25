@@ -178,6 +178,20 @@ func (MailIntakeRepository) Record(ctx context.Context, receipt domain.Receipt) 
 	return rows == 1, nil
 }
 
+func (MailIntakeRepository) CountFrom(ctx context.Context, sender string, since time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	count, err := queries.CountMailReceiptsFrom(ctx, sqlc.CountMailReceiptsFromParams{
+		Sender: sender, Since: timestampOf(since),
+	})
+	if err != nil {
+		return 0, mailQueryFailed("counting a sender's mail", err)
+	}
+	return int(count), nil
+}
+
 func (MailIntakeRepository) Recent(ctx context.Context, limit int) ([]domain.Receipt, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
@@ -208,16 +222,32 @@ func (MailIntakeRepository) Recent(ctx context.Context, limit int) ([]domain.Rec
 	return out, nil
 }
 
-func (MailIntakeRepository) Forget(ctx context.Context, before time.Time) (int64, error) {
+func (MailIntakeRepository) DeleteExpired(ctx context.Context, cutoff time.Time, batch int) (int, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return 0, err
 	}
-	rows, err := queries.DeleteMailReceiptsBefore(ctx, timestampOf(before))
+	removed, err := queries.DeleteExpiredMailReceipts(ctx, sqlc.DeleteExpiredMailReceiptsParams{
+		Cutoff: timestampOf(cutoff), Batch: boundedInt32(batch),
+	})
 	if err != nil {
-		return 0, mailQueryFailed("forgetting the mail receipts", err)
+		return 0, mailQueryFailed("removing expired mail receipts", err)
 	}
-	return rows, nil
+	return int(removed), nil
+}
+
+func (MailIntakeRepository) CountExpired(ctx context.Context, cutoff time.Time, ceiling int) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	due, err := queries.CountExpiredMailReceipts(ctx, sqlc.CountExpiredMailReceiptsParams{
+		Cutoff: timestampOf(cutoff), Ceiling: boundedInt32(ceiling),
+	})
+	if err != nil {
+		return 0, mailQueryFailed("counting expired mail receipts", err)
+	}
+	return int(due), nil
 }
 
 func (MailIntakeRepository) CollectionByHandle(ctx context.Context, handle string) (shared.ID, error) {

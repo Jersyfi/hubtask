@@ -3514,6 +3514,8 @@ func run() error {
 			Inbox: postgres.NewJumbleRepository(cursors),
 			// The webhook delivery log, thirty days (data-retention.md §3).
 			Deliveries: postgres.NewWebhookDeliveryRepository(),
+			// The mail intake's log, thirty days (ADR-0094).
+			MailReceipts: postgres.NewMailIntakeRepository(),
 			// The SESSION kind: expired and revoked sessions age out through the engine,
 			// not a second sweeper.
 			Sessions: postgres.NewSessionRepository(),

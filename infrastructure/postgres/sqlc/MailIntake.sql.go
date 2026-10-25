@@ -29,12 +29,60 @@ func (q *Queries) CollectionByHandle(ctx context.Context, handle *string) (pgtyp
 	return id, err
 }
 
-const deleteMailReceiptsBefore = `-- name: DeleteMailReceiptsBefore :execrows
-DELETE FROM mail_receipt WHERE received_at < $1
+const countExpiredMailReceipts = `-- name: CountExpiredMailReceipts :one
+SELECT count(*) FROM (
+  SELECT 1 FROM mail_receipt WHERE received_at < $1 LIMIT $2
+) AS due
 `
 
-func (q *Queries) DeleteMailReceiptsBefore(ctx context.Context, before pgtype.Timestamptz) (int64, error) {
-	result, err := q.db.Exec(ctx, deleteMailReceiptsBefore, before)
+type CountExpiredMailReceiptsParams struct {
+	Cutoff  pgtype.Timestamptz
+	Ceiling int32
+}
+
+func (q *Queries) CountExpiredMailReceipts(ctx context.Context, arg CountExpiredMailReceiptsParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countExpiredMailReceipts, arg.Cutoff, arg.Ceiling)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const countMailReceiptsFrom = `-- name: CountMailReceiptsFrom :one
+SELECT count(*) FROM mail_receipt
+WHERE sender = $1 AND received_at >= $2
+`
+
+type CountMailReceiptsFromParams struct {
+	Sender string
+	Since  pgtype.Timestamptz
+}
+
+// How many messages one sender sent since an instant: the intake's hourly bound per sender.
+func (q *Queries) CountMailReceiptsFrom(ctx context.Context, arg CountMailReceiptsFromParams) (int64, error) {
+	row := q.db.QueryRow(ctx, countMailReceiptsFrom, arg.Sender, arg.Since)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
+const deleteExpiredMailReceipts = `-- name: DeleteExpiredMailReceipts :execrows
+DELETE FROM mail_receipt
+WHERE id IN (
+  SELECT due.id FROM mail_receipt AS due
+  WHERE due.received_at < $1
+  ORDER BY due.received_at
+  LIMIT $2
+)
+`
+
+type DeleteExpiredMailReceiptsParams struct {
+	Cutoff pgtype.Timestamptz
+	Batch  int32
+}
+
+// The retention run's batch: the oldest receipts past the period (ADR-0094, 30 days).
+func (q *Queries) DeleteExpiredMailReceipts(ctx context.Context, arg DeleteExpiredMailReceiptsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMailReceipts, arg.Cutoff, arg.Batch)
 	if err != nil {
 		return 0, err
 	}
