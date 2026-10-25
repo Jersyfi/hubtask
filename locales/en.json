@@ -6443,5 +6443,20 @@
   "app.voice.step_test": "Link and try it",
   "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with your Hubtask account. Then say \"Alexa, open Hubtask\".",
   "app.entries.ticket_key": "Copy the key {key}",
-  "app.entries.ticket_key_copied": "{key} copied."
+  "app.entries.ticket_key_copied": "{key} copied.",
+  "app.retention.kind.MAIL_RECEIPT": "Mail intake log",
+  "mail.place_required": "Name the collection whose handle changes.",
+  "mail.routes_unreadable": "The mail intake's sender rules could not be read. Save them again.",
+  "mail.handle_invalid": "A handle starts with a letter and has two to twenty letters and digits, no hyphen.",
+  "mail.handle_taken": "Another collection of this workspace already has the handle {handle}, or had it and is in the trash.",
+  "mail.sender_invalid": "That is not an address or a domain. Write a@example.org, or @example.org for a whole domain.",
+  "mail.place_not_found": "That collection does not exist, or it is archived or in the trash.",
+  "mail.name_invalid": "A name on the receiving domain has lowercase letters, digits and hyphens, not at the start or end.",
+  "mail.name_taken": "The name {name} is already another workspace's on this installation.",
+  "mail.too_many_routes": "At most 100 sender rules.",
+  "mail.list_too_long": "At most 200 addresses and domains per list.",
+  "mail.settings_invalid": "Some of the mail settings cannot be saved; the fields say which.",
+  "mail.not_found": "No workspace takes mail at that address.",
+  "mail.level_unknown": "Choose who may write: members, members and allowed senders, or anyone.",
+  "mail.route_without_place": "A sender rule needs the collection its mail goes to."
 }

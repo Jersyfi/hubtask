@@ -6440,5 +6440,20 @@
   "app.voice.step_test": "Verknüpfen und ausprobieren",
   "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann „Alexa, öffne Hubtask“ sagen.",
   "app.entries.ticket_key": "Schlüssel {key} kopieren",
-  "app.entries.ticket_key_copied": "{key} kopiert."
+  "app.entries.ticket_key_copied": "{key} kopiert.",
+  "app.retention.kind.MAIL_RECEIPT": "Protokoll des Mail-Eingangs",
+  "mail.place_required": "Nenne die Sammlung, deren Kennung sich ändert.",
+  "mail.routes_unreadable": "Die Absender-Regeln des Mail-Eingangs ließen sich nicht lesen. Speichere sie erneut.",
+  "mail.handle_invalid": "Eine Kennung beginnt mit einem Buchstaben und hat zwei bis zwanzig Buchstaben und Ziffern, ohne Bindestrich.",
+  "mail.handle_taken": "Eine andere Sammlung dieses Arbeitsbereichs hat die Kennung {handle} schon oder hatte sie und liegt im Papierkorb.",
+  "mail.sender_invalid": "Das ist keine Adresse und keine Domain. Schreibe a@beispiel.de oder @beispiel.de für eine ganze Domain.",
+  "mail.place_not_found": "Diese Sammlung gibt es nicht, oder sie ist archiviert oder im Papierkorb.",
+  "mail.name_invalid": "Ein Name auf der Empfangsdomain hat Kleinbuchstaben, Ziffern und Bindestriche, nicht am Anfang oder Ende.",
+  "mail.name_taken": "Der Name {name} gehört auf dieser Installation schon einem anderen Arbeitsbereich.",
+  "mail.too_many_routes": "Höchstens 100 Absender-Regeln.",
+  "mail.list_too_long": "Höchstens 200 Adressen und Domains je Liste.",
+  "mail.settings_invalid": "Einige Mail-Einstellungen lassen sich nicht speichern; die Felder sagen, welche.",
+  "mail.not_found": "An dieser Adresse nimmt kein Arbeitsbereich Mail an.",
+  "mail.level_unknown": "Wähle, wer schreiben darf: Mitglieder, Mitglieder und Zugelassene oder jeder.",
+  "mail.route_without_place": "Eine Absender-Regel braucht die Sammlung, in die ihre Mail geht."
 }
