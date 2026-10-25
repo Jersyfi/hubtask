@@ -600,6 +600,11 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
   (`access.token_scope_unknown`): minting those asks a step-up and the register, and a consent asks
   neither. A grant session carries none of them, whatever its grant once stored.
 * The code (`hbt_oac_…`) lives two minutes and is exchanged once.
+* The token endpoint takes this API's JSON and RFC 6749's own form - a form-encoded body, the
+  client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants,
+  answered with `access_token`, `token_type`, `expires_in`, `refresh_token` - for clients that are
+  not Hubtask's own, an Alexa skill's account linking among them
+  ([ADR-0093](../adr/ADR-0093-voice-assistants-through-a-skill-of-our-own.md)).
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
   as an actor attribute. Grants are listed per account with client, scopes and last use.

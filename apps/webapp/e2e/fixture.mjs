@@ -1243,6 +1243,8 @@ export function fallback(route, request, path) {
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
   // No receiving domain unless a walk says otherwise (ADR-0092).
   if (read === '/mail/addresses') return route.fulfill({ json: { available: false } });
+  // Voice switched off and nothing named, as a workspace starts (ADR-0093).
+  if (read === '/voice/settings' && request.method() === 'GET') return route.fulfill({ json: { enabled: false, aliases: [], installation_skill: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });
   if (read === '/jumble/entries') return route.fulfill({ json: { data: [], next_cursor: null } });
   if (read === '/jumble/destinations') return route.fulfill({ json: { data: DESTINATIONS, page: { next_cursor: null, has_more: false } } });

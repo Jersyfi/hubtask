@@ -2011,6 +2011,49 @@ class MailDelivered(TypedDict, total=False):
     item_id: str
     comment_id: str
 
+class OauthTokenForm(TypedDict, total=False):
+    grant_type: Required[str]
+    code: str
+    redirect_uri: str
+    code_verifier: str
+    client_id: str
+    client_secret: str
+    refresh_token: str
+
+class OauthStandardTokens(TypedDict, total=False):
+    access_token: Required[str]
+    token_type: Required[str]
+    expires_in: Required[int]
+    refresh_token: Required[str]
+
+class VoiceSettings(TypedDict, total=False):
+    enabled: Required[bool]
+    default_collection_id: str
+    skill_id: str
+    installation_skill: bool
+    aliases: Required[list["VoiceAlias"]]
+
+class VoiceAlias(TypedDict, total=False):
+    phrase: Required[str]
+    collection_id: Required[str]
+    label_id: str
+
+class VoiceTry(TypedDict, total=False):
+    sentence: Required[str]
+    locale: str
+
+class VoicePlace(TypedDict, total=False):
+    collection_id: Required[str]
+    label_id: str
+    name: Required[str]
+
+class VoiceInterpretation(TypedDict, total=False):
+    things: Required[list[dict[str, Any]]]
+    found: Required[bool]
+    default: Required[bool]
+    place: "VoicePlace"
+    ambiguous: Required[list["VoicePlace"]]
+
 class JumbleEntrySubmit(TypedDict, total=False):
     """A near-channel arrival. At least one of the three contents; `channel` defaults to `API`, and only the near channels may be claimed."""
     channel: Literal["QUICK_CAPTURE", "API"]

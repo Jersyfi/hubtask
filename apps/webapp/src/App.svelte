@@ -64,6 +64,7 @@ import ContainerView from './views/ContainerView.svelte';
   import RuleEditorView from './views/RuleEditorView.svelte';
   import RunsView from './views/RunsView.svelte';
   import WebhooksView from './views/WebhooksView.svelte';
+  import VoiceView from './views/VoiceView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
   import PresetsView from './views/PresetsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
@@ -333,6 +334,8 @@ import ContainerView from './views/ContainerView.svelte';
     <!-- Nothing for the moment before the address replaces itself, rather than a not-found. -->
   {:else if route.name === 'sign-in-settings'}
     <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
+  {:else if route.name === 'voice'}
+    <VoiceView />
   {:else if route.name === 'legal'}
     <SignInSettingsView part="legal" />
   {:else if route.name === 'ai'}

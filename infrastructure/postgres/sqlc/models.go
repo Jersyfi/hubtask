@@ -1667,6 +1667,25 @@ type UsageRecord struct {
 	Closing  *int64
 }
 
+type VoiceAlias struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Phrase       string
+	Folded       string
+	CollectionID pgtype.UUID
+	LabelID      pgtype.UUID
+	CreatedAt    pgtype.Timestamptz
+}
+
+type VoiceSetting struct {
+	TenantID            pgtype.UUID
+	Enabled             bool
+	DefaultCollectionID pgtype.UUID
+	SkillID             *string
+	UpdatedAt           pgtype.Timestamptz
+	UpdatedBy           pgtype.UUID
+}
+
 type WebauthnCredential struct {
 	ID             pgtype.UUID
 	TenantID       pgtype.UUID

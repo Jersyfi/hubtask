@@ -67,6 +67,7 @@ export const ROUTES: readonly Route[] = [
   { name: 'machines', pattern: '/administration/machines', area: 'administration' },
   { name: 'service-accounts', pattern: '/administration/service-accounts', area: 'administration' },
   { name: 'apps', pattern: '/administration/apps', area: 'administration' },
+  { name: 'voice', pattern: '/administration/voice', area: 'administration' },
   { name: 'rules', pattern: '/administration/rules', area: 'administration' },
   // The rule editor: a rule drawn as a path. `new` before `:id`, so that a rule whose
   // identifier happened to be `new` could not exist and the two do not compete.

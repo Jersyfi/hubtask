@@ -228,6 +228,7 @@ async function views() {
     ['rule', await load('RuleEditorView'), { id: ITEM, onnavigate: noop }],
     ['runs', await load('RunsView'), {}],
     ['webhooks', await load('WebhooksView'), {}],
+    ['voice', await load('VoiceView'), {}],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['backup', await load('BackupView'), {}],

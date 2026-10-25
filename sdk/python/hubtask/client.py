@@ -207,6 +207,26 @@ class Client:
         """Deliver a mail to an address on the receiving domain"""
         return self._call("POST", "/mail/inbound", {}, query, {}, body, "raw", "message/rfc822", "json")
 
+    def show_voice_settings(self) -> "VoiceSettings":
+        """The workspace's voice settings"""
+        return self._call("GET", "/voice/settings", {}, None, {}, None, "none", None, "json")
+
+    def save_voice_settings(self, body: "VoiceSettings", *, idempotency_key: str | None = None) -> "VoiceSettings":
+        """Replace the workspace's voice settings"""
+        return self._call("PUT", "/voice/settings", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def try_voice_sentence(self, body: "VoiceTry") -> "VoiceInterpretation":
+        """What a spoken sentence would do"""
+        return self._call("POST", "/voice:try", {}, None, {}, body, "json", "application/json", "json")
+
+    def show_alexa_model(self, *, query: dict[str, Any] | None = None) -> dict[str, Any]:
+        """The Alexa interaction model"""
+        return self._call("GET", "/voice/alexa/model", {}, query, {}, None, "none", None, "json")
+
+    def answer_alexa(self, body: dict[str, Any]) -> dict[str, Any]:
+        """Answer Alexa"""
+        return self._call("POST", "/voice/alexa", {}, None, {}, body, "json", "application/json", "json")
+
     def list_rules(self, *, query: dict[str, Any] | None = None) -> "AutomationRulePage":
         """The workspace's automation rules"""
         return self._call("GET", "/automation/rules", {}, query, {}, None, "none", None, "json")
@@ -1159,7 +1179,7 @@ class Client:
         """Consent to an app's request for bounded access"""
         return self._call("POST", "/oauth/authorize", {}, None, {}, body, "json", "application/json", "json")
 
-    def exchange_oauth_code(self, body: "OauthTokenRequest") -> "SessionTokens":
+    def exchange_oauth_code(self, body: "OauthTokenRequest") -> "OauthStandardTokens":
         """Exchange the code for the pair"""
         return self._call("POST", "/oauth/token", {}, None, {}, body, "json", "application/json", "json")
 

@@ -93,6 +93,9 @@
       "name": "jumble"
     },
     {
+      "name": "voice"
+    },
+    {
       "name": "jobs"
     },
     {
@@ -1223,6 +1226,182 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/MailDelivered"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/voice/settings": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "showVoiceSettings",
+        "summary": "The workspace's voice settings",
+        "description": "Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.\n",
+        "responses": {
+          "200": {
+            "description": "The settings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "saveVoiceSettings",
+        "summary": "Replace the workspace's voice settings",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceSettings"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/voice:try": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "tryVoiceSentence",
+        "summary": "What a spoken sentence would do",
+        "description": "Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VoiceTry"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What it would do",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VoiceInterpretation"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/voice/alexa/model": {
+      "get": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "showAlexaModel",
+        "summary": "The Alexa interaction model",
+        "description": "The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.\n",
+        "parameters": [
+          {
+            "name": "locale",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "de-DE",
+                "en-US",
+                "en-GB"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The model",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/voice/alexa": {
+      "post": {
+        "tags": [
+          "voice"
+        ],
+        "operationId": "answerAlexa",
+        "security": [],
+        "summary": "Answer Alexa",
+        "description": "The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "What Alexa says",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true
                 }
               }
             }
@@ -9856,7 +10035,7 @@
         "operationId": "exchangeOauthCode",
         "security": [],
         "summary": "Exchange the code for the pair",
-        "description": "The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.\nThe answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.\n",
+        "description": "The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.\nThe answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.\nRFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -9864,10 +10043,25 @@
               "schema": {
                 "$ref": "#/components/schemas/OauthTokenRequest"
               }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/OauthTokenForm"
+              }
             }
           }
         },
         "responses": {
+          "200": {
+            "description": "Exchanged or refreshed, in RFC 6749's form",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OauthStandardTokens"
+                }
+              }
+            }
+          },
           "201": {
             "description": "Exchanged, with the pair shown for the only time",
             "content": {
@@ -24537,6 +24731,193 @@
           "comment_id": {
             "type": "string",
             "format": "uuid"
+          }
+        }
+      },
+      "OauthTokenForm": {
+        "type": "object",
+        "required": [
+          "grant_type"
+        ],
+        "properties": {
+          "grant_type": {
+            "type": "string",
+            "description": "authorization_code to exchange a code, refresh_token to refresh the pair."
+          },
+          "code": {
+            "type": "string"
+          },
+          "redirect_uri": {
+            "type": "string"
+          },
+          "code_verifier": {
+            "type": "string"
+          },
+          "client_id": {
+            "type": "string"
+          },
+          "client_secret": {
+            "type": "string"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "OauthStandardTokens": {
+        "type": "object",
+        "required": [
+          "access_token",
+          "token_type",
+          "expires_in",
+          "refresh_token"
+        ],
+        "properties": {
+          "access_token": {
+            "type": "string"
+          },
+          "token_type": {
+            "type": "string",
+            "description": "Always Bearer."
+          },
+          "expires_in": {
+            "type": "integer"
+          },
+          "refresh_token": {
+            "type": "string"
+          }
+        }
+      },
+      "VoiceSettings": {
+        "type": "object",
+        "required": [
+          "enabled",
+          "aliases"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "default_collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "skill_id": {
+            "type": "string",
+            "description": "The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used."
+          },
+          "installation_skill": {
+            "type": "boolean",
+            "readOnly": true,
+            "description": "Whether the installation publishes a skill every workspace may use."
+          },
+          "aliases": {
+            "type": "array",
+            "maxItems": 100,
+            "items": {
+              "$ref": "#/components/schemas/VoiceAlias"
+            }
+          }
+        }
+      },
+      "VoiceAlias": {
+        "type": "object",
+        "required": [
+          "phrase",
+          "collection_id"
+        ],
+        "properties": {
+          "phrase": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "A category of the collection, for a name that stands for it."
+          }
+        }
+      },
+      "VoiceTry": {
+        "type": "object",
+        "required": [
+          "sentence"
+        ],
+        "properties": {
+          "sentence": {
+            "type": "string",
+            "maxLength": 500
+          },
+          "locale": {
+            "type": "string"
+          }
+        }
+      },
+      "VoicePlace": {
+        "type": "object",
+        "required": [
+          "collection_id",
+          "name"
+        ],
+        "properties": {
+          "collection_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "label_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          }
+        }
+      },
+      "VoiceInterpretation": {
+        "type": "object",
+        "required": [
+          "things",
+          "found",
+          "default",
+          "ambiguous"
+        ],
+        "properties": {
+          "things": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "title"
+              ],
+              "properties": {
+                "title": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "found": {
+            "type": "boolean"
+          },
+          "default": {
+            "type": "boolean",
+            "description": "The place is the default list, as no place was said."
+          },
+          "place": {
+            "$ref": "#/components/schemas/VoicePlace"
+          },
+          "ambiguous": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VoicePlace"
+            }
           }
         }
       },

@@ -111,6 +111,7 @@ export const DECLARED = {
     'zap', // an event
     'hand', // somebody starts it
     'inbox', // an arrival in the jumble
+    'mic', // a voice assistant: the place it is set up
     'globe', // a webhook, an outbound call
     'mail', // an e-mail
     'play', // the probe, and starting a manual rule

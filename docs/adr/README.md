@@ -125,3 +125,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) | Concept mode, findings fixed where found, proof by tests | accepted | Process |
 | [0091](./ADR-0091-hubtask-as-one-system.md) | Hubtask as one system | accepted | Design |
 | [0092](./ADR-0092-mail-addresses-for-every-place.md) | Mail addresses for every place, on the operator's receiving domain | accepted | Jumble, security |
+| [0093](./ADR-0093-voice-assistants-through-a-skill-of-our-own.md) | Voice assistants through a skill of our own | accepted | Work, identity |

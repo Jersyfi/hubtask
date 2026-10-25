@@ -5715,6 +5715,27 @@ func (e ShowMailAddressParamsTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for ShowAlexaModelParamsLocale.
+const (
+	DeDE ShowAlexaModelParamsLocale = "de-DE"
+	EnGB ShowAlexaModelParamsLocale = "en-GB"
+	EnUS ShowAlexaModelParamsLocale = "en-US"
+)
+
+// Valid indicates whether the value is a known member of the ShowAlexaModelParamsLocale enum.
+func (e ShowAlexaModelParamsLocale) Valid() bool {
+	switch e {
+	case DeDE:
+		return true
+	case EnGB:
+		return true
+	case EnUS:
+		return true
+	default:
+		return false
+	}
+}
+
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
 type AcceptedSuggestion struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -9445,6 +9466,29 @@ type OauthGrant struct {
 	Scopes     []string   `json:"scopes"`
 }
 
+// OauthStandardTokens defines model for OauthStandardTokens.
+type OauthStandardTokens struct {
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+
+	// TokenType Always Bearer.
+	TokenType string `json:"token_type"`
+}
+
+// OauthTokenForm defines model for OauthTokenForm.
+type OauthTokenForm struct {
+	ClientId     *string `json:"client_id,omitempty"`
+	ClientSecret *string `json:"client_secret,omitempty"`
+	Code         *string `json:"code,omitempty"`
+	CodeVerifier *string `json:"code_verifier,omitempty"`
+
+	// GrantType authorization_code to exchange a code, refresh_token to refresh the pair.
+	GrantType    string  `json:"grant_type"`
+	RedirectUri  *string `json:"redirect_uri,omitempty"`
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
 // OauthTokenRequest defines model for OauthTokenRequest.
 type OauthTokenRequest struct {
 	ClientId openapi_types.UUID `json:"client_id"`
@@ -12387,6 +12431,55 @@ type ViewExportDocument struct {
 	ViewId    openapi_types.UUID `json:"view_id"`
 }
 
+// VoiceAlias defines model for VoiceAlias.
+type VoiceAlias struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// LabelId A category of the collection, for a name that stands for it.
+	LabelId *openapi_types.UUID `json:"label_id,omitempty"`
+	Phrase  string              `json:"phrase"`
+}
+
+// VoiceInterpretation defines model for VoiceInterpretation.
+type VoiceInterpretation struct {
+	Ambiguous []VoicePlace `json:"ambiguous"`
+
+	// Default The place is the default list, as no place was said.
+	Default bool        `json:"default"`
+	Found   bool        `json:"found"`
+	Place   *VoicePlace `json:"place,omitempty"`
+	Things  []struct {
+		Amount *string `json:"amount,omitempty"`
+		Title  string  `json:"title"`
+	} `json:"things"`
+}
+
+// VoicePlace defines model for VoicePlace.
+type VoicePlace struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	LabelId      *openapi_types.UUID `json:"label_id,omitempty"`
+	Name         string              `json:"name"`
+}
+
+// VoiceSettings defines model for VoiceSettings.
+type VoiceSettings struct {
+	Aliases             []VoiceAlias        `json:"aliases"`
+	DefaultCollectionId *openapi_types.UUID `json:"default_collection_id,omitempty"`
+	Enabled             bool                `json:"enabled"`
+
+	// InstallationSkill Whether the installation publishes a skill every workspace may use.
+	InstallationSkill *bool `json:"installation_skill,omitempty"`
+
+	// SkillId The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.
+	SkillId *string `json:"skill_id,omitempty"`
+}
+
+// VoiceTry defines model for VoiceTry.
+type VoiceTry struct {
+	Locale   *string `json:"locale,omitempty"`
+	Sentence string  `json:"sentence"`
+}
+
 // WebhookDelivery One attempt at one event against one subscription.
 type WebhookDelivery struct {
 	// Attempt Which attempt this is, from one. It carries on across a replay rather than resetting.
@@ -14311,6 +14404,23 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AnswerAlexaJSONBody defines parameters for AnswerAlexa.
+type AnswerAlexaJSONBody map[string]interface{}
+
+// ShowAlexaModelParams defines parameters for ShowAlexaModel.
+type ShowAlexaModelParams struct {
+	Locale *ShowAlexaModelParamsLocale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// ShowAlexaModelParamsLocale defines parameters for ShowAlexaModel.
+type ShowAlexaModelParamsLocale string
+
+// SaveVoiceSettingsParams defines parameters for SaveVoiceSettings.
+type SaveVoiceSettingsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
@@ -14758,6 +14868,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// ExchangeOauthCodeFormdataRequestBody defines body for ExchangeOauthCode for application/x-www-form-urlencoded ContentType.
+type ExchangeOauthCodeFormdataRequestBody = OauthTokenForm
+
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
 
@@ -14835,6 +14948,15 @@ type ExportViewJSONRequestBody = ViewExport
 
 // ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
 type ShareSavedViewJSONRequestBody = SavedViewShare
+
+// AnswerAlexaJSONRequestBody defines body for AnswerAlexa for application/json ContentType.
+type AnswerAlexaJSONRequestBody AnswerAlexaJSONBody
+
+// SaveVoiceSettingsJSONRequestBody defines body for SaveVoiceSettings for application/json ContentType.
+type SaveVoiceSettingsJSONRequestBody = VoiceSettings
+
+// TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
+type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // RequestEditorFn is the function signature for the RequestEditor callback function
 type RequestEditorFn func(ctx context.Context, req *http.Request) error
@@ -19305,7 +19427,8 @@ type ClientInterface interface {
 	// ExchangeOauthCodeWithBody Exchange the code for the pair
 	//
 	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -19315,12 +19438,24 @@ type ClientInterface interface {
 	// ExchangeOauthCode Exchange the code for the pair
 	//
 	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ExchangeOauthCodeWithFormdataBody Exchange the code for the pair
+	//
+	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type.
+	//
+	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
+	ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPresets The presets a hub or collection can start from
 	//
@@ -20250,6 +20385,70 @@ type ClientInterface interface {
 	//
 	// Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE permission on the scope's path - a view over a collection cannot be pushed onto people by somebody who may not shape that collection. An ACCOUNT-scoped view names no audience and cannot be shared. PUBLIC_LINK is declared and refused by name: the calendar feed is this version's only public reader and carries its own token, and a browsable public link is a product decision no task takes in passing.
 	ShareSavedView(ctx context.Context, viewId ViewId, params *ShareSavedViewParams, body ShareSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnswerAlexaWithBody Answer Alexa
+	//
+	// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+	AnswerAlexaWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AnswerAlexa Answer Alexa
+	//
+	// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+	AnswerAlexa(ctx context.Context, body AnswerAlexaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShowAlexaModel The Alexa interaction model
+	//
+	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	//
+	// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
+	ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ShowVoiceSettings The workspace's voice settings
+	//
+	// Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.
+	//
+	// Corresponds with GET /voice/settings (the `ShowVoiceSettings` operationId).
+	ShowVoiceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveVoiceSettingsWithBody Replace the workspace's voice settings
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+	SaveVoiceSettingsWithBody(ctx context.Context, params *SaveVoiceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SaveVoiceSettings Replace the workspace's voice settings
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+	SaveVoiceSettings(ctx context.Context, params *SaveVoiceSettingsParams, body SaveVoiceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TryVoiceSentenceWithBody What a spoken sentence would do
+	//
+	// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+	TryVoiceSentenceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// TryVoiceSentence What a spoken sentence would do
+	//
+	// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+	TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 }
 
 // GetOwnAccount The account the caller is signed in as
@@ -29307,7 +29506,8 @@ func (c *Client) RevokeOauthGrant(ctx context.Context, grantId OauthGrantId, req
 // ExchangeOauthCodeWithBody Exchange the code for the pair
 //
 // The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 //
 // Takes any type of body and a specified content type.
 //
@@ -29327,13 +29527,35 @@ func (c *Client) ExchangeOauthCodeWithBody(ctx context.Context, contentType stri
 // ExchangeOauthCode Exchange the code for the pair
 //
 // The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 //
 // Takes a body of the `application/json` content type.
 //
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *Client) ExchangeOauthCode(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewExchangeOauthCodeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ExchangeOauthCodeWithFormdataBody Exchange the code for the pair
+//
+// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type.
+//
+// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
+func (c *Client) ExchangeOauthCodeWithFormdataBody(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewExchangeOauthCodeRequestWithFormdataBody(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31093,6 +31315,150 @@ func (c *Client) ShareSavedViewWithBody(ctx context.Context, viewId ViewId, para
 // Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE permission on the scope's path - a view over a collection cannot be pushed onto people by somebody who may not shape that collection. An ACCOUNT-scoped view names no audience and cannot be shared. PUBLIC_LINK is declared and refused by name: the calendar feed is this version's only public reader and carries its own token, and a browsable public link is a product decision no task takes in passing.
 func (c *Client) ShareSavedView(ctx context.Context, viewId ViewId, params *ShareSavedViewParams, body ShareSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewShareSavedViewRequest(c.Server, viewId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AnswerAlexaWithBody Answer Alexa
+//
+// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+func (c *Client) AnswerAlexaWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnswerAlexaRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AnswerAlexa Answer Alexa
+//
+// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+func (c *Client) AnswerAlexa(ctx context.Context, body AnswerAlexaJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAnswerAlexaRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShowAlexaModel The Alexa interaction model
+//
+// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+//
+// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
+func (c *Client) ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShowAlexaModelRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ShowVoiceSettings The workspace's voice settings
+//
+// Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.
+//
+// Corresponds with GET /voice/settings (the `ShowVoiceSettings` operationId).
+func (c *Client) ShowVoiceSettings(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewShowVoiceSettingsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveVoiceSettingsWithBody Replace the workspace's voice settings
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+func (c *Client) SaveVoiceSettingsWithBody(ctx context.Context, params *SaveVoiceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveVoiceSettingsRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SaveVoiceSettings Replace the workspace's voice settings
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+func (c *Client) SaveVoiceSettings(ctx context.Context, params *SaveVoiceSettingsParams, body SaveVoiceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSaveVoiceSettingsRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TryVoiceSentenceWithBody What a spoken sentence would do
+//
+// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+func (c *Client) TryVoiceSentenceWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTryVoiceSentenceRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// TryVoiceSentence What a spoken sentence would do
+//
+// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+func (c *Client) TryVoiceSentence(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewTryVoiceSentenceRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -46346,6 +46712,17 @@ func NewExchangeOauthCodeRequest(server string, body ExchangeOauthCodeJSONReques
 	return NewExchangeOauthCodeRequestWithBody(server, "application/json", bodyReader)
 }
 
+// NewExchangeOauthCodeRequestWithFormdataBody calls the generic ExchangeOauthCode builder with application/x-www-form-urlencoded body
+func NewExchangeOauthCodeRequestWithFormdataBody(server string, body ExchangeOauthCodeFormdataRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	bodyStr, err := runtime.MarshalForm(body, nil)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = strings.NewReader(bodyStr.Encode())
+	return NewExchangeOauthCodeRequestWithBody(server, "application/x-www-form-urlencoded", bodyReader)
+}
+
 // NewExchangeOauthCodeRequestWithBody constructs an http.Request for the ExchangeOauthCode method, with any body, and a specified content type
 func NewExchangeOauthCodeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
 	var err error
@@ -49091,6 +49468,222 @@ func NewShareSavedViewRequestWithBody(server string, viewId ViewId, params *Shar
 		}
 
 	}
+
+	return req, nil
+}
+
+// NewAnswerAlexaRequest calls the generic AnswerAlexa builder with application/json body
+func NewAnswerAlexaRequest(server string, body AnswerAlexaJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAnswerAlexaRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewAnswerAlexaRequestWithBody constructs an http.Request for the AnswerAlexa method, with any body, and a specified content type
+func NewAnswerAlexaRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voice/alexa")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewShowAlexaModelRequest constructs an http.Request for the ShowAlexaModel method
+func NewShowAlexaModelRequest(server string, params *ShowAlexaModelParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voice/alexa/model")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.Locale != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "locale", *params.Locale, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: ""}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewShowVoiceSettingsRequest constructs an http.Request for the ShowVoiceSettings method
+func NewShowVoiceSettingsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voice/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSaveVoiceSettingsRequest calls the generic SaveVoiceSettings builder with application/json body
+func NewSaveVoiceSettingsRequest(server string, params *SaveVoiceSettingsParams, body SaveVoiceSettingsJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSaveVoiceSettingsRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSaveVoiceSettingsRequestWithBody constructs an http.Request for the SaveVoiceSettings method, with any body, and a specified content type
+func NewSaveVoiceSettingsRequestWithBody(server string, params *SaveVoiceSettingsParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voice/settings")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewTryVoiceSentenceRequest calls the generic TryVoiceSentence builder with application/json body
+func NewTryVoiceSentenceRequest(server string, body TryVoiceSentenceJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewTryVoiceSentenceRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewTryVoiceSentenceRequestWithBody constructs an http.Request for the TryVoiceSentence method, with any body, and a specified content type
+func NewTryVoiceSentenceRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/voice:try")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -53940,7 +54533,8 @@ type ClientWithResponsesInterface interface {
 	// ExchangeOauthCodeWithBodyWithResponse Exchange the code for the pair
 	//
 	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -53950,12 +54544,24 @@ type ClientWithResponsesInterface interface {
 	// ExchangeOauthCodeWithResponse Exchange the code for the pair
 	//
 	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 	ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
+
+	// ExchangeOauthCodeWithFormdataBodyWithResponse Exchange the code for the pair
+	//
+	// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
+	// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+	// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
+	//
+	// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
+	ExchangeOauthCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error)
 
 	// ListPresetsWithResponse The presets a hub or collection can start from
 	//
@@ -54963,6 +55569,74 @@ type ClientWithResponsesInterface interface {
 	//
 	// Decides who sees the view: PRIVATE keeps it the owner's, SCOPE shares it with everyone who may read the view's scope. Sharing publishes workspace furniture, so it asks the STRUCTURE permission on the scope's path - a view over a collection cannot be pushed onto people by somebody who may not shape that collection. An ACCOUNT-scoped view names no audience and cannot be shared. PUBLIC_LINK is declared and refused by name: the calendar feed is this version's only public reader and carries its own token, and a browsable public link is a product decision no task takes in passing.
 	ShareSavedViewWithResponse(ctx context.Context, viewId ViewId, params *ShareSavedViewParams, body ShareSavedViewJSONRequestBody, reqEditors ...RequestEditorFn) (*ShareSavedViewResult, error)
+
+	// AnswerAlexaWithBodyWithResponse Answer Alexa
+	//
+	// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+	AnswerAlexaWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnswerAlexaResult, error)
+
+	// AnswerAlexaWithResponse Answer Alexa
+	//
+	// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+	AnswerAlexaWithResponse(ctx context.Context, body AnswerAlexaJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerAlexaResult, error)
+
+	// ShowAlexaModelWithResponse The Alexa interaction model
+	//
+	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
+	ShowAlexaModelWithResponse(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*ShowAlexaModelResult, error)
+
+	// ShowVoiceSettingsWithResponse The workspace's voice settings
+	//
+	// Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /voice/settings (the `ShowVoiceSettings` operationId).
+	ShowVoiceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ShowVoiceSettingsResult, error)
+
+	// SaveVoiceSettingsWithBodyWithResponse Replace the workspace's voice settings
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+	SaveVoiceSettingsWithBodyWithResponse(ctx context.Context, params *SaveVoiceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveVoiceSettingsResult, error)
+
+	// SaveVoiceSettingsWithResponse Replace the workspace's voice settings
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+	SaveVoiceSettingsWithResponse(ctx context.Context, params *SaveVoiceSettingsParams, body SaveVoiceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveVoiceSettingsResult, error)
+
+	// TryVoiceSentenceWithBodyWithResponse What a spoken sentence would do
+	//
+	// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+	TryVoiceSentenceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error)
+
+	// TryVoiceSentenceWithResponse What a spoken sentence would do
+	//
+	// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+	TryVoiceSentenceWithResponse(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error)
 }
 
 type GetOwnAccountResult struct {
@@ -70703,10 +71377,17 @@ func (r RevokeOauthGrantResult) ContentType() string {
 type ExchangeOauthCodeResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OauthStandardTokens
 	// JSON201 the response for an HTTP 201 `application/json` response
 	JSON201 *SessionTokens
 	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
 	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ExchangeOauthCodeResult) GetJSON200() *OauthStandardTokens {
+	return r.JSON200
 }
 
 // GetJSON201 returns the response for an HTTP 201 `application/json` response
@@ -73568,6 +74249,246 @@ func (r ShareSavedViewResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ShareSavedViewResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AnswerAlexaResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *map[string]interface{}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AnswerAlexaResult) GetJSON200() *map[string]interface{} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AnswerAlexaResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AnswerAlexaResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AnswerAlexaResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AnswerAlexaResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AnswerAlexaResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShowAlexaModelResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *map[string]interface{}
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShowAlexaModelResult) GetJSON200() *map[string]interface{} {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ShowAlexaModelResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ShowAlexaModelResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShowAlexaModelResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShowAlexaModelResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShowAlexaModelResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ShowVoiceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VoiceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ShowVoiceSettingsResult) GetJSON200() *VoiceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ShowVoiceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ShowVoiceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ShowVoiceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ShowVoiceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ShowVoiceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SaveVoiceSettingsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VoiceSettings
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SaveVoiceSettingsResult) GetJSON200() *VoiceSettings {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SaveVoiceSettingsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SaveVoiceSettingsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SaveVoiceSettingsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SaveVoiceSettingsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SaveVoiceSettingsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type TryVoiceSentenceResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *VoiceInterpretation
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r TryVoiceSentenceResult) GetJSON200() *VoiceInterpretation {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r TryVoiceSentenceResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r TryVoiceSentenceResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r TryVoiceSentenceResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r TryVoiceSentenceResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r TryVoiceSentenceResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -81171,7 +82092,8 @@ func (c *ClientWithResponses) RevokeOauthGrantWithResponse(ctx context.Context, 
 // ExchangeOauthCodeWithBodyWithResponse Exchange the code for the pair
 //
 // The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -81187,13 +82109,31 @@ func (c *ClientWithResponses) ExchangeOauthCodeWithBodyWithResponse(ctx context.
 // ExchangeOauthCodeWithResponse Exchange the code for the pair
 //
 // The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
-// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery. The body is JSON; the form encoding of RFC 6749 is not accepted.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
 // Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
 func (c *ClientWithResponses) ExchangeOauthCodeWithResponse(ctx context.Context, body ExchangeOauthCodeJSONRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error) {
 	rsp, err := c.ExchangeOauthCode(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseExchangeOauthCodeResult(rsp)
+}
+
+// ExchangeOauthCodeWithFormdataBodyWithResponse Exchange the code for the pair
+//
+// The token endpoint. Public the way sign-in is: what authenticates is in the body - the single-use code, the PKCE verifier whose S256 hash has to equal the challenge the code was minted under, and, for a confidential client, the secret. A code replayed after exchange is refused; the redirect URI has to repeat the authorization's, exactly.
+// The answer is the same pair sign-in mints, leashed to the grant: revoking the grant refuses the pair on its next request, exactly as refresh reuse would. Refresh happens at `/auth/sessions:refresh`, because it is the same machinery.
+// RFC 6749's own form is taken as well, for OAuth clients that are not Hubtask's - an Alexa skill's account linking among them: a form-encoded body, the client's credentials as Basic or in the body, `authorization_code` and `refresh_token` grants, answered `200` with `access_token`, `token_type`, `expires_in` and `refresh_token`, or RFC 6749's error document.
+//
+// Takes a body of the `application/x-www-form-urlencoded` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /oauth/token (the `ExchangeOauthCode` operationId).
+func (c *ClientWithResponses) ExchangeOauthCodeWithFormdataBodyWithResponse(ctx context.Context, body ExchangeOauthCodeFormdataRequestBody, reqEditors ...RequestEditorFn) (*ExchangeOauthCodeResult, error) {
+	rsp, err := c.ExchangeOauthCodeWithFormdataBody(ctx, body, reqEditors...)
 	if err != nil {
 		return nil, err
 	}
@@ -82703,6 +83643,122 @@ func (c *ClientWithResponses) ShareSavedViewWithResponse(ctx context.Context, vi
 		return nil, err
 	}
 	return ParseShareSavedViewResult(rsp)
+}
+
+// AnswerAlexaWithBodyWithResponse Answer Alexa
+//
+// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+func (c *ClientWithResponses) AnswerAlexaWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AnswerAlexaResult, error) {
+	rsp, err := c.AnswerAlexaWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnswerAlexaResult(rsp)
+}
+
+// AnswerAlexaWithResponse Answer Alexa
+//
+// The endpoint an Alexa skill calls. Every request is checked to be Alexa's - the signing certificate from Amazon's own address, its chain naming echo-api.amazon.com, the body's SHA-256 signature and a timestamp within 150 seconds - and to come from a skill this installation or the workspace set up. The person is the one whose Hubtask account the skill was linked to; what they may do by voice is what they may do on the screen.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /voice/alexa (the `AnswerAlexa` operationId).
+func (c *ClientWithResponses) AnswerAlexaWithResponse(ctx context.Context, body AnswerAlexaJSONRequestBody, reqEditors ...RequestEditorFn) (*AnswerAlexaResult, error) {
+	rsp, err := c.AnswerAlexa(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAnswerAlexaResult(rsp)
+}
+
+// ShowAlexaModelWithResponse The Alexa interaction model
+//
+// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
+func (c *ClientWithResponses) ShowAlexaModelWithResponse(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*ShowAlexaModelResult, error) {
+	rsp, err := c.ShowAlexaModel(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShowAlexaModelResult(rsp)
+}
+
+// ShowVoiceSettingsWithResponse The workspace's voice settings
+//
+// Whether the workspace takes spoken entries, the list a thing said without a place goes to, the workspace's own Alexa skill, and the names people may say for a place. For the workspace's administrators.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /voice/settings (the `ShowVoiceSettings` operationId).
+func (c *ClientWithResponses) ShowVoiceSettingsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ShowVoiceSettingsResult, error) {
+	rsp, err := c.ShowVoiceSettings(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseShowVoiceSettingsResult(rsp)
+}
+
+// SaveVoiceSettingsWithBodyWithResponse Replace the workspace's voice settings
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+func (c *ClientWithResponses) SaveVoiceSettingsWithBodyWithResponse(ctx context.Context, params *SaveVoiceSettingsParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SaveVoiceSettingsResult, error) {
+	rsp, err := c.SaveVoiceSettingsWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveVoiceSettingsResult(rsp)
+}
+
+// SaveVoiceSettingsWithResponse Replace the workspace's voice settings
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /voice/settings (the `SaveVoiceSettings` operationId).
+func (c *ClientWithResponses) SaveVoiceSettingsWithResponse(ctx context.Context, params *SaveVoiceSettingsParams, body SaveVoiceSettingsJSONRequestBody, reqEditors ...RequestEditorFn) (*SaveVoiceSettingsResult, error) {
+	rsp, err := c.SaveVoiceSettings(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSaveVoiceSettingsResult(rsp)
+}
+
+// TryVoiceSentenceWithBodyWithResponse What a spoken sentence would do
+//
+// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+func (c *ClientWithResponses) TryVoiceSentenceWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error) {
+	rsp, err := c.TryVoiceSentenceWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTryVoiceSentenceResult(rsp)
+}
+
+// TryVoiceSentenceWithResponse What a spoken sentence would do
+//
+// Reads a sentence as a voice assistant would hand it over and answers what it would add where - the things with their amounts and the place - without adding anything.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /voice:try (the `TryVoiceSentence` operationId).
+func (c *ClientWithResponses) TryVoiceSentenceWithResponse(ctx context.Context, body TryVoiceSentenceJSONRequestBody, reqEditors ...RequestEditorFn) (*TryVoiceSentenceResult, error) {
+	rsp, err := c.TryVoiceSentence(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseTryVoiceSentenceResult(rsp)
 }
 
 // ParseGetOwnAccountResult parses an HTTP response from a GetOwnAccountWithResponse call
@@ -94097,6 +95153,13 @@ func ParseExchangeOauthCodeResult(rsp *http.Response) (*ExchangeOauthCodeResult,
 	}
 
 	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OauthStandardTokens
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
 		var dest SessionTokens
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
@@ -96158,6 +97221,171 @@ func ParseShareSavedViewResult(rsp *http.Response) (*ShareSavedViewResult, error
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseAnswerAlexaResult parses an HTTP response from a AnswerAlexaWithResponse call
+func ParseAnswerAlexaResult(rsp *http.Response) (*AnswerAlexaResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AnswerAlexaResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShowAlexaModelResult parses an HTTP response from a ShowAlexaModelWithResponse call
+func ParseShowAlexaModelResult(rsp *http.Response) (*ShowAlexaModelResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShowAlexaModelResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest map[string]interface{}
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseShowVoiceSettingsResult parses an HTTP response from a ShowVoiceSettingsWithResponse call
+func ParseShowVoiceSettingsResult(rsp *http.Response) (*ShowVoiceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ShowVoiceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VoiceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSaveVoiceSettingsResult parses an HTTP response from a SaveVoiceSettingsWithResponse call
+func ParseSaveVoiceSettingsResult(rsp *http.Response) (*SaveVoiceSettingsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SaveVoiceSettingsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VoiceSettings
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseTryVoiceSentenceResult parses an HTTP response from a TryVoiceSentenceWithResponse call
+func ParseTryVoiceSentenceResult(rsp *http.Response) (*TryVoiceSentenceResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &TryVoiceSentenceResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest VoiceInterpretation
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

@@ -83,6 +83,7 @@ func (e *EnvConfig) Load() (env.Config, error) {
 			// Lowercase, as every address on it is compared.
 			InboundDomain: strings.ToLower(strings.TrimSpace(get("HUBTASK_MAIL_INBOUND_DOMAIN", ""))),
 		},
+		Voice: env.VoiceConfig{AlexaSkillIDs: listOf(get("HUBTASK_ALEXA_SKILL_IDS", ""))},
 		AI: env.AIConfig{
 			// False unless the operator says otherwise, and said in the environment rather than
 			// in a workspace's settings: the confirmation belongs to whoever signs for the
@@ -914,4 +915,15 @@ func parseOperators(raw string, tenancy env.TenancyMode) ([]env.OperatorEntry, e
 func looksLikeAddress(value string) bool {
 	local, domain, found := strings.Cut(value, "@")
 	return found && local != "" && domain != "" && !strings.ContainsAny(domain, "@ ")
+}
+
+// listOf reads a comma-separated list, empty entries dropped.
+func listOf(raw string) []string {
+	var out []string
+	for _, each := range strings.Split(raw, ",") {
+		if each = strings.TrimSpace(each); each != "" {
+			out = append(out, each)
+		}
+	}
+	return out
 }

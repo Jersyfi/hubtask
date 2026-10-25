@@ -86,9 +86,11 @@ type Config struct {
 	// a standing authorisation.
 	StepUpWindow time.Duration
 
-	Database   DatabaseConfig
-	Storage    StorageConfig
-	Mail       MailConfig
+	Database DatabaseConfig
+	Storage  StorageConfig
+	Mail     MailConfig
+	// Voice is the voice assistants' configuration (ADR-0093).
+	Voice      VoiceConfig
 	RateLimit  RateLimitConfig
 	LoadShed   LoadShedConfig
 	Request    RequestConfig
@@ -373,6 +375,13 @@ type MailConfig struct {
 	InboundDomain string
 	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
 	InboundKey secret.Secret
+}
+
+// VoiceConfig is the installation's say over voice assistants.
+type VoiceConfig struct {
+	// AlexaSkillIDs is HUBTASK_ALEXA_SKILL_IDS: the Alexa skills this installation publishes for
+	// every workspace, comma-separated. Empty: each workspace sets up a skill of its own.
+	AlexaSkillIDs []string
 }
 
 // Configured reports whether this installation sends mail at all. The one reading of it: the

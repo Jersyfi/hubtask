@@ -550,6 +550,21 @@ func (pending) DeliverAddressedMail(
 	notAvailable(w, r)
 }
 
+func (pending) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SaveVoiceSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveVoiceSettingsParams) {
+	notAvailable(w, r)
+}
+
+func (pending) TryVoiceSentence(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ShowAlexaModel(w http.ResponseWriter, r *http.Request, _ openapi.ShowAlexaModelParams) {
+	notAvailable(w, r)
+}
+
+// Alexa's endpoint, pending for the mail door's reason.
+func (pending) AnswerAlexa(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
 func (pending) TriggerRuleManually(
 	w http.ResponseWriter, r *http.Request, _ openapi.RuleId, _ openapi.TriggerRuleManuallyParams,
 ) {

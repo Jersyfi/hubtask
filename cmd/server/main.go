@@ -57,6 +57,7 @@ import (
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
+	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
@@ -79,6 +80,7 @@ import (
 	secretvalue "github.com/Jersyfi/hubtask/core/shared/secret"
 	dbfiles "github.com/Jersyfi/hubtask/db"
 	aiadapter "github.com/Jersyfi/hubtask/infrastructure/ai"
+	"github.com/Jersyfi/hubtask/infrastructure/alexa"
 	auditadapter "github.com/Jersyfi/hubtask/infrastructure/audit"
 	"github.com/Jersyfi/hubtask/infrastructure/automation"
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
@@ -107,6 +109,7 @@ import (
 	"github.com/Jersyfi/hubtask/presentation/intake"
 	"github.com/Jersyfi/hubtask/presentation/mcp"
 	"github.com/Jersyfi/hubtask/presentation/rest"
+	voicepresentation "github.com/Jersyfi/hubtask/presentation/voice"
 	"github.com/Jersyfi/hubtask/presentation/webui"
 	"github.com/Jersyfi/hubtask/presentation/worker"
 
@@ -773,6 +776,16 @@ func run() error {
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, IDs: ids, Entropy: clockadapter.CryptoRandom{},
 		Domain: cfg.Mail.InboundDomain,
+	}
+	// Voice assistants (ADR-0093): a workspace's settings and spoken names, and the assistant that
+	// does what is said through the catalogue as the person who linked it.
+	voiceAssistant := voiceservice.Assistant{
+		Catalogue: ruleCatalogue, Settings: postgres.NewVoiceRepository(), UnitOfWork: unitOfWork,
+	}
+	voiceWriter := voiceservice.SettingsWriter{
+		Settings: postgres.NewVoiceRepository(), Assistant: voiceAssistant, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		SkillIDs: cfg.Voice.AlexaSkillIDs,
 	}
 	changes := postgres.NewChangeLog()
 	// The one place a lost read access becomes a record a device can act on: every use case
@@ -2054,6 +2067,10 @@ func run() error {
 			Queue:  jobs, Kept: keptOut,
 		}.Descriptor(),
 		jumbleservice.CommentJumbleEntry{Writer: jumbleWriter, Catalogue: ruleCatalogue}.Descriptor(),
+		voiceservice.ShowVoiceSettings{Writer: voiceWriter}.Descriptor(),
+		voiceservice.SaveVoiceSettings{Writer: voiceWriter}.Descriptor(),
+		voiceservice.TryVoiceSentence{Writer: voiceWriter}.Descriptor(),
+		voiceservice.ShowAlexaModel{Writer: voiceWriter}.Descriptor(),
 		jumbleservice.ShowMailAddress{Writer: mailAddressWriter}.Descriptor(),
 		jumbleservice.RotateMailAddress{Writer: mailAddressWriter}.Descriptor(),
 		jumbleservice.SetMailSenderPolicy{Writer: mailAddressWriter}.Descriptor(),
@@ -2963,6 +2980,19 @@ func run() error {
 			// `admin:tenants` loses it when the register does not name its holder, so a token
 			// minted last month by somebody since removed stops reaching the control plane.
 			Operators: postgres.NewOperatorRepository(),
+		}
+
+		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token
+		// authenticated as every other bearer is, the sentence done through the catalogue.
+		controller.Alexa = voicepresentation.Alexa{
+			Verifier: &alexa.Verifier{Client: outboundClient},
+			Authenticate: func(ctx context.Context, token, locale string) (appshared.ActorContext, error) {
+				return authenticate.Execute(ctx, identity.AuthenticateTokenCommand{
+					Credential: token, RequestedLocale: locale,
+					FallbackLocale: cfg.Locale.DefaultLocale, FallbackTimeZone: cfg.Locale.DefaultTimeZone,
+				})
+			},
+			Assistant: voiceAssistant, Renderer: renderer, SkillIDs: cfg.Voice.AlexaSkillIDs,
 		}
 
 		// One limiter, two levels: per credential or client address before authentication, per

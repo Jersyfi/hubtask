@@ -1494,6 +1494,29 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   LIMIT 1
 $$;
 
+-- Voice assistants (migration 0202, ADR-0093): a workspace's settings and the names people may
+-- say for a place.
+CREATE TABLE voice_setting (
+  tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,
+  enabled               boolean NOT NULL DEFAULT false,
+  default_collection_id uuid,
+  skill_id              text,
+  updated_at            timestamptz NOT NULL,
+  updated_by            uuid
+);
+
+CREATE TABLE voice_alias (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  phrase        text NOT NULL,
+  folded        text NOT NULL,
+  collection_id uuid NOT NULL,
+  label_id      uuid,
+  created_at    timestamptz NOT NULL,
+  UNIQUE (tenant_id, id)
+);
+CREATE UNIQUE INDEX voice_alias_phrase_uq ON voice_alias (tenant_id, folded);
+
 CREATE TABLE auto_assign_policy (
   id          uuid PRIMARY KEY,
   tenant_id   uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -2715,7 +2738,7 @@ BEGIN
     'activity_entry',
     'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_address',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_address','voice_setting','voice_alias',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',

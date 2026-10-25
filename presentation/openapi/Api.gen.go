@@ -5709,6 +5709,27 @@ func (e ShowMailAddressParamsTargetKind) Valid() bool {
 	}
 }
 
+// Defines values for ShowAlexaModelParamsLocale.
+const (
+	DeDE ShowAlexaModelParamsLocale = "de-DE"
+	EnGB ShowAlexaModelParamsLocale = "en-GB"
+	EnUS ShowAlexaModelParamsLocale = "en-US"
+)
+
+// Valid indicates whether the value is a known member of the ShowAlexaModelParamsLocale enum.
+func (e ShowAlexaModelParamsLocale) Valid() bool {
+	switch e {
+	case DeDE:
+		return true
+	case EnGB:
+		return true
+	case EnUS:
+		return true
+	default:
+		return false
+	}
+}
+
 // AcceptedSuggestion The suggestion as accepting left it, and the identifier of what accepting created where it created one thing — a template, a rule. Answered by `:accept` only.
 type AcceptedSuggestion struct {
 	CreatedAt time.Time `json:"created_at"`
@@ -9439,6 +9460,29 @@ type OauthGrant struct {
 	Scopes     []string   `json:"scopes"`
 }
 
+// OauthStandardTokens defines model for OauthStandardTokens.
+type OauthStandardTokens struct {
+	AccessToken  string `json:"access_token"`
+	ExpiresIn    int    `json:"expires_in"`
+	RefreshToken string `json:"refresh_token"`
+
+	// TokenType Always Bearer.
+	TokenType string `json:"token_type"`
+}
+
+// OauthTokenForm defines model for OauthTokenForm.
+type OauthTokenForm struct {
+	ClientId     *string `json:"client_id,omitempty"`
+	ClientSecret *string `json:"client_secret,omitempty"`
+	Code         *string `json:"code,omitempty"`
+	CodeVerifier *string `json:"code_verifier,omitempty"`
+
+	// GrantType authorization_code to exchange a code, refresh_token to refresh the pair.
+	GrantType    string  `json:"grant_type"`
+	RedirectUri  *string `json:"redirect_uri,omitempty"`
+	RefreshToken *string `json:"refresh_token,omitempty"`
+}
+
 // OauthTokenRequest defines model for OauthTokenRequest.
 type OauthTokenRequest struct {
 	ClientId openapi_types.UUID `json:"client_id"`
@@ -12381,6 +12425,55 @@ type ViewExportDocument struct {
 	ViewId    openapi_types.UUID `json:"view_id"`
 }
 
+// VoiceAlias defines model for VoiceAlias.
+type VoiceAlias struct {
+	CollectionId openapi_types.UUID `json:"collection_id"`
+
+	// LabelId A category of the collection, for a name that stands for it.
+	LabelId *openapi_types.UUID `json:"label_id,omitempty"`
+	Phrase  string              `json:"phrase"`
+}
+
+// VoiceInterpretation defines model for VoiceInterpretation.
+type VoiceInterpretation struct {
+	Ambiguous []VoicePlace `json:"ambiguous"`
+
+	// Default The place is the default list, as no place was said.
+	Default bool        `json:"default"`
+	Found   bool        `json:"found"`
+	Place   *VoicePlace `json:"place,omitempty"`
+	Things  []struct {
+		Amount *string `json:"amount,omitempty"`
+		Title  string  `json:"title"`
+	} `json:"things"`
+}
+
+// VoicePlace defines model for VoicePlace.
+type VoicePlace struct {
+	CollectionId openapi_types.UUID  `json:"collection_id"`
+	LabelId      *openapi_types.UUID `json:"label_id,omitempty"`
+	Name         string              `json:"name"`
+}
+
+// VoiceSettings defines model for VoiceSettings.
+type VoiceSettings struct {
+	Aliases             []VoiceAlias        `json:"aliases"`
+	DefaultCollectionId *openapi_types.UUID `json:"default_collection_id,omitempty"`
+	Enabled             bool                `json:"enabled"`
+
+	// InstallationSkill Whether the installation publishes a skill every workspace may use.
+	InstallationSkill *bool `json:"installation_skill,omitempty"`
+
+	// SkillId The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.
+	SkillId *string `json:"skill_id,omitempty"`
+}
+
+// VoiceTry defines model for VoiceTry.
+type VoiceTry struct {
+	Locale   *string `json:"locale,omitempty"`
+	Sentence string  `json:"sentence"`
+}
+
 // WebhookDelivery One attempt at one event against one subscription.
 type WebhookDelivery struct {
 	// Attempt Which attempt this is, from one. It carries on across a replay rather than resetting.
@@ -14305,6 +14398,23 @@ type ShareSavedViewParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// AnswerAlexaJSONBody defines parameters for AnswerAlexa.
+type AnswerAlexaJSONBody map[string]interface{}
+
+// ShowAlexaModelParams defines parameters for ShowAlexaModel.
+type ShowAlexaModelParams struct {
+	Locale *ShowAlexaModelParamsLocale `form:"locale,omitempty" json:"locale,omitempty"`
+}
+
+// ShowAlexaModelParamsLocale defines parameters for ShowAlexaModel.
+type ShowAlexaModelParamsLocale string
+
+// SaveVoiceSettingsParams defines parameters for SaveVoiceSettings.
+type SaveVoiceSettingsParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody defines body for UpdateOwnAccount for application/merge-patch+json ContentType.
 type UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody = OwnAccountUpdate
 
@@ -14752,6 +14862,9 @@ type RegisterOauthClientJSONRequestBody = OauthClientCreate
 // ExchangeOauthCodeJSONRequestBody defines body for ExchangeOauthCode for application/json ContentType.
 type ExchangeOauthCodeJSONRequestBody = OauthTokenRequest
 
+// ExchangeOauthCodeFormdataRequestBody defines body for ExchangeOauthCode for application/x-www-form-urlencoded ContentType.
+type ExchangeOauthCodeFormdataRequestBody = OauthTokenForm
+
 // SavePresetJSONRequestBody defines body for SavePreset for application/json ContentType.
 type SavePresetJSONRequestBody = PresetCreate
 
@@ -14829,6 +14942,15 @@ type ExportViewJSONRequestBody = ViewExport
 
 // ShareSavedViewJSONRequestBody defines body for ShareSavedView for application/json ContentType.
 type ShareSavedViewJSONRequestBody = SavedViewShare
+
+// AnswerAlexaJSONRequestBody defines body for AnswerAlexa for application/json ContentType.
+type AnswerAlexaJSONRequestBody AnswerAlexaJSONBody
+
+// SaveVoiceSettingsJSONRequestBody defines body for SaveVoiceSettings for application/json ContentType.
+type SaveVoiceSettingsJSONRequestBody = VoiceSettings
+
+// TryVoiceSentenceJSONRequestBody defines body for TryVoiceSentence for application/json ContentType.
+type TryVoiceSentenceJSONRequestBody = VoiceTry
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -15963,6 +16085,21 @@ type ServerInterface interface {
 
 	// (POST /views/{viewId}:share)
 	ShareSavedView(w http.ResponseWriter, r *http.Request, viewId ViewId, params ShareSavedViewParams)
+	// AnswerAlexa Answer Alexa
+	// (POST /voice/alexa)
+	AnswerAlexa(w http.ResponseWriter, r *http.Request)
+	// ShowAlexaModel The Alexa interaction model
+	// (GET /voice/alexa/model)
+	ShowAlexaModel(w http.ResponseWriter, r *http.Request, params ShowAlexaModelParams)
+	// ShowVoiceSettings The workspace's voice settings
+	// (GET /voice/settings)
+	ShowVoiceSettings(w http.ResponseWriter, r *http.Request)
+	// SaveVoiceSettings Replace the workspace's voice settings
+	// (PUT /voice/settings)
+	SaveVoiceSettings(w http.ResponseWriter, r *http.Request, params SaveVoiceSettingsParams)
+	// TryVoiceSentence What a spoken sentence would do
+	// (POST /voice:try)
+	TryVoiceSentence(w http.ResponseWriter, r *http.Request)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -29150,6 +29287,122 @@ func (siw *ServerInterfaceWrapper) ShareSavedView(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// AnswerAlexa operation middleware
+func (siw *ServerInterfaceWrapper) AnswerAlexa(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AnswerAlexa(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowAlexaModel operation middleware
+func (siw *ServerInterfaceWrapper) ShowAlexaModel(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ShowAlexaModelParams
+
+	// ------------- Optional query parameter "locale" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "locale", r.URL.Query(), &params.Locale, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "locale"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "locale", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowAlexaModel(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ShowVoiceSettings operation middleware
+func (siw *ServerInterfaceWrapper) ShowVoiceSettings(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ShowVoiceSettings(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SaveVoiceSettings operation middleware
+func (siw *ServerInterfaceWrapper) SaveVoiceSettings(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SaveVoiceSettingsParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SaveVoiceSettings(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// TryVoiceSentence operation middleware
+func (siw *ServerInterfaceWrapper) TryVoiceSentence(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.TryVoiceSentence(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -29296,6 +29549,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:rotate", wrapper.RotateMailAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/addresses:set-sender-policy", wrapper.SetMailSenderPolicy)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/inbound", wrapper.DeliverAddressedMail)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/voice/settings", wrapper.ShowVoiceSettings)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/voice/settings", wrapper.SaveVoiceSettings)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/voice:try", wrapper.TryVoiceSentence)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/voice/alexa/model", wrapper.ShowAlexaModel)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/voice/alexa", wrapper.AnswerAlexa)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/automation/rules", wrapper.ListRules)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/automation/rules", wrapper.CreateRule)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/automation/rules/{ruleId}", wrapper.DeleteRule)

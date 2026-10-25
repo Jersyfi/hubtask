@@ -571,6 +571,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `view.shared` | ShareSavedView | `saved_view` | INFO | Every time |
 | `view.updated` | UpdateSavedView | `saved_view` | INFO | Every time |
 
+## Voice
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `voice.sentence_tried` | TryVoiceSentence | `voice_settings` | INFO | When refused |
+| `voice.settings_read` | ShowAlexaModel | `voice_settings` | INFO | When refused |
+| `voice.settings_read` | ShowVoiceSettings | `voice_settings` | INFO | When refused |
+| `voice.settings_saved` | SaveVoiceSettings | `voice_settings` | WARNING | Every time |
+
 ## Webhooks
 
 | Action | Use case | Target | Severity | Recorded |
