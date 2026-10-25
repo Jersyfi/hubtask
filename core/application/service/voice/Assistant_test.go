@@ -180,7 +180,7 @@ func TestTheInterpretationDoesNothing(t *testing.T) {
 func TestTheListsReachAlexaAtRunTimeByEveryName(t *testing.T) {
 	model := AlexaModel(domain.German, "")
 	language := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
-	if language["invocationName"] != "hub task" {
+	if language["invocationName"] != "digitale pinnwand" {
 		t.Errorf("invocation %v", language["invocationName"])
 	}
 	own := AlexaModel(domain.German, " Meine  Küche ")["interactionModel"].(map[string]any)["languageModel"].(map[string]any)

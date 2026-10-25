@@ -144,7 +144,7 @@
   // not when the page was first drawn.
   const spoken = $derived(messages.locale.startsWith('de') ? 'de-DE' : 'en-US');
   /** The name the skill is spoken to by where none was chosen: two words Alexa writes apart. */
-  const defaultInvocation = $derived(spoken === 'de-DE' ? 'hub task' : 'list helper');
+  const defaultInvocation = $derived(spoken === 'de-DE' ? 'digitale pinnwand' : 'list helper');
   /** The name in force: the one saved, else the default - what the console and people say. */
   const spokenName = $derived(loaded?.invocation_name || defaultInvocation);
   let chosenLocale = $state<string | undefined>(undefined);

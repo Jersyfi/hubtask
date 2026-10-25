@@ -12470,7 +12470,7 @@ type VoiceSettings struct {
 	// InstallationSkill Whether the installation publishes a skill every workspace may use.
 	InstallationSkill *bool `json:"installation_skill,omitempty"`
 
-	// InvocationName What follows "Alexa, sag" or "Alexa, ask", lower case: two words at least, which Amazon requires, written apart the way Alexa's speech recognition writes them. Absent for the language's default, "hub task" or "list helper".
+	// InvocationName What follows "Alexa, sag" or "Alexa, ask", lower case: two words at least, which Amazon requires, written apart the way Alexa's speech recognition writes them. Absent for the language's default, "digitale pinnwand" or "list helper".
 	InvocationName *string `json:"invocation_name,omitempty"`
 
 	// SkillId The workspace's own Alexa skill, amzn1.ask.skill.…; absent where the installation's published skill is used.

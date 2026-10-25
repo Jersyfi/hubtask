@@ -6448,7 +6448,7 @@
   "app.consent.missing_redirect_uri": "The return address (redirect_uri).",
   "app.consent.missing_code_challenge": "The PKCE proof (code_challenge). For Alexa: switch PKCE with SHA-256 on under Account Linking in the developer console.",
   "app.consent.missing_scope": "The permissions (scope). For Alexa: enter the scopes from Administration → Voice assistants under Account Linking.",
-  "app.voice.invocation_hint": "What follows \"Alexa, ask …\": two words at least, written apart the way Alexa writes them (German joins two nouns into one). Check the Alexa app's Activity for how Alexa writes your name. Not \"Alexa\", \"Echo\", \"skill\" or \"app\". Leave empty for the default.",
+  "app.voice.invocation_hint": "What follows \"Alexa, open …\": two words at least, written apart the way Alexa writes them (German joins two nouns into one; an adjective with a noun stays apart). Not allowed: \"Alexa\", \"Echo\", \"skill\", \"app\", launch words such as \"open\" or \"ask\", and connecting words such as \"to\", \"with\" or \"for\". Leave empty for the default.",
   "app.voice.invocation_now": "Invocation name",
-  "voice.invocation_invalid": "An invocation name has two words at least, at most 50 characters, starts with a letter, holds only letters and spaces, and not \"Alexa\", \"Echo\", \"skill\" or \"app\"."
+  "voice.invocation_invalid": "An invocation name has two words at least and at most 50 characters, starts with a letter and holds only letters and spaces. Not allowed: \"Alexa\", \"Echo\", \"skill\", \"app\", launch words such as \"open\" or \"ask\", connecting words such as \"to\", \"with\" or \"for\", and an article as the second word."
 }

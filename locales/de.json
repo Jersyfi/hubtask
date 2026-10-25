@@ -6438,14 +6438,14 @@
   "app.voice.step_skill_id_hint": "Oben am Skill in der Konsole: Copy Skill ID. Hubtask antwortet nur diesem Skill.",
   "app.voice.skill_id": "Skill-ID",
   "app.voice.step_test": "Verknüpfen und ausprobieren",
-  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann immer mit dem Aufrufnamen sprechen: „Alexa, sag {name}: Gemüsebrühe bei Metro“ oder „Alexa, öffne {name}“. Ohne ihn landet ein Satz auf Amazons eigener Liste.",
+  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann mit dem Aufrufnamen sprechen: „Alexa, öffne {name}“, „Alexa, sage {name}, dass Gemüsebrühe bei Metro“ oder „Alexa, frage {name}, was bei Metro steht“. Ohne ihn landet ein Satz auf Amazons eigener Liste.",
   "app.voice.pkce": "PKCE",
   "app.voice.scope_hint": "Jeden Scope einzeln mit „+ Add scope“ eintragen.",
   "app.consent.incomplete": "Eine App fragt hier an, aber ihrer Anfrage fehlt etwas, das Hubtask verlangt. Das wird in der App eingestellt, die die Verknüpfung anbietet:",
   "app.consent.missing_redirect_uri": "Die Rücksprungadresse (redirect_uri).",
   "app.consent.missing_code_challenge": "Der PKCE-Nachweis (code_challenge). Bei Alexa: in der Developer Console unter Account Linking PKCE mit SHA-256 einschalten.",
   "app.consent.missing_scope": "Die Berechtigungen (scope). Bei Alexa: unter Account Linking die Scopes aus Administration → Sprachassistenten eintragen.",
-  "app.voice.invocation_hint": "Was nach „Alexa, sag …“ kommt: mindestens zwei Wörter, die Alexa getrennt schreibt. Zwei Hauptwörter schreibt Alexa zusammen („listenhelfer“) – das passt dann nicht. Prüfe in der Alexa-App unter Aktivität, wie Alexa deinen Namen schreibt. Nicht „Alexa“, „Echo“, „Skill“ oder „App“. Leer lassen für den Standard.",
+  "app.voice.invocation_hint": "Was nach „Alexa, öffne …“ kommt: mindestens zwei Wörter, die Alexa getrennt schreibt – am sichersten ein Eigenschaftswort mit einem weiblichen Hauptwort ohne Artikel, wie „digitale pinnwand“. Zwei Hauptwörter schreibt Alexa zusammen („listenhelfer“) und findet den Skill dann nicht. Nicht erlaubt: „Alexa“, „Echo“, „Skill“, „App“, Startwörter wie „öffne“ oder „sage“ und Verbindungswörter wie „dass“, „mit“ oder „für“. Leer lassen für den Standard.",
   "app.voice.invocation_now": "Aufrufname",
-  "voice.invocation_invalid": "Ein Aufrufname hat mindestens zwei Wörter, höchstens 50 Zeichen, beginnt mit einem Buchstaben, enthält nur Buchstaben und Leerzeichen und nicht „Alexa“, „Echo“, „Skill“ oder „App“."
+  "voice.invocation_invalid": "Ein Aufrufname hat mindestens zwei Wörter und höchstens 50 Zeichen, beginnt mit einem Buchstaben und enthält nur Buchstaben und Leerzeichen. Nicht erlaubt sind „Alexa“, „Echo“, „Skill“, „App“, Startwörter wie „öffne“ oder „sage“, Verbindungswörter wie „dass“, „mit“ oder „für“ und ein Artikel als zweites Wort."
 }

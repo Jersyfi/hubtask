@@ -37,11 +37,12 @@ type Settings struct {
 }
 
 // defaultInvocations are two words, which Amazon requires, that the language's speech
-// recognition writes apart: German joins two nouns into one ("Listen Helfer" arrives as
-// "listenhelfer" and never matches), but keeps an English loanword pair apart - and "hub task" is
-// how the Echo heard the product's own name. Neither is a word Alexa keeps for its own lists
-// ("Liste") or its own to-dos ("Aufgaben").
-var defaultInvocations = map[Language]string{German: "hub task", English: "list helper"}
+// recognition writes apart and says the same in every launch phrase. German joins two nouns into
+// one ("Listen Helfer" arrives as "listenhelfer" and never matches) but never an adjective with its
+// noun, and a feminine noun without an article reads the same after "öffne", "frage" and "sage":
+// "digitale pinnwand", confirmed on an Echo across a room. Neither default is a word Alexa keeps
+// for its own lists ("Liste"), its to-dos ("Aufgaben") or Amazon's wish list ("Merkzettel").
+var defaultInvocations = map[Language]string{German: "digitale pinnwand", English: "list helper"}
 
 // DefaultInvocation is the name a workspace that chose none is spoken to by.
 func DefaultInvocation(language Language) string { return defaultInvocations[language] }
@@ -59,10 +60,24 @@ func NormalInvocation(name string) string {
 	return strings.Join(strings.Fields(strings.ToLower(name)), " ")
 }
 
-// reservedInvocationWords are the words Amazon refuses in an invocation name: the wake words and
-// the words for what a skill is.
+// reservedInvocationWords are the words Amazon refuses in an invocation name: the wake words, the
+// words for what a skill is, the launch phrases and the connecting words of both languages - a
+// name holding one would be cut where Alexa expects the request to begin.
 var reservedInvocationWords = map[string]bool{
 	"alexa": true, "amazon": true, "echo": true, "computer": true, "skill": true, "app": true,
+	"run": true, "start": true, "play": true, "resume": true, "use": true, "launch": true, "ask": true,
+	"open": true, "tell": true, "load": true, "begin": true, "enable": true,
+	"to": true, "from": true, "using": true, "with": true, "about": true, "for": true, "that": true,
+	"by": true, "if": true, "and": true, "whether": true,
+	"öffne": true, "starte": true, "frage": true, "frag": true, "sage": true, "sag": true,
+	"benutze": true, "dass": true, "ob": true, "nach": true, "von": true, "vom": true, "mit": true,
+	"für": true, "und": true,
+}
+
+// articles may not stand as a name's second word: "a bicycle", "eine pinnwand" name nothing.
+var articles = map[string]bool{
+	"a": true, "an": true, "the": true, "der": true, "die": true, "das": true, "den": true, "dem": true,
+	"des": true, "ein": true, "eine": true, "einen": true, "einem": true, "einer": true,
 }
 
 // validInvocation applies Amazon's rules: two words at least; letters (the language's own
@@ -81,12 +96,13 @@ func validInvocation(name string) bool {
 			return false
 		}
 	}
-	for _, word := range strings.Fields(name) {
+	words := strings.Fields(name)
+	for _, word := range words {
 		if reservedInvocationWords[strings.Trim(word, ".'")] {
 			return false
 		}
 	}
-	return true
+	return !articles[words[1]]
 }
 
 // Alias is a name somebody chose for a place, as it is spoken.
