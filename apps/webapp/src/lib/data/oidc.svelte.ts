@@ -24,7 +24,7 @@
 import { TransportError, type PasskeyAssertionOptions } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
-import { navigableUrl, startRequest, type AgreedTerms, type Handoff } from './oidc.ts';
+import { isOwnPath, navigableUrl, startRequest, type AgreedTerms, type Handoff } from './oidc.ts';
 import { messages } from '../i18n/i18n.svelte.ts';
 import { renderProblem, type RenderedProblem } from '../problem.ts';
 import { session, type TermsInForce } from '../session.svelte.ts';
@@ -125,6 +125,7 @@ class Oidc {
         startRequest(loginHint, providerId, invitationToken, connectToken, terms),
       );
       const url = navigableUrl(answer.authorization_url);
+      if (url !== undefined) rememberReturn(location.pathname + location.search);
       // An answer that is not a navigation is this installation's own defect rather than a
       // refusal, and the sentence for one without a reference is what a reader is owed.
       if (url === undefined) this.#failure = ownCode(DEFECT, true);
@@ -145,6 +146,20 @@ class Oidc {
    * how somebody proved themselves is an attribute of the session, not a class of it, so there is
    * no second kind of session here to keep.
    */
+  /**
+   * Where the person was when they left for the provider - an app's consent request, a deep link -
+   * taken once. Undefined where they started on the overview or the sign-in card.
+   */
+  takeReturn(): string | undefined {
+    try {
+      const path = sessionStorage.getItem(RETURN_KEY) ?? undefined;
+      sessionStorage.removeItem(RETURN_KEY);
+      return path !== undefined && isOwnPath(path) ? path : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+
   async complete(handoff: Handoff): Promise<boolean> {
     this.#working = true;
     this.#failure = undefined;
@@ -222,3 +237,22 @@ function ownCode(code: string, isServerFault = false): RenderedProblem {
 }
 
 export const oidc = new Oidc();
+
+/**
+ * The address a sign-in at a provider returns to. Per tab, in session storage: the provider's round
+ * trip leaves this page, and an app's consent request (`/oauth/consent?client_id=…`) has to survive
+ * it, or the person arrives at the overview with the app still waiting.
+ */
+const RETURN_KEY = 'hubtask.oidc.return';
+
+function rememberReturn(path: string): void {
+  try {
+    if (isOwnPath(path) && !/^\/(sign-in|auth\/)/.test(path) && path !== '/') {
+      sessionStorage.setItem(RETURN_KEY, path);
+    } else {
+      sessionStorage.removeItem(RETURN_KEY);
+    }
+  } catch {
+    // Storage refused: the person lands on the overview, as before.
+  }
+}

@@ -25,7 +25,7 @@
   import { Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import { consent, type AppSummary } from '../lib/data/consent.svelte.ts';
-  import { completionUrl, declineUrl, readRequest } from '../lib/data/oauth.ts';
+  import { completionUrl, declineUrl, missingParts, readRequest } from '../lib/data/oauth.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -33,6 +33,8 @@
 
   /** The request, read once. `undefined` means there is no request in this address at all. */
   const request = $state(readRequest(location.search));
+  /** What an app's request lacks, where an app sent one that cannot proceed. */
+  const missing = missingParts(location.search);
 
   let app = $state<AppSummary | undefined>(undefined);
   let isNaming = $state(true);
@@ -99,7 +101,20 @@
   <Stack gap="300">
     <PageHeader title={t('app.consent.title')} isTitleInBar={viewport.isCompact} />
 
-    {#if !request}
+    {#if !request && missing.length > 0}
+      <!-- An app asked, but its request lacks what the server requires - most often a skill whose
+           console has PKCE switched off. Said precisely, because "nobody asks" sends the
+           administrator looking in the wrong place. -->
+      <Banner tone="warning">
+        <Stack gap="100">
+          <span>{t('app.consent.incomplete')}</span>
+          <ul class="missing">
+            {#each missing as part (part)}<li>{t(`app.consent.missing_${part}`)}</li>{/each}
+          </ul>
+        </Stack>
+      </Banner>
+      <p><a href="/">{t('app.back_to_start')}</a></p>
+    {:else if !request}
       <!-- Reached without an authorization request: a bookmark, a reload after the redirect,
            somebody typing the path. A different thing from a request the server refuses. -->
       <Banner tone="warning">{t('app.consent.no_request')}</Banner>
@@ -170,4 +185,5 @@
   .scopes { margin: 0; padding-inline-start: var(--sp-300); display: grid; gap: var(--sp-050); }
 
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-100); }
+  .missing { margin: 0; padding-inline-start: var(--sp-300); }
 </style>

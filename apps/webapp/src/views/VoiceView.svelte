@@ -335,7 +335,9 @@
                     {@render value('authorization', t('app.voice.authorization_uri'), authorizationUri)}
                     {@render value('token', t('app.voice.token_uri'), tokenUri)}
                     {@render value('scheme', t('app.voice.auth_scheme'), 'HTTP Basic')}
+                    {@render value('pkce', t('app.voice.pkce'), 'SHA-256')}
                     {@render value('scope', t('app.voice.scope'), ALEXA_SCOPES)}
+                    <p class="quiet small">{t('app.voice.scope_hint')}</p>
                     {#if registered}
                       {@render value('client', t('app.voice.client_id'), registered.id)}
                       {#if registered.client_secret}

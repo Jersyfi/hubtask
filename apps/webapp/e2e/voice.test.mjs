@@ -8,7 +8,9 @@
 // * check 2 - a name people say is set for a list;
 // * check 3 - a sentence is tried and the page says where its things would go, nothing added;
 // * check 6 - connecting Alexa: the endpoint, the model and the account linking's values to copy,
-//   the linking's client made from the vendor ID with Alexa's three addresses.
+//   PKCE among them, the linking's client made from the vendor ID with Alexa's three addresses;
+// * the consent screen an Alexa request reaches with PKCE or scopes left off says what is missing
+//   rather than that nobody asks.
 //
 // Chromium, large and compact.
 
@@ -77,6 +79,8 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
       const alexa = page.locator('[data-voice-alexa]');
       await alexa.locator('[data-copy="endpoint"]').getByText(`${served.origin}/api/v1/voice/alexa`).waitFor();
       await alexa.locator('[data-copy="token"]').getByText(`${served.origin}/api/v1/oauth/token`).waitFor();
+      // PKCE is a switch in Alexa's console; without it Alexa sends no challenge and linking fails.
+      await alexa.locator('[data-copy="pkce"]').getByText('SHA-256').waitFor();
       await alexa.getByLabel('Vendor ID').fill('M2AB3CD');
       await alexa.getByRole('button', { name: 'Make the linking' }).click();
       await alexa.locator('[data-copy="client"]').getByText('01a0e2e0-0000-7000-8000-00000000a1e1').waitFor({ timeout: 5_000 });
@@ -95,3 +99,21 @@ for (const [width, size] of [[1280, 'large'], [375, 'compact']]) {
     }
   });
 }
+
+test('chromium: an Alexa request without PKCE and scope names what it lacks', { timeout: 60_000 }, async () => {
+  const browser = await chromium.launch();
+  const { context, page } = await signedIn(browser, 1280, 900);
+  await context.route('**/api/v1/**', (route) => stub(route));
+  try {
+    const query = new URLSearchParams({
+      client_id: '01a0e2e0-0000-7000-8000-00000000a1e1', response_type: 'code', state: 'alexa-state',
+      redirect_uri: 'https://pitangui.amazon.com/api/skill/link/M1VENDOR',
+    });
+    await page.goto(`${served.origin}/oauth/consent?${query}`);
+    await page.getByText('The PKCE proof (code_challenge)', { exact: false }).waitFor({ timeout: 15_000 });
+    await page.getByText('The permissions (scope)', { exact: false }).waitFor();
+    assert.equal(await page.getByText('No app is asking', { exact: false }).count(), 0);
+  } finally {
+    await browser.close();
+  }
+});
