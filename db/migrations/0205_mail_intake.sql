@@ -30,6 +30,18 @@ CREATE POLICY tenant_isolation ON mail_setting
   WITH CHECK (tenant_id = current_tenant_id());
 GRANT SELECT, INSERT, UPDATE ON mail_setting TO hubtask_app;
 
+-- The two functions below read across tenants as the objects' owner. On a managed database the
+-- owner is no superuser and FORCE subjects it to the policy too, so it reads through a policy of
+-- its own - migration 0159's doors_read, for this table.
+-- +goose StatementBegin
+DO $owner$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'mail_setting' AND policyname = 'doors_read') THEN
+    CREATE POLICY doors_read ON mail_setting FOR SELECT TO CURRENT_USER USING (true);
+  END IF;
+END $owner$;
+-- +goose StatementEnd
+
 -- +goose StatementBegin
 -- resolve_mail_workspace is the workspace an address on the operator's domain names, before any
 -- tenant is known - and only one whose intake is on: a switched-off workspace has no address.

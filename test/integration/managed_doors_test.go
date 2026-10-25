@@ -84,16 +84,20 @@ func TestTheDoorsAnswerOnADatabaseWithoutASuperuser(t *testing.T) {
 		}
 	})
 
-	t.Run("a mail address names its workspace", func(t *testing.T) {
-		if _, err := super.Exec(ctx, `INSERT INTO mail_address
-			(id, tenant_id, target_kind, code, created_at) VALUES
-			('01936f2a-7c1e-7000-8000-000000145651', '`+tenantB+`', 'JUMBLE', 'doorbdoorbdoorbd', now())`); err != nil {
-			t.Fatalf("seeding the address: %v", err)
+	t.Run("a name on the receiving domain names its workspace", func(t *testing.T) {
+		if _, err := super.Exec(ctx, `INSERT INTO mail_setting
+			(tenant_id, enabled, name, updated_at) VALUES ('`+tenantB+`', true, 'door-b', now())`); err != nil {
+			t.Fatalf("seeding the intake: %v", err)
 		}
 		var named *string
-		one(t, `SELECT resolve_mail_address('DOORBDOORBDOORBD')::text`, &named)
+		one(t, `SELECT resolve_mail_workspace('DOOR-B')::text`, &named)
 		if named == nil || *named != tenantB {
-			t.Errorf("resolve_mail_address answered %v", named)
+			t.Errorf("resolve_mail_workspace answered %v", named)
+		}
+		var taken bool
+		one(t, `SELECT mail_workspace_name_taken('door-b', '`+tenantA+`'::uuid)`, &taken)
+		if !taken {
+			t.Error("another workspace's name read as free")
 		}
 	})
 
