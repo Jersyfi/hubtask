@@ -24,14 +24,14 @@ func (double) Find(context.Context, shared.ID) (work.Container, error) {
 func (double) List(context.Context, ContainerQuery) (ContainerPage, error) {
 	return ContainerPage{}, nil
 }
-func (double) LastOrderKey(context.Context, shared.ID) (string, error)  { return "", nil }
-func (double) Insert(context.Context, work.Container) error             { return nil }
-func (double) SetAttributes(context.Context, work.Container, int) error { return nil }
-func (double) SetPolicies(context.Context, work.Container, int) error   { return nil }
-func (double) SetPrivate(context.Context, work.Container, int) error    { return nil }
-func (double) SetArchived(context.Context, work.Container, int) error   { return nil }
-func (double) SetPlacement(context.Context, work.Container, int) error  { return nil }
-func (double) SetRank(context.Context, work.Container, int) error       { return nil }
+func (double) LastOrderKey(context.Context, shared.ID) (string, error)            { return "", nil }
+func (double) Insert(_ context.Context, v work.Container) (work.Container, error) { return v, nil }
+func (double) SetAttributes(context.Context, work.Container, int) error           { return nil }
+func (double) SetPolicies(context.Context, work.Container, int) error             { return nil }
+func (double) SetPrivate(context.Context, work.Container, int) error              { return nil }
+func (double) SetArchived(context.Context, work.Container, int) error             { return nil }
+func (double) SetPlacement(context.Context, work.Container, int) error            { return nil }
+func (double) SetRank(context.Context, work.Container, int) error                 { return nil }
 func (double) TrashSubtree(context.Context, ContainerTrash) (Cascade, error) {
 	return Cascade{}, nil
 }
@@ -101,7 +101,7 @@ func (itemDouble) MoveSubtree(
 func (itemDouble) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (itemDouble) Insert(context.Context, work.WorkItem) error { return nil }
+func (itemDouble) Insert(_ context.Context, v work.WorkItem) (work.WorkItem, error) { return v, nil }
 func (itemDouble) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
 	return nil, nil
 }

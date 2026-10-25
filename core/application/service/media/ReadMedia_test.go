@@ -54,7 +54,9 @@ func (c *containers) List(context.Context, workrepo.ContainerQuery) (workrepo.Co
 	return workrepo.ContainerPage{}, nil
 }
 func (c *containers) LastOrderKey(context.Context, shared.ID) (string, error) { return "", nil }
-func (c *containers) Insert(context.Context, work.Container) error            { return nil }
+func (c *containers) Insert(_ context.Context, v work.Container) (work.Container, error) {
+	return v, nil
+}
 func (c *containers) SetAttributes(context.Context, work.Container, int) error {
 	return nil
 }
@@ -480,7 +482,7 @@ func (i *workItems) MoveSubtree(
 func (i *workItems) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (i *workItems) Insert(context.Context, work.WorkItem) error { return nil }
+func (i *workItems) Insert(_ context.Context, v work.WorkItem) (work.WorkItem, error) { return v, nil }
 func (i *workItems) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
 	return nil, nil
 }

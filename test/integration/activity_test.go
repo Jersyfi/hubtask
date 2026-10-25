@@ -87,7 +87,8 @@ func TestTheHistoryComesBackNewestFirst(t *testing.T) {
 	item := freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
@@ -139,7 +140,8 @@ func TestAHistoryIsWalkedPageByPageWithoutLosingASimultaneousStep(t *testing.T) 
 	item := freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
@@ -185,7 +187,8 @@ func TestAHistoryIsNotReadableFromAnotherTenant(t *testing.T) {
 	item := freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
@@ -221,12 +224,13 @@ func TestPurgingAnEntryTakesItsHistoryWithIt(t *testing.T) {
 	item, neighbour := freshID(t), freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := itemRepo().Insert(
+		if _, err := itemRepo().Insert(
 			ctx, taskIn(tenantA, authorA, collection, item, "Weekly shop", "a0")); err != nil {
 			return err
 		}
-		return itemRepo().Insert(
+		_, err := itemRepo().Insert(
 			ctx, taskIn(tenantA, authorA, collection, neighbour, "Next week", "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
 	}

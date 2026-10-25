@@ -28,7 +28,8 @@ func TestTheDueDateRoundTripsWhole(t *testing.T) {
 	startAt := created.Add(30 * time.Minute)
 	task.StartAt = &startAt
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}

@@ -45,7 +45,7 @@ func TestAnOfferedModelsQueryIsNeverComparedWithTheOwnModelsVectors(t *testing.T
 		}
 		task := taskIn(tenantA, authorA, collection, own, "Kartoffelsuppe kochen", key)
 		task.ContentLanguage = "de"
-		if err := itemRepo().Insert(ctx, task); err != nil {
+		if _, err := itemRepo().Insert(ctx, task); err != nil {
 			return err
 		}
 		return postgres.NewEmbeddingRepository().Store(ctx, repository.StoredEmbedding{

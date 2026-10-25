@@ -22222,6 +22222,14 @@
             "type": "boolean",
             "description": "Whether this hub is private: reached only by people holding a role on it or below it, not by the workspace's own roles - its owners and administrators included. Always false on a collection, which shares its hub's privacy.\n"
           },
+          "handle": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z][a-z0-9]{1,19}$",
+            "description": "A collection's short name, null on a hub: the word a mail subject (\"#einkauf\"), a plus address and a ticket key (\"EINKAUF-42\") use for it. Given when the collection is made, derived from its name and unique in the workspace; a rename keeps it.\n"
+          },
           "structure": {
             "$ref": "#/components/schemas/EffectiveStructure",
             "description": "How much structure this hub or collection has, setting by setting, with where each value comes from and which are locked. Answered by every read of the container, by its creation and by a change of its structure; the answer to another change may leave it out.\n"
@@ -26161,6 +26169,15 @@
               "null"
             ],
             "description": "BCP-47, and null for an entry whose language nobody stated. It decides the text search configuration the entry is indexed under.\n"
+          },
+          "number": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int64",
+            "minimum": 1,
+            "description": "The entry's running number in its collection; with the collection's handle it is the entry's ticket key, \"EINKAUF-42\". Drawn when the entry is made, and anew when it moves to another collection.\n"
           },
           "calendar_uid": {
             "type": [

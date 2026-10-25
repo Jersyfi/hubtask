@@ -39,10 +39,11 @@ func seedPathsScene(ctx context.Context, t *testing.T) pathsScene {
 		hubMember: freshID(t), viewer: freshID(t), contributor: freshID(t), auditor: freshID(t),
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.entry, "Tile the bathroom", "a0")); err != nil {
+		if _, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.entry, "Tile the bathroom", "a0")); err != nil {
 			return err
 		}
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.assigned, "Grout the bathroom", "a1"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.assigned, "Grout the bathroom", "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
 	}

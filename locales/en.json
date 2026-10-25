@@ -6441,5 +6441,7 @@
   "app.voice.step_skill_id_hint": "At the top of the skill in the console: Copy Skill ID. Hubtask answers only this skill.",
   "app.voice.skill_id": "Skill ID",
   "app.voice.step_test": "Link and try it",
-  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with your Hubtask account. Then say \"Alexa, open Hubtask\"."
+  "app.voice.step_test_hint": "In the Alexa app: More → Skills & Games → Your Skills → Dev → Hubtask → Enable, and sign in with your Hubtask account. Then say \"Alexa, open Hubtask\".",
+  "app.entries.ticket_key": "Copy the key {key}",
+  "app.entries.ticket_key_copied": "{key} copied."
 }

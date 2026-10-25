@@ -158,7 +158,15 @@ func (r ContainerRepository) LastOrderKey(ctx context.Context, parentID shared.I
 // The name check is the unique index rather than a query before the insert. A check followed by
 // an insert is two statements with a gap, and two requests arriving inside that gap both pass the
 // check - which is how duplicates appear on exactly the busy levels where they matter.
-func (r ContainerRepository) Insert(ctx context.Context, container work.Container) error {
+func (r ContainerRepository) Insert(ctx context.Context, container work.Container) (work.Container, error) {
+	if err := r.insert(ctx, &container); err != nil {
+		return work.Container{}, err
+	}
+	return container, nil
+}
+
+// insert writes the row and takes back what the store assigned.
+func (r ContainerRepository) insert(ctx context.Context, container *work.Container) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -177,12 +185,12 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		return err
 	}
 
-	structure, completion, err := containerLayerDocument(container)
+	structure, completion, err := containerLayerDocument(*container)
 	if err != nil {
 		return err
 	}
 
-	err = queries.InsertContainer(ctx, sqlc.InsertContainerParams{
+	handle, err := queries.InsertContainer(ctx, sqlc.InsertContainerParams{
 		Structure:        structure,
 		CompletionPolicy: completion,
 		ID:               id,
@@ -198,6 +206,7 @@ func (r ContainerRepository) Insert(ctx context.Context, container work.Containe
 		Private:          container.Private,
 	})
 	if err == nil {
+		container.Handle = stringFrom(handle)
 		return nil
 	}
 

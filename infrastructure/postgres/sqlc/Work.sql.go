@@ -1055,7 +1055,7 @@ func (q *Queries) HubsOpenedFor(ctx context.Context, arg HubsOpenedForParams) ([
 	return items, nil
 }
 
-const insertContainer = `-- name: InsertContainer :exec
+const insertContainer = `-- name: InsertContainer :one
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
   created_by, created_at, updated_at, version, private, policies
@@ -1075,6 +1075,7 @@ INSERT INTO container (
                        'completion_policy', $12::text)
   END
 )
+RETURNING handle
 `
 
 type InsertContainerParams struct {
@@ -1099,8 +1100,9 @@ type InsertContainerParams struct {
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) error {
-	_, err := q.db.Exec(ctx, insertContainer,
+// The handle the store gave a collection (migration 0203), so the create answers it.
+func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (*string, error) {
+	row := q.db.QueryRow(ctx, insertContainer,
 		arg.ID,
 		arg.Type,
 		arg.ParentID,
@@ -1115,7 +1117,9 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CompletionPolicy,
 		arg.Structure,
 	)
-	return err
+	var handle *string
+	err := row.Scan(&handle)
+	return handle, err
 }
 
 const insertPrivateHubAccess = `-- name: InsertPrivateHubAccess :exec
@@ -1148,7 +1152,7 @@ func (q *Queries) InsertPrivateHubAccess(ctx context.Context, arg InsertPrivateH
 	return err
 }
 
-const insertWorkItem = `-- name: InsertWorkItem :exec
+const insertWorkItem = `-- name: InsertWorkItem :one
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
@@ -1161,6 +1165,7 @@ INSERT INTO work_item (
   $12, $13, $14,
   $15, $16, $16, 1
 )
+RETURNING number
 `
 
 type InsertWorkItemParams struct {
@@ -1196,8 +1201,9 @@ type InsertWorkItemParams struct {
 //
 // The calendar UID is the create's own too, and only the create's: it is the address a calendar
 // client chose for the entry, set once here and by no other statement.
-func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
-	_, err := q.db.Exec(ctx, insertWorkItem,
+// The number the store drew in the collection (migration 0203), so the create answers it.
+func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) (*int64, error) {
+	row := q.db.QueryRow(ctx, insertWorkItem,
 		arg.ID,
 		arg.CollectionID,
 		arg.Type,
@@ -1215,7 +1221,9 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)
-	return err
+	var number *int64
+	err := row.Scan(&number)
+	return number, err
 }
 
 const insertWorkItemCopy = `-- name: InsertWorkItemCopy :exec

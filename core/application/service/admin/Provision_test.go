@@ -241,9 +241,9 @@ func (s *grantsStore) Grant(_ context.Context, grant domain.Grant) (domain.Grant
 
 type containersStore struct{ inserted []work.Container }
 
-func (s *containersStore) Insert(_ context.Context, container work.Container) error {
+func (s *containersStore) Insert(_ context.Context, container work.Container) (work.Container, error) {
 	s.inserted = append(s.inserted, container)
-	return nil
+	return container, nil
 }
 
 type bucketsStore struct{ inserted []work.Bucket }

@@ -155,10 +155,11 @@ func TestSharedEntriesOfACollectionComeBack(t *testing.T) {
 	sharedItem, unsharedItem := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		items := itemRepo()
-		if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, sharedItem, "Shared", "a0")); err != nil {
+		if _, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, sharedItem, "Shared", "a0")); err != nil {
 			return err
 		}
-		return items.Insert(ctx, taskIn(tenantA, authorA, collection, unsharedItem, "Not shared", "a1"))
+		_, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, unsharedItem, "Not shared", "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
 	}
@@ -187,7 +188,7 @@ func TestASharedEntryInAnotherCollectionIsNotInTheLevel(t *testing.T) {
 
 	item := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, elsewhere, item, "Over there", "a0"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, elsewhere, item, "Over there", "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
@@ -206,7 +207,7 @@ func TestSharedEntriesOfAnotherTenantAreInvisible(t *testing.T) {
 
 	item := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Shared", "a0"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, item, "Shared", "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}

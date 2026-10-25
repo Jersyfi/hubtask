@@ -29,7 +29,8 @@ func TestAQuestionIsAnsweredOnlyFromEntriesTheAskerMayRead(t *testing.T) {
 	_, otherCollection := hubWithCollection(ctx, t, tenantB, authorB)
 	elsewhere := freshID(t)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantB, authorB, otherCollection, elsewhere, w.title, "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantB, authorB, otherCollection, elsewhere, w.title, "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the other workspace's entry: %v", err)
 	}

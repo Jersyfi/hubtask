@@ -46,10 +46,10 @@ func seedHubWithCollection(ctx context.Context, t *testing.T, tenant, author sha
 	collection.Structure = listLayer()
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, hub); err != nil {
+		if _, err := repo.Insert(ctx, hub); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, collection)
+		return insertErr(repo.Insert(ctx, collection))
 	}); err != nil {
 		t.Fatalf("writing the containers: %v", err)
 	}

@@ -340,6 +340,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	if uid := out.String("calendar_uid"); uid != "" {
 		item.CalendarUid = &uid
 	}
+	if number, ok := out["number"].(int64); ok {
+		item.Number = &number
+	}
 	if parent := out.String("parent_id"); parent != "" {
 		parentID := uuidValue(parent)
 		item.ParentId = &parentID

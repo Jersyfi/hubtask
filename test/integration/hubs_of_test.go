@@ -22,7 +22,8 @@ func hubCollectionAndEntry(ctx context.Context, t *testing.T, tenant, author sha
 	hub, collection = hubWithCollection(ctx, t, tenant, author)
 	item = freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenant, author, collection, item, "Entry", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenant, author, collection, item, "Entry", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}

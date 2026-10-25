@@ -7277,7 +7277,10 @@ type Container struct {
 	EffectiveArchived *bool `json:"effective_archived,omitempty"`
 
 	// Figure What counts in this collection, counted at the read for the reader (their day and week). On a collection's read only; absent on a hub, on a trashed collection, and where what counts is `NONE` or not yet counted by this server (`FLOW`).
-	Figure *CollectionFigure  `json:"figure,omitempty"`
+	Figure *CollectionFigure `json:"figure,omitempty"`
+
+	// Handle A collection's short name, null on a hub: the word a mail subject ("#einkauf"), a plus address and a ticket key ("EINKAUF-42") use for it. Given when the collection is made, derived from its name and unique in the workspace; a rename keeps it.
+	Handle *string            `json:"handle,omitempty"`
 	Icon   *string            `json:"icon,omitempty"`
 	Id     openapi_types.UUID `json:"id"`
 
@@ -12687,7 +12690,10 @@ type WorkItem struct {
 	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
 	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
 	Notes     *string               `json:"notes,omitempty"`
-	OrderKey  *string               `json:"order_key,omitempty"`
+
+	// Number The entry's running number in its collection; with the collection's handle it is the entry's ticket key, "EINKAUF-42". Drawn when the entry is made, and anew when it moves to another collection.
+	Number   *int64  `json:"number,omitempty"`
+	OrderKey *string `json:"order_key,omitempty"`
 
 	// OriginJumbleId The jumble entry this item was converted out of. Provenance, set once at the conversion and never cleared; absent for an item that was never in the jumble.
 	OriginJumbleId *openapi_types.UUID `json:"origin_jumble_id,omitempty"`

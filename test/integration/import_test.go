@@ -134,7 +134,8 @@ func TestARunnerLandsACsvUnderTheHubOnce(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	hub := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, "Imports", "a2"))
+		_, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, "Imports", "a2"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the hub: %v", err)
 	}

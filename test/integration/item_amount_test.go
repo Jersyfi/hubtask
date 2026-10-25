@@ -28,7 +28,8 @@ func TestAnAmountIsWrittenChangedAndCopied(t *testing.T) {
 	task := taskIn(tenantA, authorA, collection, freshID(t), "milk", "a0")
 	task.Amount = "2"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatalf("writing: %v", err)
 	}
@@ -84,7 +85,8 @@ func TestTheRowRefusesAnAmountOutsideItsBounds(t *testing.T) {
 	collection := collectionFor(ctx, t, tenantA, authorA)
 	task := taskIn(tenantA, authorA, collection, freshID(t), "milk", "a0")
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -104,7 +106,8 @@ func TestAnAmountIsNotReadAcrossTheTenantBoundary(t *testing.T) {
 	task := taskIn(tenantA, authorA, collection, freshID(t), "milk", "a0")
 	task.Amount = "2"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}
@@ -176,7 +179,8 @@ func TestARestoreFromAnArchiveWithoutTheAmountLeavesNone(t *testing.T) {
 	task := taskIn(tenantA, authorA, collection, freshID(t), "milk", "a0")
 	task.Amount = "2"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}

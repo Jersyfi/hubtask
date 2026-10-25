@@ -412,7 +412,8 @@ func TestAnEntryWithAnImageCoverIsRestored(t *testing.T) {
 		t.Fatalf("seeding the medium: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, itemID, "With a picture", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, itemID, "With a picture", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}
@@ -731,7 +732,8 @@ func TestARealRowSurvivesTheRoundTripThroughTheArchivesShape(t *testing.T) {
 	original.Notes = "milk, bread, and something for Sunday"
 	original.Amount = "1 bag"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, original)
+		_, err := itemRepo().Insert(ctx, original)
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}

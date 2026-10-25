@@ -267,13 +267,13 @@ func seedRT10Fixture(
 	at := due.Add(-48 * time.Hour)
 
 	if err := unitOfWork.Within(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
-		if err := containers.Insert(ctx, workdomain.Container{
+		if _, err := containers.Insert(ctx, workdomain.Container{
 			ID: hub, TenantID: tenant, Type: workdomain.ContainerHub, Name: "RT-10",
 			OrderKey: "a0", CreatedBy: account, CreatedAt: at, UpdatedAt: at, Version: 1,
 		}); err != nil {
 			return err
 		}
-		if err := containers.Insert(ctx, workdomain.Container{
+		if _, err := containers.Insert(ctx, workdomain.Container{
 			ID: collection, TenantID: tenant, Type: workdomain.ContainerCollection, ParentID: hub,
 			Name: "Series", OrderKey: "a0", CreatedBy: account, CreatedAt: at, UpdatedAt: at,
 			Version: 1,
@@ -290,7 +290,7 @@ func seedRT10Fixture(
 			Path: workdomain.RootPath(template), Depth: 1, Title: "Water the plants",
 			OrderKey: "a0", CreatedBy: account, CreatedAt: at, UpdatedAt: at, Version: 1,
 		}
-		if err := items.Insert(ctx, task); err != nil {
+		if _, err := items.Insert(ctx, task); err != nil {
 			return err
 		}
 		task.Due = dueDate

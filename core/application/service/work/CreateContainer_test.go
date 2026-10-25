@@ -90,12 +90,12 @@ func (c *containers) LastOrderKey(context.Context, shared.ID) (string, error) {
 	return c.lastKey, nil
 }
 
-func (c *containers) Insert(_ context.Context, container domain.Container) error {
+func (c *containers) Insert(_ context.Context, container domain.Container) (domain.Container, error) {
 	if c.insertErr != nil {
-		return c.insertErr
+		return domain.Container{}, c.insertErr
 	}
 	c.inserted = append(c.inserted, container)
-	return nil
+	return container, nil
 }
 
 // writtenContainer is one write the lifecycle performed: which method, what the row now says, and

@@ -56,7 +56,7 @@ WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
--- name: InsertContainer :exec
+-- name: InsertContainer :one
 -- The name arrives in Unicode normal form C - the constructor brings it there, behind the
 -- Normalizer port, and the description with it (i18n-l10n.md §5): "Übersicht" typed with
 -- a combining diaeresis and the same word composed are one name to a person, and the unique
@@ -81,7 +81,9 @@ INSERT INTO container (
     jsonb_build_object('structure', sqlc.arg('structure')::jsonb,
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
-);
+)
+-- The handle the store gave a collection (migration 0203), so the create answers it.
+RETURNING handle;
 
 -- name: ListContainers :many
 -- One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -444,7 +446,7 @@ WHERE collection_id = sqlc.arg('collection_id')::uuid
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
--- name: InsertWorkItem :exec
+-- name: InsertWorkItem :one
 -- The title arrives in Unicode normal form C: the constructor brings it there, behind the
 -- Normalizer port, so that what the domain answers, the change set records and the row holds are
 -- one string (i18n-l10n.md §5). normalize() stays on the insert as the row's own guarantee
@@ -470,7 +472,9 @@ INSERT INTO work_item (
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
-);
+)
+-- The number the store drew in the collection (migration 0203), so the create answers it.
+RETURNING number;
 
 -- name: FindWorkItemByCalendarUID :one
 -- The entry a calendar client's UID names. The same columns as FindWorkItem,

@@ -37,10 +37,11 @@ func hubWithCollection(ctx context.Context, t *testing.T, tenant, author shared.
 	hubID, collectionID := freshID(t), freshID(t)
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, containerIn(tenant, author, hubID, freshName(t), "a0")); err != nil {
+		if _, err := repo.Insert(ctx, containerIn(tenant, author, hubID, freshName(t), "a0")); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, collectionIn(tenant, author, collectionID, hubID, freshName(t), "a0"))
+		_, err := repo.Insert(ctx, collectionIn(tenant, author, collectionID, hubID, freshName(t), "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the hub and its collection: %v", err)
 	}
@@ -70,7 +71,8 @@ func TestSetContainerAttributesWritesEveryFieldAndBumpsTheVersion(t *testing.T) 
 	hub := containerIn(tenantA, authorA, id, freshName(t), "a0")
 	hub.Description, hub.Icon, hub.ColorToken = "Everything personal", "home", "blue"
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, hub)
+		_, err := repo.Insert(ctx, hub)
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -109,7 +111,8 @@ func TestSetContainerAttributesRefusesAStaleVersion(t *testing.T) {
 	id := freshID(t)
 	hub := containerIn(tenantA, authorA, id, freshName(t), "a0")
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, hub)
+		_, err := repo.Insert(ctx, hub)
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -140,10 +143,11 @@ func TestRenamingIntoATakenNameIsAConflict(t *testing.T) {
 	taken, mover := freshID(t), freshID(t)
 	takenName := freshName(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, containerIn(tenantA, authorA, taken, takenName, "a0")); err != nil {
+		if _, err := repo.Insert(ctx, containerIn(tenantA, authorA, taken, takenName, "a0")); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, containerIn(tenantA, authorA, mover, freshName(t), "a1"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, mover, freshName(t), "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the two hubs: %v", err)
 	}
@@ -330,7 +334,8 @@ func TestSetPlacementMovesACollectionBetweenHubs(t *testing.T) {
 	targetID := freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, targetID, freshName(t), "a1"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, targetID, freshName(t), "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the destination hub: %v", err)
 	}
@@ -361,12 +366,13 @@ func TestMovingIntoATakenNameIsAConflict(t *testing.T) {
 	targetID := freshID(t)
 	collection := findContainer(ctx, t, tenantA, collectionID)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, containerIn(tenantA, authorA, targetID, freshName(t), "a1")); err != nil {
+		if _, err := repo.Insert(ctx, containerIn(tenantA, authorA, targetID, freshName(t), "a1")); err != nil {
 			return err
 		}
 		// A collection at the destination already carrying the name the mover has.
-		return repo.Insert(ctx,
+		_, err := repo.Insert(ctx,
 			collectionIn(tenantA, authorA, freshID(t), targetID, collection.Name, "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}
@@ -392,11 +398,11 @@ func TestNeighboursReportsTheBoundsAndExcludesTheMover(t *testing.T) {
 	first, second, mover := freshID(t), freshID(t), freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, containerIn(tenantA, authorA, hubID, freshName(t), "a0")); err != nil {
+		if _, err := repo.Insert(ctx, containerIn(tenantA, authorA, hubID, freshName(t), "a0")); err != nil {
 			return err
 		}
 		for id, key := range map[shared.ID]string{first: "a1", second: "a3", mover: "a5"} {
-			if err := repo.Insert(ctx,
+			if _, err := repo.Insert(ctx,
 				collectionIn(tenantA, authorA, id, hubID, freshName(t), key)); err != nil {
 				return err
 			}
@@ -460,10 +466,11 @@ func TestRankingAHubWritesTheRankAndLeavesItAHub(t *testing.T) {
 	first, second := freshID(t), freshID(t)
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, containerIn(tenant, author, first, freshName(t), "a1")); err != nil {
+		if _, err := repo.Insert(ctx, containerIn(tenant, author, first, freshName(t), "a1")); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, containerIn(tenant, author, second, freshName(t), "a3"))
+		_, err := repo.Insert(ctx, containerIn(tenant, author, second, freshName(t), "a3"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the hub level: %v", err)
 	}
@@ -531,7 +538,7 @@ func TestNeighboursReadsTheHubLevelWhereTheParentIsAbsent(t *testing.T) {
 	// learned the hard way rather than by reading Ordering.go.
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		for id, key := range map[shared.ID]string{below: "a1", anchor: "a3", mover: "a5"} {
-			if err := repo.Insert(ctx, containerIn(tenant, author, id, freshName(t), key)); err != nil {
+			if _, err := repo.Insert(ctx, containerIn(tenant, author, id, freshName(t), key)); err != nil {
 				return err
 			}
 		}

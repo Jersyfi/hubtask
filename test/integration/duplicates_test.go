@@ -84,7 +84,7 @@ func seedNeighbourhood(ctx context.Context, t *testing.T) neighbourhood {
 				item.Path = work.RootPath(built.subject) + entry.id.String() + work.PathSeparator
 				item.Depth = 2
 			}
-			if err := items.Insert(ctx, item); err != nil {
+			if _, err := items.Insert(ctx, item); err != nil {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{
@@ -209,8 +209,9 @@ func TestAnEntryWithNoVectorHasNoNeighbourhood(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, f.collection, unembedded,
+		_, err = itemRepo().Insert(ctx, taskIn(tenantA, authorA, f.collection, unembedded,
 			"Renew the domain registration", key))
+		return err
 	}); err != nil {
 		t.Fatalf("writing an entry the pass has not reached: %v", err)
 	}

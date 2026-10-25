@@ -315,7 +315,7 @@ func trashedInPrivateHub(ctx context.Context, t *testing.T, w privateWorld) shar
 	t.Helper()
 	id := freshID(t)
 	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(w.tenant, authorA, w.collection, id, "Trashed", "a1"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(w.tenant, authorA, w.collection, id, "Trashed", "a1")))
 	}); err != nil {
 		t.Fatalf("seeding the trashed entry: %v", err)
 	}

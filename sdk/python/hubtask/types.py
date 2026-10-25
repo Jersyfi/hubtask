@@ -1531,6 +1531,7 @@ class Container(TypedDict, total=False):
     updated_at: str
     version: Required[int]
     private: bool
+    handle: str | None
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
@@ -2316,6 +2317,7 @@ class WorkItem(TypedDict, total=False):
     recurrence_source_id: str | None
     origin_jumble_id: str | None
     content_language: str | None
+    number: int | None
     calendar_uid: str | None
     archived_at: str | None
     deleted_at: str | None

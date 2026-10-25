@@ -55,10 +55,11 @@ func TestADecomposedTitleIsStoredComposedAndFoundByAComposedSearch(t *testing.T)
 	legacy.ContentLanguage = "de"
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := items.Insert(ctx, normalised); err != nil {
+		if _, err := items.Insert(ctx, normalised); err != nil {
 			return err
 		}
-		return items.Insert(ctx, legacy)
+		_, err := items.Insert(ctx, legacy)
+		return err
 	}); err != nil {
 		t.Fatalf("writing the two entries: %v", err)
 	}
@@ -111,7 +112,7 @@ func TestAFilterValueMeetsATitleInTheFormItIsStored(t *testing.T) {
 		t.Fatalf("building the entry: %v", err)
 	}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, item)
+		return insertErr(itemRepo().Insert(ctx, item))
 	}); err != nil {
 		t.Fatalf("writing the entry: %v", err)
 	}

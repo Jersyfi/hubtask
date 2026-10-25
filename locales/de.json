@@ -6438,5 +6438,7 @@
   "app.voice.step_skill_id_hint": "Oben am Skill in der Konsole: Copy Skill ID. Hubtask antwortet nur diesem Skill.",
   "app.voice.skill_id": "Skill-ID",
   "app.voice.step_test": "Verknüpfen und ausprobieren",
-  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann „Alexa, öffne Hubtask“ sagen."
+  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann „Alexa, öffne Hubtask“ sagen.",
+  "app.entries.ticket_key": "Schlüssel {key} kopieren",
+  "app.entries.ticket_key_copied": "{key} kopiert."
 }

@@ -174,7 +174,7 @@ func completedItem(ctx context.Context, t *testing.T, tenant, collection shared.
 	id := freshID(t)
 	item := taskIn(tenant, authorA, collection, id, freshName(t), "a0")
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, item)
+		return insertErr(itemRepo().Insert(ctx, item))
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}

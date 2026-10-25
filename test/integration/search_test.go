@@ -64,7 +64,7 @@ func newSearchFixture(ctx context.Context, t *testing.T) searchFixture {
 
 			task := taskIn(tenantA, authorA, entry.into, freshID(t), entry.title, key)
 			task.Notes, task.ContentLanguage = entry.notes, entry.language
-			if err := items.Insert(ctx, task); err != nil {
+			if _, err := items.Insert(ctx, task); err != nil {
 				return err
 			}
 		}
@@ -76,8 +76,8 @@ func newSearchFixture(ctx context.Context, t *testing.T) searchFixture {
 	// The second collection, with one entry nothing else in this file mentions.
 	built.elsewhere, built.elsewhereWord = collectionBeside(ctx, t, tenantA, authorA, hub), shortSuffix(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return items.Insert(ctx, taskIn(
-			tenantA, authorA, built.elsewhere, freshID(t), "Report "+built.elsewhereWord, "a0"))
+		return insertErr(items.Insert(ctx, taskIn(
+			tenantA, authorA, built.elsewhere, freshID(t), "Report "+built.elsewhereWord, "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the second collection: %v", err)
 	}
@@ -468,8 +468,8 @@ func collectionBeside(ctx context.Context, t *testing.T, tenant, author, hub sha
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx,
-			collectionIn(tenant, author, id, hub, "Beside it "+id.String()[:8], "a1"))
+		return insertErr(containerRepo().Insert(ctx,
+			collectionIn(tenant, author, id, hub, "Beside it "+id.String()[:8], "a1")))
 	}); err != nil {
 		t.Fatalf("seeding a second collection: %v", err)
 	}

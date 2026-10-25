@@ -120,7 +120,7 @@ func newHybridFixture(ctx context.Context, t *testing.T) hybridFixture {
 
 			task := taskIn(tenantA, authorA, collection, entry.id, entry.title, key)
 			task.ContentLanguage = "de"
-			if err := items.Insert(ctx, task); err != nil {
+			if _, err := items.Insert(ctx, task); err != nil {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{
@@ -323,7 +323,7 @@ func TestTheSemanticBranchIsStillBoundedByWhatTheReaderMaySee(t *testing.T) {
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		task := taskIn(tenantA, authorA, beside, hidden, "Zwiebelkuchen anderswo", "a0")
 		task.ContentLanguage = "de"
-		if err := itemRepo().Insert(ctx, task); err != nil {
+		if _, err := itemRepo().Insert(ctx, task); err != nil {
 			return err
 		}
 		return postgres.NewEmbeddingRepository().Store(ctx, repository.StoredEmbedding{
