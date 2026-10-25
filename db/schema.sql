@@ -1501,6 +1501,8 @@ CREATE TABLE voice_setting (
   enabled               boolean NOT NULL DEFAULT false,
   default_collection_id uuid,
   skill_id              text,
+  -- The name the skill is spoken to by; empty for the language's default (migration 0203).
+  invocation_name       text CHECK (invocation_name IS NULL OR length(invocation_name) BETWEEN 2 AND 50),
   updated_at            timestamptz NOT NULL,
   updated_by            uuid
 );

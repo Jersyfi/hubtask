@@ -118,6 +118,7 @@ func (h SaveVoiceSettings) invoke(ctx context.Context, actor appshared.ActorCont
 			Changes: audit.Changes(
 				audit.Change{Field: "enabled", Classification: audit.Open, To: boolWord(settings.Enabled)},
 				audit.Change{Field: "skill_id", Classification: audit.Open, To: settings.SkillID},
+				audit.Change{Field: "invocation_name", Classification: audit.Open, To: settings.InvocationName},
 			),
 			Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
 		})
@@ -160,7 +161,17 @@ func (h ShowAlexaModel) invoke(ctx context.Context, actor appshared.ActorContext
 	if err := w.authorize(ctx, actor, voiceSettingsReadAction, automationManage); err != nil {
 		return nil, err
 	}
-	return usecase.Output{"model": AlexaModel(domain.LanguageOf(in.String("locale")))}, nil
+	var settings domain.Settings
+	err := w.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		found, err := w.Settings.Find(ctx)
+		settings = found
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	language := domain.LanguageOf(in.String("locale"))
+	return usecase.Output{"model": AlexaModel(language, settings.Invocation(language))}, nil
 }
 
 func placeOutput(place domain.Place) map[string]any {
@@ -190,11 +201,17 @@ func settingsOutput(settings domain.Settings, installationSkills []string) useca
 	if settings.SkillID != "" {
 		out["skill_id"] = settings.SkillID
 	}
+	if settings.InvocationName != "" {
+		out["invocation_name"] = settings.InvocationName
+	}
 	return out
 }
 
 func settingsOf(in usecase.Input, ids clock.IDGenerator) (domain.Settings, error) {
-	settings := domain.Settings{Enabled: in.Bool("enabled"), SkillID: strings.TrimSpace(in.String("skill_id"))}
+	settings := domain.Settings{
+		Enabled: in.Bool("enabled"), SkillID: strings.TrimSpace(in.String("skill_id")),
+		InvocationName: domain.NormalInvocation(in.String("invocation_name")),
+	}
 	var err error
 	if settings.DefaultCollectionID, err = in.ID("default_collection_id"); err != nil {
 		return domain.Settings{}, err
@@ -252,6 +269,7 @@ func (h SaveVoiceSettings) Descriptor() usecase.Descriptor {
 			{Name: "enabled", Kind: usecase.KindBool, Description: "Whether spoken entries are taken."},
 			{Name: "default_collection_id", Kind: usecase.KindID, Description: "Where a thing said without a place goes."},
 			{Name: "skill_id", Kind: usecase.KindString, Description: "The workspace's own Alexa skill, amzn1.ask.skill.…; empty for the installation's."},
+			{Name: "invocation_name", Kind: usecase.KindString, Description: "What follows \"Alexa, sag\": two words at least, written apart as Alexa writes them; empty for the language's default, \"digitale pinnwand\" or \"list helper\"."},
 			{Name: "aliases", Kind: usecase.KindList, Description: "The names people may say: objects of phrase, collection_id and, for a category, label_id."},
 		},
 		Audit: usecase.AuditDeclaration{

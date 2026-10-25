@@ -38,6 +38,7 @@ func (VoiceRepository) Find(ctx context.Context) (domain.Settings, error) {
 	default:
 		settings.Enabled = row.Enabled
 		settings.SkillID = stringFrom(row.SkillID)
+		settings.InvocationName = stringFrom(row.InvocationName)
 		if settings.DefaultCollectionID, err = optionalID(row.DefaultCollectionID); err != nil {
 			return domain.Settings{}, err
 		}
@@ -80,7 +81,8 @@ func (VoiceRepository) Save(
 	}
 	if err := queries.UpsertVoiceSetting(ctx, sqlc.UpsertVoiceSettingParams{
 		Enabled: settings.Enabled, DefaultCollectionID: defaultID,
-		SkillID: optionalText(strings.TrimSpace(settings.SkillID)), UpdatedAt: timestampOf(at),
+		SkillID:        optionalText(strings.TrimSpace(settings.SkillID)),
+		InvocationName: optionalText(domain.NormalInvocation(settings.InvocationName)), UpdatedAt: timestampOf(at),
 		UpdatedBy: byID,
 	}); err != nil {
 		return shared.ErrUnavailable.WithDetail("postgres.query_failed").

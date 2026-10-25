@@ -17,7 +17,7 @@ var slotReference = regexp.MustCompile(`\{([A-Za-z]+)\}`)
 // refusal the administrator would meet, not a test.
 func TestTheModelIsOneAlexaBuilds(t *testing.T) {
 	for _, language := range []domain.Language{domain.German, domain.English} {
-		model := AlexaModel(language)
+		model := AlexaModel(language, "")
 		intents := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)["intents"].([]any)
 		seen := map[string]string{}
 		for _, raw := range intents {
@@ -54,7 +54,7 @@ func TestTheModelIsOneAlexaBuilds(t *testing.T) {
 
 // A store is said with "bei", a project with "für": the sentences are not a shopping list's alone.
 func TestTheModelSpeaksOfEveryKindOfPlace(t *testing.T) {
-	model := AlexaModel(domain.German)
+	model := AlexaModel(domain.German, "")
 	intents := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)["intents"].([]any)
 	samples := map[string]bool{}
 	for _, raw := range intents {
@@ -74,7 +74,7 @@ func TestTheModelSpeaksOfEveryKindOfPlace(t *testing.T) {
 
 // No workspace's names are in what is pasted into Amazon's console.
 func TestThePastedModelNamesNoWorkspacesLists(t *testing.T) {
-	german, english := AlexaModel(domain.German), AlexaModel(domain.English)
+	german, english := AlexaModel(domain.German, ""), AlexaModel(domain.English, "")
 	for _, model := range []map[string]any{german, english} {
 		types := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)["types"].([]any)
 		for _, value := range types[0].(map[string]any)["values"].([]any) {

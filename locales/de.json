@@ -6406,7 +6406,7 @@
   "app.voice.installation_skill": "Diese Installation veröffentlicht einen Hubtask-Skill. Aktiviere ihn in der Alexa-App, verbinde dort dein Hubtask-Konto und sag „Alexa, öffne Hubtask“.",
   "app.voice.alexa_hint": "Dein eigener Skill, kostenlos in Amazons Alexa-Entwicklerkonsole. Er bleibt in Entwicklung und läuft auf allen Echos deines Amazon-Kontos. Amazon ruft diese Installation über HTTPS auf; sie muss also aus dem Internet mit gültigem Zertifikat erreichbar sein – zu Hause über einen Reverse Proxy oder einen Tunnel.",
   "app.voice.step_skill": "Skill anlegen",
-  "app.voice.step_skill_hint": "Unter developer.amazon.com/alexa/console/ask: Create skill, Name Hubtask, deine Sprache, das Modell „Custom“ und „Provision your own“. Als Aufrufnamen setzen:",
+  "app.voice.step_skill_hint": "Unter developer.amazon.com/alexa/console/ask: Create skill, Name Hubtask, deine Sprache, das Modell „Custom“ und „Provision your own“. Den Aufrufnamen wählst du hier; er steht auch im Modell, das du im nächsten Schritt einfügst.",
   "app.voice.invocation": "Aufrufname",
   "app.voice.step_model": "Sprachmodell einfügen",
   "app.voice.step_model_hint": "Modell kopieren und unter Interaction Model → JSON Editor einfügen, dann Save und Build. Einmal genügt: deine Listen stehen nicht im Modell, Hubtask bringt sie Alexa bei jeder Antwort bei – neue und umbenannte Listen funktionieren sofort.",
@@ -6438,11 +6438,14 @@
   "app.voice.step_skill_id_hint": "Oben am Skill in der Konsole: Copy Skill ID. Hubtask antwortet nur diesem Skill.",
   "app.voice.skill_id": "Skill-ID",
   "app.voice.step_test": "Verknüpfen und ausprobieren",
-  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann immer mit „Hubtask“ sprechen: „Alexa, sag Hubtask: Gemüsebrühe bei Metro“ oder „Alexa, öffne Hubtask“. Ohne „Hubtask“ landet ein Satz auf Amazons eigener Liste.",
+  "app.voice.step_test_hint": "In der Alexa-App: Mehr → Skills & Spiele → Deine Skills → Dev → Hubtask → Aktivieren, und mit dem Hubtask-Konto anmelden. Dann mit dem Aufrufnamen sprechen: „Alexa, öffne {name}“, „Alexa, sage {name}, dass Gemüsebrühe bei Metro“ oder „Alexa, frage {name}, was bei Metro steht“. Ohne ihn landet ein Satz auf Amazons eigener Liste.",
   "app.voice.pkce": "PKCE",
   "app.voice.scope_hint": "Jeden Scope einzeln mit „+ Add scope“ eintragen.",
   "app.consent.incomplete": "Eine App fragt hier an, aber ihrer Anfrage fehlt etwas, das Hubtask verlangt. Das wird in der App eingestellt, die die Verknüpfung anbietet:",
   "app.consent.missing_redirect_uri": "Die Rücksprungadresse (redirect_uri).",
   "app.consent.missing_code_challenge": "Der PKCE-Nachweis (code_challenge). Bei Alexa: in der Developer Console unter Account Linking PKCE mit SHA-256 einschalten.",
-  "app.consent.missing_scope": "Die Berechtigungen (scope). Bei Alexa: unter Account Linking die Scopes aus Administration → Sprachassistenten eintragen."
+  "app.consent.missing_scope": "Die Berechtigungen (scope). Bei Alexa: unter Account Linking die Scopes aus Administration → Sprachassistenten eintragen.",
+  "app.voice.invocation_hint": "Was nach „Alexa, öffne …“ kommt: mindestens zwei Wörter, die Alexa getrennt schreibt – am sichersten ein Eigenschaftswort mit einem weiblichen Hauptwort ohne Artikel, wie „digitale pinnwand“. Zwei Hauptwörter schreibt Alexa zusammen („listenhelfer“) und findet den Skill dann nicht. Nicht erlaubt: „Alexa“, „Echo“, „Skill“, „App“, Startwörter wie „öffne“ oder „sage“ und Verbindungswörter wie „dass“, „mit“ oder „für“. Leer lassen für den Standard.",
+  "app.voice.invocation_now": "Aufrufname",
+  "voice.invocation_invalid": "Ein Aufrufname hat mindestens zwei Wörter und höchstens 50 Zeichen, beginnt mit einem Buchstaben und enthält nur Buchstaben und Leerzeichen. Nicht erlaubt sind „Alexa“, „Echo“, „Skill“, „App“, Startwörter wie „öffne“ oder „sage“, Verbindungswörter wie „dass“, „mit“ oder „für“ und ein Artikel als zweites Wort."
 }

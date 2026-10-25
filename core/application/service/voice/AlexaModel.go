@@ -23,9 +23,6 @@ const (
 	SlotList     = "List"
 	SlotSentence = "Sentence"
 
-	// InvocationName is what follows "Alexa, sag" / "Alexa, ask".
-	InvocationName = "hubtask"
-
 	listType  = "HUBTASK_LIST"
 	thingType = "HUBTASK_THING"
 )
@@ -36,7 +33,7 @@ const (
 // so a list made or renamed tomorrow works without the model being pasted again. The samples only
 // teach Alexa how a list name and a thing sound; the workspace's own names reach Alexa at run time,
 // with every answer (DynamicEntities).
-func AlexaModel(language domain.Language) map[string]any {
+func AlexaModel(language domain.Language, invocation string) map[string]any {
 	words := modelWords[language]
 	intents := []any{
 		intent(IntentAdd, words.add, slot(SlotThing, thingType), slot(SlotList, listType)),
@@ -51,7 +48,7 @@ func AlexaModel(language domain.Language) map[string]any {
 		map[string]any{"name": "AMAZON.NavigateHomeIntent", "samples": []any{}},
 	}
 	return map[string]any{"interactionModel": map[string]any{"languageModel": map[string]any{
-		"invocationName": InvocationName,
+		"invocationName": invocationOr(invocation, language),
 		"intents":        intents,
 		"types": []any{
 			map[string]any{"name": listType, "values": plainValues(words.lists)},
@@ -327,4 +324,12 @@ func dedupe(values []string) []string {
 		out = append(out, value)
 	}
 	return out
+}
+
+// invocationOr is the name given, or the language's default.
+func invocationOr(invocation string, language domain.Language) string {
+	if name := domain.NormalInvocation(invocation); name != "" {
+		return name
+	}
+	return domain.DefaultInvocation(language)
 }

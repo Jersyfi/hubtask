@@ -60,6 +60,7 @@
   let enabled = $state(false);
   let defaultList = $state('');
   let skillId = $state('');
+  let invocation = $state('');
   let aliases = $state<DraftAlias[]>([]);
   let isSaving = $state(false);
   let saveFailure = $state<string | undefined>(undefined);
@@ -77,6 +78,7 @@
           enabled = settings.enabled === true;
           defaultList = settings.default_collection_id ?? '';
           skillId = settings.skill_id ?? '';
+          invocation = settings.invocation_name ?? '';
           aliases = (settings.aliases ?? []).map((alias) => ({
             key: crypto.randomUUID(), phrase: alias.phrase, collection: alias.collection_id, label: alias.label_id ?? '',
           }));
@@ -124,6 +126,7 @@
         enabled,
         default_collection_id: defaultList || null,
         skill_id: skillId.trim() || null,
+        invocation_name: invocation.trim().toLowerCase() || null,
         aliases: aliases
           .filter((alias) => alias.phrase.trim() !== '')
           .map((alias) => ({ phrase: alias.phrase.trim(), collection_id: alias.collection, ...(alias.label ? { label_id: alias.label } : {}) })),
@@ -140,6 +143,10 @@
   // The interface's language until somebody chooses another: read when the catalogue has loaded,
   // not when the page was first drawn.
   const spoken = $derived(messages.locale.startsWith('de') ? 'de-DE' : 'en-US');
+  /** The name the skill is spoken to by where none was chosen: two words Alexa writes apart. */
+  const defaultInvocation = $derived(spoken === 'de-DE' ? 'digitale pinnwand' : 'list helper');
+  /** The name in force: the one saved, else the default - what the console and people say. */
+  const spokenName = $derived(loaded?.invocation_name || defaultInvocation);
   let chosenLocale = $state<string | undefined>(undefined);
   const locale = $derived(chosenLocale ?? spoken);
   let typed = $state<string | undefined>(undefined);
@@ -308,7 +315,11 @@
                   <li>
                     <h3>{t('app.voice.step_skill')}</h3>
                     <p class="quiet small">{t('app.voice.step_skill_hint')}</p>
-                    {@render value('invocation', t('app.voice.invocation'), 'hubtask')}
+                    <div class="try">
+                      <Input label={t('app.voice.invocation')} hint={t('app.voice.invocation_hint')} placeholder={defaultInvocation} bind:value={invocation} />
+                      <Button tone="secondary" isBusy={isSaving} busyLabel={t('app.voice.saving')} onclick={() => void save()}>{t('app.voice.save')}</Button>
+                    </div>
+                    {@render value('invocation', t('app.voice.invocation_now'), spokenName)}
                   </li>
                   <li>
                     <h3>{t('app.voice.step_model')}</h3>
@@ -363,7 +374,7 @@
                   </li>
                   <li>
                     <h3>{t('app.voice.step_test')}</h3>
-                    <p class="quiet small">{t('app.voice.step_test_hint')}</p>
+                    <p class="quiet small">{t('app.voice.step_test_hint', { name: spokenName })}</p>
                   </li>
                 </ol>
               {/if}

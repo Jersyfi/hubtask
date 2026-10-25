@@ -23,7 +23,7 @@ func (q *Queries) DeleteVoiceAliases(ctx context.Context) error {
 
 const findVoiceSetting = `-- name: FindVoiceSetting :one
 
-SELECT enabled, default_collection_id, skill_id, updated_at
+SELECT enabled, default_collection_id, skill_id, invocation_name, updated_at
 FROM voice_setting
 WHERE tenant_id = current_tenant_id()
 `
@@ -32,6 +32,7 @@ type FindVoiceSettingRow struct {
 	Enabled             bool
 	DefaultCollectionID pgtype.UUID
 	SkillID             *string
+	InvocationName      *string
 	UpdatedAt           pgtype.Timestamptz
 }
 
@@ -44,6 +45,7 @@ func (q *Queries) FindVoiceSetting(ctx context.Context) (FindVoiceSettingRow, er
 		&i.Enabled,
 		&i.DefaultCollectionID,
 		&i.SkillID,
+		&i.InvocationName,
 		&i.UpdatedAt,
 	)
 	return i, err
@@ -115,18 +117,20 @@ func (q *Queries) ListVoiceAliases(ctx context.Context) ([]ListVoiceAliasesRow, 
 }
 
 const upsertVoiceSetting = `-- name: UpsertVoiceSetting :exec
-INSERT INTO voice_setting (tenant_id, enabled, default_collection_id, skill_id, updated_at, updated_by)
+INSERT INTO voice_setting (tenant_id, enabled, default_collection_id, skill_id, invocation_name, updated_at, updated_by)
 VALUES (current_tenant_id(), $1, $2,
-        $3, $4, $5)
+        $3, $4, $5, $6)
 ON CONFLICT (tenant_id) DO UPDATE
 SET enabled = EXCLUDED.enabled, default_collection_id = EXCLUDED.default_collection_id,
-    skill_id = EXCLUDED.skill_id, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by
+    skill_id = EXCLUDED.skill_id, invocation_name = EXCLUDED.invocation_name,
+    updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by
 `
 
 type UpsertVoiceSettingParams struct {
 	Enabled             bool
 	DefaultCollectionID pgtype.UUID
 	SkillID             *string
+	InvocationName      *string
 	UpdatedAt           pgtype.Timestamptz
 	UpdatedBy           pgtype.UUID
 }
@@ -136,6 +140,7 @@ func (q *Queries) UpsertVoiceSetting(ctx context.Context, arg UpsertVoiceSetting
 		arg.Enabled,
 		arg.DefaultCollectionID,
 		arg.SkillID,
+		arg.InvocationName,
 		arg.UpdatedAt,
 		arg.UpdatedBy,
 	)

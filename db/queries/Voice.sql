@@ -2,17 +2,18 @@
 -- statement to the tenant of the running transaction.
 
 -- name: FindVoiceSetting :one
-SELECT enabled, default_collection_id, skill_id, updated_at
+SELECT enabled, default_collection_id, skill_id, invocation_name, updated_at
 FROM voice_setting
 WHERE tenant_id = current_tenant_id();
 
 -- name: UpsertVoiceSetting :exec
-INSERT INTO voice_setting (tenant_id, enabled, default_collection_id, skill_id, updated_at, updated_by)
+INSERT INTO voice_setting (tenant_id, enabled, default_collection_id, skill_id, invocation_name, updated_at, updated_by)
 VALUES (current_tenant_id(), sqlc.arg('enabled'), sqlc.narg('default_collection_id'),
-        sqlc.narg('skill_id'), sqlc.arg('updated_at'), sqlc.narg('updated_by'))
+        sqlc.narg('skill_id'), sqlc.narg('invocation_name'), sqlc.arg('updated_at'), sqlc.narg('updated_by'))
 ON CONFLICT (tenant_id) DO UPDATE
 SET enabled = EXCLUDED.enabled, default_collection_id = EXCLUDED.default_collection_id,
-    skill_id = EXCLUDED.skill_id, updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by;
+    skill_id = EXCLUDED.skill_id, invocation_name = EXCLUDED.invocation_name,
+    updated_at = EXCLUDED.updated_at, updated_by = EXCLUDED.updated_by;
 
 -- name: ListVoiceAliases :many
 SELECT id, phrase, collection_id, label_id

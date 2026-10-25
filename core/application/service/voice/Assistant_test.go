@@ -178,10 +178,14 @@ func TestTheInterpretationDoesNothing(t *testing.T) {
 // The workspace's lists are not in the pasted model: they reach Alexa with every answer, by
 // every name - so a list made tomorrow is heard without the model being pasted again.
 func TestTheListsReachAlexaAtRunTimeByEveryName(t *testing.T) {
-	model := AlexaModel(domain.German)
+	model := AlexaModel(domain.German, "")
 	language := model["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
-	if language["invocationName"] != InvocationName {
+	if language["invocationName"] != "digitale pinnwand" {
 		t.Errorf("invocation %v", language["invocationName"])
+	}
+	own := AlexaModel(domain.German, " Meine  Küche ")["interactionModel"].(map[string]any)["languageModel"].(map[string]any)
+	if own["invocationName"] != "meine küche" {
+		t.Errorf("own invocation %v", own["invocationName"])
 	}
 	directive := DynamicEntities([]domain.Known{
 		{Place: domain.Place{CollectionID: einkauf, Name: "Einkauf"}, Name: "Einkauf"},
