@@ -39,6 +39,7 @@ type Assistant interface {
 	Read(ctx context.Context, actor appshared.ActorContext, target string, language domain.Language) (voiceservice.Reply, error)
 	Complete(ctx context.Context, actor appshared.ActorContext, thing, target string, language domain.Language) (voiceservice.Reply, error)
 	Today(ctx context.Context, actor appshared.ActorContext, language domain.Language) (voiceservice.Reply, error)
+	Places(ctx context.Context, actor appshared.ActorContext) []domain.Known
 }
 
 // Alexa answers Alexa's requests.
@@ -89,9 +90,11 @@ type Response struct {
 }
 
 type responseBody struct {
-	OutputSpeech     *speech `json:"outputSpeech,omitempty"`
-	Card             *card   `json:"card,omitempty"`
-	ShouldEndSession bool    `json:"shouldEndSession"`
+	OutputSpeech *speech `json:"outputSpeech,omitempty"`
+	Card         *card   `json:"card,omitempty"`
+	// Directives carry the workspace's list names to Alexa for the session (DynamicEntities).
+	Directives       []any `json:"directives,omitempty"`
+	ShouldEndSession bool  `json:"shouldEndSession"`
 }
 
 type speech struct {
@@ -146,13 +149,16 @@ func (a Alexa) Handle(ctx context.Context, header http.Header, body []byte) (Res
 		return a.say(locale, voiceservice.Reply{Code: "voice.disabled"}), nil
 	}
 
+	// The person's own list names: the examples a guide speaks of, and what Alexa is taught to hear
+	// for the rest of the session.
+	known := a.Assistant.Places(ctx, actor)
 	slot := func(name string) string { return strings.TrimSpace(in.Request.Intent.Slots[name].Value) }
 	var answer voiceservice.Reply
 	switch {
 	case in.Request.Type == "LaunchRequest":
-		answer = voiceservice.Reply{Code: "voice.welcome", Open: true}
+		answer = voiceservice.Guide("voice.welcome", known, language)
 	case in.Request.Type != "IntentRequest":
-		answer = voiceservice.Reply{Code: "voice.not_understood"}
+		answer = voiceservice.Guide("voice.not_understood", known, language)
 	default:
 		switch in.Request.Intent.Name {
 		case voiceservice.IntentAdd:
@@ -166,20 +172,25 @@ func (a Alexa) Handle(ctx context.Context, header http.Header, body []byte) (Res
 		case voiceservice.IntentToday:
 			answer, err = a.Assistant.Today(ctx, actor, language)
 		case "AMAZON.HelpIntent":
-			answer = voiceservice.Reply{Code: "voice.help", Open: true}
+			answer = voiceservice.Guide("voice.help", known, language)
 		case "AMAZON.StopIntent", "AMAZON.CancelIntent", "AMAZON.NavigateHomeIntent":
 			answer = voiceservice.Reply{Code: "voice.bye"}
 		default:
-			answer = voiceservice.Reply{Code: "voice.not_understood", Open: true}
+			answer = voiceservice.Guide("voice.not_understood", known, language)
 		}
 	}
 	if err != nil {
 		if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
-			return a.say(locale, voiceservice.Reply{Code: "voice.not_allowed_here"}), nil
+			answer = voiceservice.Reply{Code: "voice.not_allowed_here"}
+		} else {
+			answer = voiceservice.Reply{Code: "voice.failed"}
 		}
-		return a.say(locale, voiceservice.Reply{Code: "voice.failed"}), nil
 	}
-	return a.say(locale, answer), nil
+	out := a.say(locale, answer)
+	if directive := voiceservice.DynamicEntities(known, language); directive != nil {
+		out.Response.Directives = []any{directive}
+	}
+	return out, nil
 }
 
 func (a Alexa) now() time.Time {

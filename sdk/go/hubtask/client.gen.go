@@ -20406,7 +20406,7 @@ type ClientInterface interface {
 
 	// ShowAlexaModel The Alexa interaction model
 	//
-	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 	//
 	// Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
 	ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error)
@@ -31365,7 +31365,7 @@ func (c *Client) AnswerAlexa(ctx context.Context, body AnswerAlexaJSONRequestBod
 
 // ShowAlexaModel The Alexa interaction model
 //
-// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 //
 // Corresponds with GET /voice/alexa/model (the `ShowAlexaModel` operationId).
 func (c *Client) ShowAlexaModel(ctx context.Context, params *ShowAlexaModelParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
@@ -55590,7 +55590,7 @@ type ClientWithResponsesInterface interface {
 
 	// ShowAlexaModelWithResponse The Alexa interaction model
 	//
-	// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+	// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 	//
 	// Returns a wrapper object for the known response body format(s).
 	//
@@ -83677,7 +83677,7 @@ func (c *ClientWithResponses) AnswerAlexaWithResponse(ctx context.Context, body 
 
 // ShowAlexaModelWithResponse The Alexa interaction model
 //
-// The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.
+// The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.
 //
 // Returns a wrapper object for the known response body format(s).
 //

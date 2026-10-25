@@ -135,15 +135,15 @@ func (a Assistant) Add(
 	}
 	meant := interpretParts(things, target, language, settings, known)
 	if strings.TrimSpace(target) != "" && !meant.Found && len(meant.Ambiguous) == 0 {
-		return reply("voice.no_such_list", map[string]string{"list": target}), nil
+		return reply("voice.no_such_list", withExamples(map[string]string{"list": target}, known, language)), nil
 	}
 	switch {
 	case len(meant.Things) == 0:
-		return reply("voice.nothing_heard", nil), nil
+		return reply("voice.nothing_heard", withExamples(nil, known, language)), nil
 	case len(meant.Ambiguous) > 0:
 		return Reply{Code: "voice.which_list", Params: map[string]string{"lists": names(meant.Ambiguous)}, Open: true}, nil
 	case !meant.Found:
-		return reply("voice.no_list", nil), nil
+		return reply("voice.no_list", withExamples(nil, known, language)), nil
 	}
 	added := make([]string, 0, len(meant.Things))
 	for _, thing := range meant.Things {
@@ -289,13 +289,13 @@ func pick(target, said string, language domain.Language, settings domain.Setting
 		case len(resolution.Ambiguous) > 0:
 			return domain.Place{}, Reply{Code: "voice.which_list", Params: map[string]string{"lists": names(resolution.Ambiguous)}, Open: true}, false
 		default:
-			return domain.Place{}, reply("voice.no_such_list", map[string]string{"list": said}), false
+			return domain.Place{}, reply("voice.no_such_list", withExamples(map[string]string{"list": said}, known, language)), false
 		}
 	}
 	if place, ok := defaultPlace(settings, known); ok {
 		return place, Reply{}, true
 	}
-	return domain.Place{}, reply("voice.no_list", nil), false
+	return domain.Place{}, reply("voice.no_list", withExamples(nil, known, language)), false
 }
 
 func defaultPlace(settings domain.Settings, known []domain.Known) (domain.Place, bool) {
@@ -400,6 +400,57 @@ func (a Assistant) places(ctx context.Context, actor appshared.ActorContext) (do
 	}
 	sort.SliceStable(known, func(i, j int) bool { return known[i].Name < known[j].Name })
 	return settings, known, nil
+}
+
+// Places is every name the person's lists are spoken by - collections, their categories and the
+// workspace's aliases - for the answer to hand Alexa (DynamicEntities) and to build its examples
+// on. Nil where they cannot be read: an answer is still given, only without them.
+func (a Assistant) Places(ctx context.Context, actor appshared.ActorContext) []domain.Known {
+	_, known, err := a.places(ctx, actor)
+	if err != nil {
+		return nil
+	}
+	return known
+}
+
+// Guide is a reply that teaches how to speak to Hubtask - the welcome, the help, a sentence not
+// understood - with the person's own lists as its examples rather than a shopping list they may
+// not have.
+func Guide(code string, known []domain.Known, language domain.Language) Reply {
+	return Reply{Code: code, Params: withExamples(nil, known, language), Open: true}
+}
+
+// withExamples adds the person's lists to a reply: {lists} names up to five of them, {first} and
+// {second} are the two its examples are built on. A workspace without a list yet is spoken to
+// with the words for one.
+func withExamples(params map[string]string, known []domain.Known, language domain.Language) map[string]string {
+	out := map[string]string{}
+	for key, value := range params {
+		out[key] = value
+	}
+	var lists []string
+	seen := map[string]bool{}
+	for _, each := range known {
+		if each.Category || each.IsAlias || seen[each.Place.Name] {
+			continue
+		}
+		seen[each.Place.Name] = true
+		lists = append(lists, each.Place.Name)
+	}
+	fallback := map[domain.Language][2]string{domain.German: {"Einkauf", "Büro"}, domain.English: {"Shopping", "Office"}}[language]
+	first, second := fallback[0], fallback[1]
+	if len(lists) > 0 {
+		first, second = lists[0], lists[0]
+	}
+	if len(lists) > 1 {
+		second = lists[1]
+	}
+	out["first"], out["second"] = first, second
+	out["lists"] = joinSpoken(lists[:min(5, len(lists))], language)
+	if out["lists"] == "" {
+		out["lists"] = first
+	}
+	return out
 }
 
 func names(places []domain.Place) string {

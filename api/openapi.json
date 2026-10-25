@@ -1340,7 +1340,7 @@
         ],
         "operationId": "showAlexaModel",
         "summary": "The Alexa interaction model",
-        "description": "The interaction model to paste into the Alexa developer console's JSON editor, the workspace's lists and spoken names included.\n",
+        "description": "The interaction model to paste into the Alexa developer console's JSON editor. It names no workspace's lists: those reach Alexa at run time with every answer, so a list made or renamed later works without pasting the model again.\n",
         "parameters": [
           {
             "name": "locale",
