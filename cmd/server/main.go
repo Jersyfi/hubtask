@@ -96,6 +96,7 @@ import (
 	importadapter "github.com/Jersyfi/hubtask/infrastructure/importer"
 	"github.com/Jersyfi/hubtask/infrastructure/instancefile"
 	mailadapter "github.com/Jersyfi/hubtask/infrastructure/mail"
+	mailboxadapter "github.com/Jersyfi/hubtask/infrastructure/mailbox"
 	"github.com/Jersyfi/hubtask/infrastructure/observability"
 	oidcadapter "github.com/Jersyfi/hubtask/infrastructure/oidc"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
@@ -776,6 +777,28 @@ func run() error {
 		Settings: mailIntake, Receipts: mailIntake, Places: mailIntake, Containers: containers,
 		Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
 		Clock: clockadapter.System{}, Domain: cfg.Mail.InboundDomain,
+	}
+	// One intake behind every door: the operator's inbound service and the connected mailboxes
+	// hand their messages to the same use case.
+	receiveMail := jumbleservice.ReceiveMail{
+		Settings: mailIntake, Receipts: mailIntake, Places: mailIntake,
+		Accounts: accounts, Entries: postgres.NewJumbleRepository(cursors),
+		Media: mediaservice.IngestMedia{
+			Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
+			Text: forms,
+		},
+		Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
+		Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
+	}
+	// Connected mailboxes (ADR-0094): IMAP spoken in-house through the egress guard, JMAP through
+	// the guarded HTTP client; the secret sealed under the installation's key.
+	mailBoxes := mailservice.Boxes{
+		Writer: mailWriter, Mailboxes: postgres.NewMailboxRepository(),
+		Reader: mailboxadapter.Readers{
+			IMAP: mailboxadapter.IMAP{Guard: outboundGuard}, JMAP: mailboxadapter.JMAP{Client: outboundClient},
+		},
+		Encryptor: encryptor, Jobs: jobs, IDs: ids,
 	}
 	// Voice assistants (ADR-0093): a workspace's settings and spoken names, and the assistant that
 	// does what is said through the catalogue as the person who linked it.
@@ -2075,6 +2098,10 @@ func run() error {
 		mailservice.SaveMailSettings{Writer: mailWriter}.Descriptor(),
 		mailservice.ListMailReceipts{Writer: mailWriter}.Descriptor(),
 		mailservice.SetCollectionHandle{Writer: mailWriter}.Descriptor(),
+		mailservice.ListMailboxes{Boxes: mailBoxes}.Descriptor(),
+		mailservice.ConnectMailbox{Boxes: mailBoxes}.Descriptor(),
+		mailservice.CheckMailbox{Boxes: mailBoxes}.Descriptor(),
+		mailservice.RemoveMailbox{Boxes: mailBoxes}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2778,18 +2805,8 @@ func run() error {
 		// installation's key, and the intake files it where it is meant to go - as the admitted
 		// sender, through the catalogue, or into the jumble with the reason.
 		controller.AddressedMail = intake.AddressedMailIntake{
-			Key: cfg.Mail.InboundKey.Reveal(),
-			Deliveries: jumbleservice.ReceiveMail{
-				Settings: mailIntake, Receipts: mailIntake, Places: mailIntake,
-				Accounts: accounts, Entries: postgres.NewJumbleRepository(cursors),
-				Media: mediaservice.IngestMedia{
-					Objects: mediaObjects, Store: mediaStore, Guard: mediaGuard, Jobs: jobs,
-					UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Config: cfg,
-					Text: forms,
-				},
-				Catalogue: ruleCatalogue, Events: outbox, UnitOfWork: unitOfWork,
-				Clock: clockadapter.System{}, IDs: ids, Domain: cfg.Mail.InboundDomain,
-			},
+			Key:        cfg.Mail.InboundKey.Reveal(),
+			Deliveries: receiveMail,
 		}
 		// The change stream is not a catalogue entry either: it is a connection being held rather
 		// than an operation being invoked, so there is nothing for MCP or an automation rule to
@@ -3700,7 +3717,14 @@ func run() error {
 		Progress: jobs,
 	}
 	handlers := map[queueport.Kind]queueport.Handler{
-		queueport.KindReminderFire:          reminderFiring,
+		queueport.KindReminderFire: reminderFiring,
+		// A connected mailbox read into the intake, a minute at a time (ADR-0094).
+		queueport.KindMailboxPoll: mailservice.PollMailbox{
+			Boxes: mailBoxes, Receive: receiveMail,
+			Parse: func(raw []byte, _ string) (jumbleservice.ReceivedMail, error) {
+				return intake.Parsed(raw, nil, intake.MailLimits{})
+			},
+		},
 		queueport.KindRecurrenceMaterialize: recurrenceMaterialisation,
 		queueport.KindOutboxDispatch:        dispatcher,
 		queueport.KindRetentionSweep:        retention,

@@ -2006,6 +2006,46 @@ class MailSenderRoute(TypedDict, total=False):
     match: Required[str]
     collection_id: Required[str]
 
+class MailboxList(TypedDict, total=False):
+    mailboxes: Required[list["Mailbox"]]
+    presets: Required[list["MailboxPreset"]]
+
+class MailboxPreset(TypedDict, total=False):
+    key: Required[str]
+    protocol: Required[Literal["IMAP", "JMAP"]]
+    plus_addresses: Required[bool]
+    hint: Required[str]
+
+class MailboxConnection(TypedDict, total=False):
+    preset: str
+    protocol: Literal["IMAP", "JMAP"]
+    address: Required[str]
+    host: str
+    port: int
+    session_url: str
+    username: str
+    secret: Required[str]
+    folder: str
+    done_folder: str
+
+class Mailbox(TypedDict, total=False):
+    id: Required[str]
+    protocol: Required[Literal["IMAP", "JMAP"]]
+    address: Required[str]
+    host: str
+    port: int
+    session_url: str
+    username: Required[str]
+    folder: Required[str]
+    done_folder: Required[str]
+    preset: str
+    plus_addresses: bool
+    enabled: Required[bool]
+    checked_at: str
+    failure: str
+    failing: Required[bool]
+    created_at: Required[str]
+
 class MailReceiptList(TypedDict, total=False):
     receipts: Required[list["MailReceipt"]]
 

@@ -532,6 +532,12 @@ posts each raw message to `POST /mail/inbound` (`HUBTASK_MAIL_INBOUND_DOMAIN`,
 where the provider speaks it) is the other door. Hubtask runs no SMTP receiver. The jumble's own
 webhook doors (`/jumble/inbound/{token}`, `/jumble/mail/{token}`) stay as they were.
 
+**A connected mailbox** is read by the job `mail.mailbox_poll`, one per mailbox, seeded when it is
+connected and rescheduling itself every minute: it signs in (IMAP with TLS, in-house and through the
+egress guard; or JMAP through the guarded HTTP client), takes up to 25 messages that arrived since
+connecting, hands each to `ReceiveMail` and moves what was filed to the folder *Hubtask*. The
+secret is sealed (`mailbox.secret:<id>`) and opened only by that job and *Check now*.
+
 **The parser is transport-independent**: bytes in; sender, subject, text, attachments, Message-ID
 and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 

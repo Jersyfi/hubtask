@@ -97,3 +97,37 @@ SELECT c.handle, wi.number
 FROM work_item wi
 JOIN container c ON c.id = wi.collection_id
 WHERE wi.id = sqlc.arg('id') AND wi.deleted_at IS NULL;
+
+-- name: ListMailboxes :many
+SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
+       checked_at, failure, failing_since, created_at
+FROM mailbox
+ORDER BY created_at, id;
+
+-- name: FindMailbox :one
+SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
+       checked_at, failure, failing_since, created_at, secret_enc, secret_key_id
+FROM mailbox
+WHERE id = sqlc.arg('id');
+
+-- name: InsertMailbox :exec
+INSERT INTO mailbox (
+  id, tenant_id, protocol, address, host, port, session_url, username, folder, done_folder, preset,
+  enabled, secret_enc, secret_key_id, created_at, created_by
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('protocol'), sqlc.arg('address'), sqlc.narg('host'),
+  sqlc.narg('port'), sqlc.narg('session_url'), sqlc.arg('username'), sqlc.arg('folder'),
+  sqlc.arg('done_folder'), sqlc.narg('preset'), sqlc.arg('enabled'), sqlc.arg('secret_enc'),
+  sqlc.arg('secret_key_id'), sqlc.arg('created_at'), sqlc.narg('created_by')
+);
+
+-- name: SetMailboxChecked :execrows
+UPDATE mailbox
+SET checked_at = sqlc.arg('checked_at'), failure = sqlc.narg('failure'), failing_since = sqlc.narg('failing_since')
+WHERE id = sqlc.arg('id');
+
+-- name: DeleteMailbox :execrows
+DELETE FROM mailbox WHERE id = sqlc.arg('id');
+
+-- name: CountMailboxes :one
+SELECT count(*) FROM mailbox;

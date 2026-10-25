@@ -29,6 +29,10 @@ const (
 	saveMailSettingsUseCase    = "SaveMailSettings"
 	listMailReceiptsUseCase    = "ListMailReceipts"
 	setCollectionHandleUseCase = "SetCollectionHandle"
+	listMailboxesUseCase       = "ListMailboxes"
+	connectMailboxUseCase      = "ConnectMailbox"
+	checkMailboxUseCase        = "CheckMailbox"
+	removeMailboxUseCase       = "RemoveMailbox"
 	commentJumbleEntryUseCase  = "CommentJumbleEntry"
 )
 
@@ -72,10 +76,55 @@ func (c *RestController) SetCollectionHandle(
 	c.mailDocument(w, r, setCollectionHandleUseCase, input, &openapi.CollectionHandle{})
 }
 
+// ListMailboxes answers GET /mail/mailboxes.
+func (c *RestController) ListMailboxes(w http.ResponseWriter, r *http.Request) {
+	c.mailDocument(w, r, listMailboxesUseCase, usecase.Input{}, &openapi.MailboxList{})
+}
+
+// ConnectMailbox answers POST /mail/mailboxes.
+func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, _ openapi.ConnectMailboxParams) {
+	var body map[string]any
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	if port, ok := body["port"].(float64); ok {
+		body["port"] = int(port)
+	}
+	c.mailDocumentWith(w, r, http.StatusCreated, connectMailboxUseCase, usecase.Input(body), &openapi.Mailbox{})
+}
+
+// CheckMailbox answers POST /mail/mailboxes/{mailbox_id}:check.
+func (c *RestController) CheckMailbox(
+	w http.ResponseWriter, r *http.Request, mailboxID openapi_types.UUID, _ openapi.CheckMailboxParams,
+) {
+	c.mailDocument(w, r, checkMailboxUseCase, usecase.Input{"mailbox_id": mailboxID.String()}, &openapi.Mailbox{})
+}
+
+// RemoveMailbox answers DELETE /mail/mailboxes/{mailbox_id}.
+func (c *RestController) RemoveMailbox(w http.ResponseWriter, r *http.Request, mailboxID openapi_types.UUID) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	if _, err := c.UseCases.Invoke(r.Context(), removeMailboxUseCase, actorOf(r), usecase.Input{"mailbox_id": mailboxID.String()}); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // mailDocument invokes a use case as the caller and answers its output in the contract's shape,
 // mapped through its JSON spelling: the output already uses the contract's words.
 func (c *RestController) mailDocument(
 	w http.ResponseWriter, r *http.Request, name string, input usecase.Input, target any,
+) {
+	c.mailDocumentWith(w, r, http.StatusOK, name, input, target)
+}
+
+func (c *RestController) mailDocumentWith(
+	w http.ResponseWriter, r *http.Request, status int, name string, input usecase.Input, target any,
 ) {
 	requestID := correlation.RequestIDFrom(r.Context())
 	if c.UseCases == nil {
@@ -90,7 +139,7 @@ func (c *RestController) mailDocument(
 		WriteProblem(w, err, requestID)
 		return
 	}
-	writeJSON(w, r, http.StatusOK, target)
+	writeJSON(w, r, status, target)
 }
 
 // CommentJumbleEntry answers POST /jumble/entries/{entryId}:comment.

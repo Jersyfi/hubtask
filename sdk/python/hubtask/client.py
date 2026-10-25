@@ -199,6 +199,22 @@ class Client:
         """Replace the workspace's mail intake settings"""
         return self._call("PUT", "/mail/settings", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def list_mailboxes(self) -> "MailboxList":
+        """The workspace's connected mailboxes"""
+        return self._call("GET", "/mail/mailboxes", {}, None, {}, None, "none", None, "json")
+
+    def connect_mailbox(self, body: "MailboxConnection", *, idempotency_key: str | None = None) -> "Mailbox":
+        """Connect a mailbox to the mail intake"""
+        return self._call("POST", "/mail/mailboxes", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def remove_mailbox(self, mailbox_id: str) -> None:
+        """Disconnect a mailbox"""
+        return self._call("DELETE", "/mail/mailboxes/{mailbox_id}", {"mailbox_id": mailbox_id}, None, {}, None, "none", None, "void")
+
+    def check_mailbox(self, mailbox_id: str, *, idempotency_key: str | None = None) -> "Mailbox":
+        """Sign in to a connected mailbox again and read it now"""
+        return self._call("POST", "/mail/mailboxes/{mailbox_id}:check", {"mailbox_id": mailbox_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+
     def list_mail_receipts(self) -> "MailReceiptList":
         """What the mail intake received"""
         return self._call("GET", "/mail/receipts", {}, None, {}, None, "none", None, "json")

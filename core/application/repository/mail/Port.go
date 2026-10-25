@@ -11,6 +11,7 @@ import (
 
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
 // Settings reads and writes a workspace's intake settings.
@@ -50,4 +51,20 @@ type Places interface {
 	// SetHandle gives a collection a handle; one another collection of the workspace holds - or
 	// held, while it is in the trash - is a conflict, `mail.handle_taken`.
 	SetHandle(ctx context.Context, collectionID shared.ID, handle string) error
+}
+
+// Mailboxes are the workspace's connected mailboxes. The secret is stored sealed and answered only
+// by Find, for the read that signs in; List answers no secret at all.
+type Mailboxes interface {
+	List(ctx context.Context) ([]domain.Mailbox, error)
+	// Find answers the mailbox and its sealed secret; not found for none.
+	Find(ctx context.Context, id shared.ID) (domain.Mailbox, crypto.Sealed, error)
+	// Insert stores a mailbox; an address the workspace connected already is a conflict,
+	// `mail.mailbox_taken`.
+	Insert(ctx context.Context, mailbox domain.Mailbox, sealed crypto.Sealed, by shared.ID) error
+	// RecordCheck writes what the last read found: when, and the failure if any.
+	RecordCheck(ctx context.Context, mailbox domain.Mailbox) error
+	// Delete removes it; not found for none.
+	Delete(ctx context.Context, id shared.ID) error
+	Count(ctx context.Context) (int, error)
 }

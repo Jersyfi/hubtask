@@ -2832,6 +2832,60 @@ func (e MailSendersLevel) Valid() bool {
 	}
 }
 
+// Defines values for MailboxProtocol.
+const (
+	MailboxProtocolIMAP MailboxProtocol = "IMAP"
+	MailboxProtocolJMAP MailboxProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxProtocol enum.
+func (e MailboxProtocol) Valid() bool {
+	switch e {
+	case MailboxProtocolIMAP:
+		return true
+	case MailboxProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailboxConnectionProtocol.
+const (
+	MailboxConnectionProtocolIMAP MailboxConnectionProtocol = "IMAP"
+	MailboxConnectionProtocolJMAP MailboxConnectionProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxConnectionProtocol enum.
+func (e MailboxConnectionProtocol) Valid() bool {
+	switch e {
+	case MailboxConnectionProtocolIMAP:
+		return true
+	case MailboxConnectionProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailboxPresetProtocol.
+const (
+	MailboxPresetProtocolIMAP MailboxPresetProtocol = "IMAP"
+	MailboxPresetProtocolJMAP MailboxPresetProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxPresetProtocol enum.
+func (e MailboxPresetProtocol) Valid() bool {
+	switch e {
+	case MailboxPresetProtocolIMAP:
+		return true
+	case MailboxPresetProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -9173,6 +9227,74 @@ type MailSettings struct {
 	Senders      *MailSenders       `json:"senders,omitempty"`
 }
 
+// Mailbox defines model for Mailbox.
+type Mailbox struct {
+	Address    string     `json:"address"`
+	CheckedAt  *time.Time `json:"checked_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	DoneFolder string     `json:"done_folder"`
+	Enabled    bool       `json:"enabled"`
+
+	// Failing The reads have failed for an hour or longer.
+	Failing bool `json:"failing"`
+
+	// Failure What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off.
+	Failure       *string            `json:"failure,omitempty"`
+	Folder        string             `json:"folder"`
+	Host          *string            `json:"host,omitempty"`
+	Id            openapi_types.UUID `json:"id"`
+	PlusAddresses *bool              `json:"plus_addresses,omitempty"`
+	Port          *int               `json:"port,omitempty"`
+	Preset        *string            `json:"preset,omitempty"`
+	Protocol      MailboxProtocol    `json:"protocol"`
+	SessionUrl    *string            `json:"session_url,omitempty"`
+	Username      string             `json:"username"`
+}
+
+// MailboxProtocol defines model for Mailbox.Protocol.
+type MailboxProtocol string
+
+// MailboxConnection defines model for MailboxConnection.
+type MailboxConnection struct {
+	Address    openapi_types.Email        `json:"address"`
+	DoneFolder *string                    `json:"done_folder,omitempty"`
+	Folder     *string                    `json:"folder,omitempty"`
+	Host       *string                    `json:"host,omitempty"`
+	Port       *int                       `json:"port,omitempty"`
+	Preset     *string                    `json:"preset,omitempty"`
+	Protocol   *MailboxConnectionProtocol `json:"protocol,omitempty"`
+
+	// Secret The password, app password or token. Stored sealed and never answered.
+	Secret     *string `json:"secret,omitempty"`
+	SessionUrl *string `json:"session_url,omitempty"`
+	Username   *string `json:"username,omitempty"`
+}
+
+// MailboxConnectionProtocol defines model for MailboxConnection.Protocol.
+type MailboxConnectionProtocol string
+
+// MailboxList defines model for MailboxList.
+type MailboxList struct {
+	Mailboxes []Mailbox       `json:"mailboxes"`
+	Presets   []MailboxPreset `json:"presets"`
+}
+
+// MailboxPreset defines model for MailboxPreset.
+type MailboxPreset struct {
+	// Hint A message code saying what the provider asks for first.
+	Hint string `json:"hint"`
+
+	// Key gmail, gmx, webde, ionos, fastmail.
+	Key string `json:"key"`
+
+	// PlusAddresses The provider delivers name+tag@ to name@, so a plus tag can name a place.
+	PlusAddresses bool                  `json:"plus_addresses"`
+	Protocol      MailboxPresetProtocol `json:"protocol"`
+}
+
+// MailboxPresetProtocol defines model for MailboxPreset.Protocol.
+type MailboxPresetProtocol string
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -14157,6 +14279,18 @@ type DeliverAddressedMailParams struct {
 	Recipient *string `form:"recipient,omitempty" json:"recipient,omitempty"`
 }
 
+// ConnectMailboxParams defines parameters for ConnectMailbox.
+type ConnectMailboxParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CheckMailboxParams defines parameters for CheckMailbox.
+type CheckMailboxParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SaveMailSettingsParams defines parameters for SaveMailSettings.
 type SaveMailSettingsParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -14850,6 +14984,9 @@ type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
 // DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
 type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
+
+// ConnectMailboxJSONRequestBody defines body for ConnectMailbox for application/json ContentType.
+type ConnectMailboxJSONRequestBody = MailboxConnection
 
 // SaveMailSettingsJSONRequestBody defines body for SaveMailSettings for application/json ContentType.
 type SaveMailSettingsJSONRequestBody = MailSettings
@@ -19180,6 +19317,43 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
 	DeliverAddressedMailWithBody(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListMailboxes The workspace's connected mailboxes
+	//
+	// Each mailbox the intake reads, how its last read went, and the provider presets a new one can start from. A secret is never answered.
+	//
+	// Corresponds with GET /mail/mailboxes (the `ListMailboxes` operationId).
+	ListMailboxes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectMailboxWithBody Connect a mailbox to the mail intake
+	//
+	// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+	ConnectMailboxWithBody(ctx context.Context, params *ConnectMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ConnectMailbox Connect a mailbox to the mail intake
+	//
+	// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+	ConnectMailbox(ctx context.Context, params *ConnectMailboxParams, body ConnectMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// RemoveMailbox Disconnect a mailbox
+	//
+	// The secret is forgotten and the mailbox is read no more; the mail in it stays.
+	//
+	// Corresponds with DELETE /mail/mailboxes/{mailbox_id} (the `RemoveMailbox` operationId).
+	RemoveMailbox(ctx context.Context, mailboxId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckMailbox Sign in to a connected mailbox again and read it now
+	//
+	// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
+	CheckMailbox(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMailReceipts What the mail intake received
 	//
@@ -29007,6 +29181,93 @@ func (c *Client) ReleaseLegalHold(ctx context.Context, holdId openapi_types.UUID
 // Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
 func (c *Client) DeliverAddressedMailWithBody(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewDeliverAddressedMailRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListMailboxes The workspace's connected mailboxes
+//
+// Each mailbox the intake reads, how its last read went, and the provider presets a new one can start from. A secret is never answered.
+//
+// Corresponds with GET /mail/mailboxes (the `ListMailboxes` operationId).
+func (c *Client) ListMailboxes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListMailboxesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectMailboxWithBody Connect a mailbox to the mail intake
+//
+// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+func (c *Client) ConnectMailboxWithBody(ctx context.Context, params *ConnectMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectMailboxRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ConnectMailbox Connect a mailbox to the mail intake
+//
+// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+func (c *Client) ConnectMailbox(ctx context.Context, params *ConnectMailboxParams, body ConnectMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewConnectMailboxRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// RemoveMailbox Disconnect a mailbox
+//
+// The secret is forgotten and the mailbox is read no more; the mail in it stays.
+//
+// Corresponds with DELETE /mail/mailboxes/{mailbox_id} (the `RemoveMailbox` operationId).
+func (c *Client) RemoveMailbox(ctx context.Context, mailboxId openapi_types.UUID, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveMailboxRequest(c.Server, mailboxId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckMailbox Sign in to a connected mailbox again and read it now
+//
+// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
+func (c *Client) CheckMailbox(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckMailboxRequest(c.Server, mailboxId, params)
 	if err != nil {
 		return nil, err
 	}
@@ -45822,6 +46083,171 @@ func NewDeliverAddressedMailRequestWithBody(server string, params *DeliverAddres
 	return req, nil
 }
 
+// NewListMailboxesRequest constructs an http.Request for the ListMailboxes method
+func NewListMailboxesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewConnectMailboxRequest calls the generic ConnectMailbox builder with application/json body
+func NewConnectMailboxRequest(server string, params *ConnectMailboxParams, body ConnectMailboxJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewConnectMailboxRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewConnectMailboxRequestWithBody constructs an http.Request for the ConnectMailbox method, with any body, and a specified content type
+func NewConnectMailboxRequestWithBody(server string, params *ConnectMailboxParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewRemoveMailboxRequest constructs an http.Request for the RemoveMailbox method
+func NewRemoveMailboxRequest(server string, mailboxId openapi_types.UUID) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mailbox_id", mailboxId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCheckMailboxRequest constructs an http.Request for the CheckMailbox method
+func NewCheckMailboxRequest(server string, mailboxId openapi_types.UUID, params *CheckMailboxParams) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "mailbox_id", mailboxId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes/%s:check", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListMailReceiptsRequest constructs an http.Request for the ListMailReceipts method
 func NewListMailReceiptsRequest(server string) (*http.Request, error) {
 	var err error
@@ -54277,6 +54703,49 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /mail/inbound (the `DeliverAddressedMail` operationId).
 	DeliverAddressedMailWithBodyWithResponse(ctx context.Context, params *DeliverAddressedMailParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*DeliverAddressedMailResult, error)
+
+	// ListMailboxesWithResponse The workspace's connected mailboxes
+	//
+	// Each mailbox the intake reads, how its last read went, and the provider presets a new one can start from. A secret is never answered.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /mail/mailboxes (the `ListMailboxes` operationId).
+	ListMailboxesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMailboxesResult, error)
+
+	// ConnectMailboxWithBodyWithResponse Connect a mailbox to the mail intake
+	//
+	// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+	ConnectMailboxWithBodyWithResponse(ctx context.Context, params *ConnectMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectMailboxResult, error)
+
+	// ConnectMailboxWithResponse Connect a mailbox to the mail intake
+	//
+	// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+	ConnectMailboxWithResponse(ctx context.Context, params *ConnectMailboxParams, body ConnectMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectMailboxResult, error)
+
+	// RemoveMailboxWithResponse Disconnect a mailbox
+	//
+	// The secret is forgotten and the mailbox is read no more; the mail in it stays.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /mail/mailboxes/{mailbox_id} (the `RemoveMailbox` operationId).
+	RemoveMailboxWithResponse(ctx context.Context, mailboxId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveMailboxResult, error)
+
+	// CheckMailboxWithResponse Sign in to a connected mailbox again and read it now
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
+	CheckMailboxWithResponse(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*CheckMailboxResult, error)
 
 	// ListMailReceiptsWithResponse What the mail intake received
 	//
@@ -70496,6 +70965,191 @@ func (r DeliverAddressedMailResult) ContentType() string {
 	return ""
 }
 
+type ListMailboxesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MailboxList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListMailboxesResult) GetJSON200() *MailboxList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListMailboxesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListMailboxesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListMailboxesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListMailboxesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListMailboxesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ConnectMailboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Mailbox
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r ConnectMailboxResult) GetJSON201() *Mailbox {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ConnectMailboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ConnectMailboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ConnectMailboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ConnectMailboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ConnectMailboxResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type RemoveMailboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveMailboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveMailboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveMailboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveMailboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveMailboxResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckMailboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *Mailbox
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckMailboxResult) GetJSON200() *Mailbox {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckMailboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckMailboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckMailboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckMailboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckMailboxResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMailReceiptsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -81742,6 +82396,79 @@ func (c *ClientWithResponses) DeliverAddressedMailWithBodyWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseDeliverAddressedMailResult(rsp)
+}
+
+// ListMailboxesWithResponse The workspace's connected mailboxes
+//
+// Each mailbox the intake reads, how its last read went, and the provider presets a new one can start from. A secret is never answered.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /mail/mailboxes (the `ListMailboxes` operationId).
+func (c *ClientWithResponses) ListMailboxesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListMailboxesResult, error) {
+	rsp, err := c.ListMailboxes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListMailboxesResult(rsp)
+}
+
+// ConnectMailboxWithBodyWithResponse Connect a mailbox to the mail intake
+//
+// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+func (c *ClientWithResponses) ConnectMailboxWithBodyWithResponse(ctx context.Context, params *ConnectMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ConnectMailboxResult, error) {
+	rsp, err := c.ConnectMailboxWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectMailboxResult(rsp)
+}
+
+// ConnectMailboxWithResponse Connect a mailbox to the mail intake
+//
+// Signs in once with the given secret - a password, an app password, or a JMAP token - and stores the mailbox only when that worked, the secret sealed. From then on the mailbox is read every minute; only mail that arrives after connecting is taken, and each taken message is moved to the done folder. A refused sign-in answers `422` (`mail.mailbox_refused`), an unreachable server `503`.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes (the `ConnectMailbox` operationId).
+func (c *ClientWithResponses) ConnectMailboxWithResponse(ctx context.Context, params *ConnectMailboxParams, body ConnectMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*ConnectMailboxResult, error) {
+	rsp, err := c.ConnectMailbox(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseConnectMailboxResult(rsp)
+}
+
+// RemoveMailboxWithResponse Disconnect a mailbox
+//
+// The secret is forgotten and the mailbox is read no more; the mail in it stays.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /mail/mailboxes/{mailbox_id} (the `RemoveMailbox` operationId).
+func (c *ClientWithResponses) RemoveMailboxWithResponse(ctx context.Context, mailboxId openapi_types.UUID, reqEditors ...RequestEditorFn) (*RemoveMailboxResult, error) {
+	rsp, err := c.RemoveMailbox(ctx, mailboxId, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveMailboxResult(rsp)
+}
+
+// CheckMailboxWithResponse Sign in to a connected mailbox again and read it now
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
+func (c *ClientWithResponses) CheckMailboxWithResponse(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*CheckMailboxResult, error) {
+	rsp, err := c.CheckMailbox(ctx, mailboxId, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckMailboxResult(rsp)
 }
 
 // ListMailReceiptsWithResponse What the mail intake received
@@ -94596,6 +95323,134 @@ func ParseDeliverAddressedMailResult(rsp *http.Response) (*DeliverAddressedMailR
 			return nil, err
 		}
 		response.JSON202 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListMailboxesResult parses an HTTP response from a ListMailboxesWithResponse call
+func ParseListMailboxesResult(rsp *http.Response) (*ListMailboxesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListMailboxesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MailboxList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseConnectMailboxResult parses an HTTP response from a ConnectMailboxWithResponse call
+func ParseConnectMailboxResult(rsp *http.Response) (*ConnectMailboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectMailboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Mailbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveMailboxResult parses an HTTP response from a RemoveMailboxWithResponse call
+func ParseRemoveMailboxResult(rsp *http.Response) (*RemoveMailboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveMailboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckMailboxResult parses an HTTP response from a CheckMailboxWithResponse call
+func ParseCheckMailboxResult(rsp *http.Response) (*CheckMailboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckMailboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest Mailbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

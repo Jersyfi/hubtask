@@ -1246,6 +1246,12 @@ export function fallback(route, request, path) {
     return route.fulfill({ json: { enabled: false, senders: { level: 'MEMBERS', allowed: [], blocked: [] }, sender_routes: [] } });
   }
   if (read === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
+  if (read === '/mail/mailboxes' && request.method() === 'GET') {
+    return route.fulfill({ json: { mailboxes: [], presets: [
+      { key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' },
+      { key: 'gmx', protocol: 'IMAP', plus_addresses: false, hint: 'mail.preset_gmx' },
+    ] } });
+  }
   // Voice switched off and nothing named, as a workspace starts (ADR-0093).
   if (read === '/voice/settings' && request.method() === 'GET') return route.fulfill({ json: { enabled: false, aliases: [], installation_skill: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });

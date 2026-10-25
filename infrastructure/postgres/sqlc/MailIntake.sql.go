@@ -65,6 +65,17 @@ func (q *Queries) CountMailReceiptsFrom(ctx context.Context, arg CountMailReceip
 	return count, err
 }
 
+const countMailboxes = `-- name: CountMailboxes :one
+SELECT count(*) FROM mailbox
+`
+
+func (q *Queries) CountMailboxes(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countMailboxes)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const deleteExpiredMailReceipts = `-- name: DeleteExpiredMailReceipts :execrows
 DELETE FROM mail_receipt
 WHERE id IN (
@@ -83,6 +94,18 @@ type DeleteExpiredMailReceiptsParams struct {
 // The retention run's batch: the oldest receipts past the period (ADR-0094, 30 days).
 func (q *Queries) DeleteExpiredMailReceipts(ctx context.Context, arg DeleteExpiredMailReceiptsParams) (int64, error) {
 	result, err := q.db.Exec(ctx, deleteExpiredMailReceipts, arg.Cutoff, arg.Batch)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const deleteMailbox = `-- name: DeleteMailbox :execrows
+DELETE FROM mailbox WHERE id = $1
+`
+
+func (q *Queries) DeleteMailbox(ctx context.Context, id pgtype.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteMailbox, id)
 	if err != nil {
 		return 0, err
 	}
@@ -124,6 +147,58 @@ func (q *Queries) FindMailSetting(ctx context.Context) (FindMailSettingRow, erro
 		&i.SenderRoutes,
 		&i.OpenedBy,
 		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const findMailbox = `-- name: FindMailbox :one
+SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
+       checked_at, failure, failing_since, created_at, secret_enc, secret_key_id
+FROM mailbox
+WHERE id = $1
+`
+
+type FindMailboxRow struct {
+	ID           pgtype.UUID
+	Protocol     string
+	Address      string
+	Host         *string
+	Port         *int32
+	SessionUrl   *string
+	Username     string
+	Folder       string
+	DoneFolder   string
+	Preset       *string
+	Enabled      bool
+	CheckedAt    pgtype.Timestamptz
+	Failure      *string
+	FailingSince pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	SecretEnc    []byte
+	SecretKeyID  string
+}
+
+func (q *Queries) FindMailbox(ctx context.Context, id pgtype.UUID) (FindMailboxRow, error) {
+	row := q.db.QueryRow(ctx, findMailbox, id)
+	var i FindMailboxRow
+	err := row.Scan(
+		&i.ID,
+		&i.Protocol,
+		&i.Address,
+		&i.Host,
+		&i.Port,
+		&i.SessionUrl,
+		&i.Username,
+		&i.Folder,
+		&i.DoneFolder,
+		&i.Preset,
+		&i.Enabled,
+		&i.CheckedAt,
+		&i.Failure,
+		&i.FailingSince,
+		&i.CreatedAt,
+		&i.SecretEnc,
+		&i.SecretKeyID,
 	)
 	return i, err
 }
@@ -172,6 +247,57 @@ func (q *Queries) InsertMailReceipt(ctx context.Context, arg InsertMailReceiptPa
 	return result.RowsAffected(), nil
 }
 
+const insertMailbox = `-- name: InsertMailbox :exec
+INSERT INTO mailbox (
+  id, tenant_id, protocol, address, host, port, session_url, username, folder, done_folder, preset,
+  enabled, secret_enc, secret_key_id, created_at, created_by
+) VALUES (
+  $1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8,
+  $9, $10, $11, $12,
+  $13, $14, $15
+)
+`
+
+type InsertMailboxParams struct {
+	ID          pgtype.UUID
+	Protocol    string
+	Address     string
+	Host        *string
+	Port        *int32
+	SessionUrl  *string
+	Username    string
+	Folder      string
+	DoneFolder  string
+	Preset      *string
+	Enabled     bool
+	SecretEnc   []byte
+	SecretKeyID string
+	CreatedAt   pgtype.Timestamptz
+	CreatedBy   pgtype.UUID
+}
+
+func (q *Queries) InsertMailbox(ctx context.Context, arg InsertMailboxParams) error {
+	_, err := q.db.Exec(ctx, insertMailbox,
+		arg.ID,
+		arg.Protocol,
+		arg.Address,
+		arg.Host,
+		arg.Port,
+		arg.SessionUrl,
+		arg.Username,
+		arg.Folder,
+		arg.DoneFolder,
+		arg.Preset,
+		arg.Enabled,
+		arg.SecretEnc,
+		arg.SecretKeyID,
+		arg.CreatedAt,
+		arg.CreatedBy,
+	)
+	return err
+}
+
 const itemByKey = `-- name: ItemByKey :one
 SELECT wi.id
 FROM work_item wi
@@ -210,6 +336,67 @@ func (q *Queries) ItemKey(ctx context.Context, id pgtype.UUID) (ItemKeyRow, erro
 	var i ItemKeyRow
 	err := row.Scan(&i.Handle, &i.Number)
 	return i, err
+}
+
+const listMailboxes = `-- name: ListMailboxes :many
+SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
+       checked_at, failure, failing_since, created_at
+FROM mailbox
+ORDER BY created_at, id
+`
+
+type ListMailboxesRow struct {
+	ID           pgtype.UUID
+	Protocol     string
+	Address      string
+	Host         *string
+	Port         *int32
+	SessionUrl   *string
+	Username     string
+	Folder       string
+	DoneFolder   string
+	Preset       *string
+	Enabled      bool
+	CheckedAt    pgtype.Timestamptz
+	Failure      *string
+	FailingSince pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+}
+
+func (q *Queries) ListMailboxes(ctx context.Context) ([]ListMailboxesRow, error) {
+	rows, err := q.db.Query(ctx, listMailboxes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListMailboxesRow{}
+	for rows.Next() {
+		var i ListMailboxesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Protocol,
+			&i.Address,
+			&i.Host,
+			&i.Port,
+			&i.SessionUrl,
+			&i.Username,
+			&i.Folder,
+			&i.DoneFolder,
+			&i.Preset,
+			&i.Enabled,
+			&i.CheckedAt,
+			&i.Failure,
+			&i.FailingSince,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const mailReceiptExists = `-- name: MailReceiptExists :one
@@ -309,6 +496,32 @@ type SetCollectionHandleParams struct {
 
 func (q *Queries) SetCollectionHandle(ctx context.Context, arg SetCollectionHandleParams) (int64, error) {
 	result, err := q.db.Exec(ctx, setCollectionHandle, arg.Handle, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const setMailboxChecked = `-- name: SetMailboxChecked :execrows
+UPDATE mailbox
+SET checked_at = $1, failure = $2, failing_since = $3
+WHERE id = $4
+`
+
+type SetMailboxCheckedParams struct {
+	CheckedAt    pgtype.Timestamptz
+	Failure      *string
+	FailingSince pgtype.Timestamptz
+	ID           pgtype.UUID
+}
+
+func (q *Queries) SetMailboxChecked(ctx context.Context, arg SetMailboxCheckedParams) (int64, error) {
+	result, err := q.db.Exec(ctx, setMailboxChecked,
+		arg.CheckedAt,
+		arg.Failure,
+		arg.FailingSince,
+		arg.ID,
+	)
 	if err != nil {
 		return 0, err
 	}

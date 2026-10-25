@@ -32,10 +32,12 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import {
     linesOf,
+    mailboxRouteTo,
     readMailReceipts,
     readMailSettings,
     saveMailSettings,
     suggestedName,
+    type Mailbox,
     type MailReceipt,
     type MailSettings,
     type SenderLevel,
@@ -46,6 +48,7 @@
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { renderProblem } from '../lib/problem.ts';
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
+  import MailboxSection from '../lib/mail/MailboxSection.svelte';
 
   interface DraftRoute {
     key: string;
@@ -65,6 +68,8 @@
   let isSaving = $state(false);
   let saveFailure = $state<string | undefined>(undefined);
   let receipts = $state<readonly MailReceipt[]>([]);
+  /** The connected mailboxes, for the addresses a collection is reached at through one. */
+  let mailboxes = $state<readonly Mailbox[]>([]);
 
   const mayShape = $derived(holdsHere('AUTOMATION') === true);
 
@@ -221,6 +226,13 @@
             </Stack>
           </section>
 
+          <section class="panel" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
+            <Stack gap="150">
+              <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
+              <MailboxSection onchange={(next) => (mailboxes = next)} />
+            </Stack>
+          </section>
+
           <section class="panel" aria-labelledby="mail-senders" data-mail-senders>
             <Stack gap="150">
               <h2 class="section" id="mail-senders">{t('app.mail.section_senders')}</h2>
@@ -273,6 +285,11 @@
                     <span class="value-label">{collection.label}</span>
                     <code>#{collection.handle}</code>
                     <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: `#${collection.handle}` })} onclick={() => void copy(`#${collection.handle}`)} />
+                    {#if mailboxes[0]?.plus_addresses}
+                      {@const through = mailboxRouteTo(collection.handle, mailboxes[0])}
+                      <code data-plus-address>{through}</code>
+                      <IconButton icon="copy" size="sm" label={t('app.mail.copy_named', { name: through })} onclick={() => void copy(through)} />
+                    {/if}
                   </li>
                 {/each}
               </ul>

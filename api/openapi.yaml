@@ -759,6 +759,89 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /mail/mailboxes:
+    get:
+      tags: [jumble]
+      operationId: listMailboxes
+      summary: The workspace's connected mailboxes
+      description: >
+        Each mailbox the intake reads, how its last read went, and the provider presets a new one
+        can start from. A secret is never answered.
+      responses:
+        "200":
+          description: The mailboxes and the presets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailboxList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [jumble]
+      operationId: connectMailbox
+      summary: Connect a mailbox to the mail intake
+      description: >
+        Signs in once with the given secret - a password, an app password, or a JMAP token - and
+        stores the mailbox only when that worked, the secret sealed. From then on the mailbox is
+        read every minute; only mail that arrives after connecting is taken, and each taken
+        message is moved to the done folder. A refused sign-in answers `422`
+        (`mail.mailbox_refused`), an unreachable server `503`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailboxConnection"
+      responses:
+        "201":
+          description: Connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mailbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes/{mailbox_id}:
+    delete:
+      tags: [jumble]
+      operationId: removeMailbox
+      summary: Disconnect a mailbox
+      description: The secret is forgotten and the mailbox is read no more; the mail in it stays.
+      parameters:
+        - name: mailbox_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Disconnected
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes/{mailbox_id}:check:
+    post:
+      tags: [jumble]
+      operationId: checkMailbox
+      summary: Sign in to a connected mailbox again and read it now
+      parameters:
+        - name: mailbox_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: How the sign-in went
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mailbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /mail/receipts:
     get:
       tags: [jumble]
@@ -17809,6 +17892,75 @@ components:
       properties:
         match: { type: string, description: An address or an @domain. }
         collection_id: { type: string, format: uuid }
+
+    MailboxList:
+      type: object
+      required: [mailboxes, presets]
+      properties:
+        mailboxes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mailbox"
+        presets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailboxPreset"
+
+    MailboxPreset:
+      type: object
+      required: [key, protocol, plus_addresses, hint]
+      properties:
+        key: { type: string, description: "gmail, gmx, webde, ionos, fastmail." }
+        protocol: { type: string, enum: [IMAP, JMAP] }
+        plus_addresses:
+          type: boolean
+          description: The provider delivers name+tag@ to name@, so a plus tag can name a place.
+        hint: { type: string, description: A message code saying what the provider asks for first. }
+
+    MailboxConnection:
+      type: object
+      required: [address, secret]
+      properties:
+        preset: { type: string }
+        protocol: { type: string, enum: [IMAP, JMAP] }
+        address: { type: string, format: email }
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        session_url: { type: string, format: uri }
+        username: { type: string }
+        secret:
+          type: string
+          writeOnly: true
+          description: The password, app password or token. Stored sealed and never answered.
+        folder: { type: string }
+        done_folder: { type: string }
+
+    Mailbox:
+      type: object
+      required: [id, protocol, address, username, folder, done_folder, enabled, failing, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        protocol: { type: string, enum: [IMAP, JMAP] }
+        address: { type: string }
+        host: { type: string }
+        port: { type: integer }
+        session_url: { type: string }
+        username: { type: string }
+        folder: { type: string }
+        done_folder: { type: string }
+        preset: { type: string }
+        plus_addresses: { type: boolean }
+        enabled: { type: boolean }
+        checked_at: { type: string, format: date-time }
+        failure:
+          type: string
+          description: >
+            What the last read failed with, as a message code: mail.mailbox_refused,
+            mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off.
+        failing:
+          type: boolean
+          description: The reads have failed for an hour or longer.
+        created_at: { type: string, format: date-time }
 
     MailReceiptList:
       type: object

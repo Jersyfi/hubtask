@@ -113,3 +113,79 @@ func (r Replies) ReplyAddress(ctx context.Context, tenantID, itemID shared.ID) (
 	}
 	return address, nil
 }
+
+// Descriptor is the catalogue entry.
+func (h ListMailboxes) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        ListMailboxesName,
+		Summary:     "The workspace's connected mailboxes - where each is, how its last read went - and the provider presets a new one can start from. Never a secret.",
+		SideEffects: "None. Reads only.",
+		TokenScope:  automationManage,
+		ReadOnly:    true,
+		Audit:       usecase.AuditDeclaration{Action: mailboxesReadAction, TargetType: mailboxTarget, Severity: audit.SeverityInfo},
+		Handler:     usecase.HandlerFunc(h.invoke),
+	}
+}
+
+// Descriptor is the catalogue entry.
+func (h ConnectMailbox) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        ConnectMailboxName,
+		Summary:     "Connects a mailbox to the workspace's mail intake: signs in once, stores it with its secret sealed, and reads it every minute from then on. Only mail that arrives after connecting is taken.",
+		SideEffects: "Signs in to the mail server, stores the mailbox, queues its read and writes an audit entry.",
+		TokenScope:  automationManage,
+		Input: []usecase.Field{
+			{Name: "preset", Kind: usecase.KindString, Description: "gmail, gmx, webde, ionos or fastmail; empty for another provider."},
+			{Name: "protocol", Kind: usecase.KindString, Description: "IMAP or JMAP, where no preset says which."},
+			{Name: "address", Kind: usecase.KindString, Required: true, Description: "The mailbox's own address."},
+			{Name: "host", Kind: usecase.KindString, Description: "The IMAP server, where no preset names it."},
+			{Name: "port", Kind: usecase.KindInt, Description: "The IMAP port with TLS; 993 by default."},
+			{Name: "session_url", Kind: usecase.KindString, Description: "The JMAP session resource, where no preset names it."},
+			{Name: "username", Kind: usecase.KindString, Description: "The sign-in name; the address by default."},
+			{Name: "secret", Kind: usecase.KindString, Required: true, Description: "The password, app password or token. Stored sealed, never answered."},
+			{Name: "folder", Kind: usecase.KindString, Description: "The folder read; INBOX by default."},
+			{Name: "done_folder", Kind: usecase.KindString, Description: "Where a taken message is moved; Hubtask by default."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: mailboxConnected, TargetType: mailboxTarget, Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Exempt: "Settings of the workspace, not of an entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}
+
+// Descriptor is the catalogue entry.
+func (h CheckMailbox) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        CheckMailboxName,
+		Summary:     "Signs in to a connected mailbox again, records how that went, and reads it now.",
+		SideEffects: "Signs in to the mail server, records the result, queues a read and writes an audit entry.",
+		TokenScope:  automationManage,
+		Input: []usecase.Field{
+			{Name: "mailbox_id", Kind: usecase.KindID, Required: true, Description: "The mailbox."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: mailboxChecked, TargetType: mailboxTarget, Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Exempt: "Settings of the workspace, not of an entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}
+
+// Descriptor is the catalogue entry.
+func (h RemoveMailbox) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        RemoveMailboxName,
+		Summary:     "Disconnects a mailbox: its secret is forgotten and it is read no more. The mail in it stays where it is.",
+		SideEffects: "Removes the mailbox and writes an audit entry.",
+		TokenScope:  automationManage,
+		Input: []usecase.Field{
+			{Name: "mailbox_id", Kind: usecase.KindID, Required: true, Description: "The mailbox."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: mailboxRemoved, TargetType: mailboxTarget, Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Exempt: "Settings of the workspace, not of an entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}

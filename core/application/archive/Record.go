@@ -689,6 +689,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"jumble_intake":  "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
 	"mail_setting":   "the intake's name is unique on one installation and its mailbox credentials are sealed under its key; restored elsewhere the name may be another workspace's - the intake is set up again on the page",
 	"mail_receipt":   "a 30-day log of what the intake received; the messages it describes are archived as the entries and jumble entries they became",
+	"mailbox":        "a mailbox's secret is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - the mailbox is connected again on the page",
 	"voice_setting":  "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
 	"voice_alias":    "the spoken names go with the voice settings and name places by identifier; they are set again with them",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being

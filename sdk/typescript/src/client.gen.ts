@@ -231,6 +231,26 @@ export class HubtaskClient {
     return this.call("PUT", "/mail/settings", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The workspace's connected mailboxes */
+  listMailboxes(options: CallOptions = {}): Promise<operations["listMailboxes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/mailboxes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Connect a mailbox to the mail intake */
+  connectMailbox(body: NonNullable<operations["connectMailbox"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["connectMailbox"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Disconnect a mailbox */
+  removeMailbox(mailboxId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/mail/mailboxes/{mailbox_id}", { "mailbox_id": mailboxId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Sign in to a connected mailbox again and read it now */
+  checkMailbox(mailboxId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["checkMailbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes/{mailbox_id}:check", { "mailbox_id": mailboxId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** What the mail intake received */
   listMailReceipts(options: CallOptions = {}): Promise<operations["listMailReceipts"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/mail/receipts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

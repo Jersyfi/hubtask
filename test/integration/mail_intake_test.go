@@ -14,6 +14,7 @@ import (
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/work"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres"
 )
@@ -274,4 +275,70 @@ func lettersOf(id shared.ID) string {
 		}
 	}
 	return string(out)
+}
+
+func TestAMailboxIsStoredWithItsSecretSealedAndOnlyItsWorkspaceSeesIt(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	store := postgres.NewMailboxRepository()
+	box, err := domain.NewMailbox(domain.NewMailboxInput{
+		ID: freshID(t), TenantID: tenantA, Preset: "gmail", Address: lettersOf(freshID(t)) + "@gmail.com",
+		Now: time.Now().UTC().Truncate(time.Microsecond),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed := crypto.Sealed{KeyID: "k1", Ciphertext: []byte{1, 2, 3}}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.Insert(ctx, box, sealed, authorA)
+	}); err != nil {
+		t.Fatalf("storing: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.Insert(ctx, box, sealed, authorA)
+	}); !errors.Is(err, shared.ErrConflict) {
+		t.Errorf("the same address twice answered %v", err)
+	}
+	failing := box.Checked(time.Now(), "mail.mailbox_refused")
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.RecordCheck(ctx, failing)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, secret, err := store.Find(ctx, box.ID)
+		if err != nil || found.Host != "imap.gmail.com" || found.Port != 993 || found.Failure != "mail.mailbox_refused" ||
+			found.FailingSince == nil || secret.KeyID != "k1" || len(secret.Ciphertext) != 3 {
+			t.Errorf("found %+v / %+v, %v", found, secret, err)
+		}
+		listed, err := store.List(ctx)
+		if err != nil || len(listed) == 0 {
+			t.Errorf("listed %d, %v", len(listed), err)
+		}
+		count, err := store.Count(ctx)
+		if err != nil || count < 1 {
+			t.Errorf("counted %d, %v", count, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if _, _, err := store.Find(ctx, box.ID); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("tenant B found A's mailbox: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		return store.Delete(ctx, box.ID)
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("tenant B removed A's mailbox: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.Delete(ctx, box.ID)
+	}); err != nil {
+		t.Fatal(err)
+	}
 }

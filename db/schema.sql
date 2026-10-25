@@ -1519,6 +1519,33 @@ CREATE TABLE mail_receipt (
 );
 CREATE INDEX mail_receipt_recent_idx ON mail_receipt (tenant_id, received_at DESC);
 
+-- Connected mailboxes (migration 0206, ADR-0094): the secret sealed under the installation's key.
+CREATE TABLE mailbox (
+  id            uuid PRIMARY KEY,
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  protocol      text NOT NULL CHECK (protocol IN ('IMAP', 'JMAP')),
+  address       text NOT NULL,
+  host          text,
+  port          integer CHECK (port IS NULL OR port BETWEEN 1 AND 65535),
+  session_url   text,
+  username      text NOT NULL,
+  folder        text NOT NULL,
+  done_folder   text NOT NULL,
+  preset        text,
+  enabled       boolean NOT NULL DEFAULT true,
+  secret_enc    bytea NOT NULL,
+  secret_key_id text NOT NULL,
+  checked_at    timestamptz,
+  failure       text,
+  failing_since timestamptz,
+  created_at    timestamptz NOT NULL,
+  created_by    uuid,
+  UNIQUE (tenant_id, id),
+  CHECK ((protocol = 'IMAP') = (host IS NOT NULL AND port IS NOT NULL)),
+  CHECK ((protocol = 'JMAP') = (session_url IS NOT NULL))
+);
+CREATE UNIQUE INDEX mailbox_address_uq ON mailbox (tenant_id, lower(address));
+
 -- Voice assistants (migration 0202, ADR-0093): a workspace's settings and the names people may
 -- say for a place.
 CREATE TABLE voice_setting (
@@ -2765,7 +2792,7 @@ BEGIN
     'activity_entry',
     'media_object','item_attachment',
     'recurrence_rule','reminder','saved_view','template','jumble_entry','auto_assign_policy',
-    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_setting','mail_receipt','voice_setting','voice_alias',
+    'automation_rule','rule_run','rule_occurrence','jumble_intake','mail_setting','mail_receipt','mailbox','voice_setting','voice_alias',
     'webhook_subscription','webhook_delivery','calendar_feed',
     'outbox_event','event_consumption','idempotency_key','usage_record',
     'notification','notification_preference','private_hub_access',

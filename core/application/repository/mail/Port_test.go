@@ -11,6 +11,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/repository/mail"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
+	"github.com/Jersyfi/hubtask/core/port/crypto"
 )
 
 type store struct{}
@@ -41,3 +42,21 @@ func TestOneStoreCanServeEveryPort(t *testing.T) {
 
 func (store) KeyOf(context.Context, shared.ID) (domain.Key, error) { return domain.Key{}, nil }
 func (store) SetHandle(context.Context, shared.ID, string) error   { return nil }
+
+type boxes struct{}
+
+func (boxes) List(context.Context) ([]domain.Mailbox, error) { return nil, nil }
+func (boxes) Find(context.Context, shared.ID) (domain.Mailbox, crypto.Sealed, error) {
+	return domain.Mailbox{}, crypto.Sealed{}, nil
+}
+func (boxes) Insert(context.Context, domain.Mailbox, crypto.Sealed, shared.ID) error { return nil }
+func (boxes) RecordCheck(context.Context, domain.Mailbox) error                      { return nil }
+func (boxes) Delete(context.Context, shared.ID) error                                { return nil }
+func (boxes) Count(context.Context) (int, error)                                     { return 0, nil }
+
+func TestTheMailboxStoreIsOnePort(t *testing.T) {
+	var store mail.Mailboxes = boxes{}
+	if count, err := store.Count(context.Background()); count != 0 || err != nil {
+		t.Fatal(count, err)
+	}
+}

@@ -50,6 +50,17 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
       return route.fulfill({ json: settings });
     }
     if (path === '/mail/receipts') return route.fulfill({ json: { receipts: RECEIPTS } });
+    if (path === '/mail/mailboxes' && request.method() === 'POST') {
+      const body = request.postDataJSON();
+      if (body.secret !== 'app-pw') {
+        return route.fulfill({ status: 422, contentType: 'application/problem+json', json: { type: 'about:blank', title: 'validation', status: 422, code: 'validation', detail_code: 'mail.mailbox_refused' } });
+      }
+      return route.fulfill({ status: 201, json: {
+        id: '01a0e2e0-0000-7000-8000-00000000b001', protocol: 'IMAP', address: body.address, host: 'imap.gmail.com', port: 993,
+        username: body.address, folder: 'INBOX', done_folder: 'Hubtask', preset: 'gmail', plus_addresses: true, enabled: true,
+        failing: false, checked_at: '2026-10-25T10:00:00Z', created_at: '2026-10-25T10:00:00Z',
+      } });
+    }
     if (path === `/collections/${COLLECTION.id}/handle`) return route.fulfill({ json: { handle: request.postDataJSON().handle, collection_id: COLLECTION.id } });
     if (path === '/jumble/entries') {
       return route.fulfill({ json: { data: [{ ...JUMBLED, channel: 'EMAIL', raw_subject: 'Angebot', sender: 'kunde@shop.test', meant_for_kind: 'COLLECTION', meant_for_id: COLLECTION.id, intake_reason: 'SENDER_NOT_ALLOWED' }], next_cursor: null } });
@@ -79,9 +90,25 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     assert.deepEqual(saved.body.senders, { level: 'MEMBERS_AND_ALLOWED', allowed: ['@lieferant.test'], blocked: [] });
     assert.equal(saved.body.sender_routes[0].match, '@lieferant.test');
 
+    // A mailbox: a refused password is said in the form, the right one connects it, and the handles
+    // show their plus address through it.
+    const connect = page.locator('[data-mailbox-connect]');
+    await connect.locator('[data-mailbox-hint]').getByText('app password', { exact: false }).waitFor({ timeout: 10_000 });
+    await connect.getByLabel('Mailbox address').fill('familie@gmail.com');
+    await connect.getByLabel('Password or app password').fill('wrong');
+    await connect.getByRole('button', { name: 'Connect' }).click();
+    await connect.getByText('refused the sign-in', { exact: false }).waitFor({ timeout: 5_000 });
+    await connect.getByLabel('Password or app password').fill('app-pw');
+    await connect.getByRole('button', { name: 'Connect' }).click();
+    await page.locator('[data-mailbox="familie@gmail.com"]').waitFor({ timeout: 5_000 });
+    const connected = writes.filter((write) => write.call === 'POST /mail/mailboxes').at(-1);
+    assert.equal(connected.body.preset, 'gmail');
+    assert.equal(connected.body.secret, 'app-pw');
+    await page.locator('[data-mail-handles] [data-handle="kitchen"] [data-plus-address]').getByText('familie+kitchen@gmail.com').waitFor();
+
     // The order, the handles, the log with its reasons.
     await page.locator('[data-mail-order]').getByText('[SHOP-42]').waitFor();
-    await page.locator('[data-mail-handles] [data-handle="kitchen"] code').waitFor({ timeout: 10_000 });
+    await page.locator('[data-mail-handles] [data-handle="kitchen"] code').first().waitFor({ timeout: 10_000 });
     const log = page.locator('[data-mail-log]');
     await log.getByText('In the jumble · Sender not allowed').waitFor();
     await log.getByRole('link', { name: 'Entry' }).waitFor();

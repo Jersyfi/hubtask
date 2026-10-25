@@ -131,6 +131,14 @@ const (
 	// next write re-seeds it.
 	KindReminderFire Kind = "reminder.fire"
 
+	// KindMailboxPoll reads one connected mailbox into the workspace's mail intake (ADR-0094).
+	//
+	// The reminder's shape: one job per mailbox, seeded by the write that connected it, and the
+	// pass reschedules itself a minute later for as long as the mailbox is there and switched on -
+	// nothing enumerates tenants or mailboxes (multi-tenancy.md §2.1). Its dedupe key is the
+	// mailbox, so a second seed while one is pending is the same job.
+	KindMailboxPoll Kind = "mail.mailbox_poll"
+
 	// KindRecurrenceMaterialize turns one tenant's series into the entries their rolling windows
 	// owe (ADR-0008).
 	//

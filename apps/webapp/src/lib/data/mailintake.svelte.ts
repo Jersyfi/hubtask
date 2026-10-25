@@ -120,3 +120,67 @@ export async function copyHandle(
     return t('app.mail.copy_failed', { address: subject });
   }
 }
+
+export interface Mailbox {
+  readonly id: string;
+  readonly protocol: 'IMAP' | 'JMAP';
+  readonly address: string;
+  readonly host?: string | null;
+  readonly port?: number | null;
+  readonly session_url?: string | null;
+  readonly username: string;
+  readonly folder: string;
+  readonly done_folder: string;
+  readonly preset?: string | null;
+  readonly plus_addresses?: boolean | null;
+  readonly enabled: boolean;
+  readonly checked_at?: string | null;
+  readonly failure?: string | null;
+  readonly failing: boolean;
+  readonly created_at: string;
+}
+
+export interface MailboxPreset {
+  readonly key: string;
+  readonly protocol: 'IMAP' | 'JMAP';
+  readonly plus_addresses: boolean;
+  readonly hint: string;
+}
+
+export interface MailboxConnection {
+  preset?: string;
+  protocol?: 'IMAP' | 'JMAP';
+  address: string;
+  host?: string;
+  port?: number;
+  session_url?: string;
+  username?: string;
+  secret: string;
+}
+
+export async function readMailboxes(): Promise<{ mailboxes: readonly Mailbox[]; presets: readonly MailboxPreset[] }> {
+  const read = await engine.refresh<{ mailboxes: Mailbox[]; presets: MailboxPreset[] }>({ path: '/mail/mailboxes' });
+  if (read.status === 'failed') throw read.error;
+  return read.status === 'ready' ? read.data : { mailboxes: [], presets: [] };
+}
+
+export async function connectMailbox(connection: MailboxConnection): Promise<Mailbox> {
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes', connection, { idempotencyKey: crypto.randomUUID() });
+}
+
+export async function checkMailbox(id: string): Promise<Mailbox> {
+  return engine.mutate<Mailbox>('POST', `/mail/mailboxes/${encodeURIComponent(id)}:check`, {}, { idempotencyKey: crypto.randomUUID() });
+}
+
+export async function removeMailbox(id: string): Promise<void> {
+  await engine.mutate<void>('DELETE', `/mail/mailboxes/${encodeURIComponent(id)}`, undefined);
+}
+
+/**
+ * How mail reaches a collection through a connected mailbox: `familie+einkauf@gmail.com` where the
+ * provider delivers plus addresses, else the mailbox's own address with `#einkauf` in the subject.
+ */
+export function mailboxRouteTo(handle: string, mailbox: Mailbox): string {
+  const [local, domain] = mailbox.address.split('@');
+  return mailbox.plus_addresses && local && domain ? `${local}+${handle}@${domain}` : mailbox.address;
+}

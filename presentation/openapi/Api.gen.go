@@ -2826,6 +2826,60 @@ func (e MailSendersLevel) Valid() bool {
 	}
 }
 
+// Defines values for MailboxProtocol.
+const (
+	MailboxProtocolIMAP MailboxProtocol = "IMAP"
+	MailboxProtocolJMAP MailboxProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxProtocol enum.
+func (e MailboxProtocol) Valid() bool {
+	switch e {
+	case MailboxProtocolIMAP:
+		return true
+	case MailboxProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailboxConnectionProtocol.
+const (
+	MailboxConnectionProtocolIMAP MailboxConnectionProtocol = "IMAP"
+	MailboxConnectionProtocolJMAP MailboxConnectionProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxConnectionProtocol enum.
+func (e MailboxConnectionProtocol) Valid() bool {
+	switch e {
+	case MailboxConnectionProtocolIMAP:
+		return true
+	case MailboxConnectionProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for MailboxPresetProtocol.
+const (
+	MailboxPresetProtocolIMAP MailboxPresetProtocol = "IMAP"
+	MailboxPresetProtocolJMAP MailboxPresetProtocol = "JMAP"
+)
+
+// Valid indicates whether the value is a known member of the MailboxPresetProtocol enum.
+func (e MailboxPresetProtocol) Valid() bool {
+	switch e {
+	case MailboxPresetProtocolIMAP:
+		return true
+	case MailboxPresetProtocolJMAP:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MediaObjectStatus.
 const (
 	MediaObjectStatusPENDING MediaObjectStatus = "PENDING"
@@ -9167,6 +9221,74 @@ type MailSettings struct {
 	Senders      *MailSenders       `json:"senders,omitempty"`
 }
 
+// Mailbox defines model for Mailbox.
+type Mailbox struct {
+	Address    string     `json:"address"`
+	CheckedAt  *time.Time `json:"checked_at,omitempty"`
+	CreatedAt  time.Time  `json:"created_at"`
+	DoneFolder string     `json:"done_folder"`
+	Enabled    bool       `json:"enabled"`
+
+	// Failing The reads have failed for an hour or longer.
+	Failing bool `json:"failing"`
+
+	// Failure What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off.
+	Failure       *string            `json:"failure,omitempty"`
+	Folder        string             `json:"folder"`
+	Host          *string            `json:"host,omitempty"`
+	Id            openapi_types.UUID `json:"id"`
+	PlusAddresses *bool              `json:"plus_addresses,omitempty"`
+	Port          *int               `json:"port,omitempty"`
+	Preset        *string            `json:"preset,omitempty"`
+	Protocol      MailboxProtocol    `json:"protocol"`
+	SessionUrl    *string            `json:"session_url,omitempty"`
+	Username      string             `json:"username"`
+}
+
+// MailboxProtocol defines model for Mailbox.Protocol.
+type MailboxProtocol string
+
+// MailboxConnection defines model for MailboxConnection.
+type MailboxConnection struct {
+	Address    openapi_types.Email        `json:"address"`
+	DoneFolder *string                    `json:"done_folder,omitempty"`
+	Folder     *string                    `json:"folder,omitempty"`
+	Host       *string                    `json:"host,omitempty"`
+	Port       *int                       `json:"port,omitempty"`
+	Preset     *string                    `json:"preset,omitempty"`
+	Protocol   *MailboxConnectionProtocol `json:"protocol,omitempty"`
+
+	// Secret The password, app password or token. Stored sealed and never answered.
+	Secret     *string `json:"secret,omitempty"`
+	SessionUrl *string `json:"session_url,omitempty"`
+	Username   *string `json:"username,omitempty"`
+}
+
+// MailboxConnectionProtocol defines model for MailboxConnection.Protocol.
+type MailboxConnectionProtocol string
+
+// MailboxList defines model for MailboxList.
+type MailboxList struct {
+	Mailboxes []Mailbox       `json:"mailboxes"`
+	Presets   []MailboxPreset `json:"presets"`
+}
+
+// MailboxPreset defines model for MailboxPreset.
+type MailboxPreset struct {
+	// Hint A message code saying what the provider asks for first.
+	Hint string `json:"hint"`
+
+	// Key gmail, gmx, webde, ionos, fastmail.
+	Key string `json:"key"`
+
+	// PlusAddresses The provider delivers name+tag@ to name@, so a plus tag can name a place.
+	PlusAddresses bool                  `json:"plus_addresses"`
+	Protocol      MailboxPresetProtocol `json:"protocol"`
+}
+
+// MailboxPresetProtocol defines model for MailboxPreset.Protocol.
+type MailboxPresetProtocol string
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -14151,6 +14273,18 @@ type DeliverAddressedMailParams struct {
 	Recipient *string `form:"recipient,omitempty" json:"recipient,omitempty"`
 }
 
+// ConnectMailboxParams defines parameters for ConnectMailbox.
+type ConnectMailboxParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CheckMailboxParams defines parameters for CheckMailbox.
+type CheckMailboxParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SaveMailSettingsParams defines parameters for SaveMailSettings.
 type SaveMailSettingsParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -14844,6 +14978,9 @@ type ReleaseLegalHoldJSONRequestBody = LegalHoldRelease
 
 // DeliverAddressedMailMultipartRequestBody defines body for DeliverAddressedMail for multipart/form-data ContentType.
 type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
+
+// ConnectMailboxJSONRequestBody defines body for ConnectMailbox for application/json ContentType.
+type ConnectMailboxJSONRequestBody = MailboxConnection
 
 // SaveMailSettingsJSONRequestBody defines body for SaveMailSettings for application/json ContentType.
 type SaveMailSettingsJSONRequestBody = MailSettings
@@ -15852,6 +15989,18 @@ type ServerInterface interface {
 	// DeliverAddressedMail Deliver a mail to the operator's receiving domain
 	// (POST /mail/inbound)
 	DeliverAddressedMail(w http.ResponseWriter, r *http.Request, params DeliverAddressedMailParams)
+	// ListMailboxes The workspace's connected mailboxes
+	// (GET /mail/mailboxes)
+	ListMailboxes(w http.ResponseWriter, r *http.Request)
+	// ConnectMailbox Connect a mailbox to the mail intake
+	// (POST /mail/mailboxes)
+	ConnectMailbox(w http.ResponseWriter, r *http.Request, params ConnectMailboxParams)
+	// RemoveMailbox Disconnect a mailbox
+	// (DELETE /mail/mailboxes/{mailbox_id})
+	RemoveMailbox(w http.ResponseWriter, r *http.Request, mailboxId openapi_types.UUID)
+	// CheckMailbox Sign in to a connected mailbox again and read it now
+	// (POST /mail/mailboxes/{mailbox_id}:check)
+	CheckMailbox(w http.ResponseWriter, r *http.Request, mailboxId openapi_types.UUID, params CheckMailboxParams)
 	// ListMailReceipts What the mail intake received
 	// (GET /mail/receipts)
 	ListMailReceipts(w http.ResponseWriter, r *http.Request)
@@ -26667,6 +26816,137 @@ func (siw *ServerInterfaceWrapper) DeliverAddressedMail(w http.ResponseWriter, r
 	handler.ServeHTTP(w, r)
 }
 
+// ListMailboxes operation middleware
+func (siw *ServerInterfaceWrapper) ListMailboxes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMailboxes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConnectMailbox operation middleware
+func (siw *ServerInterfaceWrapper) ConnectMailbox(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ConnectMailboxParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectMailbox(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// RemoveMailbox operation middleware
+func (siw *ServerInterfaceWrapper) RemoveMailbox(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mailbox_id" -------------
+	var mailboxId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mailbox_id", r.PathValue("mailbox_id"), &mailboxId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mailbox_id", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveMailbox(w, r, mailboxId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckMailbox operation middleware
+func (siw *ServerInterfaceWrapper) CheckMailbox(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "mailbox_id" -------------
+	var mailboxId openapi_types.UUID
+
+	err = runtime.BindStyledParameterWithOptions("simple", "mailbox_id", r.PathValue("mailbox_id"), &mailboxId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "mailbox_id", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params CheckMailboxParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "Idempotency-Key" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("Idempotency-Key")]; found {
+		var IdempotencyKey IdempotencyKey
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "Idempotency-Key", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "Idempotency-Key", valueList[0], &IdempotencyKey, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: "uuid"})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "Idempotency-Key", Err: err})
+			return
+		}
+
+		params.IdempotencyKey = &IdempotencyKey
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckMailbox(w, r, mailboxId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListMailReceipts operation middleware
 func (siw *ServerInterfaceWrapper) ListMailReceipts(w http.ResponseWriter, r *http.Request) {
 
@@ -29542,6 +29822,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/jumble/entries/{entryId}:comment", wrapper.CommentJumbleEntry)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/settings", wrapper.ShowMailSettings)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/mail/settings", wrapper.SaveMailSettings)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/mailboxes", wrapper.ListMailboxes)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/mailboxes", wrapper.ConnectMailbox)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/mail/mailboxes/{mailbox_id}", wrapper.RemoveMailbox)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/mailboxes/{mailbox_id}:check", wrapper.CheckMailbox)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/mail/receipts", wrapper.ListMailReceipts)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/collections/{collection_id}/handle", wrapper.SetCollectionHandle)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/mail/inbound", wrapper.DeliverAddressedMail)

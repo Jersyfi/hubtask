@@ -1140,6 +1140,28 @@ type MailSetting struct {
 	UpdatedBy           pgtype.UUID
 }
 
+type Mailbox struct {
+	ID           pgtype.UUID
+	TenantID     pgtype.UUID
+	Protocol     string
+	Address      string
+	Host         *string
+	Port         *int32
+	SessionUrl   *string
+	Username     string
+	Folder       string
+	DoneFolder   string
+	Preset       *string
+	Enabled      bool
+	SecretEnc    []byte
+	SecretKeyID  string
+	CheckedAt    pgtype.Timestamptz
+	Failure      *string
+	FailingSince pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	CreatedBy    pgtype.UUID
+}
+
 type MediaObject struct {
 	ID                pgtype.UUID
 	TenantID          pgtype.UUID
