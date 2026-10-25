@@ -546,11 +546,11 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 			// to offer an action at all - offering "send by email" on an installation with no
 			// SMTP server is a dead end the manifest can prevent.
 			"mail": g.Config.Mail.Configured(),
-			// Whether places have mail addresses: a receiving domain is set (ADR-0092). A client
-			// offers "copy mail address" only then.
-			"mail_addresses": g.Config.Mail.InboundDomain != "",
-			"storage":        g.Config.Storage.Kind != "",
-			"tracing":        g.Config.Tracing.Enabled,
+			// Whether the operator's receiving domain is set (ADR-0094): then a workspace's intake
+			// has an address there, and a client offers to copy it.
+			"mail_domain": g.Config.Mail.InboundDomain != "",
+			"storage":     g.Config.Storage.Kind != "",
+			"tracing":     g.Config.Tracing.Enabled,
 			// Whether this installation serves the web interface at "/" (ADR-0028). A client
 			// discovers it here rather than by asking for "/" and reading the answer, which is
 			// the same reason every other optional part of the installation is in this map.

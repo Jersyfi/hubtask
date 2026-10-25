@@ -225,6 +225,8 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
       { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'] },
+      // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
+      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail'] },
     ],
   },
   {

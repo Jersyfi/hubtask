@@ -25,8 +25,7 @@
   import { chosenSymbol, markOf } from '../workspace/look.ts';
 
   import { announcer } from '../announce.svelte.ts';
-  import { manifest } from '../data/capabilities.svelte.ts';
-  import { copyPlaceAddress } from '../data/mailaddress.svelte.ts';
+  import { copyHandle } from '../data/mailintake.svelte.ts';
   import { actor } from '../data/account.svelte.ts';
   import { holds, holdsHere, hubCreationHere, roleOrder } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
@@ -199,7 +198,7 @@
         mayShape: holds(role, 'STRUCTURE').status === 'permitted',
         mayDelete: holds(role, 'DELETE_CONTAINER').status === 'permitted',
         archival: archivalOf(container),
-        hasMail: manifest.value?.features?.mail_addresses === true,
+        hasMail: Boolean(container.handle),
         privacy:
           container.type === 'HUB'
             ? privacyAction({
@@ -222,7 +221,7 @@
         if (act === 'settings') return onnavigate(`${place}/settings`);
         // Copying the address is done where the menu is: nothing to open for it.
         if (act === 'mail') {
-          void copyPlaceAddress({ kind: 'COLLECTION', id: container.id }, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
+          if (container.handle) void copyHandle(container.handle, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
           return;
         }
         commands.intend({ containerId: container.id, act });

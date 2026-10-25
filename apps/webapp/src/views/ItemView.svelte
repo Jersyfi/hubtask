@@ -62,7 +62,6 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import MailDetailRow from '../lib/mail/MailDetailRow.svelte';
   import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -791,8 +790,6 @@
   // under it - and nothing at all when the manifest announces no AI for this workspace, not
   // disabled with a reason, not rendered empty (ai-first.md §2, absence is absence).
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
-  /** Whether places have mail addresses on this installation (ADR-0092). */
-  const hasMailAddresses = $derived(manifest.value?.features?.mail_addresses === true);
 
   // What stands about this entry, read once - the view is keyed on the id. A reader reads it too:
   // a summary of the discussion is a reading aid (check 8).
@@ -1358,10 +1355,6 @@
                      detaching only where it may be written. -->
                 <AttachmentPanel {item} isChangeable={isWritable} />
               </DetailRow>
-            {/if}
-            <!-- The entry's own address: a mail to it becomes a comment here (ADR-0092 M1). -->
-            {#if hasMailAddresses && isWritable}
-              <MailDetailRow itemId={item.id} />
             {/if}
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}

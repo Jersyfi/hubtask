@@ -168,7 +168,7 @@ test('the administration is grouped as the new order names it (ux-inventory.md \
   assert.deepEqual(of('back'), ['back', 'overview']);
   assert.deepEqual(of('people'), ['workspace', 'presets', 'quotas', 'people', 'machines']);
   assert.deepEqual(of('sign-in'), ['sign-in-settings', 'legal']);
-  assert.deepEqual(of('automation'), ['rules', 'runs', 'webhooks', 'voice']);
+  assert.deepEqual(of('automation'), ['rules', 'runs', 'webhooks', 'voice', 'mail']);
   assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore']);
   assert.deepEqual(of('records'), ['audit', 'privacy']);
   assert.deepEqual(of('ai'), ['ai']);

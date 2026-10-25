@@ -229,6 +229,7 @@ async function views() {
     ['runs', await load('RunsView'), {}],
     ['webhooks', await load('WebhooksView'), {}],
     ['voice', await load('VoiceView'), {}],
+    ['mail', await load('MailView'), {}],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['backup', await load('BackupView'), {}],

@@ -74,8 +74,8 @@
   import { items } from '../lib/data/items.svelte.ts';
   import { changeRefusalCode, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import { copyPlaceAddress } from '../lib/data/mailaddress.svelte.ts';
-  import MailAddressField from '../lib/mail/MailAddressField.svelte';
+  import { copyHandle } from '../lib/data/mailintake.svelte.ts';
+  import HandleField from '../lib/mail/HandleField.svelte';
   import { offeredByProfile, sortableFields } from '../lib/data/query.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
   import { templates } from '../lib/data/templates.svelte.ts';
@@ -837,7 +837,7 @@
   const pageMenu = $derived<MenuItem[]>(
     container === undefined
       ? []
-      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, hasMail: manifest.value?.features?.mail_addresses === true }, (code) => t(code)),
+      : placeMenu({ type: container.type === 'HUB' ? 'HUB' : 'COLLECTION', mayShape, mayDelete, archival, privacy: privacyControl, readOnlyReason, hasMail: Boolean(container.handle) }, (code) => t(code)),
   );
 
   /**
@@ -883,7 +883,7 @@
 
   function choseFromMenu(id: string) {
     if (id === 'mail' && container) {
-      void copyPlaceAddress({ kind: 'COLLECTION', id: container.id }, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
+      if (container.handle) void copyHandle(container.handle, (code, params) => t(code, params)).then((said) => said && announcer.say(said));
     } else if (id === 'settings') openStructure('general');
     else if (id === 'move') isMovingHub = true;
     else if (id === 'import') startImport();
@@ -1126,12 +1126,12 @@
       {:else}
         {#snippet generalTab()}
           <ContainerEditDialog isEmbedded isOpen {container} />
-          <!-- The collection's mail address, with who may send and *New address* (ADR-0092 M1-M3). -->
+          <!-- The collection's mail handle: the subject word, the address and its ticket keys (ADR-0094). -->
           {#if container.type === 'COLLECTION'}
             <section class="mail-settings" aria-labelledby="mail-settings-head" data-mail-settings>
               <h2 class="mail-head" id="mail-settings-head">{t('app.mail.section')}</h2>
               <p class="mail-hint">{t('app.mail.section_hint')}</p>
-              <MailAddressField target={{ kind: 'COLLECTION', id: container.id }} shape="panel" mayShape={mayShape} />
+              <HandleField {container} {mayShape} />
             </section>
           {/if}
         {/snippet}

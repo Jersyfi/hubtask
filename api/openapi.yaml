@@ -21639,7 +21639,8 @@ components:
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
             `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open` and
-            `mail_addresses` (a receiving domain is set, so places have mail addresses).
+            `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has
+            an address there).
 
             `setup_open` is `true` exactly while the installation has no workspace and nobody in its
             operator register: then `POST /auth/installation:set-up` is offered, and a client shows
