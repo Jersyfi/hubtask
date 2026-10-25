@@ -30,7 +30,7 @@ export const DEFAULT_STRUCTURE = {
   counts_clipped: null,
 };
 export const HUB = { id: '01a0e2e0-0000-7000-8000-000000000002', type: 'HUB', parent_id: null, name: 'House', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
-export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE };
+export const COLLECTION = { id: '01a0e2e0-0000-7000-8000-000000000003', type: 'COLLECTION', parent_id: HUB.id, name: 'Kitchen', description: 'The renovation, room by room.', order_key: 'a0', version: 1, structure: DEFAULT_STRUCTURE, handle: 'kitchen' };
 /** One that was put aside: out of the tree, and the only thing the archive screen should find. */
 /** Where an arrival may become work for the signed-in person (`GET /jumble/destinations`). */
 export const DESTINATIONS = [{ id: COLLECTION.id, name: COLLECTION.name, hub_id: HUB.id, hub_name: HUB.name, hub_private: false }];
@@ -51,7 +51,7 @@ export const BUCKETS = [
   { id: '01a0e2e0-0000-7000-8000-000000000022', collection_id: COLLECTION.id, name: 'Doing', order_key: 'a1', wip_limit: 2, is_done_bucket: false, version: 1 },
   { id: '01a0e2e0-0000-7000-8000-000000000023', collection_id: COLLECTION.id, name: 'Done', order_key: 'a2', wip_limit: null, is_done_bucket: true, version: 1 },
 ];
-const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000000${n}`, type: 'TASK', title, collection_id: COLLECTION.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 1, completion: { is_completed: false }, labels: [], label_ids: [], ...extra });
+const item = (n, title, extra = {}) => ({ id: `01a0e2e0-0000-7000-8000-0000000000${n}`, type: 'TASK', title, collection_id: COLLECTION.id, parent_id: null, depth: 0, order_key: `a${n}`, version: 1, number: Number(n), completion: { is_completed: false }, labels: [], label_ids: [], ...extra });
 
 /**
  * A date this many days from today, as the one dated entry carries.
@@ -1241,8 +1241,11 @@ export function fallback(route, request, path) {
   }
 
   if (ARRAYS.has(read)) return route.fulfill({ json: [] });
-  // No receiving domain unless a walk says otherwise (ADR-0092).
-  if (read === '/mail/addresses') return route.fulfill({ json: { available: false } });
+  // The mail intake as a workspace starts: off, members only, no receiving domain (ADR-0094).
+  if (read === '/mail/settings' && request.method() === 'GET') {
+    return route.fulfill({ json: { enabled: false, senders: { level: 'MEMBERS', allowed: [], blocked: [] }, sender_routes: [] } });
+  }
+  if (read === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
   // Voice switched off and nothing named, as a workspace starts (ADR-0093).
   if (read === '/voice/settings' && request.method() === 'GET') return route.fulfill({ json: { enabled: false, aliases: [], installation_skill: false } });
   if (read === '/meta/health') return route.fulfill({ json: { status: 'ok', degraded_features: [] } });

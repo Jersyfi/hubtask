@@ -1,6 +1,7 @@
 # ADR-0040 — No IMAP intake: the webhook door is the mail door
 
-**Status:** accepted · **Date:** 2026-09-02 · **Closes:** open point AM-1 (`automation.md` §5)
+**Status:** superseded · **Date:** 2026-09-02 · **Closes:** open point AM-1 (`automation.md` §5) ·
+**Superseded by:** [ADR-0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) on 2026-10-25 — a connected mailbox (IMAP, JMAP) is one of the intake's doors
 
 **Rule lives in:** [automation.md](../architecture/automation.md) §5
 

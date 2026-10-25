@@ -53,7 +53,7 @@ Hubtask does not fetch from a mailbox itself.
   A transport beyond the webhook door, when one is wanted, is JMAP.
 * No thread tracking, no mail client. Answering a notification by mail is
   [UC-JUM-10](./UC-JUM-10-answer-a-notification-by-mail.md); a mail straight into a collection or an
-  entry is [UC-JUM-09](./UC-JUM-09-mail-straight-into-a-collection-or-an-entry.md).
+  entry is [UC-JUM-09](./UC-JUM-09-receive-mail-into-a-place.md).
 * No spam filtering of its own; whatever the forwarding route lets through arrives, and a message
   the inbound service marks as spam only ever lands in the jumble
   ([ADR-0092](../../adr/ADR-0092-mail-addresses-for-every-place.md)).

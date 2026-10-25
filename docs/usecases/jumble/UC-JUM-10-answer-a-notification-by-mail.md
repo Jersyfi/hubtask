@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11]
 state: built
 tasks: []
-checked_by: [core/application/service/jumble/MailAddresses_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go]
+checked_by: [core/application/service/mail/Settings_test.go, core/application/service/jumble/MailDelivery_test.go, presentation/intake/AddressedMailIntake_test.go]
 ---
 
 # Answer a notification by mail
@@ -24,12 +24,14 @@ The comment is on the entry, by Anna, without the quoted notification below it.
 
 ## How to check
 
-1. Where a receiving domain is set, a notification about an entry carries the entry's address as
-   `Reply-To`, and Hubtask's own notification header.
-2. A reply from the recipient becomes a comment by them on that entry, with the quoted text cut.
+1. Where the operator's receiving domain is set and the workspace's intake is on, a notification
+   about an entry carries the entry's ticket key on the intake's address as `Reply-To`
+   (`familie+web-42@in.example.app`), and Hubtask's own notification header.
+2. A reply from the recipient becomes a comment by them on that entry, with the quoted text cut -
+   the ticket key routes it (UC-JUM-09 check 2), so it needs no secret of its own.
 3. A notification that comes back by itself — an out-of-office answer, a bounce — stores nothing.
 
 ## Where it ends
 
 * No threads and no mail client; a reply is one comment.
-* Without a receiving domain, notifications carry no `Reply-To`.
+* Without a receiving domain, or with the intake off, notifications carry no `Reply-To`.

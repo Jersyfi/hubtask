@@ -82,7 +82,7 @@ INSERT INTO container (
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
 )
--- The handle the store gave a collection (migration 0203), so the create answers it.
+-- The handle the store gave a collection (migration 0204), so the create answers it.
 RETURNING handle;
 
 -- name: ListContainers :many
@@ -473,7 +473,7 @@ INSERT INTO work_item (
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 )
--- The number the store drew in the collection (migration 0203), so the create answers it.
+-- The number the store drew in the collection (migration 0204), so the create answers it.
 RETURNING number;
 
 -- name: FindWorkItemByCalendarUID :one

@@ -48,18 +48,18 @@ func (s containerStore) Find(_ context.Context, id shared.ID) (work.Container, e
 
 func workspace() (condition.Entries, condition.Containers) {
 	return entryStore{rows: map[shared.ID]work.WorkItem{
-			valuesItem: {
-				ID: valuesItem, TenantID: valuesTenant, CollectionID: collection,
-				ParentID: valuesParent, Title: "Buy milk", Type: work.ItemTask,
-			},
-			valuesParent: {
-				ID: valuesParent, TenantID: valuesTenant, CollectionID: collection,
-				Title: "Groceries", Type: work.ItemTask,
-			},
-		}}, containerStore{rows: map[shared.ID]work.Container{
-			collection: {ID: collection, Type: work.ContainerCollection, Name: "Home", ParentID: hub},
-			hub:        {ID: hub, Type: work.ContainerHub, Name: "Life"},
-		}}
+		valuesItem: {
+			ID: valuesItem, TenantID: valuesTenant, CollectionID: collection,
+			ParentID: valuesParent, Title: "Buy milk", Type: work.ItemTask,
+		},
+		valuesParent: {
+			ID: valuesParent, TenantID: valuesTenant, CollectionID: collection,
+			Title: "Groceries", Type: work.ItemTask,
+		},
+	}}, containerStore{rows: map[shared.ID]work.Container{
+		collection: {ID: collection, Type: work.ContainerCollection, Name: "Home", ParentID: hub},
+		hub:        {ID: hub, Type: work.ContainerHub, Name: "Life"},
+	}}
 }
 
 func itemEnvelope() event.Envelope {

@@ -6,7 +6,6 @@ package rest
 import (
 	"context"
 	"encoding/json"
-	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -14,6 +13,7 @@ import (
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
+	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 

@@ -197,7 +197,7 @@ func (MailIntakeRepository) Recent(ctx context.Context, limit int) ([]domain.Rec
 	if err != nil {
 		return nil, err
 	}
-	rows, err := queries.RecentMailReceipts(ctx, int32(min(max(limit, 1), 500))) //nolint:gosec // bounded above
+	rows, err := queries.RecentMailReceipts(ctx, boundedInt32(min(max(limit, 1), 500)))
 	if err != nil {
 		return nil, mailQueryFailed("reading the mail receipts", err)
 	}

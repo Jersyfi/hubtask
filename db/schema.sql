@@ -845,7 +845,7 @@ CREATE TABLE container (
   version      integer NOT NULL DEFAULT 1,
   -- A private hub is reached only through a membership on it or below it (ADR-0073 §1, 0124).
   private      boolean NOT NULL DEFAULT false,
-  -- A collection's short name and the count its entries' numbers come from (migration 0203,
+  -- A collection's short name and the count its entries' numbers come from (migration 0204,
   -- ADR-0094): "einkauf", and EINKAUF-42 for its 42nd entry.
   handle       text CHECK (handle IS NULL OR handle ~ '^[a-z][a-z0-9]{1,19}$'),
   item_counter bigint NOT NULL DEFAULT 0,
@@ -1001,7 +1001,7 @@ CREATE TABLE work_item (
     FOREIGN KEY (tenant_id, bucket_id) REFERENCES bucket (tenant_id, id) ON DELETE SET NULL (bucket_id),
   CONSTRAINT work_item_collection_id_fkey
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
-  -- The entry's number in its collection (migration 0203, ADR-0094).
+  -- The entry's number in its collection (migration 0204, ADR-0094).
   number       bigint
 );
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
@@ -1458,7 +1458,7 @@ CREATE TABLE jumble_entry (
   -- The place a mail was addressed to where it waits here instead (migration 0201, ADR-0092).
   meant_for_kind text,
   meant_for_id   uuid,
-  -- Why the mail intake put a message here (migration 0204, ADR-0094).
+  -- Why the mail intake put a message here (migration 0205, ADR-0094).
   intake_reason  text
 );
 CREATE INDEX jumble_status_idx ON jumble_entry (tenant_id, status, received_at DESC);
@@ -1472,7 +1472,7 @@ CREATE TABLE jumble_intake (
 );
 CREATE UNIQUE INDEX jumble_intake_token_uq ON jumble_intake (token_hash);
 
--- The mail intake (migration 0204, ADR-0094): a workspace's settings - its name on the operator's
+-- The mail intake (migration 0205, ADR-0094): a workspace's settings - its name on the operator's
 -- receiving domain unique on the installation - and a receipt per message, one per Message-ID.
 CREATE TABLE mail_setting (
   tenant_id             uuid PRIMARY KEY REFERENCES tenant(id) ON DELETE CASCADE,

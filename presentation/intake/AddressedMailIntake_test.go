@@ -6,10 +6,10 @@ package intake
 import (
 	"context"
 	"encoding/base64"
-	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"testing"
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 )
 
 // The receiving domain's door (ADR-0092, UC-JUM-09 checks 7 and 8): the key opens it, the

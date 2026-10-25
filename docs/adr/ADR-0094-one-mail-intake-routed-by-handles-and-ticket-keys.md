@@ -8,7 +8,8 @@ unterstützt wird. SMTP Empfang wird nicht benötigt … wofür ich dir hiermit 
 
 **Rule lives in:** [automation.md](../architecture/automation.md) §5,
 [UC-JUM-09](../usecases/jumble/UC-JUM-09-receive-mail-into-a-place.md),
-[UC-JUM-10](../usecases/jumble/UC-JUM-10-set-up-the-mail-intake.md)
+[UC-JUM-10](../usecases/jumble/UC-JUM-10-answer-a-notification-by-mail.md),
+[UC-JUM-11](../usecases/jumble/UC-JUM-11-set-up-the-mail-intake.md)
 
 ## Context
 

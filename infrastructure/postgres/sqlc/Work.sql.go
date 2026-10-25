@@ -1100,7 +1100,7 @@ type InsertContainerParams struct {
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-// The handle the store gave a collection (migration 0203), so the create answers it.
+// The handle the store gave a collection (migration 0204), so the create answers it.
 func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (*string, error) {
 	row := q.db.QueryRow(ctx, insertContainer,
 		arg.ID,
@@ -1201,7 +1201,7 @@ type InsertWorkItemParams struct {
 //
 // The calendar UID is the create's own too, and only the create's: it is the address a calendar
 // client chose for the entry, set once here and by no other statement.
-// The number the store drew in the collection (migration 0203), so the create answers it.
+// The number the store drew in the collection (migration 0204), so the create answers it.
 func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) (*int64, error) {
 	row := q.db.QueryRow(ctx, insertWorkItem,
 		arg.ID,

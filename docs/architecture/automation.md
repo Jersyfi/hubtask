@@ -522,36 +522,52 @@ self-hosting ([ADR-0002](../adr/ADR-0002-modular-monolith.md),
 
 ---
 
-## 5. Mail into the jumble
+## 5. Mail into the workspace
 
-**No IMAP client is taken in** ([ADR-0040](../adr/ADR-0040-no-imap-intake.md)). Mail reaches the
-jumble only through the webhook doors (`/jumble/inbound/{token}`, and `/jumble/mail/{token}` taking
-`message/rfc822`); an operator without an MTA uses a provider's inbound route or a mail-to-webhook
-bridge. A future transport would be **JMAP**, not a stateful session protocol.
+**One intake per workspace, any number of doors** ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md),
+superseding [ADR-0040](../adr/ADR-0040-no-imap-intake.md) and
+[ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)). The operator's inbound service
+posts each raw message to `POST /mail/inbound` (`HUBTASK_MAIL_INBOUND_DOMAIN`,
+`HUBTASK_MAIL_INBOUND_KEY` as bearer token or basic password); a connected mailbox (IMAP, or JMAP
+where the provider speaks it) is the other door. Hubtask runs no SMTP receiver. The jumble's own
+webhook doors (`/jumble/inbound/{token}`, `/jumble/mail/{token}`) stay as they were.
 
-**The parser is transport-independent**: bytes in; sender, subject, text and attachments out. The
-use case behind it knows nothing about MIME, so a second transport is only a producer of bytes and a
-source of a tenant.
+**The parser is transport-independent**: bytes in; sender, subject, text, attachments, Message-ID
+and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 
-### 5.1 Addresses for every place
+### 5.1 Names and the routing order
 
-The jumble, every collection and every entry can have an address on the installation's receiving
-domain ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)): `<label>.<code>@<domain>`,
-the code 16 random characters of lowercase base32, the label decoration. The operator sets
-`HUBTASK_MAIL_INBOUND_DOMAIN` and `HUBTASK_MAIL_INBOUND_KEY`; the inbound service posts each raw
-message to `POST /mail/inbound` with the key as bearer token or basic password, and the recipient
-as `?recipient=` or in `X-Original-To`, `Delivered-To`, `To` or `Cc`.
+Every collection has a *handle* (`einkauf`, letters and digits, unique in the workspace over
+trashed collections too, kept on a rename) and every entry a number in its collection; together
+they are the *ticket key* `EINKAUF-42`. On the operator's domain a workspace has a *name*
+(`familie`, unique on the installation): `familie@`, `familie+tag@` and `tag.familie@` all reach
+it. The first rule that matches decides:
 
-| Address of | Sender recognised and allowed | Otherwise (`MEMBERS`) | Otherwise (`ANYONE`) |
-|---|---|---|---|
-| the jumble | a jumble entry | a jumble entry | a jumble entry |
-| a collection | an entry by the sender: subject → title, text → description, files → attachments | a jumble entry addressed to the collection | an entry by the account that opened the address, headed *From:* |
-| an entry | a comment by the sender, files on the entry | a jumble entry addressed to the entry | a comment by the account that opened the address, headed *From:* |
+| # | Rule | Becomes |
+|---|---|---|
+| 1 | A ticket key: `+key-42` / `key-42.` in the address, `[KEY-42]` or `KEY-42` in the subject | a comment on that entry |
+| 2 | A handle: `+handle` / `handle.` in the address, `#handle` in the subject | an entry in that collection, the routing words taken out of the title |
+| 3 | A sender rule (`@lieferant.de` → *Einkauf*), an exact address before a domain | an entry in that collection |
+| 4 | The workspace's default collection | an entry there |
+| 5 | Otherwise | a jumble entry with the reason (`NO_ROUTE`, `UNKNOWN_PLACE`) |
 
-*Recognised*: an active person account of the workspace has the sender's address, and the inbound
-service reported neither SPF nor DMARC as failed. *Allowed*: the sender's own rights permit the act;
-it goes through `CreateWorkItem`, `AddComment` and `AttachMedia` as that person. A message marked
-as spam always lands in the jumble. A collection or entry that is archived or in the trash answers
-not-found. `Auto-Submitted` other than `no`, or the notification header Hubtask sets on its own
-mail, is accepted and discarded; an address takes 60 deliveries an hour, then 429. A notification
-about an entry carries the entry's address as `Reply-To`.
+### 5.2 Who may write
+
+| Level | Admitted | Writes as |
+|---|---|---|
+| `MEMBERS` (default) | an active person account of the workspace with the sender's address, SPF/DKIM/DMARC not failed | the sender |
+| `MEMBERS_AND_ALLOWED` | and the addresses and `@domains` of the allow list | the sender, or the administrator who saved the settings, headed *From:* |
+| `ANYONE` | every sender | as above |
+
+The block list drops a sender's mail before every level. A message marked as spam, unparseable, or
+from a sender not admitted lands in the jumble with its reason and the place it named; a member
+whose own rights refuse the act lands there with `NOT_PERMITTED`. `Auto-Submitted` other than `no`,
+Hubtask's own notification header, and more than 30 messages an hour from one sender are dropped.
+
+### 5.3 Once, and on the record
+
+A receipt per workspace and Message-ID (a digest of the raw message where there is none) makes a
+redelivery a no-op and is the log *Administration → E-mail* shows; it is kept 30 days
+(`MAIL_RECEIPT`, [data-retention.md](./data-retention.md) §3). A notification about an entry
+carries the entry's ticket key on the intake's address as `Reply-To`
+(`familie+web-42@in.example.app`), so a reply is routed by rule 1.
