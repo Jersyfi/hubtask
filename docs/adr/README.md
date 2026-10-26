@@ -72,7 +72,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0037](./ADR-0037-component-workbench.md) | The component workbench is ours, and it renders every story through the rules | accepted | Design system, clients, tooling |
 | [0038](./ADR-0038-workbench-published.md) | The workbench is published at workbench.hubtask.eu | accepted | Design system, deployment |
 | [0039](./ADR-0039-overlay-positioning.md) | Overlays are positioned by CSS, with one fallback we own | accepted | Design system, clients, supply chain |
-| [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | accepted | Automation, mail, supply chain |
+| [0040](./ADR-0040-no-imap-intake.md) | No IMAP intake: the webhook door is the mail door | superseded | Automation, mail, supply chain |
 | [0041](./ADR-0041-icon-set.md) | Lucide, cut down to a declared subset, behind one `Icon` | accepted | Design system, supply chain |
 | [0042](./ADR-0042-nats-client.md) | The NATS client library: nats.go, confined to one adapter | accepted | Events, integration, supply chain |
 | [0043](./ADR-0043-theme-per-device.md) | The theme is a property of the device, not of the account | accepted | Clients, design system, contract |
@@ -124,5 +124,6 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0089](./ADR-0089-check-once-where-it-is-cheap.md) | Check once, where it is cheap; the worker checks its own premises | accepted | Process |
 | [0090](./ADR-0090-concept-mode-findings-fixed-where-found-proof-by-tests.md) | Concept mode, findings fixed where found, proof by tests | accepted | Process |
 | [0091](./ADR-0091-hubtask-as-one-system.md) | Hubtask as one system | accepted | Design |
-| [0092](./ADR-0092-mail-addresses-for-every-place.md) | Mail addresses for every place, on the operator's receiving domain | accepted | Jumble, security |
+| [0092](./ADR-0092-mail-addresses-for-every-place.md) | Mail addresses for every place, on the operator's receiving domain | superseded | Jumble, security |
 | [0093](./ADR-0093-voice-assistants-through-a-skill-of-our-own.md) | Voice assistants through a skill of our own | accepted | Work, identity |
+| [0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) | One mail intake, routed by handles and ticket keys | accepted | Jumble, mail, security |

@@ -62,7 +62,7 @@ func trashableSubtree(
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		for _, item := range []work.WorkItem{task, pkg, activity} {
-			if err := repo.Insert(ctx, item); err != nil {
+			if _, err := repo.Insert(ctx, item); err != nil {
 				return err
 			}
 		}

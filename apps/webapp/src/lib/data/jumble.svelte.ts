@@ -48,6 +48,8 @@ export interface JumbleEntry {
   /** The place a mail was addressed to where it waits here instead (ADR-0092). */
   readonly meant_for_kind?: 'COLLECTION' | 'ITEM' | null;
   readonly meant_for_id?: string | null;
+  /** Why the mail intake put it here (ADR-0094): SENDER_NOT_ALLOWED, NO_ROUTE, … */
+  readonly intake_reason?: string | null;
 }
 
 interface EntryPage {

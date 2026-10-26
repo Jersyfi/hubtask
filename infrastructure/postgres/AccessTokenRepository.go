@@ -349,3 +349,11 @@ func weekStartAbove(workspace string, installation []byte) identity.WeekStart {
 	}
 	return ""
 }
+
+// int64Of is stringFrom for a nullable count: zero for NULL.
+func int64Of(value *int64) int64 {
+	if value == nil {
+		return 0
+	}
+	return *value
+}

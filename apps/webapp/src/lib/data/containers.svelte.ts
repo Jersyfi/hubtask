@@ -234,6 +234,20 @@ class Containers {
     return [...seen.values()];
   }
 
+  /**
+   * A collection's handle (ADR-0094): the word a mail subject, an address and its ticket keys use.
+   * The collection and its hub's level are read again so every place shows the new word.
+   */
+  async setHandle(id: string, hubId: string | null | undefined, handle: string): Promise<string> {
+    const answer = await engine.mutate<{ handle: string }>(
+      'PUT', `/collections/${encodeURIComponent(id)}/handle`, { handle }, { idempotencyKey: crypto.randomUUID() },
+    );
+    const reads: Promise<unknown>[] = [engine.refresh<Container>({ path: `/containers/${id}` })];
+    if (hubId) reads.push(engine.refresh<ContainerPage>({ path: collectionsPath(hubId) }));
+    await Promise.allSettled(reads);
+    return answer.handle;
+  }
+
   /** The `Idempotency-Key` is the caller's: pressing "create" twice is one intent, not two hubs. */
   async create(
     body: {

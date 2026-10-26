@@ -25,7 +25,7 @@ func privateHub(ctx context.Context, t *testing.T, tenant, author shared.ID) sha
 	hub := containerIn(tenant, author, id, freshName(t), "a0")
 	hub.Private = true
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, hub)
+		return insertErr(containerRepo().Insert(ctx, hub))
 	}); err != nil {
 		t.Fatalf("writing the private hub: %v", err)
 	}
@@ -73,7 +73,7 @@ func TestACollectionCannotBePrivateInStorage(t *testing.T) {
 	collection.ParentID = hub
 	collection.Private = true
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, collection)
+		return insertErr(containerRepo().Insert(ctx, collection))
 	})
 	var pgErr *pgconn.PgError
 	if !errors.As(err, &pgErr) || pgErr.ConstraintName != "container_private_hub_check" {

@@ -30,7 +30,8 @@ func seedStopScene(ctx context.Context, t *testing.T) stopScene {
 	t.Helper()
 	scene := stopScene{privateWorld: seedPrivateWorld(ctx, t), sharedEntry: freshID(t), hubOnly: freshID(t)}
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.sharedEntry, "Tile the bathroom", "a0"))
+		_, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.sharedEntry, "Tile the bathroom", "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the shared entry: %v", err)
 	}

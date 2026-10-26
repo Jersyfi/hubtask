@@ -203,7 +203,9 @@ type Containers interface {
 	// `containers.name_taken`, translated from the unique index rather than checked beforehand: a
 	// check followed by an insert is two statements with a gap between them, and two requests
 	// arriving in that gap both pass the check (multi-tenancy.md §2.1).
-	Insert(ctx context.Context, container work.Container) error
+	//
+	// It answers the container as stored: the store gives a collection its handle (ADR-0094).
+	Insert(ctx context.Context, container work.Container) (work.Container, error)
 
 	// SetAttributes writes a container's own descriptive fields - what RenameContainer may change -
 	// or reports a version conflict.
@@ -630,8 +632,9 @@ type Items interface {
 	// the same place.
 	LastOrderKey(ctx context.Context, collectionID, parentID shared.ID) (string, error)
 
-	// Insert writes a new item.
-	Insert(ctx context.Context, item work.WorkItem) error
+	// Insert writes a new item and answers it as stored: the store draws its number in the
+	// collection (ADR-0094).
+	Insert(ctx context.Context, item work.WorkItem) (work.WorkItem, error)
 
 	// Subtree returns everything below one entry, the entry itself excluded, parents before their
 	// children - so that one pass over the rows always meets an entry after the one it hangs from,

@@ -1022,7 +1022,15 @@ func (r ItemRepository) LastOrderKey(ctx context.Context, collectionID, parentID
 // look the entry up and update it. The title is not: two items in one collection may
 // share one. A shopping list with "milk" on it twice is a list somebody wrote that way, and a
 // container's name is the thing that has to be unique because it is how a person navigates.
-func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
+func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) (work.WorkItem, error) {
+	if err := r.insert(ctx, &item); err != nil {
+		return work.WorkItem{}, err
+	}
+	return item, nil
+}
+
+// insert writes the row and takes back what the store assigned.
+func (r ItemRepository) insert(ctx context.Context, item *work.WorkItem) error {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return err
@@ -1055,7 +1063,7 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 		return err
 	}
 
-	err = queries.InsertWorkItem(ctx, sqlc.InsertWorkItemParams{
+	number, err := queries.InsertWorkItem(ctx, sqlc.InsertWorkItemParams{
 		ID:              id,
 		CollectionID:    collection,
 		Type:            sqlc.ItemType(item.Type),
@@ -1093,6 +1101,7 @@ func (r ItemRepository) Insert(ctx context.Context, item work.WorkItem) error {
 			WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("writing the work item: %w", err))
 	}
+	item.Number = int64Of(number)
 	return nil
 }
 
@@ -1397,6 +1406,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		CreatedAt:          timeFrom(row.CreatedAt),
 		UpdatedAt:          timeFrom(row.UpdatedAt),
 		Version:            int(row.Version),
+		Number:             int64Of(row.Number),
 	}, nil
 }
 

@@ -40,7 +40,8 @@ func (w keptWorld) assignedToKim(ctx context.Context, t *testing.T, title string
 	t.Helper()
 	id := freshID(t)
 	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(w.tenant, w.ada, w.collection, id, title, "a3"))
+		_, err := itemRepo().Insert(ctx, taskIn(w.tenant, w.ada, w.collection, id, title, "a3"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding Kim's assignment: %v", err)
 	}

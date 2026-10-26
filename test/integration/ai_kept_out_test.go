@@ -131,16 +131,17 @@ func seedKeptWorld(ctx context.Context, t *testing.T) keptWorld {
 	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
 		ada := taskIn(w.tenant, w.ada, w.collection, w.adaEntry, w.adaTitle, "a0")
 		ada.Notes = "ADANOTES " + kimName + " brings drinks, write to " + kimMail
-		if err := itemRepo().Insert(ctx, ada); err != nil {
+		if _, err := itemRepo().Insert(ctx, ada); err != nil {
 			return err
 		}
 		kim := taskIn(w.tenant, w.kim, w.collection, w.kimEntry, w.kimTitle, "a1")
 		kim.Notes = w.kimNotes
-		if err := itemRepo().Insert(ctx, kim); err != nil {
+		if _, err := itemRepo().Insert(ctx, kim); err != nil {
 			return err
 		}
 		// An entry nobody has discussed: a thread with nothing to work with.
-		return itemRepo().Insert(ctx, taskIn(w.tenant, w.ada, w.collection, w.empty, "Quiet entry", "a2"))
+		_, err := itemRepo().Insert(ctx, taskIn(w.tenant, w.ada, w.collection, w.empty, "Quiet entry", "a2"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the entries: %v", err)
 	}

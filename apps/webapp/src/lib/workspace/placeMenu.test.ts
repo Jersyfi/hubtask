@@ -27,9 +27,3 @@ test('archived above, there is nothing to archive or restore here; archived here
   assert.equal(restore?.label, 'app.workspace.unarchive');
 });
 
-test('a collection offers to copy its mail address where places have one (ADR-0092 M1)', () => {
-  assert.deepEqual(ids(placeMenu({ type: 'COLLECTION', mayShape: false, mayDelete: false, archival: 'active', hasMail: true }, t)), ['mail']);
-  assert.equal(ids(placeMenu({ type: 'COLLECTION', mayShape: true, mayDelete: false, archival: 'active', hasMail: true }, t))[0], 'mail');
-  assert.ok(!ids(placeMenu({ type: 'HUB', mayShape: true, mayDelete: false, archival: 'active', hasMail: true }, t)).includes('mail'));
-  assert.ok(!ids(placeMenu({ type: 'COLLECTION', mayShape: true, mayDelete: false, archival: 'archived', hasMail: true }, t)).includes('mail'));
-});

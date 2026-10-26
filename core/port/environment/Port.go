@@ -375,6 +375,17 @@ type MailConfig struct {
 	InboundDomain string
 	// InboundKey is HUBTASK_MAIL_INBOUND_KEY, what the inbound service presents on the route.
 	InboundKey secret.Secret
+	// OAuth are the installation's own OAuth apps for connected mailboxes (ADR-0094), by provider
+	// key ("google", "microsoft"): HUBTASK_MAIL_OAUTH_GOOGLE_CLIENT_ID and _CLIENT_SECRET, the same
+	// for MICROSOFT. A provider without one is still connected, through an app the workspace's
+	// administrator registers and enters.
+	OAuth map[string]OAuthApp
+}
+
+// OAuthApp is an OAuth client registered at a provider.
+type OAuthApp struct {
+	ClientID     string
+	ClientSecret secret.Secret
 }
 
 // VoiceConfig is the installation's say over voice assistants.

@@ -44,9 +44,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { items } from '../lib/data/items.svelte.ts';
   import { jumble } from '../lib/data/jumble.svelte.ts';
-  import { mailAddresses } from '../lib/data/mailaddress.svelte.ts';
+  import { readMailSettings } from '../lib/data/mailintake.svelte.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import MailAddressField from '../lib/mail/MailAddressField.svelte';
+  import IntakeAddress from '../lib/mail/IntakeAddress.svelte';
   import { archivalOfItem } from '../lib/data/lifecycle.ts';
   import { people } from '../lib/data/people.svelte.ts';
   import { today } from '../lib/data/today.svelte.ts';
@@ -141,14 +141,13 @@
   const isLoading = $derived(today.state.status === 'loading' || today.state.status === 'idle' || !areCollectionsSettled);
 
   const waiting = $derived(jumble.of(WAITING));
-  // The jumble's address, for the card while nothing waits and for the first steps (concept
-  // round 2, §1): read once; nothing is drawn where the installation has no receiving domain.
+  // The workspace's mail intake address, for the card while nothing waits and for the first steps
+  // (ADR-0094): read once where the operator's receiving domain makes one and the intake is on.
+  // Only its administrators may read the settings; for everybody else nothing is drawn.
+  let jumbleAddress = $state<string | undefined>(undefined);
   $effect(() => {
-    if (hasJumble && manifest.value?.features?.mail_addresses === true) untrack(() => void mailAddresses.load({ kind: 'JUMBLE' }));
-  });
-  const jumbleAddress = $derived.by(() => {
-    const read = mailAddresses.of({ kind: 'JUMBLE' });
-    return read && read !== 'failed' && read.available ? read.address : undefined;
+    if (!hasJumble || manifest.value?.features?.mail_domain !== true) return;
+    untrack(() => void readMailSettings().then((read) => (jumbleAddress = read?.enabled ? (read.address ?? undefined) : undefined), () => undefined));
   });
   const isJumbleLoading = $derived(jumble.stateOf(WAITING).status === 'loading' || jumble.stateOf(WAITING).status === 'idle');
 
@@ -393,7 +392,7 @@
               {#if jumbleAddress}
                 <li data-step-mail>
                   <span class="step-mark" aria-hidden="true"></span><span class="step-word">{t('app.today.step_mail')}</span>
-                  <MailAddressField target={{ kind: 'JUMBLE' }} />
+                  <IntakeAddress address={jumbleAddress} />
                 </li>
               {/if}
             </ul>
@@ -504,7 +503,7 @@
             <Stack gap="100">
               <h2 class="head" id="today-jumble">{t('app.today.jumble')}</h2>
               <p class="none">{t('app.today.jumble_none')}</p>
-              <MailAddressField target={{ kind: 'JUMBLE' }} lead={t('app.mail.jumble_lead')} />
+              <IntakeAddress address={jumbleAddress} lead={t('app.mail.jumble_lead')} />
             </Stack>
           </section>
         {/if}

@@ -108,12 +108,8 @@ func (g *Guard) CheckURL(rawURL string) (*url.URL, error) {
 	}
 
 	host := strings.ToLower(target.Hostname())
-	if len(g.allowed) > 0 {
-		if _, ok := g.allowed[host]; !ok {
-			return nil, shared.ErrValidation.
-				WithDetail(codeTargetNotAllowed).
-				WithParams(map[string]string{"host": host})
-		}
+	if err := g.CheckHost(host); err != nil {
+		return nil, err
 	}
 
 	// A literal IP needs no resolution, and checking it here means the caller learns about
@@ -161,6 +157,22 @@ func (g *Guard) Resolve(ctx context.Context, host string) ([]netip.Addr, error) 
 		}
 	}
 	return addrs, nil
+}
+
+// CheckHost applies the egress allowlist to a host name, for a protocol that is not HTTP - IMAP,
+// SSH - and so never passes through CheckURL. An empty list allows every public host; the address
+// policy is still Resolve's and CheckControl's.
+func (g *Guard) CheckHost(host string) error {
+	host = strings.ToLower(host)
+	if len(g.allowed) == 0 {
+		return nil
+	}
+	if _, ok := g.allowed[host]; !ok {
+		return shared.ErrValidation.
+			WithDetail(codeTargetNotAllowed).
+			WithParams(map[string]string{"host": host})
+	}
+	return nil
 }
 
 // CheckControl is the hook for net.Dialer.Control. It runs after resolution, with the concrete

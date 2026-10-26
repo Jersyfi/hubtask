@@ -271,7 +271,8 @@ func TestACopyIntoAnotherCollectionReportsTheLabelItLeftBehind(t *testing.T) {
 		destination := containerIn(tenantB, authorB, far, freshName(t), "b0")
 		destination.Type = domain.ContainerCollection
 		destination.ParentID = hub
-		return containerRepo().Insert(ctx, destination)
+		_, err := containerRepo().Insert(ctx, destination)
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}

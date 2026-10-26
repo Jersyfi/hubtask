@@ -829,6 +829,8 @@ type Container struct {
 	DeletedByType *string
 	DeletedByID   pgtype.UUID
 	Private       bool
+	Handle        *string
+	ItemCounter   int64
 }
 
 type ContainerMilestone struct {
@@ -1069,6 +1071,7 @@ type JumbleEntry struct {
 	CreatedBy    pgtype.UUID
 	MeantForKind *string
 	MeantForID   pgtype.UUID
+	IntakeReason *string
 }
 
 type JumbleIntake struct {
@@ -1109,19 +1112,82 @@ type LegalHold struct {
 	ReleasedReason *string
 }
 
-type MailAddress struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	TargetKind   string
-	TargetID     pgtype.UUID
-	Code         string
-	SenderPolicy string
-	OpenedBy     pgtype.UUID
-	CreatedBy    pgtype.UUID
-	CreatedAt    pgtype.Timestamptz
-	RevokedAt    pgtype.Timestamptz
-	WindowStart  pgtype.Timestamptz
-	WindowCount  int32
+type MailReceipt struct {
+	ID         pgtype.UUID
+	TenantID   pgtype.UUID
+	MessageID  string
+	ReceivedAt pgtype.Timestamptz
+	Sender     string
+	Subject    string
+	Outcome    string
+	Reason     string
+	ItemID     pgtype.UUID
+	EntryID    pgtype.UUID
+	Door       string
+}
+
+type MailSetting struct {
+	TenantID            pgtype.UUID
+	Enabled             bool
+	Name                *string
+	DefaultCollectionID pgtype.UUID
+	SenderLevel         string
+	Allowed             []string
+	Blocked             []string
+	SenderRoutes        []byte
+	OpenedBy            pgtype.UUID
+	UpdatedAt           pgtype.Timestamptz
+	UpdatedBy           pgtype.UUID
+}
+
+type Mailbox struct {
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	Protocol          string
+	Address           string
+	Host              *string
+	Port              *int32
+	SessionUrl        *string
+	Username          string
+	Folder            string
+	DoneFolder        string
+	Preset            *string
+	Enabled           bool
+	SecretEnc         []byte
+	SecretKeyID       string
+	CheckedAt         pgtype.Timestamptz
+	Failure           *string
+	FailingSince      pgtype.Timestamptz
+	Auth              string
+	OauthProvider     *string
+	OauthAuthorizeUrl *string
+	OauthTokenUrl     *string
+	OauthScopes       []string
+	OauthClientID     *string
+	OauthInstallation bool
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         pgtype.UUID
+}
+
+type MailboxAuthorization struct {
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	AccountID         pgtype.UUID
+	StateHash         []byte
+	Provider          string
+	AuthorizeUrl      string
+	TokenUrl          string
+	Scopes            []string
+	ClientID          string
+	Installation      bool
+	Host              string
+	Port              int32
+	LoginHint         *string
+	VerifierEnc       []byte
+	VerifierKeyID     string
+	ClientSecretEnc   []byte
+	ClientSecretKeyID *string
+	ExpiresAt         pgtype.Timestamptz
 }
 
 type MediaObject struct {
@@ -1795,4 +1861,5 @@ type WorkItem struct {
 	CompletionCount       int32
 	FlowStartedAt         pgtype.Timestamptz
 	FlowFinishedAt        pgtype.Timestamptz
+	Number                *int64
 }

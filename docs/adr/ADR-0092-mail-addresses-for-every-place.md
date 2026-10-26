@@ -1,10 +1,10 @@
 # ADR-0092 — Mail addresses for every place, on the operator's receiving domain
 
-**Status:** accepted · **Date:** 2026-10-25 · **Decided:** 2026-10-24 and 2026-10-25, by the owner
+**Status:** superseded · **Superseded by:** [ADR-0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) on 2026-10-25 — handles and ticket keys instead of random codes · **Date:** 2026-10-25 · **Decided:** 2026-10-24 and 2026-10-25, by the owner
 ("Die Dritte soll auch bestehen bleiben, dass man keinen eigenen E-Mail Server braucht, aber es muss
 eine Möglichkeit geben, … vollumfängliches Feature"; "ADRs und Decisions hierzu sind freigegeben")
 
-**Rule lives in:** [automation.md](../architecture/automation.md) §5.1,
+**Rule lives in:** superseded - see ADR-0094; [automation.md](../architecture/automation.md) §5,
 [multi-tenancy.md](../architecture/multi-tenancy.md) §2.1 (the door `resolve_mail_address`),
 [UC-JUM-09](../usecases/jumble/UC-JUM-09-mail-straight-into-a-collection-or-an-entry.md),
 [UC-JUM-10](../usecases/jumble/UC-JUM-10-answer-a-notification-by-mail.md)

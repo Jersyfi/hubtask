@@ -293,7 +293,9 @@ INSERT INTO container (
   created_at,
   updated_at,
   version,
-  private
+  private,
+  handle,
+  item_counter
 )
 SELECT
   r.id,
@@ -317,7 +319,11 @@ SELECT
   r.version,
   -- An archive written before 0124 carries no flag, and its hubs were shared when it was taken
   -- (tenant-export.md §11: an additive field keeps the format).
-  coalesce(r.private, false)
+  coalesce(r.private, false),
+  -- A collection's handle and count travel with it (migration 0204); an archive written before
+  -- carries neither, and the store then gives the handle and the count starts at none.
+  r.handle,
+  coalesce(r.item_counter, 0)
 FROM jsonb_populate_record(
   NULL::container,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -341,7 +347,9 @@ ON CONFLICT (id) DO UPDATE SET
   created_at = EXCLUDED.created_at,
   updated_at = EXCLUDED.updated_at,
   version = EXCLUDED.version,
-  private = EXCLUDED.private
+  private = EXCLUDED.private,
+  handle = EXCLUDED.handle,
+  item_counter = greatest(container.item_counter, EXCLUDED.item_counter)
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsContainer :one
@@ -538,7 +546,8 @@ INSERT INTO work_item (
   amount,
   completion_count,
   flow_started_at,
-  flow_finished_at
+  flow_finished_at,
+  number
 )
 SELECT
   r.id,
@@ -588,7 +597,10 @@ SELECT
   -- An archive written before migration 0189 carries no count, and the column takes no NULL.
   coalesce(r.completion_count, 0),
   r.flow_started_at,
-  r.flow_finished_at
+  r.flow_finished_at,
+  -- An entry's number travels with it (migration 0204); an archive written before carries none,
+  -- and the store then draws the next of its collection.
+  r.number
 FROM jsonb_populate_record(
   NULL::work_item,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -639,7 +651,8 @@ ON CONFLICT (id) DO UPDATE SET
   amount = EXCLUDED.amount,
   completion_count = EXCLUDED.completion_count,
   flow_started_at = EXCLUDED.flow_started_at,
-  flow_finished_at = EXCLUDED.flow_finished_at
+  flow_finished_at = EXCLUDED.flow_finished_at,
+  number = EXCLUDED.number
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkItem :one

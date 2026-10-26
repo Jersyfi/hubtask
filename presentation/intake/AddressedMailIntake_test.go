@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
+	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 )
 
 // The receiving domain's door (ADR-0092, UC-JUM-09 checks 7 and 8): the key opens it, the
@@ -33,13 +34,13 @@ func TestTheInboundKeyOpensTheDoor(t *testing.T) {
 	}
 }
 
-type recordingDeliveries struct{ got jumbleservice.AddressedMail }
+type recordingDeliveries struct{ got jumbleservice.ReceivedMail }
 
 func (r *recordingDeliveries) Execute(
-	_ context.Context, mail jumbleservice.AddressedMail,
+	_ context.Context, mail jumbleservice.ReceivedMail,
 ) (jumbleservice.MailDeliveryResult, error) {
 	r.got = mail
-	return jumbleservice.MailDeliveryResult{Outcome: jumbleservice.MailBecameEntry}, nil
+	return jumbleservice.MailDeliveryResult{Outcome: mailmodel.OutcomeEntry}, nil
 }
 
 func TestTheHeadersSayWhereAndWhatKind(t *testing.T) {

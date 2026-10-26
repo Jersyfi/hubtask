@@ -47,23 +47,27 @@ func seedDestinationWorld(ctx context.Context, t *testing.T) destinationWorld {
 		hidden := containerIn(w.tenant, w.owner, privateHub, freshName(t), "a2")
 		hidden.Private = true
 		for _, insert := range []func() error{
-			func() error { return repo.Insert(ctx, containerIn(w.tenant, w.owner, shop, freshName(t), "a0")) },
-			func() error { return repo.Insert(ctx, containerIn(w.tenant, w.owner, closedHub, freshName(t), "a1")) },
-			func() error { return repo.Insert(ctx, hidden) },
 			func() error {
-				return repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.open, shop, "Orders", "a0"))
+				return insertErr(repo.Insert(ctx, containerIn(w.tenant, w.owner, shop, freshName(t), "a0")))
 			},
 			func() error {
-				return repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.archived, shop, "Old orders", "a1"))
+				return insertErr(repo.Insert(ctx, containerIn(w.tenant, w.owner, closedHub, freshName(t), "a1")))
+			},
+			func() error { return insertErr(repo.Insert(ctx, hidden)) },
+			func() error {
+				return insertErr(repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.open, shop, "Orders", "a0")))
 			},
 			func() error {
-				return repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.trashed, shop, "Binned", "a2"))
+				return insertErr(repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.archived, shop, "Old orders", "a1")))
 			},
 			func() error {
-				return repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.underArchived, closedHub, "Last year", "a0"))
+				return insertErr(repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.trashed, shop, "Binned", "a2")))
 			},
 			func() error {
-				return repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.private, privateHub, "Diary", "a0"))
+				return insertErr(repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.underArchived, closedHub, "Last year", "a0")))
+			},
+			func() error {
+				return insertErr(repo.Insert(ctx, collectionIn(w.tenant, w.owner, w.private, privateHub, "Diary", "a0")))
 			},
 		} {
 			if err := insert(); err != nil {
@@ -227,13 +231,13 @@ func TestTheOrderedListingPagesAcrossTheHubs(t *testing.T) {
 	if err := write(ctx, t, w.tenant, func(ctx context.Context) error {
 		for _, hubKey := range []string{"a0", "a1", "a2"} {
 			hub := freshID(t)
-			if err := repo.Insert(ctx, containerIn(w.tenant, w.owner, hub, freshName(t), hubKey)); err != nil {
+			if _, err := repo.Insert(ctx, containerIn(w.tenant, w.owner, hub, freshName(t), hubKey)); err != nil {
 				return err
 			}
 			for _, key := range []string{"a0", "a1"} {
 				id := freshID(t)
 				want = append(want, id)
-				if err := repo.Insert(ctx, collectionIn(w.tenant, w.owner, id, hub, freshName(t), key)); err != nil {
+				if _, err := repo.Insert(ctx, collectionIn(w.tenant, w.owner, id, hub, freshName(t), key)); err != nil {
 					return err
 				}
 			}

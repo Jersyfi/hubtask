@@ -77,7 +77,7 @@ type (
 		Grant(ctx context.Context, grant domain.Grant) (held domain.Grant, created bool, err error)
 	}
 	ContainerSeeder interface {
-		Insert(ctx context.Context, container work.Container) error
+		Insert(ctx context.Context, container work.Container) (work.Container, error)
 	}
 	BucketSeeder interface {
 		Insert(ctx context.Context, bucket work.Bucket) error
@@ -441,7 +441,7 @@ func (h ProvisionTenant) seedContainer(
 	if err != nil {
 		return work.Container{}, err
 	}
-	if err := h.Containers.Insert(ctx, container); err != nil {
+	if container, err = h.Containers.Insert(ctx, container); err != nil {
 		return work.Container{}, err
 	}
 	announcement, err := event.NewContainerCreated(h.IDs.NewID(), container, actor, now, event.Cause{})

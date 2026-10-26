@@ -36,7 +36,7 @@ func hubFor(ctx context.Context, t *testing.T, tenant, author shared.ID) shared.
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenant, author, id, freshName(t), "a0"))
+		return insertErr(containerRepo().Insert(ctx, containerIn(tenant, author, id, freshName(t), "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the hub: %v", err)
 	}
@@ -63,7 +63,7 @@ func collectionsIn(ctx context.Context, t *testing.T, tenant, author, hub shared
 			collection := containerIn(tenant, author, id, freshName(t), key)
 			collection.Type = work.ContainerCollection
 			collection.ParentID = hub
-			if err := containers.Insert(ctx, collection); err != nil {
+			if _, err := containers.Insert(ctx, collection); err != nil {
 				return err
 			}
 			ids, previous = append(ids, id), key
@@ -90,7 +90,7 @@ func tasksIn(ctx context.Context, t *testing.T, tenant, author, collection share
 				return err
 			}
 			id := freshID(t)
-			if err := items.Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), key)); err != nil {
+			if _, err := items.Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), key)); err != nil {
 				return err
 			}
 			ids, previous = append(ids, id), key
@@ -247,7 +247,7 @@ func TestAConcurrentInsertDoesNotDisturbTheRestOfTheWalk(t *testing.T) {
 		collection := containerIn(tenantA, authorA, intruder, freshName(t), key)
 		collection.Type = work.ContainerCollection
 		collection.ParentID = hub
-		return containerRepo().Insert(ctx, collection)
+		return insertErr(containerRepo().Insert(ctx, collection))
 	}); err != nil {
 		t.Fatalf("inserting during the walk: %v", err)
 	}
@@ -313,7 +313,7 @@ func TestAnItemListReturnsTheLevelAsked(t *testing.T) {
 		item.ParentID = tasks[0]
 		item.Path = work.RootPath(tasks[0]) + child.String() + work.PathSeparator
 		item.Depth = 2
-		return itemRepo().Insert(ctx, item)
+		return insertErr(itemRepo().Insert(ctx, item))
 	}); err != nil {
 		t.Fatalf("seeding the work package: %v", err)
 	}
@@ -368,10 +368,11 @@ func TestTheLifecycleStateDecidesWhetherARowIsInTheLevel(t *testing.T) {
 	archived, trashed := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		items := itemRepo()
-		if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, archived, "Archived", "b0")); err != nil {
+		if _, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, archived, "Archived", "b0")); err != nil {
 			return err
 		}
-		return items.Insert(ctx, taskIn(tenantA, authorA, collection, trashed, "Trashed", "c0"))
+		_, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, trashed, "Trashed", "c0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the lifecycle fixtures: %v", err)
 	}

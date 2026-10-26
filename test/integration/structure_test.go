@@ -981,8 +981,8 @@ func TestAMoveToAnotherCollectionDropsWhatTheDestinationCannotResolve(t *testing
 
 	destinationID := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx,
-			collectionIn(tenantA, authorA, destinationID, hub, freshName(t), "a1"))
+		return insertErr(containerRepo().Insert(ctx,
+			collectionIn(tenantA, authorA, destinationID, hub, freshName(t), "a1")))
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}

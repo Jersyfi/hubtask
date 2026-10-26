@@ -191,20 +191,48 @@ class Client:
         """Settle an entry as a comment on an entry"""
         return self._call("POST", "/jumble/entries/{entryId}:comment", {"entryId": entry_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def show_mail_address(self, *, query: dict[str, Any] | None = None) -> "MailAddress":
-        """The address a place takes mail at"""
-        return self._call("GET", "/mail/addresses", {}, query, {}, None, "none", None, "json")
+    def show_mail_settings(self) -> "MailSettings":
+        """The workspace's mail intake"""
+        return self._call("GET", "/mail/settings", {}, None, {}, None, "none", None, "json")
 
-    def rotate_mail_address(self, body: "MailAddressTarget", *, idempotency_key: str | None = None) -> "MailAddress":
-        """Replace a place's mail address"""
-        return self._call("POST", "/mail/addresses:rotate", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+    def save_mail_settings(self, body: "MailSettings", *, idempotency_key: str | None = None) -> "MailSettings":
+        """Replace the workspace's mail intake settings"""
+        return self._call("PUT", "/mail/settings", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
-    def set_mail_sender_policy(self, body: "MailSenderPolicyChange", *, idempotency_key: str | None = None) -> "MailAddress":
-        """Set who may write into a place by mail"""
-        return self._call("POST", "/mail/addresses:set-sender-policy", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+    def list_mailboxes(self) -> "MailboxList":
+        """The workspace's connected mailboxes"""
+        return self._call("GET", "/mail/mailboxes", {}, None, {}, None, "none", None, "json")
+
+    def connect_mailbox(self, body: "MailboxConnection", *, idempotency_key: str | None = None) -> "Mailbox":
+        """Connect a mailbox to the mail intake"""
+        return self._call("POST", "/mail/mailboxes", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def authorize_mailbox(self, body: "MailboxAuthorizationRequest", *, idempotency_key: str | None = None) -> "MailboxAuthorization":
+        """Start connecting a mailbox through its provider's sign-in"""
+        return self._call("POST", "/mail/mailboxes:authorize", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_mailbox_authorization(self, body: "MailboxAuthorizationAnswer", *, idempotency_key: str | None = None) -> "Mailbox":
+        """Finish connecting a mailbox with the provider's answer"""
+        return self._call("POST", "/mail/mailboxes:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def remove_mailbox(self, mailbox_id: str) -> None:
+        """Disconnect a mailbox"""
+        return self._call("DELETE", "/mail/mailboxes/{mailbox_id}", {"mailbox_id": mailbox_id}, None, {}, None, "none", None, "void")
+
+    def check_mailbox(self, mailbox_id: str, *, idempotency_key: str | None = None) -> "Mailbox":
+        """Sign in to a connected mailbox again and read it now"""
+        return self._call("POST", "/mail/mailboxes/{mailbox_id}:check", {"mailbox_id": mailbox_id}, None, {"Idempotency-Key": idempotency_key}, None, "none", None, "json")
+
+    def list_mail_receipts(self) -> "MailReceiptList":
+        """What the mail intake received"""
+        return self._call("GET", "/mail/receipts", {}, None, {}, None, "none", None, "json")
+
+    def set_collection_handle(self, collection_id: str, body: "CollectionHandle", *, idempotency_key: str | None = None) -> "CollectionHandle":
+        """Give a collection another handle"""
+        return self._call("PUT", "/collections/{collection_id}/handle", {"collection_id": collection_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
     def deliver_addressed_mail(self, body: bytes, *, query: dict[str, Any] | None = None) -> "MailDelivered":
-        """Deliver a mail to an address on the receiving domain"""
+        """Deliver a mail to the operator's receiving domain"""
         return self._call("POST", "/mail/inbound", {}, query, {}, body, "raw", "message/rfc822", "json")
 
     def show_voice_settings(self) -> "VoiceSettings":

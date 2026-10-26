@@ -65,7 +65,7 @@ func seedColleagueOf(ctx context.Context, t *testing.T, s person) keptColleague 
 		}
 	}
 	if err := write(ctx, t, s.tenant, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(s.tenant, c.account, s.collection, c.entry, "OLGATASK supplier review", "a5"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(s.tenant, c.account, s.collection, c.entry, "OLGATASK supplier review", "a5")))
 	}); err != nil {
 		t.Fatalf("seeding the colleague's entry: %v", err)
 	}

@@ -332,5 +332,8 @@ func entryOutput(entry domain.Entry) usecase.Output {
 		out["meant_for_kind"] = string(entry.MeantFor.Kind)
 		out["meant_for_id"] = entry.MeantFor.ID.String()
 	}
+	if entry.IntakeReason != "" {
+		out["intake_reason"] = entry.IntakeReason
+	}
 	return out
 }

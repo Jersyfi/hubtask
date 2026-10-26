@@ -384,9 +384,16 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
-| `mail.address_rotated` | RotateMailAddress | `mail_address` | WARNING | Every time |
-| `mail.address_shown` | ShowMailAddress | `mail_address` | NOTICE | Every time |
-| `mail.sender_policy_changed` | SetMailSenderPolicy | `mail_address` | WARNING | Every time |
+| `mail.handle_set` | SetCollectionHandle | `container` | NOTICE | Every time |
+| `mail.mailbox_authorization_started` | AuthorizeMailbox | `mailbox` | INFO | Every time |
+| `mail.mailbox_checked` | CheckMailbox | `mailbox` | WARNING | Every time |
+| `mail.mailbox_connected` | CompleteMailboxAuthorization | `mailbox` | WARNING | Every time |
+| `mail.mailbox_connected` | ConnectMailbox | `mailbox` | WARNING | Every time |
+| `mail.mailbox_removed` | RemoveMailbox | `mailbox` | WARNING | Every time |
+| `mail.mailboxes_read` | ListMailboxes | `mailbox` | INFO | When refused |
+| `mail.receipts_read` | ListMailReceipts | `mail_settings` | INFO | When refused |
+| `mail.settings_read` | ShowMailSettings | `mail_settings` | INFO | When refused |
+| `mail.settings_saved` | SaveMailSettings | `mail_settings` | WARNING | Every time |
 
 ## Oauth
 

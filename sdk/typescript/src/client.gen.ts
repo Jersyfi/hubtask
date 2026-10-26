@@ -221,22 +221,57 @@ export class HubtaskClient {
     return this.call("POST", "/jumble/entries/{entryId}:comment", { "entryId": entryId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** The address a place takes mail at */
-  showMailAddress(options: CallOptions & { readonly query?: NonNullable<operations["showMailAddress"]['parameters']['query']> } = {}): Promise<operations["showMailAddress"]['responses'][200]['content']["application/json"]> {
-    return this.call("GET", "/mail/addresses", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  /** The workspace's mail intake */
+  showMailSettings(options: CallOptions = {}): Promise<operations["showMailSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/settings", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Replace a place's mail address */
-  rotateMailAddress(body: NonNullable<operations["rotateMailAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["rotateMailAddress"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/mail/addresses:rotate", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  /** Replace the workspace's mail intake settings */
+  saveMailSettings(body: NonNullable<operations["saveMailSettings"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["saveMailSettings"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/mail/settings", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
-  /** Set who may write into a place by mail */
-  setMailSenderPolicy(body: NonNullable<operations["setMailSenderPolicy"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["setMailSenderPolicy"]['responses'][200]['content']["application/json"]> {
-    return this.call("POST", "/mail/addresses:set-sender-policy", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  /** The workspace's connected mailboxes */
+  listMailboxes(options: CallOptions = {}): Promise<operations["listMailboxes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/mailboxes", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
-  /** Deliver a mail to an address on the receiving domain
+  /** Connect a mailbox to the mail intake */
+  connectMailbox(body: NonNullable<operations["connectMailbox"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["connectMailbox"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Start connecting a mailbox through its provider's sign-in */
+  authorizeMailbox(body: NonNullable<operations["authorizeMailbox"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["authorizeMailbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes:authorize", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a mailbox with the provider's answer */
+  completeMailboxAuthorization(body: NonNullable<operations["completeMailboxAuthorization"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeMailboxAuthorization"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes:complete", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Disconnect a mailbox */
+  removeMailbox(mailboxId: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/mail/mailboxes/{mailbox_id}", { "mailbox_id": mailboxId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Sign in to a connected mailbox again and read it now */
+  checkMailbox(mailboxId: string, options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["checkMailbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes/{mailbox_id}:check", { "mailbox_id": mailboxId }, undefined, { "Idempotency-Key": options.idempotencyKey }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** What the mail intake received */
+  listMailReceipts(options: CallOptions = {}): Promise<operations["listMailReceipts"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/mail/receipts", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Give a collection another handle */
+  setCollectionHandle(collectionId: string, body: NonNullable<operations["setCollectionHandle"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["setCollectionHandle"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/collections/{collection_id}/handle", { "collection_id": collectionId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Deliver a mail to the operator's receiving domain
    * Public: sent without a bearer where the client holds none. */
   deliverAddressedMail(body: BodyInit, options: CallOptions & { readonly query?: NonNullable<operations["deliverAddressedMail"]['parameters']['query']> } = {}): Promise<operations["deliverAddressedMail"]['responses'][202]['content']["application/json"]> {
     return this.call("POST", "/mail/inbound", {  }, options.query, {  }, body, "raw", "message/rfc822", "json", options.signal);

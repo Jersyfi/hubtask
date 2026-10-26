@@ -39,7 +39,8 @@ func TestTheRowCountsCompletionsAndNothingElse(t *testing.T) {
 	collection := collectionFor(ctx, t, tenantA, authorA)
 	task := taskIn(tenantA, authorA, collection, freshID(t), "milk", "a0")
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, task)
+		_, err := itemRepo().Insert(ctx, task)
+		return err
 	}); err != nil {
 		t.Fatal(err)
 	}

@@ -221,7 +221,7 @@ func (h CreateContainer) create(
 			return shared.ErrInternal.WithDetail("containers.structure_unwired")
 		}
 
-		if err := h.Containers.Insert(ctx, container); err != nil {
+		if container, err = h.Containers.Insert(ctx, container); err != nil {
 			return err
 		}
 
@@ -541,6 +541,9 @@ func containerOutput(container domain.Container) usecase.Output {
 		"version":    container.Version,
 		// Always present, so a client reads a hub's privacy off every response (ADR-0073 §1).
 		"private": container.Private,
+		// A collection's short name, always present and null on a hub (ADR-0094): the word a mail
+		// subject, a plus address and a ticket key use for it.
+		"handle": stringOrNil(container.Handle),
 	}
 	if !container.ParentID.IsZero() {
 		out["parent_id"] = container.ParentID.String()
@@ -692,4 +695,12 @@ func (h CreateContainer) invoke(
 		out["structure"] = effectiveStructureOutput(*structure)
 	}
 	return out, nil
+}
+
+// int64OrNil is stringOrNil for a count the store assigns: null until it has.
+func int64OrNil(value int64) any {
+	if value == 0 {
+		return nil
+	}
+	return value
 }

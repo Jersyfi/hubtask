@@ -1531,6 +1531,7 @@ class Container(TypedDict, total=False):
     updated_at: str
     version: Required[int]
     private: bool
+    handle: str | None
     structure: "EffectiveStructure"
     kept_by_lock: list[str]
     clipped_by_levels: list["StructureSettingName"]
@@ -1981,32 +1982,123 @@ class JumbleEntry(TypedDict, total=False):
     settled_at: str | None
     meant_for_kind: Literal["COLLECTION", "ITEM"]
     meant_for_id: str
+    intake_reason: "MailReason"
     arrival_job_id: str | None
 
 class JumbleEntryComment(TypedDict, total=False):
     item_id: str
 
-class MailAddressTarget(TypedDict, total=False):
-    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
-    target_id: str
-
-class MailSenderPolicyChange(TypedDict, total=False):
-    target_kind: Required[Literal["JUMBLE", "COLLECTION", "ITEM"]]
-    target_id: str
-    sender_policy: Required[Literal["MEMBERS", "ANYONE"]]
-
-class MailAddress(TypedDict, total=False):
-    """A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key; the label only reads well."""
-    available: Required[bool]
+class MailSettings(TypedDict, total=False):
+    enabled: bool
+    name: str
+    default_collection_id: str
+    senders: "MailSenders"
+    sender_routes: list["MailSenderRoute"]
+    domain: str
     address: str
-    target_kind: Literal["JUMBLE", "COLLECTION", "ITEM"]
-    target_id: str
-    sender_policy: Literal["MEMBERS", "ANYONE"]
-    opened_by: str
-    created_at: str
+
+class MailSenders(TypedDict, total=False):
+    level: Literal["MEMBERS", "MEMBERS_AND_ALLOWED", "ANYONE"]
+    allowed: list[str]
+    blocked: list[str]
+
+class MailSenderRoute(TypedDict, total=False):
+    match: Required[str]
+    collection_id: Required[str]
+
+class MailboxList(TypedDict, total=False):
+    mailboxes: Required[list["Mailbox"]]
+    presets: Required[list["MailboxPreset"]]
+    oauth_providers: list["MailboxOAuthProvider"]
+    oauth_redirect_url: str
+
+class MailboxOAuthProvider(TypedDict, total=False):
+    key: Required[str]
+    installation: Required[bool]
+    hint: Required[str]
+
+class MailboxAuthorizationRequest(TypedDict, total=False):
+    provider: Required[str]
+    address: str
+    client_id: str
+    client_secret: str
+    authorize_url: str
+    token_url: str
+    scopes: list[str]
+    host: str
+    port: int
+
+class MailboxAuthorization(TypedDict, total=False):
+    authorize_url: Required[str]
+    expires_at: Required[str]
+
+class MailboxAuthorizationAnswer(TypedDict, total=False):
+    state: Required[str]
+    code: str
+    error: str
+
+class MailboxPreset(TypedDict, total=False):
+    key: Required[str]
+    protocol: Required[Literal["IMAP", "JMAP"]]
+    plus_addresses: Required[bool]
+    hint: Required[str]
+
+class MailboxConnection(TypedDict, total=False):
+    preset: str
+    protocol: Literal["IMAP", "JMAP"]
+    address: Required[str]
+    host: str
+    port: int
+    session_url: str
+    username: str
+    secret: Required[str]
+    folder: str
+    done_folder: str
+
+class Mailbox(TypedDict, total=False):
+    id: Required[str]
+    protocol: Required[Literal["IMAP", "JMAP"]]
+    address: Required[str]
+    host: str
+    port: int
+    session_url: str
+    username: Required[str]
+    folder: Required[str]
+    done_folder: Required[str]
+    preset: str
+    plus_addresses: bool
+    auth: Required[Literal["PASSWORD", "OAUTH"]]
+    oauth_provider: str
+    enabled: Required[bool]
+    checked_at: str
+    failure: str
+    failing: Required[bool]
+    created_at: Required[str]
+
+class MailReceiptList(TypedDict, total=False):
+    receipts: Required[list["MailReceipt"]]
+
+class MailReceipt(TypedDict, total=False):
+    id: Required[str]
+    received_at: Required[str]
+    sender: Required[str]
+    subject: Required[str]
+    outcome: Required[Literal["ENTRY", "COMMENT", "JUMBLE", "DISCARDED"]]
+    reason: "MailReason"
+    item_id: str
+    entry_id: str
+    door: Required[str]
+
+MailReason = Literal["NO_ROUTE", "UNKNOWN_PLACE", "SENDER_NOT_ALLOWED", "NOT_PERMITTED", "REFUSED_BY_PLACE", "SPAM", "UNPARSEABLE", "SENDER_BLOCKED", "AUTOMATIC", "TOO_MANY"]
+
+class CollectionHandle(TypedDict, total=False):
+    handle: Required[str]
+    collection_id: str
 
 class MailDelivered(TypedDict, total=False):
-    outcome: Required[Literal["JUMBLE_ENTRY", "ENTRY", "COMMENT", "DISCARDED"]]
+    outcome: Required[Literal["ENTRY", "COMMENT", "JUMBLE", "DISCARDED"]]
+    reason: "MailReason"
+    duplicate: bool
     entry_id: str
     item_id: str
     comment_id: str
@@ -2317,6 +2409,7 @@ class WorkItem(TypedDict, total=False):
     recurrence_source_id: str | None
     origin_jumble_id: str | None
     content_language: str | None
+    number: int | None
     calendar_uid: str | None
     archived_at: str | None
     deleted_at: str | None

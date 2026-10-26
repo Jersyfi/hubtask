@@ -456,7 +456,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -487,6 +487,7 @@ type FindContainerRow struct {
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
 	Private              bool
+	Handle               *string
 }
 
 // The tenant is never a parameter here: it comes from the transaction's own context through
@@ -542,6 +543,7 @@ func (q *Queries) FindContainer(ctx context.Context, id pgtype.UUID) (FindContai
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Private,
+		&i.Handle,
 	)
 	return i, err
 }
@@ -611,7 +613,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.id = $1
 `
@@ -658,6 +660,7 @@ type FindWorkItemRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -707,6 +710,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Number,
 	)
 	return i, err
 }
@@ -731,7 +735,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = $1::text
 `
@@ -778,6 +782,7 @@ type FindWorkItemByCalendarUIDRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 // The entry a calendar client's UID names. The same columns as FindWorkItem,
@@ -829,6 +834,7 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.Version,
+		&i.Number,
 	)
 	return i, err
 }
@@ -853,7 +859,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.id = ANY($1::uuid[])
 `
@@ -900,6 +906,7 @@ type FindWorkItemsRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 // FindWorkItem for many entries in one statement: the retention sweep reads a page's entries at
@@ -957,6 +964,7 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Number,
 		); err != nil {
 			return nil, err
 		}
@@ -1047,7 +1055,7 @@ func (q *Queries) HubsOpenedFor(ctx context.Context, arg HubsOpenedForParams) ([
 	return items, nil
 }
 
-const insertContainer = `-- name: InsertContainer :exec
+const insertContainer = `-- name: InsertContainer :one
 INSERT INTO container (
   id, tenant_id, type, parent_id, name, description, icon, color_token, order_key,
   created_by, created_at, updated_at, version, private, policies
@@ -1067,6 +1075,7 @@ INSERT INTO container (
                        'completion_policy', $12::text)
   END
 )
+RETURNING handle
 `
 
 type InsertContainerParams struct {
@@ -1091,8 +1100,9 @@ type InsertContainerParams struct {
 // index has to see them as one name too. normalize() stays here and on the update as the row's
 // own guarantee for a writer that reaches it without the constructor; it is idempotent, so the
 // two cannot disagree.
-func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) error {
-	_, err := q.db.Exec(ctx, insertContainer,
+// The handle the store gave a collection (migration 0204), so the create answers it.
+func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams) (*string, error) {
+	row := q.db.QueryRow(ctx, insertContainer,
 		arg.ID,
 		arg.Type,
 		arg.ParentID,
@@ -1107,7 +1117,9 @@ func (q *Queries) InsertContainer(ctx context.Context, arg InsertContainerParams
 		arg.CompletionPolicy,
 		arg.Structure,
 	)
-	return err
+	var handle *string
+	err := row.Scan(&handle)
+	return handle, err
 }
 
 const insertPrivateHubAccess = `-- name: InsertPrivateHubAccess :exec
@@ -1140,7 +1152,7 @@ func (q *Queries) InsertPrivateHubAccess(ctx context.Context, arg InsertPrivateH
 	return err
 }
 
-const insertWorkItem = `-- name: InsertWorkItem :exec
+const insertWorkItem = `-- name: InsertWorkItem :one
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
@@ -1153,6 +1165,7 @@ INSERT INTO work_item (
   $12, $13, $14,
   $15, $16, $16, 1
 )
+RETURNING number
 `
 
 type InsertWorkItemParams struct {
@@ -1188,8 +1201,9 @@ type InsertWorkItemParams struct {
 //
 // The calendar UID is the create's own too, and only the create's: it is the address a calendar
 // client chose for the entry, set once here and by no other statement.
-func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) error {
-	_, err := q.db.Exec(ctx, insertWorkItem,
+// The number the store drew in the collection (migration 0204), so the create answers it.
+func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) (*int64, error) {
+	row := q.db.QueryRow(ctx, insertWorkItem,
 		arg.ID,
 		arg.CollectionID,
 		arg.Type,
@@ -1207,7 +1221,9 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.CreatedBy,
 		arg.CreatedAt,
 	)
-	return err
+	var number *int64
+	err := row.Scan(&number)
+	return number, err
 }
 
 const insertWorkItemCopy = `-- name: InsertWorkItemCopy :exec
@@ -1384,7 +1400,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private,
+  c.private, c.handle,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
@@ -1435,6 +1451,7 @@ type ListCollectionsInOrderRow struct {
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
 	Private              bool
+	Handle               *string
 	HubName              string
 	HubOrderKey          string
 	HubPrivate           bool
@@ -1489,6 +1506,7 @@ func (q *Queries) ListCollectionsInOrder(ctx context.Context, arg ListCollection
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Private,
+			&i.Handle,
 			&i.HubName,
 			&i.HubOrderKey,
 			&i.HubPrivate,
@@ -1513,7 +1531,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -1563,6 +1581,7 @@ type ListContainersRow struct {
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
 	Private              bool
+	Handle               *string
 }
 
 // One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -1631,6 +1650,7 @@ func (q *Queries) ListContainers(ctx context.Context, arg ListContainersParams) 
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Private,
+			&i.Handle,
 		); err != nil {
 			return nil, err
 		}
@@ -1770,7 +1790,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.collection_id = $1::uuid
   AND wi.parent_id IS NOT DISTINCT FROM $2::uuid
@@ -1843,6 +1863,7 @@ type ListWorkItemsRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -1915,6 +1936,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Number,
 		); err != nil {
 			return nil, err
 		}
@@ -2908,7 +2930,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.path LIKE $1::text || '%'
   AND wi.id <> $2::uuid
@@ -2965,6 +2987,7 @@ type SubtreeOfWorkItemRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -3039,6 +3062,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Number,
 		); err != nil {
 			return nil, err
 		}

@@ -116,6 +116,10 @@ type Container struct {
 	// Private is a hub reached only through a membership on it or below it (ADR-0073 §1). Only a
 	// hub carries it: privacy is per hub, never per collection.
 	Private bool
+	// Handle is a collection's short name - "einkauf" - by which a mail subject, a plus address or a
+	// ticket key names it (ADR-0094). Assigned by the store when the collection is made, kept on a
+	// rename; empty on a hub.
+	Handle string
 }
 
 // NewContainerInput is what a container is made of. A struct rather than eleven parameters,

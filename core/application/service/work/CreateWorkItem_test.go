@@ -416,13 +416,20 @@ func (i *items) LastOrderKey(context.Context, shared.ID, shared.ID) (string, err
 	return i.lastKey, nil
 }
 
-func (i *items) Insert(_ context.Context, item domain.WorkItem) error {
+// Insert draws the entry's number the way the store does: the next of its collection.
+func (i *items) Insert(_ context.Context, item domain.WorkItem) (domain.WorkItem, error) {
 	if i.insertErr != nil {
-		return i.insertErr
+		return domain.WorkItem{}, i.insertErr
 	}
+	for _, earlier := range i.inserted {
+		if earlier.CollectionID == item.CollectionID && earlier.Number >= item.Number {
+			item.Number = earlier.Number
+		}
+	}
+	item.Number++
 	i.inserted = append(i.inserted, item)
 	i.stored[item.ID] = item
-	return nil
+	return item, nil
 }
 
 // Subtree answers what the real statement answers: everything stored whose path begins with the

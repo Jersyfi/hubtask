@@ -62,7 +62,6 @@
     namesPeople,
   } from '../lib/data/activity.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
-  import MailDetailRow from '../lib/mail/MailDetailRow.svelte';
   import { changeRefusalCode, declaresType, holds, mayDo, offerIn, roleOrder } from '../lib/data/capability.svelte.ts';
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
@@ -115,6 +114,7 @@
   import { actor as signedIn } from '../lib/data/account.svelte.ts';
   import { formatDateTime, formatDue } from '../lib/i18n/datetime.ts';
   import { textLanguages } from '../lib/data/query.ts';
+  import { ticketKeyOf } from '../lib/data/ticket.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { languageName } from '../lib/i18n/locale.ts';
@@ -260,6 +260,13 @@
    */
   const isCollectionArchived = $derived(collection !== undefined && archivalOf(collection) !== 'active');
   const hub = $derived(collection?.parent_id ? containers.find(collection.parent_id) : undefined);
+  /** The entry's ticket key, `EINKAUF-42` (ADR-0094): what a mail subject quotes to reach it. */
+  const ticketKey = $derived(ticketKeyOf(collection?.handle, item?.number));
+
+  async function copyTicketKey(key: string) {
+    await navigator.clipboard.writeText(key);
+    announcer.say(t('app.entries.ticket_key_copied', { key }));
+  }
   /** Whether the collection's structure in force gives this entry an amount (UC-WRK-25 check 2). */
   const offersAmount = $derived(
     item ? (collection?.structure?.settings?.fields?.[item.type]?.capabilities ?? []).includes('AMOUNT') : false,
@@ -783,8 +790,6 @@
   // under it - and nothing at all when the manifest announces no AI for this workspace, not
   // disabled with a reason, not rendered empty (ai-first.md §2, absence is absence).
   const hasAi = $derived(manifest.value?.features?.ai_suggestions === true);
-  /** Whether places have mail addresses on this installation (ADR-0092). */
-  const hasMailAddresses = $derived(manifest.value?.features?.mail_addresses === true);
 
   // What stands about this entry, read once - the view is keyed on the id. A reader reads it too:
   // a summary of the discussion is a reading aid (check 8).
@@ -1035,6 +1040,12 @@
           onblur={() => void commitInline()}
           onkeydown={onTitleKey}
         ></textarea>
+        <!-- The ticket key at the end of the title's line, not above it: no room is taken from the
+             head where no cover is set. -->
+        {#if ticketKey}
+          {@const key = ticketKey}
+          <button type="button" class="ticket-key" aria-label={t('app.entries.ticket_key', { key })} onclick={() => void copyTicketKey(key)}>{key}</button>
+        {/if}
         {#if hasAi}
           <AiAsk {item} place="title" mayChange={isWritable} standing={standingAt('title')} ontranslate={() => (isTranslating = true)} />
         {/if}
@@ -1347,10 +1358,6 @@
                 <AttachmentPanel {item} isChangeable={isWritable} />
               </DetailRow>
             {/if}
-            <!-- The entry's own address: a mail to it becomes a comment here (ADR-0092 M1). -->
-            {#if hasMailAddresses && isWritable}
-              <MailDetailRow itemId={item.id} />
-            {/if}
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
@@ -1390,6 +1397,23 @@
 
 
   .title-row { display: flex; align-items: center; gap: var(--sp-150); }
+
+  /* The ticket key at the end of the title's line: quiet, in the code face, and a button because a
+     click copies it - the reference a person pastes into a mail subject. */
+  .ticket-key {
+    flex: none;
+    white-space: nowrap;
+    padding: 0 var(--sp-050);
+    border: var(--bw-hairline) solid transparent;
+    border-radius: var(--r-sm);
+    background: none;
+    color: var(--text-subtle);
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    cursor: pointer;
+  }
+  .ticket-key:hover { background: var(--bg-surface-hover); color: var(--text-secondary); }
+  .ticket-key:focus-visible { outline: var(--bw-ring) solid var(--focus-ring); }
 
   /* The title as text until it has focus: the display face, no border, no surface; the field
      shows itself on focus with rule 5's ring and a surface, and only then. A textarea rather than

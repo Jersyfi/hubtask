@@ -529,16 +529,38 @@ func (pending) CommentJumbleEntry(
 	notAvailable(w, r)
 }
 
-func (pending) ShowMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.ShowMailAddressParams) {
+func (pending) ShowMailSettings(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) SaveMailSettings(w http.ResponseWriter, r *http.Request, _ openapi.SaveMailSettingsParams) {
 	notAvailable(w, r)
 }
 
-func (pending) RotateMailAddress(w http.ResponseWriter, r *http.Request, _ openapi.RotateMailAddressParams) {
+func (pending) ListMailReceipts(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ListMailboxes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ConnectMailbox(w http.ResponseWriter, r *http.Request, _ openapi.ConnectMailboxParams) {
 	notAvailable(w, r)
 }
 
-func (pending) SetMailSenderPolicy(
-	w http.ResponseWriter, r *http.Request, _ openapi.SetMailSenderPolicyParams,
+func (pending) CheckMailbox(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.CheckMailboxParams) {
+	notAvailable(w, r)
+}
+
+func (pending) RemoveMailbox(w http.ResponseWriter, r *http.Request, _ openapi_types.UUID) {
+	notAvailable(w, r)
+}
+
+func (pending) AuthorizeMailbox(w http.ResponseWriter, r *http.Request, _ openapi.AuthorizeMailboxParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteMailboxAuthorization(w http.ResponseWriter, r *http.Request, _ openapi.CompleteMailboxAuthorizationParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetCollectionHandle(
+	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.SetCollectionHandleParams,
 ) {
 	notAvailable(w, r)
 }

@@ -129,7 +129,7 @@ func TestAWorkspaceHoldingAHubIsNotAskedItsFirstStart(t *testing.T) {
 	tenant, owner := freshWorkspace(ctx, t, "OWNER")
 	hub := containerIn(tenant, owner.AccountID, freshID(t), freshName(t), "a0")
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, hub)
+		return insertErr(containerRepo().Insert(ctx, hub))
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -155,10 +155,10 @@ func TestTheWorkspacesOwnSeedDoesNotKeepTheFirstStartFromBeingAsked(t *testing.T
 	collection.Type, collection.ParentID = domainwork.ContainerCollection, hub.ID
 	collection.CreatedAt, collection.UpdatedAt = born, born
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		if err := containerRepo().Insert(ctx, hub); err != nil {
+		if _, err := containerRepo().Insert(ctx, hub); err != nil {
 			return err
 		}
-		return containerRepo().Insert(ctx, collection)
+		return insertErr(containerRepo().Insert(ctx, collection))
 	}); err != nil {
 		t.Fatalf("seeding the workspace's own hub and collection: %v", err)
 	}

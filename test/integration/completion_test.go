@@ -38,7 +38,7 @@ func childrenUnder(
 			child.ParentID = parent
 			child.Path = work.RootPath(parent) + id.String() + work.PathSeparator
 			child.Depth = 2
-			if err := items.Insert(ctx, child); err != nil {
+			if _, err := items.Insert(ctx, child); err != nil {
 				return err
 			}
 			if index < completed {
@@ -62,8 +62,9 @@ func seedTask(ctx context.Context, t *testing.T, tenant, author, collection shar
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return itemRepo().
+		_, err := itemRepo().
 			Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the task: %v", err)
 	}

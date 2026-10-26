@@ -239,6 +239,21 @@ func (e *EnvConfig) Load() (env.Config, error) {
 		}
 		*target = value
 	}
+	// The installation's own OAuth apps for connected mailboxes: a provider counts once its id
+	// and its secret are both set.
+	for _, provider := range []string{"google", "microsoft"} {
+		prefix := "HUBTASK_MAIL_OAUTH_" + strings.ToUpper(provider)
+		clientSecret, err := getSecret(prefix + "_CLIENT_SECRET")
+		if err != nil {
+			return cfg, err
+		}
+		if clientID := strings.TrimSpace(get(prefix+"_CLIENT_ID", "")); clientID != "" && !clientSecret.IsEmpty() {
+			if cfg.Mail.OAuth == nil {
+				cfg.Mail.OAuth = map[string]env.OAuthApp{}
+			}
+			cfg.Mail.OAuth[provider] = env.OAuthApp{ClientID: clientID, ClientSecret: clientSecret}
+		}
+	}
 
 	return cfg, validate(cfg)
 }

@@ -13,6 +13,7 @@ import (
 
 	jumbleservice "github.com/Jersyfi/hubtask/core/application/service/jumble"
 	jumbledomain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
+	mailmodel "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -128,7 +129,7 @@ func (d *addressedDoor) Deliver(
 ) (jumbleservice.MailDeliveryResult, error) {
 	d.recipient, d.raw = recipient, raw
 	return jumbleservice.MailDeliveryResult{
-		Outcome: jumbleservice.MailBecameEntry, ItemID: shared.ID("0192f000-0000-7000-8000-0000000000e2"),
+		Outcome: mailmodel.OutcomeEntry, ItemID: shared.ID("0192f000-0000-7000-8000-0000000000e2"),
 	}, nil
 }
 

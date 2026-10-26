@@ -229,6 +229,7 @@ async function views() {
     ['runs', await load('RunsView'), {}],
     ['webhooks', await load('WebhooksView'), {}],
     ['voice', await load('VoiceView'), {}],
+    ['mail', await load('MailView'), {}],
     ['quotas', await load('QuotasView'), {}],
     ['private-hubs', await load('PrivateHubsView'), {}],
     ['backup', await load('BackupView'), {}],
@@ -286,9 +287,10 @@ test('the route table and this test name the same screens', async () => {
   const named = (await views()).map(([name]) => name).filter((name) => name !== 'sign-in').sort();
   const routed = ROUTES.map((route) => route.name)
     // `hub` is `ContainerView` as `collection` is, and a place's settings are that view with a
-    // section, drawn once; `oidc-callback` finishes an exchange and draws nothing of the product; an
-    // address that moved (`movedTo`) draws nothing either - it replaces itself with the tab it became.
-    .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback'].includes(name))
+    // section, drawn once; `oidc-callback` finishes an exchange and draws nothing of the product, and
+    // `mail-oauth` is the mail screen handing a provider's answer on; an address that moved
+    // (`movedTo`) draws nothing either - it replaces itself with the tab it became.
+    .filter((name) => !['hub', 'hub-settings', 'hub-settings-section', 'collection-settings', 'oidc-callback', 'mail-oauth'].includes(name))
     .filter((name) => movedTo(name) === undefined)
     .sort();
   assert.deepEqual(named, routed);

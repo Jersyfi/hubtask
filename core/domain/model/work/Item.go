@@ -227,6 +227,10 @@ type WorkItem struct {
 	CreatedAt    time.Time
 	UpdatedAt    time.Time
 	Version      int
+	// Number is the entry's place in its collection's count - the 42 of "EINKAUF-42" (ADR-0094).
+	// Drawn by the store on insert and anew on a move to another collection; zero before it is read
+	// back.
+	Number int64
 }
 
 // RetentionState is what an entry in a running retention period carries (data-retention.md §6).

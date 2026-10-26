@@ -49,10 +49,10 @@ func seedPrivateWorld(ctx context.Context, t *testing.T) privateWorld {
 		collection := containerIn(tenantA, authorA, w.collection, freshName(t), "a0")
 		collection.Type = work.ContainerCollection
 		collection.ParentID = w.hub
-		if err := containerRepo().Insert(ctx, collection); err != nil {
+		if _, err := containerRepo().Insert(ctx, collection); err != nil {
 			return err
 		}
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.collection, w.item, w.title, "a0"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.collection, w.item, w.title, "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the private hub's content: %v", err)
 	}

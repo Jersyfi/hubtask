@@ -31,13 +31,14 @@ func collectionFor(ctx context.Context, t *testing.T, tenant, author shared.ID) 
 
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		hub := containerIn(tenant, author, hubID, freshName(t), "a0")
-		if err := containers.Insert(ctx, hub); err != nil {
+		if _, err := containers.Insert(ctx, hub); err != nil {
 			return err
 		}
 		collection := containerIn(tenant, author, collectionID, freshName(t), "a0")
 		collection.Type = work.ContainerCollection
 		collection.ParentID = hubID
-		return containers.Insert(ctx, collection)
+		_, err := containers.Insert(ctx, collection)
+		return err
 	}); err != nil {
 		t.Fatalf("seeding the collection: %v", err)
 	}
@@ -62,7 +63,7 @@ func TestAnItemIsWrittenAndReadBack(t *testing.T) {
 	task.Notes = "Semi-skimmed, two litres"
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, task)
+		return insertErr(repo.Insert(ctx, task))
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}
@@ -109,13 +110,13 @@ func TestInsertingATakenIdentifierIsAConflict(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Once", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Once", "a0")))
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Twice", "a1"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Twice", "a1")))
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("the second insert under the same identifier: %v, want a conflict", err)
@@ -147,7 +148,7 @@ func TestASubtreeIsWrittenAtEveryLevel(t *testing.T) {
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		for _, item := range []work.WorkItem{task, pkg, activity} {
-			if err := repo.Insert(ctx, item); err != nil {
+			if _, err := repo.Insert(ctx, item); err != nil {
 				return err
 			}
 		}
@@ -173,7 +174,7 @@ func TestAnItemIsInvisibleFromAnotherTenant(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Buy milk", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, "Buy milk", "a0")))
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}
@@ -204,7 +205,7 @@ func TestInsertCannotWriteAnItemIntoAnotherTenant(t *testing.T) {
 
 	// The object claims tenant A, the transaction belongs to tenant B.
 	err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorB, collection, smuggled, "Buy milk", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorB, collection, smuggled, "Buy milk", "a0")))
 	})
 	if err == nil {
 		t.Fatal("tenant B wrote an item naming tenant A's collection")
@@ -230,10 +231,10 @@ func TestAForeignReferenceIsIndistinguishableFromANonexistentOne(t *testing.T) {
 	nowhere := shared.MustParseID("01936f2a-7c1e-7000-8000-ffffffffff10")
 
 	errForeign := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantB, authorB, foreign, freshID(t), "Buy milk", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, foreign, freshID(t), "Buy milk", "a0")))
 	})
 	errNowhere := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantB, authorB, nowhere, freshID(t), "Buy milk", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, nowhere, freshID(t), "Buy milk", "a0")))
 	})
 
 	if errForeign == nil || errNowhere == nil {
@@ -257,7 +258,7 @@ func TestATenantsDeletionCannotReachAnotherTenantsItems(t *testing.T) {
 
 	own := freshID(t)
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, own, "Buy milk", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, own, "Buy milk", "a0")))
 	}); err != nil {
 		t.Fatalf("writing tenant B's task: %v", err)
 	}
@@ -290,7 +291,7 @@ func TestTheLastItemOrderKeyIsPerTenant(t *testing.T) {
 	repo := itemRepo()
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, freshID(t), "Buy milk", "z9"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, freshID(t), "Buy milk", "z9")))
 	}); err != nil {
 		t.Fatalf("writing tenant A's task: %v", err)
 	}
@@ -325,10 +326,10 @@ func TestTheSiblingLevelIsTheCollectionAndTheParentTogether(t *testing.T) {
 	child.Path = task.ChildPath(child.ID)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, task); err != nil {
+		if _, err := repo.Insert(ctx, task); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, child)
+		return insertErr(repo.Insert(ctx, child))
 	}); err != nil {
 		t.Fatalf("writing the items: %v", err)
 	}
@@ -382,7 +383,7 @@ func TestTitlesAreNormalisedOnTheWayIn(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, decomposed, "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collection, id, decomposed, "a0")))
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}
@@ -413,7 +414,7 @@ func TestACalendarUIDIsStoredAndLooksTheEntryUp(t *testing.T) {
 	task := taskIn(tenantA, authorA, collection, id, "Made in a calendar", "a0")
 	task.CalendarUID = uid
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, task)
+		return insertErr(repo.Insert(ctx, task))
 	}); err != nil {
 		t.Fatalf("writing the task: %v", err)
 	}
@@ -439,7 +440,7 @@ func TestACalendarUIDIsStoredAndLooksTheEntryUp(t *testing.T) {
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		second := taskIn(tenantA, authorA, collection, freshID(t), "Made again", "a1")
 		second.CalendarUID = uid
-		return repo.Insert(ctx, second)
+		return insertErr(repo.Insert(ctx, second))
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("the second insert under the same UID: %v, want a conflict", err)
@@ -463,14 +464,14 @@ func TestACalendarUIDIsResolvedPerTenant(t *testing.T) {
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		task := taskIn(tenantA, authorA, collectionA, inA, "A's", "a0")
 		task.CalendarUID = uid
-		return repo.Insert(ctx, task)
+		return insertErr(repo.Insert(ctx, task))
 	}); err != nil {
 		t.Fatalf("writing A's task: %v", err)
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		task := taskIn(tenantB, authorB, collectionB, inB, "B's", "a0")
 		task.CalendarUID = uid
-		return repo.Insert(ctx, task)
+		return insertErr(repo.Insert(ctx, task))
 	}); err != nil {
 		t.Fatalf("writing B's task under the same UID: %v", err)
 	}
@@ -491,7 +492,7 @@ func TestACalendarUIDIsResolvedPerTenant(t *testing.T) {
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		task := taskIn(tenantA, authorA, collectionA, freshID(t), "A's alone", "a1")
 		task.CalendarUID = onlyA
-		return repo.Insert(ctx, task)
+		return insertErr(repo.Insert(ctx, task))
 	}); err != nil {
 		t.Fatalf("writing A's second task: %v", err)
 	}
@@ -515,12 +516,12 @@ func TestFindManyAnswersOnlyTheCallersEntries(t *testing.T) {
 
 	inA, inB := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0")))
 	}); err != nil {
 		t.Fatalf("writing A's task: %v", err)
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0")))
 	}); err != nil {
 		t.Fatalf("writing B's task: %v", err)
 	}
@@ -557,7 +558,7 @@ func TestEntriesBelowAnswersOnlyTheCallersEntries(t *testing.T) {
 	step.Type, step.ParentID, step.Path, step.Depth = work.ItemActivity, packID, pack.ChildPath(stepID), 3
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
 		for _, item := range []work.WorkItem{task, pack, step} {
-			if err := repo.Insert(ctx, item); err != nil {
+			if _, err := repo.Insert(ctx, item); err != nil {
 				return err
 			}
 		}
@@ -607,10 +608,10 @@ func TestFlattenWritesOnlyTheCallersEntries(t *testing.T) {
 	pack := taskIn(tenantB, authorB, collectionB, packID, "Pack", "a0")
 	pack.Type, pack.ParentID, pack.Path, pack.Depth = work.ItemWorkPackage, taskID, task.ChildPath(packID), 2
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		if err := repo.Insert(ctx, task); err != nil {
+		if _, err := repo.Insert(ctx, task); err != nil {
 			return err
 		}
-		return repo.Insert(ctx, pack)
+		return insertErr(repo.Insert(ctx, pack))
 	}); err != nil {
 		t.Fatalf("writing B's entries: %v", err)
 	}
@@ -651,12 +652,12 @@ func TestTypesOfAnswersOnlyTheCallersEntries(t *testing.T) {
 
 	inA, inB := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantA, authorA, collectionA, inA, "A's", "a0")))
 	}); err != nil {
 		t.Fatalf("writing A's task: %v", err)
 	}
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0"))
+		return insertErr(repo.Insert(ctx, taskIn(tenantB, authorB, collectionB, inB, "B's", "a0")))
 	}); err != nil {
 		t.Fatalf("writing B's task: %v", err)
 	}

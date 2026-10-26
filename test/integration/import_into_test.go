@@ -70,10 +70,10 @@ func TestARunnerLandsACsvInAnExistingCollectionOnce(t *testing.T) {
 	seedContainerTenants(ctx, t)
 	hub, collection := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, "Imports into", "a3")); err != nil {
+		if _, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, hub, "Imports into", "a3")); err != nil {
 			return err
 		}
-		if err := containerRepo().Insert(ctx, collectionIn(tenantA, authorA, collection, hub, "Inbox", "a0")); err != nil {
+		if _, err := containerRepo().Insert(ctx, collectionIn(tenantA, authorA, collection, hub, "Inbox", "a0")); err != nil {
 			return err
 		}
 		if err := bucketRepo().Insert(ctx, bucketIn(tenantA, collection, freshID(t), "doing", "a5")); err != nil {

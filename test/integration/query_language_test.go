@@ -48,7 +48,7 @@ func searchableItems(ctx context.Context, t *testing.T) shared.ID {
 
 			task := taskIn(tenantA, authorA, collection, freshID(t), entry.title, key)
 			task.ContentLanguage = entry.language
-			if err := items.Insert(ctx, task); err != nil {
+			if _, err := items.Insert(ctx, task); err != nil {
 				return err
 			}
 		}

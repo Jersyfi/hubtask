@@ -56,7 +56,7 @@ func TestTheSearchReadsOnlyTheVectorsOfTheModelThatEmbeddedTheQuery(t *testing.T
 			previous = key
 			task := taskIn(tenantA, authorA, collection, entry.id, entry.title, key)
 			task.ContentLanguage = "de"
-			if err := items.Insert(ctx, task); err != nil {
+			if _, err := items.Insert(ctx, task); err != nil {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{

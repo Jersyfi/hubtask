@@ -54,7 +54,8 @@ func TestTheExportPagesWithoutRepeatingOrSkippingARow(t *testing.T) {
 		written[id] = true
 		hub := containerIn(tenantA, authorA, id, freshName(t), "a"+string(rune('0'+i)))
 		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-			return containerRepo().Insert(ctx, hub)
+			_, err := containerRepo().Insert(ctx, hub)
+			return err
 		}); err != nil {
 			t.Fatalf("seeding: %v", err)
 		}
@@ -84,7 +85,8 @@ func TestAnExportedRowCarriesNoTenantIdentifier(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "aa"))
+		_, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "aa"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
@@ -136,7 +138,8 @@ func TestADeltaExportAnswersOnlyWhatChangedAfterThePeriod(t *testing.T) {
 
 	early := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, early, freshName(t), "ab"))
+		_, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, early, freshName(t), "ab"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
@@ -157,7 +160,8 @@ func TestADeltaExportAnswersOnlyWhatChangedAfterThePeriod(t *testing.T) {
 	after := containerIn(tenantA, authorA, late, freshName(t), "ac")
 	after.CreatedAt, after.UpdatedAt = cut.Add(time.Minute), cut.Add(time.Minute)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, after)
+		_, err := containerRepo().Insert(ctx, after)
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}
@@ -206,7 +210,8 @@ func TestAnotherTenantExportsNoneOfIt(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "ad"))
+		_, err := containerRepo().Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "ad"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}

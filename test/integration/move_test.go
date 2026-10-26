@@ -37,7 +37,7 @@ func movableSubtree(ctx context.Context, t *testing.T, tenant, author, collectio
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
 		items := itemRepo()
 		for _, item := range []work.WorkItem{task, pack, activity} {
-			if err := items.Insert(ctx, item); err != nil {
+			if _, err := items.Insert(ctx, item); err != nil {
 				return err
 			}
 		}
@@ -70,8 +70,8 @@ func seedRootTask(ctx context.Context, t *testing.T, tenant, author, collection 
 
 	id := freshID(t)
 	if err := write(ctx, t, tenant, func(ctx context.Context) error {
-		return itemRepo().
-			Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), "a0"))
+		return insertErr(itemRepo().
+			Insert(ctx, taskIn(tenant, author, collection, id, freshName(t), "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the task: %v", err)
 	}
@@ -112,7 +112,7 @@ func TestMovingAnItemRewritesItsWholeSubtree(t *testing.T) {
 	destinationID := freshID(t)
 	destination := taskIn(tenantA, authorA, collection, destinationID, freshName(t), "b0")
 	if err := write(background, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, destination)
+		return insertErr(itemRepo().Insert(ctx, destination))
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}
@@ -220,7 +220,7 @@ func TestATrashedDescendantIsRewrittenWithTheSubtree(t *testing.T) {
 	destinationID := freshID(t)
 	destination := taskIn(tenantA, authorA, collection, destinationID, freshName(t), "b0")
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, destination)
+		return insertErr(itemRepo().Insert(ctx, destination))
 	}); err != nil {
 		t.Fatalf("seeding the destination: %v", err)
 	}
@@ -300,7 +300,7 @@ func TestReorderingBetweenTwoNeighboursTouchesOneRow(t *testing.T) {
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		items := itemRepo()
 		for id, key := range map[shared.ID]string{first: "a0", second: "a1", third: "a2"} {
-			if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), key)); err != nil {
+			if _, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), key)); err != nil {
 				return err
 			}
 		}
@@ -371,7 +371,7 @@ func TestAReorderWritesTheColumnWithTheRank(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), "a0"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, collection, id, freshName(t), "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the task: %v", err)
 	}
@@ -413,10 +413,11 @@ func TestTheMovingItemIsNotItsOwnNeighbour(t *testing.T) {
 	first, second := freshID(t), freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
 		items := itemRepo()
-		if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, first, freshName(t), "a0")); err != nil {
+		if _, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, first, freshName(t), "a0")); err != nil {
 			return err
 		}
-		return items.Insert(ctx, taskIn(tenantA, authorA, collection, second, freshName(t), "a1"))
+		_, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, second, freshName(t), "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("seeding: %v", err)
 	}

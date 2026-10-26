@@ -89,7 +89,7 @@ func seedSecondCollection(ctx context.Context, t *testing.T, hub shared.ID) shar
 	collection := containerIn(tenantB, authorB, freshID(t), freshName(t), "a1")
 	collection.Type, collection.ParentID = domain.ContainerCollection, hub
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return containerRepo().Insert(ctx, collection)
+		return insertErr(containerRepo().Insert(ctx, collection))
 	}); err != nil {
 		t.Fatalf("writing the collection: %v", err)
 	}

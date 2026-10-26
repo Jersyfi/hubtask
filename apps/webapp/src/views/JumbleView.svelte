@@ -50,7 +50,8 @@
   import { askEach } from '../lib/data/askEach.ts';
   import { isPending } from '../lib/data/suggestions.ts';
   import JumbleProposal from '../lib/entries/JumbleProposal.svelte';
-  import MailAddressField from '../lib/mail/MailAddressField.svelte';
+  import IntakeAddress from '../lib/mail/IntakeAddress.svelte';
+  import { readMailSettings } from '../lib/data/mailintake.svelte.ts';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { announcer } from '../lib/announce.svelte.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -85,6 +86,12 @@
   /** What the reader may do here, from what the manifest says they hold on the workspace. */
   const mayWrite = $derived(holdsHere('WRITE_ITEMS') === true);
   const mayRotate = $derived(holdsHere('AUTOMATION') === true);
+  /** The intake's address, where the receiving domain makes one and the reader may read it. */
+  let intakeAddress = $state<string | undefined>(undefined);
+  $effect(() => {
+    if (!mayRotate) return;
+    void readMailSettings().then((read) => (intakeAddress = read?.enabled ? (read.address ?? undefined) : undefined), () => undefined);
+  });
 
   /** What the last press of *Show more* brought, said by `LoadMore`'s live region; cleared by a new filter. */
   let arrived = $state<string | undefined>(undefined);
@@ -287,8 +294,8 @@
         onmenu={(offered) => page.offer(offered)}
       />
       <p class="quiet">{t('app.jumble.intro')}</p>
-      <!-- The jumble's own address, where people look for it (ADR-0092 M1). -->
-      <MailAddressField target={{ kind: 'JUMBLE' }} lead={t('app.mail.jumble_lead')} mayShape={mayRotate} />
+      <!-- The workspace's intake address, where people look for it (ADR-0094). -->
+      {#if intakeAddress}<IntakeAddress address={intakeAddress} lead={t('app.mail.jumble_lead')} />{/if}
     </div>
 
     {#if failure}<Banner tone="danger">{failure}</Banner>{/if}
@@ -345,6 +352,10 @@
             dismissedNote={entry.status === 'DISMISSED' ? t('app.jumble.dismissed_note') : undefined}
           >
             {#snippet suggestion()}
+              <!-- Why the mail intake put it here rather than where it was meant to go (ADR-0094). -->
+              {#if entry.intake_reason && entry.status === 'NEW'}
+                <p class="reason" data-intake-reason>{t(`app.mail.reason.${entry.intake_reason}`)}</p>
+              {/if}
               {#if hasAi && mayWrite && entry.status === 'NEW'}
                 <JumbleProposal {entry} {destinations} chosen={destination} onaccepted={(id) => void accepted(id)} />
               {/if}
@@ -468,7 +479,8 @@
     {#if mayRotate}
       <Stack gap="150" data-mail-section>
         <h2 class="section">{t('app.mail.section')}</h2>
-        <MailAddressField target={{ kind: 'JUMBLE' }} shape="panel" mayShape />
+        <p class="quiet small">{t('app.mail.jumble_settings_hint')}</p>
+        <p><a href="/administration/mail">{t('app.mail.open_settings')} →</a></p>
       </Stack>
     {/if}
 
@@ -536,4 +548,5 @@
   .selection { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-100); }
 
   .count { font-weight: var(--fw-semibold); margin-inline-end: var(--sp-100); }
+  .reason { margin: 0; color: var(--text-secondary); font-size: var(--fs-075); }
 </style>

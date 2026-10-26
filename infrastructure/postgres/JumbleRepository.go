@@ -77,6 +77,7 @@ func (r JumbleRepository) Insert(ctx context.Context, entry domain.Entry) error 
 		CreatedBy:    createdBy,
 		MeantForKind: optionalText(string(entry.MeantFor.Kind)),
 		MeantForID:   meantForID,
+		IntakeReason: optionalText(entry.IntakeReason),
 	}); err != nil {
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").
@@ -256,6 +257,7 @@ func entryFrom(row sqlc.ListJumbleEntriesRow) (domain.Entry, error) {
 		}
 		entry.MeantFor = domain.MailTarget{Kind: kind, ID: meant}
 	}
+	entry.IntakeReason = stringFrom(row.IntakeReason)
 	if row.ProcessedAt.Valid {
 		settled := timeFrom(row.ProcessedAt)
 		entry.SettledAt = &settled

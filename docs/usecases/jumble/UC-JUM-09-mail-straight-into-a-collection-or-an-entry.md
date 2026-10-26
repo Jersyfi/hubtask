@@ -5,12 +5,16 @@ context: jumble
 actors: [PE-person, PE-member, PE-operator]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-09, P-11, P-12]
-state: verified
+state: retired
 tasks: []
-checked_by: [core/application/service/jumble/MailDelivery_test.go, core/application/service/jumble/MailAddresses_test.go, core/domain/model/jumble/MailAddress_test.go, presentation/intake/AddressedMailIntake_test.go, presentation/rest/MailIntakeController_test.go, test/integration/mail_address_test.go, apps/webapp/e2e/mailaddress.test.mjs]
+checked_by: []
 ---
 
 # Mail straight into a collection or an entry
+
+> **Retired 2026-10-25:** the random per-place addresses this describes are superseded by one
+> intake routed by handles and ticket keys ([ADR-0094](../../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md),
+> decision #1756); what a person does now is [UC-JUM-12](./UC-JUM-12-receive-mail-into-a-place.md).
 
 ## Goal
 

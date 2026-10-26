@@ -265,7 +265,7 @@ func (h CreateWorkItem) Execute(
 		if err != nil {
 			return err
 		}
-		if err := h.Items.Insert(ctx, item); err != nil {
+		if item, err = h.Items.Insert(ctx, item); err != nil {
 			return err
 		}
 
@@ -928,6 +928,9 @@ func ItemOutput(item domain.WorkItem) usecase.Output {
 		"created_at":   item.CreatedAt,
 		"updated_at":   item.UpdatedAt,
 		"version":      item.Version,
+		// The entry's number in its collection - with the collection's handle, its ticket key
+		// (ADR-0094). Null only before the store has drawn one.
+		"number": int64OrNil(item.Number),
 	}
 	if !item.ParentID.IsZero() {
 		out["parent_id"] = item.ParentID.String()

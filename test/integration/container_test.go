@@ -145,7 +145,8 @@ func TestAContainerIsWrittenAndReadBack(t *testing.T) {
 	hub.Description, hub.Icon, hub.ColorToken = "Everything personal", "home", "blue"
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, hub)
+		_, err := repo.Insert(ctx, hub)
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -188,7 +189,8 @@ func TestAContainerIsInvisibleFromAnotherTenant(t *testing.T) {
 
 	id := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "a0"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, id, freshName(t), "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -213,7 +215,8 @@ func TestInsertCannotWriteIntoAnotherTenant(t *testing.T) {
 
 	// The object claims tenant A, the transaction belongs to tenant B.
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorB, smuggled, freshName(t), "a1"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorB, smuggled, freshName(t), "a1"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -243,7 +246,8 @@ func TestTheLastOrderKeyIsPerTenant(t *testing.T) {
 	repo := containerRepo()
 
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), freshName(t), farKey))
+		_, err := repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), freshName(t), farKey))
+		return err
 	}); err != nil {
 		t.Fatalf("writing tenant B's hub: %v", err)
 	}
@@ -292,7 +296,8 @@ func TestTheRanksSortInTheDatabaseAsTheyDoInTheDomain(t *testing.T) {
 
 	// The hub has to exist: a collection references it, and the database says so.
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, parent, freshName(t), "a0"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, parent, freshName(t), "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the hub: %v", err)
 	}
@@ -307,7 +312,8 @@ func TestTheRanksSortInTheDatabaseAsTheyDoInTheDomain(t *testing.T) {
 		container.Type, container.ParentID = work.ContainerCollection, parent
 
 		if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-			return repo.Insert(ctx, container)
+			_, err := repo.Insert(ctx, container)
+			return err
 		}); err != nil {
 			t.Fatalf("writing collection %d: %v", i, err)
 		}
@@ -335,13 +341,15 @@ func TestASecondContainerWithTheSameNameIsAConflict(t *testing.T) {
 	first, second, name := freshID(t), freshID(t), freshName(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, first, name, "a0"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, first, name, "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the first hub: %v", err)
 	}
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, second, name, "a1"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, second, name, "a1"))
+		return err
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("error %v, want a conflict", err)
@@ -352,7 +360,8 @@ func TestASecondContainerWithTheSameNameIsAConflict(t *testing.T) {
 
 	// The same name in another tenant is not a duplicate: uniqueness is per tenant and level.
 	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), name, "a0"))
+		_, err := repo.Insert(ctx, containerIn(tenantB, authorB, freshID(t), name, "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("the name is taken across tenants: %v", err)
 	}
@@ -371,7 +380,8 @@ func TestNamesAreNormalisedBeforeTheyAreCompared(t *testing.T) {
 	second := shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000f2")
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, first, decomposed, "a0"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, first, decomposed, "a0"))
+		return err
 	}); err != nil {
 		t.Fatalf("writing the first hub: %v", err)
 	}
@@ -389,9 +399,13 @@ func TestNamesAreNormalisedBeforeTheyAreCompared(t *testing.T) {
 	}
 
 	err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return repo.Insert(ctx, containerIn(tenantA, authorA, second, composed, "a1"))
+		_, err := repo.Insert(ctx, containerIn(tenantA, authorA, second, composed, "a1"))
+		return err
 	})
 	if !errors.Is(err, shared.ErrConflict) {
 		t.Fatalf("two spellings of one name were accepted as two names: %v", err)
 	}
 }
+
+// insertErr drops what an insert answers back, for a seed that only needs to know it worked.
+func insertErr[T any](_ T, err error) error { return err }

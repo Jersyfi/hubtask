@@ -52,7 +52,7 @@ func seedLookalikes(ctx context.Context, t *testing.T) lookalikeScene {
 	scene.near, scene.hubOnly = freshID(t), freshID(t)
 
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		if err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.near,
+		if _, err := itemRepo().Insert(ctx, taskIn(tenantA, authorA, scene.sharedColl, scene.near,
 			"Call the tiler about Thursday", "a0")); err != nil {
 			return err
 		}

@@ -720,7 +720,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -758,6 +758,7 @@ type SnapshotContainersRow struct {
 	UpdatedAt            pgtype.Timestamptz
 	Version              int32
 	Private              bool
+	Handle               *string
 }
 
 // The initial synchronisation (offline-sync.md §3.1): the current state, one kind at a
@@ -798,6 +799,7 @@ func (q *Queries) SnapshotContainers(ctx context.Context, arg SnapshotContainers
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Private,
+			&i.Handle,
 		); err != nil {
 			return nil, err
 		}
@@ -1127,7 +1129,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.deleted_at IS NULL AND wi.id > $1
 ORDER BY wi.id
@@ -1181,6 +1183,7 @@ type SnapshotWorkItemsRow struct {
 	CreatedAt             pgtype.Timestamptz
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
+	Number                *int64
 }
 
 func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsParams) ([]SnapshotWorkItemsRow, error) {
@@ -1234,6 +1237,7 @@ func (q *Queries) SnapshotWorkItems(ctx context.Context, arg SnapshotWorkItemsPa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.Version,
+			&i.Number,
 		); err != nil {
 			return nil, err
 		}

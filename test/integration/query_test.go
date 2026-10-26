@@ -127,7 +127,7 @@ func queryFixture(ctx context.Context, t *testing.T) fixture {
 			if index <= 1 {
 				task.BucketID = built.bucket.ID
 			}
-			if err := items.Insert(ctx, task); err != nil {
+			if _, err := items.Insert(ctx, task); err != nil {
 				return err
 			}
 			built.tasks = append(built.tasks, task)
@@ -145,7 +145,7 @@ func queryFixture(ctx context.Context, t *testing.T) fixture {
 		child := taskIn(tenantA, authorA, collection, freshID(t), "Epsilon detail", key)
 		child.Type, child.ParentID = work.ItemWorkPackage, built.tasks[0].ID
 		child.Path, child.Depth = built.tasks[0].ChildPath(child.ID), 2
-		if err := items.Insert(ctx, child); err != nil {
+		if _, err := items.Insert(ctx, child); err != nil {
 			return err
 		}
 		built.child, built.lastKey = child, previous
@@ -930,8 +930,8 @@ func TestAValueThatLooksLikeSQLIsAValue(t *testing.T) {
 		if err != nil {
 			return err
 		}
-		return itemRepo().Insert(ctx,
-			taskIn(tenantA, authorA, f.collection, freshID(t), hostile, key))
+		return insertErr(itemRepo().Insert(ctx,
+			taskIn(tenantA, authorA, f.collection, freshID(t), hostile, key)))
 	}); err != nil {
 		t.Fatalf("seeding the entry: %v", err)
 	}

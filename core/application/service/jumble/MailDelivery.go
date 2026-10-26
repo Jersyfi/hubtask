@@ -5,17 +5,22 @@ package jumble
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"strings"
+	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	repository "github.com/Jersyfi/hubtask/core/application/repository/jumble"
+	mailrepo "github.com/Jersyfi/hubtask/core/application/repository/mail"
 	mediaservice "github.com/Jersyfi/hubtask/core/application/service/media"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/jumble"
+	mail "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/clock"
 	"github.com/Jersyfi/hubtask/core/port/persistence"
@@ -25,54 +30,52 @@ const (
 	addCommentName  = "AddComment"
 	attachMediaName = "AttachMedia"
 	commentsWrite   = "comments:write"
+	// InboundDoor is how a receipt names the operator's inbound service.
+	InboundDoor = "inbound"
 )
 
-// MailOutcome is what a delivery became.
-type MailOutcome string
-
-const (
-	// MailBecameJumbleEntry is a jumble entry - the jumble's own mail, or anything not clearly
-	// allowed into the place it was meant for.
-	MailBecameJumbleEntry MailOutcome = "JUMBLE_ENTRY"
-	// MailBecameEntry is a new entry in a collection.
-	MailBecameEntry MailOutcome = "ENTRY"
-	// MailBecameComment is a comment on an entry.
-	MailBecameComment MailOutcome = "COMMENT"
-	// MailDiscarded is a message a machine sent on its own; nothing was stored.
-	MailDiscarded MailOutcome = "DISCARDED"
-)
-
-// AddressedMail is one message on the receiving domain, parsed.
-type AddressedMail struct {
-	// Recipients are the addresses the delivery names, the envelope's first. The first one at the
-	// receiving domain with a live code decides.
+// ReceivedMail is one message for the intake, parsed - from the operator's inbound service or a
+// connected mailbox, which are the same to everything below the door (ADR-0094 decision 1).
+type ReceivedMail struct {
+	// Recipients are the addresses the delivery names, the envelope's first.
 	Recipients []string
 	Sender     string
 	SenderName string
 	Subject    string
 	Body       string
-	// Attachments as MailDelivery's: bytes, judged by the media guard.
+	// Attachments are bytes, judged by the media guard.
 	Attachments []mediaservice.IngestedFile
 	Raw         []byte
 	Unparseable bool
-	// Automatic, Spam and AuthFailed are the header signals (ADR-0092 decisions 5 and 7).
+	// Automatic, Spam and AuthFailed are the header signals.
 	Automatic  bool
 	Spam       bool
 	AuthFailed bool
+	// MessageID is the Message-ID header; empty falls back to a digest of the raw message.
+	MessageID string
+	// TenantID is the workspace a mailbox belongs to. Zero for the inbound service, whose
+	// recipient address names the workspace.
+	TenantID shared.ID
+	// Mailbox is the connected mailbox's own address, whose plus tags route. Empty for the
+	// inbound service.
+	Mailbox string
 }
 
-// MailDeliveryResult says what the delivery became and where it is.
+// MailDeliveryResult says what a message became and where it is.
 type MailDeliveryResult struct {
-	Outcome MailOutcome
+	Outcome mail.Outcome
+	Reason  mail.Reason
 	// EntryID is the jumble entry, ItemID the entry or the entry commented on, CommentID the
 	// comment.
 	EntryID   shared.ID
 	ItemID    shared.ID
 	CommentID shared.ID
+	// Duplicate is a message the workspace had already received; nothing was done again.
+	Duplicate bool
 }
 
-// MailAccounts is the slice of the account store a delivery reads: who a sender's address
-// belongs to, and who opened an address to anyone.
+// MailAccounts is the slice of the account store the intake reads: who a sender's address belongs
+// to, and the account that opened the intake.
 type MailAccounts interface {
 	Find(ctx context.Context, accountID shared.ID) (identity.Account, error)
 	FindByEmail(ctx context.Context, email string) (identity.Account, error)
@@ -80,16 +83,19 @@ type MailAccounts interface {
 
 var _ MailAccounts = identityrepo.Accounts(nil)
 
-// DeliverAddressedMail routes one message to the place its address leads to (ADR-0092).
+// ReceiveMail files one message where it is meant to go (ADR-0094): a comment on the entry its
+// ticket key names, a new entry in the collection its handle names or a sender rule or the default
+// names, and otherwise the jumble - with the reason.
 //
-// Not a catalogue entry, for IntakeMail's reason: the code authenticates a place, never a person.
-// What a recognised sender does goes through the catalogue as that person, so their rights are
+// Not a catalogue entry: an address authenticates nobody. What an admitted sender does goes through
+// the catalogue as that person, or as the administrator who opened the intake, so their rights are
 // asked exactly where a click asks them.
-type DeliverAddressedMail struct {
-	Addresses repository.MailAddresses
-	Places    PlaceFinder
-	Accounts  MailAccounts
-	Entries   repository.Entries
+type ReceiveMail struct {
+	Settings mailrepo.Settings
+	Receipts mailrepo.Receipts
+	Places   mailrepo.Places
+	Accounts MailAccounts
+	Entries  repository.Entries
 	// Media is optional, IntakeMail's way.
 	Media      AttachmentIngest
 	Catalogue  Catalogue
@@ -97,98 +103,88 @@ type DeliverAddressedMail struct {
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	IDs        clock.IDGenerator
-	// Domain is the receiving domain; empty answers every delivery not-found.
+	// Domain is the operator's receiving domain; empty takes nothing from the inbound service.
 	Domain string
 }
 
-// Execute delivers.
-func (h DeliverAddressedMail) Execute(
-	ctx context.Context, mail AddressedMail,
-) (MailDeliveryResult, error) {
-	if h.Domain == "" {
-		return MailDeliveryResult{}, mailGone()
-	}
-	// A loop ends at its first turn, before the address is even looked at (decision 7).
-	if mail.Automatic {
-		return MailDeliveryResult{Outcome: MailDiscarded}, nil
-	}
+// route is where the pipeline decided a message goes, and as whom.
+type route struct {
+	target  domain.MailTarget
+	reason  mail.Reason
+	actor   appshared.ActorContext
+	behalf  bool
+	discard bool
+}
 
-	code, tenantID, err := h.resolve(ctx, mail.Recipients)
+// Execute receives.
+func (h ReceiveMail) Execute(ctx context.Context, message ReceivedMail) (MailDeliveryResult, error) {
+	tenantID, err := h.tenantOf(ctx, message)
 	if err != nil {
 		return MailDeliveryResult{}, err
 	}
 	scope := persistence.Scope{TenantID: tenantID}
+	if message.MessageID == "" {
+		digest := sha256.Sum256(message.Raw)
+		message.MessageID = "sha256:" + hex.EncodeToString(digest[:])
+	}
 
 	var (
-		address domain.MailAddress
-		place   MailPlace
-		sender  identity.Account
-		known   bool
+		settings mail.Settings
+		decided  route
+		seen     bool
 	)
-	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
-		found, err := h.Addresses.ByCode(ctx, code)
+	err = h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
+		found, err := h.Settings.Find(ctx)
 		if err != nil {
 			return err
 		}
-		address = found
-		count, err := h.Addresses.CountDelivery(ctx, address.ID, h.Clock.Now())
-		if err != nil {
-			return err
-		}
-		if count > domain.MailDeliveriesPerHour {
-			return shared.ErrRateLimited.WithDetail("mail.address_busy")
-		}
-		if place, err = h.Places.Find(ctx, address.Target); err != nil {
-			return err
-		}
-		if place.Closed {
+		settings = found
+		if !settings.Enabled {
 			return mailGone()
 		}
-		sender, known = h.recognise(ctx, mail)
-		return nil
+		if seen, err = h.Receipts.Seen(ctx, message.MessageID); err != nil || seen {
+			return err
+		}
+		decided, err = h.decide(ctx, scope, settings, message)
+		return err
 	})
 	if err != nil {
 		return MailDeliveryResult{}, err
 	}
-
-	files := mail.Attachments
-	if mail.Unparseable {
-		files = append(files, mediaservice.IngestedFile{FileName: RawMailFileName, Content: mail.Raw})
+	if seen {
+		return MailDeliveryResult{Outcome: mail.OutcomeDiscarded, Duplicate: true}, nil
 	}
-	stored, err := h.ingest(ctx, tenantID, files)
+
+	result, err := h.file(ctx, tenantID, message, decided)
 	if err != nil {
 		return MailDeliveryResult{}, err
 	}
-
-	if address.Target.Kind == domain.TargetJumble || mail.Spam || mail.Unparseable {
-		return h.toJumble(ctx, tenantID, mail, stored, address.Target)
-	}
-
-	actor, ok := h.actorFor(ctx, scope, address, sender, known)
-	if !ok {
-		return h.toJumble(ctx, tenantID, mail, stored, address.Target)
-	}
-	result, err := h.write(ctx, actor, address.Target, mail, stored, !known)
-	if errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound) {
-		// The sender may not do this here - the jumble waits for somebody who may.
-		return h.toJumble(ctx, tenantID, mail, stored, address.Target)
-	}
+	err = h.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {
+		recorded, err := h.Receipts.Record(ctx, h.receipt(message, result))
+		result.Duplicate = !recorded
+		return err
+	})
 	return result, err
 }
 
-// resolve finds the first recipient whose code names a live address, and its tenant.
-func (h DeliverAddressedMail) resolve(
-	ctx context.Context, recipients []string,
-) (string, shared.ID, error) {
-	for _, recipient := range recipients {
-		code, ok := domain.MailCodeOf(recipient, h.Domain)
+// tenantOf is the workspace the message is for: the mailbox's own, or the one an address on the
+// operator's domain names.
+func (h ReceiveMail) tenantOf(ctx context.Context, message ReceivedMail) (shared.ID, error) {
+	if !message.TenantID.IsZero() {
+		return message.TenantID, nil
+	}
+	if h.Domain == "" {
+		return "", mailGone()
+	}
+	for _, recipient := range message.Recipients {
+		name, ok := mail.WorkspaceOf(recipient, h.Domain)
 		if !ok {
 			continue
 		}
 		var tenantID shared.ID
 		err := h.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
 			func(ctx context.Context) error {
-				found, err := h.Addresses.TenantOf(ctx, code)
+				found, err := h.Settings.WorkspaceNamed(ctx, name)
 				tenantID = found
 				return err
 			})
@@ -196,48 +192,149 @@ func (h DeliverAddressedMail) resolve(
 			continue
 		}
 		if err != nil {
-			return "", "", err
+			return "", err
 		}
-		return code, tenantID, nil
+		return tenantID, nil
 	}
-	return "", "", mailGone()
+	return "", mailGone()
+}
+
+// decide runs the routing order and the sender level. It reads; file writes.
+func (h ReceiveMail) decide(
+	ctx context.Context, scope persistence.Scope, settings mail.Settings, message ReceivedMail,
+) (route, error) {
+	sender := strings.ToLower(strings.TrimSpace(message.Sender))
+	switch {
+	case message.Automatic:
+		return route{discard: true, reason: mail.ReasonAutomatic}, nil
+	case settings.Senders.Blocks(sender):
+		return route{discard: true, reason: mail.ReasonBlocked}, nil
+	}
+	sent, err := h.Receipts.CountFrom(ctx, cut(senderWithin(message.Sender), 320), h.Clock.Now().Add(-time.Hour))
+	if err != nil {
+		return route{}, err
+	}
+	if sent >= mail.MailsPerSenderPerHour {
+		return route{discard: true, reason: mail.ReasonTooMany}, nil
+	}
+
+	target, reason, err := h.target(ctx, settings, message, sender)
+	if err != nil {
+		return route{}, err
+	}
+	decided := route{target: target, reason: reason}
+	switch {
+	case message.Unparseable:
+		decided.reason = mail.ReasonUnparseable
+	case message.Spam:
+		decided.reason = mail.ReasonSpam
+	}
+	if decided.reason != mail.ReasonNone || target.Kind == domain.TargetJumble {
+		return decided, nil
+	}
+
+	account, member := h.recognise(ctx, message)
+	if !settings.Senders.Admits(sender, member) {
+		decided.reason = mail.ReasonSenderNotAllowed
+		return decided, nil
+	}
+	if !member {
+		if settings.OpenedBy.IsZero() || h.Accounts == nil {
+			decided.reason = mail.ReasonSenderNotAllowed
+			return decided, nil
+		}
+		opener, err := h.Accounts.Find(ctx, settings.OpenedBy)
+		if err != nil || opener.Status != identity.AccountActive {
+			decided.reason = mail.ReasonSenderNotAllowed
+			return decided, nil
+		}
+		account, decided.behalf = opener, true
+	}
+	decided.actor = actorOf(scope, account)
+	return decided, nil
+}
+
+// target is the first rule of the routing order that matches (ADR-0094 decision 3).
+func (h ReceiveMail) target(
+	ctx context.Context, settings mail.Settings, message ReceivedMail, sender string,
+) (domain.MailTarget, mail.Reason, error) {
+	door := mail.Door{Mailbox: message.Mailbox, Domain: h.Domain, Workspace: settings.Name}
+	named := mail.RouteOf(message.Subject, message.Recipients, door)
+	for _, key := range named.Keys {
+		id, err := h.Places.ItemByKey(ctx, key)
+		if err == nil {
+			return domain.MailTarget{Kind: domain.TargetItem, ID: id}, mail.ReasonNone, nil
+		}
+		if !errors.Is(err, shared.ErrNotFound) {
+			return domain.MailTarget{}, "", err
+		}
+	}
+	for _, handle := range named.Handles {
+		id, err := h.Places.CollectionByHandle(ctx, handle)
+		if err == nil {
+			return domain.MailTarget{Kind: domain.TargetCollection, ID: id}, mail.ReasonNone, nil
+		}
+		if !errors.Is(err, shared.ErrNotFound) {
+			return domain.MailTarget{}, "", err
+		}
+	}
+	if id, ok := mail.RouteBySender(settings.SenderRoutes, sender); ok {
+		return domain.MailTarget{Kind: domain.TargetCollection, ID: id}, mail.ReasonNone, nil
+	}
+	if !settings.DefaultCollectionID.IsZero() {
+		return domain.MailTarget{Kind: domain.TargetCollection, ID: settings.DefaultCollectionID}, mail.ReasonNone, nil
+	}
+	reason := mail.ReasonNoRoute
+	if len(named.Keys) > 0 || len(named.Handles) > 0 {
+		reason = mail.ReasonUnknownPlace
+	}
+	return domain.MailTarget{Kind: domain.TargetJumble}, reason, nil
+}
+
+// file performs what was decided: nothing, the jumble, or the act as the admitted sender.
+func (h ReceiveMail) file(
+	ctx context.Context, tenantID shared.ID, message ReceivedMail, decided route,
+) (MailDeliveryResult, error) {
+	if decided.discard {
+		return MailDeliveryResult{Outcome: mail.OutcomeDiscarded, Reason: decided.reason}, nil
+	}
+	files := message.Attachments
+	if message.Unparseable {
+		files = append(files, mediaservice.IngestedFile{FileName: RawMailFileName, Content: message.Raw})
+	}
+	stored, err := h.ingest(ctx, tenantID, files)
+	if err != nil {
+		return MailDeliveryResult{}, err
+	}
+	if decided.actor.AccountID.IsZero() {
+		return h.toJumble(ctx, tenantID, message, stored, decided.target, decided.reason)
+	}
+	result, err := h.write(ctx, decided.actor, decided.target, message, stored, decided.behalf)
+	switch {
+	case errors.Is(err, shared.ErrForbidden) || errors.Is(err, shared.ErrNotFound):
+		// The sender may not do this there - the jumble waits for somebody who may.
+		return h.toJumble(ctx, tenantID, message, stored, decided.target, mail.ReasonNotPermitted)
+	case errors.Is(err, shared.ErrValidation) || errors.Is(err, shared.ErrCapabilityNotSupported):
+		// The place keeps nothing of the kind - a reply to an entry on a list without comments.
+		return h.toJumble(ctx, tenantID, message, stored, decided.target, mail.ReasonRefusedByPlace)
+	}
+	return result, err
 }
 
 // recognise finds the person the sender's address belongs to: an active person account of the
-// workspace, and only where the inbound service did not say the address was forged.
-func (h DeliverAddressedMail) recognise(
-	ctx context.Context, mail AddressedMail,
-) (identity.Account, bool) {
-	if mail.AuthFailed || h.Accounts == nil || !strings.Contains(mail.Sender, "@") {
+// workspace, and only where the provider did not say the address was forged.
+func (h ReceiveMail) recognise(ctx context.Context, message ReceivedMail) (identity.Account, bool) {
+	if message.AuthFailed || h.Accounts == nil || !strings.Contains(message.Sender, "@") {
 		return identity.Account{}, false
 	}
-	account, err := h.Accounts.FindByEmail(ctx, strings.ToLower(strings.TrimSpace(mail.Sender)))
+	account, err := h.Accounts.FindByEmail(ctx, strings.ToLower(strings.TrimSpace(message.Sender)))
 	if err != nil || account.Kind != identity.AccountUser || account.Status != identity.AccountActive {
 		return identity.Account{}, false
 	}
 	return account, true
 }
 
-// actorFor is who the mail is written as: the recognised sender, or - under ANYONE - the account
-// that opened the address to everyone. False sends the mail to the jumble.
-func (h DeliverAddressedMail) actorFor(
-	ctx context.Context, scope persistence.Scope, address domain.MailAddress,
-	sender identity.Account, known bool,
-) (appshared.ActorContext, bool) {
-	account := sender
-	if !known {
-		if address.Policy != domain.SendersAnyone || address.OpenedBy.IsZero() || h.Accounts == nil {
-			return appshared.ActorContext{}, false
-		}
-		err := h.UnitOfWork.WithinReadOnly(ctx, scope, func(ctx context.Context) error {
-			found, err := h.Accounts.Find(ctx, address.OpenedBy)
-			account = found
-			return err
-		})
-		if err != nil || account.Status != identity.AccountActive {
-			return appshared.ActorContext{}, false
-		}
-	}
+func actorOf(scope persistence.Scope, account identity.Account) appshared.ActorContext {
 	return appshared.ActorContext{
 		Kind:        appshared.ActorUser,
 		TenantID:    scope.TenantID,
@@ -248,29 +345,37 @@ func (h DeliverAddressedMail) actorFor(
 		Scopes:   []string{itemsWriteScope, commentsWrite},
 		Locale:   account.Locale,
 		TimeZone: account.TimeZone,
-	}, true
+	}
 }
 
 // write performs the act as the actor, in one transaction: the entry or the comment, and the files.
-func (h DeliverAddressedMail) write(
+func (h ReceiveMail) write(
 	ctx context.Context, actor appshared.ActorContext, target domain.MailTarget,
-	mail AddressedMail, files []shared.ID, onBehalf bool,
+	message ReceivedMail, files []shared.ID, onBehalf bool,
 ) (MailDeliveryResult, error) {
-	text := domain.CutQuotedReply(mail.Body)
+	text := domain.CutQuotedReply(message.Body)
 	if onBehalf {
-		text = fromLine(mail) + "\n\n" + text
+		text = fromLine(message) + "\n\n" + text
 	}
 	var result MailDeliveryResult
 	err := h.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		switch target.Kind {
 		case domain.TargetCollection:
 			input := usecase.Input{
-				"type": "TASK", "title": mailTitle(mail), "collection_id": target.ID.String(),
+				"type": "TASK", "title": mailTitle(message), "collection_id": target.ID.String(),
 			}
 			if strings.TrimSpace(text) != "" {
 				input["notes"] = cutBytes(strings.TrimSpace(text), domain.MaxBodyBytes)
 			}
 			out, err := h.Catalogue.Invoke(ctx, createWorkItemName, actor, input)
+			afterwards := ""
+			if err != nil && input["notes"] != nil && errors.Is(err, shared.ErrCapabilityNotSupported) {
+				// The collection keeps no description - a shopping list: the entry without one, and
+				// the mail's text as its first comment where the collection keeps comments.
+				afterwards = input.String("notes")
+				delete(input, "notes")
+				out, err = h.Catalogue.Invoke(ctx, createWorkItemName, actor, input)
+			}
 			if err != nil {
 				return err
 			}
@@ -278,11 +383,18 @@ func (h DeliverAddressedMail) write(
 			if err != nil {
 				return shared.ErrInternal.WithDetail("mail.entry_incomplete").WithCause(err)
 			}
-			result = MailDeliveryResult{Outcome: MailBecameEntry, ItemID: itemID}
+			result = MailDeliveryResult{Outcome: mail.OutcomeEntry, ItemID: itemID}
+			if afterwards != "" {
+				if _, err := h.Catalogue.Invoke(ctx, addCommentName, actor, usecase.Input{
+					"item_id": itemID.String(), "body": afterwards,
+				}); err != nil && !errors.Is(err, shared.ErrCapabilityNotSupported) {
+					return err
+				}
+			}
 		default:
 			body := strings.TrimSpace(text)
-			if body == "" || (onBehalf && strings.TrimSpace(domain.CutQuotedReply(mail.Body)) == "") {
-				body = strings.TrimSpace(fromLine(mail) + "\n\n" + mailTitle(mail))
+			if body == "" || (onBehalf && strings.TrimSpace(domain.CutQuotedReply(message.Body)) == "") {
+				body = strings.TrimSpace(fromLine(message) + "\n\n" + mailTitle(message))
 			}
 			out, err := h.Catalogue.Invoke(ctx, addCommentName, actor, usecase.Input{
 				"item_id": target.ID.String(), "body": cutBytes(body, domain.MaxBodyBytes),
@@ -291,14 +403,17 @@ func (h DeliverAddressedMail) write(
 				return err
 			}
 			commentID, _ := shared.ParseID(out.String("id"))
-			result = MailDeliveryResult{
-				Outcome: MailBecameComment, ItemID: target.ID, CommentID: commentID,
-			}
+			result = MailDeliveryResult{Outcome: mail.OutcomeComment, ItemID: target.ID, CommentID: commentID}
 		}
 		for _, file := range files {
 			if _, err := h.Catalogue.Invoke(ctx, attachMediaName, actor, usecase.Input{
 				"item_id": result.ItemID.String(), "media_id": file.String(),
 			}); err != nil {
+				if errors.Is(err, shared.ErrCapabilityNotSupported) {
+					// A place that keeps no attachments takes the mail without its files; the
+					// unattached uploads go with the media reconciliation.
+					break
+				}
 				return err
 			}
 		}
@@ -307,23 +422,24 @@ func (h DeliverAddressedMail) write(
 	return result, err
 }
 
-// toJumble stores the mail as a jumble entry, meant for the place where that was not the jumble.
-func (h DeliverAddressedMail) toJumble(
-	ctx context.Context, tenantID shared.ID, mail AddressedMail, files []shared.ID,
-	target domain.MailTarget,
+// toJumble stores the message as a jumble entry, with the place it was meant for and why it is here.
+func (h ReceiveMail) toJumble(
+	ctx context.Context, tenantID shared.ID, message ReceivedMail, files []shared.ID,
+	target domain.MailTarget, reason mail.Reason,
 ) (MailDeliveryResult, error) {
-	body := cutBytes(mail.Body, domain.MaxBodyBytes)
-	if mail.Unparseable {
-		body = cutBytes(printable(string(mail.Raw)), domain.MaxBodyBytes)
+	body := cutBytes(message.Body, domain.MaxBodyBytes)
+	if message.Unparseable {
+		body = cutBytes(printable(string(message.Raw)), domain.MaxBodyBytes)
 	}
 	entry, err := domain.NewEntry(domain.NewEntryInput{
 		ID: h.IDs.NewID(), TenantID: tenantID, Channel: domain.ChannelEmail,
-		Sender:      senderWithin(mail.Sender),
-		RawSubject:  cut(mail.Subject, domain.MaxSubjectLength),
-		RawBody:     body,
-		Attachments: files,
-		MeantFor:    target,
-		Now:         h.Clock.Now(),
+		Sender:       senderWithin(message.Sender),
+		RawSubject:   cut(message.Subject, domain.MaxSubjectLength),
+		RawBody:      body,
+		Attachments:  files,
+		MeantFor:     target,
+		IntakeReason: string(reason),
+		Now:          h.Clock.Now(),
 	})
 	if err != nil {
 		return MailDeliveryResult{}, err
@@ -346,10 +462,24 @@ func (h DeliverAddressedMail) toJumble(
 	if err != nil {
 		return MailDeliveryResult{}, err
 	}
-	return MailDeliveryResult{Outcome: MailBecameJumbleEntry, EntryID: entry.ID}, nil
+	return MailDeliveryResult{Outcome: mail.OutcomeJumble, Reason: reason, EntryID: entry.ID}, nil
 }
 
-func (h DeliverAddressedMail) ingest(
+func (h ReceiveMail) receipt(message ReceivedMail, result MailDeliveryResult) mail.Receipt {
+	door := InboundDoor
+	if message.Mailbox != "" {
+		door = message.Mailbox
+	}
+	return mail.Receipt{
+		ID: h.IDs.NewID(), MessageID: message.MessageID, ReceivedAt: h.Clock.Now(),
+		Sender:  cut(senderWithin(message.Sender), 320),
+		Subject: cut(message.Subject, domain.MaxSubjectLength),
+		Outcome: result.Outcome, Reason: result.Reason,
+		ItemID: result.ItemID, EntryID: result.EntryID, Door: door,
+	}
+}
+
+func (h ReceiveMail) ingest(
 	ctx context.Context, tenantID shared.ID, files []mediaservice.IngestedFile,
 ) ([]shared.ID, error) {
 	if h.Media == nil || len(files) == 0 {
@@ -358,24 +488,26 @@ func (h DeliverAddressedMail) ingest(
 	return h.Media.Execute(ctx, tenantID, files)
 }
 
-// mailTitle is the subject, or the text's first line, or the sender - an entry needs a title, and
-// none of these puts words in the workspace nobody wrote.
-func mailTitle(mail AddressedMail) string {
-	if subject := strings.TrimSpace(mail.Subject); subject != "" {
+func mailGone() error { return shared.ErrNotFound.WithDetail("mail.address_not_found") }
+
+// mailTitle is the subject without its routing, or the text's first line, or the sender - an entry
+// needs a title, and none of these puts words in the workspace nobody wrote.
+func mailTitle(message ReceivedMail) string {
+	if subject := mail.Title(message.Subject); subject != "" {
 		return cut(subject, domain.MaxSubjectLength)
 	}
-	for _, line := range strings.Split(domain.CutQuotedReply(mail.Body), "\n") {
+	for _, line := range strings.Split(domain.CutQuotedReply(message.Body), "\n") {
 		if line = strings.TrimSpace(line); line != "" {
 			return cut(line, domain.MaxSubjectLength)
 		}
 	}
-	return cut(fromLine(mail), domain.MaxSubjectLength)
+	return cut(fromLine(message), domain.MaxSubjectLength)
 }
 
 // fromLine names the sender above what an account writes on their behalf.
-func fromLine(mail AddressedMail) string {
-	sender := senderWithin(mail.Sender)
-	if name := strings.TrimSpace(mail.SenderName); name != "" {
+func fromLine(message ReceivedMail) string {
+	sender := senderWithin(message.Sender)
+	if name := strings.TrimSpace(message.SenderName); name != "" {
 		return "From: " + name + " <" + sender + ">"
 	}
 	return "From: " + sender

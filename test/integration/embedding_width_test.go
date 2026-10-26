@@ -103,7 +103,7 @@ func TestANarrowerVectorIsStoredAndFoundAtTheSimilarityItWasGiven(t *testing.T) 
 				return err
 			}
 			previous = key
-			if err := items.Insert(ctx, taskIn(tenantA, authorA, collection, entry.id, entry.title, key)); err != nil {
+			if _, err := items.Insert(ctx, taskIn(tenantA, authorA, collection, entry.id, entry.title, key)); err != nil {
 				return err
 			}
 			if err := embeddings.Store(ctx, repository.StoredEmbedding{

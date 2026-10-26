@@ -715,84 +715,239 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
-  /mail/addresses:
+  /mail/settings:
     get:
       tags: [jumble]
-      operationId: showMailAddress
-      summary: The address a place takes mail at
+      operationId: showMailSettings
+      summary: The workspace's mail intake
       description: >
-        The jumble's, a collection's or an entry's address on the installation's receiving domain,
-        minted on the first read. `available` is false where the installation has no
-        receiving domain - the places then show a hint for administrators instead.
+        Whether the workspace takes mail, its name on the operator's receiving domain and the
+        address that makes, the collection a message naming no place goes to, who may write, and
+        the rules that file a sender's mail. For the workspace's administrators.
+      responses:
+        "200":
+          description: The settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailSettings"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    put:
+      tags: [jumble]
+      operationId: saveMailSettings
+      summary: Replace the workspace's mail intake settings
+      description: >
+        Whoever saves is the account a sender who is not a member writes through, under
+        `MEMBERS_AND_ALLOWED` and `ANYONE`, with a From line above the text. A name another
+        workspace holds answers `409`.
       parameters:
-        - name: target_kind
-          in: query
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailSettings"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailSettings"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes:
+    get:
+      tags: [jumble]
+      operationId: listMailboxes
+      summary: The workspace's connected mailboxes
+      description: >
+        Each mailbox the intake reads, how its last read went, and the provider presets a new one
+        can start from. A secret is never answered.
+      responses:
+        "200":
+          description: The mailboxes and the presets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailboxList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [jumble]
+      operationId: connectMailbox
+      summary: Connect a mailbox to the mail intake
+      description: >
+        Signs in once with the given secret - a password, an app password, or a JMAP token - and
+        stores the mailbox only when that worked, the secret sealed. From then on the mailbox is
+        read every minute; only mail that arrives after connecting is taken, and each taken
+        message is moved to the done folder. A refused sign-in answers `422`
+        (`mail.mailbox_refused`), an unreachable server `503`.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailboxConnection"
+      responses:
+        "201":
+          description: Connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mailbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes:authorize:
+    post:
+      tags: [jumble]
+      operationId: authorizeMailbox
+      summary: Start connecting a mailbox through its provider's sign-in
+      description: >
+        OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft
+        by preset - with the installation's app where the operator configured one, or with the
+        administrator's own - and any other provider by its HTTPS endpoints and its IMAP server.
+        Answers the provider's page to send the browser to. The provider sends the browser back to
+        `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state
+        to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and
+        for the administrator who started it.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailboxAuthorizationRequest"
+      responses:
+        "200":
+          description: Where to send the browser
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailboxAuthorization"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes:complete:
+    post:
+      tags: [jumble]
+      operationId: completeMailboxAuthorization
+      summary: Finish connecting a mailbox with the provider's answer
+      description: >
+        Trades the code at the provider's token endpoint, signs in to the mailbox once with the
+        access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed.
+        From then on it is read like any other connected mailbox. A state that is unknown, used or
+        someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422`
+        (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MailboxAuthorizationAnswer"
+      responses:
+        "201":
+          description: Connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mailbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/mailboxes/{mailbox_id}:
+    delete:
+      tags: [jumble]
+      operationId: removeMailbox
+      summary: Disconnect a mailbox
+      description: The secret is forgotten and the mailbox is read no more; the mail in it stays.
+      parameters:
+        - name: mailbox_id
+          in: path
           required: true
-          schema: { type: string, enum: [JUMBLE, COLLECTION, ITEM] }
-        - name: target_id
-          in: query
-          required: false
-          description: The collection or the entry; absent for the jumble.
           schema: { type: string, format: uuid }
       responses:
-        "200":
-          description: The address
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MailAddress"
+        "204":
+          description: Disconnected
         "4XX":
           $ref: "#/components/responses/Problem"
 
-  /mail/addresses:rotate:
+  /mail/mailboxes/{mailbox_id}:check:
     post:
       tags: [jumble]
-      operationId: rotateMailAddress
-      summary: Replace a place's mail address
-      description: >
-        The old address answers not-found from the same instant; who may send stays as it was.
+      operationId: checkMailbox
+      summary: Sign in to a connected mailbox again and read it now
       parameters:
+        - name: mailbox_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: How the sign-in went
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Mailbox"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /mail/receipts:
+    get:
+      tags: [jumble]
+      operationId: listMailReceipts
+      summary: What the mail intake received
+      description: >
+        The newest hundred messages of the last 30 days: when, from whom, what each became and,
+        where it waits in the jumble or was dropped, why.
+      responses:
+        "200":
+          description: The receipts, newest first
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MailReceiptList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /collections/{collection_id}/handle:
+    put:
+      tags: [containers]
+      operationId: setCollectionHandle
+      summary: Give a collection another handle
+      description: >
+        The short name a mail subject (`#einkauf`), an address and the collection's ticket keys
+        (`EINKAUF-42`) use. Unique in the workspace, trashed collections included; mail to the old
+        handle no longer arrives here.
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
         - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/MailAddressTarget"
+              $ref: "#/components/schemas/CollectionHandle"
       responses:
         "200":
-          description: The new address
+          description: The handle now in force
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/MailAddress"
-        "4XX":
-          $ref: "#/components/responses/Problem"
-
-  /mail/addresses:set-sender-policy:
-    post:
-      tags: [jumble]
-      operationId: setMailSenderPolicy
-      summary: Set who may write into a place by mail
-      description: >
-        `MEMBERS` (the default): people of the workspace act as themselves, everybody else waits
-        in the jumble. `ANYONE`: an unknown sender's mail is written as the caller, headed with who
-        sent it.
-      parameters:
-        - $ref: "#/components/parameters/IdempotencyKey"
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/MailSenderPolicyChange"
-      responses:
-        "200":
-          description: The address with its policy
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/MailAddress"
+                $ref: "#/components/schemas/CollectionHandle"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -801,18 +956,19 @@ paths:
       tags: [jumble]
       operationId: deliverAddressedMail
       security: []
-      summary: Deliver a mail to an address on the receiving domain
+      summary: Deliver a mail to the operator's receiving domain
       description: >
-        The installation's one inbound route: the inbound service the receiving
-        domain's MX points at posts each raw message here, authenticated by
-        `HUBTASK_MAIL_INBOUND_KEY` as a bearer token or as the password of the URL's basic
-        credentials. The recipient is `recipient` or, without it, the first of `X-Original-To`,
-        `Delivered-To`, `To` and `Cc` at the receiving domain whose code names a live address.
+        The installation's inbound route: the inbound service the receiving domain's MX points at
+        posts each raw message here, authenticated by `HUBTASK_MAIL_INBOUND_KEY` as a bearer token
+        or as the password of the URL's basic credentials. The workspace is the one an address
+        names - `<workspace>@`, `<workspace>+<tag>@` or `<handle>.<workspace>@` at the receiving
+        domain - whose intake is on.
 
-        A recognised sender's mail becomes an entry in a collection or a comment on an entry,
-        written as that person; anything not clearly allowed waits in the jumble, meant for the
-        place. A message a machine sent on its own is accepted and discarded. An unknown, replaced
-        or closed address answers `404`; an address past its hourly bound answers `429`.
+        The message is filed by the intake's routing order: a ticket key in the address or the
+        subject makes it a comment, a handle a new entry in that collection, then the sender rules
+        and the default collection; anything else, and anything from a sender the level does not
+        admit, waits in the jumble with the reason. A message received before answers what it
+        became then, with `duplicate`. An address naming no workspace answers `404`.
       parameters:
         - name: recipient
           in: query
@@ -16173,6 +16329,13 @@ components:
             Whether this hub is private: reached only by people holding a role on it or below it,
             not by the workspace's own roles - its owners and administrators included. Always
             false on a collection, which shares its hub's privacy.
+        handle:
+          type: [string, "null"]
+          pattern: "^[a-z][a-z0-9]{1,19}$"
+          description: >
+            A collection's short name, null on a hub: the word a mail subject ("#einkauf"), a plus
+            address and a ticket key ("EINKAUF-42") use for it. Given when the collection is made,
+            derived from its name and unique in the workspace; a rename keeps it.
         structure:
           $ref: "#/components/schemas/EffectiveStructure"
           description: >
@@ -17713,9 +17876,11 @@ components:
           type: string
           enum: [COLLECTION, ITEM]
           description: >
-            The place a mail was addressed to where it landed in the jumble instead - its sender
-            was unknown or not allowed, or the inbound service marked it as spam.
+            The place a mail named where it landed in the jumble instead - its sender was not
+            admitted or may not write there, or the provider marked it as spam.
         meant_for_id: { type: string, format: uuid }
+        intake_reason:
+          $ref: "#/components/schemas/MailReason"
         arrival_job_id:
           type: [string, "null"]
           format: uuid
@@ -17733,53 +17898,245 @@ components:
           format: uuid
           description: The entry to comment on. Defaults to the one the mail was meant for.
 
-    MailAddressTarget:
+    MailSettings:
       type: object
-      required: [target_kind]
       properties:
-        target_kind:
+        enabled: { type: boolean }
+        name:
           type: string
-          enum: [JUMBLE, COLLECTION, ITEM]
-        target_id:
+          pattern: "^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$"
+          description: The workspace's name on the operator's receiving domain, unique on the installation.
+        default_collection_id:
           type: string
           format: uuid
-          description: The collection or the entry; absent for the jumble.
-
-    MailSenderPolicyChange:
-      type: object
-      required: [target_kind, sender_policy]
-      properties:
-        target_kind:
+          description: Where a message naming no place goes; absent for the jumble.
+        senders:
+          $ref: "#/components/schemas/MailSenders"
+        sender_routes:
+          type: array
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/MailSenderRoute"
+        domain:
           type: string
-          enum: [JUMBLE, COLLECTION, ITEM]
-        target_id: { type: string, format: uuid }
-        sender_policy:
+          readOnly: true
+          description: The operator's receiving domain; absent where the installation has none.
+        address:
           type: string
-          enum: [MEMBERS, ANYONE]
+          readOnly: true
+          description: The workspace's own address there, name@domain.
 
-    MailAddress:
+    MailSenders:
       type: object
-      description: >
-        A place's address on the receiving domain: `<label>.<code>@<domain>`. The code is the key;
-        the label only reads well.
-      required: [available]
       properties:
-        available:
+        level:
+          type: string
+          enum: [MEMBERS, MEMBERS_AND_ALLOWED, ANYONE]
+          description: >
+            Who may write. MEMBERS write as themselves; under the other two a sender who is not a
+            member writes through the account that saved the settings.
+        allowed:
+          type: array
+          maxItems: 200
+          items: { type: string }
+          description: Addresses and @domains admitted under MEMBERS_AND_ALLOWED.
+        blocked:
+          type: array
+          maxItems: 200
+          items: { type: string }
+          description: Addresses and @domains whose mail is dropped, before every level.
+
+    MailSenderRoute:
+      type: object
+      required: [match, collection_id]
+      properties:
+        match: { type: string, description: An address or an @domain. }
+        collection_id: { type: string, format: uuid }
+
+    MailboxList:
+      type: object
+      required: [mailboxes, presets]
+      properties:
+        mailboxes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Mailbox"
+        presets:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailboxPreset"
+        oauth_providers:
+          type: array
+          description: >
+            The providers a mailbox connects to through their sign-in, and whether the installation
+            brings an app for each. Empty where this installation connects no mailbox through OAuth.
+          items:
+            $ref: "#/components/schemas/MailboxOAuthProvider"
+        oauth_redirect_url:
+          type: string
+          description: The redirect URI to register with an app of one's own.
+
+    MailboxOAuthProvider:
+      type: object
+      required: [key, installation, hint]
+      properties:
+        key: { type: string, description: "google, microsoft." }
+        installation:
           type: boolean
-          description: False where the installation has no receiving domain; nothing else is set then.
+          description: The operator configured an app for this provider; connecting is one button.
+        hint: { type: string, description: A message code saying what the provider asks for. }
+
+    MailboxAuthorizationRequest:
+      type: object
+      required: [provider]
+      properties:
+        provider: { type: string, description: "google, microsoft, or custom for any other provider." }
+        address:
+          type: string
+          description: The mailbox's address, a hint for the provider; kept where the provider names none.
+        client_id: { type: string, description: An app of one's own; without it the installation's. }
+        client_secret:
+          type: string
+          writeOnly: true
+          description: That app's secret; none for a public client. Stored sealed and never answered.
+        authorize_url: { type: string, format: uri, description: "custom: the authorization endpoint." }
+        token_url: { type: string, format: uri, description: "custom: the token endpoint." }
+        scopes:
+          type: array
+          maxItems: 20
+          items: { type: string }
+          description: "custom: the scopes that grant IMAP access and a refresh token."
+        host: { type: string, description: "custom: the IMAP server." }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+
+    MailboxAuthorization:
+      type: object
+      required: [authorize_url, expires_at]
+      properties:
+        authorize_url: { type: string, format: uri }
+        expires_at: { type: string, format: date-time }
+
+    MailboxAuthorizationAnswer:
+      type: object
+      required: [state]
+      properties:
+        state: { type: string }
+        code: { type: string }
+        error: { type: string }
+
+    MailboxPreset:
+      type: object
+      required: [key, protocol, plus_addresses, hint]
+      properties:
+        key: { type: string, description: "gmail, gmx, webde, ionos, fastmail." }
+        protocol: { type: string, enum: [IMAP, JMAP] }
+        plus_addresses:
+          type: boolean
+          description: The provider delivers name+tag@ to name@, so a plus tag can name a place.
+        hint: { type: string, description: A message code saying what the provider asks for first. }
+
+    MailboxConnection:
+      type: object
+      required: [address, secret]
+      properties:
+        preset: { type: string }
+        protocol: { type: string, enum: [IMAP, JMAP] }
+        address: { type: string, format: email }
+        host: { type: string }
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        session_url: { type: string, format: uri }
+        username: { type: string }
+        secret:
+          type: string
+          writeOnly: true
+          description: The password, app password or token. Stored sealed and never answered.
+        folder: { type: string }
+        done_folder: { type: string }
+
+    Mailbox:
+      type: object
+      required: [id, protocol, address, username, folder, done_folder, enabled, auth, failing, created_at]
+      properties:
+        id: { type: string, format: uuid }
+        protocol: { type: string, enum: [IMAP, JMAP] }
         address: { type: string }
-        target_kind:
+        host: { type: string }
+        port: { type: integer }
+        session_url: { type: string }
+        username: { type: string }
+        folder: { type: string }
+        done_folder: { type: string }
+        preset: { type: string }
+        plus_addresses: { type: boolean }
+        auth:
           type: string
-          enum: [JUMBLE, COLLECTION, ITEM]
-        target_id: { type: string, format: uuid }
-        sender_policy:
+          enum: [PASSWORD, OAUTH]
+          description: How it signs in.
+        oauth_provider: { type: string, description: "google, microsoft or custom, for OAUTH." }
+        enabled: { type: boolean }
+        checked_at: { type: string, format: date-time }
+        failure:
           type: string
-          enum: [MEMBERS, ANYONE]
-        opened_by:
-          type: string
-          format: uuid
-          description: Who opened the address to anyone; their rights bound such mail.
+          description: >
+            What the last read failed with, as a message code: mail.mailbox_refused,
+            mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off,
+            mail.oauth_revoked, mail.oauth_refused, mail.oauth_app_missing.
+        failing:
+          type: boolean
+          description: The reads have failed for an hour or longer.
         created_at: { type: string, format: date-time }
+
+    MailReceiptList:
+      type: object
+      required: [receipts]
+      properties:
+        receipts:
+          type: array
+          items:
+            $ref: "#/components/schemas/MailReceipt"
+
+    MailReceipt:
+      type: object
+      required: [id, received_at, sender, subject, outcome, door]
+      properties:
+        id: { type: string, format: uuid }
+        received_at: { type: string, format: date-time }
+        sender: { type: string }
+        subject: { type: string }
+        outcome:
+          type: string
+          enum: [ENTRY, COMMENT, JUMBLE, DISCARDED]
+        reason:
+          $ref: "#/components/schemas/MailReason"
+        item_id: { type: string, format: uuid }
+        entry_id: { type: string, format: uuid }
+        door:
+          type: string
+          description: inbound for the operator's service, or the connected mailbox's address.
+
+    MailReason:
+      type: string
+      description: Why a message waits in the jumble or was dropped.
+      enum:
+        - NO_ROUTE
+        - UNKNOWN_PLACE
+        - SENDER_NOT_ALLOWED
+        - NOT_PERMITTED
+        - REFUSED_BY_PLACE
+        - SPAM
+        - UNPARSEABLE
+        - SENDER_BLOCKED
+        - AUTOMATIC
+        - TOO_MANY
+
+    CollectionHandle:
+      type: object
+      required: [handle]
+      properties:
+        handle:
+          type: string
+          pattern: "^[a-z][a-z0-9]{1,19}$"
+        collection_id: { type: string, format: uuid, readOnly: true }
 
     MailDelivered:
       type: object
@@ -17787,7 +18144,12 @@ components:
       properties:
         outcome:
           type: string
-          enum: [JUMBLE_ENTRY, ENTRY, COMMENT, DISCARDED]
+          enum: [ENTRY, COMMENT, JUMBLE, DISCARDED]
+        reason:
+          $ref: "#/components/schemas/MailReason"
+        duplicate:
+          type: boolean
+          description: The message had been received before; nothing was done again.
         entry_id: { type: string, format: uuid, description: The jumble entry. }
         item_id: { type: string, format: uuid, description: The entry created or commented on. }
         comment_id: { type: string, format: uuid }
@@ -18649,6 +19011,14 @@ components:
           description: >
             BCP-47, and null for an entry whose language nobody stated. It decides the text search
             configuration the entry is indexed under.
+        number:
+          type: [integer, "null"]
+          format: int64
+          minimum: 1
+          description: >
+            The entry's running number in its collection; with the collection's handle it is the
+            entry's ticket key, "EINKAUF-42". Drawn when the entry is made, and anew when it moves
+            to another collection.
         calendar_uid:
           type: [string, "null"]
           maxLength: 255
@@ -21555,7 +21925,8 @@ components:
             answered today are `mail`, `storage`, `tracing`, `web_ui`, `backup_encryption`,
             `backup_targets`, `ai_suggestions`, `semantic_search`, `natural_ordering`,
             `sign_in_rules`, `search_filter`, `structure`, `structure_enforced`, `setup_open` and
-            `mail_addresses` (a receiving domain is set, so places have mail addresses).
+            `mail_domain` (the operator's receiving domain is set, so a workspace's mail intake has
+            an address there).
 
             `setup_open` is `true` exactly while the installation has no workspace and nobody in its
             operator register: then `POST /auth/installation:set-up` is offered, and a client shows

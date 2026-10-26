@@ -35,7 +35,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -56,7 +56,7 @@ WHERE parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
--- name: InsertContainer :exec
+-- name: InsertContainer :one
 -- The name arrives in Unicode normal form C - the constructor brings it there, behind the
 -- Normalizer port, and the description with it (i18n-l10n.md §5): "Übersicht" typed with
 -- a combining diaeresis and the same word composed are one name to a person, and the unique
@@ -81,7 +81,9 @@ INSERT INTO container (
     jsonb_build_object('structure', sqlc.arg('structure')::jsonb,
                        'completion_policy', sqlc.arg('completion_policy')::text)
   END
-);
+)
+-- The handle the store gave a collection (migration 0204), so the create answers it.
+RETURNING handle;
 
 -- name: ListContainers :many
 -- One level of the container tree, in its manual order: the hubs when no parent is named, that
@@ -119,7 +121,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, parent.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private
+  c.private, c.handle
 FROM container c
 LEFT JOIN container parent ON parent.id = c.parent_id
 LEFT JOIN auto_assign_policy aap ON aap.scope_type = 'COLLECTION' AND aap.scope_id = c.id
@@ -154,7 +156,7 @@ SELECT
   aap.enabled AS auto_assign_enabled,
   c.archived_at, hub.archived_at AS parent_archived_at,
   c.deleted_at, c.trash_batch_id, c.created_by, c.created_at, c.updated_at, c.version,
-  c.private,
+  c.private, c.handle,
   hub.name AS hub_name, hub.order_key AS hub_order_key, hub.private AS hub_private
 FROM container c
 JOIN container hub ON hub.id = c.parent_id
@@ -334,7 +336,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.id = $1;
 
@@ -362,7 +364,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
@@ -444,7 +446,7 @@ WHERE collection_id = sqlc.arg('collection_id')::uuid
 ORDER BY order_key COLLATE "C" DESC
 LIMIT 1;
 
--- name: InsertWorkItem :exec
+-- name: InsertWorkItem :one
 -- The title arrives in Unicode normal form C: the constructor brings it there, behind the
 -- Normalizer port, so that what the domain answers, the change set records and the row holds are
 -- one string (i18n-l10n.md §5). normalize() stays on the insert as the row's own guarantee
@@ -470,7 +472,9 @@ INSERT INTO work_item (
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
   sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
-);
+)
+-- The number the store drew in the collection (migration 0204), so the create answers it.
+RETURNING number;
 
 -- name: FindWorkItemByCalendarUID :one
 -- The entry a calendar client's UID names. The same columns as FindWorkItem,
@@ -496,7 +500,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calendar_uid')::text;
 
@@ -542,7 +546,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.path LIKE sqlc.arg('path_prefix')::text || '%'
   AND wi.id <> sqlc.arg('item_id')::uuid
@@ -635,7 +639,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version
+  wi.version, wi.number
 FROM work_item wi
 WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
   AND wi.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid

@@ -122,6 +122,9 @@ type Entry struct {
 	// decision 5): a collection or an entry, so sorting it in is one step. Zero for everything
 	// that was meant for the jumble itself.
 	MeantFor MailTarget
+	// IntakeReason is why the mail intake put a message here rather than where it was meant to go
+	// (ADR-0094 decision 5): "SENDER_NOT_ALLOWED", "NO_ROUTE". Empty for every other arrival.
+	IntakeReason string
 }
 
 // NewEntryInput is what an arrival needs.
@@ -136,8 +139,9 @@ type NewEntryInput struct {
 	RawBody     string
 	Attachments []shared.ID
 	// MeantFor is the place the arrival was addressed to, where it was not the jumble.
-	MeantFor MailTarget
-	Now      time.Time
+	MeantFor     MailTarget
+	IntakeReason string
+	Now          time.Time
 }
 
 // NewEntry validates one arrival.
@@ -196,10 +200,11 @@ func NewEntry(in NewEntryInput) (Entry, error) {
 	return Entry{
 		ID: in.ID, TenantID: in.TenantID, Channel: in.Channel,
 		Sender: sender, CreatedBy: in.CreatedBy, RawSubject: subject, RawBody: body,
-		Attachments: attachments,
-		MeantFor:    meantFor(in.MeantFor),
-		Status:      StatusNew,
-		ReceivedAt:  in.Now.UTC(),
+		Attachments:  attachments,
+		MeantFor:     meantFor(in.MeantFor),
+		IntakeReason: in.IntakeReason,
+		Status:       StatusNew,
+		ReceivedAt:   in.Now.UTC(),
 	}, nil
 }
 

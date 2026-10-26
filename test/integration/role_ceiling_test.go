@@ -156,7 +156,7 @@ func TestAGrantOnAnEntryCountsTheRolesAboveIt(t *testing.T) {
 
 	sharedItem := freshID(t)
 	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
-		return itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.sharedColl, sharedItem, freshName(t), "a0"))
+		return insertErr(itemRepo().Insert(ctx, taskIn(tenantA, authorA, w.sharedColl, sharedItem, freshName(t), "a0")))
 	}); err != nil {
 		t.Fatalf("seeding the shared entry: %v", err)
 	}

@@ -71,7 +71,7 @@ func (s *itemStore) MoveSubtree(context.Context, workrepo.Move) (int, []work.Dro
 func (s *itemStore) LastOrderKey(context.Context, shared.ID, shared.ID) (string, error) {
 	return "", nil
 }
-func (s *itemStore) Insert(context.Context, work.WorkItem) error { return nil }
+func (s *itemStore) Insert(_ context.Context, v work.WorkItem) (work.WorkItem, error) { return v, nil }
 func (s *itemStore) Subtree(context.Context, work.WorkItem, int) ([]work.WorkItem, error) {
 	return nil, nil
 }
@@ -108,8 +108,10 @@ func (s *containerStore) Find(_ context.Context, id shared.ID) (work.Container, 
 func (s *containerStore) List(context.Context, workrepo.ContainerQuery) (workrepo.ContainerPage, error) {
 	return workrepo.ContainerPage{}, nil
 }
-func (s *containerStore) LastOrderKey(context.Context, shared.ID) (string, error)  { return "", nil }
-func (s *containerStore) Insert(context.Context, work.Container) error             { return nil }
+func (s *containerStore) LastOrderKey(context.Context, shared.ID) (string, error) { return "", nil }
+func (s *containerStore) Insert(_ context.Context, v work.Container) (work.Container, error) {
+	return v, nil
+}
 func (s *containerStore) SetAttributes(context.Context, work.Container, int) error { return nil }
 func (s *containerStore) SetPolicies(context.Context, work.Container, int) error   { return nil }
 func (s *containerStore) SetPrivate(context.Context, work.Container, int) error    { return nil }
