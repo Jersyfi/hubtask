@@ -342,3 +342,90 @@ func TestAMailboxIsStoredWithItsSecretSealedAndOnlyItsWorkspaceSeesIt(t *testing
 		t.Fatal(err)
 	}
 }
+
+func TestAnOAuthMailboxKeepsItsAppAndAWaitingConnectionIsTakenOnce(t *testing.T) {
+	ctx := context.Background()
+	seedContainerTenants(ctx, t)
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	store := postgres.NewMailboxRepository()
+	box, err := domain.NewMailbox(domain.NewMailboxInput{
+		ID: freshID(t), TenantID: tenantA, Protocol: domain.ProtocolIMAP, Host: "outlook.office365.com",
+		Address: lettersOf(freshID(t)) + "@contoso.com", Now: now,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	preset, _ := domain.OAuthPresetNamed("microsoft")
+	box.Auth, box.OAuth = domain.AuthOAuth, &domain.OAuthClient{
+		Provider: "microsoft", AuthorizeURL: preset.AuthorizeURL, TokenURL: preset.TokenURL, Scopes: preset.Scopes,
+		ClientID: "inst-id", Installation: true,
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.Insert(ctx, box, crypto.Sealed{KeyID: "k1", Ciphertext: []byte{1}}, authorA)
+	}); err != nil {
+		t.Fatalf("storing: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return store.Reseal(ctx, box.ID, crypto.Sealed{KeyID: "k2", Ciphertext: []byte{2, 2}})
+	}); err != nil {
+		t.Fatalf("resealing: %v", err)
+	}
+	if err := read(ctx, t, tenantA, func(ctx context.Context) error {
+		found, sealed, err := store.Find(ctx, box.ID)
+		if err != nil || found.Auth != domain.AuthOAuth || found.OAuth == nil || found.OAuth.ClientID != "inst-id" ||
+			!found.OAuth.Installation || len(found.OAuth.Scopes) != len(preset.Scopes) || sealed.KeyID != "k2" {
+			t.Errorf("found %+v %+v / %+v, %v", found, found.OAuth, sealed, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	waiting := postgres.NewMailboxAuthorizationRepository()
+	pending := domain.PendingAuthorization{
+		ID: freshID(t), TenantID: tenantA, AccountID: authorA, Client: *box.OAuth, Host: "outlook.office365.com",
+		Port: 993, LoginHint: "team@contoso.com", ExpiresAt: now.Add(domain.PendingTTL),
+	}
+	hash := []byte(lettersOf(freshID(t)))
+	ownSecret := crypto.Sealed{KeyID: "k3", Ciphertext: []byte{3}}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		return waiting.Insert(ctx, pending, hash, crypto.Sealed{KeyID: "kv", Ciphertext: []byte{9}}, &ownSecret)
+	}); err != nil {
+		t.Fatalf("storing a waiting connection: %v", err)
+	}
+	if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		_, _, _, err := waiting.Take(ctx, hash)
+		return err
+	}); !errors.Is(err, shared.ErrNotFound) {
+		t.Errorf("tenant B took A's waiting connection: %v", err)
+	}
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		taken, verifier, secret, err := waiting.Take(ctx, hash)
+		if err != nil || taken.AccountID != authorA || taken.LoginHint != "team@contoso.com" || taken.Client.ClientID != "inst-id" ||
+			verifier.KeyID != "kv" || secret == nil || secret.KeyID != "k3" || !taken.ExpiresAt.Equal(pending.ExpiresAt) {
+			t.Errorf("took %+v / %+v / %+v, %v", taken, verifier, secret, err)
+		}
+		_, _, _, err = waiting.Take(ctx, hash)
+		if !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("a waiting connection was taken twice: %v", err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	expired := pending
+	expired.ID, expired.ExpiresAt = freshID(t), now.Add(-time.Minute)
+	if err := write(ctx, t, tenantA, func(ctx context.Context) error {
+		if err := waiting.Insert(ctx, expired, []byte(lettersOf(freshID(t))), crypto.Sealed{KeyID: "kv", Ciphertext: []byte{9}}, nil); err != nil {
+			return err
+		}
+		gone, err := waiting.DeleteExpired(ctx, now)
+		if gone < 1 {
+			t.Errorf("forgot %d expired", gone)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	_ = write(ctx, t, tenantA, func(ctx context.Context) error { return store.Delete(ctx, box.ID) })
+}

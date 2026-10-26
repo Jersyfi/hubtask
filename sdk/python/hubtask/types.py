@@ -2009,6 +2009,33 @@ class MailSenderRoute(TypedDict, total=False):
 class MailboxList(TypedDict, total=False):
     mailboxes: Required[list["Mailbox"]]
     presets: Required[list["MailboxPreset"]]
+    oauth_providers: list["MailboxOAuthProvider"]
+    oauth_redirect_url: str
+
+class MailboxOAuthProvider(TypedDict, total=False):
+    key: Required[str]
+    installation: Required[bool]
+    hint: Required[str]
+
+class MailboxAuthorizationRequest(TypedDict, total=False):
+    provider: Required[str]
+    address: str
+    client_id: str
+    client_secret: str
+    authorize_url: str
+    token_url: str
+    scopes: list[str]
+    host: str
+    port: int
+
+class MailboxAuthorization(TypedDict, total=False):
+    authorize_url: Required[str]
+    expires_at: Required[str]
+
+class MailboxAuthorizationAnswer(TypedDict, total=False):
+    state: Required[str]
+    code: str
+    error: str
 
 class MailboxPreset(TypedDict, total=False):
     key: Required[str]
@@ -2040,6 +2067,8 @@ class Mailbox(TypedDict, total=False):
     done_folder: Required[str]
     preset: str
     plus_addresses: bool
+    auth: Required[Literal["PASSWORD", "OAUTH"]]
+    oauth_provider: str
     enabled: Required[bool]
     checked_at: str
     failure: str

@@ -11,6 +11,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -20,6 +21,7 @@ import (
 	"syscall"
 	"time"
 
+	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	port "github.com/Jersyfi/hubtask/core/port/mailbox"
 	"github.com/Jersyfi/hubtask/infrastructure/httpclient"
@@ -62,7 +64,11 @@ func (i IMAP) Open(ctx context.Context, connection port.Connection) (port.Sessio
 		_ = conn.Close()
 		return nil, unreachable(err)
 	}
-	if err := session.login(box.Username, string(connection.Secret.Reveal())); err != nil {
+	signIn := session.login
+	if box.Auth == domain.AuthOAuth {
+		signIn = session.authenticate
+	}
+	if err := signIn(box.Username, connection.Secret.Reveal()); err != nil {
 		_ = conn.Close()
 		return nil, err
 	}
@@ -138,6 +144,40 @@ func (s *imapSession) login(user, password string) error {
 		return unreachable(err)
 	}
 	return nil
+}
+
+// authenticate signs in with an OAuth access token: SASL XOAUTH2 with an initial response, as
+// Gmail and Outlook take it. A refusal comes as a continuation carrying the provider's reason,
+// which is answered with an empty line so the server sends its tagged NO.
+func (s *imapSession) authenticate(user, token string) error {
+	if strings.ContainsAny(user+token, "\r\n\x00\x01") {
+		return refused(errors.New("credentials hold a control character"))
+	}
+	initial := base64.StdEncoding.EncodeToString([]byte("user=" + user + "\x01auth=Bearer " + token + "\x01\x01"))
+	s.tag++
+	tag := "h" + strconv.Itoa(s.tag)
+	if _, err := io.WriteString(s.conn, tag+" AUTHENTICATE XOAUTH2 "+initial+"\r\n"); err != nil {
+		return unreachable(err)
+	}
+	for {
+		line, err := s.readLine()
+		if err != nil {
+			return unreachable(err)
+		}
+		if strings.HasPrefix(line, "+") {
+			if _, err := io.WriteString(s.conn, "\r\n"); err != nil {
+				return unreachable(err)
+			}
+			continue
+		}
+		if rest, ok := strings.CutPrefix(line, tag+" "); ok {
+			status, _, _ := strings.Cut(rest, " ")
+			if strings.EqualFold(status, "OK") {
+				return nil
+			}
+			return refused(statusError{status: strings.ToUpper(status)})
+		}
+	}
 }
 
 // Fetch answers the messages that arrived since the mailbox was connected, oldest first: what

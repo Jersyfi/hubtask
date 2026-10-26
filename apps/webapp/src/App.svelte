@@ -337,8 +337,11 @@ import ContainerView from './views/ContainerView.svelte';
     <SignInSettingsView tab={route.query['tab']} onnavigate={(path) => router.replace(path)} />
   {:else if route.name === 'voice'}
     <VoiceView />
-  {:else if route.name === 'mail'}
-    <MailView />
+  {:else if route.name === 'mail' || route.name === 'mail-oauth'}
+    <MailView
+      providerAnswer={route.name === 'mail-oauth' ? route.query : undefined}
+      onanswered={() => router.replace('/administration/mail')}
+    />
   {:else if route.name === 'legal'}
     <SignInSettingsView part="legal" />
   {:else if route.name === 'ai'}

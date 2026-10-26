@@ -48,6 +48,10 @@ func (s *mailboxStore) RecordCheck(_ context.Context, box domain.Mailbox) error 
 	s.boxes[box.ID] = box
 	return nil
 }
+func (s *mailboxStore) Reseal(_ context.Context, id shared.ID, sealed crypto.Sealed) error {
+	s.sealed[id] = sealed
+	return nil
+}
 func (s *mailboxStore) Delete(_ context.Context, id shared.ID) error {
 	if _, ok := s.boxes[id]; !ok {
 		return shared.ErrNotFound

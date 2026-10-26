@@ -33,6 +33,8 @@ const (
 	connectMailboxUseCase      = "ConnectMailbox"
 	checkMailboxUseCase        = "CheckMailbox"
 	removeMailboxUseCase       = "RemoveMailbox"
+	authorizeMailboxUseCase    = "AuthorizeMailbox"
+	completeMailboxUseCase     = "CompleteMailboxAuthorization"
 	commentJumbleEntryUseCase  = "CommentJumbleEntry"
 )
 
@@ -92,6 +94,38 @@ func (c *RestController) ConnectMailbox(w http.ResponseWriter, r *http.Request, 
 		body["port"] = int(port)
 	}
 	c.mailDocumentWith(w, r, http.StatusCreated, connectMailboxUseCase, usecase.Input(body), &openapi.Mailbox{})
+}
+
+// AuthorizeMailbox answers POST /mail/mailboxes:authorize.
+func (c *RestController) AuthorizeMailbox(w http.ResponseWriter, r *http.Request, _ openapi.AuthorizeMailboxParams) {
+	var body map[string]any
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	if port, ok := body["port"].(float64); ok {
+		body["port"] = int(port)
+	}
+	c.mailDocument(w, r, authorizeMailboxUseCase, usecase.Input(body), &openapi.MailboxAuthorization{})
+}
+
+// CompleteMailboxAuthorization answers POST /mail/mailboxes:complete.
+func (c *RestController) CompleteMailboxAuthorization(
+	w http.ResponseWriter, r *http.Request, _ openapi.CompleteMailboxAuthorizationParams,
+) {
+	var body openapi.MailboxAuthorizationAnswer
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, correlation.RequestIDFrom(r.Context()))
+		return
+	}
+	input := usecase.Input{"state": body.State}
+	if body.Code != nil {
+		input["code"] = *body.Code
+	}
+	if body.Error != nil {
+		input["error"] = *body.Error
+	}
+	c.mailDocumentWith(w, r, http.StatusCreated, completeMailboxUseCase, input, &openapi.Mailbox{})
 }
 
 // CheckMailbox answers POST /mail/mailboxes/{mailbox_id}:check.

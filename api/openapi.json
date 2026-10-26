@@ -1170,6 +1170,86 @@
         }
       }
     },
+    "/mail/mailboxes:authorize": {
+      "post": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "authorizeMailbox",
+        "summary": "Start connecting a mailbox through its provider's sign-in",
+        "description": "OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailboxAuthorizationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Where to send the browser",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxAuthorization"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/mail/mailboxes:complete": {
+      "post": {
+        "tags": [
+          "jumble"
+        ],
+        "operationId": "completeMailboxAuthorization",
+        "summary": "Finish connecting a mailbox with the provider's answer",
+        "description": "Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).\n",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailboxAuthorizationAnswer"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mailbox"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/mail/mailboxes/{mailbox_id}": {
       "delete": {
         "tags": [
@@ -24861,6 +24941,125 @@
             "items": {
               "$ref": "#/components/schemas/MailboxPreset"
             }
+          },
+          "oauth_providers": {
+            "type": "array",
+            "description": "The providers a mailbox connects to through their sign-in, and whether the installation brings an app for each. Empty where this installation connects no mailbox through OAuth.\n",
+            "items": {
+              "$ref": "#/components/schemas/MailboxOAuthProvider"
+            }
+          },
+          "oauth_redirect_url": {
+            "type": "string",
+            "description": "The redirect URI to register with an app of one's own."
+          }
+        }
+      },
+      "MailboxOAuthProvider": {
+        "type": "object",
+        "required": [
+          "key",
+          "installation",
+          "hint"
+        ],
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "google, microsoft."
+          },
+          "installation": {
+            "type": "boolean",
+            "description": "The operator configured an app for this provider; connecting is one button."
+          },
+          "hint": {
+            "type": "string",
+            "description": "A message code saying what the provider asks for."
+          }
+        }
+      },
+      "MailboxAuthorizationRequest": {
+        "type": "object",
+        "required": [
+          "provider"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "google, microsoft, or custom for any other provider."
+          },
+          "address": {
+            "type": "string",
+            "description": "The mailbox's address, a hint for the provider; kept where the provider names none."
+          },
+          "client_id": {
+            "type": "string",
+            "description": "An app of one's own; without it the installation's."
+          },
+          "client_secret": {
+            "type": "string",
+            "writeOnly": true,
+            "description": "That app's secret; none for a public client. Stored sealed and never answered."
+          },
+          "authorize_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "custom: the authorization endpoint."
+          },
+          "token_url": {
+            "type": "string",
+            "format": "uri",
+            "description": "custom: the token endpoint."
+          },
+          "scopes": {
+            "type": "array",
+            "maxItems": 20,
+            "items": {
+              "type": "string"
+            },
+            "description": "custom: the scopes that grant IMAP access and a refresh token."
+          },
+          "host": {
+            "type": "string",
+            "description": "custom: the IMAP server."
+          },
+          "port": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          }
+        }
+      },
+      "MailboxAuthorization": {
+        "type": "object",
+        "required": [
+          "authorize_url",
+          "expires_at"
+        ],
+        "properties": {
+          "authorize_url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "MailboxAuthorizationAnswer": {
+        "type": "object",
+        "required": [
+          "state"
+        ],
+        "properties": {
+          "state": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
           }
         }
       },
@@ -24953,6 +25152,7 @@
           "folder",
           "done_folder",
           "enabled",
+          "auth",
           "failing",
           "created_at"
         ],
@@ -24995,6 +25195,18 @@
           "plus_addresses": {
             "type": "boolean"
           },
+          "auth": {
+            "type": "string",
+            "enum": [
+              "PASSWORD",
+              "OAUTH"
+            ],
+            "description": "How it signs in."
+          },
+          "oauth_provider": {
+            "type": "string",
+            "description": "google, microsoft or custom, for OAUTH."
+          },
           "enabled": {
             "type": "boolean"
           },
@@ -25004,7 +25216,7 @@
           },
           "failure": {
             "type": "string",
-            "description": "What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off.\n"
+            "description": "What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off, mail.oauth_revoked, mail.oauth_refused, mail.oauth_app_missing.\n"
           },
           "failing": {
             "type": "boolean",

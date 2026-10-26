@@ -207,6 +207,14 @@ class Client:
         """Connect a mailbox to the mail intake"""
         return self._call("POST", "/mail/mailboxes", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
 
+    def authorize_mailbox(self, body: "MailboxAuthorizationRequest", *, idempotency_key: str | None = None) -> "MailboxAuthorization":
+        """Start connecting a mailbox through its provider's sign-in"""
+        return self._call("POST", "/mail/mailboxes:authorize", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
+    def complete_mailbox_authorization(self, body: "MailboxAuthorizationAnswer", *, idempotency_key: str | None = None) -> "Mailbox":
+        """Finish connecting a mailbox with the provider's answer"""
+        return self._call("POST", "/mail/mailboxes:complete", {}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
+
     def remove_mailbox(self, mailbox_id: str) -> None:
         """Disconnect a mailbox"""
         return self._call("DELETE", "/mail/mailboxes/{mailbox_id}", {"mailbox_id": mailbox_id}, None, {}, None, "none", None, "void")

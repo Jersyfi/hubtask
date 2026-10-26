@@ -100,26 +100,58 @@ WHERE wi.id = sqlc.arg('id') AND wi.deleted_at IS NULL;
 
 -- name: ListMailboxes :many
 SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
-       checked_at, failure, failing_since, created_at
+       checked_at, failure, failing_since, created_at, auth, oauth_provider, oauth_authorize_url,
+       oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation
 FROM mailbox
 ORDER BY created_at, id;
 
 -- name: FindMailbox :one
 SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
-       checked_at, failure, failing_since, created_at, secret_enc, secret_key_id
+       checked_at, failure, failing_since, created_at, auth, oauth_provider, oauth_authorize_url,
+       oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation, secret_enc, secret_key_id
 FROM mailbox
 WHERE id = sqlc.arg('id');
 
 -- name: InsertMailbox :exec
 INSERT INTO mailbox (
   id, tenant_id, protocol, address, host, port, session_url, username, folder, done_folder, preset,
-  enabled, secret_enc, secret_key_id, created_at, created_by
+  enabled, secret_enc, secret_key_id, created_at, created_by, auth, oauth_provider, oauth_authorize_url,
+  oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('protocol'), sqlc.arg('address'), sqlc.narg('host'),
   sqlc.narg('port'), sqlc.narg('session_url'), sqlc.arg('username'), sqlc.arg('folder'),
   sqlc.arg('done_folder'), sqlc.narg('preset'), sqlc.arg('enabled'), sqlc.arg('secret_enc'),
-  sqlc.arg('secret_key_id'), sqlc.arg('created_at'), sqlc.narg('created_by')
+  sqlc.arg('secret_key_id'), sqlc.arg('created_at'), sqlc.narg('created_by'), sqlc.arg('auth'),
+  sqlc.narg('oauth_provider'), sqlc.narg('oauth_authorize_url'), sqlc.narg('oauth_token_url'),
+  sqlc.narg('oauth_scopes'), sqlc.narg('oauth_client_id'), sqlc.arg('oauth_installation')
 );
+
+-- name: ResealMailbox :execrows
+-- A provider that rotates its refresh token: the new one replaces the old.
+UPDATE mailbox SET secret_enc = sqlc.arg('secret_enc'), secret_key_id = sqlc.arg('secret_key_id')
+WHERE id = sqlc.arg('id');
+
+-- name: InsertMailboxAuthorization :exec
+INSERT INTO mailbox_authorization (
+  id, tenant_id, account_id, state_hash, provider, authorize_url, token_url, scopes, client_id,
+  installation, host, port, login_hint, verifier_enc, verifier_key_id, client_secret_enc,
+  client_secret_key_id, expires_at
+) VALUES (
+  sqlc.arg('id'), current_tenant_id(), sqlc.arg('account_id'), sqlc.arg('state_hash'), sqlc.arg('provider'),
+  sqlc.arg('authorize_url'), sqlc.arg('token_url'), sqlc.arg('scopes'), sqlc.arg('client_id'),
+  sqlc.arg('installation'), sqlc.arg('host'), sqlc.arg('port'), sqlc.narg('login_hint'),
+  sqlc.arg('verifier_enc'), sqlc.arg('verifier_key_id'), sqlc.narg('client_secret_enc'),
+  sqlc.narg('client_secret_key_id'), sqlc.arg('expires_at')
+);
+
+-- name: TakeMailboxAuthorization :one
+-- Used once: the row is gone whatever the provider answered.
+DELETE FROM mailbox_authorization WHERE state_hash = sqlc.arg('state_hash')
+RETURNING id, account_id, provider, authorize_url, token_url, scopes, client_id, installation, host,
+          port, login_hint, verifier_enc, verifier_key_id, client_secret_enc, client_secret_key_id, expires_at;
+
+-- name: DeleteExpiredMailboxAuthorizations :execrows
+DELETE FROM mailbox_authorization WHERE expires_at <= sqlc.arg('now');
 
 -- name: SetMailboxChecked :execrows
 UPDATE mailbox

@@ -8,7 +8,9 @@
 // * the page shows the routing order, every collection's handle and what the last messages became;
 // * a collection's settings show its subject word and address and change its handle;
 // * a jumble card says why the intake put a message there;
-// * an entry shows its ticket key above its title.
+// * an entry shows its ticket key above its title;
+// * a mailbox connects through its provider's sign-in: Google in one button with the installation's
+//   app, Microsoft with an app of one's own, and the provider's answer comes back to the page.
 //
 // Chromium, large.
 
@@ -131,6 +133,71 @@ test('chromium: the intake is set up, read and used in the places it reaches', {
     await page.goto(`${served.origin}/items/${ITEMS[0].id}`);
     await page.getByRole('button', { name: 'Copy the key KITCHEN-31' }).waitFor({ timeout: 10_000 });
 
+    assert.deepEqual(failures, []);
+  } finally {
+    await browser.close();
+  }
+});
+
+test('chromium: a mailbox connects through its provider and comes back connected', { timeout: 120_000 }, async () => {
+  const browser = await chromium.launch();
+  const { context, page, failures } = await signedIn(browser, 1280, 900);
+  const writes = [];
+  let mailboxes = [];
+  await context.route('https://accounts.provider.test/**', (route) => {
+    // The provider: the administrator says yes, and the browser goes back with a code.
+    const state = new URL(route.request().url()).searchParams.get('state');
+    return route.fulfill({ status: 302, headers: { location: `${served.origin}/administration/mail/oauth?state=${state}&code=c-1` } });
+  });
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (request.method() !== 'GET') writes.push({ call: `${request.method()} ${path}`, body: request.postDataJSON?.() ?? null });
+    if (path === '/mail/settings' && request.method() === 'GET') return route.fulfill({ json: SETTINGS });
+    if (path === '/mail/receipts') return route.fulfill({ json: { receipts: [] } });
+    if (path === '/mail/mailboxes' && request.method() === 'GET') {
+      return route.fulfill({ json: {
+        mailboxes, presets: [{ key: 'gmail', protocol: 'IMAP', plus_addresses: true, hint: 'mail.preset_gmail' }],
+        oauth_providers: [
+          { key: 'google', installation: true, hint: 'mail.oauth_google' },
+          { key: 'microsoft', installation: false, hint: 'mail.oauth_microsoft' },
+        ],
+        oauth_redirect_url: `${served.origin}/administration/mail/oauth`,
+      } });
+    }
+    if (path === '/mail/mailboxes:authorize') {
+      return route.fulfill({ json: { authorize_url: 'https://accounts.provider.test/auth?state=s-1', expires_at: '2026-10-25T10:10:00Z' } });
+    }
+    if (path === '/mail/mailboxes:complete') {
+      const connected = {
+        id: '01a0e2e0-0000-7000-8000-00000000b002', protocol: 'IMAP', address: 'familie@gmail.com', host: 'imap.gmail.com', port: 993,
+        username: 'familie@gmail.com', folder: 'INBOX', done_folder: 'Hubtask', preset: 'gmail', plus_addresses: true, enabled: true,
+        failing: false, checked_at: '2026-10-25T10:00:00Z', created_at: '2026-10-25T10:00:00Z', auth: 'OAUTH', oauth_provider: 'google',
+      };
+      mailboxes = [connected];
+      return route.fulfill({ status: 201, json: connected });
+    }
+    return stub(route);
+  });
+  try {
+    await page.goto(`${served.origin}/administration/mail`);
+    const oauth = page.locator('[data-mailbox-oauth]');
+    await oauth.waitFor({ timeout: 15_000 });
+
+    // Microsoft without the installation's app: the form for one's own, with the redirect URI to
+    // register; nothing leaves before a client ID is there.
+    await oauth.getByRole('button', { name: 'Connect with Microsoft' }).click();
+    const own = page.locator('[data-mailbox-own-app="microsoft"]');
+    assert.equal(await own.getByLabel('Redirect URI', { exact: false }).inputValue(), `${served.origin}/administration/mail/oauth`);
+    await own.getByRole('button', { name: 'Cancel' }).click();
+
+    // Google with the installation's app: one button, to the provider and back, connected.
+    await oauth.getByRole('button', { name: 'Connect with Google' }).click();
+    await page.waitForURL(`${served.origin}/administration/mail`, { timeout: 15_000 });
+    const row = page.locator('[data-mailbox="familie@gmail.com"]');
+    await row.getByText('signed in with Google', { exact: false }).waitFor({ timeout: 10_000 });
+    assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:authorize')?.body, { provider: 'google' });
+    assert.deepEqual(writes.find((write) => write.call === 'POST /mail/mailboxes:complete')?.body, { state: 's-1', code: 'c-1' });
     assert.deepEqual(failures, []);
   } finally {
     await browser.close();

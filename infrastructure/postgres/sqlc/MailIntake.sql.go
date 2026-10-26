@@ -100,6 +100,18 @@ func (q *Queries) DeleteExpiredMailReceipts(ctx context.Context, arg DeleteExpir
 	return result.RowsAffected(), nil
 }
 
+const deleteExpiredMailboxAuthorizations = `-- name: DeleteExpiredMailboxAuthorizations :execrows
+DELETE FROM mailbox_authorization WHERE expires_at <= $1
+`
+
+func (q *Queries) DeleteExpiredMailboxAuthorizations(ctx context.Context, now pgtype.Timestamptz) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteExpiredMailboxAuthorizations, now)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const deleteMailbox = `-- name: DeleteMailbox :execrows
 DELETE FROM mailbox WHERE id = $1
 `
@@ -153,29 +165,37 @@ func (q *Queries) FindMailSetting(ctx context.Context) (FindMailSettingRow, erro
 
 const findMailbox = `-- name: FindMailbox :one
 SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
-       checked_at, failure, failing_since, created_at, secret_enc, secret_key_id
+       checked_at, failure, failing_since, created_at, auth, oauth_provider, oauth_authorize_url,
+       oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation, secret_enc, secret_key_id
 FROM mailbox
 WHERE id = $1
 `
 
 type FindMailboxRow struct {
-	ID           pgtype.UUID
-	Protocol     string
-	Address      string
-	Host         *string
-	Port         *int32
-	SessionUrl   *string
-	Username     string
-	Folder       string
-	DoneFolder   string
-	Preset       *string
-	Enabled      bool
-	CheckedAt    pgtype.Timestamptz
-	Failure      *string
-	FailingSince pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	SecretEnc    []byte
-	SecretKeyID  string
+	ID                pgtype.UUID
+	Protocol          string
+	Address           string
+	Host              *string
+	Port              *int32
+	SessionUrl        *string
+	Username          string
+	Folder            string
+	DoneFolder        string
+	Preset            *string
+	Enabled           bool
+	CheckedAt         pgtype.Timestamptz
+	Failure           *string
+	FailingSince      pgtype.Timestamptz
+	CreatedAt         pgtype.Timestamptz
+	Auth              string
+	OauthProvider     *string
+	OauthAuthorizeUrl *string
+	OauthTokenUrl     *string
+	OauthScopes       []string
+	OauthClientID     *string
+	OauthInstallation bool
+	SecretEnc         []byte
+	SecretKeyID       string
 }
 
 func (q *Queries) FindMailbox(ctx context.Context, id pgtype.UUID) (FindMailboxRow, error) {
@@ -197,6 +217,13 @@ func (q *Queries) FindMailbox(ctx context.Context, id pgtype.UUID) (FindMailboxR
 		&i.Failure,
 		&i.FailingSince,
 		&i.CreatedAt,
+		&i.Auth,
+		&i.OauthProvider,
+		&i.OauthAuthorizeUrl,
+		&i.OauthTokenUrl,
+		&i.OauthScopes,
+		&i.OauthClientID,
+		&i.OauthInstallation,
 		&i.SecretEnc,
 		&i.SecretKeyID,
 	)
@@ -250,31 +277,41 @@ func (q *Queries) InsertMailReceipt(ctx context.Context, arg InsertMailReceiptPa
 const insertMailbox = `-- name: InsertMailbox :exec
 INSERT INTO mailbox (
   id, tenant_id, protocol, address, host, port, session_url, username, folder, done_folder, preset,
-  enabled, secret_enc, secret_key_id, created_at, created_by
+  enabled, secret_enc, secret_key_id, created_at, created_by, auth, oauth_provider, oauth_authorize_url,
+  oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation
 ) VALUES (
   $1, current_tenant_id(), $2, $3, $4,
   $5, $6, $7, $8,
   $9, $10, $11, $12,
-  $13, $14, $15
+  $13, $14, $15, $16,
+  $17, $18, $19,
+  $20, $21, $22
 )
 `
 
 type InsertMailboxParams struct {
-	ID          pgtype.UUID
-	Protocol    string
-	Address     string
-	Host        *string
-	Port        *int32
-	SessionUrl  *string
-	Username    string
-	Folder      string
-	DoneFolder  string
-	Preset      *string
-	Enabled     bool
-	SecretEnc   []byte
-	SecretKeyID string
-	CreatedAt   pgtype.Timestamptz
-	CreatedBy   pgtype.UUID
+	ID                pgtype.UUID
+	Protocol          string
+	Address           string
+	Host              *string
+	Port              *int32
+	SessionUrl        *string
+	Username          string
+	Folder            string
+	DoneFolder        string
+	Preset            *string
+	Enabled           bool
+	SecretEnc         []byte
+	SecretKeyID       string
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         pgtype.UUID
+	Auth              string
+	OauthProvider     *string
+	OauthAuthorizeUrl *string
+	OauthTokenUrl     *string
+	OauthScopes       []string
+	OauthClientID     *string
+	OauthInstallation bool
 }
 
 func (q *Queries) InsertMailbox(ctx context.Context, arg InsertMailboxParams) error {
@@ -294,6 +331,70 @@ func (q *Queries) InsertMailbox(ctx context.Context, arg InsertMailboxParams) er
 		arg.SecretKeyID,
 		arg.CreatedAt,
 		arg.CreatedBy,
+		arg.Auth,
+		arg.OauthProvider,
+		arg.OauthAuthorizeUrl,
+		arg.OauthTokenUrl,
+		arg.OauthScopes,
+		arg.OauthClientID,
+		arg.OauthInstallation,
+	)
+	return err
+}
+
+const insertMailboxAuthorization = `-- name: InsertMailboxAuthorization :exec
+INSERT INTO mailbox_authorization (
+  id, tenant_id, account_id, state_hash, provider, authorize_url, token_url, scopes, client_id,
+  installation, host, port, login_hint, verifier_enc, verifier_key_id, client_secret_enc,
+  client_secret_key_id, expires_at
+) VALUES (
+  $1, current_tenant_id(), $2, $3, $4,
+  $5, $6, $7, $8,
+  $9, $10, $11, $12,
+  $13, $14, $15,
+  $16, $17
+)
+`
+
+type InsertMailboxAuthorizationParams struct {
+	ID                pgtype.UUID
+	AccountID         pgtype.UUID
+	StateHash         []byte
+	Provider          string
+	AuthorizeUrl      string
+	TokenUrl          string
+	Scopes            []string
+	ClientID          string
+	Installation      bool
+	Host              string
+	Port              int32
+	LoginHint         *string
+	VerifierEnc       []byte
+	VerifierKeyID     string
+	ClientSecretEnc   []byte
+	ClientSecretKeyID *string
+	ExpiresAt         pgtype.Timestamptz
+}
+
+func (q *Queries) InsertMailboxAuthorization(ctx context.Context, arg InsertMailboxAuthorizationParams) error {
+	_, err := q.db.Exec(ctx, insertMailboxAuthorization,
+		arg.ID,
+		arg.AccountID,
+		arg.StateHash,
+		arg.Provider,
+		arg.AuthorizeUrl,
+		arg.TokenUrl,
+		arg.Scopes,
+		arg.ClientID,
+		arg.Installation,
+		arg.Host,
+		arg.Port,
+		arg.LoginHint,
+		arg.VerifierEnc,
+		arg.VerifierKeyID,
+		arg.ClientSecretEnc,
+		arg.ClientSecretKeyID,
+		arg.ExpiresAt,
 	)
 	return err
 }
@@ -340,27 +441,35 @@ func (q *Queries) ItemKey(ctx context.Context, id pgtype.UUID) (ItemKeyRow, erro
 
 const listMailboxes = `-- name: ListMailboxes :many
 SELECT id, protocol, address, host, port, session_url, username, folder, done_folder, preset, enabled,
-       checked_at, failure, failing_since, created_at
+       checked_at, failure, failing_since, created_at, auth, oauth_provider, oauth_authorize_url,
+       oauth_token_url, oauth_scopes, oauth_client_id, oauth_installation
 FROM mailbox
 ORDER BY created_at, id
 `
 
 type ListMailboxesRow struct {
-	ID           pgtype.UUID
-	Protocol     string
-	Address      string
-	Host         *string
-	Port         *int32
-	SessionUrl   *string
-	Username     string
-	Folder       string
-	DoneFolder   string
-	Preset       *string
-	Enabled      bool
-	CheckedAt    pgtype.Timestamptz
-	Failure      *string
-	FailingSince pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
+	ID                pgtype.UUID
+	Protocol          string
+	Address           string
+	Host              *string
+	Port              *int32
+	SessionUrl        *string
+	Username          string
+	Folder            string
+	DoneFolder        string
+	Preset            *string
+	Enabled           bool
+	CheckedAt         pgtype.Timestamptz
+	Failure           *string
+	FailingSince      pgtype.Timestamptz
+	CreatedAt         pgtype.Timestamptz
+	Auth              string
+	OauthProvider     *string
+	OauthAuthorizeUrl *string
+	OauthTokenUrl     *string
+	OauthScopes       []string
+	OauthClientID     *string
+	OauthInstallation bool
 }
 
 func (q *Queries) ListMailboxes(ctx context.Context) ([]ListMailboxesRow, error) {
@@ -388,6 +497,13 @@ func (q *Queries) ListMailboxes(ctx context.Context) ([]ListMailboxesRow, error)
 			&i.Failure,
 			&i.FailingSince,
 			&i.CreatedAt,
+			&i.Auth,
+			&i.OauthProvider,
+			&i.OauthAuthorizeUrl,
+			&i.OauthTokenUrl,
+			&i.OauthScopes,
+			&i.OauthClientID,
+			&i.OauthInstallation,
 		); err != nil {
 			return nil, err
 		}
@@ -472,6 +588,26 @@ func (q *Queries) RecentMailReceipts(ctx context.Context, maxRows int32) ([]Rece
 	return items, nil
 }
 
+const resealMailbox = `-- name: ResealMailbox :execrows
+UPDATE mailbox SET secret_enc = $1, secret_key_id = $2
+WHERE id = $3
+`
+
+type ResealMailboxParams struct {
+	SecretEnc   []byte
+	SecretKeyID string
+	ID          pgtype.UUID
+}
+
+// A provider that rotates its refresh token: the new one replaces the old.
+func (q *Queries) ResealMailbox(ctx context.Context, arg ResealMailboxParams) (int64, error) {
+	result, err := q.db.Exec(ctx, resealMailbox, arg.SecretEnc, arg.SecretKeyID, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const resolveMailWorkspace = `-- name: ResolveMailWorkspace :one
 SELECT resolve_mail_workspace($1::text)::uuid AS tenant_id
 `
@@ -526,6 +662,56 @@ func (q *Queries) SetMailboxChecked(ctx context.Context, arg SetMailboxCheckedPa
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const takeMailboxAuthorization = `-- name: TakeMailboxAuthorization :one
+DELETE FROM mailbox_authorization WHERE state_hash = $1
+RETURNING id, account_id, provider, authorize_url, token_url, scopes, client_id, installation, host,
+          port, login_hint, verifier_enc, verifier_key_id, client_secret_enc, client_secret_key_id, expires_at
+`
+
+type TakeMailboxAuthorizationRow struct {
+	ID                pgtype.UUID
+	AccountID         pgtype.UUID
+	Provider          string
+	AuthorizeUrl      string
+	TokenUrl          string
+	Scopes            []string
+	ClientID          string
+	Installation      bool
+	Host              string
+	Port              int32
+	LoginHint         *string
+	VerifierEnc       []byte
+	VerifierKeyID     string
+	ClientSecretEnc   []byte
+	ClientSecretKeyID *string
+	ExpiresAt         pgtype.Timestamptz
+}
+
+// Used once: the row is gone whatever the provider answered.
+func (q *Queries) TakeMailboxAuthorization(ctx context.Context, stateHash []byte) (TakeMailboxAuthorizationRow, error) {
+	row := q.db.QueryRow(ctx, takeMailboxAuthorization, stateHash)
+	var i TakeMailboxAuthorizationRow
+	err := row.Scan(
+		&i.ID,
+		&i.AccountID,
+		&i.Provider,
+		&i.AuthorizeUrl,
+		&i.TokenUrl,
+		&i.Scopes,
+		&i.ClientID,
+		&i.Installation,
+		&i.Host,
+		&i.Port,
+		&i.LoginHint,
+		&i.VerifierEnc,
+		&i.VerifierKeyID,
+		&i.ClientSecretEnc,
+		&i.ClientSecretKeyID,
+		&i.ExpiresAt,
+	)
+	return i, err
 }
 
 const upsertMailSetting = `-- name: UpsertMailSetting :exec

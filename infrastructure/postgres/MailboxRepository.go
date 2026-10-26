@@ -5,6 +5,7 @@ package postgres
 
 import (
 	"context"
+	"time"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/mail"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/mail"
@@ -36,7 +37,10 @@ func (MailboxRepository) List(ctx context.Context) ([]domain.Mailbox, error) {
 			ID: row.ID, Protocol: row.Protocol, Address: row.Address, Host: row.Host, Port: row.Port,
 			SessionUrl: row.SessionUrl, Username: row.Username, Folder: row.Folder, DoneFolder: row.DoneFolder,
 			Preset: row.Preset, Enabled: row.Enabled, CheckedAt: row.CheckedAt, Failure: row.Failure,
-			FailingSince: row.FailingSince, CreatedAt: row.CreatedAt,
+			FailingSince: row.FailingSince, CreatedAt: row.CreatedAt, Auth: row.Auth,
+			OauthProvider: row.OauthProvider, OauthAuthorizeUrl: row.OauthAuthorizeUrl,
+			OauthTokenUrl: row.OauthTokenUrl, OauthScopes: row.OauthScopes, OauthClientID: row.OauthClientID,
+			OauthInstallation: row.OauthInstallation,
 		})
 		if err != nil {
 			return nil, err
@@ -86,6 +90,16 @@ func (MailboxRepository) Insert(ctx context.Context, box domain.Mailbox, sealed 
 		ID: id, Protocol: string(box.Protocol), Address: box.Address, Username: box.Username,
 		Folder: box.Folder, DoneFolder: box.DoneFolder, Preset: optionalText(box.Preset), Enabled: box.Enabled,
 		SecretEnc: sealed.Ciphertext, SecretKeyID: sealed.KeyID, CreatedAt: timestampOf(box.CreatedAt), CreatedBy: byID,
+		Auth: string(box.Auth),
+	}
+	if params.Auth == "" {
+		params.Auth = string(domain.AuthPassword)
+	}
+	if client := box.OAuth; client != nil {
+		params.Auth = string(domain.AuthOAuth)
+		params.OauthProvider, params.OauthAuthorizeUrl = &client.Provider, &client.AuthorizeURL
+		params.OauthTokenUrl, params.OauthScopes = &client.TokenURL, client.Scopes
+		params.OauthClientID, params.OauthInstallation = &client.ClientID, client.Installation
 	}
 	if box.Protocol == domain.ProtocolIMAP {
 		port := int32(box.Port) //nolint:gosec // validated to 1-65535 by NewMailbox
@@ -119,6 +133,25 @@ func (MailboxRepository) RecordCheck(ctx context.Context, box domain.Mailbox) er
 	})
 	if err != nil {
 		return mailQueryFailed("recording a mailbox read", err)
+	}
+	return nil
+}
+
+func (MailboxRepository) Reseal(ctx context.Context, id shared.ID, sealed crypto.Sealed) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	key, err := uuidOf(id)
+	if err != nil {
+		return err
+	}
+	rows, err := queries.ResealMailbox(ctx, sqlc.ResealMailboxParams{ID: key, SecretEnc: sealed.Ciphertext, SecretKeyID: sealed.KeyID})
+	if err != nil {
+		return mailQueryFailed("resealing a mailbox", err)
+	}
+	if rows == 0 {
+		return shared.ErrNotFound.WithDetail("mail.mailbox_not_found")
 	}
 	return nil
 }
@@ -169,5 +202,100 @@ func mailboxFrom(row sqlc.FindMailboxRow) (domain.Mailbox, error) {
 	if row.Port != nil {
 		box.Port = int(*row.Port)
 	}
+	box.Auth = domain.Auth(row.Auth)
+	if box.Auth == domain.AuthOAuth {
+		box.OAuth = &domain.OAuthClient{
+			Provider: stringFrom(row.OauthProvider), AuthorizeURL: stringFrom(row.OauthAuthorizeUrl),
+			TokenURL: stringFrom(row.OauthTokenUrl), Scopes: row.OauthScopes,
+			ClientID: stringFrom(row.OauthClientID), Installation: row.OauthInstallation,
+		}
+	}
 	return box, nil
+}
+
+// MailboxAuthorizationRepository is the OAuth connections waiting for a provider's answer.
+type MailboxAuthorizationRepository struct{}
+
+// NewMailboxAuthorizationRepository builds the repository.
+func NewMailboxAuthorizationRepository() MailboxAuthorizationRepository {
+	return MailboxAuthorizationRepository{}
+}
+
+var _ repository.Authorizations = MailboxAuthorizationRepository{}
+
+func (MailboxAuthorizationRepository) Insert(ctx context.Context, pending domain.PendingAuthorization, stateHash []byte, verifier crypto.Sealed, clientSecret *crypto.Sealed) error {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return err
+	}
+	id, err := uuidOf(pending.ID)
+	if err != nil {
+		return err
+	}
+	account, err := uuidOf(pending.AccountID)
+	if err != nil {
+		return err
+	}
+	params := sqlc.InsertMailboxAuthorizationParams{
+		ID: id, AccountID: account, StateHash: stateHash, Provider: pending.Client.Provider,
+		AuthorizeUrl: pending.Client.AuthorizeURL, TokenUrl: pending.Client.TokenURL, Scopes: pending.Client.Scopes,
+		ClientID: pending.Client.ClientID, Installation: pending.Client.Installation, Host: pending.Host,
+		Port:      int32(pending.Port), //nolint:gosec // validated to 1-65535 by NewOAuthClient
+		LoginHint: optionalText(pending.LoginHint), VerifierEnc: verifier.Ciphertext, VerifierKeyID: verifier.KeyID,
+		ExpiresAt: timestampOf(pending.ExpiresAt),
+	}
+	if clientSecret != nil {
+		params.ClientSecretEnc, params.ClientSecretKeyID = clientSecret.Ciphertext, &clientSecret.KeyID
+	}
+	if err := queries.InsertMailboxAuthorization(ctx, params); err != nil {
+		return mailQueryFailed("storing a mailbox authorization", err)
+	}
+	return nil
+}
+
+func (MailboxAuthorizationRepository) Take(ctx context.Context, stateHash []byte) (domain.PendingAuthorization, crypto.Sealed, *crypto.Sealed, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return domain.PendingAuthorization{}, crypto.Sealed{}, nil, err
+	}
+	row, err := queries.TakeMailboxAuthorization(ctx, stateHash)
+	if IsNoRows(err) {
+		return domain.PendingAuthorization{}, crypto.Sealed{}, nil, shared.ErrNotFound.WithDetail("mail.oauth_state_unknown")
+	}
+	if err != nil {
+		return domain.PendingAuthorization{}, crypto.Sealed{}, nil, mailQueryFailed("taking a mailbox authorization", err)
+	}
+	id, err := idFrom(row.ID)
+	if err != nil {
+		return domain.PendingAuthorization{}, crypto.Sealed{}, nil, err
+	}
+	account, err := idFrom(row.AccountID)
+	if err != nil {
+		return domain.PendingAuthorization{}, crypto.Sealed{}, nil, err
+	}
+	pending := domain.PendingAuthorization{
+		ID: id, AccountID: account, Host: row.Host, Port: int(row.Port), LoginHint: stringFrom(row.LoginHint),
+		ExpiresAt: timeFrom(row.ExpiresAt),
+		Client: domain.OAuthClient{
+			Provider: row.Provider, AuthorizeURL: row.AuthorizeUrl, TokenURL: row.TokenUrl, Scopes: row.Scopes,
+			ClientID: row.ClientID, Installation: row.Installation,
+		},
+	}
+	var clientSecret *crypto.Sealed
+	if row.ClientSecretEnc != nil && row.ClientSecretKeyID != nil {
+		clientSecret = &crypto.Sealed{KeyID: *row.ClientSecretKeyID, Ciphertext: row.ClientSecretEnc}
+	}
+	return pending, crypto.Sealed{KeyID: row.VerifierKeyID, Ciphertext: row.VerifierEnc}, clientSecret, nil
+}
+
+func (MailboxAuthorizationRepository) DeleteExpired(ctx context.Context, now time.Time) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := queries.DeleteExpiredMailboxAuthorizations(ctx, timestampOf(now))
+	if err != nil {
+		return 0, mailQueryFailed("forgetting expired mailbox authorizations", err)
+	}
+	return int(rows), nil
 }

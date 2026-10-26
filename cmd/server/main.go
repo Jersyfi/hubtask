@@ -799,6 +799,15 @@ func run() error {
 			IMAP: mailboxadapter.IMAP{Guard: outboundGuard}, JMAP: mailboxadapter.JMAP{Client: outboundClient},
 		},
 		Encryptor: encryptor, Jobs: jobs, IDs: ids,
+		// A mailbox connected through its provider's sign-in: the token endpoint through the guarded
+		// client, the browser sent back to the web UI's page that hands the code to the API.
+		OAuth: mailservice.OAuth{
+			Authorizations: postgres.NewMailboxAuthorizationRepository(),
+			Authorizer:     mailboxadapter.OAuth{Client: outboundClient},
+			Entropy:        clockadapter.CryptoRandom{},
+			Apps:           mailOAuthApps(cfg.Mail.OAuth),
+			RedirectURL:    strings.TrimSuffix(cfg.BaseURL, "/") + "/administration/mail/oauth",
+		},
 	}
 	// Voice assistants (ADR-0093): a workspace's settings and spoken names, and the assistant that
 	// does what is said through the catalogue as the person who linked it.
@@ -2102,6 +2111,8 @@ func run() error {
 		mailservice.ConnectMailbox{Boxes: mailBoxes}.Descriptor(),
 		mailservice.CheckMailbox{Boxes: mailBoxes}.Descriptor(),
 		mailservice.RemoveMailbox{Boxes: mailBoxes}.Descriptor(),
+		mailservice.AuthorizeMailbox{Boxes: mailBoxes}.Descriptor(),
+		mailservice.CompleteMailboxAuthorization{Boxes: mailBoxes}.Descriptor(),
 		jumbleservice.RotateJumbleIntake{
 			Intake:     jumbleIntake,
 			Authorizer: authorizer, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -4934,4 +4945,13 @@ func wayInNoticesFor(cfg envport.Config, jobs notification.Queue) identity.WayIn
 		return nil
 	}
 	return notification.RecordWayInChanged{Jobs: jobs}
+}
+
+// mailOAuthApps hands the installation's mailbox OAuth apps to the mail service.
+func mailOAuthApps(configured map[string]envport.OAuthApp) map[string]mailservice.App {
+	apps := make(map[string]mailservice.App, len(configured))
+	for provider, app := range configured {
+		apps[provider] = mailservice.App{ClientID: app.ClientID, ClientSecret: app.ClientSecret}
+	}
+	return apps
 }

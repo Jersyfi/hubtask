@@ -241,6 +241,16 @@ export class HubtaskClient {
     return this.call("POST", "/mail/mailboxes", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Start connecting a mailbox through its provider's sign-in */
+  authorizeMailbox(body: NonNullable<operations["authorizeMailbox"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["authorizeMailbox"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes:authorize", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Finish connecting a mailbox with the provider's answer */
+  completeMailboxAuthorization(body: NonNullable<operations["completeMailboxAuthorization"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["completeMailboxAuthorization"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/mail/mailboxes:complete", {  }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Disconnect a mailbox */
   removeMailbox(mailboxId: string, options: CallOptions = {}): Promise<void> {
     return this.call("DELETE", "/mail/mailboxes/{mailbox_id}", { "mailbox_id": mailboxId }, undefined, {  }, undefined, "none", undefined, "void", options.signal);

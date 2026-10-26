@@ -7,6 +7,11 @@
   // anything: a mailbox that cannot be read is said here, in the form, and not in a log an hour
   // later. Only mail that arrives after connecting is taken, so connecting a personal mailbox
   // takes nothing that was already in it.
+  //
+  // Or without any password in Hubtask: through the provider's own sign-in (OAuth with PKCE). Google
+  // and Microsoft are one button where the operator configured an app; otherwise, and for any other
+  // provider, the administrator enters an app of their own. The provider sends the browser back to
+  // `/administration/mail/oauth`, and this section hands the answer to the API.
 
   import { untrack } from 'svelte';
 
@@ -14,11 +19,14 @@
 
   import { announcer } from '../announce.svelte.ts';
   import {
+    authorizeMailbox,
     checkMailbox,
+    completeMailboxAuthorization,
     connectMailbox,
     readMailboxes,
     removeMailbox,
     type Mailbox,
+    type MailboxOAuthProvider,
     type MailboxPreset,
   } from '../data/mailintake.svelte.ts';
   import { formatDateTime } from '../i18n/datetime.ts';
@@ -28,9 +36,29 @@
   interface Props {
     /** Told when the list changes, so the page can show addresses through the mailbox. */
     onchange?: (mailboxes: readonly Mailbox[]) => void;
+    /** What the provider sent back, on `/administration/mail/oauth`. */
+    providerAnswer?: Readonly<Record<string, string>>;
+    /** Told once that answer is handed on. */
+    onanswered?: () => void;
   }
 
-  let { onchange }: Props = $props();
+  let { onchange, providerAnswer, onanswered }: Props = $props();
+
+  let oauthProviders = $state<readonly MailboxOAuthProvider[]>([]);
+  let redirectUrl = $state('');
+  /** The provider whose own-app form is open: a preset without the installation's app, or "custom". */
+  let oauthKind = $state<string | undefined>(undefined);
+  let oauthAddress = $state('');
+  let clientId = $state('');
+  let clientSecret = $state('');
+  let authorizeUrl = $state('');
+  let tokenUrl = $state('');
+  let scopes = $state('');
+  let oauthHost = $state('');
+  let oauthPort = $state('993');
+  let isLeaving = $state(false);
+  let isCompleting = $state(false);
+  let oauthFailure = $state<string | undefined>(undefined);
 
   let mailboxes = $state<readonly Mailbox[]>([]);
   let presets = $state<readonly MailboxPreset[]>([]);
@@ -67,12 +95,89 @@
       void readMailboxes()
         .then((read) => {
           presets = read.presets;
+          oauthProviders = read.oauth_providers ?? [];
+          redirectUrl = read.oauth_redirect_url ?? '';
           take(read.mailboxes);
         })
         .catch((error) => (readFailure = renderProblem(error as never, messages).message))
         .finally(() => (isReading = false));
     }),
   );
+
+  // Back from the provider: hand its answer on once, then drop the code and the state from the address.
+  $effect(() => {
+    const answer = providerAnswer;
+    if (!answer?.['state']) return;
+    untrack(() => void complete(answer));
+  });
+
+  async function complete(answer: Readonly<Record<string, string>>) {
+    oauthFailure = undefined;
+    isCompleting = true;
+    try {
+      const connected = await completeMailboxAuthorization({
+        state: answer['state'] ?? '',
+        ...(answer['code'] ? { code: answer['code'] } : {}),
+        ...(answer['error'] ? { error: answer['error'] } : {}),
+      });
+      take([...mailboxes.filter((each) => each.id !== connected.id), connected]);
+      announcer.say(t('app.mail.mailbox_connected', { address: connected.address }));
+    } catch (error) {
+      oauthFailure = renderProblem(error as never, messages).message;
+    } finally {
+      isCompleting = false;
+      onanswered?.();
+    }
+  }
+
+  /** One button where the installation brings the app; otherwise the form for one's own. */
+  function choose(provider: MailboxOAuthProvider | 'custom') {
+    oauthFailure = undefined;
+    if (provider !== 'custom' && provider.installation) {
+      void leave({ provider: provider.key });
+      return;
+    }
+    oauthKind = provider === 'custom' ? 'custom' : provider.key;
+  }
+
+  async function leave(request: Parameters<typeof authorizeMailbox>[0]) {
+    oauthFailure = undefined;
+    isLeaving = true;
+    try {
+      window.location.assign(await authorizeMailbox(request));
+    } catch (error) {
+      oauthFailure = renderProblem(error as never, messages).message;
+      isLeaving = false;
+    }
+  }
+
+  function leaveWithOwnApp() {
+    const custom = oauthKind === 'custom';
+    void leave({
+      provider: oauthKind ?? 'custom',
+      client_id: clientId.trim(),
+      ...(clientSecret ? { client_secret: clientSecret } : {}),
+      ...(oauthAddress.trim() ? { address: oauthAddress.trim() } : {}),
+      ...(custom
+        ? {
+            authorize_url: authorizeUrl.trim(),
+            token_url: tokenUrl.trim(),
+            scopes: scopes.split(/[\s,]+/).filter(Boolean),
+            host: oauthHost.trim(),
+            port: Number(oauthPort) || 993,
+          }
+        : {}),
+    });
+  }
+
+  async function copyRedirect() {
+    try {
+      await navigator.clipboard.writeText(redirectUrl);
+      announcer.say(t('app.mail.oauth_redirect_copied'));
+    } catch {
+      /* The address stays on screen to copy by hand. */
+    }
+  }
 
   async function connect() {
     connectFailure = undefined;
@@ -140,7 +245,9 @@
           <li data-mailbox={box.address}>
             <div class="box-head">
               <strong>{box.address}</strong>
-              <span class="quiet small">{box.protocol} · {box.host ?? box.session_url}</span>
+              <span class="quiet small">
+                {box.protocol} · {box.host ?? box.session_url}{#if box.auth === 'OAUTH'} · {t('app.mail.via_oauth', { provider: t(`app.mail.oauth_provider.${box.oauth_provider ?? 'custom'}`) })}{/if}
+              </span>
             </div>
             <p class="small" class:danger={box.failure} data-mailbox-state>
               {#if box.failure}
@@ -159,6 +266,60 @@
         {/each}
       </ul>
       {#if rowFailure}<Banner tone="danger">{rowFailure}</Banner>{/if}
+    {/if}
+
+    {#if isCompleting}
+      <p class="quiet" data-mailbox-completing><Spinner label={t('app.mail.oauth_completing')} /> {t('app.mail.oauth_completing')}</p>
+    {/if}
+    {#if oauthFailure}<div data-mailbox-oauth-failure><Banner tone="danger">{oauthFailure}</Banner></div>{/if}
+
+    {#if oauthProviders.length > 0}
+      <div class="connect" data-mailbox-oauth>
+        <p class="quiet small">{t('app.mail.oauth_lead')}</p>
+        <div class="actions">
+          {#each oauthProviders as provider (provider.key)}
+            <Button tone="secondary" isBusy={isLeaving && oauthKind === undefined} busyLabel={t('app.mail.oauth_going')} onclick={() => choose(provider)}>
+              {t(`app.mail.oauth_connect.${provider.key}`)}
+            </Button>
+          {/each}
+          <Button tone="secondary" onclick={() => choose('custom')}>{t('app.mail.oauth_connect.custom')}</Button>
+        </div>
+        {#if oauthKind}
+          {@const preset = oauthProviders.find((each) => each.key === oauthKind)}
+          <div class="fields" data-mailbox-own-app={oauthKind}>
+            {#if preset}
+              <p class="quiet small">{t(preset.hint)} {t('app.mail.oauth_own_app')}</p>
+            {:else}
+              <p class="quiet small">{t('app.mail.oauth_custom_hint')}</p>
+            {/if}
+            <div class="redirect">
+              <Input label={t('app.mail.oauth_redirect')} value={redirectUrl} readonly />
+              <Button size="sm" tone="secondary" onclick={() => void copyRedirect()}>{t('app.mail.oauth_redirect_copy')}</Button>
+            </div>
+            {#if oauthKind === 'custom'}
+              <Input label={t('app.mail.oauth_authorize_url')} placeholder="https://…/authorize" bind:value={authorizeUrl} />
+              <Input label={t('app.mail.oauth_token_url')} placeholder="https://…/token" bind:value={tokenUrl} />
+              <Input label={t('app.mail.oauth_scopes')} hint={t('app.mail.oauth_scopes_hint')} bind:value={scopes} />
+              <Input label={t('app.mail.mailbox_host')} placeholder="imap.example.com" bind:value={oauthHost} />
+              <Input label={t('app.mail.mailbox_port')} inputmode="numeric" bind:value={oauthPort} />
+            {/if}
+            <Input label={t('app.mail.oauth_client_id')} autocomplete="off" bind:value={clientId} />
+            <Input label={t('app.mail.oauth_client_secret')} hint={t('app.mail.oauth_client_secret_hint')} type="password" autocomplete="new-password" bind:value={clientSecret} />
+            <Input label={t('app.mail.mailbox_address')} hint={t('app.mail.oauth_address_hint')} type="email" autocomplete="off" bind:value={oauthAddress} />
+            <div class="actions">
+              <Button
+                tone="primary"
+                isBusy={isLeaving}
+                busyLabel={t('app.mail.oauth_going')}
+                disabledReason={clientId.trim() ? undefined : t('app.mail.oauth_fill_first')}
+                onclick={leaveWithOwnApp}
+              >{t('app.mail.oauth_go')}</Button>
+              <Button tone="secondary" onclick={() => (oauthKind = undefined)}>{t('app.mail.oauth_cancel')}</Button>
+            </div>
+          </div>
+        {/if}
+      </div>
+      <p class="quiet small">{t('app.mail.password_lead')}</p>
     {/if}
 
     <div class="connect" data-mailbox-connect>
@@ -233,4 +394,8 @@
   .connect { display: grid; gap: var(--sp-150); }
 
   .fields { display: grid; gap: var(--sp-100); max-inline-size: calc(var(--sp-1000) * 6); }
+
+  .fields p { margin: 0; }
+
+  .redirect { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-100); align-items: end; }
 </style>

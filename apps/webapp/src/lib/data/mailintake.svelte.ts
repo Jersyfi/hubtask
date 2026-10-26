@@ -139,6 +139,28 @@ export interface Mailbox {
   readonly failure?: string | null;
   readonly failing: boolean;
   readonly created_at: string;
+  readonly auth: 'PASSWORD' | 'OAUTH';
+  readonly oauth_provider?: string | null;
+}
+
+/** A provider a mailbox connects to through its own sign-in, and whether the installation brings an app. */
+export interface MailboxOAuthProvider {
+  readonly key: string;
+  readonly installation: boolean;
+  readonly hint: string;
+}
+
+/** What starts a connection through a provider's sign-in: a preset, or any provider by its endpoints. */
+export interface MailboxAuthorizationRequest {
+  provider: string;
+  address?: string;
+  client_id?: string;
+  client_secret?: string;
+  authorize_url?: string;
+  token_url?: string;
+  scopes?: string[];
+  host?: string;
+  port?: number;
 }
 
 export interface MailboxPreset {
@@ -159,10 +181,30 @@ export interface MailboxConnection {
   secret: string;
 }
 
-export async function readMailboxes(): Promise<{ mailboxes: readonly Mailbox[]; presets: readonly MailboxPreset[] }> {
-  const read = await engine.refresh<{ mailboxes: Mailbox[]; presets: MailboxPreset[] }>({ path: '/mail/mailboxes' });
+export interface MailboxesRead {
+  readonly mailboxes: readonly Mailbox[];
+  readonly presets: readonly MailboxPreset[];
+  readonly oauth_providers?: readonly MailboxOAuthProvider[];
+  readonly oauth_redirect_url?: string;
+}
+
+export async function readMailboxes(): Promise<MailboxesRead> {
+  const read = await engine.refresh<MailboxesRead>({ path: '/mail/mailboxes' });
   if (read.status === 'failed') throw read.error;
   return read.status === 'ready' ? read.data : { mailboxes: [], presets: [] };
+}
+
+/** Starts connecting through the provider's sign-in; answers the provider's page to go to. */
+export async function authorizeMailbox(request: MailboxAuthorizationRequest): Promise<string> {
+  const answer = await engine.mutate<{ authorize_url: string }>('POST', '/mail/mailboxes:authorize', request, {
+    idempotencyKey: crypto.randomUUID(),
+  });
+  return answer.authorize_url;
+}
+
+/** Finishes it with what the provider sent back. */
+export async function completeMailboxAuthorization(answer: { state: string; code?: string; error?: string }): Promise<Mailbox> {
+  return engine.mutate<Mailbox>('POST', '/mail/mailboxes:complete', answer, { idempotencyKey: crypto.randomUUID() });
 }
 
 export async function connectMailbox(connection: MailboxConnection): Promise<Mailbox> {

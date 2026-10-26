@@ -63,6 +63,8 @@ type Boxes struct {
 	Encryptor Sealer
 	Jobs      Jobs
 	IDs       clock.IDGenerator
+	// OAuth connects a mailbox through its provider's sign-in; unset, only passwords connect.
+	OAuth OAuth
 }
 
 // ListMailboxes answers the workspace's connected mailboxes and how their last read went.
@@ -106,7 +108,10 @@ func (h ListMailboxes) invoke(ctx context.Context, actor appshared.ActorContext,
 			"key": preset.Key, "protocol": string(preset.Protocol), "plus_addresses": preset.PlusAddresses, "hint": preset.Hint,
 		})
 	}
-	return usecase.Output{"mailboxes": rows, "presets": presets}, nil
+	return usecase.Output{
+		"mailboxes": rows, "presets": presets, "oauth_providers": b.oauthProviders(),
+		"oauth_redirect_url": b.OAuth.RedirectURL,
+	}, nil
 }
 
 func (h ConnectMailbox) invoke(ctx context.Context, actor appshared.ActorContext, in usecase.Input) (usecase.Output, error) {
@@ -173,12 +178,16 @@ func (h CheckMailbox) invoke(ctx context.Context, actor appshared.ActorContext, 
 		return nil, shared.ErrValidation.WithDetail("mail.mailbox_required").
 			WithFields(shared.FieldError{Path: "/mailbox_id", Code: "mail.mailbox_required"})
 	}
-	box, password, err := b.load(ctx, actor.PersistenceScope(), id)
+	box, opened, err := b.load(ctx, actor.PersistenceScope(), id)
 	if err != nil {
 		return nil, err
 	}
 	now := b.Writer.Clock.Now()
-	box = box.Checked(now, codeOf(b.probe(ctx, box, password)))
+	password, err := b.credential(ctx, actor.PersistenceScope(), box, opened)
+	if err == nil {
+		err = b.probe(ctx, box, password)
+	}
+	box = box.Checked(now, codeOf(err))
 	if err := b.Writer.UnitOfWork.Within(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
 		return b.Mailboxes.RecordCheck(ctx, box)
 	}); err != nil {
@@ -297,6 +306,10 @@ func mailboxOutput(box domain.Mailbox, now time.Time) usecase.Output {
 		"id": box.ID.String(), "protocol": string(box.Protocol), "address": box.Address,
 		"username": box.Username, "folder": box.Folder, "done_folder": box.DoneFolder,
 		"enabled": box.Enabled, "failing": box.Failing(now), "created_at": box.CreatedAt,
+		"auth": string(box.Auth),
+	}
+	if box.OAuth != nil {
+		out["oauth_provider"] = box.OAuth.Provider
 	}
 	if box.Host != "" {
 		out["host"], out["port"] = box.Host, box.Port
@@ -349,7 +362,7 @@ func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 		return queue.Result{Outcome: "malformed"}, nil
 	}
 	scope := persistence.Scope{TenantID: job.TenantID}
-	box, password, err := b.load(ctx, scope, id)
+	box, opened, err := b.load(ctx, scope, id)
 	if errors.Is(err, shared.ErrNotFound) {
 		// Removed: the read ends here, and nothing re-seeds it.
 		return queue.Result{Outcome: "removed"}, nil
@@ -360,7 +373,14 @@ func (p PollMailbox) Run(ctx context.Context, job queue.Job) (queue.Result, erro
 	if !box.Enabled {
 		return queue.Result{Outcome: "disabled"}, nil
 	}
-	taken, failure := p.read(ctx, box, password)
+	taken, failure := 0, ""
+	if password, err := b.credential(ctx, scope, box, opened); err != nil {
+		// A refresh token the provider no longer takes is the mailbox's failure, said to the
+		// administrators like a refused password; the read comes back and tries again.
+		failure = codeOf(err)
+	} else {
+		taken, failure = p.read(ctx, box, password)
+	}
 	now := b.Writer.Clock.Now()
 	box = box.Checked(now, failure)
 	if err := b.Writer.UnitOfWork.Within(ctx, scope, func(ctx context.Context) error {

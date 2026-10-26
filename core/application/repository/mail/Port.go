@@ -64,7 +64,21 @@ type Mailboxes interface {
 	Insert(ctx context.Context, mailbox domain.Mailbox, sealed crypto.Sealed, by shared.ID) error
 	// RecordCheck writes what the last read found: when, and the failure if any.
 	RecordCheck(ctx context.Context, mailbox domain.Mailbox) error
+	// Reseal replaces the sealed secret: a provider rotated the refresh token.
+	Reseal(ctx context.Context, id shared.ID, sealed crypto.Sealed) error
 	// Delete removes it; not found for none.
 	Delete(ctx context.Context, id shared.ID) error
 	Count(ctx context.Context) (int, error)
+}
+
+// Authorizations are OAuth connections waiting for the provider's answer. Each is found by the
+// hash of its state, never the state itself, and taken once.
+type Authorizations interface {
+	// Insert stores one with its sealed PKCE verifier and, for an app the administrator entered,
+	// its sealed client secret.
+	Insert(ctx context.Context, pending domain.PendingAuthorization, stateHash []byte, verifier crypto.Sealed, clientSecret *crypto.Sealed) error
+	// Take answers one and removes it, whatever happens next; not found for none.
+	Take(ctx context.Context, stateHash []byte) (domain.PendingAuthorization, crypto.Sealed, *crypto.Sealed, error)
+	// DeleteExpired forgets those the provider never answered.
+	DeleteExpired(ctx context.Context, now time.Time) (int, error)
 }

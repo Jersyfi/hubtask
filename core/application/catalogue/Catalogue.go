@@ -375,6 +375,8 @@ func Descriptors() []usecase.Descriptor {
 		mailservice.ConnectMailbox{}.Descriptor(),
 		mailservice.CheckMailbox{}.Descriptor(),
 		mailservice.RemoveMailbox{}.Descriptor(),
+		mailservice.AuthorizeMailbox{}.Descriptor(),
+		mailservice.CompleteMailboxAuthorization{}.Descriptor(),
 		adminservice.ReadInstanceSettings{}.Descriptor(),
 		adminservice.WriteInstanceSettings{}.Descriptor(),
 		adminservice.ListOperators{}.Descriptor(),

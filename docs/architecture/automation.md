@@ -538,6 +538,17 @@ egress guard; or JMAP through the guarded HTTP client), takes up to 25 messages 
 connecting, hands each to `ReceiveMail` and moves what was filed to the folder *Hubtask*. The
 secret is sealed (`mailbox.secret:<id>`) and opened only by that job and *Check now*.
 
+**A mailbox connected through its provider's sign-in** (OAuth 2.0 with PKCE S256, any provider;
+Google and Microsoft as presets) is started by `AuthorizeMailbox`, which stores a
+`mailbox_authorization` - the state as its hash, the verifier and an own app's client secret
+sealed, ten minutes, the administrator who asked - and answers the provider's URL. The provider
+sends the browser to `/administration/mail/oauth`; the page hands state and code to
+`CompleteMailboxAuthorization`, which takes the row (once), trades the code at the token endpoint
+through the guarded client, signs in to IMAP with SASL XOAUTH2 and only then stores the mailbox
+with the refresh token sealed. Each read draws an access token first; a rotated refresh token is
+sealed in place, a withdrawn grant is the mailbox's failure (`mail.oauth_revoked`). The
+installation's own apps come from `HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`.
+
 **The parser is transport-independent**: bytes in; sender, subject, text, attachments, Message-ID
 and the header signals out. `ReceiveMail` behind it knows nothing about MIME.
 

@@ -551,6 +551,14 @@ func (pending) RemoveMailbox(w http.ResponseWriter, r *http.Request, _ openapi_t
 	notAvailable(w, r)
 }
 
+func (pending) AuthorizeMailbox(w http.ResponseWriter, r *http.Request, _ openapi.AuthorizeMailboxParams) {
+	notAvailable(w, r)
+}
+
+func (pending) CompleteMailboxAuthorization(w http.ResponseWriter, r *http.Request, _ openapi.CompleteMailboxAuthorizationParams) {
+	notAvailable(w, r)
+}
+
 func (pending) SetCollectionHandle(
 	w http.ResponseWriter, r *http.Request, _ openapi_types.UUID, _ openapi.SetCollectionHandleParams,
 ) {

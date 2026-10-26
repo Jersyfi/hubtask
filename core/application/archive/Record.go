@@ -689,14 +689,15 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// them under whatever model produced them, into an installation that may run another - and
 	// vectors from two models are not comparable, which is the one failure the store exists to
 	// avoid. The entries come back and the embedding job re-derives them.
-	"item_embedding": "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
-	"sync_device":    "a device registration carries a push token, and §8.4's reasoning covers it",
-	"jumble_intake":  "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
-	"mail_setting":   "the intake's name is unique on one installation and its mailbox credentials are sealed under its key; restored elsewhere the name may be another workspace's - the intake is set up again on the page",
-	"mail_receipt":   "a 30-day log of what the intake received; the messages it describes are archived as the entries and jumble entries they became",
-	"mailbox":        "a mailbox's secret is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - the mailbox is connected again on the page",
-	"voice_setting":  "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
-	"voice_alias":    "the spoken names go with the voice settings and name places by identifier; they are set again with them",
+	"item_embedding":        "a derived vector, re-computed from the entries the archive does carry, and not comparable across models",
+	"sync_device":           "a device registration carries a push token, and §8.4's reasoning covers it",
+	"jumble_intake":         "the intake token's hash is a credential store, and §8.4's reasoning covers it: a restored address would open the inbox to whoever held the old token",
+	"mail_setting":          "the intake's name is unique on one installation and its mailbox credentials are sealed under its key; restored elsewhere the name may be another workspace's - the intake is set up again on the page",
+	"mail_receipt":          "a 30-day log of what the intake received; the messages it describes are archived as the entries and jumble entries they became",
+	"mailbox":               "a mailbox's secret is sealed under one installation's key and opens nowhere else; restored elsewhere it would sign in to nothing - the mailbox is connected again on the page",
+	"mailbox_authorization": "a connection waiting ten minutes for a provider's answer; the browser that would bring it is gone by the time anything is restored",
+	"voice_setting":         "the voice settings name a skill registered with Amazon for one installation's endpoint; restored elsewhere they would answer a skill that does not call there - they are set again on the page",
+	"voice_alias":           "the spoken names go with the voice settings and name places by identifier; they are set again with them",
 	// §8.4, the automation half. A restored run log would describe runs of a period that is being
 	// replayed without firing anything, which is a record of things that did not happen.
 	"rule_run": "§8.4 - no automation fires during a restore, so its run log would be fiction",

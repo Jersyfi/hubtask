@@ -2835,6 +2835,24 @@ func (e MailSendersLevel) Valid() bool {
 	}
 }
 
+// Defines values for MailboxAuth.
+const (
+	MailboxAuthOAUTH    MailboxAuth = "OAUTH"
+	MailboxAuthPASSWORD MailboxAuth = "PASSWORD"
+)
+
+// Valid indicates whether the value is a known member of the MailboxAuth enum.
+func (e MailboxAuth) Valid() bool {
+	switch e {
+	case MailboxAuthOAUTH:
+		return true
+	case MailboxAuthPASSWORD:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for MailboxProtocol.
 const (
 	MailboxProtocolIMAP MailboxProtocol = "IMAP"
@@ -9232,30 +9250,80 @@ type MailSettings struct {
 
 // Mailbox defines model for Mailbox.
 type Mailbox struct {
-	Address    string     `json:"address"`
-	CheckedAt  *time.Time `json:"checked_at,omitempty"`
-	CreatedAt  time.Time  `json:"created_at"`
-	DoneFolder string     `json:"done_folder"`
-	Enabled    bool       `json:"enabled"`
+	Address string `json:"address"`
+
+	// Auth How it signs in.
+	Auth       MailboxAuth `json:"auth"`
+	CheckedAt  *time.Time  `json:"checked_at,omitempty"`
+	CreatedAt  time.Time   `json:"created_at"`
+	DoneFolder string      `json:"done_folder"`
+	Enabled    bool        `json:"enabled"`
 
 	// Failing The reads have failed for an hour or longer.
 	Failing bool `json:"failing"`
 
-	// Failure What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off.
-	Failure       *string            `json:"failure,omitempty"`
-	Folder        string             `json:"folder"`
-	Host          *string            `json:"host,omitempty"`
-	Id            openapi_types.UUID `json:"id"`
-	PlusAddresses *bool              `json:"plus_addresses,omitempty"`
-	Port          *int               `json:"port,omitempty"`
-	Preset        *string            `json:"preset,omitempty"`
-	Protocol      MailboxProtocol    `json:"protocol"`
-	SessionUrl    *string            `json:"session_url,omitempty"`
-	Username      string             `json:"username"`
+	// Failure What the last read failed with, as a message code: mail.mailbox_refused, mail.mailbox_unreachable, mail.mailbox_folder_missing, mail.intake_off, mail.oauth_revoked, mail.oauth_refused, mail.oauth_app_missing.
+	Failure *string            `json:"failure,omitempty"`
+	Folder  string             `json:"folder"`
+	Host    *string            `json:"host,omitempty"`
+	Id      openapi_types.UUID `json:"id"`
+
+	// OauthProvider google, microsoft or custom, for OAUTH.
+	OauthProvider *string         `json:"oauth_provider,omitempty"`
+	PlusAddresses *bool           `json:"plus_addresses,omitempty"`
+	Port          *int            `json:"port,omitempty"`
+	Preset        *string         `json:"preset,omitempty"`
+	Protocol      MailboxProtocol `json:"protocol"`
+	SessionUrl    *string         `json:"session_url,omitempty"`
+	Username      string          `json:"username"`
 }
+
+// MailboxAuth How it signs in.
+type MailboxAuth string
 
 // MailboxProtocol defines model for Mailbox.Protocol.
 type MailboxProtocol string
+
+// MailboxAuthorization defines model for MailboxAuthorization.
+type MailboxAuthorization struct {
+	AuthorizeUrl string    `json:"authorize_url"`
+	ExpiresAt    time.Time `json:"expires_at"`
+}
+
+// MailboxAuthorizationAnswer defines model for MailboxAuthorizationAnswer.
+type MailboxAuthorizationAnswer struct {
+	Code  *string `json:"code,omitempty"`
+	Error *string `json:"error,omitempty"`
+	State string  `json:"state"`
+}
+
+// MailboxAuthorizationRequest defines model for MailboxAuthorizationRequest.
+type MailboxAuthorizationRequest struct {
+	// Address The mailbox's address, a hint for the provider; kept where the provider names none.
+	Address *string `json:"address,omitempty"`
+
+	// AuthorizeUrl custom: the authorization endpoint.
+	AuthorizeUrl *string `json:"authorize_url,omitempty"`
+
+	// ClientId An app of one's own; without it the installation's.
+	ClientId *string `json:"client_id,omitempty"`
+
+	// ClientSecret That app's secret; none for a public client. Stored sealed and never answered.
+	ClientSecret *string `json:"client_secret,omitempty"`
+
+	// Host custom: the IMAP server.
+	Host *string `json:"host,omitempty"`
+	Port *int    `json:"port,omitempty"`
+
+	// Provider google, microsoft, or custom for any other provider.
+	Provider string `json:"provider"`
+
+	// Scopes custom: the scopes that grant IMAP access and a refresh token.
+	Scopes *[]string `json:"scopes,omitempty"`
+
+	// TokenUrl custom: the token endpoint.
+	TokenUrl *string `json:"token_url,omitempty"`
+}
 
 // MailboxConnection defines model for MailboxConnection.
 type MailboxConnection struct {
@@ -9278,8 +9346,26 @@ type MailboxConnectionProtocol string
 
 // MailboxList defines model for MailboxList.
 type MailboxList struct {
-	Mailboxes []Mailbox       `json:"mailboxes"`
-	Presets   []MailboxPreset `json:"presets"`
+	Mailboxes []Mailbox `json:"mailboxes"`
+
+	// OauthProviders The providers a mailbox connects to through their sign-in, and whether the installation brings an app for each. Empty where this installation connects no mailbox through OAuth.
+	OauthProviders *[]MailboxOAuthProvider `json:"oauth_providers,omitempty"`
+
+	// OauthRedirectUrl The redirect URI to register with an app of one's own.
+	OauthRedirectUrl *string         `json:"oauth_redirect_url,omitempty"`
+	Presets          []MailboxPreset `json:"presets"`
+}
+
+// MailboxOAuthProvider defines model for MailboxOAuthProvider.
+type MailboxOAuthProvider struct {
+	// Hint A message code saying what the provider asks for.
+	Hint string `json:"hint"`
+
+	// Installation The operator configured an app for this provider; connecting is one button.
+	Installation bool `json:"installation"`
+
+	// Key google, microsoft.
+	Key string `json:"key"`
 }
 
 // MailboxPreset defines model for MailboxPreset.
@@ -14294,6 +14380,18 @@ type CheckMailboxParams struct {
 	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
 }
 
+// AuthorizeMailboxParams defines parameters for AuthorizeMailbox.
+type AuthorizeMailboxParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
+// CompleteMailboxAuthorizationParams defines parameters for CompleteMailboxAuthorization.
+type CompleteMailboxAuthorizationParams struct {
+	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
+	IdempotencyKey *IdempotencyKey `json:"Idempotency-Key,omitempty"`
+}
+
 // SaveMailSettingsParams defines parameters for SaveMailSettings.
 type SaveMailSettingsParams struct {
 	// IdempotencyKey A UUID; identical requests return the same result for 24 h. Two answers are not kept: a `5xx`, and `403 auth.step_up_required` - neither is an outcome of the request, so the repeat reaches the operation again. A client that is asked for a proof retries with the proof under the same key.
@@ -14990,6 +15088,12 @@ type DeliverAddressedMailMultipartRequestBody DeliverAddressedMailMultipartBody
 
 // ConnectMailboxJSONRequestBody defines body for ConnectMailbox for application/json ContentType.
 type ConnectMailboxJSONRequestBody = MailboxConnection
+
+// AuthorizeMailboxJSONRequestBody defines body for AuthorizeMailbox for application/json ContentType.
+type AuthorizeMailboxJSONRequestBody = MailboxAuthorizationRequest
+
+// CompleteMailboxAuthorizationJSONRequestBody defines body for CompleteMailboxAuthorization for application/json ContentType.
+type CompleteMailboxAuthorizationJSONRequestBody = MailboxAuthorizationAnswer
 
 // SaveMailSettingsJSONRequestBody defines body for SaveMailSettings for application/json ContentType.
 type SaveMailSettingsJSONRequestBody = MailSettings
@@ -19357,6 +19461,42 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
 	CheckMailbox(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AuthorizeMailboxWithBody Start connecting a mailbox through its provider's sign-in
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+	AuthorizeMailboxWithBody(ctx context.Context, params *AuthorizeMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AuthorizeMailbox Start connecting a mailbox through its provider's sign-in
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+	AuthorizeMailbox(ctx context.Context, params *AuthorizeMailboxParams, body AuthorizeMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteMailboxAuthorizationWithBody Finish connecting a mailbox with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+	CompleteMailboxAuthorizationWithBody(ctx context.Context, params *CompleteMailboxAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CompleteMailboxAuthorization Finish connecting a mailbox with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+	CompleteMailboxAuthorization(ctx context.Context, params *CompleteMailboxAuthorizationParams, body CompleteMailboxAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListMailReceipts What the mail intake received
 	//
@@ -29271,6 +29411,82 @@ func (c *Client) RemoveMailbox(ctx context.Context, mailboxId openapi_types.UUID
 // Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
 func (c *Client) CheckMailbox(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCheckMailboxRequest(c.Server, mailboxId, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AuthorizeMailboxWithBody Start connecting a mailbox through its provider's sign-in
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+func (c *Client) AuthorizeMailboxWithBody(ctx context.Context, params *AuthorizeMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAuthorizeMailboxRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AuthorizeMailbox Start connecting a mailbox through its provider's sign-in
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+func (c *Client) AuthorizeMailbox(ctx context.Context, params *AuthorizeMailboxParams, body AuthorizeMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAuthorizeMailboxRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteMailboxAuthorizationWithBody Finish connecting a mailbox with the provider's answer
+//
+// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+func (c *Client) CompleteMailboxAuthorizationWithBody(ctx context.Context, params *CompleteMailboxAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteMailboxAuthorizationRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CompleteMailboxAuthorization Finish connecting a mailbox with the provider's answer
+//
+// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+func (c *Client) CompleteMailboxAuthorization(ctx context.Context, params *CompleteMailboxAuthorizationParams, body CompleteMailboxAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCompleteMailboxAuthorizationRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -46251,6 +46467,116 @@ func NewCheckMailboxRequest(server string, mailboxId openapi_types.UUID, params 
 	return req, nil
 }
 
+// NewAuthorizeMailboxRequest calls the generic AuthorizeMailbox builder with application/json body
+func NewAuthorizeMailboxRequest(server string, params *AuthorizeMailboxParams, body AuthorizeMailboxJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewAuthorizeMailboxRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewAuthorizeMailboxRequestWithBody constructs an http.Request for the AuthorizeMailbox method, with any body, and a specified content type
+func NewAuthorizeMailboxRequestWithBody(server string, params *AuthorizeMailboxParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes:authorize")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewCompleteMailboxAuthorizationRequest calls the generic CompleteMailboxAuthorization builder with application/json body
+func NewCompleteMailboxAuthorizationRequest(server string, params *CompleteMailboxAuthorizationParams, body CompleteMailboxAuthorizationJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCompleteMailboxAuthorizationRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewCompleteMailboxAuthorizationRequestWithBody constructs an http.Request for the CompleteMailboxAuthorization method, with any body, and a specified content type
+func NewCompleteMailboxAuthorizationRequestWithBody(server string, params *CompleteMailboxAuthorizationParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/mail/mailboxes:complete")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IdempotencyKey != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "Idempotency-Key", *params.IdempotencyKey, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: "uuid"})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("Idempotency-Key", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListMailReceiptsRequest constructs an http.Request for the ListMailReceipts method
 func NewListMailReceiptsRequest(server string) (*http.Request, error) {
 	var err error
@@ -54749,6 +55075,42 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /mail/mailboxes/{mailbox_id}:check (the `CheckMailbox` operationId).
 	CheckMailboxWithResponse(ctx context.Context, mailboxId openapi_types.UUID, params *CheckMailboxParams, reqEditors ...RequestEditorFn) (*CheckMailboxResult, error)
+
+	// AuthorizeMailboxWithBodyWithResponse Start connecting a mailbox through its provider's sign-in
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+	AuthorizeMailboxWithBodyWithResponse(ctx context.Context, params *AuthorizeMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AuthorizeMailboxResult, error)
+
+	// AuthorizeMailboxWithResponse Start connecting a mailbox through its provider's sign-in
+	//
+	// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+	AuthorizeMailboxWithResponse(ctx context.Context, params *AuthorizeMailboxParams, body AuthorizeMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*AuthorizeMailboxResult, error)
+
+	// CompleteMailboxAuthorizationWithBodyWithResponse Finish connecting a mailbox with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+	CompleteMailboxAuthorizationWithBodyWithResponse(ctx context.Context, params *CompleteMailboxAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteMailboxAuthorizationResult, error)
+
+	// CompleteMailboxAuthorizationWithResponse Finish connecting a mailbox with the provider's answer
+	//
+	// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+	CompleteMailboxAuthorizationWithResponse(ctx context.Context, params *CompleteMailboxAuthorizationParams, body CompleteMailboxAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteMailboxAuthorizationResult, error)
 
 	// ListMailReceiptsWithResponse What the mail intake received
 	//
@@ -71153,6 +71515,102 @@ func (r CheckMailboxResult) ContentType() string {
 	return ""
 }
 
+type AuthorizeMailboxResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *MailboxAuthorization
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r AuthorizeMailboxResult) GetJSON200() *MailboxAuthorization {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AuthorizeMailboxResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AuthorizeMailboxResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AuthorizeMailboxResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AuthorizeMailboxResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AuthorizeMailboxResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CompleteMailboxAuthorizationResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *Mailbox
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CompleteMailboxAuthorizationResult) GetJSON201() *Mailbox {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CompleteMailboxAuthorizationResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CompleteMailboxAuthorizationResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CompleteMailboxAuthorizationResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CompleteMailboxAuthorizationResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CompleteMailboxAuthorizationResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListMailReceiptsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -82472,6 +82930,66 @@ func (c *ClientWithResponses) CheckMailboxWithResponse(ctx context.Context, mail
 		return nil, err
 	}
 	return ParseCheckMailboxResult(rsp)
+}
+
+// AuthorizeMailboxWithBodyWithResponse Start connecting a mailbox through its provider's sign-in
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+func (c *ClientWithResponses) AuthorizeMailboxWithBodyWithResponse(ctx context.Context, params *AuthorizeMailboxParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*AuthorizeMailboxResult, error) {
+	rsp, err := c.AuthorizeMailboxWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAuthorizeMailboxResult(rsp)
+}
+
+// AuthorizeMailboxWithResponse Start connecting a mailbox through its provider's sign-in
+//
+// OAuth 2.0 authorization code flow with PKCE (S256) for any provider: Google and Microsoft by preset - with the installation's app where the operator configured one, or with the administrator's own - and any other provider by its HTTPS endpoints and its IMAP server. Answers the provider's page to send the browser to. The provider sends the browser back to `oauth_redirect_url` (see `GET /mail/mailboxes`), whose page hands the code and the state to `POST /mail/mailboxes:complete`. A waiting connection is good for ten minutes, once, and for the administrator who started it.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes:authorize (the `AuthorizeMailbox` operationId).
+func (c *ClientWithResponses) AuthorizeMailboxWithResponse(ctx context.Context, params *AuthorizeMailboxParams, body AuthorizeMailboxJSONRequestBody, reqEditors ...RequestEditorFn) (*AuthorizeMailboxResult, error) {
+	rsp, err := c.AuthorizeMailbox(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAuthorizeMailboxResult(rsp)
+}
+
+// CompleteMailboxAuthorizationWithBodyWithResponse Finish connecting a mailbox with the provider's answer
+//
+// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+func (c *ClientWithResponses) CompleteMailboxAuthorizationWithBodyWithResponse(ctx context.Context, params *CompleteMailboxAuthorizationParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CompleteMailboxAuthorizationResult, error) {
+	rsp, err := c.CompleteMailboxAuthorizationWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteMailboxAuthorizationResult(rsp)
+}
+
+// CompleteMailboxAuthorizationWithResponse Finish connecting a mailbox with the provider's answer
+//
+// Trades the code at the provider's token endpoint, signs in to the mailbox once with the access token (IMAP SASL XOAUTH2), and stores the mailbox with its refresh token sealed. From then on it is read like any other connected mailbox. A state that is unknown, used or someone else's answers `404` (`mail.oauth_state_unknown`); one older than ten minutes `422` (`mail.oauth_expired`); a refusal at the provider `422` (`mail.oauth_denied`).
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /mail/mailboxes:complete (the `CompleteMailboxAuthorization` operationId).
+func (c *ClientWithResponses) CompleteMailboxAuthorizationWithResponse(ctx context.Context, params *CompleteMailboxAuthorizationParams, body CompleteMailboxAuthorizationJSONRequestBody, reqEditors ...RequestEditorFn) (*CompleteMailboxAuthorizationResult, error) {
+	rsp, err := c.CompleteMailboxAuthorization(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCompleteMailboxAuthorizationResult(rsp)
 }
 
 // ListMailReceiptsWithResponse What the mail intake received
@@ -95454,6 +95972,72 @@ func ParseCheckMailboxResult(rsp *http.Response) (*CheckMailboxResult, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAuthorizeMailboxResult parses an HTTP response from a AuthorizeMailboxWithResponse call
+func ParseAuthorizeMailboxResult(rsp *http.Response) (*AuthorizeMailboxResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AuthorizeMailboxResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest MailboxAuthorization
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCompleteMailboxAuthorizationResult parses an HTTP response from a CompleteMailboxAuthorizationWithResponse call
+func ParseCompleteMailboxAuthorizationResult(rsp *http.Response) (*CompleteMailboxAuthorizationResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CompleteMailboxAuthorizationResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest Mailbox
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

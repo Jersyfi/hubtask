@@ -189,3 +189,49 @@ func (h RemoveMailbox) Descriptor() usecase.Descriptor {
 		Handler:  usecase.HandlerFunc(h.invoke),
 	}
 }
+
+// Descriptor is the catalogue entry.
+func (h AuthorizeMailbox) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        AuthorizeMailboxName,
+		Summary:     "Starts connecting a mailbox through its provider's sign-in (OAuth with PKCE): Google or Microsoft with the installation's app or one's own, or any provider by its endpoints. Answers the provider's page to send the browser to; the answer is good for ten minutes and for whoever asked.",
+		SideEffects: "Stores the waiting connection with its verifier sealed. Nothing is signed in to yet.",
+		TokenScope:  automationManage,
+		Input: []usecase.Field{
+			{Name: "provider", Kind: usecase.KindString, Required: true, Description: "google, microsoft, or custom for any other provider."},
+			{Name: "address", Kind: usecase.KindString, Description: "The mailbox's address, passed to the provider as a hint and kept where the provider names none."},
+			{Name: "client_id", Kind: usecase.KindString, Description: "An app of one's own; without it, the installation's app for the provider."},
+			{Name: "client_secret", Kind: usecase.KindString, Description: "That app's secret; none for a public client. Stored sealed, never answered."},
+			{Name: "authorize_url", Kind: usecase.KindString, Description: "For custom: the provider's authorization endpoint, HTTPS."},
+			{Name: "token_url", Kind: usecase.KindString, Description: "For custom: the provider's token endpoint, HTTPS."},
+			{Name: "scopes", Kind: usecase.KindList, Description: "For custom: the scopes that grant IMAP access and a refresh token."},
+			{Name: "host", Kind: usecase.KindString, Description: "For custom: the IMAP server."},
+			{Name: "port", Kind: usecase.KindInt, Description: "For custom: the IMAP port with TLS; 993 by default."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: mailboxAuthorizationStarted, TargetType: mailboxTarget, Severity: audit.SeverityInfo, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Exempt: "Settings of the workspace, not of an entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}
+
+// Descriptor is the catalogue entry.
+func (h CompleteMailboxAuthorization) Descriptor() usecase.Descriptor {
+	return usecase.Descriptor{
+		Name:        CompleteMailboxName,
+		Summary:     "Finishes connecting a mailbox with what its provider sent back: trades the code, signs in once with the token, and stores the mailbox with its refresh token sealed. A state is good once.",
+		SideEffects: "Calls the provider's token endpoint, signs in to the mail server, stores the mailbox, queues its read and writes an audit entry.",
+		TokenScope:  automationManage,
+		Input: []usecase.Field{
+			{Name: "state", Kind: usecase.KindString, Required: true, Description: "The state the provider sent back."},
+			{Name: "code", Kind: usecase.KindString, Description: "The authorization code the provider sent back."},
+			{Name: "error", Kind: usecase.KindString, Description: "The error the provider sent back instead, if any."},
+		},
+		Audit: usecase.AuditDeclaration{
+			Action: mailboxConnected, TargetType: mailboxTarget, Severity: audit.SeverityWarning, Required: true,
+		},
+		Activity: usecase.ActivityDeclaration{Exempt: "Settings of the workspace, not of an entry."},
+		Handler:  usecase.HandlerFunc(h.invoke),
+	}
+}

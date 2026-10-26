@@ -1141,25 +1141,53 @@ type MailSetting struct {
 }
 
 type Mailbox struct {
-	ID           pgtype.UUID
-	TenantID     pgtype.UUID
-	Protocol     string
-	Address      string
-	Host         *string
-	Port         *int32
-	SessionUrl   *string
-	Username     string
-	Folder       string
-	DoneFolder   string
-	Preset       *string
-	Enabled      bool
-	SecretEnc    []byte
-	SecretKeyID  string
-	CheckedAt    pgtype.Timestamptz
-	Failure      *string
-	FailingSince pgtype.Timestamptz
-	CreatedAt    pgtype.Timestamptz
-	CreatedBy    pgtype.UUID
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	Protocol          string
+	Address           string
+	Host              *string
+	Port              *int32
+	SessionUrl        *string
+	Username          string
+	Folder            string
+	DoneFolder        string
+	Preset            *string
+	Enabled           bool
+	SecretEnc         []byte
+	SecretKeyID       string
+	CheckedAt         pgtype.Timestamptz
+	Failure           *string
+	FailingSince      pgtype.Timestamptz
+	Auth              string
+	OauthProvider     *string
+	OauthAuthorizeUrl *string
+	OauthTokenUrl     *string
+	OauthScopes       []string
+	OauthClientID     *string
+	OauthInstallation bool
+	CreatedAt         pgtype.Timestamptz
+	CreatedBy         pgtype.UUID
+}
+
+type MailboxAuthorization struct {
+	ID                pgtype.UUID
+	TenantID          pgtype.UUID
+	AccountID         pgtype.UUID
+	StateHash         []byte
+	Provider          string
+	AuthorizeUrl      string
+	TokenUrl          string
+	Scopes            []string
+	ClientID          string
+	Installation      bool
+	Host              string
+	Port              int32
+	LoginHint         *string
+	VerifierEnc       []byte
+	VerifierKeyID     string
+	ClientSecretEnc   []byte
+	ClientSecretKeyID *string
+	ExpiresAt         pgtype.Timestamptz
 }
 
 type MediaObject struct {

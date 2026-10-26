@@ -25,7 +25,13 @@ the design below answers.
 
 1. **One intake per workspace, any number of doors.** A connected mailbox (IMAP, or JMAP where
    the provider speaks it) and the operator's inbound service (`POST /mail/inbound`) deliver the
-   same raw message to the same pipeline. Hubtask runs no SMTP receiver.
+   same raw message to the same pipeline. Hubtask runs no SMTP receiver. A mailbox signs in with
+   a password (an app password where the provider asks for one), or through the provider's own
+   sign-in: OAuth 2.0 with PKCE, then IMAP SASL XOAUTH2 with an access token drawn from a sealed
+   refresh token. Google and Microsoft are presets - one button where the operator configured an
+   app (`HUBTASK_MAIL_OAUTH_{GOOGLE,MICROSOFT}_CLIENT_ID`/`_SECRET`), an app of the administrator's
+   own otherwise - and any other provider connects by its HTTPS endpoints, scopes and IMAP server.
+   No vendor is required, none is privileged beyond a preset.
 2. **Readable names instead of secret codes.** Every collection has a *handle* (`einkauf`),
    derived from its name, unique in the workspace and kept on a rename; every entry has a number
    in its collection, and the two are its *ticket key* `EINKAUF-42`, shown at the entry.
@@ -64,5 +70,12 @@ the design below answers.
 - ADR-0092's random codes and the per-place address table go; Reply-To on a notification becomes
   the ticket key on the intake's address, which needs no secret because the sender level applies.
 - A readable address can be guessed, as every `support@` can; the sender level is the protection.
-- Custom domains and OAuth sign-in for Google and Microsoft mailboxes are later steps on the same
-  pipeline; signed Message-IDs for replies are a hardening on top of rule 3.1.
+- An OAuth connection is started by an administrator and finished by the same one within ten
+  minutes, once: the state is kept as its hash, the PKCE verifier and an own app's secret are
+  sealed, the code is traded through the egress guard, and nothing is stored before one IMAP
+  sign-in with the token worked. A provider that rotates the refresh token gets the new one sealed
+  in place; one that withdraws the grant shows as `mail.oauth_revoked` on the mailbox.
+- Operators allow the providers' token and IMAP hosts in the egress allowlist. A Google app left
+  in *Testing* hands out refresh tokens that expire after seven days; a published one does not.
+- Custom domains are a later step on the same pipeline; signed Message-IDs for replies are a
+  hardening on top of rule 3.1.

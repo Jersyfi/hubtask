@@ -6,6 +6,7 @@ package mailbox
 import (
 	"bufio"
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net"
@@ -42,6 +43,7 @@ type server struct {
 	folders   map[string]bool
 	commands  []string
 	literalOK bool
+	oauthUser string
 }
 
 func newServer(password string) *server {
@@ -90,6 +92,19 @@ func (s *server) serve(conn net.Conn) {
 				continue
 			}
 			write("%s OK logged in", tag)
+		case "AUTHENTICATE":
+			// SASL XOAUTH2 with an initial response; a refusal is a continuation with the reason,
+			// answered by an empty line, then NO - as Gmail does it.
+			fields := strings.Fields(text)
+			decoded, _ := base64.StdEncoding.DecodeString(fields[len(fields)-1])
+			if fields[1] != "XOAUTH2" || !strings.Contains(string(decoded), "\x01auth=Bearer "+s.password+"\x01\x01") {
+				write("+ eyJzdGF0dXMiOiI0MDAifQ==")
+				_, _ = reader.ReadString('\n')
+				write("%s NO [AUTHENTICATIONFAILED] Invalid credentials", tag)
+				continue
+			}
+			s.oauthUser = strings.TrimPrefix(strings.Split(string(decoded), "\x01")[0], "user=")
+			write("%s OK authenticated", tag)
 		case "SELECT":
 			name := strings.Trim(strings.TrimPrefix(text, "SELECT "), `"`)
 			if !s.folders[name] {
@@ -302,5 +317,29 @@ func TestTheProtocolsSmallReaders(t *testing.T) {
 	}
 	if quote(`a"b\c`) != `"a\"b\\c"` {
 		t.Errorf("quoted %s", quote(`a"b\c`))
+	}
+}
+
+func TestAnOAuthMailboxSignsInWithXOAUTH2(t *testing.T) {
+	server := newServer("access-token")
+	connection := connectionFor("access-token", "")
+	connection.Mailbox.Auth = domain.AuthOAuth
+	session, err := server.reader().Open(context.Background(), connection)
+	if err != nil {
+		t.Fatalf("an access token: %v", err)
+	}
+	_ = session.Close()
+	if server.oauthUser != "familie@gmail.com" {
+		t.Errorf("signed in as %q", server.oauthUser)
+	}
+	for _, command := range server.commands {
+		if strings.HasPrefix(command, "LOGIN") {
+			t.Error("an OAuth mailbox sent a password login")
+		}
+	}
+	connection.Secret = secret.New("expired")
+	_, err = newServer("access-token").reader().Open(context.Background(), connection)
+	if shared.AsError(err).DetailCode != "mail.mailbox_refused" {
+		t.Errorf("a refused token answered %v", err)
 	}
 }

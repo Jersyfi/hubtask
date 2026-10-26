@@ -50,6 +50,15 @@
   import WorkspaceGate from '../lib/workspace/WorkspaceGate.svelte';
   import MailboxSection from '../lib/mail/MailboxSection.svelte';
 
+  interface Props {
+    /** What a mail provider sent back after connecting a mailbox (`/administration/mail/oauth`). */
+    providerAnswer?: Readonly<Record<string, string>>;
+    /** Told once the answer is handed on, so the address drops the code and the state. */
+    onanswered?: () => void;
+  }
+
+  let { providerAnswer, onanswered }: Props = $props();
+
   interface DraftRoute {
     key: string;
     match: string;
@@ -229,7 +238,7 @@
           <section class="panel" aria-labelledby="mail-mailboxes" data-mail-mailboxes>
             <Stack gap="150">
               <h2 class="section" id="mail-mailboxes">{t('app.mail.section_mailboxes')}</h2>
-              <MailboxSection onchange={(next) => (mailboxes = next)} />
+              <MailboxSection {providerAnswer} {onanswered} onchange={(next) => (mailboxes = next)} />
             </Stack>
           </section>
 

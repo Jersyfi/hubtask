@@ -53,6 +53,7 @@ func (boxes) Insert(context.Context, domain.Mailbox, crypto.Sealed, shared.ID) e
 func (boxes) RecordCheck(context.Context, domain.Mailbox) error                      { return nil }
 func (boxes) Delete(context.Context, shared.ID) error                                { return nil }
 func (boxes) Count(context.Context) (int, error)                                     { return 0, nil }
+func (boxes) Reseal(context.Context, shared.ID, crypto.Sealed) error                 { return nil }
 
 func TestTheMailboxStoreIsOnePort(t *testing.T) {
 	var store mail.Mailboxes = boxes{}
