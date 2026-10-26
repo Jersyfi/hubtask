@@ -35,6 +35,7 @@ var dialableExceptions = map[string]string{
 	"infrastructure/httpclient/Guard.go":                   "the cloud metadata address, in a comment, as the thing the guard refuses",
 	"core/domain/model/automation/Outbound.go":             "the scheme prefixes an HTTP_REQUEST's address is checked against: a shape rule, never a destination",
 	"core/domain/model/identity/IdentityProviderPreset.go": "the Google preset's issuer, the value a form fills in when somebody chooses Google: dialled only once a person saves a provider with it",
+	"infrastructure/alexa/Verifier.go":                     "Amazon's certificate store, the one host Alexa's signing rule allows: dialled only to verify a request that names it, and only where the operator allows the host out",
 	"core/domain/model/mail/Mailbox.go":                    "the mail providers' presets (Fastmail's JMAP session), the values a form fills in when somebody chooses a provider: dialled only once a person connects a mailbox with it",
 }
 

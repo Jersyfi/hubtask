@@ -65,8 +65,10 @@ func errNotAlexa(reason string) error {
 
 // Verify proves the body was signed by Alexa.
 func (v *Verifier) Verify(ctx context.Context, header http.Header, body []byte) error {
-	address := header.Get(HeaderCertChain)
-	if !IsAmazonChainURL(address) {
+	// What is fetched is rebuilt from the parts the rule checked, on Amazon's host: never the
+	// header's own string, so nothing a request sends can steer the call anywhere else.
+	address, ok := AmazonChainURL(header.Get(HeaderCertChain))
+	if !ok {
 		return errNotAlexa("certificate URL not Amazon's")
 	}
 	signature, err := base64.StdEncoding.DecodeString(header.Get(HeaderSignature))
@@ -88,20 +90,29 @@ func (v *Verifier) Verify(ctx context.Context, header http.Header, body []byte) 
 	return nil
 }
 
-// IsAmazonChainURL is Amazon's rule for the certificate's address: https, s3.amazonaws.com on
-// port 443, a path under /echo.api/ once normalised.
-func IsAmazonChainURL(address string) bool {
+// amazonChainHost is the one place a certificate chain is fetched from.
+const amazonChainHost = "https://s3.amazonaws.com/"
+
+// AmazonChainURL applies Amazon's rule for the certificate's address - https, s3.amazonaws.com on
+// port 443, a path under /echo.api/ once normalised - and answers the address to fetch: Amazon's
+// host and the normalised path, without anything else the header carried (a query, a fragment,
+// user information).
+func AmazonChainURL(address string) (string, bool) {
 	parsed, err := url.Parse(address)
 	if err != nil || !strings.EqualFold(parsed.Scheme, "https") {
-		return false
+		return "", false
 	}
 	if !strings.EqualFold(parsed.Hostname(), "s3.amazonaws.com") {
-		return false
+		return "", false
 	}
 	if port := parsed.Port(); port != "" && port != "443" {
-		return false
+		return "", false
 	}
-	return strings.HasPrefix(path.Clean(parsed.Path), "/echo.api/")
+	cleaned := path.Clean(parsed.Path)
+	if !strings.HasPrefix(cleaned, "/echo.api/") {
+		return "", false
+	}
+	return amazonChainHost + strings.TrimPrefix((&url.URL{Path: cleaned}).EscapedPath(), "/"), true
 }
 
 func (v *Verifier) now() time.Time {

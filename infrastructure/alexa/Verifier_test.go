@@ -123,8 +123,17 @@ func TestAmazonsChainAddressRule(t *testing.T) {
 		"https://s3.amazonaws.com/echo.api/../invalid/echo-api.pem":  false,
 	}
 	for address, want := range cases {
-		if got := IsAmazonChainURL(address); got != want {
-			t.Errorf("IsAmazonChainURL(%q) = %t", address, got)
+		if _, got := AmazonChainURL(address); got != want {
+			t.Errorf("AmazonChainURL(%q) = %t", address, got)
+		}
+	}
+	// What is fetched is Amazon's host and the normalised path, and nothing else of the header.
+	for address, want := range map[string]string{
+		"HTTPS://S3.AMAZONAWS.COM:443/echo.api/../echo.api/echo-api.pem":   "https://s3.amazonaws.com/echo.api/echo-api.pem",
+		"https://user@s3.amazonaws.com/echo.api/echo-api-cert.pem?x=1#top": "https://s3.amazonaws.com/echo.api/echo-api-cert.pem",
+	} {
+		if got, ok := AmazonChainURL(address); !ok || got != want {
+			t.Errorf("AmazonChainURL(%q) = %q, %t; want %q", address, got, ok, want)
 		}
 	}
 }
