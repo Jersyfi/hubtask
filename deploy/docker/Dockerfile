@@ -81,7 +81,9 @@ RUN mkdir -p /out/state/media /out/state/backups
 FROM alpine:3.24 AS certs
 RUN apk add --no-cache ca-certificates tzdata
 
-FROM gcr.io/distroless/static-debian12:nonroot
+# Debian 13: distroless' Debian 12 image ships tzdata and ca-certificates the LTS advisories have
+# moved past (DLA-4792-1, DLA-4845-1, DLA-4854-1), and the image scan reads its package records.
+FROM gcr.io/distroless/static-debian13:nonroot
 COPY --from=certs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=certs /usr/share/zoneinfo /usr/share/zoneinfo
 COPY --from=build /out/hubtask /usr/local/bin/hubtask
