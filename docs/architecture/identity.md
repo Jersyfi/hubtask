@@ -308,7 +308,10 @@ hourly (T-13, [security.md](./security.md) §4).
   forwards the return there whole, and it is finished there. The lookup is anonymous, in the auth
   bucket, and spends nothing. A state that names no live flow (unknown, expired, spent or
   malformed) is one `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards
-  only to a host beneath its own, by the same scheme.
+  only to a host beneath its own, by the same scheme. *Decided, not built - milestone CD*
+  (ADR-0095): the answer is the workspace's main address from `tenant_host` - a subdomain, an
+  assigned host or a verified own domain - and the browser forwards to exactly the host the answer
+  names, by the same scheme.
 
 ### 10.2 Providers in the plural, at two levels
 
@@ -971,7 +974,7 @@ A credential that once answered with UV and later without is held to the ceremon
 
 | Rule | Detail |
 |---|---|
-| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
+| RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-19, UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
 | Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |

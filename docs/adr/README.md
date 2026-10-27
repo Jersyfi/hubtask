@@ -127,3 +127,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0092](./ADR-0092-mail-addresses-for-every-place.md) | Mail addresses for every place, on the operator's receiving domain | superseded | Jumble, security |
 | [0093](./ADR-0093-voice-assistants-through-a-skill-of-our-own.md) | Voice assistants through a skill of our own | accepted | Work, identity |
 | [0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) | One mail intake, routed by handles and ticket keys | accepted | Jumble, mail, security |
+| [0095](./ADR-0095-a-workspaces-address-resolves-through-its-hosts.md) | A workspace's address resolves through its hosts | proposed | Tenancy, identity, security |
