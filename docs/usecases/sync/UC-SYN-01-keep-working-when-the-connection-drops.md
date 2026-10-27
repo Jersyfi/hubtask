@@ -6,7 +6,7 @@ actors: [PE-person, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-10, P-11, P-12]
 state: partial
-tasks: [N-01, N-02, N-04, N-10, F6-03, F6-04, F6-05, F6-06]
+tasks: [N-01, N-02, N-04, N-10, F6-03, F6-04, F6-05, F6-06, F7-04, F7-05, F7-07]
 checked_by: [packages/sync-engine/test/replica.test.ts, packages/sync-engine/test/queue.test.ts, packages/sync-engine/test/engine.test.ts, test/integration/push_test.go, test/integration/initial_sync_test.go]
 ---
 

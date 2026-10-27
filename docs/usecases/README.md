@@ -327,6 +327,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-SYN-04](./sync/UC-SYN-04-lose-access-and-have-the-copy-follow.md) | Lose access, and have my device's copy follow | sync |
 | [UC-SYN-05](./sync/UC-SYN-05-come-back-after-a-long-time-away.md) | Come back after a long time away, or after a restore | sync |
 | [UC-SYN-06](./sync/UC-SYN-06-prove-my-own-client-follows-the-sync-contract.md) | Prove that my own client follows the sync contract | sync |
+| [UC-SYN-07](./sync/UC-SYN-07-install-the-app-on-my-computer-or-phone.md) | Install the app on my computer or phone and keep it current | sync |
 | [UC-IMP-01](./importer/UC-IMP-01-import-entries-from-a-spreadsheet.md) | Import entries from a spreadsheet | importer |
 | [UC-IMP-02](./importer/UC-IMP-02-move-over-from-another-task-app.md) | Move over from Trello, Google Tasks or Microsoft To Do | importer |
 | [UC-IMP-03](./importer/UC-IMP-03-see-what-an-import-did.md) | See what an import did | importer |

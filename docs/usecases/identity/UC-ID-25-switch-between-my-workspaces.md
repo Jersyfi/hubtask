@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-owner, PE-admin, PE-operator]
 deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-05, P-10, P-12]
 state: specified
-tasks: [CD-09, F7-07]
+tasks: [CD-09, F7-03]
 checked_by: []
 ---
 
