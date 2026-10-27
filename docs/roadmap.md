@@ -30,10 +30,13 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
    waits for the first release after one that contains SC-26.
 2. **PK — Passkeys** ([`archive/backlog/milestone-PK.md`](./archive/backlog/milestone-PK.md), cut 2026-10-15, closed 2026-10-18),
    then **PL — Plans** ([`archive/backlog/milestone-PL.md`](./archive/backlog/milestone-PL.md), cut and released
-   2026-10-16, closed 2026-10-19) and **CD — Custom domains**: SI prepared all three without building any. CD also
-   carries changing a workspace's address and owners' own domains, the device's workspace list and
-   the reserved short names (multi-tenancy.md §3.1, decided 2026-10-16).
-3. **F7 — The shells, free to install** (below), then `0.9.5` and `1.0.0`.
+   2026-10-16, closed 2026-10-19) and **CD — Custom domains**
+   ([`backlog/milestone-CD.md`](./backlog/milestone-CD.md), cut 2026-10-27): SI prepared all three
+   without building any. CD also carries changing a workspace's address, hosts the operator
+   assigns, owners' own domains, the device's workspace list and the reserved short names
+   (multi-tenancy.md §3.1, decided 2026-10-16).
+3. **F7 — The shells, free to install** ([`backlog/milestone-F7.md`](./backlog/milestone-F7.md), cut
+   2026-10-27, three questions open with the owner; below), then `0.9.5` and `1.0.0`.
 
 ---
 
@@ -71,7 +74,8 @@ issues; nothing is released by them.
 
 ### F7 — The shells, free to install
 
-Not cut yet. Up to `2.0` the shells are the ones that cost nothing to build and install —
+Cut on 2026-10-27 in [`backlog/milestone-F7.md`](./backlog/milestone-F7.md), which holds the tasks;
+what follows is the outline. Up to `2.0` the shells are the ones that cost nothing to build and install —
 **Windows, Linux and Android, outside every store** — and macOS, iOS and the store listings wait
 for `2.0` ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)). So F7 needs
 no developer account and no paid certificate.
@@ -93,9 +97,11 @@ no developer account and no paid certificate.
   (ADR-0031), and the browser's cache did not need them.
 * **SY-B**, the default synchronisation scope on a mobile shell, is set here, with a phone's
   storage to measure against ([`offline-sync.md`](./architecture/offline-sync.md) §12).
-* **Passkeys in a shell**: a webview's origin is not the workspace's host, so the shells need their
-  own way to a passkey (the system browser, or the platform's association with the host)
-  ([`identity.md`](./architecture/identity.md) §23.3).
+* **Passkeys in a shell**: a webview's origin is not the workspace's host, so the apps sign in
+  through the system browser as the installation's own OAuth2 client
+  ([ADR-0096](./adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md),
+  [`identity.md`](./architecture/identity.md) §15.3, §23.3).
+* **The download page** offers the apps with `0.9.5`, when the site may say so (#1353).
 
 ### What binds every client
 
