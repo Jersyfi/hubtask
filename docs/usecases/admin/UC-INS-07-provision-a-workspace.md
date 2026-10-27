@@ -5,8 +5,8 @@ context: admin
 actors: [PE-operator, PE-platform, PE-scripter]
 deployments: [D5, D6, D7]
 serves: [P-05, P-08, P-15]
-state: built
-tasks: [H-06, SI-17, SC-08]
+state: partial
+tasks: [H-06, SI-17, SC-08, CD-01]
 checked_by: [core/application/service/admin/Provision_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, docs/evidence/SC-08-2026-10-12.md, docs/evidence/SC-15-D1-2026-10-13.md]
 ---
 
@@ -37,3 +37,7 @@ that deliver it themselves.
 * No self-registration by the public; a platform in front of Hubtask does that
   ([NG-billing](../../vision/non-goals.md)).
 * The plan a workspace starts on is UC-INS-13.
+
+## Today
+
+* Check 2: not met — a short name is checked only as an address label; no reserved name is refused (#1560).
