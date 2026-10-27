@@ -184,6 +184,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-ID-22](./identity/UC-ID-22-manage-my-passkeys.md) | Manage my passkeys and security keys | identity |
 | [UC-ID-23](./identity/UC-ID-23-see-hubtask-in-my-own-script.md) | See Hubtask in my own script | identity |
 | [UC-ID-24](./identity/UC-ID-24-run-the-workspace-from-one-overview.md) | Run the workspace from one overview | identity |
+| [UC-ID-25](./identity/UC-ID-25-switch-between-my-workspaces.md) | Switch between my workspaces on this device | identity |
 | [UC-INS-01](./admin/UC-INS-01-start-a-fresh-installation.md) | Start a fresh installation and create my workspace in the browser | admin |
 | [UC-INS-02](./admin/UC-INS-02-bring-an-installation-up-from-a-file.md) | Bring an installation up from a file, operators included | admin |
 | [UC-INS-03](./admin/UC-INS-03-get-back-into-a-locked-installation.md) | Get back into an installation nobody can run | admin |
@@ -202,6 +203,8 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INS-16](./admin/UC-INS-16-rotate-the-installations-keys.md) | Rotate the installation's keys and know every secret moved | admin |
 | [UC-INS-17](./admin/UC-INS-17-run-hubtask-on-my-own-hardware.md) | Run Hubtask on the hardware I have | admin |
 | [UC-INS-18](./admin/UC-INS-18-offer-presets-to-every-workspace.md) | Offer presets to every workspace | admin |
+| [UC-INS-19](./admin/UC-INS-19-change-a-workspaces-address.md) | Change a workspace's address | admin |
+| [UC-INS-20](./admin/UC-INS-20-give-a-workspace-a-host-of-my-choosing.md) | Give each workspace a host of my choosing | admin |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work |
 | [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work |
