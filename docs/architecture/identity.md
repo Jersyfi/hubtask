@@ -611,6 +611,12 @@ an operator (§19), so provisioning by a platform does not depend on a person wh
 * Issued tokens are the session pair of §14 leashed to the **grant**: the session carries its
   scopes, revoking the grant ends its sessions, and every act through it is audited with the client
   as an actor attribute. Grants are listed per account with client, scopes and last use.
+* *Decided, not built - milestone F7* ([ADR-0096](../adr/ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md)):
+  the Hubtask apps are a **built-in public client** every workspace knows without registering it,
+  with no secret; its redirect is a loopback address on any port (desktop) or
+  `eu.hubtask.app:/oauth` (Android) and nothing else. The flow opens in the system browser at the
+  workspace's host, the consent names the app and the device, and the grant carries a session's
+  scopes (§15.4).
 
 ### 15.4 What a session carries
 
@@ -975,7 +981,7 @@ A credential that once answered with UV and later without is held to the ceremon
 | Rule | Detail |
 |---|---|
 | RP ID | The workspace's canonical host (`tenant_host`, a subdomain in multi mode, the installation's host in single mode) — never the registrable parent, so one workspace's passkeys are never offered in another (P-01). A changed host ends its passkeys (UC-INS-19, UC-INS-15). Each credential records the RP ID it was made for (migration 0163); one of another host counts as no factor, the profile says so, and it can always be removed. A row made before the column counts as the workspace's. |
-| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the shells' path is F7's. |
+| Origin | The scheme of `HUBTASK_BASE_URL` and that host, with the base URL's port where it is not the scheme's default; any other origin is refused. There is no development switch: a server configured at `http://localhost:…` admits that origin and no other. Neither the shells' webview origin nor any other localhost origin passes; the installed apps sign in through the system browser at the workspace's host (§15.3, *decided, not built - milestone F7*). |
 | Attestation | `none`: the server checks no maker, keeps no metadata service and no allow-list. |
 | Algorithms | ES256, EdDSA (Ed25519) and RS256, from the standard library. |
 | Challenges | Thirty-two random bytes from the `RandomSource` port, held as an `auth_pending` row of their own purpose - `PASSKEY_REGISTER`, `PASSKEY_SIGN_IN`, `PASSKEY_FACTOR`, `PASSKEY_ENROLL`, `PASSKEY_STEP_UP` (migrations 0161, 0174, 0176), each under its own token prefix: five minutes, single use, bound to the workspace, to the account where one is known and, for a step-up or an addition, to the session. A challenge is spent only by its own door. |
