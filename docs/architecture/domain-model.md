@@ -235,7 +235,8 @@ operator's exception stays the last word over them), the AI rule above the works
 (`integration.EffectiveAi`; a workspace's narrowing to `NONE` under a lock stays its own) and the
 eight structure settings (`work.ResolveStructure`) resolve through it; golden tests hold each to
 the resolution it had before. `setting.Catalogue` in `core/application/service/setting` is the
-one registry that assembles every area's declarations. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
+one registry that assembles every area's declarations; `ReadSettingsCatalogue` (`GET /settings/catalogue`) answers it to a
+signed-in caller, without any place's value, and the client's settings search and *View as file* draw from it. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
 `fields`. Storage is one shape: a dotted key with a JSON value and a lock in `instance_setting` and
 `plan_setting`, and `setting_value` (level, scope, key, value, hold, allowed) for the workspace, a
 hub, a collection and a person (migration 0208).
