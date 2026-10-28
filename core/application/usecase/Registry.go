@@ -23,6 +23,7 @@ import (
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/activity"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/audit"
 )
@@ -108,6 +109,10 @@ type Descriptor struct {
 	// not offered it as an action there. Empty for every operation a plan cannot reach, which is
 	// every read and every act that stops or removes.
 	Entitlement entitlement.Feature
+	// Module is the module of the suite this operation belongs to (UC-INS-21). The registry's
+	// middleware refuses it with `module.off` where the module is off at the caller's workspace,
+	// through every door alike. Empty for every operation of the base product.
+	Module module.Key
 
 	Input    []Field
 	Audit    AuditDeclaration
@@ -192,6 +197,8 @@ func check(d Descriptor) error {
 		return incomplete("activity verb " + string(d.Activity.Verb))
 	case d.Entitlement != "" && !d.Entitlement.Valid():
 		return incomplete("entitlement " + string(d.Entitlement))
+	case d.Module != "" && !d.Module.Valid():
+		return incomplete("module " + string(d.Module))
 	}
 
 	seen := make(map[string]bool, len(d.Input))
