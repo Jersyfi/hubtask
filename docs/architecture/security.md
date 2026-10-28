@@ -312,11 +312,23 @@ The build fails if any row fails. No merge with a red gate, no exception by comm
 ## 14. Handling incidents
 
 1. **Reporting and aims** are in [`SECURITY.md`](../../SECURITY.md): a private GitHub security advisory or `security@hubtask.eu`; acknowledgement, a CVSS assessment and a fix are best-effort aims; disclosure is coordinated.
-2. **Remediation** goes into the current minor version ([versioning-release.md](./versioning-release.md)).
+2. **Remediation** goes into every line inside its support period ([versioning-release.md](./versioning-release.md) §5).
 3. **Communication** through a GitHub security advisory with the affected versions, a workaround and detection guidance (log patterns).
 4. **Follow-up**: a blameless post-mortem note in the repository; the fix includes a regression test, without which the incident is not closed.
 
----
+### 14.1 Coordinated vulnerability disclosure
+
+The process `SECURITY.md` publishes is aligned with ISO/IEC 29147 (what the reporter and the public
+see) and ISO/IEC 30111 (what happens inside). The internal half:
+
+| Step | What is done | Record |
+|---|---|---|
+| Intake | The report lives in a private GitHub security advisory; a mailed report is moved there | The advisory draft |
+| Triage | Reproduced; CVSS scored; the affected lines named; **actively exploited or not** decided on evidence (the reporter's, a public exploit, a known-exploited list) | The advisory draft |
+| Root cause and variants | The flaw's class is searched for in the rest of the code, not only at the reported place | The fix's pull request |
+| Fix | On every line in its support period, with a regression test; a private fork of the advisory where the fix must not be public before release | The release notes |
+| Disclosure | The advisory published with the release that fixes it, or on the date agreed with the reporter | The advisory, a CVE (GitHub is a CNA) |
+| Dependency findings | A vulnerability in a dependency Hubtask does not reach (`govulncheck` reports reachability, SG-1) gets a VEX statement *not affected*; one it reaches is a vulnerability of Hubtask's. A flaw found in a dependency is reported to its maintainers | The VEX document, the upstream report |
 
 ## 15. Deliberately not included
 
