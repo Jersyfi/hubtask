@@ -109,6 +109,7 @@ export {
   type CustomFieldKind,
   type FieldDefinition,
   type FieldValue,
+  type NumberReading,
 } from './CustomFieldRenderer.svelte';
 export { default as ActivityFeed, type ActivityStep } from './ActivityFeed.svelte';
 export { default as UploadField } from './UploadField.svelte';

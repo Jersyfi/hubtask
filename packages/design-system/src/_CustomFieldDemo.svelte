@@ -1,7 +1,7 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The eight kinds side by side, and the ninth nobody has heard of.
+  // The kinds side by side, and one nobody has heard of.
   //
   // Every label here is resolved English: the key is `warranty_until`, and what a person reads is
   // "Warranty until". The component never sees a key where a label belongs.
@@ -30,6 +30,12 @@
     },
     { definition: { key: 'is_insured', label: 'Insured', kind: 'BOOL' }, value: true },
     { definition: { key: 'datasheet', label: 'Datasheet', kind: 'URL' }, value: 'https://example.org/datasheet.pdf' },
+    { definition: { key: 'budget', label: 'Budget', kind: 'MONEY', hint: 'EUR' }, value: 1250.5 },
+    { definition: { key: 'effort', label: 'Effort in minutes', kind: 'DURATION' }, value: 90 },
+    {
+      definition: { key: 'acceptance', label: 'Acceptance', kind: 'RICH_TEXT' },
+      value: '- The door closes\n- The lock turns',
+    },
   ];
 
   const owner: FieldDefinition = { key: 'owner', label: 'Responsible', kind: 'USER', isRequired: true };
