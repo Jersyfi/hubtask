@@ -75,7 +75,7 @@ const (
 	// meteringArea holds whether use is offered for billing; its row is there only while it is on.
 	meteringArea = "metering"
 	// addressingArea holds what decides a workspace's address on this installation: the operator's
-	// own reserved short names (multi-tenancy.md §3.1).
+	// own reserved short names, and whether and how often owners change it (multi-tenancy.md §3.1).
 	addressingArea = "addressing"
 )
 
@@ -103,6 +103,8 @@ const (
 	keyBlocklistFile      = signInArea + ".blocklist_file"
 	keyMetering           = meteringArea + ".enabled"
 	keyReservedShortNames = addressingArea + ".reserved_short_names"
+	keyOwnersChange       = addressingArea + ".owners_change_address"
+	keyAddressCooldown    = addressingArea + ".cooldown_days"
 
 	// keyLevelVersion is the level's version (migration 0184): outside the five areas, so a
 	// write's clearing never reaches it, and a key an older build skips.
@@ -251,6 +253,10 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		err = json.Unmarshal(raw, &level.Metering)
 	case keyReservedShortNames:
 		err = json.Unmarshal(raw, &level.ReservedShortNames)
+	case keyOwnersChange:
+		err = json.Unmarshal(raw, &level.OwnersChangeAddress)
+	case keyAddressCooldown:
+		err = json.Unmarshal(raw, &level.AddressCooldownDays)
 	case keyLevelVersion:
 		var version *int
 		if version, err = number(); err == nil {
@@ -622,6 +628,14 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 			return nil, shared.Internalf("postgres: encoding the reserved short names: %w", err)
 		}
 		rows = append(rows, settingRow{key: keyReservedShortNames, value: encoded, lock: "OPEN"})
+	}
+	if level.OwnersChangeAddress {
+		rows = append(rows, settingRow{key: keyOwnersChange, value: []byte("true"), lock: "OPEN"})
+	}
+	if level.AddressCooldownDays > 0 {
+		rows = append(rows, settingRow{
+			key: keyAddressCooldown, value: fmt.Appendf(nil, "%d", level.AddressCooldownDays), lock: "OPEN",
+		})
 	}
 
 	return rows, nil

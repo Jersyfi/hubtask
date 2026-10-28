@@ -84,6 +84,8 @@ type ChangeTenantAddress struct {
 	InstallationHost string
 	// Settings is the installation's level, whose reserved short names a new name may not be.
 	Settings identityrepo.InstanceSettings
+	// Changes answers when the address last changed, which an owner's change waits out.
+	Changes identityrepo.AddressChanges
 }
 
 // ChangeTenantAddressCommand is the input, typed.
@@ -115,6 +117,15 @@ func (h ChangeTenantAddress) Execute(
 	if h.Tenancy != env.TenancyMulti {
 		return AddressChange{}, shared.ErrForbidden.WithDetail("admin.multi_mode_required")
 	}
+	return h.change(ctx, actor, cmd, nil)
+}
+
+// change is the change itself, the operator's and an owner's alike. An owner's carries the
+// installation's rule, checked again inside the write; only the operator's is in the journal.
+func (h ChangeTenantAddress) change(
+	ctx context.Context, actor appshared.ActorContext, cmd ChangeTenantAddressCommand,
+	owners *domain.OwnerAddressRule,
+) (AddressChange, error) {
 	if cmd.TenantID.IsZero() {
 		return AddressChange{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
 	}
@@ -199,6 +210,15 @@ func (h ChangeTenantAddress) Execute(
 		if current.Status == domain.TenantPendingDeletion {
 			return shared.ErrConflict.WithDetail("admin.tenant_leaving")
 		}
+		if owners != nil {
+			last, err := h.Changes.LockAddressChange(ctx)
+			if err != nil {
+				return err
+			}
+			if err := owners.RefuseOwnerChange(last, now); err != nil {
+				return err
+			}
+		}
 		replaced, err := h.Addresses.ChangeAddress(ctx, next.Slug, row, now)
 		if err != nil {
 			return err
@@ -209,7 +229,7 @@ func (h ChangeTenantAddress) Execute(
 		if _, err := h.Addresses.EndSessions(ctx, now); err != nil {
 			return err
 		}
-		if err := h.record(ctx, actor, current, next, answer.From, now); err != nil {
+		if err := h.record(ctx, actor, current, next, answer.From, now, owners == nil); err != nil {
 			return err
 		}
 		if h.Notices != nil {
@@ -282,10 +302,11 @@ func appendOnce(ids []shared.ID, id shared.ID) []shared.ID {
 	return append(ids, id)
 }
 
-// record writes the trail and the journal. Hosts only: an address is the installation's, not content.
+// record writes the trail and, for the operator's change, the journal. Hosts only: an address is
+// the installation's, not content.
 func (h ChangeTenantAddress) record(
 	ctx context.Context, actor appshared.ActorContext, current adminrepo.TenantRecord,
-	next domain.TenantAddress, from string, now time.Time,
+	next domain.TenantAddress, from string, now time.Time, journal bool,
 ) error {
 	changes := []audit.Change{
 		{Field: "host", Classification: audit.Open, From: from, To: next.Host},
@@ -303,6 +324,9 @@ func (h ChangeTenantAddress) record(
 		Changes: audit.Changes(changes...),
 	}); err != nil {
 		return err
+	}
+	if !journal {
+		return nil
 	}
 	return h.Journal.Record(ctx, adminrepo.InstanceEvent{
 		ID: h.IDs.NewID(), OccurredAt: now, Action: journalAddressChanged,

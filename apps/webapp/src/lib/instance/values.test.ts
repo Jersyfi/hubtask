@@ -79,6 +79,14 @@ test("the operator's reserved short names travel through a save unchanged", () =
   assert.deepEqual(documentOf({ reserved_short_names: ['intranet', 'shop'] }).reserved_short_names, ['intranet', 'shop']);
 });
 
+test('whether owners change the address, and the cooldown, travel through a save unchanged', () => {
+  // UC-INS-19 check 3: the settings screen draws neither, and a `PUT` without them would switch
+  // owners' changes off and the cooldown back to the product's.
+  const document = documentOf({ owners_change_address: true, address_change_cooldown_days: 14 });
+  assert.equal(document.owners_change_address, true);
+  assert.equal(document.address_change_cooldown_days, 14);
+});
+
 test("a plan's body carries its name, what it leaves out and only what it decides", () => {
   const decided: InstanceSetting = { set: true, value: 6, locked: true, kind: 'COUNT', workspace_may: 'RAISE' };
   const open: InstanceSetting = { set: false, locked: false, kind: 'COUNT', workspace_may: 'RAISE' };

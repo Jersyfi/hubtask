@@ -1015,6 +1015,10 @@ class Client:
         """Change how the workspace is set up"""
         return self._call("PATCH", "/tenant", {}, None, {"If-Match": if_match, "X-Hubtask-Step-Up": step_up}, body, "json", "application/merge-patch+json", "json")
 
+    def change_workspace_address(self, body: "TenantAddressChange", *, step_up: str | None = None) -> "WorkspaceAddressChanged":
+        """The workspace's owner changes its address"""
+        return self._call("POST", "/tenant:change-address", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def list_private_hubs(self) -> dict[str, Any]:
         """The workspace's private hubs, without their names"""
         return self._call("GET", "/private-hubs", {}, None, {}, None, "none", None, "json")

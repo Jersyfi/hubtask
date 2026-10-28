@@ -1021,6 +1021,8 @@ export function stub(route) {
     return route.fulfill({ json: { ...HUB, private: request.postDataJSON().private, version: HUB.version + 1 } });
   }
   if (path.endsWith('/api/v1/tenant') && request.method() === 'GET') return route.fulfill({ json: WORKSPACE });
+  // The notices of a changed address the reader has not seen: none, unless a walk routes them.
+  if (path.endsWith('/api/v1/accounts/me/address-notices') && request.method() === 'GET') return route.fulfill({ json: [] });
   if (path.endsWith('/api/v1/private-hubs') && request.method() === 'GET') return route.fulfill({ json: PRIVATE_HUBS });
   // A hub's emergency accesses, and the reader's own notices: none, unless a walk routes them.
   if (/\/api\/v1\/private-hubs\/[^/]+\/accesses$/.test(path) && request.method() === 'GET') return route.fulfill({ json: [] });

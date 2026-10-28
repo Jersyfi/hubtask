@@ -271,7 +271,16 @@ acknowledged. It is refused for a workspace pending deletion, at the field as pr
 name or host, and as `admin.address_lockout_self` or `admin.address_lockout_owner` (with `reason`
 `way_in` or `factor`) while the caller or every owner lacks a lasting way in; the proof is a password
 or provider step-up ([identity.md](./identity.md) §16.2). A dry run checks all of it but the proof
-and answers who is told. With subdomains the same short name is accepted while the main row names
+and answers who is told. *Built* for the owner as well - `POST /tenant:change-address` and the
+workspace's *Address* screen under "Workspace and people": the same change, refusals, lockout rule,
+proof and notices, behind the installation's `owners_change_address` (off by default; always off in
+single mode, `access.address_change_not_allowed`), the caller's `OWNER` on the workspace
+(`access.owner_required`) and the cooldown, `address_change_cooldown_days` (30 where unset, 1-365),
+measured by the `Clock` from the last change of the address by anybody (`tenant.address_changed_at`,
+migration 0210) and checked again under the row's lock inside the change; inside it the change is
+refused as `access.address_change_cooldown` naming `possible_at`, and the screen names the day. The
+operator is held by neither. `GET /tenant` answers the main address and whether the reader may change
+it as `address`; an owner's change is in the workspace's trail only, not the instance journal. With subdomains the same short name is accepted while the main row names
 another host: it is how a workspace moves beneath a changed `HUBTASK_BASE_URL`, whose old rows
 `ensure_main_hosts` leaves as they are.
 An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
@@ -282,8 +291,10 @@ host instead of a subdomain, refuse it at the field as `admin.host_invalid`,
 make the short name - still the workspace's identifier for `hubctl` and the API - from its first
 label where none is given. Such an installation's start writes no subdomain rows, and the
 control plane's reads answer each workspace's main address as `host`. The installation's settings hold whether owners may change the
-address (default off) and set up own domains (default off), the cooldown (30 days) and the
-operator's reserved short names beside the product's list.
+address (`owners_change_address`, default off, *built*) and set up own domains (default off), the
+cooldown (`address_change_cooldown_days`, 30 days, *built*) and the operator's reserved short names
+beside the product's list - each through the instance file, `hubctl admin settings set` and
+`PUT /admin/settings`, which the installation's settings screen sends back as it read them.
 
 ---
 

@@ -55,9 +55,8 @@ type WorkspaceWriter struct {
 	// wired before the instance layer, where a patch that touches the policy is refused rather
 	// than written into a row nothing would read.
 	Resolver SignInPolicyResolver
-	// Hosts is the hosts this workspace answers at. Optional: a build wired without it
-	// answers none, which is what an installation whose workspaces predate migration 0104 has -
-	// and nothing resolves a request through them, so an empty list costs nobody anything.
+	// Hosts is the hosts this workspace answers at, the main one among them. Optional: a build
+	// wired without it answers none, and the address falls back to what the short name makes.
 	Hosts repository.TenantHosts
 	// Providers is the workspace's ways in beside the password, so that switching the password off
 	// is refused where no provider is on (UC-ID-12 check 6). Nil counts none.
@@ -79,6 +78,8 @@ type WorkspaceWriter struct {
 	// Starter decides starter_offered: whether a client asks this reader what the workspace is
 	// used for (UC-WRK-30 check 5). Nil asks nobody.
 	Starter StarterReader
+	// Address answers the main address and who may change it. Unwired, it is not answered.
+	Address WorkspaceAddressReader
 }
 
 // StarterReader answers whether the first start's question is offered to the reader. Declared here
@@ -136,6 +137,13 @@ func (w WorkspaceWriter) answer(
 			return nil, err
 		}
 		out["structure"] = structure
+	}
+	address, err := w.Address.addressOutput(ctx, w.UnitOfWork, actor, standing.Slug, hosts)
+	if err != nil {
+		return nil, err
+	}
+	if address != nil {
+		out["address"] = address
 	}
 	out["starter_offered"] = false
 	if w.Starter != nil {
@@ -454,9 +462,8 @@ func workspaceOutput(
 		}
 		out["password_opening"] = answer
 	}
-	// The hosts this workspace answers at. Read-only and absent where there are none: the
-	// canonical one is derived from the slug and nothing resolves a request through the table yet,
-	// so an empty array would read as "this workspace is reachable nowhere".
+	// The hosts this workspace answers at. Read-only and absent where there are none, which an
+	// empty array would misread as "this workspace is reachable nowhere".
 	if len(hosts) > 0 {
 		rows := make([]usecase.Output, 0, len(hosts))
 		for _, host := range hosts {

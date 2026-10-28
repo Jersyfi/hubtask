@@ -95,6 +95,12 @@ func (c *RestController) WriteInstanceSettings(
 	if body.ReservedShortNames != nil {
 		in["reserved_short_names"] = *body.ReservedShortNames
 	}
+	if body.OwnersChangeAddress != nil {
+		in["owners_change_address"] = *body.OwnersChangeAddress
+	}
+	if body.AddressChangeCooldownDays != nil {
+		in["address_change_cooldown_days"] = *body.AddressChangeCooldownDays
+	}
 	// The body's `version` is read-only and ignored: the version a save was made on travels in
 	// `If-Match`, as everywhere else in the API.
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
@@ -243,6 +249,12 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 			}
 		}
 		answer.ReservedShortNames = &reserved
+	}
+	if owners, held := out["owners_change_address"].(bool); held {
+		answer.OwnersChangeAddress = &owners
+	}
+	if cooldown, held := out["address_change_cooldown_days"].(int); held {
+		answer.AddressChangeCooldownDays = &cooldown
 	}
 	if source := out.String("source"); source != "" {
 		answer.Source = &source

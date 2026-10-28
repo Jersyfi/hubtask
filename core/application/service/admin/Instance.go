@@ -279,6 +279,12 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	if !slices.Equal(before.ReservedShortNames, after.ReservedShortNames) {
 		moved = append(moved, "reserved_short_names")
 	}
+	if before.OwnersChangeAddress != after.OwnersChangeAddress {
+		moved = append(moved, "owners_change_address")
+	}
+	if before.AddressCooldownDays != after.AddressCooldownDays {
+		moved = append(moved, "address_change_cooldown_days")
+	}
 	return moved
 }
 
@@ -574,6 +580,16 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Description: "The operator's own short names no new workspace may take, beside " +
 					"the product's list; each also reserves its plural. A workspace that already " +
 					"carries one keeps it.",
+			},
+			{
+				Name: "owners_change_address", Kind: usecase.KindBool,
+				Description: "Whether a workspace's owners may change its address themselves, in " +
+					"multi mode. Off by default: the operator's change is the only one.",
+			},
+			{
+				Name: "address_change_cooldown_days", Kind: usecase.KindInt,
+				Description: "The days after a change of a workspace's address before its owners " +
+					"may change it again, 1-365; 30 where none is set. The operator is never held.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,

@@ -1695,6 +1695,10 @@ func (pending) ChangeTenantAddress(w http.ResponseWriter, r *http.Request, _ ope
 	notAvailable(w, r)
 }
 
+func (pending) ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request, _ openapi.ChangeWorkspaceAddressParams) {
+	notAvailable(w, r)
+}
+
 func (pending) ListAddressNotices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {

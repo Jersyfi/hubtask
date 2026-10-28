@@ -186,6 +186,8 @@ export type {
   TenantAddressChange,
   TenantAddressChanged,
   AddressChangeNotice,
+  WorkspaceAddress,
+  WorkspaceAddressChanged,
   InstallationPreset,
   InstallationPresetCreate,
   InstallationPresetUpdate,

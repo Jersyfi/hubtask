@@ -8513,6 +8513,9 @@ type InstanceSettingWorkspaceMay string
 // InstanceSettings The installation's own level: the sign-in switches, the legal links, the localisation defaults, the quota ceilings and which AI workspaces may use.
 // **Every key of every area is answered**, decided or not, with `set` saying which. A reader has to be able to see that a setting exists and that this installation has left it to each workspace — a different fact from the setting not existing, and the only way a screen can draw the level without keeping a list that would be wrong the day one is added.
 type InstanceSettings struct {
+	// AddressChangeCooldownDays The days after a change of a workspace's address - by anybody - before its owners may change it again. 30 where the installation decides nothing; the operator is never held by it. A value outside 1-365 is refused (`admin.address_cooldown_invalid`).
+	AddressChangeCooldownDays *int `json:"address_change_cooldown_days,omitempty"`
+
 	// Ai Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.
 	// A workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.
 	Ai *map[string]InstanceSetting `json:"ai,omitempty"`
@@ -8533,6 +8536,9 @@ type InstanceSettings struct {
 
 	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
 	Metering *bool `json:"metering,omitempty"`
+
+	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
+	OwnersChangeAddress *bool `json:"owners_change_address,omitempty"`
 
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
@@ -13074,6 +13080,9 @@ type WorkItemUpdate struct {
 
 // Workspace A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on.
 type Workspace struct {
+	// Address The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+	Address *WorkspaceAddress `json:"address,omitempty"`
+
 	// AuditAnchorTargetId The workspace's backup target the audit chain's end is anchored to once a day, or null where anchoring is off. Read here, because a screen that sets a value it cannot read back is guessing; written through `PUT /audit/anchoring` and nowhere else, which is where the write is audited with the target before and after. A body naming it on the `PATCH` is refused as an unknown field.
 	AuditAnchorTargetId *openapi_types.UUID `json:"audit_anchor_target_id,omitempty"`
 	CreatedAt           time.Time           `json:"created_at"`
@@ -13088,8 +13097,8 @@ type Workspace struct {
 	DefaultWeekStart *WorkspaceDefaultWeekStart `json:"default_week_start,omitempty"`
 	DisplayName      string                     `json:"display_name"`
 
-	// Hosts The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.
-	// Absent where there are none, which is every workspace provisioned before the table existed. An empty array would read as "this workspace is reachable nowhere".
+	// Hosts The hosts this workspace answers at, read-only: one host per row, a state, and which of them is canonical - the main address every link Hubtask writes names. In multi mode a request's host finds its workspace through them.
+	// Absent where there are none: in single mode, and for a workspace whose main row the next start of a multi-mode server has not written yet. An empty array would read as "this workspace is reachable nowhere".
 	Hosts *[]WorkspaceHost   `json:"hosts,omitempty"`
 	Id    openapi_types.UUID `json:"id"`
 
@@ -13133,6 +13142,41 @@ type WorkspaceDefaultWeekStart string
 
 // WorkspaceStatus The workspace's standing. A suspended one refuses every request before a use case is reached, so a member reading this field is reading it from an installation that let them in.
 type WorkspaceStatus string
+
+// WorkspaceAddress The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
+type WorkspaceAddress struct {
+	// ChangeableFrom Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.
+	ChangeableFrom *time.Time `json:"changeable_from,omitempty"`
+
+	// ChangedAt The last change of the address, by anybody; null where it never changed.
+	ChangedAt *time.Time `json:"changed_at,omitempty"`
+
+	// Host The main address, the host every link Hubtask writes names.
+	Host string `json:"host"`
+
+	// MayChange Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.
+	MayChange bool `json:"may_change"`
+
+	// OwnersMayChange Whether this installation lets the workspace's owners change the address. Always false in single mode.
+	OwnersMayChange bool `json:"owners_may_change"`
+}
+
+// WorkspaceAddressChanged defines model for WorkspaceAddressChanged.
+type WorkspaceAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int `json:"members_told_at_sign_in"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
 
 // WorkspaceHost One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish.
 type WorkspaceHost struct {
@@ -14669,6 +14713,12 @@ type SetWorkspaceStructureParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ChangeWorkspaceAddressParams defines parameters for ChangeWorkspaceAddress.
+type ChangeWorkspaceAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // ListTrashParams defines parameters for ListTrash.
 type ListTrashParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -15264,6 +15314,9 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
+
+// ChangeWorkspaceAddressJSONRequestBody defines body for ChangeWorkspaceAddress for application/json ContentType.
+type ChangeWorkspaceAddressJSONRequestBody = TenantAddressChange
 
 // CreateSavedViewJSONRequestBody defines body for CreateSavedView for application/json ContentType.
 type CreateSavedViewJSONRequestBody = SavedViewCreate
@@ -16422,6 +16475,9 @@ type ServerInterface interface {
 
 	// (PATCH /tenant/structure)
 	SetWorkspaceStructure(w http.ResponseWriter, r *http.Request, params SetWorkspaceStructureParams)
+	// ChangeWorkspaceAddress The workspace's owner changes its address
+	// (POST /tenant:change-address)
+	ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request, params ChangeWorkspaceAddressParams)
 	// ListTrash What is in the trash
 	// (GET /trash)
 	ListTrash(w http.ResponseWriter, r *http.Request, params ListTrashParams)
@@ -29527,6 +29583,47 @@ func (siw *ServerInterfaceWrapper) SetWorkspaceStructure(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// ChangeWorkspaceAddress operation middleware
+func (siw *ServerInterfaceWrapper) ChangeWorkspaceAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeWorkspaceAddressParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeWorkspaceAddress(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListTrash operation middleware
 func (siw *ServerInterfaceWrapper) ListTrash(w http.ResponseWriter, r *http.Request) {
 
@@ -30397,6 +30494,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/quotas", wrapper.ReadQuotas)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant", wrapper.ReadWorkspace)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant", wrapper.UpdateWorkspace)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant:change-address", wrapper.ChangeWorkspaceAddress)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs", wrapper.ListPrivateHubs)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.ListPrivateHubAccesses)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/private-hubs/{hubId}/accesses", wrapper.OpenPrivateHub)

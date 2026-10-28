@@ -15,9 +15,17 @@
  * (ADR-0025), which is what the `If-Match` here is for.
  */
 
-import type { ResourceState, WorkspaceStructure, WorkspaceStructureChange } from '@hubtask/sync-engine';
+import type {
+  ResourceState,
+  TenantAddressChange,
+  WorkspaceAddress,
+  WorkspaceAddressChanged,
+  WorkspaceStructure,
+  WorkspaceStructureChange,
+} from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
+import { stepUp } from './stepup.svelte.ts';
 
 const PATH = '/tenant';
 
@@ -57,6 +65,8 @@ export interface Workspace {
   readonly structure?: WorkspaceStructure;
   /** Whether to ask this reader, once, what the workspace is used for (UC-WRK-30 check 5). */
   readonly starter_offered?: boolean;
+  /** The main address, and whether this reader may change it now (UC-INS-19 check 3). */
+  readonly address?: WorkspaceAddress;
 }
 
 /** What may move. Every key optional, which is what merge-patch means. */
@@ -116,6 +126,21 @@ class WorkspaceStore {
    */
   async closeStarter(): Promise<void> {
     await engine.mutate<void>('POST', `${PATH}/starter:close`, undefined, { invalidates: [PATH] });
+  }
+
+  /**
+   * The owner changes the workspace's address where the installation allows it (UC-INS-19 check 3),
+   * or with `dry_run` asks what the change would be. The change takes a proof by password or
+   * provider, which the refusal names; it ends every session here, this one included.
+   */
+  async changeAddress(change: TenantAddressChange): Promise<WorkspaceAddressChanged> {
+    const path = `${PATH}:change-address`;
+    if (change.dry_run) {
+      return engine.mutate<WorkspaceAddressChanged>('POST', path, change, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<WorkspaceAddressChanged>('POST', path, change, { stepUpToken, invalidates: [PATH] }),
+    );
   }
 
   async change(body: WorkspaceChange): Promise<Workspace> {

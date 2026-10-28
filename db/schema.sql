@@ -162,6 +162,9 @@ CREATE TABLE tenant (
   -- The first start's question was answered or skipped (0197, UC-WRK-30 check 5): nobody is asked
   -- again.
   starter_answered_at       timestamptz,
+  -- When the workspace's address last changed (0210, multi-tenancy.md §3.1): an owner's change
+  -- waits out the installation's cooldown from it.
+  address_changed_at        timestamptz,
   CONSTRAINT tenant_password_opening_whole_check
     CHECK (num_nulls(password_opened_until, password_opened_requester, password_opened_reason) IN (0, 3))
 );

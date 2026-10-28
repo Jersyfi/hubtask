@@ -57,6 +57,7 @@ export const ROUTES: readonly Route[] = [
   // fails rather than quietly shipping in the mobile shell.
   { name: 'administration', pattern: '/administration', area: 'administration' },
   { name: 'workspace-settings', pattern: '/administration/workspace', area: 'administration' },
+  { name: 'workspace-address', pattern: '/administration/address', area: 'administration' },
   { name: 'presets', pattern: '/administration/presets', area: 'administration' },
   { name: 'people', pattern: '/administration/people', area: 'administration' },
   // Kept as addresses that moved (`movedTo`): the groups and the roles are tabs of *People* now.

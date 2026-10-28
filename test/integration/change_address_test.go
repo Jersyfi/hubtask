@@ -179,3 +179,43 @@ func TestAChangeOfAddressStaysInItsWorkspace(t *testing.T) {
 		t.Errorf("the moving workspace's main row became %q", host)
 	}
 }
+
+// UC-INS-19 check 3 against the database (migration 0210): every change of address stamps its
+// workspace's row, which the owner's cooldown is measured from, read plain or under the row's lock -
+// and a change in one workspace stamps no other's.
+func TestAChangeOfAddressStampsOnlyItsWorkspace(t *testing.T) {
+	ctx := context.Background()
+	seedMovingTenants(ctx, t)
+	_, _, uow := realWriter(ctx, t)
+	addresses := postgres.NewWorkspaceAddressRepository()
+	at := time.Date(2026, 10, 14, 9, 30, 0, 0, time.UTC)
+
+	inTenant(t, uow, movingTenant, func(ctx context.Context) error {
+		last, err := addresses.LastAddressChange(ctx)
+		if err != nil || !last.IsZero() {
+			t.Errorf("before any change: %v, %v", last, err)
+		}
+		_, err = addresses.ChangeAddress(ctx, "move-stamped", mainRow(t, "move-stamped.hub.example"), at)
+		return err
+	})
+	inTenant(t, uow, movingTenant, func(ctx context.Context) error {
+		for name, read := range map[string]func(context.Context) (time.Time, error){
+			"plain": addresses.LastAddressChange, "locked": addresses.LockAddressChange,
+		} {
+			last, err := read(ctx)
+			if err != nil || !last.Equal(at) {
+				t.Errorf("%s read after the change: %v, %v", name, last, err)
+			}
+		}
+		return nil
+	})
+
+	// Cross-tenant negative (SG-3): the other workspace reads its own row, never changed.
+	inTenant(t, uow, takingTenant, func(ctx context.Context) error {
+		last, err := addresses.LockAddressChange(ctx)
+		if err != nil || !last.IsZero() {
+			t.Errorf("the other workspace's last change: %v, %v", last, err)
+		}
+		return nil
+	})
+}

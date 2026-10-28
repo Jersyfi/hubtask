@@ -57,7 +57,8 @@ func (q *Queries) AddressChangeNoticesOf(ctx context.Context, accountID pgtype.U
 const changeTenantSlug = `-- name: ChangeTenantSlug :execrows
 
 UPDATE tenant
-SET slug = $1, version = version + 1, updated_at = $2
+SET slug = $1, version = version + 1, updated_at = $2,
+    address_changed_at = $2
 WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
   AND status <> 'PENDING_DELETION'
 `
@@ -70,7 +71,7 @@ type ChangeTenantSlugParams struct {
 // A change of a workspace's address (multi-tenancy.md §3.1, ADR-0095 §3). Every statement is bounded
 // to the transaction's workspace by row level security or by current_tenant_id(); none takes a tenant.
 // The short name moves with a subdomain; a name another workspace holds is the unique index's
-// refusal. Refused once the workspace is leaving.
+// refusal. Refused once the workspace is leaving. The moment starts an owner's cooldown (0210).
 func (q *Queries) ChangeTenantSlug(ctx context.Context, arg ChangeTenantSlugParams) (int64, error) {
 	result, err := q.db.Exec(ctx, changeTenantSlug, arg.Slug, arg.Now)
 	if err != nil {
@@ -102,6 +103,18 @@ func (q *Queries) DropMainTenantHost(ctx context.Context) ([]string, error) {
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockTenantAddressChangedAt = `-- name: LockTenantAddressChangedAt :one
+SELECT address_changed_at FROM tenant WHERE id = current_tenant_id() FOR UPDATE
+`
+
+// The same, holding the row: two owners' changes cannot both pass the cooldown.
+func (q *Queries) LockTenantAddressChangedAt(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, lockTenantAddressChangedAt)
+	var address_changed_at pgtype.Timestamptz
+	err := row.Scan(&address_changed_at)
+	return address_changed_at, err
 }
 
 const peopleToTellOfAddress = `-- name: PeopleToTellOfAddress :many
@@ -176,4 +189,16 @@ func (q *Queries) RevokeWorkspaceSessions(ctx context.Context, revokedAt pgtype.
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const tenantAddressChangedAt = `-- name: TenantAddressChangedAt :one
+SELECT address_changed_at FROM tenant WHERE id = current_tenant_id()
+`
+
+// When the transaction's workspace last changed its address; NULL where it never did.
+func (q *Queries) TenantAddressChangedAt(ctx context.Context) (pgtype.Timestamptz, error) {
+	row := q.db.QueryRow(ctx, tenantAddressChangedAt)
+	var address_changed_at pgtype.Timestamptz
+	err := row.Scan(&address_changed_at)
+	return address_changed_at, err
 }

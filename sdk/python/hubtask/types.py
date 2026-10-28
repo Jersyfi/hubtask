@@ -537,6 +537,7 @@ class Workspace(TypedDict, total=False):
     """A workspace as the people inside it see it. `AdminTenant` is the same row as the installation operator sees it, across workspaces; this one is answered to a member and carries what a member may act on."""
     id: Required[str]
     slug: Required[str]
+    address: "WorkspaceAddress"
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: Required[str]
@@ -555,6 +556,22 @@ class Workspace(TypedDict, total=False):
     starter_offered: bool
     hosts: list["WorkspaceHost"]
     password_opening: "WorkspacePasswordOpening"
+
+class WorkspaceAddress(TypedDict, total=False):
+    """The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown."""
+    host: Required[str]
+    owners_may_change: Required[bool]
+    may_change: Required[bool]
+    changed_at: str | None
+    changeable_from: str | None
+
+WorkspaceAddressChanged = TypedDict("WorkspaceAddressChanged", {
+    "from": Required[str],
+    "to": str,
+    "members_mailed": Required[int],
+    "members_told_at_sign_in": Required[int],
+    "dry_run": Required[bool],
+}, total=False)
 
 class WorkspaceHost(TypedDict, total=False):
     """One host a workspace answers at. The canonical one is derived from the slug under the installation's own domain and is verified by construction - the installation already answers at it - so it carries no verification mark to publish."""
@@ -910,6 +927,8 @@ class InstanceSettings(TypedDict, total=False):
     blocklist_file: str
     metering: bool
     reserved_short_names: list[str]
+    owners_change_address: bool
+    address_change_cooldown_days: int
     source: str
     is_enforced_from_file: bool
     version: int

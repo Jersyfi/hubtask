@@ -41,7 +41,7 @@
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { plans } from '../lib/data/plans.svelte.ts';
   import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
-  import ChangeAddressDialog from '../lib/instance/ChangeAddressDialog.svelte';
+  import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
@@ -473,9 +473,14 @@
 
 <MovePlanDialog tenant={moving} onclose={() => (moving = undefined)} />
 <ChangeAddressDialog
-  tenant={changing}
-  {workspaces}
+  subject={changing ? { id: changing.id, name: changing.display_name, slug: changing.slug, host: changing.host ?? undefined } : undefined}
+  isTaken={(typed) =>
+    workspaces.some((each) =>
+      each.id !== changing?.id &&
+      (manifest.hasAssignedHosts ? each.host === typed : each.slug.toLowerCase() === typed),
+    )}
   isAssigned={manifest.hasAssignedHosts}
+  change={(body) => instance.changeAddress(changing?.id ?? '', body)}
   onclose={() => (changing = undefined)}
 />
 

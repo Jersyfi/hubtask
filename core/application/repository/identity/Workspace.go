@@ -48,6 +48,15 @@ type MainHosts interface {
 	EnsureMain(ctx context.Context, baseHost string) (int, error)
 }
 
+// AddressChanges answers when the transaction's workspace last changed its address (migration
+// 0210): zero where it never did. An owner's change waits out the installation's cooldown from it.
+type AddressChanges interface {
+	LastAddressChange(ctx context.Context) (time.Time, error)
+	// LockAddressChange answers the same and holds the workspace's row until the transaction
+	// ends, so that two owners' changes cannot both pass the cooldown.
+	LockAddressChange(ctx context.Context) (time.Time, error)
+}
+
 // AddressChangeNotices holds what a member without an email address is told of a change of the
 // workspace's address at the next sign-in (migration 0209), bounded to the transaction's workspace.
 type AddressChangeNotices interface {

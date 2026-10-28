@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 
@@ -31,7 +32,39 @@ var (
 	_ adminrepo.TenantAddresses       = WorkspaceAddressRepository{}
 	_ adminrepo.AddressAudience       = WorkspaceAddressRepository{}
 	_ repository.AddressChangeNotices = WorkspaceAddressRepository{}
+	_ repository.AddressChanges       = WorkspaceAddressRepository{}
 )
+
+func (WorkspaceAddressRepository) LastAddressChange(ctx context.Context) (time.Time, error) {
+	return lastAddressChange(ctx, false)
+}
+
+func (WorkspaceAddressRepository) LockAddressChange(ctx context.Context) (time.Time, error) {
+	return lastAddressChange(ctx, true)
+}
+
+func lastAddressChange(ctx context.Context, lock bool) (time.Time, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return time.Time{}, err
+	}
+	read := queries.TenantAddressChangedAt
+	if lock {
+		read = queries.LockTenantAddressChangedAt
+	}
+	at, err := read(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return time.Time{}, shared.ErrNotFound.WithDetail("admin.tenant_not_found")
+	}
+	if err != nil {
+		return time.Time{}, shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the last change of address: %w", err))
+	}
+	if !at.Valid {
+		return time.Time{}, nil
+	}
+	return at.Time, nil
+}
 
 // tenantSlugIndex is the tenant table's unique short name.
 const tenantSlugIndex = "tenant_slug_key"

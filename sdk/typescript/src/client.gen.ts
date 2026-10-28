@@ -1281,6 +1281,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant", {  }, undefined, { "If-Match": options.ifMatch, "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/merge-patch+json", "json", options.signal);
   }
 
+  /** The workspace's owner changes its address */
+  changeWorkspaceAddress(body: NonNullable<operations["changeWorkspaceAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["changeWorkspaceAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant:change-address", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The workspace's private hubs, without their names */
   listPrivateHubs(options: CallOptions = {}): Promise<operations["listPrivateHubs"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/private-hubs", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

@@ -109,6 +109,13 @@ func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 		reserved = append(reserved, name)
 	}
 	out["reserved_short_names"] = reserved
+	out["owners_change_address"] = level.OwnersChangeAddress
+	// Answered as in force, so a screen or a terminal that sends the level back keeps it.
+	cooldown := level.AddressCooldownDays
+	if cooldown == 0 {
+		cooldown = identity.DefaultAddressCooldownDays
+	}
+	out["address_change_cooldown_days"] = cooldown
 	return out
 }
 
@@ -365,6 +372,14 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 	}
 	if level.ReservedShortNames, err = identity.ValidReservedShortNames(reserved); err != nil {
 		return identityrepo.InstanceLevel{}, err
+	}
+	level.OwnersChangeAddress = in.Bool("owners_change_address")
+	if level.AddressCooldownDays, err = identity.ValidAddressCooldownDays(in.Int("address_change_cooldown_days")); err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
+	// The default sent back as it was read is no decision: it stays unset, and follows the product.
+	if level.AddressCooldownDays == identity.DefaultAddressCooldownDays {
+		level.AddressCooldownDays = 0
 	}
 	return level, nil
 }

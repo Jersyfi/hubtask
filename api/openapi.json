@@ -8578,7 +8578,7 @@
         ],
         "operationId": "updateWorkspace",
         "summary": "Change how the workspace is set up",
-        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its \"no loosening\" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.\nThe slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
+        "description": "Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.\n`require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its \"no loosening\" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.\nThe slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` and, where the installation allows it, the owners' `POST /tenant:change-address` - never a patch. A body naming it is refused as an unknown field rather than accepted and quietly ignored.\n`sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.\nSettings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.\n",
         "parameters": [
           {
             "$ref": "#/components/parameters/IfMatch"
@@ -8604,6 +8604,46 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Workspace"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant:change-address": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "changeWorkspaceAddress",
+        "summary": "The workspace's owner changes its address",
+        "description": "The owners' door to the change `POST /admin/tenants/{tenantId}:change-address` makes, where the installation lets owners change the address (`owners_change_address`): the same new address, the same refusals at the field, the same lockout rule, the same proof by password or provider - never a passkey - and the same notices. The old address is free at once and everybody signs in again. In the workspace's trail.\nNeeds the caller to hold `OWNER` on the workspace (`access.owner_required`). Refused with `access.address_change_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode, and with `access.address_change_cooldown` while the last change of the address is more recent than the installation's cooldown; `params.possible_at` names the day from which a change is possible again. `GET /tenant` answers all of it beforehand as `address`.\nWith `dry_run` it checks everything but the proof and writes nothing.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantAddressChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
                 }
               }
             }
@@ -17613,6 +17653,9 @@
             "type": "string",
             "description": "The subdomain label the workspace is reached by in multi mode. Read-only here - see the note on the `PATCH`.\n"
           },
+          "address": {
+            "$ref": "#/components/schemas/WorkspaceAddress"
+          },
           "display_name": {
             "type": "string"
           },
@@ -17704,12 +17747,82 @@
             "items": {
               "$ref": "#/components/schemas/WorkspaceHost"
             },
-            "description": "The hosts this workspace answers at. **Read-only, and nothing resolves a request through them yet**: a workspace is still found from its slug, and what this answers is the model a custom domain will need - one host per row, a state, and which of them is canonical.\nAbsent where there are none, which is every workspace provisioned before the table existed. An empty array would read as \"this workspace is reachable nowhere\".\n"
+            "description": "The hosts this workspace answers at, read-only: one host per row, a state, and which of them is canonical - the main address every link Hubtask writes names. In multi mode a request's host finds its workspace through them.\nAbsent where there are none: in single mode, and for a workspace whose main row the next start of a multi-mode server has not written yet. An empty array would read as \"this workspace is reachable nowhere\".\n"
           },
           "password_opening": {
             "$ref": "#/components/schemas/WorkspacePasswordOpening",
             "readOnly": true,
             "description": "The installation operator's opening of the password for this workspace, while it is in force: the password is open for every account that holds one, whatever `sign_in_policy.methods` says, until `until`. Absent otherwise. Written by the control plane alone; a body naming it on the `PATCH` is refused as an unknown field.\n"
+          }
+        }
+      },
+      "WorkspaceAddress": {
+        "type": "object",
+        "readOnly": true,
+        "required": [
+          "host",
+          "owners_may_change",
+          "may_change"
+        ],
+        "description": "The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.\n",
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "The main address, the host every link Hubtask writes names."
+          },
+          "owners_may_change": {
+            "type": "boolean",
+            "description": "Whether this installation lets the workspace's owners change the address. Always false in single mode.\n"
+          },
+          "may_change": {
+            "type": "boolean",
+            "description": "Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.\n"
+          },
+          "changed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "The last change of the address, by anybody; null where it never changed."
+          },
+          "changeable_from": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.\n"
+          }
+        }
+      },
+      "WorkspaceAddressChanged": {
+        "type": "object",
+        "required": [
+          "from",
+          "members_mailed",
+          "members_told_at_sign_in",
+          "dry_run"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "description": "The main address before the change."
+          },
+          "to": {
+            "type": "string",
+            "description": "The main address after it. Absent on a dry run without a new address."
+          },
+          "members_mailed": {
+            "type": "integer",
+            "description": "The members with an email address, who are mailed the old and the new address."
+          },
+          "members_told_at_sign_in": {
+            "type": "integer",
+            "description": "The members without one, who are told at their next sign-in."
+          },
+          "dry_run": {
+            "type": "boolean"
           }
         }
       },
@@ -19324,6 +19437,16 @@
               "type": "string"
             },
             "description": "The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.\n"
+          },
+          "owners_change_address": {
+            "type": "boolean",
+            "description": "Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.\n"
+          },
+          "address_change_cooldown_days": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 365,
+            "description": "The days after a change of a workspace's address - by anybody - before its owners may change it again. 30 where the installation decides nothing; the operator is never held by it. A value outside 1-365 is refused (`admin.address_cooldown_invalid`).\n"
           },
           "source": {
             "type": "string",

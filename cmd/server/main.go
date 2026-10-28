@@ -1403,9 +1403,14 @@ func run() error {
 	workspaceWriter := identity.WorkspaceWriter{
 		Workspaces: postgres.NewWorkspaceSettingsRepository(),
 		People:     postgres.NewPrivateHubRepository(),
-		// The hosts the workspace answers at. Read-only: nothing resolves a request
-		// through them yet.
+		// The hosts the workspace answers at, the main one first.
 		Hosts: postgres.NewTenantHostRepository(),
+		// The main address and who may change it, for the workspace's *Address* screen.
+		Address: identity.WorkspaceAddressReader{
+			Tenancy: cfg.Tenancy, InstallationHost: installationHost,
+			Settings: postgres.NewInstanceSettingRepository(),
+			Changes:  postgres.NewWorkspaceAddressRepository(), Owners: grants, Clock: clockadapter.System{},
+		},
 		// The workspace's structure, answered beside its sign-in rule.
 		Structure: work.WorkspaceStructureAnswer{Resolver: structures, UnitOfWork: unitOfWork},
 		Starter:   starter,
@@ -1714,6 +1719,24 @@ func run() error {
 		// An enforcing file that names subscriptions decides them, and the API's writes are refused;
 		// one that names none leaves them to the API and the screen.
 		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
+	}
+	// A change of a workspace's address (multi-tenancy.md §3.1): the lockout read through the
+	// session writer, the proof by password or provider only, an owner's cooldown from the last change.
+	changeAddress := adminservice.ChangeTenantAddress{
+		Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
+		Addresses: postgres.NewWorkspaceAddressRepository(),
+		Audience:  postgres.NewWorkspaceAddressRepository(),
+		Notices: notification.RecordAddressChange{
+			Jobs: jobs, Notices: postgres.NewWorkspaceAddressRepository(),
+		},
+		Owners: grants, Ways: identity.LastingWays{Writer: sessionWriter},
+		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{}, Domains: domains,
+		Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
+		InstallationHost: installationHost, Settings: postgres.NewInstanceSettingRepository(),
+		Changes: postgres.NewWorkspaceAddressRepository(),
 	}
 	useCases, err := usecase.NewRegistry(
 		entitlementGate.Wrap(observer.Registry()),
@@ -2688,23 +2711,10 @@ func run() error {
 		// and the register through the instance writer, the step-up through the session's verifier.
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
-		// An operator's change of a workspace's address (multi-tenancy.md §3.1): the lockout read
-		// through the session writer, the proof by password or provider only.
-		adminservice.ChangeTenantAddress{
-			Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
-			Addresses: postgres.NewWorkspaceAddressRepository(),
-			Audience:  postgres.NewWorkspaceAddressRepository(),
-			Notices: notification.RecordAddressChange{
-				Jobs: jobs, Notices: postgres.NewWorkspaceAddressRepository(),
-			},
-			Owners: grants, Ways: identity.LastingWays{Writer: sessionWriter},
-			Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
-			StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
-			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
-			Entropy: clockadapter.CryptoRandom{}, Domains: domains,
-			Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
-			InstallationHost: installationHost, Settings: postgres.NewInstanceSettingRepository(),
-		}.Descriptor(),
+		// A change of a workspace's address: the operator's always, the owners' where the
+		// installation allows it.
+		changeAddress.Descriptor(),
+		adminservice.ChangeWorkspaceAddress{Change: changeAddress, Authorizer: authorizer}.Descriptor(),
 		identity.ListAddressNotices{
 			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),

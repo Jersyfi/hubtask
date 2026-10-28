@@ -3,11 +3,20 @@
 
 -- name: ChangeTenantSlug :execrows
 -- The short name moves with a subdomain; a name another workspace holds is the unique index's
--- refusal. Refused once the workspace is leaving.
+-- refusal. Refused once the workspace is leaving. The moment starts an owner's cooldown (0210).
 UPDATE tenant
-SET slug = sqlc.arg('slug'), version = version + 1, updated_at = sqlc.arg('now')
+SET slug = sqlc.arg('slug'), version = version + 1, updated_at = sqlc.arg('now'),
+    address_changed_at = sqlc.arg('now')
 WHERE id = current_tenant_id() AND deleted_at IS NULL AND purge_started_at IS NULL
   AND status <> 'PENDING_DELETION';
+
+-- name: TenantAddressChangedAt :one
+-- When the transaction's workspace last changed its address; NULL where it never did.
+SELECT address_changed_at FROM tenant WHERE id = current_tenant_id();
+
+-- name: LockTenantAddressChangedAt :one
+-- The same, holding the row: two owners' changes cannot both pass the cooldown.
+SELECT address_changed_at FROM tenant WHERE id = current_tenant_id() FOR UPDATE;
 
 -- name: DropMainTenantHost :many
 -- The old main row goes in the change's own transaction, so the old host resolves to nothing at once.

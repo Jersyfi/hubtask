@@ -618,6 +618,8 @@ export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
 export type TenantAddressChange = components['schemas']['TenantAddressChange'];
 export type TenantAddressChanged = components['schemas']['TenantAddressChanged'];
 export type AddressChangeNotice = components['schemas']['AddressChangeNotice'];
+export type WorkspaceAddress = components['schemas']['WorkspaceAddress'];
+export type WorkspaceAddressChanged = components['schemas']['WorkspaceAddressChanged'];
 /**
  * A preset the installation offers every workspace (UC-INS-18): its settings, whether it is the
  * default a new hub starts from, and - on the default - the settings it locks; and what writing one takes.

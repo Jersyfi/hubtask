@@ -67,6 +67,7 @@ import ContainerView from './views/ContainerView.svelte';
   import VoiceView from './views/VoiceView.svelte';
   import MailView from './views/MailView.svelte';
   import WorkspaceSettingsView from './views/WorkspaceSettingsView.svelte';
+  import WorkspaceAddressView from './views/WorkspaceAddressView.svelte';
   import PresetsView from './views/PresetsView.svelte';
   import AiSettingsView from './views/AiSettingsView.svelte';
   import OidcCallbackView from './views/OidcCallbackView.svelte';
@@ -299,6 +300,8 @@ import ContainerView from './views/ContainerView.svelte';
     <AdministrationOverviewView />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
+  {:else if route.name === 'workspace-address'}
+    <WorkspaceAddressView />
   {:else if route.name === 'presets'}
     <PresetsView />
   {:else if route.name === 'people'}

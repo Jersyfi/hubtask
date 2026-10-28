@@ -71,6 +71,12 @@ var areas = map[string]bool{
 	"sign_in": true, "legal": true, "localisation": true, "quotas": true, "ai": true,
 }
 
+// levelKeys are the installation's own values beside the areas, which no workspace decides.
+var levelKeys = map[string]bool{
+	"blocklist_file": true, "metering": true, "reserved_short_names": true,
+	"owners_change_address": true, "address_change_cooldown_days": true,
+}
+
 // Read parses the file at a path into the request body `WriteInstanceSettings` takes.
 //
 // A path that names nothing is not an error: an installation may be configured for a file that has
@@ -99,7 +105,7 @@ func Read(path string) (map[string]any, bool, error) {
 	}
 
 	for name := range document {
-		if !areas[name] && name != "blocklist_file" && name != "metering" && name != "reserved_short_names" && name != aiModelsKey && name != plansKey && name != presetsKey &&
+		if !areas[name] && !levelKeys[name] && name != aiModelsKey && name != plansKey && name != presetsKey &&
 			name != platformSubscriptionsKey {
 			return nil, false, shared.ErrValidation.
 				WithDetail("config.instance_file_area_unknown").

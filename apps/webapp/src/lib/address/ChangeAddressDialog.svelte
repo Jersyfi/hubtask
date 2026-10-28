@@ -1,38 +1,48 @@
 <!-- SPDX-License-Identifier: Apache-2.0
      Copyright (c) 2026 Jérôme Bastian Winkel -->
 <script lang="ts">
-  // The operator changes a workspace's address (UC-INS-19 checks 4 to 8, UC-INS-20 check 4;
-  // multi-tenancy.md §3.1). Before anything is changed the dialog names the new address and what the
+  // A workspace's address changes (UC-INS-19 checks 3 to 8, UC-INS-20 check 4; multi-tenancy.md
+  // §3.1): the operator's from the installation's *Workspaces*, the owner's from the workspace's
+  // *Address* - one dialog, so both say the same. Before anything is changed the dialog names the new address and what the
   // change ends, and who is told - the counts from the server's own dry run. Pressing *Change address*
   // asks the dry run again with the new address, so a refused name or a lockout is said here before a
   // proof is spent; the change itself is confirmed by a password or the provider, never a passkey,
   // which the step-up prompt says.
   //
   // With subdomains the field is the short name, the installation's host drawn after it; where the
-  // installation assigns hosts it is the full host. A name or host another workspace in the list
-  // already answers at is said at the field while it is typed, as on *New workspace*.
+  // installation assigns hosts it is the full host. Where the operator's list knows another
+  // workspace already answers at the name or host, it is said at the field while it is typed, as on
+  // *New workspace*; an owner sees no other workspace, and the server says it.
+
+  import { untrack } from 'svelte';
 
   import { Banner, Button, Dialog, Input, Stack } from '@hubtask/design-system/components';
-  import type { AdminTenant, TenantAddressChanged } from '@hubtask/sync-engine';
+  import type { TenantAddressChange } from '@hubtask/sync-engine';
   import { TransportError } from '@hubtask/sync-engine';
 
-  import { instance } from '../data/instance.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
+  import type { AddressAnswer, AddressSubject } from './change.ts';
 
   interface Props {
-    tenant: AdminTenant | undefined;
-    /** Every workspace the list holds, for the field's "already taken". */
-    workspaces: readonly AdminTenant[];
+    /** The dialog is open while it is set. */
+    subject: AddressSubject | undefined;
+    /** Whether another workspace already answers at the typed name or host, where the caller knows. */
+    isTaken?: (typed: string) => boolean;
     /** Whether the installation assigns hosts (ADR-0095 §6). */
     isAssigned: boolean;
+    /** The change, or with `dry_run` what it would be. */
+    change: (body: TenantAddressChange) => Promise<AddressAnswer>;
     onclose: () => void;
+    /** After the change went through. */
+    onchanged?: (answer: AddressAnswer) => void;
   }
 
-  const { tenant, workspaces, isAssigned, onclose }: Props = $props();
+  const { subject, isTaken = () => false, isAssigned, change: send, onclose, onchanged }: Props = $props();
+  const tenant = $derived(subject);
 
   let value = $state('');
-  let counts = $state<TenantAddressChanged | undefined>(undefined);
+  let counts = $state<AddressAnswer | undefined>(undefined);
   let isWorking = $state(false);
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
   /** The lockout refusal: whose, and what is missing. */
@@ -45,8 +55,8 @@
     failure = undefined;
     lockout = undefined;
     const asked = tenant.id;
-    instance
-      .changeAddress(asked, { dry_run: true })
+    // Untracked: what the call reads is not what this dialog follows.
+    untrack(() => send({ dry_run: true }))
       .then((answer) => {
         if (tenant?.id === asked) counts = answer;
       })
@@ -64,12 +74,7 @@
   });
   const typed = $derived(value.trim().toLowerCase().replace(/\.$/, ''));
   const then = $derived(typed === '' ? '' : isAssigned ? typed : `${typed}.${base}`);
-  const taken = $derived(
-    typed !== '' &&
-      workspaces.some((each) =>
-        each.id !== tenant?.id && (isAssigned ? each.host === typed : each.slug.toLowerCase() === typed),
-      ),
-  );
+  const taken = $derived(typed !== '' && isTaken(typed));
   const fieldError = $derived(
     taken
       ? isAssigned
@@ -91,9 +96,10 @@
     lockout = undefined;
     const address = isAssigned ? { host: value.trim() } : { slug: value.trim() };
     try {
-      await instance.changeAddress(tenant.id, { ...address, dry_run: true });
-      await instance.changeAddress(tenant.id, address);
+      await send({ ...address, dry_run: true });
+      const answer = await send(address);
       onclose();
+      onchanged?.(answer);
     } catch (cause) {
       const code = cause instanceof TransportError ? cause.detailCode : undefined;
       if (code === 'admin.address_lockout_self' || code === 'admin.address_lockout_owner') {
@@ -111,7 +117,7 @@
 </script>
 
 <Dialog
-  title={t('app.instance.address_title', { workspace: tenant?.display_name ?? '' })}
+  title={t('app.instance.address_title', { workspace: tenant?.name ?? '' })}
   isOpen={tenant !== undefined}
   isWide
   dismissLabel={t('app.instance.cancel')}
@@ -126,7 +132,7 @@
   <Stack gap="200">
     {#if lockout}
       <!-- The refusal names what is missing, never the owner: the operator sees no account inside a
-           workspace (P-01). -->
+           workspace (P-01), and an owner is told no more than the operator. -->
       <Banner tone="danger" title={t(`app.instance.address_lockout_${who}_title`)}>
         {t(`app.instance.address_lockout_${who}_${lockout.reason}`)}
       </Banner>
