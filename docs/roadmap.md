@@ -1,6 +1,6 @@
 # Roadmap
 
-What is still ahead on the way to `1.0.0`. What is done is in the closed milestones under
+What is still ahead on the way to `1.0.0`, and the suite after it. What is done is in the closed milestones under
 [`archive/backlog/`](./archive/backlog/); what runs now is in [`backlog/`](./backlog/README.md).
 
 Versioning follows [SemVer](./architecture/versioning-release.md). Before `1.0.0`, minor releases
@@ -247,10 +247,34 @@ Prerequisites for `1.0.0`:
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
-### After `1.0.0`
+### After `1.0.0`: the suite
 
-SAML and SCIM ([`security.md`](./architecture/security.md)), and every requirement that arrives
-after the `0.9.5` window closes, wait for `1.1.0`.
+From `1.1.0` on, Hubtask grows into a work suite (the owner's word of 2026-10-28,
+[ADR-0098](./adr/ADR-0098-the-suite-and-its-foundation.md)): ten products, each a module a
+workspace switches on ([P-17](./vision/principles.md#p-17-depth-is-switched-on-and-starts-from-a-default-that-works)),
+on a foundation that changes first. It is built in concept mode on one integration branch, step by
+step, one worker at a time, and enters `main` through one pull request after a demo of the running
+app; the running plan with every step's state is
+[`backlog/suite/`](./backlog/suite/README.md), the products are in
+[`products.md`](./backlog/suite/products.md) and the foundation in
+[`foundation.md`](./backlog/suite/foundation.md).
+
+**Nothing of it enters the `0.9.5` scope window** (rule 4 above): none of it is a prerequisite of
+`1.0.0`, and none of it is released before `1.1.0`. SAML and SCIM
+([`security.md`](./architecture/security.md)) arrive with it, and every other requirement that
+arrives after the window closes waits for `1.1.0` as before.
+
+| Stage | Steps | What it brings |
+|---|---|---|
+| **The documents and the compliance pack** | S-00, S-01 | the concept in `docs/`; vulnerability disclosure, `security.txt`, advisories, the support period, the reporting runbook (F-13) |
+| **One way to configure** | S-02 settings, S-09 configuration | one settings catalogue with generated screens, the administration in six groups, the module switch (F-5); the configuration document with plan and apply for people, operators and agents, versioned templates (F-6) |
+| **The model** | S-03 types, S-04 fields, S-05 links | a type registry in place of the fixed enum, records without completion (F-1); typed fields with range, sort and group (F-2); typed links, dependencies and references (F-3) |
+| **The write path and the doors** | S-06 forms, S-07 workflows, S-08 roles, S-10 doors | a type's form binding every door; statuses with categories and steps (F-4); custom roles from a permission catalogue; REST and `hubctl` generated from the registry (F-7) |
+| **Reading, scale and live editing** | S-11 query and search, S-12 scale, S-13 realtime | query v2 and a search port (F-9); a slimmer entry table, fair jobs, durable timers, capacity at 10⁶ and 10⁷ entries (F-10); generic sync and a realtime document service (F-8) |
+| **The products** | S-14 … S-23 | knowledge (M3), whiteboards (M4), assets and CMDB with connectors (M6, F-11), the service desk with intake and approvals (M5), planning (M2), time (M7), goals and insight (M8), governed agents (M9, F-12), integrations and migration from issue trackers and wikis (M10) |
+
+Workflows and types (M1) are the stages *the model* and *the write path*. A stage too big for one
+context is split by screen or area.
 
 ### `2.0.0` — The shells in the stores
 
