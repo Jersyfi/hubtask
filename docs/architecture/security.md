@@ -413,6 +413,7 @@ Art. 14 reporting already since 2026-09-11), and receives from the project what 
 | A support period to build on (Art. 13(8)) | The published support period of every line; every release kept available | [versioning-release.md](./versioning-release.md) §5, `SECURITY.md` |
 | A disclosure channel upstream | Coordinated disclosure, and the report of an exploited vulnerability shared with providers through the advisory | §14.1, `SECURITY.md` |
 | Secure-by-default evidence (Annex I Part I) | The principles and the gates | §1, §13 |
+| Controls to cite in its own attestation | The control mapping to ISO/IEC 27001, BSI C5 and OWASP ASVS | [control-mapping.md](../privacy/control-mapping.md) |
 
 The manufacturer declares its own support period (at least five years unless the product's expected
 use is shorter), runs its own conformity assessment, CE marking and Art. 14 reporting, and carries

@@ -15,6 +15,8 @@ measure below names where it is decided and, where one exists, the gate that kee
 here operates. Hubtask is self-hosted software: the measures marked **product** are properties of
 this software and hold wherever it runs; the ones marked **operator** are the operator's own — this
 document says what the product gives them to work with, and the rest is theirs.
+The same controls, mapped to ISO/IEC 27001, BSI C5 and OWASP ASVS, are in
+[control-mapping.md](./control-mapping.md).
 
 ---
 
