@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -164,47 +165,26 @@ func (e EffectiveStructure) SourceOf(setting StructureSetting) identity.PolicySo
 // (identity.Effective works the same way). The installation's lock wins over the workspace's on the
 // same setting.
 func ResolveStructure(bound StructureBound, workspace WorkspaceStructure, below ...LayerAt) EffectiveStructure {
-	values := bound.Default()
-	sources := map[StructureSetting]identity.PolicySource{}
-	preset := PresetKey("")
-
-	apply := func(layer StructureLayer, source identity.PolicySource, locked func(StructureSetting) bool) {
-		clipped := bound.Clip(layer.Values)
-		for _, setting := range clipped.Decided() {
-			if locked(setting) {
-				continue
-			}
-			values = values.Take(setting, clipped)
-			sources[setting] = source
-		}
-		if layer.Preset != "" {
-			preset = layer.Preset
-		}
+	hold := bound.installation
+	atInstallation := bound.Default()
+	for _, setting := range hold.Values.Decided() {
+		atInstallation = atInstallation.Take(setting, hold.Values)
 	}
 
 	locks := map[LockKey]StructureLock{}
 	wholeLocked := map[StructureSetting]bool{}
-	isWholeLocked := func(setting StructureSetting) bool { return wholeLocked[setting] }
-
-	// The installation's locks, from its default preset's values over Hubtask's default.
-	hold := bound.installation
-	atInstallation := values
-	for _, setting := range hold.Values.Decided() {
-		atInstallation = atInstallation.Take(setting, hold.Values)
-	}
+	instance := setting.Layer{Level: setting.LevelInstance, Entries: map[setting.Key]setting.Entry{}}
 	for _, key := range hold.Locks {
 		locks[key] = StructureLock{Origin: identity.LockInstance}
 		if _, _, partial := key.capability(); !partial {
 			wholeLocked[key.Setting()] = true
-			values = values.Take(key.Setting(), atInstallation)
-			sources[key.Setting()] = identity.SourceInstance
+			instance.Entries[StructureKey(key.Setting())] = setting.Entry{
+				Value: atInstallation.only(key.Setting()), Hold: setting.HoldLock,
+			}
 		}
 	}
 
-	apply(workspace.Layer, identity.SourceWorkspace, isWholeLocked)
-	values.Fields = fixCapabilities(values.Fields, atInstallation.Fields, hold.Locks, wholeLocked)
-	atWorkspace := values
-
+	ownLayer := structureLayerAt(setting.LevelWorkspace, bound, workspace.Layer)
 	var workspaceLocks []LockKey
 	for key, by := range workspace.Locks {
 		if _, held := locks[key]; held || wholeLocked[key.Setting()] {
@@ -212,15 +192,32 @@ func ResolveStructure(bound StructureBound, workspace WorkspaceStructure, below 
 		}
 		locks[key] = StructureLock{Origin: identity.LockWorkspace, LockedBy: by}
 		workspaceLocks = append(workspaceLocks, key)
-	}
-	for _, key := range workspaceLocks {
 		if _, _, partial := key.capability(); !partial {
-			wholeLocked[key.Setting()] = true
+			entry := ownLayer.Entries[StructureKey(key.Setting())]
+			entry.Hold, entry.By = setting.HoldLock, by
+			ownLayer.Entries[StructureKey(key.Setting())] = entry
 		}
 	}
 
+	preset := workspace.Layer.Preset
+	layers := []setting.Layer{instance, ownLayer}
+	atWorkspace, _ := resolveValues(bound, layers)
+	atWorkspace.Fields = fixCapabilities(atWorkspace.Fields, atInstallation.Fields, hold.Locks, wholeLocked)
+	for _, wholeKey := range workspaceLocks {
+		if _, _, partial := wholeKey.capability(); !partial {
+			wholeLocked[wholeKey.Setting()] = true
+		}
+	}
 	for _, layer := range below {
-		apply(layer.Layer, layer.Source, isWholeLocked)
+		layers = append(layers, structureLayerAt(setting.Level(layer.Source), bound, layer.Layer))
+		if layer.Layer.Preset != "" {
+			preset = layer.Layer.Preset
+		}
+	}
+	values, sources := resolveValues(bound, layers)
+	if locks[LockKey(SettingFields)].Origin == identity.LockWorkspace {
+		// The workspace locks its fields as they stand after the installation's capability locks.
+		values.Fields = cloneFields(atWorkspace.Fields)
 	}
 
 	// A lock on one capability fixes it to what its level resolved, on or off, wherever the type
@@ -230,6 +227,24 @@ func ResolveStructure(bound StructureBound, workspace WorkspaceStructure, below 
 
 	values, clipped := clipCounts(values)
 	return EffectiveStructure{Values: values, Sources: sources, Locks: locks, Preset: preset, CountsClipped: clipped}
+}
+
+// resolveValues resolves every whole setting through the catalogue's resolver, over Hubtask's
+// default under the bound.
+func resolveValues(bound StructureBound, layers []setting.Layer) (StructureValues, map[StructureSetting]identity.PolicySource) {
+	values := bound.Default()
+	sources := map[StructureSetting]identity.PolicySource{}
+	for _, name := range structureSettings {
+		resolution := setting.Resolve(StructureDefinition(name), layers...)
+		if resolution.Source == setting.LevelDefault {
+			continue
+		}
+		if only, held := resolution.Effective.(StructureValues); held {
+			values = values.Take(name, only)
+			sources[name] = identity.PolicySource(resolution.Source)
+		}
+	}
+	return values, sources
 }
 
 // fixCapabilities fixes each capability lock of the keys to the locked fields, unless the fields

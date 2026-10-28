@@ -135,8 +135,8 @@ type Definition struct {
 	May          May
 	// Writers names, per level, the permission (or the operator's scope) a writer needs there.
 	Writers map[Level]string
-	// Preview is the message code of what a change reaches, empty where a change reaches nothing
-	// beyond the value itself.
+	// Preview names the use case that answers, before a save, what a change reaches; empty where
+	// a change reaches nothing beyond the value itself.
 	Preview string
 	// Default is Hubtask's own value; nil where the value's own package resolves the default.
 	Default any
