@@ -80,6 +80,25 @@ func WorkspaceBase(base, slug string, multi bool) string {
 	return strings.TrimSuffix(parsed.String(), "/")
 }
 
+// WorkspaceBaseAt is the installation's address with the workspace's main host in place of its
+// own: the scheme and the port stay the installation's. An empty host answers the base unchanged.
+func WorkspaceBaseAt(base, host string) string {
+	base = strings.TrimSuffix(base, "/")
+	if host == "" || base == "" {
+		return base
+	}
+	parsed, err := url.Parse(base)
+	if err != nil || parsed.Host == "" {
+		return base
+	}
+	if port := parsed.Port(); port != "" {
+		parsed.Host = host + ":" + port
+	} else {
+		parsed.Host = host
+	}
+	return strings.TrimSuffix(parsed.String(), "/")
+}
+
 // InvitationLink is the link that accepts an invitation, whichever way it travels - in the mail,
 // or answered once where no mail goes out. One composition, so the two are the same link.
 //

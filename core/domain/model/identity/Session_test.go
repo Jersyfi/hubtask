@@ -479,3 +479,19 @@ func TestTheWorkspacesOwnAddress(t *testing.T) {
 		}
 	}
 }
+
+// A workspace's address from its main host keeps the installation's scheme and port: the host is
+// the row's, never a label built from the short name.
+func TestAWorkspacesAddressIsItsMainHost(t *testing.T) {
+	cases := []struct{ base, host, want string }{
+		{"https://hub.example", "tasks.meier.example", "https://tasks.meier.example"},
+		{"http://hubtask.localhost:18545/", "anna.hubtask.localhost", "http://anna.hubtask.localhost:18545"},
+		{"https://hub.example", "", "https://hub.example"},
+		{"", "tasks.meier.example", ""},
+	}
+	for _, c := range cases {
+		if got := WorkspaceBaseAt(c.base, c.host); got != c.want {
+			t.Errorf("WorkspaceBaseAt(%q, %q) = %q, want %q", c.base, c.host, got, c.want)
+		}
+	}
+}

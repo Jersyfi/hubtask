@@ -137,3 +137,47 @@ func TestACanonicalHostNeedsItsWorkspaceItsMomentAndItsMark(t *testing.T) {
 		})
 	}
 }
+
+// A request's host is read as a row holds it, so that `Anna.Hub.Example:8443` and the row
+// `anna.hub.example` are one host (ADR-0095 §1).
+func TestARequestsHostIsReadAsARowHoldsIt(t *testing.T) {
+	cases := []struct{ raw, want string }{
+		{"anna.hub.example", "anna.hub.example"},
+		{"Anna.Hub.Example:8443", "anna.hub.example"},
+		{"tasks.meier.example.", "tasks.meier.example"},
+		{" localhost:8080 ", "localhost"},
+		{"[::1]:8080", ""},
+		{"", ""},
+	}
+	for _, c := range cases {
+		if got := RequestHost(c.raw); got != c.want {
+			t.Errorf("RequestHost(%q) = %q, want %q", c.raw, got, c.want)
+		}
+	}
+}
+
+// The main address is the canonical row while it serves, and no other row however it is ordered.
+func TestTheMainHostIsTheCanonicalRowThatServes(t *testing.T) {
+	cases := []struct {
+		name  string
+		hosts []TenantHost
+		want  string
+	}{
+		{"none", nil, ""},
+		{"the canonical one, wherever it stands", []TenantHost{
+			{Host: "meier.hub.example", State: HostActive},
+			{Host: "tasks.meier.example", State: HostActive, Canonical: true},
+		}, "tasks.meier.example"},
+		{"a canonical row that does not serve is no address", []TenantHost{
+			{Host: "tasks.meier.example", State: HostBroken, Canonical: true},
+			{Host: "meier.hub.example", State: HostActive},
+		}, ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := MainHostOf(c.hosts); got != c.want {
+				t.Errorf("MainHostOf = %q, want %q", got, c.want)
+			}
+		})
+	}
+}
