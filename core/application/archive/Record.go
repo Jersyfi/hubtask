@@ -390,6 +390,13 @@ var entities = []Entity{
 		Unique:     []UniqueField{{Field: "key", Rule: UniqueSkip, Within: []string{"collection_id"}}},
 		References: []Reference{{Field: "collection_id", Table: "container"}},
 	},
+	// The workspace's own entry types (migration 0209), before the entries that name them by key.
+	// Whole: a type is deleted only while no entry carries it, and leaves no marker. A duplicate
+	// skips a key the workspace already holds, and its entries then name that type.
+	{
+		Name: "entry_types", Table: "entry_type", Whole: true, Keys: []string{"id"}, Duplicable: true,
+		Unique: []UniqueField{{Field: "key", Rule: UniqueSkip}},
+	},
 	{
 		Name: "work_items", Table: "work_item", Keys: []string{"id"}, Duplicable: true,
 		Unique: []UniqueField{{Field: "calendar_uid", Rule: UniqueClear}},

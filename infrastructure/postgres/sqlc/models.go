@@ -885,6 +885,28 @@ type DeletionJournal struct {
 	Reason    string
 }
 
+type EntryType struct {
+	ID              pgtype.UUID
+	TenantID        pgtype.UUID
+	Key             string
+	Level           string
+	System          bool
+	Name            string
+	Icon            string
+	ColorToken      string
+	Completable     bool
+	Workflow        bool
+	Record          bool
+	Schedulable     bool
+	Estimable       bool
+	AllowedChildren []string
+	Position        int32
+	ArchivedAt      pgtype.Timestamptz
+	CreatedAt       pgtype.Timestamptz
+	UpdatedAt       pgtype.Timestamptz
+	Version         int32
+}
+
 type ErasureKept struct {
 	TenantID      pgtype.UUID
 	RequestID     pgtype.UUID
@@ -1875,4 +1897,5 @@ type WorkItem struct {
 	FlowStartedAt         pgtype.Timestamptz
 	FlowFinishedAt        pgtype.Timestamptz
 	Number                *int64
+	EntryType             *string
 }

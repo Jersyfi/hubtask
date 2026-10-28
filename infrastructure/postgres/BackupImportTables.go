@@ -106,6 +106,17 @@ var importers = map[string]importer{
 			return queries.ClearLabel(ctx)
 		},
 	},
+	"entry_type": {
+		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
+			return queries.ImportEntryType(ctx, sqlc.ImportEntryTypeParams{Payload: payload, Overwrite: overwrite})
+		},
+		holds: func(ctx context.Context, queries *sqlc.Queries, payload []byte) (bool, error) {
+			return queries.HoldsEntryType(ctx, payload)
+		},
+		clear: func(ctx context.Context, queries *sqlc.Queries) (int64, error) {
+			return queries.ClearEntryType(ctx)
+		},
+	},
 	"setting_value": {
 		write: func(ctx context.Context, queries *sqlc.Queries, payload []byte, overwrite bool) (int64, error) {
 			return queries.ImportSettingValue(ctx, sqlc.ImportSettingValueParams{Payload: payload, Overwrite: overwrite})

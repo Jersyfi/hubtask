@@ -917,6 +917,35 @@ CREATE TABLE item_capability_profile (
 CREATE UNIQUE INDEX icp_uq ON item_capability_profile
   (coalesce(tenant_id, '00000000-0000-0000-0000-000000000000'::uuid), type);
 
+-- The type registry (migrations 0209, 0210; UC-FLW-01): a workspace's own kinds of entries, each on
+-- one level. The three system types are declared in the domain and gain a row only once changed.
+CREATE TABLE entry_type (
+  id               uuid PRIMARY KEY,
+  tenant_id        uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  key              text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
+  level            text NOT NULL CHECK (level IN ('TASK', 'WORK_PACKAGE', 'ACTIVITY')),
+  system           boolean NOT NULL DEFAULT false,
+  name             text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 80),
+  icon             text NOT NULL CHECK (icon ~ '^[a-z][a-z0-9-]{0,39}$'),
+  color_token      text NOT NULL CHECK (color_token ~ '^[a-z][a-z0-9-]{0,39}$'),
+  completable      boolean NOT NULL DEFAULT true,
+  workflow         boolean NOT NULL DEFAULT false,
+  record           boolean NOT NULL DEFAULT false,
+  schedulable      boolean NOT NULL DEFAULT true,
+  estimable        boolean NOT NULL DEFAULT false,
+  allowed_children text[] NOT NULL DEFAULT '{}',
+  position         integer NOT NULL DEFAULT 0,
+  archived_at      timestamptz,
+  created_at       timestamptz NOT NULL,
+  updated_at       timestamptz NOT NULL,
+  version          integer NOT NULL DEFAULT 1,
+  UNIQUE (tenant_id, id),
+  UNIQUE (tenant_id, key),
+  CHECK (NOT (record AND completable)),
+  CHECK (NOT system OR (key = lower(level) AND NOT record AND archived_at IS NULL))
+);
+CREATE UNIQUE INDEX entry_type_system_uq ON entry_type (tenant_id, level) WHERE system;
+
 CREATE TABLE work_item (
   id                 uuid PRIMARY KEY,
   tenant_id          uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -1002,8 +1031,13 @@ CREATE TABLE work_item (
   CONSTRAINT work_item_collection_id_fkey
     FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
   -- The entry's number in its collection (migration 0204, ADR-0094).
-  number       bigint
+  number       bigint,
+  -- The entry's type by key, null for its level's system type (migration 0209).
+  entry_type   text,
+  CONSTRAINT work_item_entry_type_fkey
+    FOREIGN KEY (tenant_id, entry_type) REFERENCES entry_type (tenant_id, key)
 );
+CREATE INDEX wi_entry_type_idx ON work_item (tenant_id, entry_type) WHERE entry_type IS NOT NULL;
 CREATE UNIQUE INDEX work_item_tenant_id_uq ON work_item (tenant_id, id);
 CREATE UNIQUE INDEX wi_calendar_uid_uq ON work_item (tenant_id, calendar_uid)
   WHERE calendar_uid IS NOT NULL;
@@ -2836,7 +2870,7 @@ BEGIN
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run','quota_reached'
+    'import_run','quota_reached','entry_type'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

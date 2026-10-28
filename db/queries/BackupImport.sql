@@ -547,7 +547,8 @@ INSERT INTO work_item (
   completion_count,
   flow_started_at,
   flow_finished_at,
-  number
+  number,
+  entry_type
 )
 SELECT
   r.id,
@@ -600,7 +601,9 @@ SELECT
   r.flow_finished_at,
   -- An entry's number travels with it (migration 0204); an archive written before carries none,
   -- and the store then draws the next of its collection.
-  r.number
+  r.number,
+  -- An archive written before migration 0209 carries none: the level's system type.
+  r.entry_type
 FROM jsonb_populate_record(
   NULL::work_item,
   sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -652,7 +655,8 @@ ON CONFLICT (id) DO UPDATE SET
   completion_count = EXCLUDED.completion_count,
   flow_started_at = EXCLUDED.flow_started_at,
   flow_finished_at = EXCLUDED.flow_finished_at,
-  number = EXCLUDED.number
+  number = EXCLUDED.number,
+  entry_type = EXCLUDED.entry_type
 WHERE sqlc.arg('overwrite')::boolean;
 
 -- name: HoldsWorkItem :one
@@ -1771,3 +1775,38 @@ SELECT EXISTS (SELECT 1 FROM setting_value WHERE id = (sqlc.arg('payload')::json
 
 -- name: ClearSettingValue :execrows
 DELETE FROM setting_value;
+
+-- name: ImportEntryType :execrows
+INSERT INTO entry_type (
+  id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
+  r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, r.position, r.archived_at,
+  r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_type,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  icon = EXCLUDED.icon,
+  color_token = EXCLUDED.color_token,
+  completable = EXCLUDED.completable,
+  workflow = EXCLUDED.workflow,
+  record = EXCLUDED.record,
+  schedulable = EXCLUDED.schedulable,
+  estimable = EXCLUDED.estimable,
+  allowed_children = EXCLUDED.allowed_children,
+  position = EXCLUDED.position,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsEntryType :one
+SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearEntryType :execrows
+DELETE FROM entry_type;

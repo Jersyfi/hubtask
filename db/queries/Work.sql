@@ -336,7 +336,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.id = $1;
 
@@ -364,7 +364,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.id = ANY(sqlc.arg('ids')::uuid[]);
 
@@ -464,14 +464,16 @@ LIMIT 1;
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
-  updated_at, version
+  updated_at, version, entry_type
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.arg('collection_id'), sqlc.arg('type'),
   sqlc.narg('parent_id'), sqlc.arg('path'), sqlc.arg('depth'),
   normalize(sqlc.arg('title')::text, NFC), sqlc.narg('amount'),
   sqlc.narg('notes'), sqlc.narg('bucket_id'), sqlc.arg('order_key'),
   sqlc.narg('start_at'), sqlc.narg('content_language'), sqlc.narg('calendar_uid'),
-  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1
+  sqlc.arg('created_by'), sqlc.arg('created_at'), sqlc.arg('created_at'), 1,
+  -- The entry's type, null for its level's system type (migration 0209).
+  sqlc.narg('entry_type')::text
 )
 -- The number the store drew in the collection (migration 0204), so the create answers it.
 RETURNING number;
@@ -500,7 +502,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = sqlc.arg('calendar_uid')::text;
 
@@ -546,7 +548,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.path LIKE sqlc.arg('path_prefix')::text || '%'
   AND wi.id <> sqlc.arg('item_id')::uuid
@@ -639,7 +641,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.collection_id = sqlc.arg('collection_id')::uuid
   AND wi.parent_id IS NOT DISTINCT FROM sqlc.narg('parent_id')::uuid

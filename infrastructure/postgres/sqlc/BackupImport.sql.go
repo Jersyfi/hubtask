@@ -171,6 +171,18 @@ func (q *Queries) ClearCustomFieldDefinition(ctx context.Context) (int64, error)
 	return result.RowsAffected(), nil
 }
 
+const clearEntryType = `-- name: ClearEntryType :execrows
+DELETE FROM entry_type
+`
+
+func (q *Queries) ClearEntryType(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearEntryType)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearItemAttachment = `-- name: ClearItemAttachment :execrows
 DELETE FROM item_attachment
 `
@@ -561,6 +573,17 @@ SELECT EXISTS (SELECT 1 FROM custom_field_definition WHERE id = ($1::jsonb->>'id
 
 func (q *Queries) HoldsCustomFieldDefinition(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsCustomFieldDefinition, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsEntryType = `-- name: HoldsEntryType :one
+SELECT EXISTS (SELECT 1 FROM entry_type WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsEntryType(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsEntryType, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -1565,6 +1588,49 @@ type ImportCustomFieldDefinitionParams struct {
 
 func (q *Queries) ImportCustomFieldDefinition(ctx context.Context, arg ImportCustomFieldDefinitionParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importCustomFieldDefinition, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importEntryType = `-- name: ImportEntryType :execrows
+INSERT INTO entry_type (
+  id, tenant_id, key, level, system, name, icon, color_token, completable, workflow, record,
+  schedulable, estimable, allowed_children, position, archived_at, created_at, updated_at, version
+)
+SELECT
+  r.id, r.tenant_id, r.key, r.level, r.system, r.name, r.icon, r.color_token, r.completable,
+  r.workflow, r.record, r.schedulable, r.estimable, r.allowed_children, r.position, r.archived_at,
+  r.created_at, r.updated_at, r.version
+FROM jsonb_populate_record(
+  NULL::entry_type,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  name = EXCLUDED.name,
+  icon = EXCLUDED.icon,
+  color_token = EXCLUDED.color_token,
+  completable = EXCLUDED.completable,
+  workflow = EXCLUDED.workflow,
+  record = EXCLUDED.record,
+  schedulable = EXCLUDED.schedulable,
+  estimable = EXCLUDED.estimable,
+  allowed_children = EXCLUDED.allowed_children,
+  position = EXCLUDED.position,
+  archived_at = EXCLUDED.archived_at,
+  updated_at = EXCLUDED.updated_at,
+  version = EXCLUDED.version
+WHERE $2::boolean
+`
+
+type ImportEntryTypeParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+func (q *Queries) ImportEntryType(ctx context.Context, arg ImportEntryTypeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importEntryType, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}
@@ -2735,7 +2801,8 @@ INSERT INTO work_item (
   completion_count,
   flow_started_at,
   flow_finished_at,
-  number
+  number,
+  entry_type
 )
 SELECT
   r.id,
@@ -2788,7 +2855,9 @@ SELECT
   r.flow_finished_at,
   -- An entry's number travels with it (migration 0204); an archive written before carries none,
   -- and the store then draws the next of its collection.
-  r.number
+  r.number,
+  -- An archive written before migration 0209 carries none: the level's system type.
+  r.entry_type
 FROM jsonb_populate_record(
   NULL::work_item,
   $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
@@ -2840,7 +2909,8 @@ ON CONFLICT (id) DO UPDATE SET
   completion_count = EXCLUDED.completion_count,
   flow_started_at = EXCLUDED.flow_started_at,
   flow_finished_at = EXCLUDED.flow_finished_at,
-  number = EXCLUDED.number
+  number = EXCLUDED.number,
+  entry_type = EXCLUDED.entry_type
 WHERE $2::boolean
 `
 

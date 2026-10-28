@@ -613,7 +613,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.id = $1
 `
@@ -661,6 +661,7 @@ type FindWorkItemRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
 }
 
 // Trashed and archived items are returned rather than filtered out, for the reason FindContainer
@@ -711,6 +712,7 @@ func (q *Queries) FindWorkItem(ctx context.Context, id pgtype.UUID) (FindWorkIte
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Number,
+		&i.EntryType,
 	)
 	return i, err
 }
@@ -735,7 +737,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.tenant_id = current_tenant_id() AND wi.calendar_uid = $1::text
 `
@@ -783,6 +785,7 @@ type FindWorkItemByCalendarUIDRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
 }
 
 // The entry a calendar client's UID names. The same columns as FindWorkItem,
@@ -835,6 +838,7 @@ func (q *Queries) FindWorkItemByCalendarUID(ctx context.Context, calendarUid str
 		&i.UpdatedAt,
 		&i.Version,
 		&i.Number,
+		&i.EntryType,
 	)
 	return i, err
 }
@@ -859,7 +863,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.id = ANY($1::uuid[])
 `
@@ -907,6 +911,7 @@ type FindWorkItemsRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
 }
 
 // FindWorkItem for many entries in one statement: the retention sweep reads a page's entries at
@@ -965,6 +970,7 @@ func (q *Queries) FindWorkItems(ctx context.Context, ids []pgtype.UUID) ([]FindW
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
 		); err != nil {
 			return nil, err
 		}
@@ -1156,14 +1162,16 @@ const insertWorkItem = `-- name: InsertWorkItem :one
 INSERT INTO work_item (
   id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes,
   bucket_id, order_key, start_at, content_language, calendar_uid, created_by, created_at,
-  updated_at, version
+  updated_at, version, entry_type
 ) VALUES (
   $1, current_tenant_id(), $2, $3,
   $4, $5, $6,
   normalize($7::text, NFC), $8,
   $9, $10, $11,
   $12, $13, $14,
-  $15, $16, $16, 1
+  $15, $16, $16, 1,
+  -- The entry's type, null for its level's system type (migration 0209).
+  $17::text
 )
 RETURNING number
 `
@@ -1185,6 +1193,7 @@ type InsertWorkItemParams struct {
 	CalendarUid     *string
 	CreatedBy       pgtype.UUID
 	CreatedAt       pgtype.Timestamptz
+	EntryType       *string
 }
 
 // The title arrives in Unicode normal form C: the constructor brings it there, behind the
@@ -1220,6 +1229,7 @@ func (q *Queries) InsertWorkItem(ctx context.Context, arg InsertWorkItemParams) 
 		arg.CalendarUid,
 		arg.CreatedBy,
 		arg.CreatedAt,
+		arg.EntryType,
 	)
 	var number *int64
 	err := row.Scan(&number)
@@ -1790,7 +1800,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.collection_id = $1::uuid
   AND wi.parent_id IS NOT DISTINCT FROM $2::uuid
@@ -1864,6 +1874,7 @@ type ListWorkItemsRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
 }
 
 // One level of one collection, in its manual order: the items directly in the collection when no
@@ -1937,6 +1948,7 @@ func (q *Queries) ListWorkItems(ctx context.Context, arg ListWorkItemsParams) ([
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
 		); err != nil {
 			return nil, err
 		}
@@ -2930,7 +2942,7 @@ SELECT
   wi.retention_pending_until, wi.retention_rule_id, wi.retention_action,
   wi.retention_blocked_by,
   wi.archived_at, wi.deleted_at, wi.trash_batch_id, wi.created_by, wi.created_at, wi.updated_at,
-  wi.version, wi.number
+  wi.version, wi.number, wi.entry_type
 FROM work_item wi
 WHERE wi.path LIKE $1::text || '%'
   AND wi.id <> $2::uuid
@@ -2988,6 +3000,7 @@ type SubtreeOfWorkItemRow struct {
 	UpdatedAt             pgtype.Timestamptz
 	Version               int32
 	Number                *int64
+	EntryType             *string
 }
 
 // Everything below one entry, the entry itself excluded: what a copy of a subtree reads before it
@@ -3063,6 +3076,7 @@ func (q *Queries) SubtreeOfWorkItem(ctx context.Context, arg SubtreeOfWorkItemPa
 			&i.UpdatedAt,
 			&i.Version,
 			&i.Number,
+			&i.EntryType,
 		); err != nil {
 			return nil, err
 		}
