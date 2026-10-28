@@ -15,13 +15,13 @@ import (
 )
 
 // requestTenant is multi-tenancy.md §3 for a request without a credential: in single mode the one
-// workspace; in multi mode the workspace whose serving row the host is, then the header. A header
-// naming another workspace than the host is `access.tenant_mismatch`; nothing naming one is
-// `auth.tenant_unresolved`. A host no row serves - the installation's own, an old address - names
-// nothing, so the header may still answer.
+// workspace; in multi mode the workspace whose serving row the host is. The header is a second
+// source only at the installation's own host; a host that is neither that nor served names nothing
+// and is `auth.tenant_unresolved`, header or not (T-28). A header naming another workspace than the
+// host is `access.tenant_mismatch`.
 func requestTenant(
 	ctx context.Context, uow persistence.UnitOfWork, tenants repository.TenantDirectory,
-	multi bool, rawHost, header string,
+	multi bool, installationHost, rawHost, header string,
 ) (shared.ID, error) {
 	unresolved := shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
 	var tenantID shared.ID
@@ -35,15 +35,15 @@ func requestTenant(
 		if err != nil {
 			return "", err
 		}
-	} else if host := domain.RequestHost(rawHost); host != "" {
+	} else if host := domain.RequestHost(rawHost); host != "" && host != domain.RequestHost(installationHost) {
 		err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
 			id, err := tenants.ResolveHost(ctx, host)
-			if errors.Is(err, shared.ErrNotFound) {
-				return nil
-			}
 			tenantID = id
 			return err
 		})
+		if errors.Is(err, shared.ErrNotFound) {
+			return "", unresolved
+		}
 		if err != nil {
 			return "", err
 		}
@@ -64,20 +64,20 @@ func requestTenant(
 	return tenantID, nil
 }
 
-// hostNamesAnother is the authenticated half of §3: the credential binds the workspace, and a host
-// whose serving row is another workspace's is `access.tenant_mismatch`. A host no row serves
-// confirms nothing and refuses nothing. Read in the caller's transaction: the door answers in any
-// scope, and a scope of its own would be a tenant switch (known-traps.md).
+// hostNamesAnother is the authenticated half of §3: the credential binds the workspace, and only
+// the installation's own host or the workspace's serving row confirms it. Another workspace's host,
+// and a host no row serves, is `access.tenant_mismatch` (T-28). Read in the caller's transaction:
+// the door answers in any scope, and a scope of its own would be a tenant switch (known-traps.md).
 func hostNamesAnother(
-	ctx context.Context, tenants repository.TenantDirectory, rawHost string, bound shared.ID,
+	ctx context.Context, tenants repository.TenantDirectory, installationHost, rawHost string, bound shared.ID,
 ) error {
 	host := domain.RequestHost(rawHost)
-	if tenants == nil || host == "" {
+	if tenants == nil || host == "" || host == domain.RequestHost(installationHost) {
 		return nil
 	}
 	named, err := tenants.ResolveHost(ctx, host)
 	if errors.Is(err, shared.ErrNotFound) {
-		return nil
+		return shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	if err != nil {
 		return err

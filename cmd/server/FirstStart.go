@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -105,4 +106,14 @@ func ensureMainHosts(ctx context.Context, ensuring identity.EnsureMainHosts) {
 		slog.ErrorContext(ctx, "the workspaces' main addresses could not be written",
 			slog.String("error", err.Error()))
 	}
+}
+
+// baseHostOf is the installation's own host, read off its address; empty where it cannot be read,
+// and then no host is the installation's.
+func baseHostOf(baseURL string) string {
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Hostname()
 }

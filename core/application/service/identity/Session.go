@@ -124,9 +124,11 @@ type SessionWriter struct {
 	// lower case. Set in the literal that builds the writer, never later - every door is a copy.
 	Text text.Normalizer
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3): in multi mode the tenant
-	// comes from the subdomain or the header, in single mode from the installation's only row -
-	// one code path, one special case (multi-tenancy.md §1).
+	// comes from the host's serving row or, at the installation's own host, the header; in single
+	// mode from the installation's only row - one code path, one special case (multi-tenancy.md §1).
 	Multi bool
+	// InstallationHost is the installation's own host: the one host where the header speaks.
+	InstallationHost string
 
 	// The second factor's stores. Nil switches the second step off wholesale.
 	Enrollments repository.MfaEnrollments
@@ -666,7 +668,7 @@ func (w SessionWriter) pairFor(
 // resolveTenant is multi-tenancy.md §3 in code (requestTenant): the host's serving row, then the
 // header, and in single mode the only row.
 func (w SessionWriter) resolveTenant(ctx context.Context, host, header string) (shared.ID, error) {
-	return requestTenant(ctx, w.UnitOfWork, w.Tenants, w.Multi, host, header)
+	return requestTenant(ctx, w.UnitOfWork, w.Tenants, w.Multi, w.InstallationHost, host, header)
 }
 
 // checkLocked refuses while any subject's window is open. Nothing is written: the delay curve

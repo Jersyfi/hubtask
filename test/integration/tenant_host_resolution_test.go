@@ -154,6 +154,7 @@ func TestTheDoorsFindAWorkspaceByItsRow(t *testing.T) {
 	seedHostTenants(ctx, t)
 	passwords, directory := passwordWriterOver(ctx, t)
 	writer := passwords.Session
+	writer.InstallationHost = "hub.example"
 	const address = "host-a@example.org"
 	hash, err := writer.Passwords.Hash(secret.New("a lantern on the far shore"))
 	if err != nil {
@@ -173,6 +174,21 @@ func TestTheDoorsFindAWorkspaceByItsRow(t *testing.T) {
 		})
 		if err != nil || signedIn.Pair == nil || signedIn.Pair.Session.TenantID != hostTenantA {
 			t.Fatalf("signing in at A's host answered (%+v, %v)", signedIn, err)
+		}
+		// At the installation's own host the header names the workspace; at a host no row serves
+		// it names nothing (T-28).
+		atBase, err := identityservice.SignIn{Writer: writer}.Execute(ctx, identityservice.SignInCommand{
+			Email: address, Password: secret.New("a lantern on the far shore"), Host: "hub.example",
+			TenantHeader: hostTenantA.String(),
+		})
+		if err != nil || atBase.Pair == nil || atBase.Pair.Session.TenantID != hostTenantA {
+			t.Errorf("signing in at the installation's host with the header answered (%+v, %v)", atBase, err)
+		}
+		if _, err := (identityservice.SignIn{Writer: writer}).Execute(ctx, identityservice.SignInCommand{
+			Email: address, Password: secret.New("a lantern on the far shore"), Host: "gone.hub.example",
+			TenantHeader: hostTenantA.String(),
+		}); !errors.Is(err, shared.ErrNotFound) {
+			t.Errorf("signing in at an unknown host with the header answered %v, want tenant_unresolved", err)
 		}
 		// The same person at B's host is a stranger there: B's row names B.
 		if _, err := (identityservice.SignIn{Writer: writer}).Execute(ctx, identityservice.SignInCommand{

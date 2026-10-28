@@ -254,7 +254,7 @@ func recordResetRequest(
 }
 
 func (h ForgetPassword) resolveTenant(ctx context.Context, host, header string) (shared.ID, error) {
-	return requestTenant(ctx, h.Writer.UnitOfWork, h.Tenants, h.Multi, host, header)
+	return requestTenant(ctx, h.Writer.UnitOfWork, h.Tenants, h.Multi, h.Writer.Session.InstallationHost, host, header)
 }
 
 // Descriptor is the catalogue entry.

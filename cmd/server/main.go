@@ -512,6 +512,8 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
 		Multi:   cfg.Tenancy == envport.TenancyMulti,
+		// Where the header may name a workspace (multi-tenancy.md §3).
+		InstallationHost: baseHostOf(cfg.BaseURL),
 		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
@@ -1841,7 +1843,8 @@ func run() error {
 		}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
-			Providers: postgres.NewIdentityProviderRepository(),
+			InstallationHost: baseHostOf(cfg.BaseURL),
+			Providers:        postgres.NewIdentityProviderRepository(),
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
@@ -3009,6 +3012,7 @@ func run() error {
 		// (multi-tenancy.md §3); single mode reads no host.
 		if cfg.Tenancy == envport.TenancyMulti {
 			authenticate.Hosts = signInStore
+			authenticate.InstallationHost = baseHostOf(cfg.BaseURL)
 		}
 
 		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token

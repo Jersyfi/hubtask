@@ -273,8 +273,10 @@ type GetSignInRules struct {
 	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead.
 	Clock clock.Clock
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
-	// mode there is one workspace and no subdomain to read.
+	// mode there is one workspace and no host to read.
 	Multi bool
+	// InstallationHost is the installation's own host: the one host where the header speaks.
+	InstallationHost string
 	// Party is the workspace's relying party for passkeys. Nil offers no passkey: the card would
 	// draw a button whose ceremony no browser can finish.
 	Party *PasskeyParty
@@ -365,7 +367,7 @@ func (h GetSignInRules) hasSignInNames(ctx context.Context, tenantID shared.ID) 
 // the zero tenant, which resolves to the installation's own level rather than to a 404 that would
 // tell a probe which hosts hold workspaces.
 func (h GetSignInRules) resolveTenant(ctx context.Context, host, header string) shared.ID {
-	tenantID, err := requestTenant(ctx, h.UnitOfWork, h.Tenants, h.Multi, host, header)
+	tenantID, err := requestTenant(ctx, h.UnitOfWork, h.Tenants, h.Multi, h.InstallationHost, host, header)
 	if err != nil {
 		return ""
 	}

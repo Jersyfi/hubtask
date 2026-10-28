@@ -1133,8 +1133,9 @@ func TestAGrantSessionLosesTheControlPlanesScopes(t *testing.T) {
 	}
 }
 
-// multi-tenancy.md §3 in multi mode: the host's serving row names the workspace, the header is the
-// second source, and the two may agree but never contradict.
+// multi-tenancy.md §3 in multi mode: the host's serving row names the workspace; the header is a
+// second source only at the installation's own host; a host that is neither names nothing, header
+// or not (T-28); and the two sources may agree but never contradict.
 func TestInMultiModeTheHostNamesTheWorkspace(t *testing.T) {
 	cases := []struct {
 		name, host, header string
@@ -1142,7 +1143,9 @@ func TestInMultiModeTheHostNamesTheWorkspace(t *testing.T) {
 	}{
 		{"the workspace's host", "acme.hubtask.example:8443", "", ""},
 		{"its host and a confirming header", "acme.hubtask.example", tenant.String(), ""},
-		{"a host that names nothing, then the header", "hubtask.example", tenant.String(), ""},
+		{"the installation's own host and the header", "hubtask.example:443", tenant.String(), ""},
+		{"an unknown host, even with a header", "gone.hubtask.example", tenant.String(), "auth.tenant_unresolved"},
+		{"the installation's own host and no header", "hubtask.example", "", "auth.tenant_unresolved"},
 		{"a header contradicting the host", "acme.hubtask.example", string(account), "access.tenant_mismatch"},
 		{"nothing names a workspace", "gone.hubtask.example", "", "auth.tenant_unresolved"},
 	}
@@ -1150,6 +1153,7 @@ func TestInMultiModeTheHostNamesTheWorkspace(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			fixture := newSessionFixture(now)
 			fixture.writer.Multi = true
+			fixture.writer.InstallationHost = "hubtask.example"
 			fixture.withAccount("bert@example.org", "correct horse battery")
 
 			_, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{

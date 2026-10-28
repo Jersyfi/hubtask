@@ -524,8 +524,9 @@ func (h hostsNaming) ResolveHost(_ context.Context, host string) (shared.ID, err
 	return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
 }
 
-// multi-tenancy.md §3: the credential binds the workspace; a host may confirm it and never
-// overrule it. A host that serves another workspace is refused, one that serves none says nothing.
+// multi-tenancy.md §3, T-28: the credential binds the workspace; its serving row or the
+// installation's own host confirms it. Another workspace's host is refused, and so is a host no
+// row serves - a dangling domain or a forged Host header.
 func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) {
 	other := shared.ID("01936f2a-7c1e-7000-8000-0000000000ff")
 	cases := []struct {
@@ -534,7 +535,7 @@ func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) 
 	}{
 		{"its own main address, port and case aside", "Tasks.Acme.Example:443", false},
 		{"the installation's own host", "hub.example", false},
-		{"an address no workspace has", "gone.hub.example", false},
+		{"an address no workspace has", "gone.hub.example", true},
 		{"another workspace's address", "other.hub.example", true},
 	}
 	for _, c := range cases {
@@ -542,6 +543,7 @@ func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) 
 			raw, credential := mintCredential(t)
 			handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
 			handler.Hosts = hostsNaming{"tasks.acme.example": tenant, "other.hub.example": other}
+			handler.InstallationHost = "hub.example"
 
 			_, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
 				Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC", Host: c.host,

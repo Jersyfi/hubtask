@@ -61,6 +61,8 @@ type AuthenticateToken struct {
 	// host that names another workspace than the credential is refused. Nil - single mode - reads
 	// no host.
 	Hosts repository.TenantDirectory
+	// InstallationHost is the installation's own host, where the header and not the host speaks.
+	InstallationHost string
 }
 
 // AuthenticateTokenCommand carries the presented credential and the preferences resolved from the
@@ -131,7 +133,7 @@ func (a AuthenticateToken) Execute(
 		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
 		}
-		if err := hostNamesAnother(ctx, a.Hosts, cmd.Host, credential.Token.TenantID); err != nil {
+		if err := hostNamesAnother(ctx, a.Hosts, a.InstallationHost, cmd.Host, credential.Token.TenantID); err != nil {
 			return err
 		}
 
@@ -218,7 +220,7 @@ func (a AuthenticateToken) executeSession(
 		if err := credential.TenantStatus.Verify(); err != nil {
 			return err
 		}
-		if err := hostNamesAnother(ctx, a.Hosts, cmd.Host, claims.TenantID); err != nil {
+		if err := hostNamesAnother(ctx, a.Hosts, a.InstallationHost, cmd.Host, claims.TenantID); err != nil {
 			return err
 		}
 
