@@ -1,11 +1,11 @@
 # Research: how a workspace is addressed, renamed, found and switched (2026-10)
 
-**Kind:** concept input for the cut of milestone CD. This is market research and a proposal, not a rule. It feeds the cut of a
-concept with the owner ([README](./README.md), "Cutting a milestone"). The rules stay where they
-are, in [multi-tenancy.md](../architecture/multi-tenancy.md) and
-[identity.md](../architecture/identity.md), until a cut changes them.
+**Kind:** concept input for the cut of milestone CD, archived at the cut on 2026-10-27 ([milestone-CD.md](../../backlog/milestone-CD.md)). This is market research and a proposal, not a rule. It feeds the cut of a
+concept with the owner ([README](../../backlog/README.md), "Cutting a milestone"). The rules stay where they
+are, in [multi-tenancy.md](../../architecture/multi-tenancy.md) and
+[identity.md](../../architecture/identity.md), until a cut changes them.
 
-**Why it lives here.** [`docs/README.md`](../README.md) has no `research/` directory, and this
+**Why it lives here.** [`docs/README.md`](../../README.md) has no `research/` directory, and this
 report holds no current rule. The backlog holds the way from a concept to a milestone, and this
 report is the input to one. Once the concept is cut or dropped, it moves to `docs/archive/`, as the
 market analysis did.
@@ -15,7 +15,7 @@ market analysis did.
 source confirmed.
 
 **Decided 2026-10-16** ([decision #1568](https://github.com/Jersyfi/hubtask/issues/1568); the rules
-in [multi-tenancy.md](../architecture/multi-tenancy.md) §3.1). The owner's answers differ from this
+in [multi-tenancy.md](../../architecture/multi-tenancy.md) §3.1). The owner's answers differ from this
 report's proposals in four places, and the answers govern:
 
 * the old address is **free at once**, with no redirect and no hold (not the 365 days of §5.1, step 6);
@@ -36,8 +36,8 @@ with *Switch workspace* in the web and the shells - follows the report.
 | # | Question | Short answer |
 |---|---|---|
 | 1 | Workspaces with or without a subdomain, chosen by the operator. Where subdomains are on, may a workspace's subdomain change? | **Yes to the choice, but not as a path prefix.** "Without a subdomain" is already single mode, and should become "a host the operator assigns" in multi mode. A path per workspace (`hub.example/w/acme`) would put every workspace in one browser origin. Hubtask's accounts, passkeys and offline caches rely on that origin boundary. **Yes to renaming**, built on the `tenant_host` model: the old host stays as a redirect, and the old name stays held. Everything Hubtask needs for this is the same mechanism milestone CD needs. |
-| 2 | Can one address have accounts in several workspaces? How does a person switch? | **Yes, by design**: accounts are per workspace (`account_email_uq` on `(tenant_id, lower(email))`). Switching should be a **device-local list** of the workspaces signed into on this device. [`NG-global-identity`](../vision/non-goals.md) already names this list. It is not a server-side link between accounts. |
-| 3 | Must a person know the subdomain? Idea: a general domain with an email field that routes you on. | **Not on screen.** Routing an address straight to its workspace tells anybody who types it where that address has an account, which breaks [P-01](../vision/principles.md#p-01-workspaces-never-see-each-other). The market's safe form, and Zulip's, is **"Find your workspaces"**: the screen gives the same answer for every address, and the list of workspaces goes **by mail** to that address. Add two more things at the general domain: "Go to your workspace" (type the short name) and the device's own list. Routing by **email domain** (not by address) is possible later, only for a workspace that proved it owns the domain. |
+| 2 | Can one address have accounts in several workspaces? How does a person switch? | **Yes, by design**: accounts are per workspace (`account_email_uq` on `(tenant_id, lower(email))`). Switching should be a **device-local list** of the workspaces signed into on this device. [`NG-global-identity`](../../vision/non-goals.md) already names this list. It is not a server-side link between accounts. |
+| 3 | Must a person know the subdomain? Idea: a general domain with an email field that routes you on. | **Not on screen.** Routing an address straight to its workspace tells anybody who types it where that address has an account, which breaks [P-01](../../vision/principles.md#p-01-workspaces-never-see-each-other). The market's safe form, and Zulip's, is **"Find your workspaces"**: the screen gives the same answer for every address, and the list of workspaces goes **by mail** to that address. Add two more things at the general domain: "Go to your workspace" (type the short name) and the device's own list. Routing by **email domain** (not by address) is possible later, only for a workspace that proved it owns the domain. |
 
 ---
 
@@ -45,16 +45,16 @@ with *Switch workspace* in the web and the shells - follows the report.
 
 | Fact | Where |
 |---|---|
-| Two modes. `single` has one workspace at the installation's host. `multi` puts each workspace at `<slug>.<base host>`, with `X-Hubtask-Tenant` as the second source. A path prefix is "deliberately not used". | [multi-tenancy.md](../architecture/multi-tenancy.md) §1, §3 |
-| A sign-in resolves its workspace **before** any credential. Resolution answers one identifier or none, never a list. A host without a workspace learns nothing: `/auth/sign-in-rules` answers byte for byte what an undecided workspace answers. | [identity.md](../architecture/identity.md) §3 |
-| Accounts belong to one workspace. One address in two workspaces is two accounts, with separate passwords, factors and sessions. | identity.md §2; [`NG-global-identity`](../vision/non-goals.md) |
-| `NG-global-identity` already says: "Each workspace at its own address; a workspace switcher may list the person's own accounts on one device". | [non-goals.md](../vision/non-goals.md) |
-| UC-ID-01's *Where it ends*: "The address is not remembered on the device; only the last used *method* is." "Choosing a workspace on the sign-in screen is not offered: the host decides the workspace". | [UC-ID-01](../usecases/identity/UC-ID-01-sign-in-with-a-password.md) |
+| Two modes. `single` has one workspace at the installation's host. `multi` puts each workspace at `<slug>.<base host>`, with `X-Hubtask-Tenant` as the second source. A path prefix is "deliberately not used". | [multi-tenancy.md](../../architecture/multi-tenancy.md) §1, §3 |
+| A sign-in resolves its workspace **before** any credential. Resolution answers one identifier or none, never a list. A host without a workspace learns nothing: `/auth/sign-in-rules` answers byte for byte what an undecided workspace answers. | [identity.md](../../architecture/identity.md) §3 |
+| Accounts belong to one workspace. One address in two workspaces is two accounts, with separate passwords, factors and sessions. | identity.md §2; [`NG-global-identity`](../../vision/non-goals.md) |
+| `NG-global-identity` already says: "Each workspace at its own address; a workspace switcher may list the person's own accounts on one device". | [non-goals.md](../../vision/non-goals.md) |
+| UC-ID-01's *Where it ends*: "The address is not remembered on the device; only the last used *method* is." "Choosing a workspace on the sign-in screen is not offered: the host decides the workspace". | [UC-ID-01](../../usecases/identity/UC-ID-01-sign-in-with-a-password.md) |
 | One refusal for every address; the reset gives the same `202` and does the same work for every address. The attempt ledger counts per address and per IP class. | identity.md §4.3, §7 |
 | `tenant_host` holds the hosts a workspace answers at: one canonical, states `PENDING → VERIFIED → ACTIVE → BROKEN`, a DNS verification mark, and one host per workspace installation-wide. Nothing resolves through it yet; `resolve_tenant` reads the slug. | `db/migrations/0104_tenant_host.sql`, `core/domain/model/identity/TenantHost.go` |
 | The slug is `^[a-z0-9][a-z0-9-]{2,39}$`, unique, and cannot be changed through any route. The contract says renaming is "the operator's operation at `/admin/tenants`", but no such route exists. | `api/openapi.yaml` (`TenantProvision`, the workspace settings description) |
 | **No reserved short names.** UC-INS-07 check 2 says "taken, reserved or not a valid address label is refused", but nothing in `core/` reserves `www`, `api`, `auth`, `admin`, `media` or similar. **A finding** (§7). | UC-INS-07; `core/domain/model/identity/Tenant.go` |
-| A provider's return: one redirect per installation, `<base>/auth/callback`. The web app asks `POST /auth/oidc:locate` where the flow belongs and forwards it to the workspace's host. The lookup answers only for a live state, and an unknown one is one `404` that names no workspace. | Branch `claude/cp-14-workspace-address` (identity.md §10.1 there), [evidence](../evidence/README.md) CP-14 |
+| A provider's return: one redirect per installation, `<base>/auth/callback`. The web app asks `POST /auth/oidc:locate` where the flow belongs and forwards it to the workspace's host. The lookup answers only for a live state, and an unknown one is one `404` that names no workspace. | Branch `claude/cp-14-workspace-address` (identity.md §10.1 there), [evidence](../../evidence/README.md) CP-14 |
 | Invitation links go to the workspace's host. Reset, address-confirmation and notification mails still use the installation's base. | UC-ID-07 check 7; finding #1549; #1337 |
 | A passkey's RP ID is the workspace's **canonical host**, never the registrable parent. "A changed host ends its passkeys." | identity.md §23.3 |
 | The web app keeps tokens in `sessionStorage` and uses no cookie session, so each workspace host is its own browser container. | identity.md §14.4 |
@@ -397,7 +397,7 @@ a change of `HUBTASK_BASE_URL`, an operator's act with the same passkey cost.
 ### 5.4 Security and privacy constraints
 
 1. **Same answer, same work, same time** for every address at the finder (identity.md §7's rule,
-   T-02 in [security.md](../architecture/security.md) §4).
+   T-02 in [security.md](../../architecture/security.md) §4).
 2. **The cross-tenant lookup is a door** (multi-tenancy.md §2.1): one narrow `SECURITY DEFINER`
    function, its answer used only to queue a mail, never returned to a caller. Entered in the doors
    table and the restore drill's list if it adds a table.
@@ -454,5 +454,5 @@ issue in its form, asked once, together.
 checks the same pattern and uniqueness. A workspace may be called `www`, `api`, `auth`, `admin` or
 `media`. Where the installation or the platform uses such a label for itself (the integration
 environment's `<service>.<environment>.hubtask.eu`,
-[deployment.md](../architecture/deployment.md)), a workspace could take it. This should be a
+[deployment.md](../../architecture/deployment.md)), a workspace could take it. This should be a
 `finding` issue, fixed with a built-in list plus an operator's list (§5.1 #1).

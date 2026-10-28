@@ -190,9 +190,8 @@ POST /api/v1/items:query
         <p>
           Building your own client? The synchronisation contract is specified — client-assigned
           identifiers, an operation id per mutation, a hybrid logical clock per field change,
-          defined behaviour when access is revoked or a cursor is too old. The conformance runner
-          that will check an implementation against a real instance,
-          <code>hubctl sync-conformance</code>, arrives with the synchronisation milestone.
+          defined behaviour when access is revoked or a cursor is too old. The conformance runner,
+          <code>hubctl sync-conformance</code>, checks an implementation against a real instance.
         </p>
         <Proof href="{docs}/architecture/offline-sync.md" label="offline-sync.md §9" />
       </div>

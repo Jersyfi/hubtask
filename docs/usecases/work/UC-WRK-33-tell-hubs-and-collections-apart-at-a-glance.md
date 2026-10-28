@@ -6,7 +6,7 @@ actors: [PE-person, PE-member, PE-child]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-10, P-13]
 state: partial
-tasks: [UX-01, UX-06, UX-07]
+tasks: [UX-01, UX-06, UX-07, F7-01, F7-06]
 checked_by: [apps/webapp/e2e/looks.test.mjs, apps/webapp/src/lib/workspace/look.test.ts, packages/design-system/test/contrast.test.js, packages/design-system/test/status.test.js, packages/design-system/build/lint-status.js, packages/design-system/test/mark.test.js, apps/webapp/e2e/mark.test.mjs]
 ---
 

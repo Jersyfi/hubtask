@@ -9,7 +9,7 @@
   <title>Get Hubtask — server, clients and the CLI</title>
   <meta
     name="description"
-    content="The container image for the server, and hubctl for Linux, macOS and Windows. One image for Compose and for Kubernetes, multi-architecture, signed. Nothing to sign up for."
+    content="The container image for the server: one image for Compose and for Kubernetes, multi-architecture, signed. hubctl, the command line client, builds from the same source. Nothing to sign up for."
   />
 </svelte:head>
 
@@ -22,9 +22,9 @@
       architecture while it starts. Everything on this page is free to run for private use.
     </p>
     <p class="site-standing">
-      <strong>Where this stands.</strong> The server is complete through milestone <code>0.7</code>
+      <strong>Where this stands.</strong> The server is complete through milestone <code>0.9</code>
       and in active development; the browser interface is at preview stage. What is on this page is
-      what is released — nothing is listed here that you cannot download today.
+      what is released, and what is not published yet says so.
       <a href="/roadmap/">The plan</a>
     </p>
   </div>
@@ -56,7 +56,7 @@ helm upgrade --install hubtask ./k8s \
           <li><strong>The web interface included</strong> It ships inside the binary; there is no second thing to deploy.</li>
           <li><strong>The migrator included</strong> Schema changes are applied by a job in the same image, forward only.</li>
         </ul>
-        <Proof href="{repo}/releases" label="releases · checksums and signatures" />
+        <Proof href="{repo}/releases" label="releases · signatures and SBOM" />
       </div>
     </div>
   </div>
@@ -68,8 +68,10 @@ helm upgrade --install hubtask ./k8s \
       <p class="kicker">The clients</p>
       <h2>Where each one runs</h2>
       <p class="lede">
-        The web interface is part of the server, and the command line client is a release of its
-        own. Both are here today; the installed applications for desktop and mobile are being built.
+        The web interface is part of the server and comes with it today. The command line client is
+        built and tested on every platform below and not yet published as a download; it builds
+        from the source with <code>go build ./cmd/hubctl</code>. The installed applications for
+        desktop and mobile are being built.
       </p>
     </div>
     <div class="table-scroll">
@@ -90,7 +92,7 @@ helm upgrade --install hubtask ./k8s \
           <tr>
             <th scope="row"><code>hubctl</code></th>
             <td>Linux, macOS, Windows</td>
-            <td>amd64 and arm64. Apple silicon and Windows on ARM built and published; the whole product from a terminal, and a pipe-friendly <code>--json</code>.</td>
+            <td>amd64 and arm64, Apple silicon and Windows on ARM included, built and tested by the support matrix; not yet published as a download. The whole product from a terminal, and a pipe-friendly <code>--json</code>.</td>
           </tr>
         </tbody>
       </table>

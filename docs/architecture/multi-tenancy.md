@@ -187,8 +187,10 @@ the slug. A path prefix is deliberately not used.
 ### 3.1 A workspace's address
 
 **Decided, not built — milestone CD** ([decision #1568](https://github.com/Jersyfi/hubtask/issues/1568),
-2026-10-16; the market research behind it in
-[backlog/workspace-addressing-research-2026-10.md](../backlog/workspace-addressing-research-2026-10.md)).
+2026-10-16; cut in [backlog/milestone-CD.md](../backlog/milestone-CD.md), the mechanism in
+[ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md); the market research
+behind it in
+[archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -221,6 +223,16 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
   cross-workspace account, session or count ([NG-global-identity](../vision/non-goals.md)), no
   *Find your workspaces*, and no routing by an address or its domain: no screen tells anybody which
   workspaces an address belongs to.
+
+**How it resolves** (ADR-0095). In multi mode `tenant_host` names a request's workspace: every
+workspace has rows, exactly one of them its main address, and every address Hubtask writes - a
+mail's link, the provider's return, the passkey's RP ID, the sign-in card - comes from that row,
+never from the short name. A change of address replaces the main row and drops the old one in one
+transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
+an assigned host is a row the operator writes without a proof, in an installation set to
+`HUBTASK_WORKSPACE_HOSTS=assigned`. The installation's settings hold whether owners may change the
+address (default off) and set up own domains (default off), the cooldown (30 days) and the
+operator's reserved short names beside the product's list.
 
 ---
 

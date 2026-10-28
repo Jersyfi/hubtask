@@ -51,6 +51,6 @@ from a terminal.
 
 * No preview or viewer inside the app for anything but the four image types.
 * No virus scanning inside Hubtask.
-* No capturing a file offline; an upload needs the server
+* In the browser, no capturing a file offline; the installed apps keep it and upload it later
   ([offline-sync.md](../../architecture/offline-sync.md) §1).
 * No versions of a file; a new version is a new upload.
