@@ -4,8 +4,8 @@
   // The custom fields in force for a collection: defining one, changing what it permits, and
   // taking it out of use.
   //
-  // **The key and the kind are settled once.** `CustomFieldDefinitionUpdate` does not carry
-  // either, and the contract gives the reason in its own words — a key that moved would orphan
+  // **The key, the kind and a MONEY field's currency are settled once.**
+  // `CustomFieldDefinitionUpdate` carries none of them, and the contract gives the reason in its own words — a key that moved would orphan
   // every value stored under it, a kind that changed would reinterpret them. So both controls stay
   // on screen and are off with that reason: a control that vanished after creation would leave the
   // reader wondering whether they had missed it.
@@ -35,7 +35,7 @@
   import { holds, offerIn, typesWith } from '../data/capability.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { customFields } from '../data/customfields.svelte.ts';
-  import { isValidKey, isWorkspaceWide, takesOptions } from '../data/customfields.ts';
+  import { isValidCurrency, isValidKey, isWorkspaceWide, takesCurrency, takesOptions } from '../data/customfields.ts';
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem } from '../problem.ts';
@@ -60,12 +60,16 @@
 
   const existing = $derived(customFields.of(collectionId));
 
-  /** The eight the contract declares, read from nowhere but the contract's own enum. */
-  const KINDS = ['TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL'];
+  /** The thirteen the contract declares, in the contract's own order. */
+  const KINDS = [
+    'TEXT', 'NUMBER', 'DATE', 'SELECT', 'MULTI_SELECT', 'BOOL', 'USER', 'URL',
+    'MONEY', 'DURATION', 'REFERENCE', 'USER_SET', 'RICH_TEXT',
+  ];
 
   let key = $state('');
   let kind = $state('TEXT');
   let options = $state('');
+  let currency = $state('');
   let isRequired = $state(false);
   let chosen = $state<string[]>([]);
   let editing = $state<CustomFieldDefinition | undefined>(undefined);
@@ -74,6 +78,7 @@
   let failure = $state<ReturnType<typeof renderProblem> | undefined>(undefined);
 
   const keyIsWrong = $derived(key !== '' && !isValidKey(key));
+  const currencyIsWrong = $derived(currency !== '' && !isValidCurrency(currency));
   /** Whether the reader may shape fields here: the controls that do are drawn only then (P-05). */
   const mayShape = $derived(structure.status === 'permitted');
   /** What *Define* found missing when it was pressed; each mark goes when its field changes. */
@@ -91,6 +96,7 @@
     key = '';
     kind = 'TEXT';
     options = '';
+    currency = '';
     isRequired = false;
     // The default is what the column's default is — every carrier rather than a guess at one.
     chosen = [...carriers];
@@ -105,6 +111,7 @@
     key = definition.key;
     kind = definition.kind;
     options = (definition.options ?? []).join('\n');
+    currency = definition.currency ?? '';
     isRequired = definition.is_required ?? false;
     chosen = [...((definition.applies_to ?? []) as readonly string[])];
     failure = undefined;
@@ -140,12 +147,17 @@
     missing = check([
       { kind: 'field', key: 'key', code: 'fields.key_required', isFilled: editing !== undefined || key !== '' },
       { kind: 'at-least-one', key: 'types', code: 'app.fields.applies_to_empty', chosen: chosen.length },
+      {
+        kind: 'field', key: 'currency', code: 'app.fields.currency_required',
+        isFilled: editing !== undefined || !takesCurrency(kind) || currency !== '',
+      },
     ]);
     if (!isComplete(missing)) {
       queueMicrotask(() => focusFirst(form));
       return;
     }
     if (keyIsWrong && editing === undefined) return;
+    if (currencyIsWrong && editing === undefined) return;
     const current = editing;
     void attempt(async () => {
       if (current) {
@@ -165,6 +177,7 @@
             key,
             kind: kind as never,
             options: takesOptions(kind) ? optionList() : [],
+            ...(takesCurrency(kind) ? { currency } : {}),
             is_required: isRequired,
             applies_to: chosen as never,
           },
@@ -201,7 +214,7 @@
               <div>
                 <span class="key">{definition.key}</span>
                 <span class="meta">
-                  {kindLabel(definition.kind)} ·
+                  {kindLabel(definition.kind)}{#if definition.currency} ({definition.currency}){/if} ·
                   {isWorkspaceWide(definition)
                     ? t('app.fields.workspace_wide')
                     : t('app.fields.this_collection')}
@@ -244,6 +257,22 @@
           options={KINDS.map((value) => ({ value, label: kindLabel(value) }))}
           disabledReason={editing ? t('app.fields.immutable') : undefined}
         />
+
+        {#if takesCurrency(editing?.kind ?? kind)}
+          <Input
+            label={t('app.fields.currency')}
+            hint={t('app.fields.currency_hint')}
+            bind:value={currency}
+            maxlength={3}
+            autocapitalize="characters"
+            oninput={() => {
+              currency = currency.toUpperCase();
+              missing = without(missing, 'currency');
+            }}
+            error={missing.currency ? t(missing.currency) : currencyIsWrong ? t('app.fields.currency_invalid') : undefined}
+            disabledReason={editing ? t('app.fields.currency_immutable') : undefined}
+          />
+        {/if}
 
         {#if takesOptions(editing?.kind ?? kind)}
           <Textarea

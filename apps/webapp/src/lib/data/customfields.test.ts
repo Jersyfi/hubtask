@@ -18,6 +18,7 @@ import {
   takesCurrency,
   takesOptions,
   valueFor,
+  valueText,
 } from './customfields.ts';
 
 function definition(over: Partial<CustomFieldDefinition> = {}): CustomFieldDefinition {
@@ -172,4 +173,23 @@ test('a definition becomes a filter field under the grammar’s prefix', () => {
   assert.equal(fields[0]?.sortable, true);
   assert.equal(fields[0]?.groupable, true);
   assert.equal(fields[0]?.nullable, true);
+});
+
+test('a stored value reads the way the reader reads it, people and entries by name', () => {
+  const reading = {
+    number: (value: number) => String(value).replace('.', ','),
+    amount: (value: number, currency: string) => `${String(value).replace('.', ',')} ${currency}`,
+    duration: (minutes: number) => `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`,
+    nameOf: (id: string) => ({ a: 'Amelie', b: 'Jonas' })[id],
+    titleOf: (id: string) => (id === 'e-1' ? 'Order chairs' : undefined),
+    unknown: 'Not visible',
+  };
+  assert.equal(valueText({ kind: 'MONEY', currency: 'EUR' }, 12.5, reading), '12,5 EUR');
+  assert.equal(valueText({ kind: 'DURATION' }, 90, reading), '1:30');
+  assert.equal(valueText({ kind: 'USER_SET' }, ['a', 'b', 'x'], reading), 'Amelie, Jonas, Not visible');
+  assert.equal(valueText({ kind: 'REFERENCE' }, 'e-1', reading), 'Order chairs');
+  assert.equal(valueText({ kind: 'REFERENCE' }, 'e-2', reading), 'Not visible');
+  assert.equal(valueText({ kind: 'RICH_TEXT' }, '\n# Scope\nmore', reading), '# Scope');
+  assert.equal(valueText({ kind: 'USER_SET' }, [], reading), undefined);
+  assert.equal(valueText({ kind: 'TEXT' }, '', reading), undefined);
 });

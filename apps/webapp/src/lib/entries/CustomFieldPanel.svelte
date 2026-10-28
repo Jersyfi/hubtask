@@ -18,10 +18,12 @@
   // `validation_failed` on that request is about that key whatever path it names — a `SELECT`
   // outside its options and a `NUMBER` that is not one both arrive this way.
   //
-  // **`USER` is the member picker, handed into the renderer's slot for it.** Who may be named is the
-  // memberships along the entry's path, which is the same list the assignee picker offers.
+  // **`USER` and `USER_SET` are the member picker, handed into the renderer's slot for it.** Who may
+  // be named is the memberships along the entry's path, which is the same list the assignee picker
+  // offers. **`REFERENCE` chooses among the collection's entries** this replica holds; the server
+  // holds the choice to what the writer may see (`fields.value_not_an_entry`).
 
-  import { AssigneeControl, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
+  import { AssigneeControl, Select, Stack, CustomFieldRenderer } from '@hubtask/design-system/components';
   import type { FieldValue } from '@hubtask/design-system/components';
   import type { CustomFieldDefinition, WorkItem } from '@hubtask/sync-engine';
 
@@ -33,6 +35,8 @@
   import { announcer } from '../announce.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { decimalSeparatorOf, formatDecimal, parseDecimal } from '../i18n/number.ts';
+  import { formatDuration, parseDuration } from '../i18n/duration.ts';
+  import { items } from '../data/items.svelte.ts';
   import { renderProblem } from '../problem.ts';
 
   interface Props {
@@ -57,6 +61,27 @@
     parse: (text: string) => parseDecimal(text, separator),
     invalidLabel: t('app.fields.number_invalid', { separator }),
   });
+  const durations = $derived({
+    format: formatDuration,
+    parse: (text: string) => parseDuration(text, separator),
+    invalidLabel: t('app.fields.duration_invalid'),
+  });
+
+  /** The entries a reference may point at: the collection's, the entry itself left out. */
+  const referable = $derived(
+    items.inCollection(item.collection_id).filter((each) => each.id !== item.id),
+  );
+  function referenceOptions(value: unknown) {
+    const options = [
+      { value: '', label: t('app.fields.pick_entry_none') },
+      ...referable.map((each) => ({ value: each.id, label: each.title })),
+    ];
+    // A value pointing outside what this replica holds stays chosen, and says so.
+    if (typeof value === 'string' && value !== '' && !referable.some((each) => each.id === value)) {
+      options.push({ value, label: t('app.fields.pick_entry_elsewhere') });
+    }
+    return options;
+  }
 
 
   const applicable = $derived(
@@ -121,7 +146,22 @@
       kind: definition.kind as string,
       options: (definition.options ?? []) as readonly string[],
       isRequired: definition.is_required ?? false,
+      hint: hintOf(definition),
     };
+  }
+
+  /** The standing help a kind needs: the currency an amount is in, how a duration is written. */
+  function hintOf(definition: CustomFieldDefinition): string | undefined {
+    switch (definition.kind as string) {
+      case 'MONEY':
+        return definition.currency ? t('app.fields.money_hint', { currency: definition.currency }) : undefined;
+      case 'DURATION':
+        return t('app.fields.duration_hint');
+      case 'RICH_TEXT':
+        return t('app.fields.rich_text_hint');
+      default:
+        return undefined;
+    }
   }
 </script>
 
@@ -140,21 +180,35 @@
             unknownKindLabel={t('app.fields.unknown_kind')}
             emptyValueLabel={t('app.fields.empty_value')}
             {numbers}
+            {durations}
             onChange={(next) => write(definition, next)}
           >
-            {#snippet user({ value })}
+            {#snippet user({ value, multiple })}
               <AssigneeControl
                 label={t('app.fields.pick_person')}
                 {candidates}
-                selected={typeof value === 'string' && value !== '' ? [value] : []}
-                selection="single"
+                selected={Array.isArray(value)
+                  ? [...(value as readonly string[])]
+                  : typeof value === 'string' && value !== ''
+                    ? [value]
+                    : []}
+                selection={multiple ? 'multiple' : 'single'}
                 filterLabel={t('app.fields.pick_filter')}
                 locale={messages.locale}
                 emptyLabel={t('app.fields.pick_empty')}
                 noMatchLabel={t('app.fields.pick_no_match')}
                 chosenLabel={t('app.fields.pick_chosen')}
                 unassignedLabel={t('app.fields.pick_none')}
-                onSelect={(ids) => write(definition, ids[0] ?? null)}
+                onSelect={(ids) => write(definition, multiple ? ids : (ids[0] ?? null))}
+              />
+            {/snippet}
+            {#snippet reference({ value })}
+              <Select
+                label={t('app.fields.pick_entry')}
+                size="sm"
+                options={referenceOptions(value)}
+                value={typeof value === 'string' ? value : ''}
+                onchange={(event) => write(definition, (event.currentTarget as HTMLSelectElement).value || null)}
               />
             {/snippet}
           </CustomFieldRenderer>

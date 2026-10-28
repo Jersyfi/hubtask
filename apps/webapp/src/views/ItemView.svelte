@@ -66,7 +66,9 @@
   import { containers } from '../lib/data/containers.svelte.ts';
   import { archivalOf } from '../lib/data/containers.ts';
   import { customFields } from '../lib/data/customfields.svelte.ts';
-  import { definitionsFor } from '../lib/data/customfields.ts';
+  import { definitionsFor, valueText } from '../lib/data/customfields.ts';
+  import { formatDecimal } from '../lib/i18n/number.ts';
+  import { formatDuration } from '../lib/i18n/duration.ts';
   import { commentsPath } from '../lib/data/comments.svelte.ts';
   import { engine } from '../lib/data/engine.ts';
   import { entryEditOf } from '../lib/data/edits.ts';
@@ -825,6 +827,17 @@
    * draws its row - `DetailRow` draws a read-only row only with a value. While the type is unknown
    * or not offered the card stays: it says why there are no rows.
    */
+  /** A field's value as its row shows it, the reader's way (`valueText`). */
+  const fieldReading = $derived({
+    number: (value: number) => formatDecimal(value, messages.locale),
+    amount: (value: number, currency: string) =>
+      t('app.fields.money_value', { amount: formatDecimal(value, messages.locale), currency }),
+    duration: formatDuration,
+    nameOf: (id: string) => accounts.nameOf(id),
+    titleOf: (id: string) => items.find(id)?.title,
+    unknown: t('app.fields.value_unnamed'),
+  });
+
   const holdsDetails = $derived.by(() => {
     if (!item) return false;
     if (!(isTypeKnown && isTypeOffered)) return true;
@@ -1361,7 +1374,7 @@
             {#if carries('CUSTOM_FIELDS')}
               {#each definitions as definition (definition.id)}
                 {@const held = (item.custom_fields as Record<string, unknown> | undefined)?.[definition.key]}
-                <DetailRow id={`field-${definition.key}`} label={definition.key} value={held === undefined || held === null || held === '' ? undefined : String(held)} isReadOnly={!isWritable}>
+                <DetailRow id={`field-${definition.key}`} label={definition.key} value={valueText(definition, held, fieldReading)} isReadOnly={!isWritable}>
                   <CustomFieldPanel {item} path={peoplePath} only={definition.key} />
                 </DetailRow>
               {/each}

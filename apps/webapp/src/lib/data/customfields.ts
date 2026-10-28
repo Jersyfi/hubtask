@@ -224,3 +224,50 @@ export function queryFieldsFor(
     groupable: groupsBy(definition.kind),
   }));
 }
+
+/** What `valueText` needs to say a value the way the reader reads it, all of it resolved. */
+export interface ValueReading {
+  /** A number the locale's way. */
+  readonly number: (value: number) => string;
+  /** An amount with its currency, as the catalogue joins the two. */
+  readonly amount: (value: number, currency: string) => string;
+  readonly duration: (minutes: number) => string;
+  /** A person's name, or `undefined` for one this replica does not know. */
+  readonly nameOf: (accountId: string) => string | undefined;
+  /** An entry's title, or `undefined` for one this replica does not hold. */
+  readonly titleOf: (itemId: string) => string | undefined;
+  /** What an account or an entry this client cannot name reads as. */
+  readonly unknown: string;
+}
+
+/**
+ * A stored value as one line of text, for a row that shows rather than edits it; `undefined` for
+ * no value. People and entries by name, never by identifier, and formatted text by its first line.
+ */
+export function valueText(
+  definition: { readonly kind: string; readonly currency?: string | null },
+  held: unknown,
+  reading: ValueReading,
+): string | undefined {
+  if (held === undefined || held === null || held === '') return undefined;
+  if (Array.isArray(held) && held.length === 0) return undefined;
+  const kind = definition.kind as string;
+  switch (kind) {
+    case 'NUMBER':
+      return typeof held === 'number' ? reading.number(held) : String(held);
+    case 'MONEY':
+      return typeof held === 'number' ? reading.amount(held, definition.currency ?? '') : String(held);
+    case 'DURATION':
+      return typeof held === 'number' ? reading.duration(held) : String(held);
+    case 'USER':
+      return reading.nameOf(String(held)) ?? reading.unknown;
+    case 'USER_SET':
+      return (Array.isArray(held) ? held : [held]).map((id) => reading.nameOf(String(id)) ?? reading.unknown).join(', ');
+    case 'REFERENCE':
+      return reading.titleOf(String(held)) ?? reading.unknown;
+    case 'RICH_TEXT':
+      return String(held).trim().split('\n')[0];
+    default:
+      return Array.isArray(held) ? held.map(String).join(', ') : String(held);
+  }
+}
