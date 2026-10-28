@@ -30,6 +30,15 @@ allow = [
   "Zlib",
 ]
 
+# r-efi offers "MIT OR Apache-2.0 OR LGPL-2.1-or-later" and is taken under MIT; said here so the
+# choice is written down rather than left to the expression. getrandom links it only on UEFI, which
+# the shell is not built for, but Cargo.lock lists it and the dependency review in ci.yml reads the
+# lock (its `allow-dependencies-licenses` names the same two versions).
+[[licenses.clarify]]
+crate = "r-efi"
+expression = "MIT"
+license-files = []
+
 [bans]
 # Several versions of one crate are Tauri's to settle, not ours; a wildcard requirement is ours.
 multiple-versions = "allow"

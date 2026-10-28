@@ -449,8 +449,10 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 	})
 
 	t.Run("next moment", func(t *testing.T) {
+		// A tenant nothing else writes into, for the reason the due announcement scan's test gives.
+		outsider, _ := seedOwnTenant(ctx, t)
 		var next *time.Time
-		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := read(ctx, t, outsider, func(ctx context.Context) error {
 			var err error
 			next, err = reminderRepo().NextMoment(ctx)
 			return err
@@ -458,7 +460,7 @@ func TestRemindersAreInvisibleFromAnotherTenant(t *testing.T) {
 			t.Fatal(err)
 		}
 		if next != nil {
-			t.Errorf("tenant B is told it owes a reminder at %v", next)
+			t.Errorf("another tenant is told it owes a reminder at %v", next)
 		}
 	})
 }
@@ -483,9 +485,13 @@ func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 
 	later := overdue.Add(time.Hour)
 
+	// The wrong tenant is one nothing else writes into: "owes nothing" is a tenant-wide answer, and
+	// the shared tenantB holds whatever deadlines other tests in this package gave it.
+	outsider, _ := seedOwnTenant(ctx, t)
+
 	t.Run("claim due soon", func(t *testing.T) {
 		var claimed []repository.DueAnnouncement
-		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := write(ctx, t, outsider, func(ctx context.Context) error {
 			var err error
 			claimed, err = itemRepo().ClaimDueSoon(ctx, later, later.Add(24*time.Hour), 10)
 			return err
@@ -494,14 +500,14 @@ func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 		}
 		for _, announcement := range claimed {
 			if announcement.ItemID == task {
-				t.Fatal("tenant B claimed tenant A's approaching deadline")
+				t.Fatal("the other tenant claimed tenant A's approaching deadline")
 			}
 		}
 	})
 
 	t.Run("claim overdue", func(t *testing.T) {
 		var claimed []repository.DueAnnouncement
-		if err := write(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := write(ctx, t, outsider, func(ctx context.Context) error {
 			var err error
 			claimed, err = itemRepo().ClaimOverdue(ctx, later, 10)
 			return err
@@ -510,14 +516,14 @@ func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 		}
 		for _, announcement := range claimed {
 			if announcement.ItemID == task {
-				t.Fatal("tenant B claimed tenant A's missed deadline")
+				t.Fatal("the other tenant claimed tenant A's missed deadline")
 			}
 		}
 	})
 
 	t.Run("next announcement", func(t *testing.T) {
 		var next *time.Time
-		if err := read(ctx, t, tenantB, func(ctx context.Context) error {
+		if err := read(ctx, t, outsider, func(ctx context.Context) error {
 			var err error
 			next, err = itemRepo().NextDueAnnouncement(ctx, 24*time.Hour)
 			return err
@@ -525,7 +531,7 @@ func TestTheDueAnnouncementScanStopsAtTheTenantBoundary(t *testing.T) {
 			t.Fatal(err)
 		}
 		if next != nil {
-			t.Errorf("tenant B is told it owes an announcement at %v", next)
+			t.Errorf("the other tenant is told it owes an announcement at %v", next)
 		}
 	})
 

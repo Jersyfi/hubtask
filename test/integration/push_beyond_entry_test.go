@@ -312,3 +312,146 @@ func TestAnotherWorkspacesLabelIsRefusedToAPush(t *testing.T) {
 		t.Errorf("another workspace's push changed the label")
 	}
 }
+
+// A device mints its own identifiers (offline-sync.md §9 rule 1), so it can name one another
+// workspace already holds. Every kind's create under such an identifier is refused as taken - the
+// key is global, the insert never reaches the other row - and a change or a deletion under it
+// finds nothing: the other workspace's rows stay exactly as they were (gate SG-3).
+func TestADeviceIdentifierNeverReachesAnotherWorkspacesRow(t *testing.T) {
+	ctx := context.Background()
+	seedMemberships(ctx, t)
+	registry := beyondEntryCatalogue(ctx, t)
+	// Workspace A is one of its own: the shared tenantA carries a narrowed TASK profile another test
+	// gave it, under which an entry takes no due date and so no reminder.
+	holder, holderAuthor := seedOwnTenant(ctx, t)
+	if _, err := adminPool(ctx, t).Exec(ctx,
+		`INSERT INTO membership (id, tenant_id, account_id, scope_type, role) VALUES ($1, $2, $3, 'TENANT', 'OWNER')`,
+		freshID(t).String(), holder.String(), holderAuthor.String()); err != nil {
+		t.Fatalf("making the owner: %v", err)
+	}
+
+	// Workspace A's rows, created through its own push so that their identifiers are known.
+	collectionA := collectionFor(ctx, t, holder, holderAuthor)
+	item, reminder, rule, hub, label, bucket := freshID(t), freshID(t), freshID(t), freshID(t), freshID(t), freshID(t)
+	pushA := pushFor(ctx, t, 365*24*time.Hour)
+	pushA.Catalogue = registry
+	pushA.Clocks = postgres.NewChangeLog()
+	seeded := []syncservice.Mutation{
+		{OpID: freshID(t), Kind: syncdomain.ItemCreate, ItemID: item, HLC: readingAt(t, 1), Payload: map[string]any{
+			"type": "TASK", "collection_id": collectionA.String(), "title": "Water the plants", "due_at": "2027-07-03T10:00:00Z"}},
+		{OpID: freshID(t), Kind: syncdomain.ReminderCreate, ItemID: item, EntityID: reminder, HLC: readingAt(t, 2),
+			Payload: map[string]any{"offset_spec": "REL:-PT1H"}},
+		{OpID: freshID(t), Kind: syncdomain.RecurrenceCreate, ItemID: item, EntityID: rule, HLC: readingAt(t, 3),
+			Payload: map[string]any{"rrule": "FREQ=YEARLY", "time_zone": "Europe/Berlin", "mode": "ON_SCHEDULE"}},
+		{OpID: freshID(t), Kind: syncdomain.ContainerCreate, EntityID: hub, HLC: readingAt(t, 4),
+			Payload: map[string]any{"type": "HUB", "name": "Allotment " + freshName(t)}},
+		{OpID: freshID(t), Kind: syncdomain.LabelCreate, EntityID: label, HLC: readingAt(t, 5),
+			Payload: map[string]any{"collection_id": collectionA.String(), "name": "Outdoors", "color_token": "red"}},
+		{OpID: freshID(t), Kind: syncdomain.BucketCreate, EntityID: bucket, HLC: readingAt(t, 6),
+			Payload: map[string]any{"collection_id": collectionA.String(), "name": "Waiting"}},
+	}
+	seededAnswer, err := pushA.Push(ctx, beyondEntryActor(holder, holderAuthor),
+		syncservice.PushRequest{DeviceID: freshID(t), Platform: "hubctl", Mutations: seeded})
+	if err != nil {
+		t.Fatalf("seeding workspace A: %v", err)
+	}
+	for i, result := range seededAnswer.Results {
+		if result.Result != syncdomain.Applied {
+			t.Fatalf("seeding %s answered %s %+v", seeded[i].Kind, result.Result, result.Error)
+		}
+	}
+
+	// Workspace B's device, naming A's identifiers - for creations under its own entry and
+	// collection, and for changes and deletions outright.
+	collectionB := collectionFor(ctx, t, tenantB, authorB)
+	itemB := freshID(t)
+	pushB := pushFor(ctx, t, 365*24*time.Hour)
+	pushB.Catalogue = registry
+	pushB.Clocks = postgres.NewChangeLog()
+	if answer, err := pushB.Push(ctx, beyondEntryActor(tenantB, authorB), syncservice.PushRequest{
+		DeviceID: freshID(t), Platform: "hubctl", Mutations: []syncservice.Mutation{
+			{OpID: freshID(t), Kind: syncdomain.ItemCreate, ItemID: itemB, HLC: readingAt(t, 10), Payload: map[string]any{
+				"type": "TASK", "collection_id": collectionB.String(), "title": "Feed the cat", "due_at": "2027-07-03T10:00:00Z"}},
+		},
+	}); err != nil || answer.Results[0].Result != syncdomain.Applied {
+		t.Fatalf("workspace B's own entry: %v %+v", err, answer)
+	}
+
+	takenCodes := map[syncdomain.MutationKind]string{
+		syncdomain.ItemCreate:       "items.id_taken",
+		syncdomain.ReminderCreate:   "reminders.id_taken",
+		syncdomain.RecurrenceCreate: "recurrence.id_taken",
+		syncdomain.ContainerCreate:  "containers.id_taken",
+		syncdomain.LabelCreate:      "labels.id_taken",
+		syncdomain.BucketCreate:     "buckets.id_taken",
+	}
+	attempts := []syncservice.Mutation{
+		{OpID: freshID(t), Kind: syncdomain.ItemCreate, ItemID: item, HLC: readingAt(t, 11), Payload: map[string]any{
+			"type": "TASK", "collection_id": collectionB.String(), "title": "Mine now"}},
+		{OpID: freshID(t), Kind: syncdomain.ReminderCreate, ItemID: itemB, EntityID: reminder, HLC: readingAt(t, 12),
+			Payload: map[string]any{"offset_spec": "REL:-PT3H"}},
+		{OpID: freshID(t), Kind: syncdomain.RecurrenceCreate, ItemID: itemB, EntityID: rule, HLC: readingAt(t, 13),
+			Payload: map[string]any{"rrule": "FREQ=DAILY", "time_zone": "Europe/Vienna", "mode": "ON_SCHEDULE"}},
+		{OpID: freshID(t), Kind: syncdomain.ContainerCreate, EntityID: hub, HLC: readingAt(t, 14),
+			Payload: map[string]any{"type": "HUB", "name": "Mine now " + freshName(t)}},
+		{OpID: freshID(t), Kind: syncdomain.LabelCreate, EntityID: label, HLC: readingAt(t, 15),
+			Payload: map[string]any{"collection_id": collectionB.String(), "name": "Mine now", "color_token": "red"}},
+		{OpID: freshID(t), Kind: syncdomain.BucketCreate, EntityID: bucket, HLC: readingAt(t, 16),
+			Payload: map[string]any{"collection_id": collectionB.String(), "name": "Mine now"}},
+		{OpID: freshID(t), Kind: syncdomain.ReminderPatch, ItemID: item, EntityID: reminder, Fields: map[string]syncservice.FieldChange{
+			"offset_spec": {Value: "REL:-PT3H", HLC: readingAt(t, 17)}}},
+		{OpID: freshID(t), Kind: syncdomain.RecurrencePatch, ItemID: item, EntityID: rule, Fields: map[string]syncservice.FieldChange{
+			"time_zone": {Value: "Europe/Vienna", HLC: readingAt(t, 18)}}},
+		{OpID: freshID(t), Kind: syncdomain.ContainerPatch, EntityID: hub, Fields: map[string]syncservice.FieldChange{
+			"description": {Value: "Mine now", HLC: readingAt(t, 19)}}},
+		{OpID: freshID(t), Kind: syncdomain.BucketPatch, EntityID: bucket, ContainerID: collectionA, Fields: map[string]syncservice.FieldChange{
+			"wip_limit": {Value: 1, HLC: readingAt(t, 20)}}},
+		{OpID: freshID(t), Kind: syncdomain.ReminderDelete, ItemID: item, EntityID: reminder, HLC: readingAt(t, 21)},
+		{OpID: freshID(t), Kind: syncdomain.RecurrenceDelete, ItemID: item, EntityID: rule, HLC: readingAt(t, 22)},
+		{OpID: freshID(t), Kind: syncdomain.BucketDelete, EntityID: bucket, ContainerID: collectionA, HLC: readingAt(t, 23)},
+		{OpID: freshID(t), Kind: syncdomain.ContainerDelete, EntityID: hub, HLC: readingAt(t, 24)},
+	}
+	// One push per mutation, so that each is answered on its own rather than behind a refused one.
+	for _, m := range attempts {
+		answer, err := pushB.Push(ctx, beyondEntryActor(tenantB, authorB),
+			syncservice.PushRequest{DeviceID: freshID(t), Platform: "hubctl", Mutations: []syncservice.Mutation{m}})
+		if err != nil {
+			t.Errorf("%s under workspace A's identifier ended the push: %v", m.Kind, err)
+			continue
+		}
+		result := answer.Results[0]
+		if result.Result == syncdomain.Applied || result.Result == syncdomain.Merged {
+			t.Errorf("%s under workspace A's identifier answered %s", m.Kind, result.Result)
+			continue
+		}
+		if code, isCreate := takenCodes[m.Kind]; isCreate &&
+			(result.Result != syncdomain.Rejected || result.Error == nil || result.Error.MessageCode != code) {
+			t.Errorf("%s under a taken identifier answered %s %+v, want a refusal %s", m.Kind, result.Result, result.Error, code)
+		}
+	}
+
+	// Workspace A's rows, read past row level security: still A's, as A left them.
+	untouched := []struct {
+		what  string
+		query string
+		args  []any
+	}{
+		{"the entry", `SELECT count(*) FROM work_item WHERE id = $1 AND tenant_id = $2 AND title = 'Water the plants' AND deleted_at IS NULL`,
+			[]any{item.String(), holder.String()}},
+		{"the reminder", `SELECT count(*) FROM reminder WHERE id = $1 AND tenant_id = $2 AND offset_spec = 'REL:-PT1H'`,
+			[]any{reminder.String(), holder.String()}},
+		{"the series", `SELECT count(*) FROM recurrence_rule WHERE id = $1 AND tenant_id = $2 AND time_zone = 'Europe/Berlin' AND rrule = 'FREQ=YEARLY'`,
+			[]any{rule.String(), holder.String()}},
+		{"the hub", `SELECT count(*) FROM container WHERE id = $1 AND tenant_id = $2 AND description IS NULL AND deleted_at IS NULL`,
+			[]any{hub.String(), holder.String()}},
+		{"the label", `SELECT count(*) FROM label WHERE id = $1 AND tenant_id = $2 AND name = 'Outdoors' AND deleted_at IS NULL`,
+			[]any{label.String(), holder.String()}},
+		{"the bucket", `SELECT count(*) FROM bucket WHERE id = $1 AND tenant_id = $2 AND wip_limit IS NULL AND deleted_at IS NULL`,
+			[]any{bucket.String(), holder.String()}},
+	}
+	for _, check := range untouched {
+		if rows := countIn(ctx, t, check.query, check.args...); rows != 1 {
+			t.Errorf("workspace B's device reached workspace A's %s: %d rows as A left it", check.what, rows)
+		}
+	}
+}

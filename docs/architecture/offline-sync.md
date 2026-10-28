@@ -127,7 +127,7 @@ body; its entries arrive as ordinary creations. Each is applied through the rout
 the pushing person, never a code path of its own. A new kind is an additive enum value. Each mutation is answered `applied`, `merged`
 (with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
 
-* **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once.
+* **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once. An identifier already held — in this workspace or another, since every primary key is global — refuses the creation as `<area>.id_taken` (a `REJECTED` result, not a failure pushed again); it never reaches the row that holds it.
 * **An `op_id` per mutation** is kept server-side for the offline window (`HUBTASK_TOMBSTONE_WINDOW`, 90 days by default — the one period the change log, the operation log and the tombstones share, retention kind `SYNC_LOG`); a duplicate push takes effect exactly once.
 * **A mutation's effect and its `sync_op_log` record commit in one transaction.**
 * **Ordering within one device is preserved**; between devices the HLC decides (§4.1).

@@ -38,6 +38,20 @@ var _ repository.Containers = ContainerRepository{}
 // uniqueViolation is PostgreSQL's SQLSTATE for a broken unique constraint.
 const uniqueViolation = "23505"
 
+// identifierTaken is the conflict for an insert whose primary key is already held, or nil for any
+// other error. The key is global, so the holder may be another tenant's row: the insert never
+// reaches it, and a device that minted the identifier (offline-sync.md §9 rule 1) gets a refusal
+// it records instead of a failure it would push again forever.
+func identifierTaken(err error, primaryKey, code string) error {
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == uniqueViolation && pgErr.ConstraintName == primaryKey {
+		return shared.ErrConflict.
+			WithDetail(code).
+			WithFields(shared.FieldError{Path: "/id", Code: code})
+	}
+	return nil
+}
+
 // containerNameIndex is the constraint that decides whether a name is free at one level. Named
 // explicitly, so that a different unique violation - one added by a later migration - is not
 // reported to the client as a duplicate name.
@@ -215,6 +229,9 @@ func (r ContainerRepository) insert(ctx context.Context, container *work.Contain
 		return shared.ErrConflict.
 			WithDetail("containers.name_taken").
 			WithParams(map[string]string{"name": container.Name})
+	}
+	if taken := identifierTaken(err, "container_pkey", "containers.id_taken"); taken != nil {
+		return taken
 	}
 	return shared.ErrUnavailable.
 		WithDetail("postgres.query_failed").
