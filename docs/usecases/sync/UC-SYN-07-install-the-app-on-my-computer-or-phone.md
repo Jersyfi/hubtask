@@ -70,7 +70,7 @@ settings are not in the app, and the menu says they are in the web app, with a l
 * Check 3: not met — there is no installed app, and a passkey cannot be used from a webview's origin.
 * Check 4: not met — there is no installed app.
 * Check 5: not met — there is no updater.
-* Check 6: not met — there is no Android app, and its way to stay current waits on #1764.
+* Check 6: not met — there is no Android app.
 * Check 7: not met — no build leaves administration out.
 * Check 8: not met — there is no Android app.
 * Check 9: not met — there is no smoke walk in a webview.

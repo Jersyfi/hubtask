@@ -20,6 +20,7 @@ names its use cases; a task is done when the named checks hold, with the evidenc
 request.
 
 **Delivers:** UC-SYN-01 (1, 6, 7), UC-SYN-07 (1, 3, 4, 5, 6, 7, 8, 9), UC-ID-25 (7), UC-WRK-33 (5)
+**Released:** 2026-10-28
 
 ## Decisions
 
@@ -37,14 +38,20 @@ Each measured against the deployments `D1`–`D7`:
    (worker, at the cut; ADR-0096): a passkey's RP ID is the workspace's host, which a webview's
    origin can never be; a built-in public client with PKCE reuses every way in and every rule the
    web app has, and needs nobody to register it (P-09).
-4. **The Rust toolchain and the Tauri crates are the owner's** (#1763, open): a new third-party
-   dependency. The proposal: Tauri with its updater, deep-link and opener plugins, `rusqlite` with
-   SQLCipher, `keyring`, a Kotlin bridge of our own to the Android Keystore, and `cargo-deny` for
-   licences.
-5. **Android updates** (#1764, open): Tauri's updater has no Android; the proposal is a notice that
-   opens the new APK's download. UC-SYN-07 check 6 is written as proposed.
-6. **A file captured offline** (#1765, open): UC-SYN-01 check 6 and UC-MED-01's *Where it ends*
-   disagree; the proposal is that the installed apps keep and upload it later, the browser not.
+4. **The Rust toolchain and the Tauri crates, for `src-tauri/` only** (the owner, #1763): Rust
+   pinned by `rust-toolchain.toml`, Cargo with a committed `Cargo.lock`, `cargo-deny` under the
+   licence policy; `tauri`, `tauri-build` and the plugins `updater` (desktop), `deep-link` and
+   `opener`; `rusqlite` with `bundled-sqlcipher`, `keyring`, a Kotlin bridge of our own to the
+   Android Keystore; `@tauri-apps/api`, `@tauri-apps/cli` and the CI actions for Rust and the
+   Android SDK. Anything else is asked again.
+5. **Android stays current by a notice** (the owner, #1764): Tauri's updater has no Android; the
+   app reads the same signed manifest, says when a newer release exists and opens the APK's
+   download, without the permission to install packages. `1.0.0` prerequisite 19's updater run is
+   the desktop's (ADR-0097, amending ADR-0084).
+6. **The installed apps capture a file offline, the browser not** (the owner, #1765): the bytes wait
+   in the encrypted copy and are uploaded when the connection returns, then the attachment is added;
+   limits and the quota are checked at upload, a refusal shows on the change. UC-MED-01's *Where it
+   ends* is limited to the browser; offline-sync.md §1 says so.
 7. **SY-B: the phone synchronises everything, as the browser does** (worker, at the cut): UC-SYN-01
    check 1 promises a copy of everything the person may read; F7-07 measures it on a reference
    phone, and only a measurement that rules it out brings a smaller default to the owner, because
@@ -70,7 +77,7 @@ Each measured against the deployments `D1`–`D7`:
 
 ## F7-01 — The desktop shell builds and runs
 
-*Depends on: #1763.* · issue #1348 · ADR-0031, ADR-0033
+*Depends on: nothing.* · issue #1348 · ADR-0031, ADR-0033
 
 **Use cases:** UC-WRK-33 (5)
 
@@ -144,7 +151,7 @@ test that the database file is unreadable without the key and that sign-out remo
 
 ## F7-05 — The changes the push frame does not carry yet
 
-*Depends on: nothing; the attachment part on #1765.* · issue #1351 · offline-sync.md §1, §3.2, §4.2
+*Depends on: nothing; the attachment part on F7-04.* · issue #1351 · offline-sync.md §1, §3.2, §4.2
 
 **Use cases:** UC-SYN-01 (6)
 
@@ -154,12 +161,14 @@ buckets), each merged by offline-sync.md §4.2's rule for its kind and refused w
 server must decide. The server applies them through the same use cases as the routes; the engine
 queues them; the web app offers them offline where it today answers `sync.needs_connection`.
 `hubctl sync-conformance` rule 8, which today asserts that applying a template is refused, follows
-§1. A file captured offline follows #1765.
+§1. In the installed apps a file captured offline waits in the copy and is uploaded, then added,
+when the connection returns (Decision 6); the browser keeps refusing it.
 
 **Acceptance:** table tests for the merge of each kind; integration tests of each kind through
 `/sync/push`, a replayed `op_id` applied once, and a cross-tenant negative test; engine tests that
-each kind is queued and replayed in order; the conformance rule changed with its test; an e2e walk
-offline in the browser.
+each kind is queued and replayed in order; a shell test that a file captured offline is uploaded and
+added after reconnecting, and a refused upload shows on the change; the conformance rule changed with
+its test; an e2e walk offline in the browser.
 
 ---
 
@@ -219,14 +228,15 @@ versioning-release.md.
 
 ## F7-09 — Staying current
 
-*Depends on: F7-08; the Android part on #1764.* · issue #1350 · ADR-0084
+*Depends on: F7-08; the Android part on F7-06.* · issue #1350 · ADR-0084
 
 **Use cases:** UC-SYN-07 (5, 6)
 
 On Windows and Linux, Tauri's updater reads the release's signed manifest, checks it against the
 project's update key, and installs after the person agrees; a manifest or a package with a wrong
-signature is refused and the app says so. On Android, as #1764 decides. One updater run is exercised
-end to end from a released version to its successor (`1.0.0` prerequisite 19).
+signature is refused and the app says so. One updater run is exercised end to end from a released
+version to its successor (`1.0.0` prerequisite 19). On Android the app reads the same manifest, says
+when a newer release exists and opens the APK's download (Decision 5).
 
 **Acceptance:** a shell test that a wrongly signed update is refused; the end-to-end run from one
 pre-release to the next as an evidence record; the Android notice's test.
@@ -294,12 +304,12 @@ and needs nothing from the operator.
    the chart, the SBOM and the licences, no binary and no checksum file; Tauri's updater supports
    no Android; the website's download page says `hubctl` is published, which no release does (fixed
    on this branch).
-5. **Decisions** — above; three wait on the owner: #1763, #1764, #1765.
+5. **Decisions** — above; the owner answered #1763, #1764 and #1765 on 2026-10-28.
 6. **The rules** — identity.md §15.3 and §23.3 drafted for the sign-in, ADR-0096 proposed and
    accepted when F7-02 merges; offline-sync.md §1, §3.2 and §12 change in F7-05 and F7-07;
    versioning-release.md in F7-08; support-matrix.md in F7-10.
 7. **Findings** — none open of the area. Found at the cut: the conformance rule against §1 (F7-05),
-   UC-MED-01 against UC-SYN-01 (#1765), and the website's `hubctl` claim (fixed on this branch).
+   UC-MED-01 against UC-SYN-01 (answered in #1765), and the website's `hubctl` claim (fixed on this branch).
 8. **Tasks** — each names its checks, dependencies and acceptance; together they carry `Delivers`.
 9. **The standing rules** — rule 1 and rule 14 (no Go under `apps/`, the core knows no shell), rule
    2 (the built-in client authorised in the application layer like every client), rule 3 and rule

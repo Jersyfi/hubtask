@@ -31,12 +31,12 @@ milestone ([`backlog/README.md`](./backlog/README.md)) before it is built:
 2. **PK — Passkeys** ([`archive/backlog/milestone-PK.md`](./archive/backlog/milestone-PK.md), cut 2026-10-15, closed 2026-10-18),
    then **PL — Plans** ([`archive/backlog/milestone-PL.md`](./archive/backlog/milestone-PL.md), cut and released
    2026-10-16, closed 2026-10-19) and **CD — Custom domains**
-   ([`backlog/milestone-CD.md`](./backlog/milestone-CD.md), cut 2026-10-27): SI prepared all three
+   ([`backlog/milestone-CD.md`](./backlog/milestone-CD.md), cut 2026-10-27, released 2026-10-28): SI prepared all three
    without building any. CD also carries changing a workspace's address, hosts the operator
    assigns, owners' own domains, the device's workspace list and the reserved short names
    (multi-tenancy.md §3.1, decided 2026-10-16).
 3. **F7 — The shells, free to install** ([`backlog/milestone-F7.md`](./backlog/milestone-F7.md), cut
-   2026-10-27, three questions open with the owner; below), then `0.9.5` and `1.0.0`.
+   2026-10-27, released 2026-10-28; below), then `0.9.5` and `1.0.0`.
 
 ---
 
@@ -74,7 +74,7 @@ issues; nothing is released by them.
 
 ### F7 — The shells, free to install
 
-Cut on 2026-10-27 in [`backlog/milestone-F7.md`](./backlog/milestone-F7.md), which holds the tasks;
+Cut on 2026-10-27 and released on 2026-10-28 in [`backlog/milestone-F7.md`](./backlog/milestone-F7.md), which holds the tasks;
 what follows is the outline. Up to `2.0` the shells are the ones that cost nothing to build and install —
 **Windows, Linux and Android, outside every store** — and macOS, iOS and the store listings wait
 for `2.0` ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)). So F7 needs

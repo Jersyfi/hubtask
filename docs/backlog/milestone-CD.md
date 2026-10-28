@@ -20,6 +20,7 @@ Every task names its use cases; a task is done when the named checks hold, with 
 pull request.
 
 **Delivers:** UC-INS-07 (2), UC-INS-15 (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), UC-INS-19 (1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11), UC-INS-20 (1, 2, 3, 4, 5), UC-ID-25 (1, 2, 3, 4, 5, 6, 8)
+**Released:** 2026-10-28
 
 ## Decisions
 
