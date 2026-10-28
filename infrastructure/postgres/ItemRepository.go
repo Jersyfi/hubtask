@@ -1080,6 +1080,7 @@ func (r ItemRepository) insert(ctx context.Context, item *work.WorkItem) error {
 		CalendarUid:     optionalText(item.CalendarUID),
 		CreatedBy:       createdBy,
 		CreatedAt:       timestampOf(item.CreatedAt),
+		EntryType:       optionalText(item.EntryType),
 	})
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -1407,6 +1408,7 @@ func itemFrom(row sqlc.FindWorkItemRow) (work.WorkItem, error) {
 		UpdatedAt:          timeFrom(row.UpdatedAt),
 		Version:            int(row.Version),
 		Number:             int64Of(row.Number),
+		EntryType:          stringFrom(row.EntryType),
 	}, nil
 }
 

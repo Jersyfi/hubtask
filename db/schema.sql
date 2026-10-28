@@ -925,7 +925,8 @@ CREATE TABLE entry_type (
   key              text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
   level            text NOT NULL CHECK (level IN ('TASK', 'WORK_PACKAGE', 'ACTIVITY')),
   system           boolean NOT NULL DEFAULT false,
-  name             text NOT NULL CHECK (char_length(btrim(name)) BETWEEN 1 AND 80),
+  -- Empty only on a system type nobody named: a client shows its own word for the level (rule 8).
+  name             text NOT NULL CHECK (char_length(name) <= 120 AND (system OR btrim(name) <> '')),
   icon             text NOT NULL CHECK (icon ~ '^[a-z][a-z0-9-]{0,39}$'),
   color_token      text NOT NULL CHECK (color_token ~ '^[a-z][a-z0-9-]{0,39}$'),
   completable      boolean NOT NULL DEFAULT true,
@@ -940,7 +941,7 @@ CREATE TABLE entry_type (
   updated_at       timestamptz NOT NULL,
   version          integer NOT NULL DEFAULT 1,
   UNIQUE (tenant_id, id),
-  UNIQUE (tenant_id, key),
+  CONSTRAINT entry_type_key_uq UNIQUE (tenant_id, key),
   CHECK (NOT (record AND completable)),
   CHECK (NOT system OR (key = lower(level) AND NOT record AND archived_at IS NULL))
 );

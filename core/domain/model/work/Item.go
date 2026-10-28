@@ -231,6 +231,9 @@ type WorkItem struct {
 	// Drawn by the store on insert and anew on a move to another collection; zero before it is read
 	// back.
 	Number int64
+	// EntryType is the key of the entry's type, empty for its level's system type (UC-FLW-01). A
+	// scalar, so it merges as last writer wins per field (offline-sync.md §4.2).
+	EntryType string
 }
 
 // RetentionState is what an entry in a running retention period carries (data-retention.md §6).
