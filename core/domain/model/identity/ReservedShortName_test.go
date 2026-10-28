@@ -58,12 +58,12 @@ func TestReservedShortNames(t *testing.T) {
 	}
 }
 
-// The product's list is singular throughout, and every entry is a label a short name could be -
-// or shorter, where it only guards the plural. An entry with a trailing s would hide its own
-// singular from the plural rule.
+// The product's list is singular throughout - an entry written plural would leave its singular
+// free - and reserves each of its own entries.
 func TestTheProductsListIsWrittenSingular(t *testing.T) {
+	endsInS := map[string]bool{"status": true, "news": true, "dns": true}
 	for _, entry := range ProductReservedShortNames() {
-		if entry != "status" && entry != "news" && entry[len(entry)-1] == 's' {
+		if !endsInS[entry] && entry[len(entry)-1] == 's' {
 			t.Errorf("%q is a plural; write the singular", entry)
 		}
 		if !IsReservedShortName(entry, nil) {

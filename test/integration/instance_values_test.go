@@ -8,6 +8,7 @@ package integration
 import (
 	"context"
 	"encoding/json"
+	"slices"
 	"testing"
 	"time"
 
@@ -149,5 +150,45 @@ func TestTheMeteringSwitchIsStoredOffByDefault(t *testing.T) {
 	write(off)
 	if read().Metering {
 		t.Error("metering switched off still reads on")
+	}
+}
+
+// UC-INS-07 check 2: the operator's reserved short names are stored and read back as written, and
+// a write without them leaves none - against the real table.
+func TestTheReservedShortNamesAreStoredAndCleared(t *testing.T) {
+	ctx := context.Background()
+	uow := postgres.NewUnitOfWork(appPool(ctx, t))
+	instance := postgres.NewInstanceSettingRepository()
+	read := func() identityrepo.InstanceLevel {
+		var level identityrepo.InstanceLevel
+		if err := uow.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
+			var err error
+			level, err = instance.Read(ctx)
+			return err
+		}); err != nil {
+			t.Fatalf("reading the level: %v", err)
+		}
+		return level
+	}
+	write := func(level identityrepo.InstanceLevel) {
+		inSystem(ctx, t, uow, func(ctx context.Context) error {
+			_, err := instance.Write(ctx, level, 0, "", time.Now().UTC())
+			return err
+		})
+	}
+	before := read()
+	t.Cleanup(func() { write(before) })
+
+	listed := before
+	listed.ReservedShortNames = []string{"intranet", "shop"}
+	write(listed)
+	if got := read().ReservedShortNames; !slices.Equal(got, listed.ReservedShortNames) {
+		t.Errorf("read back %v, want %v", got, listed.ReservedShortNames)
+	}
+	none := before
+	none.ReservedShortNames = nil
+	write(none)
+	if got := read().ReservedShortNames; len(got) != 0 {
+		t.Errorf("a write without the list left %v", got)
 	}
 }

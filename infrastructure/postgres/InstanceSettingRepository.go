@@ -74,6 +74,9 @@ const (
 	aiArea = "ai"
 	// meteringArea holds whether use is offered for billing; its row is there only while it is on.
 	meteringArea = "metering"
+	// addressingArea holds what decides a workspace's address on this installation: the operator's
+	// own reserved short names (multi-tenancy.md §3.1).
+	addressingArea = "addressing"
 )
 
 // The keys, as one list rather than as literals in a read and a write that could disagree.
@@ -99,6 +102,7 @@ const (
 	keyPrivateHubs        = signInArea + ".private_hubs"
 	keyBlocklistFile      = signInArea + ".blocklist_file"
 	keyMetering           = meteringArea + ".enabled"
+	keyReservedShortNames = addressingArea + ".reserved_short_names"
 
 	// keyLevelVersion is the level's version (migration 0184): outside the five areas, so a
 	// write's clearing never reaches it, and a key an older build skips.
@@ -245,6 +249,8 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		level.BlocklistFile, err = word()
 	case keyMetering:
 		err = json.Unmarshal(raw, &level.Metering)
+	case keyReservedShortNames:
+		err = json.Unmarshal(raw, &level.ReservedShortNames)
 	case keyLevelVersion:
 		var version *int
 		if version, err = number(); err == nil {
@@ -400,7 +406,7 @@ func (r InstanceSettingRepository) Write(
 	}
 
 	if err := queries.DeleteInstanceSettingsExcept(ctx, sqlc.DeleteInstanceSettingsExceptParams{
-		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea, meteringArea},
+		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea, meteringArea, addressingArea},
 		Kept:  kept,
 	}); err != nil {
 		return false, shared.ErrUnavailable.
@@ -609,6 +615,13 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 	}
 	if level.Metering {
 		rows = append(rows, settingRow{key: keyMetering, value: []byte("true"), lock: "OPEN"})
+	}
+	if len(level.ReservedShortNames) > 0 {
+		encoded, err := json.Marshal(level.ReservedShortNames)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the reserved short names: %w", err)
+		}
+		rows = append(rows, settingRow{key: keyReservedShortNames, value: encoded, lock: "OPEN"})
 	}
 
 	return rows, nil

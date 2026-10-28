@@ -5,6 +5,7 @@ package admin
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	adminrepo "github.com/Jersyfi/hubtask/core/application/repository/admin"
@@ -274,6 +275,9 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	}
 	if before.Metering != after.Metering {
 		moved = append(moved, "metering")
+	}
+	if !slices.Equal(before.ReservedShortNames, after.ReservedShortNames) {
+		moved = append(moved, "reserved_short_names")
 	}
 	return moved
 }
@@ -564,6 +568,12 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Name: "metering", Kind: usecase.KindBool,
 				Description: "Whether the use per workspace and day is offered for billing " +
 					"(GET /admin/usage). Off by default; the counts are recorded either way.",
+			},
+			{
+				Name: "reserved_short_names", Kind: usecase.KindList,
+				Description: "The operator's own short names no new workspace may take, beside " +
+					"the product's list; each also reserves its plural. A workspace that already " +
+					"carries one keeps it.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,

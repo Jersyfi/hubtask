@@ -75,7 +75,11 @@ func ValidReservedShortNames(entries []string) ([]string, error) {
 		if !validTenantSlug(name) {
 			return nil, shared.ErrValidation.
 				WithDetail("admin.reserved_short_name_invalid").
-				WithParams(map[string]string{"value": name})
+				WithParams(map[string]string{"value": name}).
+				WithFields(shared.FieldError{
+					Path: "/reserved_short_names", Code: "admin.reserved_short_name_invalid",
+					Params: map[string]string{"value": name},
+				})
 		}
 		out = append(out, name)
 	}
