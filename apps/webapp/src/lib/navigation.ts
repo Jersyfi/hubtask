@@ -176,9 +176,9 @@ export interface SectionGroup {
 }
 
 /**
- * The marks come from the set ADR-0041 declares. The groups are the new order's
- * (`ux-inventory.md` §E0): workspace and people · sign-in · automation · data · records · AI, under
- * the way out and the overview. Every page is one row away, so it is reached in at most two steps
+ * The marks come from the set ADR-0041 declares. The groups are the suite's six
+ * (`backlog/suite/configuration/ui.md` §1): the overview, how we work, people and access,
+ * connections, data and records - *Changes* joins with its pages. Every page is one row away, so it is reached in at most two steps
  * from anywhere in the section (UC-ID-24 check 3).
  */
 export const ADMINISTRATION: readonly SectionGroup[] = [
@@ -192,41 +192,44 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'overview', icon: 'gauge', code: 'app.admin_overview.title', path: '/administration', routes: ['administration'] },
     ],
   },
+  // The six groups of the suite's administration (configuration/ui.md §1, D-18): how we work ·
+  // people and access · connections · data and records, under the way out and the overview.
+  // *Changes* joins when its pages exist (the configuration document, S-09).
   {
-    id: 'people',
-    code: 'app.admin.group_people',
+    id: 'how',
+    code: 'app.admin.group_how_we_work',
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
-      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
-      // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
-      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'] },
-      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'] },
-    ],
-  },
-  {
-    id: 'sign-in',
-    code: 'app.admin.group_sign_in',
-    rows: [
-      // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
-      // moved there and is claimed here, so the row is current the moment it lands.
-      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
-      { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
-    ],
-  },
-  {
-    id: 'automation',
-    code: 'app.admin.group_automation',
-    rows: [
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },
       { id: 'runs', icon: 'play', code: 'app.admin.runs', path: '/administration/runs', routes: ['runs'] },
+    ],
+  },
+  {
+    id: 'people',
+    code: 'app.admin.group_people',
+    rows: [
+      // The groups and the roles are *People*'s tabs (§E8); their old addresses land there.
+      { id: 'people', icon: 'user', code: 'app.admin.people', path: '/administration/people', routes: ['people', 'groups', 'permissions'] },
+      // The providers are the sign-in screen's *Ways and providers* tab (§E9); their old address
+      // moved there and is claimed here, so the row is current the moment it lands.
+      { id: 'sign-in-settings', icon: 'shield', code: 'app.admin.sign_in', path: '/administration/sign-in', routes: ['sign-in-settings', 'identity-provider'] },
+      { id: 'legal', icon: 'book-open', code: 'app.signin_settings.legal', path: '/administration/legal', routes: ['legal'] },
+      { id: 'machines', icon: 'key', code: 'app.admin.machines', path: '/administration/machines', routes: ['machines', 'service-accounts', 'apps'] },
+    ],
+  },
+  {
+    id: 'connections',
+    code: 'app.admin.group_connections',
+    rows: [
+      // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
+      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'] },
       { id: 'webhooks', icon: 'send', code: 'app.admin.webhooks', path: '/administration/webhooks', routes: ['webhooks'] },
       // Voice assistants: Alexa puts things on lists by voice (ADR-0093).
       { id: 'voice', icon: 'mic', code: 'app.admin.voice', path: '/administration/voice', routes: ['voice'] },
-      // The mail intake: a workspace's one inbox, sorted by handles and ticket keys (ADR-0094).
-      { id: 'mail', icon: 'mail', code: 'app.admin.mail', path: '/administration/mail', routes: ['mail', 'mail-oauth'] },
+      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
     ],
   },
   {
@@ -240,21 +243,9 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
       { id: 'backup', icon: 'cloud-upload', code: 'app.admin.backup', path: '/administration/backup', routes: ['backup'] },
       { id: 'retention', icon: 'clock', code: 'app.admin.retention', path: '/administration/retention', routes: ['retention'] },
       { id: 'restore', icon: 'rotate-ccw', code: 'app.admin.restore', path: '/administration/restore', routes: ['restore'] },
-    ],
-  },
-  {
-    id: 'records',
-    code: 'app.admin.group_records',
-    rows: [
       { id: 'audit', icon: 'file-text', code: 'app.admin.audit', path: '/administration/audit', routes: ['audit'] },
       { id: 'privacy', icon: 'file-user', code: 'app.admin.privacy', path: '/administration/privacy', routes: ['privacy'] },
-    ],
-  },
-  {
-    id: 'ai',
-    code: 'app.admin.group_ai',
-    rows: [
-      { id: 'ai', icon: 'sparkles', code: 'app.admin.ai', path: '/administration/ai', routes: ['ai'] },
+      { id: 'quotas', icon: 'sliders-horizontal', code: 'app.admin.quotas', path: '/administration/quotas', routes: ['quotas'] },
     ],
   },
 ];

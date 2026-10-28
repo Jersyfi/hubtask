@@ -160,18 +160,16 @@ test('a section\u2019s address opens its first screen, which is never the way ou
   assert.equal(rows.find((row) => row.path === front)?.id !== 'back', true);
 });
 
-test('the administration is grouped as the new order names it (ux-inventory.md \u00a7E0)', () => {
-  // workspace and people \u00b7 sign-in \u00b7 automation \u00b7 data \u00b7 records \u00b7 AI, under the way out and
-  // the overview; every page one row away, so reachable in at most two steps (UC-ID-24 check 3).
-  assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'people', 'sign-in', 'automation', 'data', 'records', 'ai']);
+test('the administration is grouped in the suite\u2019s six groups (configuration/ui.md \u00a71)', () => {
+  // the overview under the way out \u00b7 how we work \u00b7 people and access \u00b7 connections \u00b7 data
+  // and records; every page one row away, so reachable in at most two steps (UC-ID-24 check 3).
+  assert.deepEqual(ADMINISTRATION.map((group) => group.id), ['back', 'how', 'people', 'connections', 'data']);
   const of = (id: string) => ADMINISTRATION.find((group) => group.id === id)?.rows.map((row) => row.id);
   assert.deepEqual(of('back'), ['back', 'overview']);
-  assert.deepEqual(of('people'), ['workspace', 'presets', 'quotas', 'people', 'machines']);
-  assert.deepEqual(of('sign-in'), ['sign-in-settings', 'legal']);
-  assert.deepEqual(of('automation'), ['rules', 'runs', 'webhooks', 'voice', 'mail']);
-  assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore']);
-  assert.deepEqual(of('records'), ['audit', 'privacy']);
-  assert.deepEqual(of('ai'), ['ai']);
+  assert.deepEqual(of('how'), ['workspace', 'presets', 'rules', 'runs']);
+  assert.deepEqual(of('people'), ['people', 'sign-in-settings', 'legal', 'machines']);
+  assert.deepEqual(of('connections'), ['mail', 'webhooks', 'voice', 'ai']);
+  assert.deepEqual(of('data'), ['private-hubs', 'backup', 'retention', 'restore', 'audit', 'privacy', 'quotas']);
   for (const group of ADMINISTRATION) {
     if (group.code) assert.ok(group.code in SOURCE, group.code);
     for (const row of group.rows) assert.ok(row.code in SOURCE, row.code);
