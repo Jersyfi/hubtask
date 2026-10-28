@@ -1,6 +1,6 @@
 # ADR-0084 — The first major's shells cost nothing to ship
 
-**Status:** accepted · **Date:** 2026-10-13
+**Status:** accepted (amended by [ADR-0097](./ADR-0097-android-stays-current-by-a-notice.md)) · **Date:** 2026-10-13
 
 **Rule lives in:** [roadmap.md](../roadmap.md) (F7, `0.9.5`, the `1.0.0` prerequisites),
 [support-matrix.md](../architecture/support-matrix.md) §7

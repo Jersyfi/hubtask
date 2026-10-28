@@ -116,7 +116,7 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0081](./ADR-0081-how-work-is-organised.md) | How work on Hubtask is organised | accepted | Process |
 | [0082](./ADR-0082-integration-in-production-shape.md) | The integration environment runs its database in production's shape | accepted | Operations |
 | [0083](./ADR-0083-a-merge-without-catching-up.md) | A pull request merges without catching up with `main` | accepted | CI, process |
-| [0084](./ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md) | The first major's shells cost nothing to ship | accepted | Clients, release |
+| [0084](./ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md) | The first major's shells cost nothing to ship | accepted (amended by 0097) | Clients, release |
 | [0085](./ADR-0085-passkeys-verified-in-house.md) | Passkeys, verified in-house | accepted | Identity, security |
 | [0086](./ADR-0086-plans-a-level-for-providers.md) | Plans, a level for providers | accepted | Tenancy, administration |
 | [0087](./ADR-0087-levels-and-a-livelier-product.md) | Levels, and a livelier product | accepted | Work, design |
@@ -129,3 +129,4 @@ Status: `proposed` · `accepted` · `rejected` · `deprecated` · `superseded`
 | [0094](./ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md) | One mail intake, routed by handles and ticket keys | accepted | Jumble, mail, security |
 | [0095](./ADR-0095-a-workspaces-address-resolves-through-its-hosts.md) | A workspace's address resolves through its hosts | proposed | Tenancy, identity, security |
 | [0096](./ADR-0096-the-installed-apps-sign-in-through-the-system-browser.md) | The installed apps sign in through the system browser | proposed | Identity, clients |
+| [0097](./ADR-0097-android-stays-current-by-a-notice.md) | Android stays current by a notice | accepted | Clients, release |

@@ -242,7 +242,7 @@ Prerequisites for `1.0.0`:
 16. Accessibility demonstrated: WCAG 2.2 AA for the web app and the shells that render it, with the accessibility statement published (European Accessibility Act, [data-protection.md](./architecture/data-protection.md) §7).
 17. Offline conformance from a first-party client: `hubctl sync-conformance` passed by `packages/sync-engine` against a real instance — criterion 14's "at least one real client" is named rather than hoped for.
 18. The webview matrix green: the smoke suite passes on WebView2, WebKitGTK and Android's system WebView. One codebase across three engines is where a rendering defect hides. WKWebView joins with the macOS and iOS shells in `2.0`.
-19. The clients distributed: installers for Windows and Linux and an APK for Android as direct downloads with checksums, outside every store, and one updater run exercised end to end from a released version to its successor ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md)).
+19. The clients distributed: installers for Windows and Linux and an APK for Android as direct downloads with checksums, outside every store, and one desktop updater run exercised end to end from a released version to its successor, the Android app naming a newer release ([ADR-0084](./adr/ADR-0084-the-first-majors-shells-cost-nothing-to-ship.md), [ADR-0097](./adr/ADR-0097-android-stays-current-by-a-notice.md)).
 20. The website deployed from the release commit, carrying the 1.0 content, the licence notice and the download links.
 21. The design system holds: no literal colour, spacing, radius or duration value anywhere (the lint proves it), contrast measured in CI rather than asserted, and waves 1 to 3 complete or the gap named with its reason.
 
