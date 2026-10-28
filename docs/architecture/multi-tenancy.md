@@ -79,7 +79,10 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | Function | Answers | Used by |
 |---|---|---|
 | `resolve_tenant(slug)` | One tenant identifier or none — never a list | Single mode's sign-in before a credential exists (§3), with no slug |
-| `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace, never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
+| `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace (an `ACTIVE` one, or a `VERIFIED` own domain), never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
+| `resolve_serving_host(host)`, `own_domain_served(host, at)` | One tenant identifier or none, and whether a verified own domain awaits its first request; whether it moved to `ACTIVE` | A request before a credential exists, writing only when there is something to write (§3.1) |
+| `own_domain_certificate(host, at)` | Yes or no — never a row | The ingress's question on the operations port (§3.1, deployment.md §6.1) |
+| `own_domain_blocked(host)`, `own_domains_due(…)`, `admin_own_domains()` | Whether a host is blocked; the own domains the check owes a look; every own domain and block for the operator | Setting one up, the check's job and the control plane (§3.1) |
 | `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
 | `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
@@ -283,15 +286,35 @@ operator is held by neither. `GET /tenant` answers the main address and whether 
 it as `address`; an owner's change is in the workspace's trail only, not the instance journal. With subdomains the same short name is accepted while the main row names
 another host: it is how a workspace moves beneath a changed `HUBTASK_BASE_URL`, whose old rows
 `ensure_main_hosts` leaves as they are.
-An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
-an assigned host is a row the operator writes without a proof, in an installation set to
+An own domain is a row of its own kind (`OWN_DOMAIN`, migration 0211), one per workspace, proven by
+DNS and re-proven by a job (*built*, UC-INS-15): where the installation's `owners_own_domains` allows
+it, the workspace's owner sets it up on the *Address* screen or `PUT /tenant/own-domain` and is
+answered two records - a CNAME pointing it at `domains.<installation host>` and a TXT record at
+`_hubtask.<domain>` carrying `hubtask-domain=<mark>`. The field refuses what is no domain
+(`admin.own_domain_invalid`), an apex, which takes no CNAME (`admin.own_domain_apex`: a name in
+front of it, such as `tasks.<domain>`), the installation's host or one beneath it
+(`admin.own_domain_installation`), another workspace's host without saying whose
+(`admin.own_domain_taken`) and a blocked one (`admin.own_domain_blocked`). The check
+(`own_domain.check`, an installation job every five minutes) looks a pending domain up on every pass
+and a serving one hourly through the DNS port, each lookup under its deadline; both records found
+make it `VERIFIED`, and a verified domain answers. It turns `ACTIVE` once the ingress asked for its
+certificate (deployment.md §6.1) and a request reached the workspace through it, and `BROKEN` once
+its TXT record is gone, back again by itself when the record returns; a lookup that got no answer
+moves nothing. The operator lists every own domain on the installation's *Workspaces* and
+`GET /admin/own-domains`, and blocks one with a reason (`POST /admin/own-domains/{domain}:block`): its
+row goes in the same transaction, so it stops answering at once, and `blocked_domain` keeps the host
+from every workspace and the reason for its owner to read, until the owner removes it from view.
+Setting up, verifying, breaking, removing and blocking are in the workspace's trail; the block, with
+its reason, also in the instance journal.
+An assigned host is a row the operator writes without a proof, in an installation set to
 `HUBTASK_WORKSPACE_HOSTS=assigned` (*built*): provisioning and the first start's setup ask for the
 host instead of a subdomain, refuse it at the field as `admin.host_invalid`,
 `admin.host_installation` or `admin.host_taken` (the table's unique index, installation-wide), and
 make the short name - still the workspace's identifier for `hubctl` and the API - from its first
 label where none is given. Such an installation's start writes no subdomain rows, and the
 control plane's reads answer each workspace's main address as `host`. The installation's settings hold whether owners may change the
-address (`owners_change_address`, default off, *built*) and set up own domains (default off), the
+address (`owners_change_address`, default off, *built*) and set up own domains (`owners_own_domains`,
+default off, *built*), the
 cooldown (`address_change_cooldown_days`, 30 days, *built*) and the operator's reserved short names
 beside the product's list - each through the instance file, `hubctl admin settings set` and
 `PUT /admin/settings`, which the installation's settings screen sends back as it read them.

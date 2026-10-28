@@ -448,6 +448,11 @@ const (
 	// an installation job without a tenant, queued in the event's own transaction and again for
 	// each retry and redelivery. A workspace's purge removes its jobs, never these.
 	KindPlatformDeliver Kind = "platform.deliver"
+
+	// KindOwnDomainCheck looks at the own domains' DNS records (ADR-0095 §4): one installation job,
+	// without a tenant, seeded when a worker starts in multi mode and repeating; the dedupe key
+	// keeps it one however many workers start. Detached, so no transaction waits on a name server.
+	KindOwnDomainCheck Kind = "own_domain.check"
 )
 
 func (k Kind) String() string { return string(k) }

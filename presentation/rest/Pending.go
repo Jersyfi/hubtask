@@ -1704,3 +1704,11 @@ func (pending) ListAddressNotices(w http.ResponseWriter, r *http.Request) { notA
 func (pending) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) ListOwnDomains(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) BlockOwnDomain(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }

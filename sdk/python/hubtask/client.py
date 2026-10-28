@@ -887,6 +887,14 @@ class Client:
         """Change a workspace's address"""
         return self._call("POST", "/admin/tenants/{tenantId}:change-address", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
 
+    def list_own_domains(self) -> dict[str, Any]:
+        """Every own domain the workspaces' owners set up"""
+        return self._call("GET", "/admin/own-domains", {}, None, {}, None, "none", None, "json")
+
+    def block_own_domain(self, domain: str, body: "OwnDomainBlock") -> "AdminOwnDomain":
+        """Block an own domain"""
+        return self._call("POST", "/admin/own-domains/{domain}:block", {"domain": domain}, None, {}, body, "json", "application/json", "json")
+
     def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
         """Put a workspace on another plan"""
         return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
@@ -1074,6 +1082,14 @@ class Client:
     def acknowledge_address_notices(self) -> None:
         """Acknowledge the change of the workspace's address"""
         return self._call("POST", "/accounts/me/address-notices:acknowledge", {}, None, {}, None, "none", None, "void")
+
+    def set_up_own_domain(self, body: "OwnDomainSetUp") -> "OwnDomain":
+        """The workspace's owner sets up an own domain"""
+        return self._call("PUT", "/tenant/own-domain", {}, None, {}, body, "json", "application/json", "json")
+
+    def remove_own_domain(self) -> None:
+        """The workspace's owner removes its own domain"""
+        return self._call("DELETE", "/tenant/own-domain", {}, None, {}, None, "none", None, "void")
 
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""

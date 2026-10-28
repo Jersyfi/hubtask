@@ -228,6 +228,33 @@ func (e ActorType) Valid() bool {
 	}
 }
 
+// Defines values for AdminOwnDomainState.
+const (
+	AdminOwnDomainStateACTIVE   AdminOwnDomainState = "ACTIVE"
+	AdminOwnDomainStateBLOCKED  AdminOwnDomainState = "BLOCKED"
+	AdminOwnDomainStateBROKEN   AdminOwnDomainState = "BROKEN"
+	AdminOwnDomainStatePENDING  AdminOwnDomainState = "PENDING"
+	AdminOwnDomainStateVERIFIED AdminOwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the AdminOwnDomainState enum.
+func (e AdminOwnDomainState) Valid() bool {
+	switch e {
+	case AdminOwnDomainStateACTIVE:
+		return true
+	case AdminOwnDomainStateBLOCKED:
+		return true
+	case AdminOwnDomainStateBROKEN:
+		return true
+	case AdminOwnDomainStatePENDING:
+		return true
+	case AdminOwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminTenantStatus.
 const (
 	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
@@ -3141,6 +3168,51 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainState.
+const (
+	OwnDomainStateACTIVE   OwnDomainState = "ACTIVE"
+	OwnDomainStateBLOCKED  OwnDomainState = "BLOCKED"
+	OwnDomainStateBROKEN   OwnDomainState = "BROKEN"
+	OwnDomainStatePENDING  OwnDomainState = "PENDING"
+	OwnDomainStateVERIFIED OwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainState enum.
+func (e OwnDomainState) Valid() bool {
+	switch e {
+	case OwnDomainStateACTIVE:
+		return true
+	case OwnDomainStateBLOCKED:
+		return true
+	case OwnDomainStateBROKEN:
+		return true
+	case OwnDomainStatePENDING:
+		return true
+	case OwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainRecordType.
+const (
+	CNAME OwnDomainRecordType = "CNAME"
+	TXT   OwnDomainRecordType = "TXT"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainRecordType enum.
+func (e OwnDomainRecordType) Valid() bool {
+	switch e {
+	case CNAME:
+		return true
+	case TXT:
 		return true
 	default:
 		return false
@@ -6090,6 +6162,24 @@ type AddressRequested struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// AdminOwnDomain defines model for AdminOwnDomain.
+type AdminOwnDomain struct {
+	BlockedReason *string             `json:"blocked_reason,omitempty"`
+	Domain        string              `json:"domain"`
+	IsMain        bool                `json:"is_main"`
+	Since         time.Time           `json:"since"`
+	State         AdminOwnDomainState `json:"state"`
+
+	// TenantId The workspace; null for a blocked domain no workspace holds.
+	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
+
+	// TenantName The workspace's display name; empty where no workspace holds it.
+	TenantName string `json:"tenant_name"`
+}
+
+// AdminOwnDomainState defines model for AdminOwnDomain.State.
+type AdminOwnDomainState string
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time `json:"created_at"`
@@ -8546,6 +8636,9 @@ type InstanceSettings struct {
 	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
 	OwnersChangeAddress *bool `json:"owners_change_address,omitempty"`
 
+	// OwnersOwnDomains Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in multi mode. Off by default. The installation's alone; the operator sees every own domain and may block one either way.
+	OwnersOwnDomains *bool `json:"owners_own_domains,omitempty"`
+
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
@@ -9970,6 +10063,64 @@ type OwnAiPosition struct {
 
 	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
 	Since *time.Time `json:"since,omitempty"`
+}
+
+// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+type OwnDomain struct {
+	// BlockedReason The operator's reason, word for word, where it is blocked.
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+
+	// CertificateAsked Whether the ingress asked for its certificate.
+	CertificateAsked bool `json:"certificate_asked"`
+
+	// CheckedAt The last check of its records; null before the first.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
+	Domain string `json:"domain"`
+
+	// IsMain Whether it is the workspace's main address.
+	IsMain bool `json:"is_main"`
+
+	// Records The CNAME and the TXT record, in that order. Empty where it is blocked.
+	Records []OwnDomainRecord `json:"records"`
+
+	// Since When it entered its state.
+	Since time.Time `json:"since"`
+
+	// State `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+	State OwnDomainState `json:"state"`
+}
+
+// OwnDomainState `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+type OwnDomainState string
+
+// OwnDomainBlock defines model for OwnDomainBlock.
+type OwnDomainBlock struct {
+	// Reason Why - shown to the workspace's owner and kept in the installation's journal.
+	Reason string `json:"reason"`
+}
+
+// OwnDomainRecord defines model for OwnDomainRecord.
+type OwnDomainRecord struct {
+	// Found Whether the last check found it as shown.
+	Found bool `json:"found"`
+
+	// Name The record's name.
+	Name string              `json:"name"`
+	Type OwnDomainRecordType `json:"type"`
+
+	// Value What it points to, or the text it carries.
+	Value string `json:"value"`
+}
+
+// OwnDomainRecordType defines model for OwnDomainRecord.Type.
+type OwnDomainRecordType string
+
+// OwnDomainSetUp defines model for OwnDomainSetUp.
+type OwnDomainSetUp struct {
+	// Domain The domain, such as `tasks.example.com`.
+	Domain string `json:"domain"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -13163,6 +13314,15 @@ type WorkspaceAddress struct {
 	// MayChange Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.
 	MayChange bool `json:"may_change"`
 
+	// MayManageOwnDomain Whether the reader may set up the own domain where it is allowed, and remove it: the reader holds `OWNER` on the workspace. Always false in single mode.
+	MayManageOwnDomain *bool `json:"may_manage_own_domain,omitempty"`
+
+	// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+	OwnDomain *OwnDomain `json:"own_domain,omitempty"`
+
+	// OwnDomainsAllowed Whether this installation lets the workspace's owners set up an own domain (`owners_own_domains`). Always false in single mode.
+	OwnDomainsAllowed *bool `json:"own_domains_allowed,omitempty"`
+
 	// OwnersMayChange Whether this installation lets the workspace's owners change the address. Always false in single mode.
 	OwnersMayChange bool `json:"owners_may_change"`
 }
@@ -14850,6 +15010,9 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// BlockOwnDomainJSONRequestBody defines body for BlockOwnDomain for application/json ContentType.
+type BlockOwnDomainJSONRequestBody = OwnDomainBlock
+
 // CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
 type CreatePlanJSONRequestBody = PlanCreate
 
@@ -15317,6 +15480,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
+type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -16305,6 +16471,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverview(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListOwnDomains Every own domain the workspaces' owners set up
+	//
+	// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+	//
+	// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+	ListOwnDomains(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BlockOwnDomainWithBody Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithBody(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// BlockOwnDomain Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomain(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// ListPlans The installation's plans
 	//
@@ -20787,6 +20978,33 @@ type ClientInterface interface {
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// RemoveOwnDomain The workspace's owner removes its own domain
+	//
+	// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+	//
+	// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+	RemoveOwnDomain(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpOwnDomainWithBody The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetUpOwnDomain The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// CloseStarter Answers the first start's question for good
 	//
 	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
@@ -22515,6 +22733,61 @@ func (c *Client) RemoveOperator(ctx context.Context, accountId AccountId, reqEdi
 // Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 func (c *Client) ReadInstanceOverview(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReadInstanceOverviewRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListOwnDomains Every own domain the workspaces' owners set up
+//
+// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+//
+// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+func (c *Client) ListOwnDomains(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListOwnDomainsRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BlockOwnDomainWithBody Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *Client) BlockOwnDomainWithBody(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBlockOwnDomainRequestWithBody(c.Server, domain, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// BlockOwnDomain Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *Client) BlockOwnDomain(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewBlockOwnDomainRequest(c.Server, domain, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31846,6 +32119,63 @@ func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ..
 	return c.Client.Do(req)
 }
 
+// RemoveOwnDomain The workspace's owner removes its own domain
+//
+// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+//
+// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+func (c *Client) RemoveOwnDomain(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewRemoveOwnDomainRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpOwnDomainWithBody The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *Client) SetUpOwnDomainWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpOwnDomainRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetUpOwnDomain The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *Client) SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetUpOwnDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // CloseStarter Answers the first start's question for good
 //
 // Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
@@ -34267,6 +34597,80 @@ func NewReadInstanceOverviewRequest(server string) (*http.Request, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	return req, nil
+}
+
+// NewListOwnDomainsRequest constructs an http.Request for the ListOwnDomains method
+func NewListOwnDomainsRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/own-domains")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewBlockOwnDomainRequest calls the generic BlockOwnDomain builder with application/json body
+func NewBlockOwnDomainRequest(server string, domain string, body BlockOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewBlockOwnDomainRequestWithBody(server, domain, "application/json", bodyReader)
+}
+
+// NewBlockOwnDomainRequestWithBody constructs an http.Request for the BlockOwnDomain method, with any body, and a specified content type
+func NewBlockOwnDomainRequestWithBody(server string, domain string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "domain", domain, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/own-domains/%s:block", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
 
 	return req, nil
 }
@@ -50110,6 +50514,73 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	return req, nil
 }
 
+// NewRemoveOwnDomainRequest constructs an http.Request for the RemoveOwnDomain method
+func NewRemoveOwnDomainRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetUpOwnDomainRequest calls the generic SetUpOwnDomain builder with application/json body
+func NewSetUpOwnDomainRequest(server string, body SetUpOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetUpOwnDomainRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewSetUpOwnDomainRequestWithBody constructs an http.Request for the SetUpOwnDomain method, with any body, and a specified content type
+func NewSetUpOwnDomainRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -51946,6 +52417,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /admin/overview (the `ReadInstanceOverview` operationId).
 	ReadInstanceOverviewWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadInstanceOverviewResult, error)
+
+	// ListOwnDomainsWithResponse Every own domain the workspaces' owners set up
+	//
+	// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+	ListOwnDomainsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnDomainsResult, error)
+
+	// BlockOwnDomainWithBodyWithResponse Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithBodyWithResponse(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error)
+
+	// BlockOwnDomainWithResponse Block an own domain
+	//
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+	BlockOwnDomainWithResponse(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error)
 
 	// ListPlansWithResponse The installation's plans
 	//
@@ -56846,6 +57344,35 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
 
+	// RemoveOwnDomainWithResponse The workspace's owner removes its own domain
+	//
+	// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+	RemoveOwnDomainWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnDomainResult, error)
+
+	// SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error)
+
+	// SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
+	//
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+	SetUpOwnDomainWithResponse(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error)
+
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
 	// Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
@@ -59264,6 +59791,102 @@ func (r ReadInstanceOverviewResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ReadInstanceOverviewResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListOwnDomainsResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]AdminOwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListOwnDomainsResult) GetJSON200() *[]AdminOwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListOwnDomainsResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListOwnDomainsResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListOwnDomainsResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListOwnDomainsResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListOwnDomainsResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type BlockOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *AdminOwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r BlockOwnDomainResult) GetJSON200() *AdminOwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r BlockOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r BlockOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r BlockOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r BlockOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r BlockOwnDomainResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -75589,6 +76212,95 @@ func (r CountAccountsWithoutProviderResult) ContentType() string {
 	return ""
 }
 
+type RemoveOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r RemoveOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r RemoveOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r RemoveOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r RemoveOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r RemoveOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetUpOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *OwnDomain
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetUpOwnDomainResult) GetJSON200() *OwnDomain {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetUpOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetUpOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetUpOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetUpOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetUpOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -77770,6 +78482,51 @@ func (c *ClientWithResponses) ReadInstanceOverviewWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseReadInstanceOverviewResult(rsp)
+}
+
+// ListOwnDomainsWithResponse Every own domain the workspaces' owners set up
+//
+// Every own domain of every workspace, with its workspace and its state, the blocked ones included - a blocked domain keeps its row here, with the reason, after its workspace removed it. Newest first. In single mode and where the installation never allowed own domains the list is simply empty.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /admin/own-domains (the `ListOwnDomains` operationId).
+func (c *ClientWithResponses) ListOwnDomainsWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListOwnDomainsResult, error) {
+	rsp, err := c.ListOwnDomains(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListOwnDomainsResult(rsp)
+}
+
+// BlockOwnDomainWithBodyWithResponse Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *ClientWithResponses) BlockOwnDomainWithBodyWithResponse(ctx context.Context, domain string, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error) {
+	rsp, err := c.BlockOwnDomainWithBody(ctx, domain, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBlockOwnDomainResult(rsp)
+}
+
+// BlockOwnDomainWithResponse Block an own domain
+//
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/own-domains/{domain}:block (the `BlockOwnDomain` operationId).
+func (c *ClientWithResponses) BlockOwnDomainWithResponse(ctx context.Context, domain string, body BlockOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*BlockOwnDomainResult, error) {
+	rsp, err := c.BlockOwnDomain(ctx, domain, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseBlockOwnDomainResult(rsp)
 }
 
 // ListPlansWithResponse The installation's plans
@@ -85575,6 +86332,53 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 	return ParseCountAccountsWithoutProviderResult(rsp)
 }
 
+// RemoveOwnDomainWithResponse The workspace's owner removes its own domain
+//
+// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /tenant/own-domain (the `RemoveOwnDomain` operationId).
+func (c *ClientWithResponses) RemoveOwnDomainWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*RemoveOwnDomainResult, error) {
+	rsp, err := c.RemoveOwnDomain(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseRemoveOwnDomainResult(rsp)
+}
+
+// SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *ClientWithResponses) SetUpOwnDomainWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error) {
+	rsp, err := c.SetUpOwnDomainWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpOwnDomainResult(rsp)
+}
+
+// SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
+//
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
+func (c *ClientWithResponses) SetUpOwnDomainWithResponse(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error) {
+	rsp, err := c.SetUpOwnDomain(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetUpOwnDomainResult(rsp)
+}
+
 // CloseStarterWithResponse Answers the first start's question for good
 //
 // Records that the workspace's first start was answered or skipped, so `starter_offered` is false from now on for everyone. A client closes it before it creates the starter set, so an interruption never makes the set twice. Needs the right to change the workspace's shape. Closing it again changes nothing.
@@ -87453,6 +88257,72 @@ func ParseReadInstanceOverviewResult(rsp *http.Response) (*ReadInstanceOverviewR
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest InstanceOverview
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListOwnDomainsResult parses an HTTP response from a ListOwnDomainsWithResponse call
+func ParseListOwnDomainsResult(rsp *http.Response) (*ListOwnDomainsResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListOwnDomainsResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AdminOwnDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseBlockOwnDomainResult parses an HTTP response from a BlockOwnDomainWithResponse call
+func ParseBlockOwnDomainResult(rsp *http.Response) (*BlockOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &BlockOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest AdminOwnDomain
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -99281,6 +100151,68 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AccountsWithoutProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseRemoveOwnDomainResult parses an HTTP response from a RemoveOwnDomainWithResponse call
+func ParseRemoveOwnDomainResult(rsp *http.Response) (*RemoveOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &RemoveOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetUpOwnDomainResult parses an HTTP response from a SetUpOwnDomainWithResponse call
+func ParseSetUpOwnDomainResult(rsp *http.Response) (*SetUpOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetUpOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest OwnDomain
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

@@ -116,6 +116,7 @@ func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 		cooldown = identity.DefaultAddressCooldownDays
 	}
 	out["address_change_cooldown_days"] = cooldown
+	out["owners_own_domains"] = level.OwnersOwnDomains
 	return out
 }
 
@@ -374,6 +375,7 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 		return identityrepo.InstanceLevel{}, err
 	}
 	level.OwnersChangeAddress = in.Bool("owners_change_address")
+	level.OwnersOwnDomains = in.Bool("owners_own_domains")
 	if level.AddressCooldownDays, err = identity.ValidAddressCooldownDays(in.Int("address_change_cooldown_days")); err != nil {
 		return identityrepo.InstanceLevel{}, err
 	}

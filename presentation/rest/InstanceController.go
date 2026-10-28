@@ -98,6 +98,9 @@ func (c *RestController) WriteInstanceSettings(
 	if body.OwnersChangeAddress != nil {
 		in["owners_change_address"] = *body.OwnersChangeAddress
 	}
+	if body.OwnersOwnDomains != nil {
+		in["owners_own_domains"] = *body.OwnersOwnDomains
+	}
 	if body.AddressChangeCooldownDays != nil {
 		in["address_change_cooldown_days"] = *body.AddressChangeCooldownDays
 	}
@@ -252,6 +255,9 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if owners, held := out["owners_change_address"].(bool); held {
 		answer.OwnersChangeAddress = &owners
+	}
+	if domains, held := out["owners_own_domains"].(bool); held {
+		answer.OwnersOwnDomains = &domains
 	}
 	if cooldown, held := out["address_change_cooldown_days"].(int); held {
 		answer.AddressChangeCooldownDays = &cooldown

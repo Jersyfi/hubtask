@@ -41,6 +41,7 @@
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { plans } from '../lib/data/plans.svelte.ts';
   import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
+  import OwnDomainsTable from '../lib/instance/OwnDomainsTable.svelte';
   import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
@@ -466,6 +467,9 @@
             {/each}
           </Table>
         {/if}
+        <!-- UC-INS-15 check 10: below the workspaces, as the approved screen places it; absent
+             where no workspace set up an own domain. -->
+        <OwnDomainsTable />
       {/if}
     </Stack>
   </InstanceGate>

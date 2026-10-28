@@ -19,6 +19,7 @@
  */
 
 import type {
+  AdminOwnDomain,
   AdminTenant,
   IdentityProvider,
   IdentityProviderConfiguration,
@@ -54,6 +55,7 @@ const ELEVATE = '/auth/sessions:elevate';
 const ALREADY_ELEVATED = 'auth.session_already_elevated';
 const OVERVIEW = '/admin/overview';
 const TENANTS = '/admin/tenants';
+const OWN_DOMAINS = '/admin/own-domains';
 const SETTINGS = '/admin/settings';
 const OPERATORS = '/admin/operators';
 const JOURNAL = '/admin/journal';
@@ -84,7 +86,7 @@ const TARGETS = '/admin/backup-targets';
 /** Everything a write at this level can make stale. One list, so no caller forgets half of it. */
 // The plans too: a workspace provisioned on a plan, deleted or purged changes its plan's count, and
 // a plan whose count is stale offers a removal the server refuses.
-const EVERYTHING = [OVERVIEW, TENANTS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS, '/admin/plans'];
+const EVERYTHING = [OVERVIEW, TENANTS, OWN_DOMAINS, SETTINGS, OPERATORS, JOURNAL, PROVIDERS, ENCRYPTION, AI_PROVIDERS, '/admin/plans'];
 
 /** How often the remaining time is recomputed. A second: it is a clock somebody is reading. */
 const TICK_MS = 1_000;
@@ -99,6 +101,7 @@ class Instance {
 
   #overview = $state<ResourceState<InstanceOverview>>({ status: 'idle' });
   #workspaces = $state<ResourceState<readonly AdminTenant[]>>({ status: 'idle' });
+  #ownDomains = $state<ResourceState<readonly AdminOwnDomain[]>>({ status: 'idle' });
   #settings = $state<ResourceState<InstanceSettings>>({ status: 'idle' });
   #operators = $state<ResourceState<readonly Operator[]>>({ status: 'idle' });
   #journal = $state<ResourceState<{ readonly data: readonly InstanceJournalEntry[] }>>({ status: 'idle' });
@@ -137,6 +140,11 @@ class Instance {
 
   get workspacesState(): ResourceState<readonly AdminTenant[]> {
     return this.#workspaces;
+  }
+
+  /** Every own domain the workspaces' owners set up, and every block (UC-INS-15 check 10). */
+  get ownDomains(): readonly AdminOwnDomain[] {
+    return this.#ownDomains.status === 'ready' ? this.#ownDomains.data : [];
   }
 
   get settings(): ResourceState<InstanceSettings> {
@@ -202,6 +210,7 @@ class Instance {
     this.#until = undefined;
     this.#overview = { status: 'idle' };
     this.#workspaces = { status: 'idle' };
+    this.#ownDomains = { status: 'idle' };
     this.#settings = { status: 'idle' };
     this.#operators = { status: 'idle' };
     this.#journal = { status: 'idle' };
@@ -269,6 +278,22 @@ class Instance {
   openOverview(): () => void {
     return engine.subscribe<InstanceOverview>({ path: OVERVIEW }, (next) => {
       this.#overview = next;
+    });
+  }
+
+  openOwnDomains(): () => void {
+    return engine.subscribe<readonly AdminOwnDomain[]>({ path: OWN_DOMAINS }, (next) => {
+      this.#ownDomains = next;
+    });
+  }
+
+  /**
+   * Blocks an own domain with a reason: it stops answering at once, and the workspace's owner reads
+   * the reason. In the workspace's trail and the instance journal.
+   */
+  async blockOwnDomain(domain: string, reason: string): Promise<AdminOwnDomain> {
+    return engine.mutate<AdminOwnDomain>('POST', `${OWN_DOMAINS}/${encodeURIComponent(domain)}:block`, { reason }, {
+      invalidates: [OWN_DOMAINS, JOURNAL],
     });
   }
 

@@ -16,6 +16,7 @@
  */
 
 import type {
+  OwnDomain,
   ResourceState,
   TenantAddressChange,
   WorkspaceAddress,
@@ -141,6 +142,19 @@ class WorkspaceStore {
     return stepUp.around((stepUpToken) =>
       engine.mutate<WorkspaceAddressChanged>('POST', path, change, { stepUpToken, invalidates: [PATH] }),
     );
+  }
+
+  /**
+   * The owner sets up an own domain where the installation allows it (UC-INS-15), and is answered
+   * the two records that prove it. Verification runs by itself on the server.
+   */
+  async setUpOwnDomain(domain: string): Promise<OwnDomain> {
+    return engine.mutate<OwnDomain>('PUT', `${PATH}/own-domain`, { domain }, { invalidates: [PATH] });
+  }
+
+  /** The owner removes the own domain; a blocked one leaves this view and stays blocked. */
+  async removeOwnDomain(): Promise<void> {
+    await engine.mutate<void>('DELETE', `${PATH}/own-domain`, undefined, { invalidates: [PATH] });
   }
 
   async change(body: WorkspaceChange): Promise<Workspace> {

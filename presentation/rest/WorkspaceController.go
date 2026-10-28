@@ -229,6 +229,15 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		if from, ok := address["changeable_from"].(time.Time); ok {
 			answer.Address.ChangeableFrom = &from
 		}
+		if allowed, ok := address["own_domains_allowed"].(bool); ok {
+			answer.Address.OwnDomainsAllowed = &allowed
+		}
+		if manage, ok := address["may_manage_own_domain"].(bool); ok {
+			answer.Address.MayManageOwnDomain = &manage
+		}
+		if own, ok := address["own_domain"].(usecase.Output); ok {
+			answer.Address.OwnDomain = ownDomainOf(own)
+		}
 	}
 	return answer
 }

@@ -87,6 +87,7 @@ import (
 	"github.com/Jersyfi/hubtask/infrastructure/backupstorage"
 	clockadapter "github.com/Jersyfi/hubtask/infrastructure/clock"
 	"github.com/Jersyfi/hubtask/infrastructure/crypto"
+	dnsadapter "github.com/Jersyfi/hubtask/infrastructure/dns"
 	envadapter "github.com/Jersyfi/hubtask/infrastructure/environment"
 	"github.com/Jersyfi/hubtask/infrastructure/eventbus"
 	celexpression "github.com/Jersyfi/hubtask/infrastructure/expression"
@@ -323,8 +324,15 @@ func run() error {
 	})
 
 	ops := &http.Server{
-		Addr:              cfg.OpsAddr,
-		Handler:           rest.OpsController{Health: registry, Metrics: metrics.Handler()}.Routes(),
+		Addr: cfg.OpsAddr,
+		Handler: rest.OpsController{
+			Health: registry, Metrics: metrics.Handler(),
+			// The ingress's question before an own domain's certificate (ADR-0095 §5).
+			Certificates: identity.CertificateQuestion{
+				Doors: postgres.NewOwnDomainRepository(), UnitOfWork: postgres.NewUnitOfWork(pool),
+				Clock: clockadapter.System{}, Tenancy: cfg.Tenancy,
+			},
+		}.Routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -1410,6 +1418,7 @@ func run() error {
 			Tenancy: cfg.Tenancy, InstallationHost: installationHost,
 			Settings: postgres.NewInstanceSettingRepository(),
 			Changes:  postgres.NewWorkspaceAddressRepository(), Owners: grants, Clock: clockadapter.System{},
+			OwnDomains: postgres.NewOwnDomainRepository(),
 		},
 		// The workspace's structure, answered beside its sign-in rule.
 		Structure: work.WorkspaceStructureAnswer{Resolver: structures, UnitOfWork: unitOfWork},
@@ -1737,6 +1746,16 @@ func run() error {
 		Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
 		InstallationHost: installationHost, Settings: postgres.NewInstanceSettingRepository(),
 		Changes: postgres.NewWorkspaceAddressRepository(),
+	}
+	// A workspace's own domain (UC-INS-15): the owner's set-up, the operator's list and block.
+	ownDomains := adminservice.OwnDomains{
+		Instance: instanceWriter, Domains: postgres.NewOwnDomainRepository(),
+		Doors: postgres.NewOwnDomainRepository(), Owners: grants,
+		Settings: postgres.NewInstanceSettingRepository(), Tenants: postgres.NewAdminTenantRepository(),
+		Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+		Entropy: clockadapter.CryptoRandom{}, Encoder: domains, Registry: textadapter.Registry{},
+		Tenancy: cfg.Tenancy, InstallationHost: installationHost,
 	}
 	useCases, err := usecase.NewRegistry(
 		entitlementGate.Wrap(observer.Registry()),
@@ -2715,6 +2734,10 @@ func run() error {
 		// installation allows it.
 		changeAddress.Descriptor(),
 		adminservice.ChangeWorkspaceAddress{Change: changeAddress, Authorizer: authorizer}.Descriptor(),
+		adminservice.SetUpOwnDomain{OwnDomains: ownDomains, Authorizer: authorizer}.Descriptor(),
+		adminservice.RemoveOwnDomain{OwnDomains: ownDomains, Authorizer: authorizer}.Descriptor(),
+		adminservice.ListOwnDomains{OwnDomains: ownDomains}.Descriptor(),
+		adminservice.BlockOwnDomain{OwnDomains: ownDomains}.Descriptor(),
 		identity.ListAddressNotices{
 			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),
@@ -3753,6 +3776,16 @@ func run() error {
 
 	// The installation's sweep of what it keeps for a purchase platform (UC-INS-14): one job
 	// without a tenant, seeded below when a worker starts.
+	// The own domains' check (ADR-0095 §4): every lookup through the DNS port under its deadline.
+	ownDomainCheck := adminservice.CheckOwnDomains{
+		OwnDomains: adminservice.OwnDomains{
+			Domains: postgres.NewOwnDomainRepository(), Doors: postgres.NewOwnDomainRepository(),
+			Audit: auditSink, UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+			Tenancy: cfg.Tenancy, InstallationHost: installationHost,
+		},
+		Resolver: dnsadapter.Resolver{Timeout: cfg.Outbound.ConnectTimeout},
+		Jobs:     jobs,
+	}
 	platformSweep := adminservice.SweepPlatformEvents{
 		Events: postgres.NewPlatformEventRepository(), Deliveries: postgres.NewPlatformDeliveryRepository(),
 		Jobs: jobs, UnitOfWork: backgroundWork,
@@ -3825,6 +3858,7 @@ func run() error {
 		queueport.KindRoleGrantedEmail: notificationDelivery,
 		queueport.KindWebhookDeliver:   webhookDelivery,
 		queueport.KindPlatformSweep:    worker.PlatformSweep{Sweep: platformSweep},
+		queueport.KindOwnDomainCheck:   worker.OwnDomainCheck{Check: ownDomainCheck},
 		queueport.KindPlatformDeliver:  platformDelivery,
 		queueport.KindAutomationRun:    automationRun,
 		queueport.KindAutomationHTTP:   outboundCall,
@@ -4006,6 +4040,10 @@ func run() error {
 		seeding, cancelSeeding := context.WithTimeout(ctx, 10*time.Second)
 		if err := platformSweep.Seed(seeding); err != nil {
 			slog.WarnContext(ctx, "the platform events' sweep could not be seeded",
+				slog.String("code", shared.AsError(err).DetailCode))
+		}
+		if err := ownDomainCheck.Seed(seeding); err != nil {
+			slog.WarnContext(ctx, "the own domains' check could not be seeded",
 				slog.String("code", shared.AsError(err).DetailCode))
 		}
 		cancelSeeding()

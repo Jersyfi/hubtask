@@ -18,6 +18,7 @@
   import { Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
+  import OwnDomainPanel from '../lib/address/OwnDomainPanel.svelte';
   import { addressAfterChange, type AddressSubject } from '../lib/address/change.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
@@ -89,6 +90,16 @@
         {/if}
       </Stack>
     </section>
+    <!-- UC-INS-15 check 1: where the installation allows own domains; one set up before it stopped
+         allowing them is still shown, for its owner to see and remove. -->
+    {#if address && (address.own_domains_allowed || address.own_domain)}
+      <OwnDomainPanel
+        own={address.own_domain}
+        main={address.host}
+        isOwner={address.may_manage_own_domain === true}
+        isAllowed={address.own_domains_allowed === true}
+      />
+    {/if}
   {/if}
 </Stack>
 

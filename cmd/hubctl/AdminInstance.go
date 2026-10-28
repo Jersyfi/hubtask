@@ -142,7 +142,7 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 			map[bool]string{true: " and a value", false: ""}[setting])
 	}
 
-	if rest[0] == meteringKey || rest[0] == ownersChangeAddressKey {
+	if rest[0] == meteringKey || rest[0] == ownersChangeAddressKey || rest[0] == ownersOwnDomainsKey {
 		return adminSettingsSwitch(ctx, cli, rest[0], setting, rest)
 	}
 	if rest[0] == addressCooldownKey {
@@ -295,6 +295,9 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	}
 	if settings.OwnersChangeAddress != nil {
 		rows = append(rows, []string{ownersChangeAddressKey, map[bool]string{true: "on", false: "off"}[*settings.OwnersChangeAddress], "-"})
+	}
+	if settings.OwnersOwnDomains != nil {
+		rows = append(rows, []string{ownersOwnDomainsKey, map[bool]string{true: "on", false: "off"}[*settings.OwnersOwnDomains], "-"})
 	}
 	if settings.AddressChangeCooldownDays != nil {
 		rows = append(rows, []string{addressCooldownKey, strconv.Itoa(*settings.AddressChangeCooldownDays), "-"})
@@ -622,12 +625,15 @@ const (
 	meteringKey = "metering"
 	// ownersChangeAddressKey lets a workspace's owners change its address in multi mode.
 	ownersChangeAddressKey = "owners_change_address"
+	// ownersOwnDomainsKey lets a workspace's owners set up an own domain in multi mode.
+	ownersOwnDomainsKey = "owners_own_domains"
 	// addressCooldownKey is the days after a change of address before its owners may change it again.
 	addressCooldownKey = "address_change_cooldown_days"
 )
 
 // adminSettingsSwitch sets or clears one of the installation's switches beside the areas:
-// `set metering on|off`, `set owners_change_address on|off`, and `clear` for off.
+// `set metering on|off`, `set owners_change_address on|off`, `set owners_own_domains on|off`, and
+// `clear` for off.
 func adminSettingsSwitch(ctx context.Context, cli *CLI, key string, setting bool, rest []string) error {
 	on := false
 	if setting {
@@ -640,9 +646,12 @@ func adminSettingsSwitch(ctx context.Context, cli *CLI, key string, setting bool
 		}
 	}
 	return adminSettingsLevel(ctx, cli, func(settings *openapi.InstanceSettings) {
-		if key == meteringKey {
+		switch key {
+		case meteringKey:
 			settings.Metering = &on
-		} else {
+		case ownersOwnDomainsKey:
+			settings.OwnersOwnDomains = &on
+		default:
 			settings.OwnersChangeAddress = &on
 		}
 	})

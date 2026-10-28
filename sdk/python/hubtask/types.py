@@ -564,6 +564,41 @@ class WorkspaceAddress(TypedDict, total=False):
     may_change: Required[bool]
     changed_at: str | None
     changeable_from: str | None
+    own_domains_allowed: bool
+    may_manage_own_domain: bool
+    own_domain: "OwnDomain"
+
+class OwnDomain(TypedDict, total=False):
+    """A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check."""
+    domain: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN", "BLOCKED"]]
+    since: Required[str]
+    checked_at: str | None
+    is_main: Required[bool]
+    certificate_asked: Required[bool]
+    blocked_reason: str | None
+    records: Required[list["OwnDomainRecord"]]
+
+class OwnDomainRecord(TypedDict, total=False):
+    type: Required[Literal["CNAME", "TXT"]]
+    name: Required[str]
+    value: Required[str]
+    found: Required[bool]
+
+class OwnDomainSetUp(TypedDict, total=False):
+    domain: Required[str]
+
+class OwnDomainBlock(TypedDict, total=False):
+    reason: Required[str]
+
+class AdminOwnDomain(TypedDict, total=False):
+    domain: Required[str]
+    tenant_id: str | None
+    tenant_name: Required[str]
+    state: Required[Literal["PENDING", "VERIFIED", "ACTIVE", "BROKEN", "BLOCKED"]]
+    since: Required[str]
+    is_main: Required[bool]
+    blocked_reason: str | None
 
 WorkspaceAddressChanged = TypedDict("WorkspaceAddressChanged", {
     "from": Required[str],
@@ -928,6 +963,7 @@ class InstanceSettings(TypedDict, total=False):
     metering: bool
     reserved_short_names: list[str]
     owners_change_address: bool
+    owners_own_domains: bool
     address_change_cooldown_days: int
     source: str
     is_enforced_from_file: bool

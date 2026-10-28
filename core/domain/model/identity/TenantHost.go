@@ -64,6 +64,8 @@ type TenantHost struct {
 	VerifiedAt   time.Time
 	Canonical    bool
 	CreatedAt    time.Time
+	// Kind is an address the installation gave, or the owner's own domain; empty reads as an address.
+	Kind HostKind
 }
 
 // CanonicalHostOf is the host a workspace answers at today.

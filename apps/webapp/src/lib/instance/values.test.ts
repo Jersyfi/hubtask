@@ -82,9 +82,15 @@ test("the operator's reserved short names travel through a save unchanged", () =
 test('whether owners change the address, and the cooldown, travel through a save unchanged', () => {
   // UC-INS-19 check 3: the settings screen draws neither, and a `PUT` without them would switch
   // owners' changes off and the cooldown back to the product's.
-  const document = documentOf({ owners_change_address: true, address_change_cooldown_days: 14 });
+  const document = documentOf({
+    owners_change_address: true,
+    address_change_cooldown_days: 14,
+    owners_own_domains: true,
+  });
   assert.equal(document.owners_change_address, true);
   assert.equal(document.address_change_cooldown_days, 14);
+  // UC-INS-15 check 1: nor the switch for own domains.
+  assert.equal(document.owners_own_domains, true);
 });
 
 test("a plan's body carries its name, what it leaves out and only what it decides", () => {

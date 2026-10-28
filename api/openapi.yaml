@@ -5883,6 +5883,60 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/own-domains:
+    get:
+      tags: [admin]
+      operationId: listOwnDomains
+      summary: Every own domain the workspaces' owners set up
+      description: >
+        Every own domain of every workspace, with its workspace and its state, the blocked ones
+        included - a blocked domain keeps its row here, with the reason, after its workspace removed
+        it. Newest first. In single mode and where the installation never allowed own domains the
+        list is simply empty.
+      responses:
+        "200":
+          description: The installation's own domains
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AdminOwnDomain"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /admin/own-domains/{domain}:block:
+    parameters:
+      - name: domain
+        in: path
+        required: true
+        description: The own domain, as the list names it.
+        schema: { type: string, maxLength: 253 }
+    post:
+      tags: [admin]
+      operationId: blockOwnDomain
+      summary: Block an own domain
+      description: >
+        The domain stops answering at once: its row no longer names the workspace, the ingress is
+        refused a certificate for it, and no workspace can set it up again. The workspace's owner
+        sees that the operator blocked it, when, and the reason word for word. Refused with
+        `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for
+        one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In
+        the workspace's trail and the installation's journal, the reason in the journal only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OwnDomainBlock" }
+      responses:
+        "200":
+          description: The domain, blocked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminOwnDomain" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:move-plan:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -7127,6 +7181,57 @@ paths:
       responses:
         "204":
           description: Acknowledged
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/own-domain:
+    put:
+      tags: [meta]
+      operationId: setUpOwnDomain
+      summary: The workspace's owner sets up an own domain
+      description: >
+        Where the installation lets owners set up own domains (`owners_own_domains`), the
+        workspace's owner names a domain of theirs and is answered the two DNS records that prove
+        it: a CNAME pointing the domain at the installation's target and a TXT record carrying the
+        row's mark. Verification runs by itself; the domain answers once both records are found, and
+        the ingress obtains its certificate on demand. Mail is not affected. One own domain per
+        workspace; its subdomain stays its main address.
+
+        Refused at the field with `admin.own_domain_invalid` for what is no domain,
+        `admin.own_domain_apex` for a domain without a name in front of the registered one (no
+        CNAME is possible there: use a subdomain such as `tasks.<domain>`),
+        `admin.own_domain_installation` for the installation's own host or one beneath it,
+        `admin.own_domain_taken` for another workspace's address - never saying whose - and
+        `admin.own_domain_blocked` for one the operator blocked. Refused with
+        `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller
+        who is not an owner and `access.own_domains_not_allowed` where the installation does not
+        allow it, which is every installation that decided nothing and every one in single mode. In
+        the workspace's trail.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/OwnDomainSetUp" }
+      responses:
+        "200":
+          description: The domain, waiting for its records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/OwnDomain" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [meta]
+      operationId: removeOwnDomain
+      summary: The workspace's owner removes its own domain
+      description: >
+        The domain stops answering at once and another workspace may set it up. A domain the
+        operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the
+        workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the
+        workspace's trail.
+      responses:
+        "204":
+          description: Removed
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -13465,6 +13570,123 @@ components:
             Where owners may change it and the cooldown runs, the moment from which they may again;
             null otherwise.
 
+        own_domains_allowed:
+          type: boolean
+          description: >
+            Whether this installation lets the workspace's owners set up an own domain
+            (`owners_own_domains`). Always false in single mode.
+        may_manage_own_domain:
+          type: boolean
+          description: >
+            Whether the reader may set up the own domain where it is allowed, and remove it: the
+            reader holds `OWNER` on the workspace. Always false in single mode.
+        own_domain:
+          $ref: "#/components/schemas/OwnDomain"
+
+    OwnDomain:
+      type: object
+      readOnly: true
+      required: [domain, state, since, is_main, certificate_asked, records]
+      description: >
+        A workspace's own domain as its owner sees it: the state, the two records and whether each
+        was found at the last check.
+      properties:
+        domain:
+          type: string
+          description: The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
+        state:
+          type: string
+          enum: [PENDING, VERIFIED, ACTIVE, BROKEN, BLOCKED]
+          description: >
+            `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on
+            its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the
+            workspace through it; `BROKEN` its proof is gone and it answers no more until the record
+            is back; `BLOCKED` the operator blocked it.
+        since:
+          type: string
+          format: date-time
+          description: When it entered its state.
+        checked_at:
+          type: [string, "null"]
+          format: date-time
+          description: The last check of its records; null before the first.
+        is_main:
+          type: boolean
+          description: Whether it is the workspace's main address.
+        certificate_asked:
+          type: boolean
+          description: Whether the ingress asked for its certificate.
+        blocked_reason:
+          type: [string, "null"]
+          description: The operator's reason, word for word, where it is blocked.
+        records:
+          type: array
+          description: The CNAME and the TXT record, in that order. Empty where it is blocked.
+          items:
+            $ref: "#/components/schemas/OwnDomainRecord"
+
+    OwnDomainRecord:
+      type: object
+      readOnly: true
+      required: [type, name, value, found]
+      properties:
+        type:
+          type: string
+          enum: [CNAME, TXT]
+        name:
+          type: string
+          description: The record's name.
+        value:
+          type: string
+          description: What it points to, or the text it carries.
+        found:
+          type: boolean
+          description: Whether the last check found it as shown.
+
+    OwnDomainSetUp:
+      type: object
+      additionalProperties: false
+      required: [domain]
+      properties:
+        domain:
+          type: string
+          maxLength: 253
+          description: The domain, such as `tasks.example.com`.
+
+    OwnDomainBlock:
+      type: object
+      additionalProperties: false
+      required: [reason]
+      properties:
+        reason:
+          type: string
+          maxLength: 500
+          description: Why - shown to the workspace's owner and kept in the installation's journal.
+
+    AdminOwnDomain:
+      type: object
+      readOnly: true
+      required: [domain, tenant_name, state, since, is_main]
+      properties:
+        domain: { type: string }
+        tenant_id:
+          type: [string, "null"]
+          format: uuid
+          description: The workspace; null for a blocked domain no workspace holds.
+        tenant_name:
+          type: string
+          description: The workspace's display name; empty where no workspace holds it.
+        state:
+          type: string
+          enum: [PENDING, VERIFIED, ACTIVE, BROKEN, BLOCKED]
+        since:
+          type: string
+          format: date-time
+        is_main:
+          type: boolean
+        blocked_reason:
+          type: [string, "null"]
+
     WorkspaceAddressChanged:
       type: object
       required: [from, members_mailed, members_told_at_sign_in, dry_run]
@@ -14690,6 +14912,12 @@ components:
             Whether a workspace's owners may change its address themselves
             (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is
             the only one. The installation's alone - no workspace switches it for itself.
+        owners_own_domains:
+          type: boolean
+          description: >
+            Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in
+            multi mode. Off by default. The installation's alone; the operator sees every own domain
+            and may block one either way.
         address_change_cooldown_days:
           type: integer
           minimum: 1

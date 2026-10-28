@@ -222,6 +222,33 @@ func (e ActorType) Valid() bool {
 	}
 }
 
+// Defines values for AdminOwnDomainState.
+const (
+	AdminOwnDomainStateACTIVE   AdminOwnDomainState = "ACTIVE"
+	AdminOwnDomainStateBLOCKED  AdminOwnDomainState = "BLOCKED"
+	AdminOwnDomainStateBROKEN   AdminOwnDomainState = "BROKEN"
+	AdminOwnDomainStatePENDING  AdminOwnDomainState = "PENDING"
+	AdminOwnDomainStateVERIFIED AdminOwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the AdminOwnDomainState enum.
+func (e AdminOwnDomainState) Valid() bool {
+	switch e {
+	case AdminOwnDomainStateACTIVE:
+		return true
+	case AdminOwnDomainStateBLOCKED:
+		return true
+	case AdminOwnDomainStateBROKEN:
+		return true
+	case AdminOwnDomainStatePENDING:
+		return true
+	case AdminOwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for AdminTenantStatus.
 const (
 	AdminTenantStatusACTIVE          AdminTenantStatus = "ACTIVE"
@@ -3135,6 +3162,51 @@ func (e OperatorKind) Valid() bool {
 	case OperatorKindSERVICEACCOUNT:
 		return true
 	case OperatorKindUSER:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainState.
+const (
+	OwnDomainStateACTIVE   OwnDomainState = "ACTIVE"
+	OwnDomainStateBLOCKED  OwnDomainState = "BLOCKED"
+	OwnDomainStateBROKEN   OwnDomainState = "BROKEN"
+	OwnDomainStatePENDING  OwnDomainState = "PENDING"
+	OwnDomainStateVERIFIED OwnDomainState = "VERIFIED"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainState enum.
+func (e OwnDomainState) Valid() bool {
+	switch e {
+	case OwnDomainStateACTIVE:
+		return true
+	case OwnDomainStateBLOCKED:
+		return true
+	case OwnDomainStateBROKEN:
+		return true
+	case OwnDomainStatePENDING:
+		return true
+	case OwnDomainStateVERIFIED:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for OwnDomainRecordType.
+const (
+	CNAME OwnDomainRecordType = "CNAME"
+	TXT   OwnDomainRecordType = "TXT"
+)
+
+// Valid indicates whether the value is a known member of the OwnDomainRecordType enum.
+func (e OwnDomainRecordType) Valid() bool {
+	switch e {
+	case CNAME:
+		return true
+	case TXT:
 		return true
 	default:
 		return false
@@ -6084,6 +6156,24 @@ type AddressRequested struct {
 	ExpiresAt time.Time `json:"expires_at"`
 }
 
+// AdminOwnDomain defines model for AdminOwnDomain.
+type AdminOwnDomain struct {
+	BlockedReason *string             `json:"blocked_reason,omitempty"`
+	Domain        string              `json:"domain"`
+	IsMain        bool                `json:"is_main"`
+	Since         time.Time           `json:"since"`
+	State         AdminOwnDomainState `json:"state"`
+
+	// TenantId The workspace; null for a blocked domain no workspace holds.
+	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
+
+	// TenantName The workspace's display name; empty where no workspace holds it.
+	TenantName string `json:"tenant_name"`
+}
+
+// AdminOwnDomainState defines model for AdminOwnDomain.State.
+type AdminOwnDomainState string
+
 // AdminTenant defines model for AdminTenant.
 type AdminTenant struct {
 	CreatedAt       time.Time `json:"created_at"`
@@ -8540,6 +8630,9 @@ type InstanceSettings struct {
 	// OwnersChangeAddress Whether a workspace's owners may change its address themselves (`POST /tenant:change-address`), in multi mode. Off by default: the operator's change is the only one. The installation's alone - no workspace switches it for itself.
 	OwnersChangeAddress *bool `json:"owners_change_address,omitempty"`
 
+	// OwnersOwnDomains Whether a workspace's owners may set up an own domain (`PUT /tenant/own-domain`), in multi mode. Off by default. The installation's alone; the operator sees every own domain and may block one either way.
+	OwnersOwnDomains *bool `json:"owners_own_domains,omitempty"`
+
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
@@ -9964,6 +10057,64 @@ type OwnAiPosition struct {
 
 	// Since Since when AI is part of everybody's work. Absent with `OFFERED`.
 	Since *time.Time `json:"since,omitempty"`
+}
+
+// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+type OwnDomain struct {
+	// BlockedReason The operator's reason, word for word, where it is blocked.
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+
+	// CertificateAsked Whether the ingress asked for its certificate.
+	CertificateAsked bool `json:"certificate_asked"`
+
+	// CheckedAt The last check of its records; null before the first.
+	CheckedAt *time.Time `json:"checked_at,omitempty"`
+
+	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
+	Domain string `json:"domain"`
+
+	// IsMain Whether it is the workspace's main address.
+	IsMain bool `json:"is_main"`
+
+	// Records The CNAME and the TXT record, in that order. Empty where it is blocked.
+	Records []OwnDomainRecord `json:"records"`
+
+	// Since When it entered its state.
+	Since time.Time `json:"since"`
+
+	// State `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+	State OwnDomainState `json:"state"`
+}
+
+// OwnDomainState `PENDING` waits for its records; `VERIFIED` has both and answers, its certificate on its way; `ACTIVE` the ingress obtained a certificate for it and a request reached the workspace through it; `BROKEN` its proof is gone and it answers no more until the record is back; `BLOCKED` the operator blocked it.
+type OwnDomainState string
+
+// OwnDomainBlock defines model for OwnDomainBlock.
+type OwnDomainBlock struct {
+	// Reason Why - shown to the workspace's owner and kept in the installation's journal.
+	Reason string `json:"reason"`
+}
+
+// OwnDomainRecord defines model for OwnDomainRecord.
+type OwnDomainRecord struct {
+	// Found Whether the last check found it as shown.
+	Found bool `json:"found"`
+
+	// Name The record's name.
+	Name string              `json:"name"`
+	Type OwnDomainRecordType `json:"type"`
+
+	// Value What it points to, or the text it carries.
+	Value string `json:"value"`
+}
+
+// OwnDomainRecordType defines model for OwnDomainRecord.Type.
+type OwnDomainRecordType string
+
+// OwnDomainSetUp defines model for OwnDomainSetUp.
+type OwnDomainSetUp struct {
+	// Domain The domain, such as `tasks.example.com`.
+	Domain string `json:"domain"`
 }
 
 // PageInfo defines model for PageInfo.
@@ -13157,6 +13308,15 @@ type WorkspaceAddress struct {
 	// MayChange Whether the reader may change it now (`POST /tenant:change-address`): the installation allows it, the reader holds `OWNER` on the workspace and the cooldown is over.
 	MayChange bool `json:"may_change"`
 
+	// MayManageOwnDomain Whether the reader may set up the own domain where it is allowed, and remove it: the reader holds `OWNER` on the workspace. Always false in single mode.
+	MayManageOwnDomain *bool `json:"may_manage_own_domain,omitempty"`
+
+	// OwnDomain A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check.
+	OwnDomain *OwnDomain `json:"own_domain,omitempty"`
+
+	// OwnDomainsAllowed Whether this installation lets the workspace's owners set up an own domain (`owners_own_domains`). Always false in single mode.
+	OwnDomainsAllowed *bool `json:"own_domains_allowed,omitempty"`
+
 	// OwnersMayChange Whether this installation lets the workspace's owners change the address. Always false in single mode.
 	OwnersMayChange bool `json:"owners_may_change"`
 }
@@ -14844,6 +15004,9 @@ type WithdrawInstanceIdentityProviderJSONRequestBody = ProviderWithdrawal
 // AddOperatorJSONRequestBody defines body for AddOperator for application/json ContentType.
 type AddOperatorJSONRequestBody = OperatorAdd
 
+// BlockOwnDomainJSONRequestBody defines body for BlockOwnDomain for application/json ContentType.
+type BlockOwnDomainJSONRequestBody = OwnDomainBlock
+
 // CreatePlanJSONRequestBody defines body for CreatePlan for application/json ContentType.
 type CreatePlanJSONRequestBody = PlanCreate
 
@@ -15312,6 +15475,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
+// SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
+type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
+
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
 
@@ -15482,6 +15648,12 @@ type ServerInterface interface {
 	// ReadInstanceOverview How big this installation is and how its workspaces stand
 	// (GET /admin/overview)
 	ReadInstanceOverview(w http.ResponseWriter, r *http.Request)
+	// ListOwnDomains Every own domain the workspaces' owners set up
+	// (GET /admin/own-domains)
+	ListOwnDomains(w http.ResponseWriter, r *http.Request)
+	// BlockOwnDomain Block an own domain
+	// (POST /admin/own-domains/{domain}:block)
+	BlockOwnDomain(w http.ResponseWriter, r *http.Request, domain string)
 	// ListPlans The installation's plans
 	// (GET /admin/plans)
 	ListPlans(w http.ResponseWriter, r *http.Request)
@@ -16469,6 +16641,12 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// RemoveOwnDomain The workspace's owner removes its own domain
+	// (DELETE /tenant/own-domain)
+	RemoveOwnDomain(w http.ResponseWriter, r *http.Request)
+	// SetUpOwnDomain The workspace's owner sets up an own domain
+	// (PUT /tenant/own-domain)
+	SetUpOwnDomain(w http.ResponseWriter, r *http.Request)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
@@ -17870,6 +18048,46 @@ func (siw *ServerInterfaceWrapper) ReadInstanceOverview(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ReadInstanceOverview(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOwnDomains operation middleware
+func (siw *ServerInterfaceWrapper) ListOwnDomains(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOwnDomains(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// BlockOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) BlockOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "domain" -------------
+	var domain string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "domain", r.PathValue("domain"), &domain, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "domain", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BlockOwnDomain(w, r, domain)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -29528,6 +29746,34 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// RemoveOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.RemoveOwnDomain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetUpOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetUpOwnDomain(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -30462,6 +30708,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.WithdrawInstallationPreset)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.ChangeInstallationPreset)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:change-address", wrapper.ChangeTenantAddress)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/own-domains", wrapper.ListOwnDomains)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/own-domains/{domain}:block", wrapper.BlockOwnDomain)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
@@ -30509,6 +30757,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/own-domain", wrapper.RemoveOwnDomain)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/own-domain", wrapper.SetUpOwnDomain)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)

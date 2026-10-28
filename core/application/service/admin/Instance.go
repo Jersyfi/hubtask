@@ -285,6 +285,9 @@ func movedSwitches(before, after identityrepo.InstanceLevel) []any {
 	if before.AddressCooldownDays != after.AddressCooldownDays {
 		moved = append(moved, "address_change_cooldown_days")
 	}
+	if before.OwnersOwnDomains != after.OwnersOwnDomains {
+		moved = append(moved, "owners_own_domains")
+	}
 	return moved
 }
 
@@ -590,6 +593,11 @@ func (h WriteInstanceSettings) Descriptor() usecase.Descriptor {
 				Name: "address_change_cooldown_days", Kind: usecase.KindInt,
 				Description: "The days after a change of a workspace's address before its owners " +
 					"may change it again, 1-365; 30 where none is set. The operator is never held.",
+			},
+			{
+				Name: "owners_own_domains", Kind: usecase.KindBool,
+				Description: "Whether a workspace's owners may set up an own domain, proven by DNS, " +
+					"in multi mode. Off by default.",
 			},
 			{
 				Name: "expected_version", Kind: usecase.KindInt, CallerOnly: true,

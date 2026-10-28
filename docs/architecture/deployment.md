@@ -253,7 +253,7 @@ The variables whose default or behaviour a rule depends on:
 | Variable | Default | Rule |
 |---|---|---|
 | `HUBTASK_ROLES`, `HUBTASK_TENANCY_MODE` | all four roles, `single` | §2; `multi` is provider operation ([multi-tenancy.md](./multi-tenancy.md)) |
-| `HUBTASK_WORKSPACE_HOSTS` | `subdomain` | In multi mode, `subdomain` puts each workspace at `<short name>.<base host>` behind a wildcard; `assigned` gives each one a host the operator names when it is created - *New workspace*, `hubctl admin tenant create --host`, `POST /admin/tenants` and the first start's setup ask for it, refuse the installation's own host, one another workspace uses and what is no host name, and check no DNS; the short name is then made from the host where none is given, and a start writes no subdomain rows. The record and the certificate are the operator's. An installation with workspaces keeps its choice: switching is not offered (UC-INS-20). *Built:* `assigned`; the own domain below is milestone CD's still. An own domain's certificate is the ingress's, issued on demand after it asks the operations port whether the host may have one ([ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md)) |
+| `HUBTASK_WORKSPACE_HOSTS` | `subdomain` | In multi mode, `subdomain` puts each workspace at `<short name>.<base host>` behind a wildcard; `assigned` gives each one a host the operator names when it is created - *New workspace*, `hubctl admin tenant create --host`, `POST /admin/tenants` and the first start's setup ask for it, refuse the installation's own host, one another workspace uses and what is no host name, and check no DNS; the short name is then made from the host where none is given, and a start writes no subdomain rows. The record and the certificate are the operator's. An installation with workspaces keeps its choice: switching is not offered (UC-INS-20). *Built:* `assigned`. Beside either, a workspace's owner may set up an own domain where the installation allows it (`owners_own_domains`); its records, its certificate and the ingress that asks are below the table ([ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md)) |
 | `HUBTASK_INSTANCE_FILE`, `_MODE` | — / `seed` | A file of installation settings ([ADR-0070](../adr/ADR-0070-the-instance-layer.md)). `seed` writes it once, at first start; `enforce` writes it at every start, and the routes that would change those settings refuse. One source per mode, never two. Its `ai_models` list offers AI models to every workspace ([ADR-0072](../adr/ADR-0072-ai-at-the-installation-level.md)), each key named by an environment variable (`api_key_env`) and never written in the file; `seed` offers them where none is offered, `enforce` makes the file the list. Its `plans` list holds plans in the API's shape ([multi-tenancy.md](./multi-tenancy.md) §4.2), written after the level: `seed` where no plan exists, `enforce` at every start, removing a plan the file no longer names unless a workspace is on it, and leaving a plan unchanged untouched. `enforce` closes the API's plan writes whether or not the file names plans; single mode skips them. Its `presets` list holds the installation's presets in the API's shape (`name`, `preset`, `settings`, `is_default`, `locks`; UC-INS-18), known by name and written after the level: `seed` where the installation has none, `enforce` at every start as the whole set, the default and its locks included, leaving an unchanged one untouched; `enforce` closes the API's preset writes; single mode skips them. Its `platform_subscriptions` list (`target_url`, `secret_file`) subscribes a purchase platform to the installation's events ([multi-tenancy.md](./multi-tenancy.md) §4.3), each secret read from the file it names: `seed` writes them where no subscription stands yet and leaves them the operator's, `enforce` makes the file the set at every start, rotates a secret only where the file's changed, and closes the API's subscription writes - only where the file names subscriptions; single mode skips them |
 | `HUBTASK_BASE_URL` | — | Absolute URL of the installation; without it links in mails and feeds are wrong (warning). In multi mode its host is, beside the workspaces' own, the one host a request may use: any other names no workspace ([multi-tenancy.md](./multi-tenancy.md) §3) |
 | `HUBTASK_UI_ENABLED` | `true` | `false` answers `/` with 404 and leaves the API untouched; the `web_ui` feature in `/meta/capabilities` ([ADR-0028](../adr/ADR-0028-embedded-web-ui.md)) |
@@ -285,6 +285,41 @@ The variables whose default or behaviour a rule depends on:
 | `HUBTASK_HLC_SKEW` | `5m` | The permitted device clock deviation ([offline-sync.md](./offline-sync.md) §4.1) |
 | `HUBTASK_MEDIA_STAGING_GRACE`, `_UNREFERENCED_GRACE`, `_ORPHAN_GRACE` | `24h`, `1h`, `1h` | Media reclamation ([data-protection.md](./data-protection.md) §5); the unreferenced grace is never zero |
 | `HUBTASK_DEFAULT_LOCALE` / `_TIMEZONE`, `HUBTASK_LOCALE_DIR` | `en` / `UTC`, — | BCP 47; an IANA name, never a fixed offset; catalogues laid over the embedded ones ([i18n-l10n.md](./i18n-l10n.md) §1). An invalid value refuses to start |
+
+**An own domain and the ingress that asks** (ADR-0095 §4, §5; UC-INS-15). An owner's own domain
+is proven by two records, fixed here: a **CNAME** from the domain to `domains.<installation host>`
+and a **TXT** record at `_hubtask.<domain>` carrying `hubtask-domain=<mark>`. The operator points
+`domains.<installation host>` at the ingress once, as a CNAME or an address; every own domain's
+record follows it, and a chain through it is followed to its end. An **apex** - a domain that is
+itself registered, such as `acme.com` - takes no CNAME, so the field refuses it
+(`admin.own_domain_apex`) and asks for a name in front of it, such as `tasks.acme.com`; offering A
+and AAAA records instead would bind every owner's zone to the ingress's addresses. The check looks
+each record up through the host's own name servers, every lookup under
+`HUBTASK_HTTP_CONNECT_TIMEOUT` (rule 7); it is DNS, not HTTP, so the egress allowlist does not apply.
+The ingress obtains the certificate itself, on demand, after asking the **operations port**
+`GET /tls/allowed?domain=<host>` - `200` for a workspace's serving host (an own domain once verified,
+never once blocked), `404` for every other, `503` when the answer cannot be had. An own domain is
+**active** once the ingress asked for it and a request reached the workspace through it; until then
+the screen says its certificate is on its way. With Caddy:
+
+```caddyfile
+{
+  on_demand_tls {
+    ask http://hubtask:9090/tls/allowed
+  }
+}
+
+https:// {
+  tls {
+    on_demand
+  }
+  reverse_proxy hubtask:8080
+}
+```
+
+The operations port is never public, so the question is no lookup for strangers. An ingress that
+cannot ask - one holding a wildcard certificate only - serves the installation's own hosts, and an
+own domain stays *verified* there without a certificate.
 
 **Semantic search needs pgvector in the database** ([ADR-0050](../adr/ADR-0050-pgvector-as-a-capability.md)).
 The reference Compose stack has it. The chart's default database image (`database.imageName`,

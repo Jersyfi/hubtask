@@ -22,6 +22,14 @@ type DomainEncoder interface {
 	ToASCII(domain string) (string, error)
 }
 
+// DomainRegistry answers the registered domain a host lies in, by the public suffix list:
+// `tasks.acme.co.uk` lies in `acme.co.uk`. A host that is its own registered domain is an apex,
+// where no CNAME may stand (UC-INS-15). An error for what lies in no registered domain at all - a
+// public suffix itself, or a name without one.
+type DomainRegistry interface {
+	RegisteredDomain(host string) (string, error)
+}
+
 // Normalizer brings text to Unicode Normalization Form C (i18n-l10n.md §5): `e` followed by a
 // combining acute becomes the one code point `é`, so that the two spellings a keyboard, a
 // clipboard and a file system produce for one visible character are one string to the unique

@@ -74,7 +74,7 @@ var areas = map[string]bool{
 // levelKeys are the installation's own values beside the areas, which no workspace decides.
 var levelKeys = map[string]bool{
 	"blocklist_file": true, "metering": true, "reserved_short_names": true,
-	"owners_change_address": true, "address_change_cooldown_days": true,
+	"owners_change_address": true, "address_change_cooldown_days": true, "owners_own_domains": true,
 }
 
 // Read parses the file at a path into the request body `WriteInstanceSettings` takes.

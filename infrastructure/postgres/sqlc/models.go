@@ -724,6 +724,15 @@ type BackupTarget struct {
 	Version         int32
 }
 
+type BlockedDomain struct {
+	Host        string
+	TenantID    pgtype.UUID
+	Reason      string
+	BlockedAt   pgtype.Timestamptz
+	WasMain     bool
+	DismissedAt pgtype.Timestamptz
+}
+
 type Bucket struct {
 	ID           pgtype.UUID
 	TenantID     pgtype.UUID
@@ -1709,13 +1718,19 @@ type Tenant struct {
 }
 
 type TenantHost struct {
-	TenantID     pgtype.UUID
-	Host         string
-	State        string
-	Verification string
-	VerifiedAt   pgtype.Timestamptz
-	IsCanonical  bool
-	CreatedAt    pgtype.Timestamptz
+	TenantID           pgtype.UUID
+	Host               string
+	State              string
+	Verification       string
+	VerifiedAt         pgtype.Timestamptz
+	IsCanonical        bool
+	CreatedAt          pgtype.Timestamptz
+	Kind               string
+	StateSince         pgtype.Timestamptz
+	CheckedAt          pgtype.Timestamptz
+	TargetFound        bool
+	ProofFound         bool
+	CertificateAskedAt pgtype.Timestamptz
 }
 
 type Tombstone struct {

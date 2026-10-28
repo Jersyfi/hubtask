@@ -493,4 +493,12 @@ func TestOwnersChangingTheAddressIsSwitchedFromTheTerminal(t *testing.T) {
 	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "owners_change_address", "maybe"); code == exitOK {
 		t.Error("a value that is neither on nor off was taken")
 	}
+
+	// UC-INS-15: the switch for own domains is set the same way.
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "owners_own_domains", "on"); code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if body := sent(); body["owners_own_domains"] != true {
+		t.Errorf("sent the own domains' switch %v", body["owners_own_domains"])
+	}
 }

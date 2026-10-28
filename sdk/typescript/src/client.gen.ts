@@ -1121,6 +1121,16 @@ export class HubtaskClient {
     return this.call("POST", "/admin/tenants/{tenantId}:change-address", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Every own domain the workspaces' owners set up */
+  listOwnDomains(options: CallOptions = {}): Promise<operations["listOwnDomains"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/admin/own-domains", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Block an own domain */
+  blockOwnDomain(domain: string, body: NonNullable<operations["blockOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["blockOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/own-domains/{domain}:block", { "domain": domain }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Put a workspace on another plan */
   moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
@@ -1354,6 +1364,16 @@ export class HubtaskClient {
   /** Acknowledge the change of the workspace's address */
   acknowledgeAddressNotices(options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/accounts/me/address-notices:acknowledge", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** The workspace's owner sets up an own domain */
+  setUpOwnDomain(body: NonNullable<operations["setUpOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setUpOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/own-domain", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's owner removes its own domain */
+  removeOwnDomain(options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/tenant/own-domain", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** How many people here no provider switched on here signs in */

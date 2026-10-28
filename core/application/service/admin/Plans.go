@@ -359,6 +359,7 @@ func planOutput(view PlanView) usecase.Output {
 	for _, levelOnly := range []string{
 		areaLocalisation, "source", "is_enforced_from_file", "blocklist_file", "metering",
 		"reserved_short_names", "owners_change_address", "address_change_cooldown_days",
+		"owners_own_domains",
 	} {
 		delete(out, levelOnly)
 	}

@@ -105,6 +105,7 @@ const (
 	keyReservedShortNames = addressingArea + ".reserved_short_names"
 	keyOwnersChange       = addressingArea + ".owners_change_address"
 	keyAddressCooldown    = addressingArea + ".cooldown_days"
+	keyOwnersOwnDomains   = addressingArea + ".owners_own_domains"
 
 	// keyLevelVersion is the level's version (migration 0184): outside the five areas, so a
 	// write's clearing never reaches it, and a key an older build skips.
@@ -257,6 +258,8 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 		err = json.Unmarshal(raw, &level.OwnersChangeAddress)
 	case keyAddressCooldown:
 		err = json.Unmarshal(raw, &level.AddressCooldownDays)
+	case keyOwnersOwnDomains:
+		err = json.Unmarshal(raw, &level.OwnersOwnDomains)
 	case keyLevelVersion:
 		var version *int
 		if version, err = number(); err == nil {
@@ -636,6 +639,9 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		rows = append(rows, settingRow{
 			key: keyAddressCooldown, value: fmt.Appendf(nil, "%d", level.AddressCooldownDays), lock: "OPEN",
 		})
+	}
+	if level.OwnersOwnDomains {
+		rows = append(rows, settingRow{key: keyOwnersOwnDomains, value: []byte("true"), lock: "OPEN"})
 	}
 
 	return rows, nil

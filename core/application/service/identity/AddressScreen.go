@@ -29,6 +29,8 @@ type WorkspaceAddressReader struct {
 	Changes          repository.AddressChanges
 	Owners           repository.Owners
 	Clock            clock.Clock
+	// OwnDomains is the workspace's own domain (UC-INS-15); nil answers none.
+	OwnDomains repository.OwnDomains
 }
 
 // addressOutput is the contract's WorkspaceAddress. Nil where the reader is not wired.
@@ -48,10 +50,12 @@ func (r WorkspaceAddressReader) addressOutput(
 	}
 
 	rule := domain.OwnerAddressRule{}
+	domainsAllowed := false
 	if multi && r.Settings != nil {
 		err := unitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
 			level, err := r.Settings.Read(ctx)
 			rule = domain.OwnerAddressRule{Allowed: level.OwnersChangeAddress, CooldownDays: level.AddressCooldownDays}
+			domainsAllowed = level.OwnersOwnDomains
 			return err
 		})
 		if err != nil {
@@ -60,10 +64,24 @@ func (r WorkspaceAddressReader) addressOutput(
 	}
 
 	var (
-		owner bool
-		out   = usecase.Output{"host": host, "owners_may_change": rule.Allowed, "may_change": false}
+		owner, waiting bool
+		out            = usecase.Output{
+			"host": host, "owners_may_change": rule.Allowed, "may_change": false,
+			"own_domains_allowed": domainsAllowed,
+		}
 	)
 	err := unitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
+		if multi && r.OwnDomains != nil {
+			// Shown wherever the workspace has one, the switch off or not: a domain set up before
+			// the operator switched it off still answers, and its owner may still remove it.
+			own, err := ownDomainView(ctx, r.OwnDomains, r.InstallationHost)
+			if err != nil {
+				return err
+			}
+			if own != nil {
+				out["own_domain"] = own
+			}
+		}
 		last, err := r.Changes.LastAddressChange(ctx)
 		if err != nil {
 			return err
@@ -71,22 +89,26 @@ func (r WorkspaceAddressReader) addressOutput(
 		if !last.IsZero() {
 			out["changed_at"] = last
 		}
-		if !rule.Allowed {
-			return nil
-		}
-		if from := rule.ChangeableFrom(last, r.Clock.Now()); !from.IsZero() {
-			out["changeable_from"] = from
+		if !multi {
 			return nil
 		}
 		paths, err := r.Owners.OwnerPaths(ctx)
 		owner = slices.ContainsFunc(paths, func(path repository.OwnerPath) bool {
 			return path.AccountID == actor.AccountID
 		})
+		if !rule.Allowed {
+			return err
+		}
+		if from := rule.ChangeableFrom(last, r.Clock.Now()); !from.IsZero() {
+			out["changeable_from"] = from
+			waiting = true
+		}
 		return err
 	})
 	if err != nil {
 		return nil, err
 	}
-	out["may_change"] = owner
+	out["may_manage_own_domain"] = owner
+	out["may_change"] = owner && rule.Allowed && !waiting
 	return out, nil
 }

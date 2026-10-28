@@ -32,6 +32,13 @@ export function formatDay(iso: string, locale: string): string {
   return new Intl.DateTimeFormat(locale, { dateStyle: 'medium' }).format(at);
 }
 
+/** The reader's time of day of an instant - "14:32" - where the day is plain from the context. */
+export function formatTime(iso: string, locale: string): string {
+  const at = Date.parse(iso);
+  if (Number.isNaN(at)) return iso;
+  return new Intl.DateTimeFormat(locale, { timeStyle: 'short' }).format(at);
+}
+
 /** The reader's day of an instant in full - "14 October 2026" - where a sentence names the day. */
 export function formatLongDay(iso: string, locale: string): string {
   const at = Date.parse(iso);

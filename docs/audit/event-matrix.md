@@ -331,6 +331,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `instance.operator_removed` | RemoveOperator | `instance` | NOTICE | Every time |
 | `instance.operators_read` | ListOperators | `instance` | INFO | When refused |
 | `instance.overview_read` | ReadInstanceOverview | `instance` | INFO | When refused |
+| `instance.own_domains_read` | ListOwnDomains | `instance` | INFO | When refused |
 | `instance.platform_deliveries_read` | ListPlatformDeliveries | `platform_subscription` | INFO | When refused |
 | `instance.platform_events_read` | ListPlatformEvents | `instance` | INFO | When refused |
 | `instance.platform_subscription_changed` | UpdatePlatformSubscription | `platform_subscription` | WARNING | Every time |
@@ -550,6 +551,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.deletion_requested` | RequestTenantDeletion | `tenant` | CRITICAL | Every time |
 | `tenant.exported` | ExportTenant | `tenant` | WARNING | Every time |
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
+| `tenant.own_domain_added` | SetUpOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_blocked` | BlockOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_removed` | RemoveOwnDomain | `tenant` | WARNING | Every time |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
 | `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |

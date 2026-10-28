@@ -676,6 +676,7 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	"ai_objection_notice": "a read receipt of a notice; without it a restored workspace tells a person once more, which harms nobody",
 	// A notice of a change of the workspace's address for a member without an email address. Hosts
 	// belong to the installation, not the archive; a restore elsewhere answers at another address.
+	"blocked_domain":        "a block is the installation's, kept from every workspace; a restore elsewhere carries no domain to block",
 	"address_change_notice": "hosts belong to the installation; a restored workspace answers wherever it is restored, and an old notice would name an address that is not its",
 	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history - or is the template or rule it created - which the archive carries; what
