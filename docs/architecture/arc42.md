@@ -139,6 +139,7 @@ The architecture's roles; the people who use the product are
 | C-14 | The backend makes no assumptions about clients; the API stays client-blind. The first-party client stack is [ADR-0030](../adr/ADR-0030-svelte-frontend-framework.md)–[ADR-0033](../adr/ADR-0033-shared-client-architecture.md) |
 | C-15 | Backup targets are not limited to particular providers; target, timing and retention are freely configurable |
 | C-16 | Offline operation is compatible with collaboration — other people's changes are never silently lost |
+| C-17 | EU product law: Cyber Resilience Act reporting and disclosure ([security.md](./security.md) §14), the AI Act's transparency and its high-risk line ([ai-first.md](./ai-first.md) §2.1), Data Act and DORA exit ([tenant-export.md](./tenant-export.md) §12); the controls mapped to ISO 27001, BSI C5 and ASVS in [the control mapping](../privacy/control-mapping.md) |
 
 ### 2.3 Conventions
 
