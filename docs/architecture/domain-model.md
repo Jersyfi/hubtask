@@ -228,9 +228,14 @@ every reader `{effective, source, locked_by, allowed}`: the nearest level that d
 binds every level below and keeps the origin of the level that placed it first; a value under a
 lock, outside a restriction or - for `TIGHTEN` - looser than the value in force is ignored when
 resolving and refused when written (`setting.locked`, `setting.not_allowed`). The first declared
-level is held only by the product's bounds. The sign-in rule (`identity.Effective`) and the eight
-structure settings (`work.ResolveStructure`) resolve through it; golden tests hold them to the
-resolution they had before. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
+level is held only by the product's bounds. The sign-in rule (`identity.Effective`), the legal
+links (`identity.EffectiveLegal`), a new workspace's language and zone
+(`identity.StartingLocalisation`), the installation's and a plan's quotas (`quota.Resolve`; the
+operator's exception stays the last word over them), the AI rule above the workspace
+(`integration.EffectiveAi`; a workspace's narrowing to `NONE` under a lock stays its own) and the
+eight structure settings (`work.ResolveStructure`) resolve through it; golden tests hold each to
+the resolution it had before. `setting.Catalogue` in `core/application/service/setting` is the
+one registry that assembles every area's declarations. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
 `fields`. Storage is one shape: a dotted key with a JSON value and a lock in `instance_setting` and
 `plan_setting`, and `setting_value` (level, scope, key, value, hold, allowed) for the workspace, a
 hub, a collection and a person (migration 0208).
@@ -239,7 +244,8 @@ hub, a collection and a person (migration 0208).
 of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
 switches it, a hub only switches off what the workspace has on. A use case of a module declares it
 (`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
-off, through every door. Switching off hides and never deletes.
+off, through every door. The installation's and a plan's documents carry them as the `module`
+area. Switching off hides and never deletes.
 
 ---
 
