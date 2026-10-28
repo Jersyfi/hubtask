@@ -103,4 +103,5 @@ this list with its row.
 | # | Branch | State |
 |---|---|---|
 | S-00 | `suite/concept` | committed (documents only) |
-| S-01 … S-23 | `suite/concept` | not started; S-01 next |
+| S-01 | `suite/concept` | committed: `d72f78f5d` support period, `e18552022` disclosure, `eff9a2dff` security.txt and advisory format, `22cbb243d` CRA runbook, `c49740410` ask dialog names AI, `cb44ea715` AI Act, `4f58817e2` exit law, `52ff0f118` control mapping, `82d8945f7` arc42 C-17. Open F-13 items, alongside later steps: CSAF/VEX generation automated in the release, EN 301 549 v4.1.1 (WCAG 2.2 AA) programme, NIS2 supplier pack, product-liability release records |
+| S-02 … S-23 | `suite/concept` | not started; S-02 next |
