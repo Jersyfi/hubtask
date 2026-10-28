@@ -126,9 +126,10 @@ forward goes only to the named host; the migration test on a database with works
 
 One helper gives a workspace's address from its main row, and every writer of a link uses it: the
 reset, the address confirmation, the notice that a way in changed, the password opening, every
-notification link and the emergency access, beside the invitation, which already does. The
-installation's own mails (operator notices) keep the installation's host. The helper replaces
-`WorkspaceBase` built from the short name.
+notification link and the emergency access, and the invitation, which named the subdomain its
+short name makes. There is no mail of the installation's own today; one added later keeps the
+installation's host. The helper replaces `WorkspaceBase` built from the short name. The calendar
+feed's, a CalDAV todo's and an export's links are #1784.
 
 **Acceptance:** a test per mail kind that its link carries the main row's host after the row
 changed; an architecture test that no mail writer reads `BaseURL` for a workspace's link; #1549

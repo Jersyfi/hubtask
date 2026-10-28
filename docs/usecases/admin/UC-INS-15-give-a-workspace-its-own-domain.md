@@ -73,7 +73,7 @@ again by itself and the screen says why.
 * Check 4: not met — nothing refuses a domain beneath the installation's host or a blocked one.
 * Check 5: not met — nothing answers the ingress whether a host may have a certificate.
 * Check 6: not met — there is no confirmation for making a domain the main address.
-* Check 7: not met — nothing resolves a workspace through its own domain, and mails other than the invitation link to the installation's host (#1549).
+* Check 7: not met — nothing resolves a workspace through its own domain.
 * Check 8: not met — there is no way back to the subdomain.
 * Check 9: not met — there is no fallback from a broken domain, and no warning.
 * Check 10: not met — the operator sees no own domains and cannot block one.

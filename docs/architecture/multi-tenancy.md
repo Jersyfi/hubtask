@@ -257,8 +257,11 @@ mail's link, the provider's return, the passkey's RP ID, the sign-in card - come
 never from the short name. A workspace provisioned in multi mode gets its main row then; one older
 than its row gets it from `ensure_main_hosts` at the next start of a multi-mode server, because
 only the server knows the installation's host and the migrator does not. *Built:* the resolution,
-the provider's return and the passkey's RP ID; the mails and links are CD-03's. A change of address replaces the main row and drops the old one in one
-transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
+the provider's return, the passkey's RP ID, and every mail's link and the invitation handed over -
+all read through one helper, `WorkspaceAddress`, when the link is written; the calendar feed's, a
+CalDAV todo's and an export's links still name the installation's host (#1784). While no main row
+serves, the helper answers the subdomain the short name makes. A change of address replaces the
+main row and drops the old one in one transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
 an assigned host is a row the operator writes without a proof, in an installation set to
 `HUBTASK_WORKSPACE_HOSTS=assigned`. The installation's settings hold whether owners may change the
 address (default off) and set up own domains (default off), the cooldown (30 days) and the
