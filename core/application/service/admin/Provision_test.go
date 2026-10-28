@@ -59,15 +59,17 @@ type tenantsStore struct {
 	// planNames is what a plan's identifier names, for SetPlan.
 	planNames map[shared.ID]string
 	// taken are references another workspace holds, for SetReference.
-	taken     map[string]bool
-	inserted  []adminrepo.TenantRecord
-	record    adminrepo.TenantRecord
-	findErr   error
-	moved     []string
-	moveOK    bool
-	listed    []adminrepo.TenantRecord
-	deletions []time.Time
-	deleteOK  bool
+	taken map[string]bool
+	// slugsTaken are short names another workspace holds, refused by Insert as the index does.
+	slugsTaken map[string]bool
+	inserted   []adminrepo.TenantRecord
+	record     adminrepo.TenantRecord
+	findErr    error
+	moved      []string
+	moveOK     bool
+	listed     []adminrepo.TenantRecord
+	deletions  []time.Time
+	deleteOK   bool
 	// The operator's opening: what was written, and the moments a close was asked for.
 	openings []domain.PasswordOpening
 	closes   []time.Time
@@ -84,6 +86,11 @@ func (s *tenantsStore) List(context.Context) ([]adminrepo.TenantRecord, error) {
 }
 
 func (s *tenantsStore) Insert(_ context.Context, record adminrepo.TenantRecord) error {
+	if s.slugsTaken[record.Slug] {
+		params := map[string]string{"slug": record.Slug}
+		return shared.ErrConflict.WithDetail("admin.slug_taken").WithParams(params).
+			WithFields(shared.FieldError{Path: "/slug", Code: "admin.slug_taken", Params: params})
+	}
 	s.inserted = append(s.inserted, record)
 	// The row a provisioning reads back in its own transaction, as the table would answer it.
 	if s.record.ID.IsZero() {

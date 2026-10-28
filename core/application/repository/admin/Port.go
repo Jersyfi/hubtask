@@ -84,7 +84,7 @@ type Tenants interface {
 
 	// Insert writes the row, inside the new tenant's own scope: the first write a tenant ever
 	// sees is already bounded to it. A taken slug is a conflict error with code
-	// `admin.slug_taken`.
+	// `admin.slug_taken` at the field `/slug`.
 	Insert(ctx context.Context, record TenantRecord) error
 
 	// Find answers the row of the transaction's own tenant, or an error wrapping

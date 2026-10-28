@@ -88,9 +88,12 @@ func (AdminTenantRepository) Insert(ctx context.Context, record repository.Tenan
 	})
 	if err != nil {
 		if isUniqueViolation(err) {
+			// Refused at the field, as a change of address refuses it (UC-INS-07 check 2).
+			params := map[string]string{"slug": record.Slug}
 			return shared.ErrConflict.
 				WithDetail("admin.slug_taken").
-				WithParams(map[string]string{"slug": record.Slug})
+				WithParams(params).
+				WithFields(shared.FieldError{Path: "/slug", Code: "admin.slug_taken", Params: params})
 		}
 		return shared.ErrUnavailable.
 			WithDetail("postgres.query_failed").

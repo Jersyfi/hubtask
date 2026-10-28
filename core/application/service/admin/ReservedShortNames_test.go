@@ -164,3 +164,29 @@ func TestReservingANameAWorkspaceCarriesKeepsTheWorkspace(t *testing.T) {
 		t.Errorf("the workspace is %+v, want shop kept", f.tenants.inserted)
 	}
 }
+
+// UC-INS-07 check 2: a short name that is no address label, or that another workspace holds, is
+// refused at the field with its own code, through the use case and the registry REST and `hubctl`
+// reach it by alike; nothing of the workspace is written.
+func TestATakenOrInvalidShortNameIsRefusedAtTheField(t *testing.T) {
+	for _, door := range []string{"use case", "registry"} {
+		t.Run(door, func(t *testing.T) {
+			for _, c := range []struct{ name, slug, code string }{
+				{name: "no address label", slug: "Bad Slug!", code: "admin.slug_invalid"},
+				{name: "another workspace's", slug: "sales", code: "admin.slug_taken"},
+			} {
+				t.Run(c.name, func(t *testing.T) {
+					f := newProvisionFixture()
+					f.tenants.slugsTaken = map[string]bool{"sales": true}
+					_, err := provisionBy(t, f, door, usecase.Input{
+						"slug": c.slug, "display_name": "Sales", "owner_email": "eva@acme.example",
+					})
+					refusedAt(t, err, "/slug", c.code)
+					if len(f.tenants.inserted) != 0 || len(f.hosts.rows) != 0 {
+						t.Errorf("a refused short name wrote %+v, %+v", f.tenants.inserted, f.hosts.rows)
+					}
+				})
+			}
+		})
+	}
+}

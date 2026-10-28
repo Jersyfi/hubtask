@@ -357,6 +357,57 @@ test('chromium: a reserved short name is refused at the field of New workspace',
   assert.equal(sent[0].slug, 'www');
 });
 
+// UC-INS-07 check 2: a short name the list did not know as taken - another operator took it a
+// moment ago - is the server's refusal, said at the field of *New workspace*, and the dialog stays.
+test('chromium: a short name taken meanwhile is refused at the field of New workspace', async (t) => {
+  const browser = await chromium.launch();
+  t.after(() => browser.close());
+  const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+  t.after(() => context.close());
+  const sent = [];
+  await context.route('**/api/v1/**', async (route) => {
+    const request = route.request();
+    const path = new URL(request.url()).pathname.replace(/^.*\/api\/v1/, '');
+    if (path === '/meta/capabilities') return route.fulfill({ json: MULTI });
+    if (path === '/admin/tenants' && request.method() === 'GET') return route.fulfill({ json: [workspace()] });
+    if (path === '/admin/tenants' && request.method() === 'POST') {
+      const body = request.postDataJSON() ?? {};
+      sent.push(body);
+      return route.fulfill({
+        status: 409,
+        json: {
+          code: 'errors.conflict', detail_code: 'admin.slug_taken', status: 409,
+          request_id: 'req_t', params: { slug: body.slug },
+          field_errors: [{ path: '/slug', code: 'admin.slug_taken', params: { slug: body.slug } }],
+        },
+      });
+    }
+    return stub(route);
+  });
+  await context.addInitScript(() => {
+    sessionStorage.setItem('hubtask.bearer', 'e2e-bearer');
+    sessionStorage.setItem('hubtask.refresh', 'e2e-refresh');
+  });
+  const page = await context.newPage();
+
+  await page.goto(`${served.origin}/instance/workspaces`);
+  await page.getByRole('row').filter({ hasText: 'Acme' }).waitFor();
+  await page.getByRole('button', { name: 'New workspace' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New workspace' });
+  await dialog.waitFor();
+
+  await dialog.getByLabel(/^Address/).fill('sales');
+  await dialog.getByLabel(/^Name/).fill('Sales');
+  await dialog.getByLabel(/^The owner's email address/).fill('eva@acme.example');
+  await dialog.getByRole('button', { name: 'Create it' }).click();
+
+  await dialog.getByText("That subdomain is already a workspace's. Choose another.").waitFor();
+  assert.equal(await dialog.getByLabel(/^Address/).getAttribute('aria-invalid'), 'true');
+  assert.ok(await dialog.isVisible(), 'a refused short name closed the dialog');
+  assert.equal(sent.length, 1);
+  assert.equal(sent[0].slug, 'sales');
+});
+
 // UC-INS-20 checks 1 and 3: where the installation assigns hosts, *New workspace* asks for the
 // workspace's host and offers the short name as optional, made from the host where it is left
 // empty. A host already in the table is said while it is typed and nothing is sent; one the server

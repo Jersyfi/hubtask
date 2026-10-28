@@ -179,6 +179,25 @@ func TestAWorkspaceOnAnAssignedHostAnswersThere(t *testing.T) {
 		}
 	})
 
+	// UC-INS-07 check 2: a short name another workspace holds is refused at the field by the
+	// tenant table's own unique index.
+	t.Run("a short name another workspace holds is refused at the field", func(t *testing.T) {
+		_, err := registry.Invoke(ctx, adminservice.ProvisionTenantName, assignedOperator(), usecase.Input{
+			"host": "elsewhere-" + suffix + ".corp.example", "slug": "tasks-hr-" + suffix,
+			"display_name": "Other", "owner_email": "eva@corp.example",
+		})
+		refusal := shared.AsError(err)
+		if refusal == nil || refusal.DetailCode != "admin.slug_taken" || len(refusal.Fields) != 1 ||
+			refusal.Fields[0].Path != "/slug" || refusal.Fields[0].Code != "admin.slug_taken" {
+			t.Fatalf("a taken short name answered %v, want admin.slug_taken at /slug", err)
+		}
+		var written int
+		if err := adminPool(ctx, t).QueryRow(ctx, `SELECT count(*) FROM tenant_host WHERE host = $1`,
+			"elsewhere-"+suffix+".corp.example").Scan(&written); err != nil || written != 0 {
+			t.Errorf("the refused workspace's host was written (%d, %v)", written, err)
+		}
+	})
+
 	const password = "a lantern above the assigned host"
 	hash, err := writer.Passwords.Hash(secret.New(password))
 	if err != nil {
