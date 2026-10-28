@@ -8,9 +8,10 @@ may contain breaks; with `1.0.0`, API v1 is promised stable. There is **one** ve
 product and every first-party client ([ADR-0035](./adr/ADR-0035-one-product-version.md)).
 
 The core track (`0.1.0` to `0.9.0`) is built, and so are the client milestones F1 to F6 and F8 to
-F10, the sign-in milestones SI and SC and the privacy milestone PH. Two tracks remain: the client
-track, which still owes the installed shells, and the convergence and stabilisation that close the
-major. Both meet in `0.9.5`, and `1.0.0` is released when the server, the clients and the website
+F10, the sign-in milestones SI and SC, the privacy milestone PH and **UX — Hubtask, lebendig**
+([`archive/backlog/milestone-UX.md`](./archive/backlog/milestone-UX.md), closed 2026-10-28). Two
+tracks remain: the client track, which still owes the installed shells, and the convergence and
+stabilisation that close the major. Both meet in `0.9.5`, and `1.0.0` is released when the server, the clients and the website
 are finished together.
 
 ---

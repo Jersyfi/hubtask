@@ -46,6 +46,6 @@ The concept as a whole, its use cases and its order of work are milestone UX (#1
 
 * Presets and the hidden-value mark are new in the contract; existing collections keep the
   installation's profile until somebody changes them.
-* Every screen changes; `docs/backlog/milestone-UX.md` holds the inventory that proves no control
+* Every screen changes; `docs/archive/backlog/milestone-UX.md` holds the inventory that proves no control
   is lost.
 * The font payload grows; `unicode-range` keeps it out of every page whose text does not need it.
