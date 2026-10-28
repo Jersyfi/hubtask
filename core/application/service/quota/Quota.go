@@ -16,6 +16,7 @@ import (
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/quota"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	env "github.com/Jersyfi/hubtask/core/port/environment"
 )
@@ -185,12 +186,6 @@ func ReadLevels(ctx context.Context, store repository.Store) (Levels, error) {
 	return levels, nil
 }
 
-// planApplies reports whether the plan's value for a quota is read: never under the installation's
-// lock, which binds the plan as it binds every workspace.
-func (l Levels) planApplies(name string) bool {
-	return !l.InstanceLocks[name] && valueOf(l.Plan.Overrides, name) != nil
-}
-
 // SourceOf answers which level set the value in force.
 func (l Levels) SourceOf(name string) string {
 	switch {
@@ -201,42 +196,31 @@ func (l Levels) SourceOf(name string) string {
 		return SourceException
 	case name == AiOwnTokensPerDay:
 		return SourceDefault
-	case l.planApplies(name):
-		return SourcePlan
-	case valueOf(l.Instance, name) != nil:
-		return SourceInstance
-	default:
-		return SourceDefault
 	}
+	return string(l.resolve(name).Source)
 }
 
 // LockOf answers which level locked a quota, or "" - the installation's lock first, which binds the
 // plan's. The operator's exception still decides under either: a lock says what a workspace may not
 // ask for, not what the operator may not grant.
 func (l Levels) LockOf(name string) string {
-	switch {
-	case name == AiOwnTokensPerDay:
-		return ""
-	case l.InstanceLocks[name]:
-		return LockInstance
-	case l.Plan.Locks[name]:
-		return LockPlan
-	default:
+	if name == AiOwnTokensPerDay {
 		return ""
 	}
+	return string(l.resolve(name).LockedBy)
 }
 
 // Resolve answers the limits in force: the mode's table, the installation's defaults, the plan's
-// where the installation does not lock them, and the operator's exception as the last word. The own
-// model's budget is the workspace's alone: no product default, installation or plan reaches it.
+// where the installation does not lock them (both through the settings catalogue,
+// QuotaSettings.go), and the operator's exception as the last word. The own model's budget is the
+// workspace's alone: no product default, installation or plan reaches it.
 func Resolve(levels Levels, mode env.TenancyMode) Limits {
 	limits := Defaults(mode)
 	for _, name := range OperatorNames() {
-		if value := valueOf(levels.Instance, name); value != nil {
-			limits.set(name, *value)
-		}
-		if levels.planApplies(name) {
-			limits.set(name, *valueOf(levels.Plan.Overrides, name))
+		if resolution := levels.resolve(name); resolution.Source != setting.LevelDefault {
+			if value, held := resolution.Effective.(int64); held {
+				limits.set(name, value)
+			}
 		}
 		if value := valueOf(levels.Exception, name); value != nil {
 			limits.set(name, *value)
