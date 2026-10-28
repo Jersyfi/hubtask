@@ -49,7 +49,10 @@ mutation stays visible with its code until dismissed (§9 rule 5).
 **The browser offers offline exactly what the push frame carries** (§3.2): entries created, edited,
 completed, moved, sorted and trashed; labels, members and attachments added or removed (bytes
 uploaded online first, §4.2); comments added. The rest of the left column is refused offline in the
-browser with `sync.needs_connection` until the frame gains a kind for it.
+browser with `sync.needs_connection` until the frame gains a kind for it. A file captured offline
+stays refused in the browser, whose copy is not encrypted; the installed apps keep its bytes in their
+encrypted copy and upload them, then add the attachment, when the connection returns (decided for
+milestone F7, not yet built).
 
 ---
 
