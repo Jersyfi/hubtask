@@ -348,6 +348,29 @@ func TestADueDateOnANarrowedTypeIsRefused(t *testing.T) {
 	}
 }
 
+// UC-FLW-01: a type that is not schedulable takes the due date off its entries' profile, so the
+// writer refuses it as it refuses a level without one; the level's own type keeps it.
+func TestADueDateOnATypeThatIsNotSchedulableIsRefused(t *testing.T) {
+	h := newDueDateHarness(t, dueDateProfiles())
+	h.set.Due.Gate.EntryTypes = workspaceTypes()
+	item := h.withItem(domain.ItemTask)
+	item.EntryType = "server"
+	h.items.stored[dueItem] = item
+
+	if _, err := h.set.Execute(context.Background(), actor(), dueCmd(t)); !errors.Is(err, shared.ErrCapabilityNotSupported) {
+		t.Fatalf("a record's due date answered %v", err)
+	}
+	if len(h.items.dueDates) != 0 {
+		t.Error("the refusal still wrote the row")
+	}
+
+	item.EntryType = "bug"
+	h.items.stored[dueItem] = item
+	if _, err := h.set.Execute(context.Background(), actor(), dueCmd(t)); err != nil {
+		t.Fatalf("a schedulable type's due date answered %v", err)
+	}
+}
+
 // The permission question is the entry's: moving a deadline is writing an entry.
 func TestSettingADueDateAsksForThePermissionToWriteItems(t *testing.T) {
 	h := newDueDateHarness(t, dueDateProfiles())

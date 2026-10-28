@@ -90,7 +90,7 @@ func (g EntryGate) gatedProfile(
 	if err := offer.requireLevel(item.Type, ""); err != nil {
 		return domain.CapabilityProfile{}, err
 	}
-	return offer.narrow(profile), nil
+	return narrowByEntryType(ctx, g.EntryTypes, item, offer.narrow(profile))
 }
 
 // chains answers the types above each entry, nearest first, in one statement for all of them. Not
@@ -130,7 +130,11 @@ func (g EntryGate) gatedProfileFor(
 	ctx context.Context, profiles metarepo.CapabilityProfiles, item domain.WorkItem,
 ) (domain.CapabilityProfile, error) {
 	if !g.Wired() {
-		return profileOf(ctx, profiles, item.Type)
+		profile, err := profileOf(ctx, profiles, item.Type)
+		if err != nil {
+			return domain.CapabilityProfile{}, err
+		}
+		return narrowByEntryType(ctx, g.EntryTypes, item, profile)
 	}
 	collection, err := findCollection(ctx, g.Structure.Containers, item.CollectionID)
 	if err != nil {

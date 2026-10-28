@@ -25,6 +25,10 @@ import (
 type EntryGate struct {
 	Structure StructureResolver
 	Types     repository.ItemTypes
+	// EntryTypes narrows the profile by the entry's type: a record has no completion, a type that
+	// is not schedulable no due date, reminder or recurrence (UC-FLW-01). Optional, and apart from
+	// Wired, because a workspace without a type of its own narrows nothing.
+	EntryTypes repository.EntryTypes
 }
 
 // Wired reports whether the gate has what it needs.

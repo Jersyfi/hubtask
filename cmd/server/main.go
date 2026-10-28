@@ -722,10 +722,10 @@ func run() error {
 	figures := work.FigureReader{Figures: postgres.NewFigureRepository(), Clock: clockadapter.System{}, Profiles: profiles}
 	// What a collection offers its entries, for every item writer and reader: the refusal of what it
 	// hides and the mark on every read are one answer (domain-model.md §2).
-	entryGate := work.EntryGate{Structure: structures, Types: items}
+	entryTypes := postgres.NewEntryTypeRepository()
+	entryGate := work.EntryGate{Structure: structures, Types: items, EntryTypes: entryTypes}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
-	entryTypes := postgres.NewEntryTypeRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
 	// entry says in it.
