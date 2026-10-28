@@ -92,6 +92,9 @@ func (c *RestController) WriteInstanceSettings(
 	if body.Metering != nil {
 		in["metering"] = *body.Metering
 	}
+	if body.ReservedShortNames != nil {
+		in["reserved_short_names"] = *body.ReservedShortNames
+	}
 	// The body's `version` is read-only and ignored: the version a save was made on travels in
 	// `If-Match`, as everywhere else in the API.
 	if version, ok := versionFromIfMatch(params.IfMatch); ok {
@@ -231,6 +234,15 @@ func instanceSettingsResponse(out usecase.Output) openapi.InstanceSettings {
 	}
 	if metering, held := out["metering"].(bool); held {
 		answer.Metering = &metering
+	}
+	if listed, held := out["reserved_short_names"].([]any); held {
+		reserved := make([]string, 0, len(listed))
+		for _, name := range listed {
+			if text, isText := name.(string); isText {
+				reserved = append(reserved, text)
+			}
+		}
+		answer.ReservedShortNames = &reserved
 	}
 	if source := out.String("source"); source != "" {
 		answer.Source = &source
