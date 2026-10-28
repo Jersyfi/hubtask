@@ -40,6 +40,7 @@
   import InstanceGate from '../lib/instance/InstanceGate.svelte';
   import InstallationPresets from '../lib/instance/InstallationPresets.svelte';
   import InstanceValueField from '../lib/instance/InstanceValueField.svelte';
+  import ViewAsFile from '../lib/settings/ViewAsFile.svelte';
   import { AREAS, changesBetween, choiceCode, documentOf, draftEntry, fieldOf, isBytes, lockCode, nameCode, rowsOf, type Area, type Row } from '../lib/instance/values.ts';
   import { enterSubmits } from '../lib/forms/enter.ts';
   import { toast } from '../lib/frame/toasts.svelte.ts';
@@ -154,6 +155,19 @@
     failure = undefined;
   }
 
+  /** The area on show as the installation's part of the document (configuration/ui.md A10). */
+  const shownValues = $derived(
+    (shown?.rows ?? []).map((row) => {
+      const entry = current(row.area, row.key);
+      return {
+        key: `${row.area}.${row.key}`,
+        value: entry?.value,
+        source: entry?.set ? 'INSTANCE' : 'DEFAULT',
+        lockedBy: entry?.locked ? 'INSTANCE' : undefined,
+      };
+    }),
+  );
+
   /** Reads one key out of the draft. */
   function current(area: Area, key: string): InstanceSetting | undefined {
     return draftEntry(draft, area, key);
@@ -241,6 +255,7 @@
               <Stack gap="100">
                 <h2 class="section">{t('app.instance.settings_edit_title')}</h2>
                 <p class="quiet-line">{t('app.instance.settings_edit_hint')}</p>
+                <span><ViewAsFile values={shownValues} place="INSTANCE" /></span>
               </Stack>
 
               <Tabs

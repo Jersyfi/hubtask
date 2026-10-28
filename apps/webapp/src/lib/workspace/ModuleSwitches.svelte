@@ -19,6 +19,7 @@
   import type { ModuleList, ModuleState, ResourceState } from '@hubtask/sync-engine';
 
   import ValueSource from './ValueSource.svelte';
+  import ViewAsFile from '../settings/ViewAsFile.svelte';
   import { asksFirst, isSetHere, moduleCodes, modules, unavailableBecause } from '../data/modules.svelte.ts';
   import { toast } from '../frame/toasts.svelte.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
@@ -38,6 +39,15 @@
     return untrack(() => modules.at(at, (next) => (reading = next)));
   });
   const all = $derived(reading.status === 'ready' ? reading.data.modules : []);
+  /** The page's values as its part of the configuration document (configuration/ui.md A10). */
+  const shown = $derived(
+    all.map((state) => ({
+      key: `module.${state.module.toLowerCase()}`,
+      value: state.on,
+      source: state.source,
+      lockedBy: state.locked_by,
+    })),
+  );
   const readRefusal = $derived(
     reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined,
   );
@@ -100,7 +110,7 @@
       {#each all as state (state.module)}
         {@const codes = moduleCodes(state)}
         {@const reason = unavailableBecause(state, place)}
-        <li class="panel" data-module={state.module}>
+        <li class="panel" data-module={state.module} data-setting={`module.${state.module.toLowerCase()}`}>
           <Stack gap="150">
             <Switch
               label={t(codes.name)}
@@ -129,6 +139,7 @@
         </li>
       {/each}
     </ul>
+    <Inline gap="150" align="center"><ViewAsFile values={shown} {place} /></Inline>
   {/if}
 </Stack>
 
