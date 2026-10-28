@@ -50,6 +50,22 @@ func TestDefiningAFieldSendsTheDocumentedPayload(t *testing.T) {
 	}
 }
 
+// UC-WRK-12 check 1 on hubctl: an amount names its currency.
+func TestDefiningAMoneyFieldSendsItsCurrency(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, oneDefinition)
+
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"field", "define", "--key", "budget", "--kind", "MONEY", "--currency", "EUR")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	for _, fragment := range []string{`"kind":"MONEY"`, `"currency":"EUR"`} {
+		if !strings.Contains(stub.body, fragment) {
+			t.Errorf("the body %q is missing %s", stub.body, fragment)
+		}
+	}
+}
+
 func TestAFieldKindThatIsNotOneIsRefusedBeforeTheCall(t *testing.T) {
 	stub := serve(t, func(http.ResponseWriter, *http.Request) {
 		t.Error("a call was made with a kind that does not exist")
