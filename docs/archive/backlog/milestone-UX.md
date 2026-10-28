@@ -13,6 +13,7 @@ task that moves a control ticks its rows there.
 
 **Delivers:** UC-WRK-03 (1), UC-WRK-23 (1, 2, 3, 4, 5, 6, 7, 8, 9), UC-WRK-24 (1, 2, 3, 4, 5, 6, 7, 8), UC-WRK-25 (1, 2, 3, 4, 5, 6, 7), UC-WRK-26 (1, 2, 3, 4, 5, 6), UC-WRK-27 (1, 2, 3, 4, 5), UC-WRK-28 (1, 2, 3, 4, 5, 6), UC-WRK-29 (1, 2, 3, 4, 5, 6, 7), UC-WRK-30 (1, 2, 3, 4, 5), UC-WRK-31 (1, 2, 3, 4), UC-WRK-32 (1, 2, 3, 4, 5, 6, 7), UC-WRK-33 (1, 2, 3, 4), UC-WRK-34 (1, 2, 3, 4, 5, 6), UC-INS-18 (1, 2, 3, 4), UC-ID-23 (1, 2, 3, 4), UC-ID-24 (1, 2, 3, 4, 5), UC-AI-04 (6, 7, 8, 9), UC-AI-08 (1, 2, 3, 4, 5), UC-AI-09 (1, 2, 3, 4), UC-JUM-07 (10, 11, 12), UC-AUT-10 (1, 2, 3, 4)
 **Released:** 2026-10-20
+**Closed:** 2026-10-28
 
 ## Decisions
 
@@ -46,6 +47,15 @@ task that moves a control ticks its rows there.
 16. **A long press opens the entry menu** (the owner, 2026-10-21, #1685): a still hold opens the
     entry menu on release, *Select* first; a moving hold drags. UC-WRK-28 check 4, design-system.md
     §11.9, ADR-0088.
+17. **Every interface finding belongs here** (the owner, 2026-10-22): what a walk of a running
+    installation found in the interface was built in this milestone, not deferred (#1742–#1745,
+    pull requests #1746–#1749).
+18. **Hubtask as one system** (the owner, 2026-10-23, released with its rounds of findings of
+    2026-10-24 and 2026-10-25, #1751): one add, one place per object, one layout grammar
+    (design-system.md §13, ADR-0091), built whole in concept mode in #1750. It changed UC-WRK-26
+    check 7, UC-WRK-28 check 5 and UC-WRK-34 checks 6 and 7; mail into every place (ADR-0092) and
+    voice assistants (ADR-0093, UC-WRK-35) rode along in the same pull request and are not part of
+    `Delivers`.
 
 ---
 
