@@ -6,7 +6,6 @@ package notification
 import (
 	"context"
 	"net/url"
-	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
@@ -47,7 +46,8 @@ type SendAddressConfirmation struct {
 	Workspaces     WorkspaceReader
 	UnitOfWork     persistence.UnitOfWork
 	FallbackLocale string
-	BaseURL        string
+	// Addresses answers the workspace's address the link names.
+	Addresses WorkspaceAddresses
 }
 
 // Execute mints the link and sends it. A request replaced, confirmed or run out is finished
@@ -62,8 +62,9 @@ func (s SendAddressConfirmation) Execute(ctx context.Context, tenantID, requestI
 	}
 	reset := SendPasswordReset{
 		Workspaces: s.Workspaces, UnitOfWork: s.UnitOfWork, FallbackLocale: s.FallbackLocale,
+		Addresses: s.Addresses,
 	}
-	locale, err := reset.localeFor(ctx, tenantID, link.Locale)
+	locale, base, err := reset.workspaceOf(ctx, tenantID, link.Locale)
 	if err != nil {
 		return err
 	}
@@ -71,7 +72,7 @@ func (s SendAddressConfirmation) Execute(ctx context.Context, tenantID, requestI
 		"name": link.DisplayName,
 		// In the fragment, the reset link's reasoning: nothing between the mail client and the
 		// interface sees what follows the hash.
-		"link": strings.TrimSuffix(s.BaseURL, "/") + "/confirm-address#token=" + url.PathEscape(link.Token.Reveal()),
+		"link": base + "/confirm-address#token=" + url.PathEscape(link.Token.Reveal()),
 	}
 	return s.Mail.Send(ctx, mail.Message{
 		To:      link.Address,

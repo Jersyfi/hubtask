@@ -3341,7 +3341,7 @@ func run() error {
 			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
 			UnitOfWork:     unitOfWork,
 			FallbackLocale: cfg.Locale.DefaultLocale,
-			BaseURL:        cfg.BaseURL,
+			Addresses:      workspaceAddress(cfg),
 		},
 	}
 	// The link that confirms a managed account's new address, minted at delivery.
@@ -3356,7 +3356,7 @@ func run() error {
 			Workspaces:     postgres.NewWorkspaceSettingsRepository(),
 			UnitOfWork:     unitOfWork,
 			FallbackLocale: cfg.Locale.DefaultLocale,
-			BaseURL:        cfg.BaseURL,
+			Addresses:      workspaceAddress(cfg),
 		},
 	}
 	// An operator's opening of the password: its notices to the administrators, and the job
@@ -3365,7 +3365,7 @@ func run() error {
 		Send: notification.SendPasswordOpening{
 			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			Mail: mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
-			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
 		},
 	}
 	// A person told that a way into their account changed (ADR-0078 §6).
@@ -3374,7 +3374,7 @@ func run() error {
 			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
 			Providers: postgres.NewIdentityProviderRepository(),
 			Mail:      mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
-			FallbackLocale: cfg.Locale.DefaultLocale, BaseURL: cfg.BaseURL,
+			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
 		},
 	}
 	passwordOpeningEnd := worker.PasswordOpeningEnd{
@@ -3398,11 +3398,10 @@ func run() error {
 			// The workspace's default language for a recipient who has not chosen one,
 			// and the installation's after it - the chain authentication resolves too.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(), FallbackLocale: cfg.Locale.DefaultLocale,
-			UnitOfWork: backgroundWork, Clock: clockadapter.System{}, BaseURL: cfg.BaseURL,
-			// An invitation's link leads to the workspace's own address in multi-tenant
-			// operation (multi-tenancy.md §3).
-			Multi:   cfg.Tenancy == envport.TenancyMulti,
-			Signals: metrics,
+			UnitOfWork: backgroundWork, Clock: clockadapter.System{},
+			// Every link leads to the workspace's main address (ADR-0095 §2).
+			Addresses: workspaceAddress(cfg),
+			Signals:   metrics,
 			// The invitation mail's link is the redemption token, minted at delivery so
 			// the plaintext exists exactly once, in the message on its way out.
 			Redemptions: identity.MintRedemptionToken{

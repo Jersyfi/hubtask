@@ -83,7 +83,7 @@ func wayInSender(mailer *mailbox, providers providersHeld) SendWayInChanged {
 		Workspaces: workspaceNamed{name: "Acme", locale: "en"},
 		Providers:  providers,
 		Mail:       mailer, Renderer: catalogue{}, UnitOfWork: &unitOfWork{},
-		FallbackLocale: "en", BaseURL: "https://acme.example/",
+		FallbackLocale: "en", Addresses: fixedAddress("https://acme.example/"),
 	}
 }
 

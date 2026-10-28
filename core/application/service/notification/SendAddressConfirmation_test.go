@@ -26,7 +26,7 @@ func TestTheAddressConfirmationCarriesItsLinkInTheFragment(t *testing.T) {
 		Links: addressLinks{AddressLink{
 			Token: secret.New("hbt_mfa_token"), Address: "lena@example.org", Locale: "de", DisplayName: "Lena",
 		}},
-		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://family.example/",
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", Addresses: fixedAddress("https://family.example/"),
 	}
 	if err := sender.Execute(t.Context(), tenant, shared.MustParseID("01936f2a-7c1e-7000-8000-0000000000a7")); err != nil {
 		t.Fatalf("sending: %v", err)

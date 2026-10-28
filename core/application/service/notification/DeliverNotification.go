@@ -123,13 +123,9 @@ type DeliverNotification struct {
 	Workspaces WorkspaceReader
 	// FallbackLocale is the installation's default, the last link of the same chain.
 	FallbackLocale string
-	// BaseURL is where this installation lives, so an email can carry a link somebody can click. A
-	// relative path in an email is a dead link.
-	BaseURL string
-	// Multi is whether the installation runs several workspaces, each on its own subdomain: an
-	// invitation's link then names the workspace's own address (multi-tenancy.md §3, UC-ID-07
-	// check 7), read from Workspaces.
-	Multi bool
+	// Addresses answers the workspace's address, so an email carries a link somebody can click. Nil
+	// composes none: a relative path in an email is a dead link.
+	Addresses WorkspaceAddresses
 	// Redemptions mints the credential an invitation mail carries: minted here, at
 	// delivery, so the queue's payload stays identifiers-only and the plaintext exists exactly
 	// once, in the message on its way out. Nil composes the plain link, which is what an
@@ -187,9 +183,8 @@ type subject struct {
 	access work.EmergencyAccess
 	// grant is the role the record names, zero for every other message.
 	grant identity.Grant
-	// workspaceSlug is the workspace's public name, read for an invitation in multi-tenant
-	// operation, where the link leads to the workspace's own address.
-	workspaceSlug string
+	// base is the workspace's address every link of the message names, read with the rest.
+	base string
 }
 
 // identityAccount is the slice of an account this package renders from: the locale that decides
@@ -275,12 +270,8 @@ func (d DeliverNotification) load(
 			return err
 		}
 		loaded.recipient = identityAccount{locale: locale, address: recipient.Email, zone: recipient.TimeZone}
-		if record.Category == domain.CategoryInvitation && d.Multi && d.Workspaces != nil {
-			workspace, err := d.Workspaces.Find(ctx)
-			if err != nil {
-				return err
-			}
-			loaded.workspaceSlug = workspace.Slug
+		if loaded.base, err = addressOf(ctx, d.Addresses); err != nil {
+			return err
 		}
 
 		preference, err := d.Preferences.Find(ctx, record.RecipientID, record.Category, record.Channel)
@@ -404,8 +395,7 @@ func (d DeliverNotification) send(ctx context.Context, loaded subject) error {
 			return err
 		}
 		if !token.IsEmpty() {
-			message.Link = identity.InvitationLink(
-				identity.WorkspaceBase(d.BaseURL, loaded.workspaceSlug, d.Multi), token.Reveal())
+			message.Link = identity.InvitationLink(loaded.base, token.Reveal())
 		}
 	}
 
@@ -441,7 +431,7 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		return domain.Message{
 			SubjectCode: subjectPrivateHubTrashed,
 			BodyCode:    bodyPrivateHubTrashed,
-			Link:        d.link(loaded.record),
+			Link:        link(loaded.base, loaded.record),
 		}
 	}
 	subjectCode, bodyCode := codesFor(loaded.record.Category)
@@ -453,13 +443,13 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		SubjectCode: subjectCode,
 		BodyCode:    bodyCode,
 		ActorName:   loaded.actorName,
-		Link:        d.link(loaded.record),
+		Link:        link(loaded.base, loaded.record),
 	}
 	message = message.WithTitle(loaded.title, loaded.decision)
 	if !loaded.grant.ID.IsZero() {
 		message.SubjectCode, message.BodyCode = subjectRoleGranted, bodyRoleGranted
 		message.RoleCode = rolePrefix + strings.ToLower(string(loaded.grant.Role))
-		message.Link = d.placeLink(loaded.grant.Scope)
+		message.Link = placeLink(loaded.base, loaded.grant.Scope)
 		if loaded.grant.Scope.Type == identity.ScopeTenant {
 			// The whole workspace: no place to name, so no title to withhold either.
 			message.SubjectCode, message.BodyCode = subjectRoleGrantedWorkspace, bodyRoleGrantedWorkspace
@@ -472,8 +462,8 @@ func (d DeliverNotification) compose(loaded subject) domain.Message {
 		message.When = inZone(loaded.access.OpenedAt, loaded.recipient.zone)
 		message.Until = inZone(loaded.access.EndsAt, loaded.recipient.zone)
 		// The hub itself, where a member reads every access to it.
-		if base := strings.TrimSuffix(d.BaseURL, "/"); base != "" {
-			message.Link = base + "/hubs/" + url.PathEscape(loaded.access.HubID.String())
+		if loaded.base != "" {
+			message.Link = loaded.base + "/hubs/" + url.PathEscape(loaded.access.HubID.String())
 		}
 	}
 	if message.Title == "" {
@@ -518,8 +508,8 @@ func codesFor(category domain.Category) (subjectCode, bodyCode string) {
 }
 
 // link is where to look, absolute so that a mail client has something to click.
-func (d DeliverNotification) link(record domain.Notification) string {
-	base := strings.TrimSuffix(d.BaseURL, "/")
+func link(base string, record domain.Notification) string {
+	base = strings.TrimSuffix(base, "/")
 	if base == "" {
 		return ""
 	}
@@ -546,8 +536,8 @@ func (d DeliverNotification) link(record domain.Notification) string {
 }
 
 // placeLink is where a role's place opens in the web app; the installation for the workspace.
-func (d DeliverNotification) placeLink(scope identity.Scope) string {
-	base := strings.TrimSuffix(d.BaseURL, "/")
+func placeLink(base string, scope identity.Scope) string {
+	base = strings.TrimSuffix(base, "/")
 	if base == "" {
 		return ""
 	}
@@ -599,6 +589,27 @@ func (d DeliverNotification) write(
 // default language, and nothing that writes.
 type WorkspaceReader interface {
 	Find(ctx context.Context) (identity.Workspace, error)
+}
+
+// WorkspaceAddresses answers the address of the workspace a transaction is bound to: its main row's,
+// read when the message is written, so a mail after a change of address links to the new one
+// (identity service's WorkspaceAddress, ADR-0095 §2). Every link in this package is built on it.
+type WorkspaceAddresses interface {
+	Of(ctx context.Context) (string, error)
+}
+
+// addressOf is the workspace's address inside a transaction bound to it; empty without Addresses,
+// and for a workspace row gone while its accounts are not, which composes no link - the message
+// still goes, as it does without the workspace's name.
+func addressOf(ctx context.Context, addresses WorkspaceAddresses) (string, error) {
+	if addresses == nil {
+		return "", nil
+	}
+	base, err := addresses.Of(ctx)
+	if errors.Is(err, shared.ErrNotFound) {
+		return "", nil
+	}
+	return strings.TrimSuffix(base, "/"), err
 }
 
 // recipientLocale is §2's chain for a recipient: the account's own language, otherwise the

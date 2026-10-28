@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	integrationrepo "github.com/Jersyfi/hubtask/core/application/repository/integration"
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/automation"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
@@ -64,7 +65,7 @@ func delivery(t *testing.T, category domain.Category, itemPresent bool) delivery
 				person(bert, "Bert", "bert@example.org", "en"),
 			),
 			Items: items, Mail: box, Renderer: catalogue{}, UnitOfWork: work,
-			Clock: clock.Fixed(now), BaseURL: baseURL, Signals: signals,
+			Clock: clock.Fixed(now), Addresses: movedAddress(), Signals: signals,
 		},
 		notifications: notifications, preferences: preferences, mailbox: box,
 		work: work, signals: signals, record: record,
@@ -95,7 +96,7 @@ func TestAMessageIsSentAndTheRecordSaysSo(t *testing.T) {
 	if message.To != "bert@example.org" {
 		t.Errorf("sent to %q", message.To)
 	}
-	if !strings.Contains(message.Body, baseURL+"/items/"+itemID.String()) {
+	if !strings.Contains(message.Body, mainBase+"/items/"+itemID.String()) {
 		t.Errorf("the body carries no link somebody can click: %q", message.Body)
 	}
 	if !strings.Contains(message.Subject, "title=Review the quote") {
@@ -235,7 +236,7 @@ func TestAWithheldTitleUsesTheOtherSentence(t *testing.T) {
 	if !strings.Contains(message.Subject, ".withheld") {
 		t.Errorf("the ordinary sentence was used with no title to put in it: %q", message.Subject)
 	}
-	if !strings.Contains(message.Body, baseURL) {
+	if !strings.Contains(message.Body, mainBase) {
 		t.Errorf("the withheld message carries no link either: %q", message.Body)
 	}
 }
@@ -392,7 +393,7 @@ func TestAnInvitationMailCarriesTheRedemptionLink(t *testing.T) {
 		t.Fatalf("%d messages sent, want one", len(fixture.mailbox.sent))
 	}
 	body := fixture.mailbox.sent[0].Body
-	if !strings.Contains(body, baseURL+"/redeem#token=") || !strings.Contains(body, "hbt_inv_") {
+	if !strings.Contains(body, mainBase+"/redeem#token=") || !strings.Contains(body, "hbt_inv_") {
 		t.Errorf("body %q, want the redemption link in the fragment", body)
 	}
 	if len(minter.minted) != 1 || minter.minted[0] != bert {
@@ -535,7 +536,7 @@ func TestAMessageAboutARuleNamesTheRuleAndLinksToIt(t *testing.T) {
 	if !strings.Contains(message.Subject, "title=Escalate overdue work") {
 		t.Errorf("the subject does not name the rule: %q", message.Subject)
 	}
-	if !strings.Contains(message.Body, "link="+baseURL+"/administration/rules/"+ruleID.String()) {
+	if !strings.Contains(message.Body, "link="+mainBase+"/administration/rules/"+ruleID.String()) {
 		t.Errorf("the body links elsewhere: %q", message.Body)
 	}
 
@@ -590,18 +591,20 @@ func TestAMessageAboutASubscriptionNamesTheHostOnly(t *testing.T) {
 	if strings.Contains(message.Subject+message.Body, "secret-path-token") {
 		t.Errorf("the message repeats the address's path: %q", message.Body)
 	}
-	if !strings.Contains(message.Body, "link="+baseURL+"/administration/webhooks") {
+	if !strings.Contains(message.Body, "link="+mainBase+"/administration/webhooks") {
 		t.Errorf("the body links elsewhere: %q", message.Body)
 	}
 }
 
 // UC-ID-07 check 7: in multi-tenant operation the invitation mail's link leads to the workspace's
-// own address, read from the workspace the record belongs to.
+// own address, read from the workspace the record belongs to - the subdomain its short name makes
+// while no main row serves.
 func TestInMultiTenantOperationTheInvitationMailLeadsToTheWorkspacesAddress(t *testing.T) {
 	fixture := delivery(t, domain.CategoryInvitation, false)
 	fixture.delivery.Redemptions = &redemptionMinter{token: "hbt_inv_0192f0000000700080000000000000aa_secret"}
-	fixture.delivery.Multi = true
-	fixture.delivery.Workspaces = workspaceSlugged{slug: "anna"}
+	fixture.delivery.Addresses = identityservice.WorkspaceAddress{
+		Workspaces: workspaceSlugged{slug: "anna"}, BaseURL: baseURL, Multi: true,
+	}
 
 	if err := fixture.delivery.Execute(t.Context(), tenant, fixture.record.ID, false); err != nil {
 		t.Fatalf("delivering: %v", err)
