@@ -32,6 +32,7 @@
   import { presetName, presetOrigin, presets, presetValue } from '../data/presets.svelte.ts';
   import CategoriesDialog from '../entries/CategoriesDialog.svelte';
   import NarrowingDialog from './NarrowingDialog.svelte';
+  import { reachOf } from '../settings/reach.ts';
   import SavePresetDialog from './SavePresetDialog.svelte';
   import { DRAWABLE } from '../entries/layouts.ts';
   import { toast } from '../frame/toasts.svelte.ts';
@@ -137,6 +138,33 @@
   const chosen = $derived(draft?.preset ? presets.find(draft.preset) : undefined);
   const change = $derived(draft && structure ? changeOf(draft, structure, chosen) : undefined);
   const changeCount = $derived(countOf(change));
+
+  /**
+   * What the change in the draft reaches, asked once the person pauses (configuration/ui.md A3):
+   * the save bar says it before the save, and *Show plan* opens it in full. A preview that fails
+   * leaves the bar without the line; the save asks again and reports it.
+   */
+  const PREVIEW_PAUSE_MS = 400;
+  let reach = $state<{ change: StructureChange; preview: StructurePreview } | undefined>();
+  $effect(() => {
+    const asked = change;
+    const id = container.id;
+    reach = undefined;
+    if (!asked) return;
+    let isCurrent = true;
+    const timer = setTimeout(() => {
+      containers.previewStructure(id, asked).then(
+        (preview) => {
+          if (isCurrent) reach = { change: asked, preview };
+        },
+        () => {},
+      );
+    }, PREVIEW_PAUSE_MS);
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  });
   const values = $derived<StructureSettings>(draft?.values ?? structure?.settings ?? {});
 
   // ---------------------------------------------------------------------------------------------
@@ -595,6 +623,9 @@
         savingLabel={t('app.workspace.saving')}
         onDiscard={discard}
         onSave={() => void save()}
+        reachLabel={reach ? reachOf(reach.preview, t) : undefined}
+        planLabel={t('app.settings.show_plan')}
+        onPlan={reach?.preview.narrows ? () => (narrowing = reach) : undefined}
       />
     </form>
   {/if}
