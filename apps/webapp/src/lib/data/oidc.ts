@@ -133,18 +133,19 @@ export interface Here {
 }
 
 /**
- * Where a provider's return is finished, when that is not here (multi-tenancy.md §3).
+ * Where a provider's return is finished, when that is not here (multi-tenancy.md §3, identity.md
+ * §10.1).
  *
  * A provider returns to the installation's one registered address, while in multi-tenant operation
  * the flow began on a workspace's own host - where its session lives, and the tab's note of a
- * connection or a step-up. `:locate` answers that host; the return goes there whole, the query as
- * the provider wrote it, and is finished there.
+ * connection or a step-up. `:locate` answers that workspace's main address - a subdomain, a host the
+ * operator assigned or the workspace's own domain; the return goes there whole, the query as the
+ * provider wrote it, and is finished there.
  *
- * **Only to a host beneath this one, by the same scheme.** The answer is the server's, built from
- * the flow's workspace and the configured base, so this is not distrust of it; it is that a
- * navigation carrying an authorization code goes nowhere but a workspace of this installation.
- * Anything else - this very origin, the single-tenant answer, a stranger - is `undefined`: finish
- * here.
+ * **Only to exactly the host the answer names, by the same scheme.** The server answers from the
+ * workspace's main row, never from the request, so the target is built from that answer alone and
+ * nothing in the return's query can move it. Anything else - this very origin, the single-tenant
+ * answer, another scheme, something that is no web address - is `undefined`: finish here.
  */
 export function forwardTo(base: string, here: Here, search: string): string | undefined {
   let parsed: URL;
@@ -155,7 +156,8 @@ export function forwardTo(base: string, here: Here, search: string): string | un
   }
   if (parsed.protocol !== here.protocol) return undefined;
   if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return undefined;
-  if (parsed.origin === here.origin || !parsed.hostname.endsWith(`.${here.hostname}`)) return undefined;
+  if (parsed.username !== '' || parsed.password !== '') return undefined;
+  if (parsed.origin === here.origin) return undefined;
   const path = parsed.pathname.replace(/\/+$/, '');
   return `${parsed.origin}${path}/auth/callback${search}`;
 }
