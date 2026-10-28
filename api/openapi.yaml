@@ -14538,6 +14538,15 @@ components:
             A workspace may narrow `sources` where it is not locked, and may always choose no AI:
             a lock holds a workspace out of a source, never in one. No value here switches
             processing on - that is each workspace's own consent.
+        module:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+          description: >
+            The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`,
+            `service_desk`, `assets`, `time`, `goals`, `agents`), each `FLAG`: on or off for every
+            workspace that switches none itself, and with `locked` held there - a module locked
+            off is not offered, one locked on cannot be switched off. Every module is off where
+            nothing decides it. Switching off hides and never deletes.
         blocklist_file:
           type: string
           description: >
@@ -15435,6 +15444,14 @@ components:
         ai:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        module:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+          description: >
+            The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`,
+            `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked`
+            every workspace on the plan is held there. A module the plan does not offer is locked
+            off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
         left_out:
           type: array
           description: >
@@ -15465,6 +15482,14 @@ components:
         ai:
           type: object
           additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+        module:
+          type: object
+          additionalProperties: { $ref: "#/components/schemas/InstanceSetting" }
+          description: >
+            The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`,
+            `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked`
+            every workspace on the plan is held there. A module the plan does not offer is locked
+            off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
         left_out:
           type: array
           description: >

@@ -906,6 +906,7 @@ class InstanceSettings(TypedDict, total=False):
     localisation: dict[str, Any]
     quotas: dict[str, Any]
     ai: dict[str, Any]
+    module: dict[str, Any]
     blocklist_file: str
     metering: bool
     reserved_short_names: list[str]
@@ -1166,6 +1167,7 @@ class PlanChange(TypedDict, total=False):
     legal: dict[str, Any]
     quotas: dict[str, Any]
     ai: dict[str, Any]
+    module: dict[str, Any]
     left_out: list["PlanFeature"]
 
 class PlanCreate(TypedDict, total=False):
@@ -1176,6 +1178,7 @@ class PlanCreate(TypedDict, total=False):
     legal: dict[str, Any]
     quotas: dict[str, Any]
     ai: dict[str, Any]
+    module: dict[str, Any]
     left_out: list["PlanFeature"]
 
 class Plan(TypedDict, total=False):
@@ -1185,6 +1188,7 @@ class Plan(TypedDict, total=False):
     legal: dict[str, Any]
     quotas: dict[str, Any]
     ai: dict[str, Any]
+    module: dict[str, Any]
     left_out: list["PlanFeature"]
     version: Required[int]
     workspaces: Required[int]

@@ -8589,6 +8589,9 @@ type InstanceSettings struct {
 	// Metering Whether the use per workspace and day is offered for billing (`GET /admin/usage`). Off by default. The counts are recorded either way; this switch only offers them.
 	Metering *bool `json:"metering,omitempty"`
 
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each `FLAG`: on or off for every workspace that switches none itself, and with `locked` held there - a module locked off is not offered, one locked on cannot be switched off. Every module is off where nothing decides it. Switching off hides and never deletes.
+	Module *map[string]InstanceSetting `json:"module,omitempty"`
+
 	// Quotas One ceiling per quota, by the quota's own name — the middle level of `Effective(product, instance, plan, workspace)`. A workspace that sets none of its own gets these; one that does still wins, unless the ceiling is locked.
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
@@ -10457,6 +10460,9 @@ type Plan struct {
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
 
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	Module *map[string]InstanceSetting `json:"module,omitempty"`
+
 	// Name The short name, which never changes and is never reused.
 	Name      string                      `json:"name"`
 	Quotas    *map[string]InstanceSetting `json:"quotas,omitempty"`
@@ -10476,8 +10482,11 @@ type PlanChange struct {
 	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
-	Quotas  *map[string]InstanceSetting `json:"quotas,omitempty"`
-	SignIn  *map[string]InstanceSetting `json:"sign_in,omitempty"`
+
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	Module *map[string]InstanceSetting `json:"module,omitempty"`
+	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
+	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 }
 
 // PlanCreate A new plan - its short name and what it decides, as PlanChange.
@@ -10488,6 +10497,9 @@ type PlanCreate struct {
 	// LeftOut The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.
 	LeftOut *[]PlanFeature              `json:"left_out,omitempty"`
 	Legal   *map[string]InstanceSetting `json:"legal,omitempty"`
+
+	// Module The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).
+	Module *map[string]InstanceSetting `json:"module,omitempty"`
 
 	// Name The short name, which never changes and is never reused.
 	Name   string                      `json:"name"`

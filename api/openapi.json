@@ -19297,6 +19297,13 @@
             },
             "description": "Which AI a workspace may use. `sources` is `NONE`, `OFFERED` (only a model this installation offers), `OWN` (only the workspace's own, the default) or `EITHER`; `min_jurisdiction` is `ANY`, `ADEQUACY`, `EEA` or `SELF_HOSTED`, the least a workspace's own model must declare about where it processes content; `person_opt_out` is `OFFERED` only - each person may keep their own content out of AI - and with `locked` it holds every workspace there. `NOT_OFFERED` is refused here with `ai.opt_out_workspace_only`: only a workspace can make AI part of everybody's work, because only it can name the legal basis.\nA workspace may narrow `sources` where it is not locked, and may always choose no AI: a lock holds a workspace out of a source, never in one. No value here switches processing on - that is each workspace's own consent.\n"
           },
+          "module": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each `FLAG`: on or off for every workspace that switches none itself, and with `locked` held there - a module locked off is not offered, one locked on cannot be switched off. Every module is off where nothing decides it. Switching off hides and never deletes.\n"
+          },
           "blocklist_file": {
             "type": "string",
             "description": "The path to the operator's own list of refused passwords, read offline. Instance-only: the file is on the operator's disk, so there is nothing for a workspace to point at.\n"
@@ -20667,6 +20674,13 @@
               "$ref": "#/components/schemas/InstanceSetting"
             }
           },
+          "module": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).\n"
+          },
           "left_out": {
             "type": "array",
             "description": "The features the plan leaves out. Each rests while left out - it stops running and keeps everything it holds - and comes back when included again. Export, deletion, access requests, language, time zone, accessibility and every door are no such feature.\n",
@@ -20717,6 +20731,13 @@
             "additionalProperties": {
               "$ref": "#/components/schemas/InstanceSetting"
             }
+          },
+          "module": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/InstanceSetting"
+            },
+            "description": "The modules by name (`workflows`, `planning`, `knowledge`, `whiteboard`, `service_desk`, `assets`, `time`, `goals`, `agents`), each on or off; with `locked` every workspace on the plan is held there. A module the plan does not offer is locked off. A module the installation locks is refused (`admin.plan_under_installation_lock`).\n"
           },
           "left_out": {
             "type": "array",
