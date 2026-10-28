@@ -75,6 +75,12 @@ const (
 	// that existed only to be an exception would be the wrong shape for it.
 	KindPasswordOpeningEmail Kind = "notification.password_opening"
 
+	// KindAddressChangedEmail tells one member that the workspace's address changed: the old and the
+	// new address, that passkeys ended and that everybody signs in again (multi-tenancy.md §3.1).
+	// Queued in the change's own transaction, one job per member with an address, for
+	// KindPasswordOpeningEmail's reason not a notification record.
+	KindAddressChangedEmail Kind = "notification.address_changed"
+
 	// KindWayInChangedEmail tells a person that a way into their account changed - a password
 	// changed or set through a reset, a provider connected or disconnected (ADR-0078 §6,
 	// identity.md §6). Queued in the change's own transaction, one job per person, and only where

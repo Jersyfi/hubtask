@@ -178,6 +178,10 @@
           </div>
         {/if}
       {/if}
+      {#if pending?.purpose === 'change_address'}
+        <!-- Why no passkey is offered: it belongs to the address the change ends (multi-tenancy.md §3.1). -->
+        <p class="note">{t('app.step_up.change_address_note')}</p>
+      {/if}
     </Stack>
 
     {#snippet actions()}
@@ -208,6 +212,7 @@
 
 <style>
   .quiet { margin: 0; color: var(--text-secondary); }
+  .note { margin: 0; font-size: var(--fs-075); color: var(--text-subtle); }
 
   form { margin: 0; }
 

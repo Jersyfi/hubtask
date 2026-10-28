@@ -41,6 +41,7 @@
   import { workspace as own } from '../lib/data/workspace.svelte.ts';
   import { plans } from '../lib/data/plans.svelte.ts';
   import MovePlanDialog from '../lib/instance/MovePlanDialog.svelte';
+  import ChangeAddressDialog from '../lib/instance/ChangeAddressDialog.svelte';
   import { formatDateTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { installationTrail } from '../lib/instance/trail.ts';
@@ -112,6 +113,8 @@
   });
   /** The workspace whose plan is being changed, while the dialog is open. */
   let moving = $state<AdminTenant | undefined>(undefined);
+  /** The workspace whose address is being changed (multi-tenancy.md §3.1). */
+  let changing = $state<AdminTenant | undefined>(undefined);
   const hasPlans = $derived(manifest.isMultiTenant && plans.all.length > 0);
   const planName = (name: string | null | undefined): string =>
     name ? (plans.named(name)?.display_name ?? name) : t('app.instance.plan_none');
@@ -215,6 +218,10 @@
       items.push({ id: 'cancel-deletion', label: t('app.instance.cancel_deletion') });
     }
     if (workspace.status === 'SUSPENDED') items.push({ id: 'resume', label: t('app.instance.resume') });
+    // A change of address, in multi mode and never for a workspace leaving, which the server refuses.
+    if (isMulti && workspace.status !== 'PENDING_DELETION') {
+      items.push({ id: 'change-address', label: t('app.instance.address_action') });
+    }
     // Every workspace but one whose removal has begun can be moved, a suspended or pending one
     // included: its plan applies as it is used again.
     if (hasPlans && !workspace.purge_started_at) items.push({ id: 'move', label: t('app.instance.move_action') });
@@ -243,6 +250,9 @@
         return;
       case 'move':
         moving = workspace;
+        return;
+      case 'change-address':
+        changing = workspace;
         return;
       case 'suspend':
       case 'quotas':
@@ -377,7 +387,9 @@
               <tr>
                 <td>
                   <span class="name">{workspace.display_name}</span>
-                  <span class="slug">{workspace.slug}</span>
+                  <!-- The main address - the assigned host where hosts are assigned; the short name
+                       where a workspace has no main row yet. -->
+                  <span class="address">{workspace.host ?? workspace.slug}</span>
                   {#if workspace.id === ownId}
                     <span class="mark"><Badge tone="neutral">{t('app.instance.own_workspace')}</Badge></span>
                   {/if}
@@ -460,6 +472,12 @@
 </Stack>
 
 <MovePlanDialog tenant={moving} onclose={() => (moving = undefined)} />
+<ChangeAddressDialog
+  tenant={changing}
+  {workspaces}
+  isAssigned={manifest.hasAssignedHosts}
+  onclose={() => (changing = undefined)}
+/>
 
 <Dialog
   title={t('app.instance.workspace_new')}
@@ -762,6 +780,13 @@
   .quiet { margin: 0; display: flex; align-items: center; gap: var(--sp-100); color: var(--text-secondary); }
   .name { display: block; font-weight: var(--fw-medium); }
   .slug { display: block; color: var(--text-secondary); font-size: var(--fs-100); }
+  .address {
+    display: block;
+    font-family: var(--font-mono);
+    font-size: var(--fs-075);
+    color: var(--text-subtle);
+    overflow-wrap: anywhere;
+  }
   .row { display: flex; flex-wrap: wrap; gap: var(--sp-050); }
   .mark { display: block; margin-block-start: var(--sp-050); white-space: nowrap; }
 </style>

@@ -350,3 +350,21 @@ type PlatformDeliveries interface {
 	// Sweep removes up to `batch` settled deliveries untouched since `cutoff`, and answers how many.
 	Sweep(ctx context.Context, cutoff time.Time, batch int) (int, error)
 }
+
+// TenantAddresses is the store's half of a change: the short name and the main row in one go, and
+// the sessions it ends. Both in the caller's transaction, bounded to its workspace.
+type TenantAddresses interface {
+	// ChangeAddress writes the short name where it moves, drops the main row and writes `host` as the
+	// new one, answering the host it replaced (empty where there was none). A name or a host another
+	// workspace holds is refused as `admin.slug_taken` or `admin.host_taken`; a workspace leaving as
+	// `admin.tenant_leaving`.
+	ChangeAddress(ctx context.Context, slug string, host identity.TenantHost, now time.Time) (string, error)
+	// EndSessions revokes every session a person signed in with; a connected app's stay.
+	EndSessions(ctx context.Context, now time.Time) (int, error)
+}
+
+// AddressAudience answers who is told of a change: the people with an email address, who are
+// mailed, and those without, who are told at their next sign-in.
+type AddressAudience interface {
+	PeopleToTell(ctx context.Context) (mailed, unmailed []shared.ID, err error)
+}

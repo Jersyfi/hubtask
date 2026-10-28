@@ -674,6 +674,9 @@ var excluded = map[string]string{ //nolint:gosec // G101: table names and prose,
 	// the receipt tells the person again, which harms nobody, while one with it could hide a notice
 	// about a position taken after the archive was made.
 	"ai_objection_notice": "a read receipt of a notice; without it a restored workspace tells a person once more, which harms nobody",
+	// A notice of a change of the workspace's address for a member without an email address. Hosts
+	// belong to the installation, not the archive; a restore elsewhere answers at another address.
+	"address_change_notice": "hosts belong to the installation; a restored workspace answers wherever it is restored, and an old notice would name an address that is not its",
 	// A working note rather than a record. What an accepted suggestion did is in the
 	// entry's own history - or is the template or rule it created - which the archive carries; what
 	// a proposal was about is a state of an entry, or a sentence somebody typed into an editor, that

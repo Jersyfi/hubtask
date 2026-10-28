@@ -883,6 +883,10 @@ class Client:
         """Withdraw a preset of the installation"""
         return self._call("DELETE", "/admin/presets/{presetId}", {"presetId": preset_id}, None, {"If-Match": if_match}, None, "none", None, "void")
 
+    def change_tenant_address(self, tenant_id: str, body: "TenantAddressChange", *, step_up: str | None = None) -> "TenantAddressChanged":
+        """Change a workspace's address"""
+        return self._call("POST", "/admin/tenants/{tenantId}:change-address", {"tenantId": tenant_id}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def move_tenant_plan(self, tenant_id: str, body: "TenantPlanMove", *, idempotency_key: str | None = None) -> "TenantPlanMoved":
         """Put a workspace on another plan"""
         return self._call("POST", "/admin/tenants/{tenantId}:move-plan", {"tenantId": tenant_id}, None, {"Idempotency-Key": idempotency_key}, body, "json", "application/json", "json")
@@ -1058,6 +1062,14 @@ class Client:
     def list_emergency_notices(self) -> dict[str, Any]:
         """The emergency accesses the caller was told of in the last 30 days"""
         return self._call("GET", "/accounts/me/emergency-notices", {}, None, {}, None, "none", None, "json")
+
+    def list_address_notices(self) -> dict[str, Any]:
+        """The change of the workspace's address the caller still has to be told of"""
+        return self._call("GET", "/accounts/me/address-notices", {}, None, {}, None, "none", None, "json")
+
+    def acknowledge_address_notices(self) -> None:
+        """Acknowledge the change of the workspace's address"""
+        return self._call("POST", "/accounts/me/address-notices:acknowledge", {}, None, {}, None, "none", None, "void")
 
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""

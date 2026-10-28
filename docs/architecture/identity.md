@@ -659,6 +659,10 @@ at most a minute ahead, and inside the step-up window — otherwise `auth.step_u
   or a restore's `step_up_token` in its body).
 * Every step-up is audited with its method, never its credential; `RECOVERY` also records the
   consumed code.
+* **An act may accept only some methods.** A change of a workspace's address accepts `PASSWORD` and
+  `PROVIDER` alone ([multi-tenancy.md](./multi-tenancy.md) §3.1): its demand names the account's
+  methods among those, with `purpose` `change_address` so the prompt says why a passkey is not
+  offered, and a proof given another way is spent and refused as `auth.step_up_method_refused`.
 
 ### 16.3 Which actions demand it
 
@@ -670,8 +674,9 @@ a group, included —, an `admin:*` token, the workspace's `sign_in_policy` (the
 /tenant` that asks), §13's new start password, connecting a provider from a session (§11), adding or
 removing a passkey or a security key (§23.2), a private hub's emergency access (§22), and every write of §6
 (bearer door), §8–§9, §10.5, §17.2, §19 and [backup-restore.md](./backup-restore.md) §8's
-destructive modes and §8.5's erasures carried out again after a point-in-time recovery, and
-configuring or removing one of the installation's own backup targets (backup-restore.md §2).
+destructive modes and §8.5's erasures carried out again after a point-in-time recovery,
+configuring or removing one of the installation's own backup targets (backup-restore.md §2), and
+an operator's change of a workspace's address ([multi-tenancy.md](./multi-tenancy.md) §3.1).
 
 ---
 

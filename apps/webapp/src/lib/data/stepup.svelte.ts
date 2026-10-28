@@ -93,6 +93,8 @@ interface Pending {
   readonly methods: readonly StepUpMethod[];
   /** The provider a `PROVIDER` proof goes to, by the name the refusal gave it. */
   readonly provider?: string;
+  /** Why only these methods are named, where the refusal said (`change_address`). */
+  readonly purpose?: string;
   readonly settle: (token: string | undefined) => void;
 }
 
@@ -132,7 +134,7 @@ class StepUp {
    * not what it wanted, and asking a third time would be a dialog somebody cannot escape.
    */
   async around<T>(call: (stepUpToken?: string) => Promise<T>): Promise<T> {
-    return withStepUp(call, (methods, provider) => this.#ask(methods, provider), () => this.#take());
+    return withStepUp(call, (methods, provider, purpose) => this.#ask(methods, provider, purpose), () => this.#take());
   }
 
   /** The held grant, consumed by the call about to be made. */
@@ -143,10 +145,10 @@ class StepUp {
   }
 
   /** Opens the prompt and waits for it. `undefined` means the reader closed it. */
-  #ask(methods: readonly StepUpMethod[], provider?: string): Promise<string | undefined> {
+  #ask(methods: readonly StepUpMethod[], provider?: string, purpose?: string): Promise<string | undefined> {
     this.#failure = undefined;
     return new Promise<string | undefined>((resolve) => {
-      this.#pending = { methods, provider, settle: resolve };
+      this.#pending = { methods, provider, purpose, settle: resolve };
     });
   }
 

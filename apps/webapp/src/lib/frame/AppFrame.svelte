@@ -66,6 +66,7 @@
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
+  import { addressNotices } from '../data/addressnotices.svelte.ts';
   import type { Resolution } from '../router.ts';
 
   interface Props {
@@ -125,6 +126,21 @@
     if (!session.isSignedIn) return;
     return untrack(() => aiObjection.open());
   });
+  // A change of the workspace's address, told here to a member who has no email address
+  // (multi-tenancy.md §3.1) until they acknowledge it.
+  $effect(() => {
+    if (!session.isSignedIn) return;
+    return untrack(() => addressNotices.open());
+  });
+  let isAcknowledgingAddress = $state(false);
+  async function acknowledgeAddressNotice() {
+    isAcknowledgingAddress = true;
+    try {
+      await addressNotices.acknowledge();
+    } finally {
+      isAcknowledgingAddress = false;
+    }
+  }
   let isAcknowledging = $state(false);
   async function acknowledgeAiNotice() {
     isAcknowledging = true;
@@ -608,6 +624,23 @@
           {/if}
           <!-- A private hub of the reader's was opened through the emergency access (ADR-0073 §4). -->
           <EmergencyNotices onnavigate={go} />
+          {#if addressNotices.notice}
+            <div class="confirmed" data-address-notice>
+              <Banner tone="info">
+                {t('app.address_notice', { from: addressNotices.notice.from, to: addressNotices.notice.to })}
+                {#snippet action()}
+                  <Button
+                    size="sm"
+                    isBusy={isAcknowledgingAddress}
+                    busyLabel={t('app.workspace.saving')}
+                    onclick={() => void acknowledgeAddressNotice()}
+                  >
+                    {t('app.address_notice_understood')}
+                  </Button>
+                {/snippet}
+              </Banner>
+            </div>
+          {/if}
           {#if aiObjection.noticePending && aiObjection.position}
             <!-- Told once: acknowledged on the server, so it does not come back on another device. -->
             <div class="confirmed" data-ai-notice>

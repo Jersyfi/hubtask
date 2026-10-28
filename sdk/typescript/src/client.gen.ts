@@ -1116,6 +1116,11 @@ export class HubtaskClient {
     return this.call("DELETE", "/admin/presets/{presetId}", { "presetId": presetId }, undefined, { "If-Match": options.ifMatch }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** Change a workspace's address */
+  changeTenantAddress(tenantId: string, body: NonNullable<operations["changeTenantAddress"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["changeTenantAddress"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/admin/tenants/{tenantId}:change-address", { "tenantId": tenantId }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Put a workspace on another plan */
   moveTenantPlan(tenantId: string, body: NonNullable<operations["moveTenantPlan"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly idempotencyKey?: string } = {}): Promise<operations["moveTenantPlan"]['responses'][200]['content']["application/json"]> {
     return this.call("POST", "/admin/tenants/{tenantId}:move-plan", { "tenantId": tenantId }, undefined, { "Idempotency-Key": options.idempotencyKey }, body, "json", "application/json", "json", options.signal);
@@ -1334,6 +1339,16 @@ export class HubtaskClient {
   /** The emergency accesses the caller was told of in the last 30 days */
   listEmergencyNotices(options: CallOptions = {}): Promise<operations["listEmergencyNotices"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/accounts/me/emergency-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** The change of the workspace's address the caller still has to be told of */
+  listAddressNotices(options: CallOptions = {}): Promise<operations["listAddressNotices"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/accounts/me/address-notices", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Acknowledge the change of the workspace's address */
+  acknowledgeAddressNotices(options: CallOptions = {}): Promise<void> {
+    return this.call("POST", "/accounts/me/address-notices:acknowledge", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
   /** How many people here no provider switched on here signs in */

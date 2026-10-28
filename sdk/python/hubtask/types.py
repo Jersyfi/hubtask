@@ -1175,6 +1175,27 @@ class Plan(TypedDict, total=False):
     created_at: Required[str]
     updated_at: Required[str]
 
+class TenantAddressChange(TypedDict, total=False):
+    """The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused."""
+    slug: str
+    host: str
+    dry_run: bool
+
+TenantAddressChanged = TypedDict("TenantAddressChanged", {
+    "tenant": Required["AdminTenant"],
+    "from": Required[str],
+    "to": str,
+    "members_mailed": Required[int],
+    "members_told_at_sign_in": Required[int],
+    "dry_run": Required[bool],
+}, total=False)
+
+AddressChangeNotice = TypedDict("AddressChangeNotice", {
+    "from": Required[str],
+    "to": Required[str],
+    "changed_at": Required[str],
+}, total=False)
+
 class TenantPlanMove(TypedDict, total=False):
     plan: Required[str | None]
     expected_version: int

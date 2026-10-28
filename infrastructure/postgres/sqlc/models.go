@@ -430,6 +430,14 @@ type ActivityEntry struct {
 	CausationID   pgtype.UUID
 }
 
+type AddressChangeNotice struct {
+	TenantID  pgtype.UUID
+	AccountID pgtype.UUID
+	FromHost  string
+	ToHost    string
+	ChangedAt pgtype.Timestamptz
+}
+
 type AiObjectionNotice struct {
 	TenantID  pgtype.UUID
 	AccountID pgtype.UUID

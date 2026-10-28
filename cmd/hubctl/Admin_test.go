@@ -442,3 +442,58 @@ func TestTheHoursAreSentOnlyWhereGivenAndAZeroAsTyped(t *testing.T) {
 		})
 	}
 }
+
+// UC-INS-19 check 1 and UC-INS-20 check 4 at `hubctl`: the new short name or host travels with a
+// proof; a dry run sends none and says nothing changed; a refusal is said with its reason.
+func TestChangingAWorkspacesAddress(t *testing.T) {
+	answer := `{"tenant":{"id":"` + acmeID + `","slug":"familie-meier","host":"familie-meier.tasks.example.net",
+	  "display_name":"Meier family","status":"ACTIVE","created_at":"2026-09-01T09:00:00Z"},
+	  "from":"meier.tasks.example.net","to":"familie-meier.tasks.example.net",
+	  "members_mailed":6,"members_told_at_sign_in":1,"dry_run":false}`
+	var proofHeader string
+	stub := serve(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == APIPath+stepUpPath:
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"step_up_token":"` + stepUpToken + `",
+			  "expires_at":"2026-10-28T09:05:00Z","method":"PASSWORD"}`))
+		case r.Header.Get(stepUpHeader) == "":
+			problemJSON(w, http.StatusForbidden, map[string]any{
+				"status": 403, "code": "forbidden", "detail_code": "auth.step_up_required",
+				"params": map[string]any{"methods": "PASSWORD", "purpose": "change_address"},
+			})
+		default:
+			proofHeader = r.Header.Get(stepUpHeader)
+			_, _ = w.Write([]byte(answer))
+		}
+	})
+	profile := filepath.Join(t.TempDir(), "profile.json")
+	saveSession(t, profile, stub.server.URL, time.Now().Add(10*time.Minute))
+	code, out, errOut := invokeAgainst(t, stub, map[string]string{envProfile: profile}, "hunter2\n",
+		"admin", "tenant", "change-address", acmeID, "--slug", "familie-meier")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if stub.request.URL.Path != APIPath+adminTenantsPath+"/"+acmeID+":change-address" ||
+		!strings.Contains(stub.body, `"slug":"familie-meier"`) || proofHeader != stepUpToken {
+		t.Errorf("called %s with %s and proof %q", stub.request.URL.Path, stub.body, proofHeader)
+	}
+	if !strings.Contains(out, "meier.tasks.example.net") || !strings.Contains(out, "familie-meier.tasks.example.net") ||
+		!strings.Contains(errOut, "signs in again") {
+		t.Errorf("the answer does not say from, to and the cost: %q %q", out, errOut)
+	}
+
+	dry := serveJSON(t, http.StatusOK, strings.Replace(answer, `"dry_run":false`, `"dry_run":true`, 1))
+	code, _, errOut = invokeAgainst(t, dry, signedIn(dry), "",
+		"admin", "tenant", "change-address", acmeID, "--host", "tasks-people.corp.example", "--dry-run")
+	if code != exitOK || dry.request.Header.Get(stepUpHeader) != "" ||
+		!strings.Contains(dry.body, `"dry_run":true`) || !strings.Contains(errOut, "nothing was changed") {
+		t.Errorf("dry run: exit %d, body %s, %q", code, dry.body, errOut)
+	}
+
+	if code, _, _ := invokeAgainst(t, dry, signedIn(dry), "",
+		"admin", "tenant", "change-address", acmeID); code != exitUsage {
+		t.Errorf("no new address: exit %d", code)
+	}
+}

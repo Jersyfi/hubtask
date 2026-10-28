@@ -53,6 +53,6 @@ export const range: Story = {
 export const code: Story = {
   name: 'A value a machine reads',
   about:
-    'A host or a short name is typed as it will be read, so it is drawn in the mono face: `face="code"`. The placeholder is in the same face, which is what makes it read as the value that stands in.',
+    'A host or a short name is typed as it will be read, so it is drawn in the mono face: `face="code"`. The placeholder is in the same face, which is what makes it read as the value that stands in. A `suffix` draws what the value becomes part of - the host a short name goes in front of - inside the control, and is never typed.',
   args: { mode: 'code' },
 };

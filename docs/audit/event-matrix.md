@@ -35,6 +35,8 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `account.address_confirmed` | ConfirmAddress | `account` | NOTICE | Every time |
+| `account.address_notices_acknowledged` | AcknowledgeAddressNotices | `account` | INFO | Every time |
+| `account.address_notices_read` | ListAddressNotices | `account` | INFO | When refused |
 | `account.address_requested` | RequestAddress | `account` | NOTICE | Every time |
 | `account.avatar_removed` | RemoveOwnAvatar | `account` | INFO | Every time |
 | `account.avatar_set` | SetOwnAvatar | `account` | INFO | Every time |
@@ -542,6 +544,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `tenant.address_changed` | ChangeTenantAddress | `tenant` | WARNING | Every time |
 | `tenant.deletion_cancelled` | CancelTenantDeletion | `tenant` | INFO | Every time |
 | `tenant.deletion_requested` | RequestTenantDeletion | `tenant` | CRITICAL | Every time |
 | `tenant.exported` | ExportTenant | `tenant` | WARNING | Every time |

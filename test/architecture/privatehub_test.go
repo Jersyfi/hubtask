@@ -76,6 +76,7 @@ var privateHubExemptions = map[string]string{
 	"GetAccount":                   noHub,
 	"GetGroup":                     noHub,
 	"GetOwnAccount":                noHub,
+	"ListAddressNotices":           noHub,
 	"ListOwnIdentities":            noHub,
 	"ListOwnPasskeys":              noHub,
 	"LocateOidcFlow":               noHub,

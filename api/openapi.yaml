@@ -5833,6 +5833,56 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /admin/tenants/{tenantId}:change-address:
+    parameters:
+      - $ref: "#/components/parameters/AdminTenantId"
+      - $ref: "#/components/parameters/StepUpToken"
+    post:
+      tags: [admin]
+      operationId: changeTenantAddress
+      summary: Change a workspace's address
+      description: >
+        Gives the workspace a new main address: a new short name where workspaces answer beneath
+        the installation's host, a new host where the installation assigns hosts. The old address
+        is free at once - it answers like an address no workspace has, without a redirect, and
+        another workspace may take it. Everybody signs in again; passkeys made at the old address
+        stay listed and count as no factor; personal access tokens, service accounts and connected
+        apps keep working once pointed at the new address. Every member with an email address is
+        mailed the old and the new address, and a member without one is told at the next sign-in.
+
+        A short name that is invalid, reserved or taken, and a host that is invalid, the
+        installation's own or taken, are refused at the field as at provisioning; the address
+        the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer
+        beneath the installation's host, the same short name is accepted when the main address
+        still names another host - how a workspace moves under a changed installation address.
+
+        Refused with `admin.address_lockout_self` while it would leave the caller, and with
+        `admin.address_lockout_owner` while it would leave every owner of the workspace, without a
+        way in that survives it: a password or a connected provider, plus an authenticator app or
+        recovery codes where a second factor is required. `reason` names what is missing:
+        `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected
+        provider where passwords are off - a passkey belongs to the old address and is refused
+        with `auth.step_up_method_refused`, naming the methods that are accepted.
+
+        With `dry_run` it checks the new address and the lockout, answers what the change would
+        be and writes nothing, without a step-up; a dry run without a new address answers the
+        current address and who would be told. Refused with `admin.multi_mode_required` in single
+        mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail
+        and the installation's journal.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/TenantAddressChange" }
+      responses:
+        "200":
+          description: The workspace at its new address, or with `dry_run` as it would be
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/TenantAddressChanged" }
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /admin/tenants/{tenantId}:move-plan:
     parameters:
       - $ref: "#/components/parameters/AdminTenantId"
@@ -6650,10 +6700,10 @@ paths:
         nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against
         `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
 
-        The slug does not move here. It is the hostname in multi mode and the base of the OIDC
-        redirect this installation registered, so renaming it is the operator's operation at
-        `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown
-        field rather than accepted and quietly ignored.
+        The slug does not move here. In multi mode it names the workspace's address, and changing
+        that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather
+        than the workspace's. A body naming it is refused as an unknown field rather than accepted
+        and quietly ignored.
 
         `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a
         **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the
@@ -7007,6 +7057,40 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PrivateHubAccess"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/address-notices:
+    get:
+      tags: [identity]
+      operationId: listAddressNotices
+      summary: The change of the workspace's address the caller still has to be told of
+      description: >
+        A member without an email address is told of a change of the workspace's address at their
+        next sign-in: the old and the new address, that passkeys made at the old one ended and that
+        everybody signs in again. At most one, the latest change; empty once acknowledged, and for
+        a member who was mailed.
+      responses:
+        "200":
+          description: The notices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AddressChangeNotice"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /accounts/me/address-notices:acknowledge:
+    post:
+      tags: [identity]
+      operationId: acknowledgeAddressNotices
+      summary: Acknowledge the change of the workspace's address
+      description: Records that the caller read it. Acknowledging twice is acknowledging once.
+      responses:
+        "204":
+          description: Acknowledged
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -15398,6 +15482,49 @@ components:
               description: How many workspaces are on the plan.
             created_at: { type: string, format: date-time }
             updated_at: { type: string, format: date-time }
+
+    TenantAddressChange:
+      type: object
+      description: >
+        The new address: `slug` where workspaces answer beneath the installation's host, `host`
+        where the installation assigns hosts - the other is refused.
+      properties:
+        slug:
+          type: string
+          description: The new short name, 3-40 lower-case letters, digits and hyphens.
+        host:
+          type: string
+          description: The new host, where the installation assigns hosts. No DNS is checked.
+        dry_run:
+          type: boolean
+          description: Check and answer without changing anything, and without a step-up.
+
+    TenantAddressChanged:
+      type: object
+      required: [tenant, from, members_mailed, members_told_at_sign_in, dry_run]
+      properties:
+        tenant: { $ref: "#/components/schemas/AdminTenant" }
+        from:
+          type: string
+          description: The main address before the change.
+        to:
+          type: string
+          description: The main address after it. Absent on a dry run without a new address.
+        members_mailed:
+          type: integer
+          description: The members with an email address, who are mailed the old and the new address.
+        members_told_at_sign_in:
+          type: integer
+          description: The members without one, who are told at their next sign-in.
+        dry_run: { type: boolean }
+
+    AddressChangeNotice:
+      type: object
+      required: [from, to, changed_at]
+      properties:
+        from: { type: string, description: The workspace's address before the change. }
+        to: { type: string, description: Its address since. }
+        changed_at: { type: string, format: date-time }
 
     TenantPlanMove:
       type: object

@@ -6062,6 +6062,17 @@ type Actor struct {
 // ActorType defines model for Actor.Type.
 type ActorType string
 
+// AddressChangeNotice defines model for AddressChangeNotice.
+type AddressChangeNotice struct {
+	ChangedAt time.Time `json:"changed_at"`
+
+	// From The workspace's address before the change.
+	From string `json:"from"`
+
+	// To Its address since.
+	To string `json:"to"`
+}
+
 // AddressConfirm defines model for AddressConfirm.
 type AddressConfirm struct {
 	// Token The token from the confirmation mail. It dies on use.
@@ -12384,6 +12395,36 @@ type TemplateUpdate struct {
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
 }
 
+// TenantAddressChange The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused.
+type TenantAddressChange struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Host The new host, where the installation assigns hosts. No DNS is checked.
+	Host *string `json:"host,omitempty"`
+
+	// Slug The new short name, 3-40 lower-case letters, digits and hyphens.
+	Slug *string `json:"slug,omitempty"`
+}
+
+// TenantAddressChanged defines model for TenantAddressChanged.
+type TenantAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int         `json:"members_told_at_sign_in"`
+	Tenant              AdminTenant `json:"tenant"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
+
 // TenantDeletionRequest defines model for TenantDeletionRequest.
 type TenantDeletionRequest struct {
 	// Confirmation The workspace's display name, typed exactly - the restore precedent.
@@ -13521,6 +13562,12 @@ type ProvisionTenantParams struct {
 type UpdateTenantParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeTenantAddressParams defines parameters for ChangeTenantAddress.
+type ChangeTenantAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -14783,6 +14830,9 @@ type UpdateTenantJSONRequestBody = TenantUpdate
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
+// ChangeTenantAddressJSONRequestBody defines body for ChangeTenantAddress for application/json ContentType.
+type ChangeTenantAddressJSONRequestBody = TenantAddressChange
+
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
@@ -15364,6 +15414,20 @@ type ClientInterface interface {
 	//
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListAddressNotices The change of the workspace's address the caller still has to be told of
+	//
+	// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+	//
+	// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+	ListAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+	//
+	// Records that the caller read it. Acknowledging twice is acknowledging once.
+	//
+	// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+	AcknowledgeAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// RemoveOwnAvatar Go back to the initials
 	//
@@ -16482,6 +16546,30 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 	CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeTenantAddressWithBody Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithBody(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeTenantAddress Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddress(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseTenantPassword Close an operator's opening of the password early
 	//
@@ -20615,7 +20703,7 @@ type ClientInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -20628,7 +20716,7 @@ type ClientInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -20884,6 +20972,40 @@ func (c *Client) UpdateOwnAccountWithBody(ctx context.Context, contentType strin
 // Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 func (c *Client) UpdateOwnAccountWithApplicationMergePatchPlusJSONBody(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewUpdateOwnAccountRequestWithApplicationMergePatchPlusJSONBody(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListAddressNotices The change of the workspace's address the caller still has to be told of
+//
+// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+//
+// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+func (c *Client) ListAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListAddressNoticesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+//
+// Records that the caller read it. Acknowledging twice is acknowledging once.
+//
+// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+func (c *Client) AcknowledgeAddressNotices(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewAcknowledgeAddressNoticesRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -22962,6 +23084,50 @@ func (c *Client) UpdateTenantQuotasWithApplicationMergePatchPlusJSONBody(ctx con
 // Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 func (c *Client) CancelTenantDeletion(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCancelTenantDeletionRequest(c.Server, tenantId)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeTenantAddressWithBody Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *Client) ChangeTenantAddressWithBody(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeTenantAddressRequestWithBody(c.Server, tenantId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeTenantAddress Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *Client) ChangeTenantAddress(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeTenantAddressRequest(c.Server, tenantId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -31544,7 +31710,7 @@ func (c *Client) ReadWorkspace(ctx context.Context, reqEditors ...RequestEditorF
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -31567,7 +31733,7 @@ func (c *Client) UpdateWorkspaceWithBody(ctx context.Context, params *UpdateWork
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -32076,6 +32242,60 @@ func NewUpdateOwnAccountRequestWithBody(server string, contentType string, body 
 	}
 
 	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewListAddressNoticesRequest constructs an http.Request for the ListAddressNotices method
+func NewListAddressNoticesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/address-notices")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewAcknowledgeAddressNoticesRequest constructs an http.Request for the AcknowledgeAddressNotices method
+func NewAcknowledgeAddressNoticesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/accounts/me/address-notices:acknowledge")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
 
 	return req, nil
 }
@@ -35073,6 +35293,68 @@ func NewCancelTenantDeletionRequest(server string, tenantId AdminTenantId) (*htt
 	req, err := http.NewRequest(http.MethodPost, queryURL.String(), nil)
 	if err != nil {
 		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeTenantAddressRequest calls the generic ChangeTenantAddress builder with application/json body
+func NewChangeTenantAddressRequest(server string, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeTenantAddressRequestWithBody(server, tenantId, params, "application/json", bodyReader)
+}
+
+// NewChangeTenantAddressRequestWithBody constructs an http.Request for the ChangeTenantAddress method, with any body, and a specified content type
+func NewChangeTenantAddressRequestWithBody(server string, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "tenantId", tenantId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/admin/tenants/%s:change-address", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
 	}
 
 	return req, nil
@@ -50601,6 +50883,24 @@ type ClientWithResponsesInterface interface {
 	// Corresponds with PATCH /accounts/me (the `UpdateOwnAccount` operationId).
 	UpdateOwnAccountWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, body UpdateOwnAccountApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateOwnAccountResult, error)
 
+	// ListAddressNoticesWithResponse The change of the workspace's address the caller still has to be told of
+	//
+	// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+	ListAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressNoticesResult, error)
+
+	// AcknowledgeAddressNoticesWithResponse Acknowledge the change of the workspace's address
+	//
+	// Records that the caller read it. Acknowledging twice is acknowledging once.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+	AcknowledgeAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAddressNoticesResult, error)
+
 	// RemoveOwnAvatarWithResponse Go back to the initials
 	//
 	// Takes the caller's picture away: the others see the initials of the name again. Idempotent -
@@ -51798,6 +52098,30 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /admin/tenants/{tenantId}:cancel-deletion (the `CancelTenantDeletion` operationId).
 	CancelTenantDeletionWithResponse(ctx context.Context, tenantId AdminTenantId, reqEditors ...RequestEditorFn) (*CancelTenantDeletionResult, error)
+
+	// ChangeTenantAddressWithBodyWithResponse Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error)
+
+	// ChangeTenantAddressWithResponse Change a workspace's address
+	//
+	// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+	// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+	// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+	// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+	ChangeTenantAddressWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error)
 
 	// CloseTenantPasswordWithResponse Close an operator's opening of the password early
 	//
@@ -56317,7 +56641,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -56330,7 +56654,7 @@ type ClientWithResponsesInterface interface {
 	//
 	// Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 	// `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-	// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+	// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 	// `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 	// Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 	//
@@ -56635,6 +56959,95 @@ func (r UpdateOwnAccountResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r UpdateOwnAccountResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ListAddressNoticesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *[]AddressChangeNotice
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListAddressNoticesResult) GetJSON200() *[]AddressChangeNotice {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListAddressNoticesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListAddressNoticesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListAddressNoticesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListAddressNoticesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListAddressNoticesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type AcknowledgeAddressNoticesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r AcknowledgeAddressNoticesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r AcknowledgeAddressNoticesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r AcknowledgeAddressNoticesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r AcknowledgeAddressNoticesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r AcknowledgeAddressNoticesResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -59899,6 +60312,54 @@ func (r CancelTenantDeletionResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r CancelTenantDeletionResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeTenantAddressResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *TenantAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeTenantAddressResult) GetJSON200() *TenantAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeTenantAddressResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeTenantAddressResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeTenantAddressResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeTenantAddressResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeTenantAddressResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -75799,6 +76260,36 @@ func (c *ClientWithResponses) UpdateOwnAccountWithApplicationMergePatchPlusJSONB
 	return ParseUpdateOwnAccountResult(rsp)
 }
 
+// ListAddressNoticesWithResponse The change of the workspace's address the caller still has to be told of
+//
+// A member without an email address is told of a change of the workspace's address at their next sign-in: the old and the new address, that passkeys made at the old one ended and that everybody signs in again. At most one, the latest change; empty once acknowledged, and for a member who was mailed.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /accounts/me/address-notices (the `ListAddressNotices` operationId).
+func (c *ClientWithResponses) ListAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListAddressNoticesResult, error) {
+	rsp, err := c.ListAddressNotices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListAddressNoticesResult(rsp)
+}
+
+// AcknowledgeAddressNoticesWithResponse Acknowledge the change of the workspace's address
+//
+// Records that the caller read it. Acknowledging twice is acknowledging once.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /accounts/me/address-notices:acknowledge (the `AcknowledgeAddressNotices` operationId).
+func (c *ClientWithResponses) AcknowledgeAddressNoticesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*AcknowledgeAddressNoticesResult, error) {
+	rsp, err := c.AcknowledgeAddressNotices(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseAcknowledgeAddressNoticesResult(rsp)
+}
+
 // RemoveOwnAvatarWithResponse Go back to the initials
 //
 // Takes the caller's picture away: the others see the initials of the name again. Idempotent -
@@ -77571,6 +78062,42 @@ func (c *ClientWithResponses) CancelTenantDeletionWithResponse(ctx context.Conte
 		return nil, err
 	}
 	return ParseCancelTenantDeletionResult(rsp)
+}
+
+// ChangeTenantAddressWithBodyWithResponse Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *ClientWithResponses) ChangeTenantAddressWithBodyWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error) {
+	rsp, err := c.ChangeTenantAddressWithBody(ctx, tenantId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeTenantAddressResult(rsp)
+}
+
+// ChangeTenantAddressWithResponse Change a workspace's address
+//
+// Gives the workspace a new main address: a new short name where workspaces answer beneath the installation's host, a new host where the installation assigns hosts. The old address is free at once - it answers like an address no workspace has, without a redirect, and another workspace may take it. Everybody signs in again; passkeys made at the old address stay listed and count as no factor; personal access tokens, service accounts and connected apps keep working once pointed at the new address. Every member with an email address is mailed the old and the new address, and a member without one is told at the next sign-in.
+// A short name that is invalid, reserved or taken, and a host that is invalid, the installation's own or taken, are refused at the field as at provisioning; the address the workspace already has is refused as `admin.address_unchanged`. Where workspaces answer beneath the installation's host, the same short name is accepted when the main address still names another host - how a workspace moves under a changed installation address.
+// Refused with `admin.address_lockout_self` while it would leave the caller, and with `admin.address_lockout_owner` while it would leave every owner of the workspace, without a way in that survives it: a password or a connected provider, plus an authenticator app or recovery codes where a second factor is required. `reason` names what is missing: `way_in` or `factor`. Confirmed with a fresh step-up by password, or at a connected provider where passwords are off - a passkey belongs to the old address and is refused with `auth.step_up_method_refused`, naming the methods that are accepted.
+// With `dry_run` it checks the new address and the lockout, answers what the change would be and writes nothing, without a step-up; a dry run without a new address answers the current address and who would be told. Refused with `admin.multi_mode_required` in single mode and `admin.tenant_leaving` for a workspace pending deletion. In the workspace's trail and the installation's journal.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /admin/tenants/{tenantId}:change-address (the `ChangeTenantAddress` operationId).
+func (c *ClientWithResponses) ChangeTenantAddressWithResponse(ctx context.Context, tenantId AdminTenantId, params *ChangeTenantAddressParams, body ChangeTenantAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeTenantAddressResult, error) {
+	rsp, err := c.ChangeTenantAddress(ctx, tenantId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeTenantAddressResult(rsp)
 }
 
 // CloseTenantPasswordWithResponse Close an operator's opening of the password early
@@ -84755,7 +85282,7 @@ func (c *ClientWithResponses) ReadWorkspaceWithResponse(ctx context.Context, req
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -84774,7 +85301,7 @@ func (c *ClientWithResponses) UpdateWorkspaceWithBodyWithResponse(ctx context.Co
 //
 // Merge-patch, so an absent key changes nothing and the caller sends only what moves. Needs the permission that manages structure. Auditable, with the before and the after of every field that moved.
 // `require_admin_totp` is the old name of `sign_in_policy.mfa_required_for`, and it is not stored as itself: true asks for `ADMINS` where the rule in force demands less, false for `NONE`, and either is that change to the rule - with the rule's step-up, its lock and its "no loosening" check. Sent as it already reads, it moves nothing and asks for nothing. Sent beside a `mfa_required_for` that says otherwise, it is refused against `/require_admin_totp` as `workspace.admin_flag_contradicts_rule`.
-// The slug does not move here. It is the hostname in multi mode and the base of the OIDC redirect this installation registered, so renaming it is the operator's operation at `/admin/tenants` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
+// The slug does not move here. In multi mode it names the workspace's address, and changing that is the operator's operation `POST /admin/tenants/{tenantId}:change-address` rather than the workspace's. A body naming it is refused as an unknown field rather than accepted and quietly ignored.
 // `sign_in_policy` - and `require_admin_totp`, which is a change to it - is what demands a **step-up**: a workspace's sign-in rule is what decides whether a stolen tab can weaken the way in, and the name, the locale and the zone are not. A body without the header is `403 step_up_required`.
 // Settings this version does not model are left where they are. A workspace's settings document outlives any one release of this client, and a partial write that rewrote it whole would discard what a later one put there.
 //
@@ -85197,6 +85724,68 @@ func ParseUpdateOwnAccountResult(rsp *http.Response) (*UpdateOwnAccountResult, e
 			return nil, err
 		}
 		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListAddressNoticesResult parses an HTTP response from a ListAddressNoticesWithResponse call
+func ParseListAddressNoticesResult(rsp *http.Response) (*ListAddressNoticesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListAddressNoticesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest []AddressChangeNotice
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseAcknowledgeAddressNoticesResult parses an HTTP response from a AcknowledgeAddressNoticesWithResponse call
+func ParseAcknowledgeAddressNoticesResult(rsp *http.Response) (*AcknowledgeAddressNoticesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &AcknowledgeAddressNoticesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -87518,6 +88107,39 @@ func ParseCancelTenantDeletionResult(rsp *http.Response) (*CancelTenantDeletionR
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeTenantAddressResult parses an HTTP response from a ChangeTenantAddressWithResponse call
+func ParseChangeTenantAddressResult(rsp *http.Response) (*ChangeTenantAddressResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeTenantAddressResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest TenantAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem

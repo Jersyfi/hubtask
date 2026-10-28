@@ -6056,6 +6056,17 @@ type Actor struct {
 // ActorType defines model for Actor.Type.
 type ActorType string
 
+// AddressChangeNotice defines model for AddressChangeNotice.
+type AddressChangeNotice struct {
+	ChangedAt time.Time `json:"changed_at"`
+
+	// From The workspace's address before the change.
+	From string `json:"from"`
+
+	// To Its address since.
+	To string `json:"to"`
+}
+
 // AddressConfirm defines model for AddressConfirm.
 type AddressConfirm struct {
 	// Token The token from the confirmation mail. It dies on use.
@@ -12378,6 +12389,36 @@ type TemplateUpdate struct {
 	Nodes       *[]TemplateNode `json:"nodes,omitempty"`
 }
 
+// TenantAddressChange The new address: `slug` where workspaces answer beneath the installation's host, `host` where the installation assigns hosts - the other is refused.
+type TenantAddressChange struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+
+	// Host The new host, where the installation assigns hosts. No DNS is checked.
+	Host *string `json:"host,omitempty"`
+
+	// Slug The new short name, 3-40 lower-case letters, digits and hyphens.
+	Slug *string `json:"slug,omitempty"`
+}
+
+// TenantAddressChanged defines model for TenantAddressChanged.
+type TenantAddressChanged struct {
+	DryRun bool `json:"dry_run"`
+
+	// From The main address before the change.
+	From string `json:"from"`
+
+	// MembersMailed The members with an email address, who are mailed the old and the new address.
+	MembersMailed int `json:"members_mailed"`
+
+	// MembersToldAtSignIn The members without one, who are told at their next sign-in.
+	MembersToldAtSignIn int         `json:"members_told_at_sign_in"`
+	Tenant              AdminTenant `json:"tenant"`
+
+	// To The main address after it. Absent on a dry run without a new address.
+	To *string `json:"to,omitempty"`
+}
+
 // TenantDeletionRequest defines model for TenantDeletionRequest.
 type TenantDeletionRequest struct {
 	// Confirmation The workspace's display name, typed exactly - the restore precedent.
@@ -13515,6 +13556,12 @@ type ProvisionTenantParams struct {
 type UpdateTenantParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// ChangeTenantAddressParams defines parameters for ChangeTenantAddress.
+type ChangeTenantAddressParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
 // RequestTenantDeletionParams defines parameters for RequestTenantDeletion.
@@ -14777,6 +14824,9 @@ type UpdateTenantJSONRequestBody = TenantUpdate
 // UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody defines body for UpdateTenantQuotas for application/merge-patch+json ContentType.
 type UpdateTenantQuotasApplicationMergePatchPlusJSONRequestBody = TenantQuotas
 
+// ChangeTenantAddressJSONRequestBody defines body for ChangeTenantAddress for application/json ContentType.
+type ChangeTenantAddressJSONRequestBody = TenantAddressChange
+
 // RequestTenantDeletionJSONRequestBody defines body for RequestTenantDeletion for application/json ContentType.
 type RequestTenantDeletionJSONRequestBody = TenantDeletionRequest
 
@@ -15244,6 +15294,12 @@ type ServerInterface interface {
 	// UpdateOwnAccount Change what the caller is called
 	// (PATCH /accounts/me)
 	UpdateOwnAccount(w http.ResponseWriter, r *http.Request)
+	// ListAddressNotices The change of the workspace's address the caller still has to be told of
+	// (GET /accounts/me/address-notices)
+	ListAddressNotices(w http.ResponseWriter, r *http.Request)
+	// AcknowledgeAddressNotices Acknowledge the change of the workspace's address
+	// (POST /accounts/me/address-notices:acknowledge)
+	AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request)
 	// RemoveOwnAvatar Go back to the initials
 	// (DELETE /accounts/me/avatar)
 	RemoveOwnAvatar(w http.ResponseWriter, r *http.Request)
@@ -15448,6 +15504,9 @@ type ServerInterface interface {
 	// CancelTenantDeletion Call off a workspace's pending deletion
 	// (POST /admin/tenants/{tenantId}:cancel-deletion)
 	CancelTenantDeletion(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
+	// ChangeTenantAddress Change a workspace's address
+	// (POST /admin/tenants/{tenantId}:change-address)
+	ChangeTenantAddress(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId, params ChangeTenantAddressParams)
 	// CloseTenantPassword Close an operator's opening of the password early
 	// (POST /admin/tenants/{tenantId}:close-password)
 	CloseTenantPassword(w http.ResponseWriter, r *http.Request, tenantId AdminTenantId)
@@ -16435,6 +16494,34 @@ func (siw *ServerInterfaceWrapper) UpdateOwnAccount(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateOwnAccount(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAddressNotices operation middleware
+func (siw *ServerInterfaceWrapper) ListAddressNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAddressNotices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AcknowledgeAddressNotices operation middleware
+func (siw *ServerInterfaceWrapper) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AcknowledgeAddressNotices(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -18608,6 +18695,56 @@ func (siw *ServerInterfaceWrapper) CancelTenantDeletion(w http.ResponseWriter, r
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.CancelTenantDeletion(w, r, tenantId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeTenantAddress operation middleware
+func (siw *ServerInterfaceWrapper) ChangeTenantAddress(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "tenantId" -------------
+	var tenantId AdminTenantId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "tenantId", r.PathValue("tenantId"), &tenantId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "tenantId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeTenantAddressParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeTenantAddress(w, r, tenantId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -30227,6 +30364,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/presets", wrapper.CreateInstallationPreset)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.WithdrawInstallationPreset)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/admin/presets/{presetId}", wrapper.ChangeInstallationPreset)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:change-address", wrapper.ChangeTenantAddress)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants/{tenantId}:move-plan", wrapper.MoveTenantPlan)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/operators", wrapper.ListOperators)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/operators", wrapper.AddOperator)
@@ -30271,6 +30409,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RemoveOwnPasskey)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/accounts/me/passkeys/{passkeyId}", wrapper.RenameOwnPasskey)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)

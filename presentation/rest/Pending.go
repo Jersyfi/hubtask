@@ -1689,3 +1689,14 @@ func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 func (pending) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+// A change of a workspace's address, and the notice a member without an address is told at sign-in.
+func (pending) ChangeTenantAddress(w http.ResponseWriter, r *http.Request, _ openapi.AdminTenantId, _ openapi.ChangeTenantAddressParams) {
+	notAvailable(w, r)
+}
+
+func (pending) ListAddressNotices(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) AcknowledgeAddressNotices(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

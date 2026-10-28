@@ -31,6 +31,7 @@
   {:else if mode === 'code'}
     <Input label="Host" bind:value={host} face="code" hint="The full name this workspace answers at." isRequired />
     <Input label="Short name" face="code" placeholder="tasks-hr" />
+    <Input label="New address" face="code" value="familie-meier" suffix=".tasks.example.net" hint="Lower case letters, digits and hyphens." />
   {:else if mode === 'unavailable'}
     <Input
       label="Title"

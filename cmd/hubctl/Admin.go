@@ -40,7 +40,7 @@ func adminGroup() group {
 		commands: []command{
 			{
 				name:    "tenant",
-				usage:   "ls|show|find|create|set-reference|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
+				usage:   "ls|show|find|create|set-reference|change-address|suspend|resume|delete|cancel-deletion|move-plan|export|open-password|close-password|replace-holds|reapply-erasures …",
 				summary: "the workspaces, and their lifecycle",
 				run:     adminTenant,
 				// The export waits on a job, and `--timeout` bounds one call rather than one
@@ -125,7 +125,7 @@ func adminGroup() group {
 
 // adminTenant is a noun under a noun, and dispatches its own verb - `backup target`'s reasoning.
 func adminTenant(ctx context.Context, cli *CLI, args []string) error {
-	const verbs = "ls, show, find, create, set-reference, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
+	const verbs = "ls, show, find, create, set-reference, change-address, suspend, resume, delete, cancel-deletion, move-plan, export, open-password, close-password, replace-holds, reapply-erasures"
 	if len(args) == 0 {
 		return usagef("admin tenant needs a command: %s", verbs)
 	}
@@ -140,6 +140,8 @@ func adminTenant(ctx context.Context, cli *CLI, args []string) error {
 		return adminTenantCreate(ctx, cli, args[1:])
 	case "set-reference":
 		return adminTenantSetReference(ctx, cli, args[1:])
+	case "change-address":
+		return adminTenantChangeAddress(ctx, cli, args[1:])
 	case "suspend":
 		return adminTenantFlip(ctx, cli, args[1:], "suspend")
 	case "resume":
@@ -364,6 +366,75 @@ func adminTenantOpenPassword(ctx context.Context, cli *CLI, args []string) error
 	cli.emitTable(openingTable(tenant))
 	printf(cli.Err, "the workspace's administrators are told; it closes on its own at the time above, "+
 		"or with admin tenant close-password\n")
+	return nil
+}
+
+// adminTenantChangeAddress gives a workspace a new address (multi-tenancy.md §3.1): a short name with
+// subdomains, a host where the installation assigns hosts. The server checks it as provisioning does,
+// refuses a change that would lock somebody out, and takes the proof by password or provider only.
+// --dry-run asks without a proof and changes nothing.
+func adminTenantChangeAddress(ctx context.Context, cli *CLI, args []string) error {
+	const usage = "admin tenant change-address <id> (--slug <name> | --host <host>) [--dry-run]"
+	tenantID, rest, err := cli.takeID(args, usage)
+	if err != nil {
+		return err
+	}
+	flags := commandFlags(cli, "admin tenant", "change-address",
+		"<id> (--slug <name> | --host <host>) [--dry-run]")
+	slug := flags.String("slug", "", "the new short name, where workspaces answer beneath the installation's host")
+	host := flags.String("host", "", "the new host, where the installation assigns hosts")
+	dryRun := flags.Bool("dry-run", false, "check and say what would change, without changing anything")
+	if err := parseOnlyFlags(flags, rest, usage); err != nil {
+		return err
+	}
+	if (*slug == "") == (*host == "") {
+		return usagef("changing the address needs exactly one of --slug and --host")
+	}
+	request := openapi.TenantAddressChange{}
+	if *slug != "" {
+		request.Slug = slug
+	}
+	if *host != "" {
+		request.Host = host
+	}
+	if *dryRun {
+		request.DryRun = dryRun
+	}
+
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	path := adminTenantsPath + "/" + tenantID.String() + ":change-address"
+	var changed openapi.TenantAddressChanged
+	if *dryRun {
+		err = client.Post(ctx, path, request, &changed)
+	} else {
+		err = cli.proveAgain(ctx, client, func(stepUp string) error {
+			return client.PostWithHeader(ctx, path, request, stepUpProof(stepUp), &changed)
+		})
+	}
+	if err != nil {
+		return err
+	}
+	if cli.JSON {
+		return cli.Emit(changed, Table{})
+	}
+	to := ""
+	if changed.To != nil {
+		to = *changed.To
+	}
+	cli.emitTable(Table{
+		Columns: []string{"workspace", "from", "to", "mailed", "told at sign-in"},
+		Rows: [][]string{{changed.Tenant.Id.String(), changed.From, to,
+			strconv.Itoa(changed.MembersMailed), strconv.Itoa(changed.MembersToldAtSignIn)}},
+	})
+	if *dryRun {
+		printf(cli.Err, "nothing was changed\n")
+		return nil
+	}
+	printf(cli.Err, "the old address answers nothing from now; everybody signs in again at the new one, "+
+		"and passkeys made at the old one stopped working\n")
 	return nil
 }
 

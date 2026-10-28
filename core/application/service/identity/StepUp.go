@@ -335,6 +335,35 @@ func (v StepUpVerifier) Satisfied(
 	return satisfied, nil
 }
 
+// SatisfiedBy is Satisfied that also answers the method that gave the proof, for an act that accepts
+// only some (stepup.DemandOneOf).
+func (v StepUpVerifier) SatisfiedBy(
+	ctx context.Context, accountID shared.ID, token string,
+) (stepupport.Method, bool, error) {
+	w := v.Writer
+	parsed, err := domain.ParseStepUpToken(token)
+	if err != nil {
+		return "", false, nil //nolint:nilerr // a malformed proof is "not proved", not a failure
+	}
+	var (
+		method    domain.StepUpMethod
+		satisfied bool
+	)
+	err = w.UnitOfWork.Within(ctx, persistence.Scope{TenantID: parsed.TenantID()},
+		func(ctx context.Context) error {
+			now := w.Clock.Now()
+			method, satisfied, err = w.StepUps.Consume(
+				ctx, parsed, accountID, now.Add(-w.stepUpWindow()), now)
+			return err
+		})
+	if err != nil || !satisfied {
+		return "", false, err
+	}
+	return stepupport.Method(methodAuditLabel(method)), true, nil
+}
+
+var _ stepupport.MethodVerifier = StepUpVerifier{}
+
 // Methods names what this account can prove itself with: the password where it holds one, and the
 // code where a factor is armed. An account that signs in only through a provider holds no password,
 // so it is not asked for one (UC-ID-05 check 5) - and one with neither is named nothing, which the

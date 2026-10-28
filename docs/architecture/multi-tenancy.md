@@ -206,7 +206,8 @@ deliberately not used.
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
 Built so far: the reserved short names, the resolution through `tenant_host` with the
-provider's return to the main address, and the hosts the operator assigns (below).
+provider's return to the main address, the hosts the operator assigns, and the operator's change
+of address (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -260,8 +261,20 @@ only the server knows the installation's host and the migrator does not. *Built:
 the provider's return, the passkey's RP ID, and every mail's link and the invitation handed over -
 all read through one helper, `WorkspaceAddress`, when the link is written; the calendar feed's, a
 CalDAV todo's and an export's links still name the installation's host (#1784). While no main row
-serves, the helper answers the subdomain the short name makes. A change of address replaces the
-main row and drops the old one in one transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
+serves, the helper answers the subdomain the short name makes. A change of address replaces the main row and drops the old one in one transaction.
+*Built* for the operator - `POST /admin/tenants/{id}:change-address`, `hubctl admin tenant
+change-address` and the installation's *Workspaces*, in multi mode only: the same transaction moves
+the short name with a subdomain (with assigned hosts it stays), ends every person's session (an
+OAuth grant's stay), writes the trail and the journal, queues a mail for each member with an address
+and leaves each member without one a notice (`address_change_notice`) the web app shows until it is
+acknowledged. It is refused for a workspace pending deletion, at the field as provisioning refuses a
+name or host, and as `admin.address_lockout_self` or `admin.address_lockout_owner` (with `reason`
+`way_in` or `factor`) while the caller or every owner lacks a lasting way in; the proof is a password
+or provider step-up ([identity.md](./identity.md) §16.2). A dry run checks all of it but the proof
+and answers who is told. With subdomains the same short name is accepted while the main row names
+another host: it is how a workspace moves beneath a changed `HUBTASK_BASE_URL`, whose old rows
+`ensure_main_hosts` leaves as they are.
+An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
 an assigned host is a row the operator writes without a proof, in an installation set to
 `HUBTASK_WORKSPACE_HOSTS=assigned` (*built*): provisioning and the first start's setup ask for the
 host instead of a subdomain, refuse it at the field as `admin.host_invalid`,

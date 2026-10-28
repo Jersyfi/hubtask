@@ -36,6 +36,7 @@ var privilegedUseCases = map[string]string{
 	"CreateAccessToken":                        "an admin-scoped token reaches the control plane",
 	"RequestTenantDeletion":                    "it is the request that ends a workspace (multi-tenancy.md §5)",
 	"OpenTenantPassword":                       "it widens the way into somebody else's workspace (ADR-0078 §3)",
+	"ChangeTenantAddress":                      "it ends every session and passkey of a workspace (multi-tenancy.md §3.1)",
 	"ReapplyErasures":                          "it deletes data for good, from cases the operator supplies (backup-restore.md §8.5)",
 	"DisableTotp":                              "a stolen session removing the second factor is the attack the factor exists against (ADR-0075 §3)",
 	"StartAuthenticatorReplacement":            "replacing the second factor is the same power as removing it (identity.md §8)",

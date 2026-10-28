@@ -2688,6 +2688,29 @@ func run() error {
 		// and the register through the instance writer, the step-up through the session's verifier.
 		adminservice.OpenTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
 		adminservice.CloseTenantPassword{Writer: passwordOpeningWriter}.Descriptor(),
+		// An operator's change of a workspace's address (multi-tenancy.md §3.1): the lockout read
+		// through the session writer, the proof by password or provider only.
+		adminservice.ChangeTenantAddress{
+			Instance: instanceWriter, Tenants: postgres.NewAdminTenantRepository(),
+			Addresses: postgres.NewWorkspaceAddressRepository(),
+			Audience:  postgres.NewWorkspaceAddressRepository(),
+			Notices: notification.RecordAddressChange{
+				Jobs: jobs, Notices: postgres.NewWorkspaceAddressRepository(),
+			},
+			Owners: grants, Ways: identity.LastingWays{Writer: sessionWriter},
+			Journal: postgres.NewInstanceJournal(cursors), Audit: auditSink,
+			StepUp:     identity.StepUpVerifier{Writer: sessionWriter},
+			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+			Entropy: clockadapter.CryptoRandom{}, Domains: domains,
+			Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
+			InstallationHost: installationHost, Settings: postgres.NewInstanceSettingRepository(),
+		}.Descriptor(),
+		identity.ListAddressNotices{
+			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.AcknowledgeAddressNotices{
+			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
 		adminservice.ExportTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Targets: exportTargets, Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -3378,6 +3401,14 @@ func run() error {
 			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
 		},
 	}
+	// A member told by mail that the workspace's address changed (multi-tenancy.md §3.1).
+	addressChangeMessage := worker.AddressChangeMessage{
+		Send: notification.SendAddressChange{
+			Accounts: accounts, Workspaces: postgres.NewWorkspaceSettingsRepository(),
+			Mail: mailSender, Renderer: renderer, UnitOfWork: unitOfWork,
+			FallbackLocale: cfg.Locale.DefaultLocale, Addresses: workspaceAddress(cfg),
+		},
+	}
 	passwordOpeningEnd := worker.PasswordOpeningEnd{
 		End: adminservice.EndPasswordOpening{Writer: passwordOpeningWriter},
 	}
@@ -3746,6 +3777,7 @@ func run() error {
 		},
 		queueport.KindPasswordOpeningEmail:     passwordOpeningMessage,
 		queueport.KindWayInChangedEmail:        wayInChangedMessage,
+		queueport.KindAddressChangedEmail:      addressChangeMessage,
 		queueport.KindAddressConfirmationEmail: addressConfirmationMessage,
 		queueport.KindPasswordOpeningEnd:       passwordOpeningEnd,
 		queueport.KindAiSuggest:                worker.AiSuggestion{Produce: produceSuggestion, Jobs: jobs},

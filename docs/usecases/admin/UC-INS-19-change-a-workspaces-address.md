@@ -7,7 +7,7 @@ deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-04, P-05, P-07, P-08, P-11, P-16]
 state: partial
 tasks: [CD-01, CD-02, CD-03, CD-05, CD-06, CD-10]
-checked_by: [test/integration/tenant_host_resolution_test.go, core/application/service/identity/LocateOidcFlow_test.go, apps/webapp/src/lib/data/oidc.test.ts, core/application/service/notification/MainAddress_test.go, core/application/service/identity/WorkspaceAddress_test.go, test/architecture/mainaddress_test.go]
+checked_by: [test/integration/tenant_host_resolution_test.go, core/application/service/identity/LocateOidcFlow_test.go, apps/webapp/src/lib/data/oidc.test.ts, core/application/service/notification/MainAddress_test.go, core/application/service/identity/WorkspaceAddress_test.go, test/architecture/mainaddress_test.go, core/domain/model/identity/AddressChange_test.go, core/port/stepup/DemandOneOf_test.go, core/application/service/admin/ChangeAddress_test.go, core/application/service/identity/LastingWays_test.go, core/application/service/notification/AddressChange_test.go, test/integration/change_address_test.go, cmd/hubctl/Admin_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, apps/webapp/src/lib/data/stepup.test.ts]
 ---
 
 # Change a workspace's address
@@ -70,13 +70,5 @@ member gets a mail with the new address.
 
 ## Today
 
-* Check 1: not met — no door changes a short name; the contract names an operation at `/admin/tenants` that does not exist.
-* Check 2: not met — no door changes a short name yet (CD-05).
 * Check 3: not met — there is no installation switch for owners and no cooldown.
-* Check 4: not met — there is no dialog for a change of address.
-* Check 5: not met — there is no step-up for a change of address.
-* Check 6: not met — nothing checks that a lasting way in survives a change of address.
-* Check 7: not met — the address cannot change.
-* Check 8: not met — there is no mail about a changed address.
 * Check 9: not met — the calendar feed's address, a CalDAV todo's link and an export's item links name the installation's host (#1784).
-* Check 11: not met — no change of address reaches the trail or the journal.

@@ -32,6 +32,8 @@ import type {
   OfferedAiModelConfiguration,
   Operator,
   PasswordOpeningRequest,
+  TenantAddressChange,
+  TenantAddressChanged,
   ProvisionedTenant,
   TenantProvision,
   TenantQuotas,
@@ -492,6 +494,21 @@ class Instance {
         stepUpToken,
         invalidates: EVERYTHING,
       }),
+    );
+  }
+
+  /**
+   * Changes a workspace's address (multi-tenancy.md §3.1), or with `dry_run` asks what the change
+   * would be: the field's refusals, the lockout, who is told. A dry run takes no proof; the change
+   * takes one by password or provider, which the refusal names.
+   */
+  async changeAddress(tenantId: string, change: TenantAddressChange): Promise<TenantAddressChanged> {
+    const path = `${TENANTS}/${tenantId}:change-address`;
+    if (change.dry_run) {
+      return engine.mutate<TenantAddressChanged>('POST', path, change, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<TenantAddressChanged>('POST', path, change, { stepUpToken, invalidates: EVERYTHING }),
     );
   }
 

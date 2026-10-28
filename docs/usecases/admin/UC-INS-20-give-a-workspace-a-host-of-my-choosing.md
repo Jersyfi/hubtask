@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-scripter]
 deployments: [D4, D7]
 serves: [P-01, P-05, P-08, P-09, P-10]
-state: partial
+state: verified
 tasks: [CD-02, CD-03, CD-04, CD-05]
-checked_by: [core/application/service/admin/AssignedHosts_test.go, core/application/service/identity/Setup_test.go, core/domain/model/identity/TenantHost_test.go, cmd/hubctl/Admin_test.go, test/integration/assigned_host_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs]
+checked_by: [core/application/service/admin/AssignedHosts_test.go, core/application/service/identity/Setup_test.go, core/domain/model/identity/TenantHost_test.go, cmd/hubctl/Admin_test.go, test/integration/assigned_host_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, core/application/service/admin/ChangeAddress_test.go, core/domain/model/identity/AddressChange_test.go]
 ---
 
 # Give each workspace a host of my choosing
@@ -47,6 +47,3 @@ does for every other service.
   already has workspaces between the two is not offered.
 * A workspace's own domain, set up by its owner, is UC-INS-15.
 
-## Today
-
-* Check 4: not met — the address cannot change (UC-INS-19).
