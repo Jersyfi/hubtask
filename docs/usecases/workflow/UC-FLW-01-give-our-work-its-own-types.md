@@ -7,7 +7,7 @@ deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go]
+checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts, apps/webapp/src/lib/navigation.test.ts, cmd/hubctl/EntryType_test.go, infrastructure/postgres/query/EntryType_test.go, test/integration/query_entry_type_test.go]
 ---
 
 # Give our work its own types
@@ -58,8 +58,9 @@ works in every view. An agent creating an entry through MCP names the type the s
   which types one collection offers is not narrowed yet (the suite plan, S-06).
 * Check 4: partly met — a change of type that would drop a value is refused, naming each field;
   confirming the drop and the screen for it come with the field sets (the suite plan, S-06).
-* Check 6: not met — a row marks its type; the filter, the grouping, the column and the query field
-  are the suite plan's S-04 and S-11.
+* Check 6: partly met — a row marks its type, and the query language filters (`EQ`, `NEQ`, `IN`,
+  `NOT_IN`) and groups by `entry_type`, an untyped entry answering as its level's system type; the
+  web app's filter, grouping and column are the suite plan's S-11.
 * Check 7: met — REST, MCP and the rule engine reach the registry through one descriptor each, and
   `hubctl type ls|create|set|archive|unarchive|rm|assign` and `hubctl item create --entry-type`
   through REST.

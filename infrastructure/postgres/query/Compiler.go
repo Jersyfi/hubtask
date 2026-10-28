@@ -68,14 +68,15 @@ const (
 		`wi.retention_blocked_by, ` +
 		`wi.archived_at, wi.deleted_at, ` +
 		`wi.trash_batch_id, ` +
-		`wi.created_by, wi.created_at, wi.updated_at, wi.version`
+		`wi.created_by, wi.created_at, wi.updated_at, wi.version, wi.number, wi.entry_type`
 
 	groupedColumns = `id, tenant_id, collection_id, type, parent_id, path, depth, title, amount, notes, ` +
 		`is_completed, completed_at, completed_by, completion_count, bucket_id, order_key, assignee_id, ` +
 		`start_at, due_at, due_date_only, due_time_zone, ` +
 		`cover_kind, cover_color_token, cover_media_id, custom_fields, content_language, calendar_uid, ` +
 		`retention_pending_until, retention_rule_id, retention_action, retention_blocked_by, ` +
-		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version`
+		`archived_at, deleted_at, trash_batch_id, created_by, created_at, updated_at, version, ` +
+		`number, entry_type`
 )
 
 // searchText is the expression the trigram index is built over, written here exactly as migration

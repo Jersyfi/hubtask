@@ -39,6 +39,7 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"title","op":"STARTS_WITH","value":"\\"}`,
 		`{"field":"text","op":"MATCHES","value":"a & b | !c <-> d"}`,
 		`{"field":"type","op":"IN","value":["TASK","ACTIVITY"]}`,
+		`{"field":"entry_type","op":"NOT_IN","value":["bug","'; DROP TABLE work_item; --"]}`,
 		`{"field":"depth","op":"BETWEEN","value":[0,3]}`,
 		`{"field":"notes","op":"IS_NULL"}`,
 		`{"field":"bucket_id","op":"NOT_IN","value":["0192f000-0000-7000-8000-00000000000f"]}`,

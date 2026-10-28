@@ -197,6 +197,9 @@ func column(field view.Field, prefix string) (string, bool) {
 	switch field.Name {
 	case view.FieldType:
 		return prefix + `type`, true
+	case view.FieldEntryType:
+		// The stored key, or the level's system key when there is none (work.SystemEntryTypeKey).
+		return `coalesce(` + prefix + `entry_type, lower(` + prefix + `type::text))`, true
 	case view.FieldParentID:
 		return prefix + `parent_id`, true
 	case view.FieldCollection:

@@ -82,7 +82,10 @@ func (f Field) Permits(op Operator) bool { return slices.Contains(f.Operators, o
 // because a filter on a column nothing fills would match nothing, and a client could not tell that
 // from a collection in which nothing is due.
 const (
-	FieldType        = "type"
+	FieldType = "type"
+	// FieldEntryType is the key of the entry's type (UC-FLW-01): a workspace's own, or its level's
+	// system type when it has none, so the field is never absent.
+	FieldEntryType   = "entry_type"
 	FieldParentID    = "parent_id"
 	FieldCollection  = "collection_id"
 	FieldBucketID    = "bucket_id"
@@ -167,6 +170,13 @@ var catalogue = []Field{
 			string(work.ItemTask), string(work.ItemWorkPackage), string(work.ItemActivity),
 		},
 		Sortable: true, Groupable: true,
+	},
+	{
+		// A string rather than an enum: the keys are the workspace's, so the catalogue cannot list
+		// them. `/entry-types` does, and a key nothing names matches nothing.
+		Name: FieldEntryType, Kind: KindString,
+		Operators: []Operator{OpEq, OpNeq, OpIn, OpNotIn},
+		Groupable: true,
 	},
 	{
 		Name: FieldParentID, Kind: KindID,

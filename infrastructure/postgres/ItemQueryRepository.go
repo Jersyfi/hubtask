@@ -211,6 +211,7 @@ func readItems(ctx context.Context, tx pgx.Tx, statement query.Statement) ([]wor
 			&row.RetentionBlockedBy,
 			&row.ArchivedAt, &row.DeletedAt,
 			&row.TrashBatchID, &row.CreatedBy, &row.CreatedAt, &row.UpdatedAt, &row.Version,
+			&row.Number, &row.EntryType,
 		); err != nil {
 			return nil, queryFailed("reading a queried item", err)
 		}
@@ -268,6 +269,11 @@ func groupKeyOf(field view.Field, item work.WorkItem) (string, bool) {
 		return item.CreatedBy.String(), true
 	case view.FieldType:
 		return string(item.Type), true
+	case view.FieldEntryType:
+		if item.EntryType == "" {
+			return work.SystemEntryTypeKey(item.Type), true
+		}
+		return item.EntryType, true
 	case view.FieldIsCompleted:
 		if item.Completion.IsCompleted {
 			return "true", true
