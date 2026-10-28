@@ -82,7 +82,7 @@ func SystemEntryTypeKey(level ItemType) string { return strings.ToLower(string(l
 // SystemEntryType is the level's system type as Hubtask ships it.
 func SystemEntryType(level ItemType) EntryType {
 	icon := map[ItemType]string{
-		ItemTask: "task", ItemWorkPackage: "work-package", ItemActivity: "activity",
+		ItemTask: "square-check", ItemWorkPackage: "file-text", ItemActivity: "check",
 	}[level]
 	return EntryType{
 		Key: SystemEntryTypeKey(level), Level: level, System: true,
