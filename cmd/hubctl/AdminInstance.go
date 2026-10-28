@@ -166,7 +166,7 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 
 	target := areaOf(&settings, area)
 	if target == nil {
-		return usagef("%q is not an area of the instance level: sign_in, legal, localisation, quotas, ai", area)
+		return usagef("%q is not an area of the instance level: sign_in, legal, localisation, quotas, ai, module", area)
 	}
 	held, known := (*target)[name]
 	if !known {
@@ -197,7 +197,7 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 	return cli.Emit(written, settingsTable(written))
 }
 
-// areaOf answers the map one of the five areas keeps its entries in, creating it where the read
+// areaOf answers the map one of the six areas keeps its entries in, creating it where the read
 // answered none.
 func areaOf(settings *openapi.InstanceSettings, area string) *map[string]openapi.InstanceSetting {
 	switch area {
@@ -211,6 +211,8 @@ func areaOf(settings *openapi.InstanceSettings, area string) *map[string]openapi
 		return ensureArea(&settings.Quotas)
 	case "ai":
 		return ensureArea(&settings.Ai)
+	case "module":
+		return ensureArea(&settings.Module)
 	default:
 		return nil
 	}
@@ -287,6 +289,7 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	add("localisation", settings.Localisation)
 	add("quotas", settings.Quotas)
 	add("ai", settings.Ai)
+	add("module", settings.Module)
 	if settings.ReservedShortNames != nil && len(*settings.ReservedShortNames) > 0 {
 		rows = append(rows, []string{reservedShortNamesKey, strings.Join(*settings.ReservedShortNames, ","), "-"})
 	}

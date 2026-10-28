@@ -143,7 +143,7 @@ func adminPlanSet(ctx context.Context, cli *CLI, args []string, setting bool) er
 	}
 	change := openapi.PlanChange{
 		DisplayName: held.DisplayName, SignIn: held.SignIn, Legal: held.Legal,
-		Quotas: held.Quotas, Ai: held.Ai, LeftOut: held.LeftOut,
+		Quotas: held.Quotas, Ai: held.Ai, Module: held.Module, LeftOut: held.LeftOut,
 	}
 	if *display != "" {
 		change.DisplayName = *display
@@ -173,7 +173,7 @@ func changePlanKey(change *openapi.PlanChange, rest []string, setting, locked bo
 	}
 	target := planAreaOf(change, area)
 	if target == nil {
-		return usagef("%q is not an area of a plan: sign_in, legal, quotas, ai", area)
+		return usagef("%q is not an area of a plan: sign_in, legal, quotas, ai, module", area)
 	}
 	if *target == nil {
 		*target = &map[string]openapi.InstanceSetting{}
@@ -204,6 +204,8 @@ func planAreaOf(change *openapi.PlanChange, area string) **map[string]openapi.In
 		return &change.Quotas
 	case "ai":
 		return &change.Ai
+	case "module":
+		return &change.Module
 	}
 	return nil
 }
@@ -316,7 +318,7 @@ func leftOutOf(features *[]openapi.PlanFeature) string {
 
 func planTable(held openapi.Plan) Table {
 	table := settingsTable(openapi.InstanceSettings{
-		SignIn: held.SignIn, Legal: held.Legal, Quotas: held.Quotas, Ai: held.Ai,
+		SignIn: held.SignIn, Legal: held.Legal, Quotas: held.Quotas, Ai: held.Ai, Module: held.Module,
 	})
 	table.Rows = append(table.Rows, []string{"left_out", leftOutOf(held.LeftOut), "-"})
 	return table
