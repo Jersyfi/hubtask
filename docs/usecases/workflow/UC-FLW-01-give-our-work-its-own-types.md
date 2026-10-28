@@ -1,5 +1,5 @@
 ---
-id: FLW-01
+id: UC-FLW-01
 title: Give our work its own types
 context: workflow
 actors: [PE-admin, PE-member, PE-integrator, PE-agent]
@@ -44,7 +44,8 @@ works in every view. An agent creating an entry through MCP names the type the s
 
 * Types sit on the existing five levels; no new level is created by a type.
 * A type does not change who may see an entry — that is roles and security levels.
-* No type without completion — records are a separate decision (D-07).
+* A type with the *record* behaviour — a configuration item, a risk, a contact — is never
+  completed: it has no completion, and completing one is refused.
 
 ## Today
 

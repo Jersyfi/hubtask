@@ -32,6 +32,7 @@ Filed by **bounded context**, under the same name as the code that implements it
 | [`suggestion/`](./suggestion/) | `UC-AI` | AI providers and suggestions | `service/suggestion` |
 | [`sync/`](./sync/) | `UC-SYN` | Working offline and merging | `service/sync` |
 | [`importer/`](./importer/) | `UC-IMP` | Bringing work in from elsewhere | `service/importer` |
+| [`workflow/`](./workflow/) | `UC-FLW` | A workspace's own entry types and, later, how its work moves | `service/workflow` |
 
 ## What a use case looks like
 
@@ -237,6 +238,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-WRK-29](./work/UC-WRK-29-see-what-counts.md) | See what counts in a hub or collection | work |
 | [UC-WRK-30](./work/UC-WRK-30-make-my-own-presets-and-use-the-workspaces.md) | Make my own presets and use the workspace's | work |
 | [UC-WRK-31](./work/UC-WRK-31-run-a-collection-as-a-flow.md) | Run a collection as a flow | work |
+| [UC-FLW-01](./workflow/UC-FLW-01-give-our-work-its-own-types.md) | Give our work its own types | workflow |
 | [UC-WRK-32](./work/UC-WRK-32-understand-why-i-cannot-do-something.md) | Understand why I cannot do something | work |
 | [UC-WRK-33](./work/UC-WRK-33-tell-hubs-and-collections-apart-at-a-glance.md) | Tell Hubtask, my hubs and my collections apart at a glance | work |
 | [UC-WRK-34](./work/UC-WRK-34-see-my-day.md) | See my day | work |
