@@ -170,6 +170,9 @@ export type PrivateHubAccess = components['schemas']['PrivateHubAccess'];
 export type ModuleList = components['schemas']['ModuleList'];
 export type ModuleState = components['schemas']['ModuleState'];
 export type ModuleSwitch = components['schemas']['ModuleSwitch'];
+/** Every setting the product declares, with its levels and writers - no place's value. */
+export type SettingsCatalogue = components['schemas']['SettingsCatalogue'];
+export type SettingDefinition = components['schemas']['SettingDefinition'];
 /** A provider identity connected to the reader's own account: which provider, since when. */
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */

@@ -73,6 +73,8 @@ export type {
   ModuleList,
   ModuleState,
   ModuleSwitch,
+  SettingsCatalogue,
+  SettingDefinition,
   ConnectedIdentity,
   ProviderConnectAuthorization,
   PasskeyList,
