@@ -173,6 +173,11 @@ export type ModuleSwitch = components['schemas']['ModuleSwitch'];
 /** Every setting the product declares, with its levels and writers - no place's value. */
 export type SettingsCatalogue = components['schemas']['SettingsCatalogue'];
 export type SettingDefinition = components['schemas']['SettingDefinition'];
+/** A kind of entry the workspace names on one level, with its icon, colour and behaviours (UC-FLW-01). */
+export type EntryType = components['schemas']['EntryType'];
+export type EntryTypeList = components['schemas']['EntryTypeList'];
+export type EntryTypeCreate = components['schemas']['EntryTypeCreate'];
+export type EntryTypeChange = components['schemas']['EntryTypeChange'];
 /** A provider identity connected to the reader's own account: which provider, since when. */
 export type ConnectedIdentity = components['schemas']['ConnectedIdentity'];
 /** Where to send the browser to connect a provider from a signed-in session (ADR-0078 §1). */

@@ -59,6 +59,8 @@ export function collectionOf(entity: string): string {
       return 'labels';
     case 'comment':
       return 'comments';
+    case 'entry_type':
+      return 'entry_types';
     default:
       return entity;
   }
