@@ -199,7 +199,7 @@ func (h ProvisionTenant) Execute(
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}
-	locale, zone := startingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
+	locale, zone := domain.StartingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
 
 	now := h.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
@@ -730,18 +730,6 @@ func installationLevel(
 		return err
 	})
 	return level, err
-}
-
-// startingLocalisation answers the caller's language and zone, or the installation's defaults
-// where it named none; empty is what the tenant's own constructor reads as `en` and `UTC`.
-func startingLocalisation(defaults domain.LocalisationDefaults, locale, zone string) (string, string) {
-	if strings.TrimSpace(locale) == "" {
-		locale = defaults.Locale
-	}
-	if strings.TrimSpace(zone) == "" {
-		zone = defaults.TimeZone
-	}
-	return locale, zone
 }
 
 // unknownPlan is the refusal of a plan that does not exist or was removed, at the field that named

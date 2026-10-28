@@ -93,7 +93,6 @@ func legalSourceOfBefore(name LegalLink, instance, plan, workspace LegalLayer) P
 	return SourceDefault
 }
 
-
 // sampleLegalLayer is one level's links; a workspace never holds the provider's account link.
 func sampleLegalLayer(seq *lcg, names []LegalLink) LegalLayer {
 	values := []string{"", "", "https://a.example/x", "https://b.example/y"}

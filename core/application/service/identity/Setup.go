@@ -109,7 +109,7 @@ func (h SetUpInstallation) Execute(
 	if err != nil {
 		return SessionPair{}, err
 	}
-	locale, zone := startingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
+	locale, zone := domain.StartingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
 
 	now := w.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
@@ -371,16 +371,4 @@ func installationLevel(
 		return err
 	})
 	return level, err
-}
-
-// startingLocalisation answers the card's language and zone, or the installation's defaults where
-// it named none; empty is what the tenant's own constructor reads as `en` and `UTC`.
-func startingLocalisation(defaults domain.LocalisationDefaults, locale, zone string) (string, string) {
-	if strings.TrimSpace(locale) == "" {
-		locale = defaults.Locale
-	}
-	if strings.TrimSpace(zone) == "" {
-		zone = defaults.TimeZone
-	}
-	return locale, zone
 }

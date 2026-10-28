@@ -27,7 +27,7 @@ func Definition(name string) setting.Definition {
 		Minimum: declaration.Minimum, Maximum: declaration.Maximum,
 		Levels:   []setting.Level{setting.LevelInstance, setting.LevelPlan},
 		Lockable: true, May: setting.May(declaration.May),
-		Writers:  map[setting.Level]string{setting.LevelInstance: "admin:instance", setting.LevelPlan: "admin:instance"},
+		Writers: map[setting.Level]string{setting.LevelInstance: "admin:instance", setting.LevelPlan: "admin:instance"},
 	}
 }
 
