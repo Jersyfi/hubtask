@@ -17,6 +17,7 @@ import (
 	repository "github.com/Jersyfi/hubtask/core/application/repository/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
 )
@@ -156,6 +157,7 @@ func (r InstanceSettingRepository) Read(ctx context.Context) (repository.Instanc
 			Limits: map[string]int64{}, Locks: map[string]bool{},
 		},
 		Ai:                 integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
+		Modules:            module.Decisions{},
 		Source:             r.source,
 		IsEnforcedFromFile: r.enforced,
 	}
@@ -289,6 +291,9 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 			level.Ai.Locks[integration.AiSwitchPersonOptOut] = locked
 		}
 	default:
+		if name, isModule := strings.CutPrefix(key, module.Area+"."); isModule {
+			return applyModuleRow(level, key, name, raw, locked)
+		}
 		if name, isQuota := strings.CutPrefix(key, quotaArea+"."); isQuota {
 			var ceiling int64
 			if err = json.Unmarshal(raw, &ceiling); err != nil {
@@ -320,6 +325,24 @@ func applyRow(level *repository.InstanceLevel, key string, raw []byte, locked bo
 			level.Policy.Locks[name] = true
 		}
 	}
+	return nil
+}
+
+// applyModuleRow folds one module's row into the level; a module this build does not know is
+// skipped, as applyRow skips any unknown key.
+func applyModuleRow(level *repository.InstanceLevel, key, name string, raw []byte, locked bool) error {
+	held, known := module.OfName(name)
+	if !known {
+		return nil
+	}
+	var on bool
+	if err := json.Unmarshal(raw, &on); err != nil {
+		return malformedSetting(key, err)
+	}
+	if level.Modules == nil {
+		level.Modules = module.Decisions{}
+	}
+	level.Modules[held] = module.Decision{On: on, Locked: locked}
 	return nil
 }
 
@@ -406,7 +429,7 @@ func (r InstanceSettingRepository) Write(
 	}
 
 	if err := queries.DeleteInstanceSettingsExcept(ctx, sqlc.DeleteInstanceSettingsExceptParams{
-		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea, meteringArea, addressingArea},
+		Areas: []string{signInArea, legalArea, localisationArea, quotaArea, aiArea, module.Area, meteringArea, addressingArea},
 		Kept:  kept,
 	}); err != nil {
 		return false, shared.ErrUnavailable.
@@ -603,6 +626,20 @@ func rowsOf(level repository.InstanceLevel) ([]settingRow, error) {
 		rows = append(rows, settingRow{
 			key: aiArea + "." + string(name), value: encoded,
 			lock: lockOf(level.Ai.Locks[name], identity.LockInstance),
+		})
+	}
+
+	for _, key := range module.Keys() {
+		decision, decided := level.Modules[key]
+		if !decided {
+			continue
+		}
+		encoded, err := json.Marshal(decision.On)
+		if err != nil {
+			return nil, shared.Internalf("postgres: encoding the instance setting %s: %w", key.SettingKey(), err)
+		}
+		rows = append(rows, settingRow{
+			key: string(key.SettingKey()), value: encoded, lock: lockOf(decision.Locked, identity.LockInstance),
 		})
 	}
 

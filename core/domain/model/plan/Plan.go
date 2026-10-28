@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -43,15 +44,17 @@ type Values struct {
 	Legal   identity.LegalLayer
 	Quotas  identity.QuotaDefaults
 	Ai      integration.AiLayer
+	Modules module.Decisions
 	LeftOut []Feature
 }
 
 // Above is what the installation decided, as a plan is checked against it.
 type Above struct {
-	Policy identity.PolicyLayer
-	Legal  identity.LegalLayer
-	Quotas identity.QuotaDefaults
-	Ai     integration.AiLayer
+	Policy  identity.PolicyLayer
+	Legal   identity.LegalLayer
+	Quotas  identity.QuotaDefaults
+	Ai      integration.AiLayer
+	Modules module.Decisions
 }
 
 // Plan is one plan as the control plane holds it.
@@ -112,6 +115,9 @@ func (v Values) FitsUnder(above Above) error {
 	}
 	if err := v.aiFits(above.Ai); err != nil {
 		return err
+	}
+	if key, fits := v.Modules.FitsUnder(above.Modules); !fits {
+		return underLock(module.Area, key.Name())
 	}
 	for _, feature := range v.LeftOut {
 		if !feature.Valid() {

@@ -13,6 +13,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	identity "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -23,14 +24,19 @@ import (
 // through `InstanceLevelOf`, and both arrive here with the document as it was sent - so what a
 // missing value means, and which values are refused, is decided once, here, for all three.
 
-// The five areas, in the spelling the contract uses.
+// The six areas, in the spelling the contract uses.
 const (
 	areaSignIn       = "sign_in"
 	areaLegal        = "legal"
 	areaLocalisation = "localisation"
 	areaQuotas       = "quotas"
 	areaAi           = "ai"
+	areaModule       = module.Area
 )
+
+// moduleDeclaration is every module switch's: on or off, which a workspace switches itself while
+// the installation or its plan leaves it open (UC-INS-21).
+var moduleDeclaration = identity.ValueDeclaration{Kind: identity.KindFlag, May: identity.MayReplace}
 
 // instanceLevelOutput is the projection the control plane reads and writes back.
 //
@@ -90,7 +96,14 @@ func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 		place(ai, string(name), entryOf(declaration, value != "", value, level.Ai.Locks[name]))
 	}
 
+	modules := usecase.Output{}
+	for _, key := range module.Keys() {
+		decision, decided := level.Modules[key]
+		place(modules, key.Name(), entryOf(moduleDeclaration, decided, decision.On, decision.Locked))
+	}
+
 	out := usecase.Output{
+		areaModule:              modules,
 		areaSignIn:              signIn,
 		areaLegal:               legal,
 		areaLocalisation:        localisation,
@@ -244,10 +257,11 @@ func InstanceLevelOf(document map[string]any) (identityrepo.InstanceLevel, error
 // does not decide, in every area alike, and its lock goes with it: a lock on nothing is nothing.
 func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 	level := identityrepo.InstanceLevel{
-		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
-		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
-		Quotas: identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
-		Ai:     integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
+		Policy:  identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
+		Legal:   identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
+		Quotas:  identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
+		Ai:      integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
+		Modules: module.Decisions{},
 	}
 
 	readers := []struct {
@@ -314,6 +328,15 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 			if locked {
 				level.Ai.Locks[integration.AiSwitch(name)] = true
 			}
+			return nil
+		}},
+		{areaModule, func(name string) (identity.ValueDeclaration, bool) {
+			_, known := module.OfName(name)
+			return moduleDeclaration, known
+		}, func(name string, value any, locked bool) error {
+			key, _ := module.OfName(name)
+			on, _ := value.(bool)
+			level.Modules[key] = module.Decision{On: on, Locked: locked}
 			return nil
 		}},
 	}

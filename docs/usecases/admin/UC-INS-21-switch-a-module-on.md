@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/application/service/setting/Modules_test.go]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/admin/InstanceModules_test.go]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan
@@ -60,5 +60,5 @@ administrator sees the lock and who set it.
 * Check 2: not met — the switch exists on REST, MCP and automation (`SetModule`); the
   administration has no *Modules* section yet (the suite plan, S-02 remainder).
 * Check 4: not met — no screen asks before switching off; the switch itself deletes nothing.
-* Check 6: not met — a plan's and the installation's lock resolve and refuse with their origin, but
-  the plan and instance documents take no `module` area yet, and no screen draws the lock.
+* Check 6: not met — the installation's and a plan's documents take a `module` area, and their locks
+  resolve and refuse with their origin; no screen draws the lock yet.

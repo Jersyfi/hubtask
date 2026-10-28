@@ -290,7 +290,7 @@ func enforcedFromFile(level identityrepo.InstanceLevel) error {
 }
 
 func aboveOf(level identityrepo.InstanceLevel) plan.Above {
-	return plan.Above{Policy: level.Policy, Legal: level.Legal, Quotas: level.Quotas, Ai: level.Ai}
+	return plan.Above{Policy: level.Policy, Legal: level.Legal, Quotas: level.Quotas, Ai: level.Ai, Modules: level.Modules}
 }
 
 // record writes the journal entry. The short name is an identifier; the display name is the
@@ -343,7 +343,8 @@ func planCommandFrom(in usecase.Input) (PlanCommand, error) {
 	return PlanCommand{
 		Name: in.String("name"), DisplayName: in.String("display_name"),
 		Values: plan.Values{
-			Policy: level.Policy, Legal: level.Legal, Quotas: level.Quotas, Ai: level.Ai, LeftOut: features,
+			Policy: level.Policy, Legal: level.Legal, Quotas: level.Quotas, Ai: level.Ai,
+			Modules: level.Modules, LeftOut: features,
 		},
 	}, nil
 }
@@ -355,6 +356,7 @@ func planOutput(view PlanView) usecase.Output {
 	// A plan's own document describes no lock on the account link: nothing below a plan sets one.
 	out := levelOutput(identityrepo.InstanceLevel{
 		Policy: held.Values.Policy, Legal: held.Values.Legal, Quotas: held.Values.Quotas, Ai: held.Values.Ai,
+		Modules: held.Values.Modules,
 	}, false)
 	for _, levelOnly := range []string{areaLocalisation, "source", "is_enforced_from_file", "blocklist_file", "metering", "reserved_short_names"} {
 		delete(out, levelOnly)
@@ -385,6 +387,8 @@ var planValueFields = []usecase.Field{
 		Description: "One ceiling per quota, each `{value, locked}`; 0 is unlimited."},
 	{Name: "ai", Kind: usecase.KindObject,
 		Description: "`sources`, `min_jurisdiction` and `person_opt_out`, each `{value, locked}`."},
+	{Name: "module", Kind: usecase.KindObject,
+		Description: "Modules by name (`planning`, `service_desk`, ...), each `{value, locked}`: on or off, and locked for every workspace on the plan."},
 	{Name: "left_out", Kind: usecase.KindList,
 		Description: "The features the plan leaves out: AUTOMATION_RULES, WEBHOOKS, OWN_SIGN_IN_PROVIDERS."},
 }

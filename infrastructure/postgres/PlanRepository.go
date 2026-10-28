@@ -19,6 +19,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/plan"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/infrastructure/postgres/sqlc"
@@ -282,7 +283,7 @@ func withSettings(ctx context.Context, queries *sqlc.Queries, plans []plan.Plan,
 		}
 		held.Values = plan.Values{
 			Policy: level.Policy, Legal: level.Legal, Quotas: level.Quotas, Ai: level.Ai,
-			LeftOut: orderedFeatures(leftOut[held.ID]),
+			Modules: level.Modules, LeftOut: orderedFeatures(leftOut[held.ID]),
 		}
 	}
 	return nil
@@ -311,10 +312,11 @@ func orderedFeatures(features []plan.Feature) []plan.Feature { return entitlemen
 
 func emptyLevel() *identityrepo.InstanceLevel {
 	return &identityrepo.InstanceLevel{
-		Policy: identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
-		Legal:  identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
-		Quotas: identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
-		Ai:     integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
+		Policy:  identity.PolicyLayer{Locks: map[identity.PolicySwitch]bool{}},
+		Legal:   identity.LegalLayer{Locks: map[identity.LegalLink]bool{}},
+		Quotas:  identity.QuotaDefaults{Limits: map[string]int64{}, Locks: map[string]bool{}},
+		Ai:      integration.AiLayer{Locks: map[integration.AiSwitch]bool{}},
+		Modules: module.Decisions{},
 	}
 }
 
@@ -323,6 +325,7 @@ func emptyLevel() *identityrepo.InstanceLevel {
 func writeSettings(ctx context.Context, queries *sqlc.Queries, id pgtype.UUID, values plan.Values) error {
 	rows, err := rowsOf(identityrepo.InstanceLevel{
 		Policy: values.Policy, Legal: values.Legal, Quotas: values.Quotas, Ai: values.Ai,
+		Modules: values.Modules,
 	})
 	if err != nil {
 		return err
