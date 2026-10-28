@@ -1726,6 +1726,7 @@ func run() error {
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
+		settingservice.ReadSettingsCatalogue{}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,

@@ -2306,22 +2306,22 @@ func (e InstanceSettingKind) Valid() bool {
 
 // Defines values for InstanceSettingWorkspaceMay.
 const (
-	PLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
-	RAISE       InstanceSettingWorkspaceMay = "RAISE"
-	REPLACE     InstanceSettingWorkspaceMay = "REPLACE"
-	TIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
+	InstanceSettingWorkspaceMayPLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
+	InstanceSettingWorkspaceMayRAISE       InstanceSettingWorkspaceMay = "RAISE"
+	InstanceSettingWorkspaceMayREPLACE     InstanceSettingWorkspaceMay = "REPLACE"
+	InstanceSettingWorkspaceMayTIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
 )
 
 // Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
 func (e InstanceSettingWorkspaceMay) Valid() bool {
 	switch e {
-	case PLANREPLACE:
+	case InstanceSettingWorkspaceMayPLANREPLACE:
 		return true
-	case RAISE:
+	case InstanceSettingWorkspaceMayRAISE:
 		return true
-	case REPLACE:
+	case InstanceSettingWorkspaceMayREPLACE:
 		return true
-	case TIGHTEN:
+	case InstanceSettingWorkspaceMayTIGHTEN:
 		return true
 	default:
 		return false
@@ -4542,6 +4542,69 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingDefinitionMay.
+const (
+	SettingDefinitionMayPLANREPLACE SettingDefinitionMay = "PLAN_REPLACE"
+	SettingDefinitionMayRAISE       SettingDefinitionMay = "RAISE"
+	SettingDefinitionMayREPLACE     SettingDefinitionMay = "REPLACE"
+	SettingDefinitionMayTIGHTEN     SettingDefinitionMay = "TIGHTEN"
+)
+
+// Valid indicates whether the value is a known member of the SettingDefinitionMay enum.
+func (e SettingDefinitionMay) Valid() bool {
+	switch e {
+	case SettingDefinitionMayPLANREPLACE:
+		return true
+	case SettingDefinitionMayRAISE:
+		return true
+	case SettingDefinitionMayREPLACE:
+		return true
+	case SettingDefinitionMayTIGHTEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingKind.
+const (
+	SettingKindCHOICE    SettingKind = "CHOICE"
+	SettingKindCHOICES   SettingKind = "CHOICES"
+	SettingKindCOUNT     SettingKind = "COUNT"
+	SettingKindFLAG      SettingKind = "FLAG"
+	SettingKindLINK      SettingKind = "LINK"
+	SettingKindLOCALE    SettingKind = "LOCALE"
+	SettingKindSTRUCTURE SettingKind = "STRUCTURE"
+	SettingKindTEXT      SettingKind = "TEXT"
+	SettingKindTIMEZONE  SettingKind = "TIME_ZONE"
+)
+
+// Valid indicates whether the value is a known member of the SettingKind enum.
+func (e SettingKind) Valid() bool {
+	switch e {
+	case SettingKindCHOICE:
+		return true
+	case SettingKindCHOICES:
+		return true
+	case SettingKindCOUNT:
+		return true
+	case SettingKindFLAG:
+		return true
+	case SettingKindLINK:
+		return true
+	case SettingKindLOCALE:
+		return true
+	case SettingKindSTRUCTURE:
+		return true
+	case SettingKindTEXT:
+		return true
+	case SettingKindTIMEZONE:
 		return true
 	default:
 		return false
@@ -11678,8 +11741,52 @@ type SessionTokens struct {
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
 
+// SettingDefinition defines model for SettingDefinition.
+type SettingDefinition struct {
+	// Key The setting's stable name, area and switch dotted - `sign_in.min_length`.
+	Key string `json:"key"`
+
+	// Kind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+	Kind SettingKind `json:"kind"`
+
+	// Levels The levels that may decide it, top-down; Hubtask's own default is implied.
+	Levels   []SettingSource `json:"levels"`
+	Lockable bool            `json:"lockable"`
+	Maximum  *int            `json:"maximum,omitempty"`
+
+	// May What an open setting leaves the level below; absent where it is a default only.
+	May     *SettingDefinitionMay `json:"may,omitempty"`
+	Minimum *int                  `json:"minimum,omitempty"`
+
+	// Options A choice's closed set, from the loosest to the strictest.
+	Options *[]string `json:"options,omitempty"`
+
+	// Preview The `operationId` that answers, before a save, what a change reaches; absent where a change reaches nothing beyond the value itself.
+	Preview      *string `json:"preview,omitempty"`
+	Restrictable bool    `json:"restrictable"`
+
+	// Writers The permission, or the operator's scope, a writer needs at each level.
+	Writers []struct {
+		// Level The level a value in force comes from; `DEFAULT` is Hubtask's own.
+		Level      SettingSource `json:"level"`
+		Permission string        `json:"permission"`
+	} `json:"writers"`
+}
+
+// SettingDefinitionMay What an open setting leaves the level below; absent where it is a default only.
+type SettingDefinitionMay string
+
+// SettingKind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+type SettingKind string
+
 // SettingSource The level a value in force comes from; `DEFAULT` is Hubtask's own.
 type SettingSource string
+
+// SettingsCatalogue defines model for SettingsCatalogue.
+type SettingsCatalogue struct {
+	// Settings Every setting, in the order a settings screen draws them.
+	Settings []SettingDefinition `json:"settings"`
+}
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
@@ -16417,6 +16524,9 @@ type ServerInterface interface {
 	// ReindexSearch Bring the workspace's search documents current
 	// (POST /search:reindex)
 	ReindexSearch(w http.ResponseWriter, r *http.Request)
+	// ReadSettingsCatalogue Every setting the product declares
+	// (GET /settings/catalogue)
+	ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request)
 	// StreamChanges The change stream, as server-sent events
 	// (GET /stream)
 	StreamChanges(w http.ResponseWriter, r *http.Request, params StreamChangesParams)
@@ -28793,6 +28903,20 @@ func (siw *ServerInterfaceWrapper) ReindexSearch(w http.ResponseWriter, r *http.
 	handler.ServeHTTP(w, r)
 }
 
+// ReadSettingsCatalogue operation middleware
+func (siw *ServerInterfaceWrapper) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReadSettingsCatalogue(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // StreamChanges operation middleware
 func (siw *ServerInterfaceWrapper) StreamChanges(w http.ResponseWriter, r *http.Request) {
 
@@ -30514,6 +30638,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/settings/catalogue", wrapper.ReadSettingsCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)

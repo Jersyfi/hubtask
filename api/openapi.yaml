@@ -8820,6 +8820,29 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /settings/catalogue:
+    get:
+      tags: [meta]
+      operationId: readSettingsCatalogue
+      summary: Every setting the product declares
+      description: >
+        The one catalogue of settings: for every setting its key, the shape of its value, its
+        bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`,
+        `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer
+        needs at each level, and the operation that previews a change of it, where one does. It
+        holds no value of any place: a place's values are read where they are written. A client
+        draws settings screens, the settings search and the configuration file's sections from it.
+        Needs a signed-in caller.
+      responses:
+        "200":
+          description: The catalogue
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsCatalogue"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /tenant/modules:
     get:
       tags: [meta]
@@ -15384,6 +15407,59 @@ components:
       type: string
       description: The level a value in force comes from; `DEFAULT` is Hubtask's own.
       enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE, HUB, COLLECTION, PERSON]
+
+    SettingKind:
+      type: string
+      description: The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+      enum: [COUNT, FLAG, CHOICE, CHOICES, LINK, TEXT, LOCALE, TIME_ZONE, STRUCTURE]
+
+    SettingDefinition:
+      type: object
+      required: [key, kind, levels, lockable, restrictable, writers]
+      properties:
+        key:
+          type: string
+          description: The setting's stable name, area and switch dotted - `sign_in.min_length`.
+        kind: { $ref: "#/components/schemas/SettingKind" }
+        options:
+          type: array
+          items: { type: string }
+          description: A choice's closed set, from the loosest to the strictest.
+        minimum: { type: integer }
+        maximum: { type: integer }
+        levels:
+          type: array
+          description: The levels that may decide it, top-down; Hubtask's own default is implied.
+          items: { $ref: "#/components/schemas/SettingSource" }
+        lockable: { type: boolean }
+        restrictable: { type: boolean }
+        may:
+          type: string
+          description: What an open setting leaves the level below; absent where it is a default only.
+          enum: [TIGHTEN, RAISE, REPLACE, PLAN_REPLACE]
+        writers:
+          type: array
+          description: The permission, or the operator's scope, a writer needs at each level.
+          items:
+            type: object
+            required: [level, permission]
+            properties:
+              level: { $ref: "#/components/schemas/SettingSource" }
+              permission: { type: string }
+        preview:
+          type: string
+          description: >
+            The `operationId` that answers, before a save, what a change reaches; absent where a
+            change reaches nothing beyond the value itself.
+
+    SettingsCatalogue:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          type: array
+          description: Every setting, in the order a settings screen draws them.
+          items: { $ref: "#/components/schemas/SettingDefinition" }
 
     ModuleState:
       type: object

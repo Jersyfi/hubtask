@@ -2312,22 +2312,22 @@ func (e InstanceSettingKind) Valid() bool {
 
 // Defines values for InstanceSettingWorkspaceMay.
 const (
-	PLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
-	RAISE       InstanceSettingWorkspaceMay = "RAISE"
-	REPLACE     InstanceSettingWorkspaceMay = "REPLACE"
-	TIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
+	InstanceSettingWorkspaceMayPLANREPLACE InstanceSettingWorkspaceMay = "PLAN_REPLACE"
+	InstanceSettingWorkspaceMayRAISE       InstanceSettingWorkspaceMay = "RAISE"
+	InstanceSettingWorkspaceMayREPLACE     InstanceSettingWorkspaceMay = "REPLACE"
+	InstanceSettingWorkspaceMayTIGHTEN     InstanceSettingWorkspaceMay = "TIGHTEN"
 )
 
 // Valid indicates whether the value is a known member of the InstanceSettingWorkspaceMay enum.
 func (e InstanceSettingWorkspaceMay) Valid() bool {
 	switch e {
-	case PLANREPLACE:
+	case InstanceSettingWorkspaceMayPLANREPLACE:
 		return true
-	case RAISE:
+	case InstanceSettingWorkspaceMayRAISE:
 		return true
-	case REPLACE:
+	case InstanceSettingWorkspaceMayREPLACE:
 		return true
-	case TIGHTEN:
+	case InstanceSettingWorkspaceMayTIGHTEN:
 		return true
 	default:
 		return false
@@ -4548,6 +4548,69 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingDefinitionMay.
+const (
+	SettingDefinitionMayPLANREPLACE SettingDefinitionMay = "PLAN_REPLACE"
+	SettingDefinitionMayRAISE       SettingDefinitionMay = "RAISE"
+	SettingDefinitionMayREPLACE     SettingDefinitionMay = "REPLACE"
+	SettingDefinitionMayTIGHTEN     SettingDefinitionMay = "TIGHTEN"
+)
+
+// Valid indicates whether the value is a known member of the SettingDefinitionMay enum.
+func (e SettingDefinitionMay) Valid() bool {
+	switch e {
+	case SettingDefinitionMayPLANREPLACE:
+		return true
+	case SettingDefinitionMayRAISE:
+		return true
+	case SettingDefinitionMayREPLACE:
+		return true
+	case SettingDefinitionMayTIGHTEN:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingKind.
+const (
+	SettingKindCHOICE    SettingKind = "CHOICE"
+	SettingKindCHOICES   SettingKind = "CHOICES"
+	SettingKindCOUNT     SettingKind = "COUNT"
+	SettingKindFLAG      SettingKind = "FLAG"
+	SettingKindLINK      SettingKind = "LINK"
+	SettingKindLOCALE    SettingKind = "LOCALE"
+	SettingKindSTRUCTURE SettingKind = "STRUCTURE"
+	SettingKindTEXT      SettingKind = "TEXT"
+	SettingKindTIMEZONE  SettingKind = "TIME_ZONE"
+)
+
+// Valid indicates whether the value is a known member of the SettingKind enum.
+func (e SettingKind) Valid() bool {
+	switch e {
+	case SettingKindCHOICE:
+		return true
+	case SettingKindCHOICES:
+		return true
+	case SettingKindCOUNT:
+		return true
+	case SettingKindFLAG:
+		return true
+	case SettingKindLINK:
+		return true
+	case SettingKindLOCALE:
+		return true
+	case SettingKindSTRUCTURE:
+		return true
+	case SettingKindTEXT:
+		return true
+	case SettingKindTIMEZONE:
 		return true
 	default:
 		return false
@@ -11684,8 +11747,52 @@ type SessionTokens struct {
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
 
+// SettingDefinition defines model for SettingDefinition.
+type SettingDefinition struct {
+	// Key The setting's stable name, area and switch dotted - `sign_in.min_length`.
+	Key string `json:"key"`
+
+	// Kind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+	Kind SettingKind `json:"kind"`
+
+	// Levels The levels that may decide it, top-down; Hubtask's own default is implied.
+	Levels   []SettingSource `json:"levels"`
+	Lockable bool            `json:"lockable"`
+	Maximum  *int            `json:"maximum,omitempty"`
+
+	// May What an open setting leaves the level below; absent where it is a default only.
+	May     *SettingDefinitionMay `json:"may,omitempty"`
+	Minimum *int                  `json:"minimum,omitempty"`
+
+	// Options A choice's closed set, from the loosest to the strictest.
+	Options *[]string `json:"options,omitempty"`
+
+	// Preview The `operationId` that answers, before a save, what a change reaches; absent where a change reaches nothing beyond the value itself.
+	Preview      *string `json:"preview,omitempty"`
+	Restrictable bool    `json:"restrictable"`
+
+	// Writers The permission, or the operator's scope, a writer needs at each level.
+	Writers []struct {
+		// Level The level a value in force comes from; `DEFAULT` is Hubtask's own.
+		Level      SettingSource `json:"level"`
+		Permission string        `json:"permission"`
+	} `json:"writers"`
+}
+
+// SettingDefinitionMay What an open setting leaves the level below; absent where it is a default only.
+type SettingDefinitionMay string
+
+// SettingKind The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
+type SettingKind string
+
 // SettingSource The level a value in force comes from; `DEFAULT` is Hubtask's own.
 type SettingSource string
+
+// SettingsCatalogue defines model for SettingsCatalogue.
+type SettingsCatalogue struct {
+	// Settings Every setting, in the order a settings screen draws them.
+	Settings []SettingDefinition `json:"settings"`
+}
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
@@ -20434,6 +20541,13 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /search:reindex (the `ReindexSearch` operationId).
 	ReindexSearch(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ReadSettingsCatalogue Every setting the product declares
+	//
+	// The one catalogue of settings: for every setting its key, the shape of its value, its bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer needs at each level, and the operation that previews a change of it, where one does. It holds no value of any place: a place's values are read where they are written. A client draws settings screens, the settings search and the configuration file's sections from it. Needs a signed-in caller.
+	//
+	// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
+	ReadSettingsCatalogue(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// StreamChanges The change stream, as server-sent events
 	//
@@ -31129,6 +31243,23 @@ func (c *Client) SearchItems(ctx context.Context, body SearchItemsJSONRequestBod
 // Corresponds with POST /search:reindex (the `ReindexSearch` operationId).
 func (c *Client) ReindexSearch(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewReindexSearchRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ReadSettingsCatalogue Every setting the product declares
+//
+// The one catalogue of settings: for every setting its key, the shape of its value, its bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer needs at each level, and the operation that previews a change of it, where one does. It holds no value of any place: a place's values are read where they are written. A client draws settings screens, the settings search and the configuration file's sections from it. Needs a signed-in caller.
+//
+// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
+func (c *Client) ReadSettingsCatalogue(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewReadSettingsCatalogueRequest(c.Server)
 	if err != nil {
 		return nil, err
 	}
@@ -48995,6 +49126,33 @@ func NewReindexSearchRequest(server string) (*http.Request, error) {
 	return req, nil
 }
 
+// NewReadSettingsCatalogueRequest constructs an http.Request for the ReadSettingsCatalogue method
+func NewReadSettingsCatalogueRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/settings/catalogue")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewStreamChangesRequest constructs an http.Request for the StreamChanges method
 func NewStreamChangesRequest(server string, params *StreamChangesParams) (*http.Request, error) {
 	var err error
@@ -56293,6 +56451,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /search:reindex (the `ReindexSearch` operationId).
 	ReindexSearchWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReindexSearchResult, error)
+
+	// ReadSettingsCatalogueWithResponse Every setting the product declares
+	//
+	// The one catalogue of settings: for every setting its key, the shape of its value, its bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer needs at each level, and the operation that previews a change of it, where one does. It holds no value of any place: a place's values are read where they are written. A client draws settings screens, the settings search and the configuration file's sections from it. Needs a signed-in caller.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
+	ReadSettingsCatalogueWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadSettingsCatalogueResult, error)
 
 	// StreamChangesWithResponse The change stream, as server-sent events
 	//
@@ -74333,6 +74500,54 @@ func (r ReindexSearchResult) ContentType() string {
 	return ""
 }
 
+type ReadSettingsCatalogueResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *SettingsCatalogue
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ReadSettingsCatalogueResult) GetJSON200() *SettingsCatalogue {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ReadSettingsCatalogueResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ReadSettingsCatalogueResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ReadSettingsCatalogueResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ReadSettingsCatalogueResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ReadSettingsCatalogueResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 // StreamChangesResult503Headers the declared response headers of an HTTP 503 response for StreamChanges
 type StreamChangesResult503Headers struct {
 	RetryAfter *int
@@ -84703,6 +84918,21 @@ func (c *ClientWithResponses) ReindexSearchWithResponse(ctx context.Context, req
 		return nil, err
 	}
 	return ParseReindexSearchResult(rsp)
+}
+
+// ReadSettingsCatalogueWithResponse Every setting the product declares
+//
+// The one catalogue of settings: for every setting its key, the shape of its value, its bounds or options, the levels that may decide it (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`, `PERSON`), whether a level may lock or restrict it, the permission a writer needs at each level, and the operation that previews a change of it, where one does. It holds no value of any place: a place's values are read where they are written. A client draws settings screens, the settings search and the configuration file's sections from it. Needs a signed-in caller.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /settings/catalogue (the `ReadSettingsCatalogue` operationId).
+func (c *ClientWithResponses) ReadSettingsCatalogueWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ReadSettingsCatalogueResult, error) {
+	rsp, err := c.ReadSettingsCatalogue(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseReadSettingsCatalogueResult(rsp)
 }
 
 // StreamChangesWithResponse The change stream, as server-sent events
@@ -98189,6 +98419,39 @@ func ParseReindexSearchResult(rsp *http.Response) (*ReindexSearchResult, error) 
 			return nil, err
 		}
 		response.ApplicationproblemJSON403 = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseReadSettingsCatalogueResult parses an HTTP response from a ReadSettingsCatalogueWithResponse call
+func ParseReadSettingsCatalogueResult(rsp *http.Response) (*ReadSettingsCatalogueResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ReadSettingsCatalogueResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest SettingsCatalogue
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
 
 	}
 

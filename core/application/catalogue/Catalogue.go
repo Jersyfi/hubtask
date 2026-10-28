@@ -52,6 +52,7 @@ func Descriptors() []usecase.Descriptor {
 	return []usecase.Descriptor{
 		settingservice.ListModules{}.Descriptor(),
 		settingservice.SetModule{}.Descriptor(),
+		settingservice.ReadSettingsCatalogue{}.Descriptor(),
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
 		work.UpdateWorkItem{}.Descriptor(),

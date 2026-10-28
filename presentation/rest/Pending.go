@@ -1697,3 +1697,7 @@ func (pending) ListModules(w http.ResponseWriter, r *http.Request, _ openapi.Lis
 func (pending) SetModule(w http.ResponseWriter, r *http.Request, _ openapi.Module) {
 	notAvailable(w, r)
 }
+
+func (pending) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
+	notAvailable(w, r)
+}

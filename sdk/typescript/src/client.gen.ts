@@ -1642,6 +1642,11 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Every setting the product declares */
+  readSettingsCatalogue(options: CallOptions = {}): Promise<operations["readSettingsCatalogue"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/settings/catalogue", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
   /** The modules of the suite at the workspace or one hub */
   listModules(options: CallOptions & { readonly query?: NonNullable<operations["listModules"]['parameters']['query']> } = {}): Promise<operations["listModules"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/modules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);

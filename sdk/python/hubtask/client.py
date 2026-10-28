@@ -1303,6 +1303,10 @@ class Client:
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def read_settings_catalogue(self) -> "SettingsCatalogue":
+        """Every setting the product declares"""
+        return self._call("GET", "/settings/catalogue", {}, None, {}, None, "none", None, "json")
+
     def list_modules(self, *, query: dict[str, Any] | None = None) -> "ModuleList":
         """The modules of the suite at the workspace or one hub"""
         return self._call("GET", "/tenant/modules", {}, query, {}, None, "none", None, "json")

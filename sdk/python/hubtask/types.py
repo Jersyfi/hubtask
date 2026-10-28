@@ -1144,6 +1144,24 @@ Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DE
 
 SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
 
+SettingKind = Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE", "STRUCTURE"]
+
+class SettingDefinition(TypedDict, total=False):
+    key: Required[str]
+    kind: Required["SettingKind"]
+    options: list[str]
+    minimum: int
+    maximum: int
+    levels: Required[list["SettingSource"]]
+    lockable: Required[bool]
+    restrictable: Required[bool]
+    may: Literal["TIGHTEN", "RAISE", "REPLACE", "PLAN_REPLACE"]
+    writers: Required[list[dict[str, Any]]]
+    preview: str
+
+class SettingsCatalogue(TypedDict, total=False):
+    settings: Required[list["SettingDefinition"]]
+
 class ModuleState(TypedDict, total=False):
     module: Required["Module"]
     on: Required[bool]
