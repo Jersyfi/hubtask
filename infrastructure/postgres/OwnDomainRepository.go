@@ -29,6 +29,7 @@ var (
 	_ repository.OwnDomains     = OwnDomainRepository{}
 	_ repository.OwnDomainDoors = OwnDomainRepository{}
 	_ repository.BrowserHosts   = OwnDomainRepository{}
+	_ repository.MainAddresses  = OwnDomainRepository{}
 )
 
 func ownDomainFailed(what string, err error) error {
@@ -326,6 +327,18 @@ func (OwnDomainRepository) BrowserHost(ctx context.Context, host string) (string
 	main, err := queries.BrowserHost(ctx, host)
 	if err != nil {
 		return "", ownDomainFailed("reading where a browser is sent", err)
+	}
+	return main, nil
+}
+
+func (OwnDomainRepository) IsMainHost(ctx context.Context, host string) (bool, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return false, err
+	}
+	main, err := queries.IsMainHost(ctx, host)
+	if err != nil {
+		return false, ownDomainFailed("reading whether a host is a main address", err)
 	}
 	return main, nil
 }

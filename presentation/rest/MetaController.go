@@ -289,6 +289,11 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		hosts := openapi.CapabilitiesWorkspaceHosts(source.WorkspaceHosts)
 		workspaceHosts = &hosts
 	}
+	var installationURL *string
+	if source.InstallationURL != "" {
+		address := source.InstallationURL
+		installationURL = &address
+	}
 	features := source.Features
 
 	// The four links, absent rather than empty where the installation set none: a private
@@ -334,6 +339,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		ApiVersion:             &apiVersion,
 		TenancyMode:            &tenancy,
 		WorkspaceHosts:         workspaceHosts,
+		InstallationUrl:        installationURL,
 		ItemTypes:              &itemTypes,
 		QueryFields:            &queryFields,
 		ViewLayouts:            &viewLayouts,

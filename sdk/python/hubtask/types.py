@@ -287,6 +287,24 @@ class OidcLocate(TypedDict, total=False):
     """The state a provider's return carried."""
     state: Required[str]
 
+class DeviceListEntry(TypedDict, total=False):
+    """One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else."""
+    entry: Required[str]
+    host: Required[str]
+    display_name: Required[str]
+
+class DeviceListCheck(TypedDict, total=False):
+    entries: Required[list[str]]
+
+class DeviceListChecked(TypedDict, total=False):
+    entries: Required[list["DeviceListEntryState"]]
+
+class DeviceListEntryState(TypedDict, total=False):
+    entry: Required[str]
+    host: Required[str]
+    display_name: Required[str]
+    answers: Required[bool]
+
 class OidcLocated(TypedDict, total=False):
     base_url: Required[str]
 
@@ -3450,6 +3468,7 @@ class Capabilities(TypedDict, total=False):
     product_version: str
     api_version: str
     tenancy_mode: Literal["single", "multi"]
+    installation_url: str
     workspace_hosts: Literal["subdomain", "assigned"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]

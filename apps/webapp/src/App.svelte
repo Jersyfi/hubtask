@@ -19,6 +19,7 @@
   import { manifest } from './lib/data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from './lib/data/capability.svelte.ts';
   import { live } from './lib/data/live.svelte.ts';
+  import { deviceList } from './lib/data/devicelist.svelte.ts';
   import { platform } from './lib/platform/index.ts';
   import { session } from './lib/session.svelte.ts';
   import AdministrationOverviewView from './views/AdministrationOverviewView.svelte';
@@ -28,6 +29,7 @@ import ContainerView from './views/ContainerView.svelte';
   import ItemView from './views/ItemView.svelte';
   import JumbleView from './views/JumbleView.svelte';
   import InstallationView from './views/InstallationView.svelte';
+  import YourWorkspacesView from './views/YourWorkspacesView.svelte';
   import InstanceEncryptionView from './views/InstanceEncryptionView.svelte';
   import InstanceJournalView from './views/InstanceJournalView.svelte';
   import InstanceOperatorsView from './views/InstanceOperatorsView.svelte';
@@ -174,6 +176,19 @@ import ContainerView from './views/ContainerView.svelte';
   });
 
   /**
+   * After a sign-in in multi mode, the workspace's entry goes once to the installation's own
+   * address, where the device keeps its list of workspaces, and the browser comes back here
+   * (UC-ID-25 check 1, ADR-0095 §7). Once the account has arrived, so the path it comes back to is
+   * the one the sign-in went on to, and once the manifest is read, which says whether there is a
+   * list at all - in single mode the sign-in is taken and nothing happens (check 8).
+   */
+  $effect(() => {
+    if (!session.isSignedIn || !session.isFreshSignIn || !actor.account || !manifest.isRead) return;
+    session.takeFreshSignIn();
+    void deviceList.rememberHere(location.pathname + location.search);
+  });
+
+  /**
    * The one stream this tab keeps, opened once there is a credential to open it with and an
    * account to hold the copy for - the replica is one store per account, so the stream
    * waits for `/accounts/me` rather than for the bearer alone.
@@ -234,6 +249,14 @@ import ContainerView from './views/ContainerView.svelte';
     <!-- A fresh installation: nothing to sign in to yet, so the first start's setup takes the
          sign-in card's place until the first workspace exists (UC-INS-01). -->
     <SetupView onnavigate={(path) => router.navigate(path)} />
+  {:else if deviceList.isHome}
+    <!-- The installation's own address in multi mode, signed out: the device's list of workspaces
+         and no sign-in card - no workspace answers here, and no field looks one up (UC-ID-25
+         check 3, Decision 7). -->
+    <YourWorkspacesView />
+  {:else if deviceList.mayBeHome}
+    <!-- A redirect to the list's home, before the manifest said whether this is it: nothing drawn,
+         so the redirect there and back stays invisible. -->
   {:else}
     <SignInView />
   {/if}

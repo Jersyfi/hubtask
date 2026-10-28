@@ -5,6 +5,17 @@ import { IndexedDbStorage, databaseNameFor } from '@hubtask/sync-engine';
 
 import type { Platform } from './index.ts';
 import { browserStorage, tokenStore } from './tokenStore.ts';
+import {
+  HOP_PATH,
+  addressOf,
+  entryList,
+  handoverFragment,
+  hopFragment,
+  readHandover,
+  readHop,
+  type DeviceWorkspaces,
+  type ListStorage,
+} from './workspaces.ts';
 
 /**
  * The browser: the primary target (ADR-0033), and the one with the narrowest promises — offline
@@ -39,6 +50,55 @@ function browserName(): string {
     : undefined;
   return system ? `${browser} on ${system}` : browser;
 }
+
+/**
+ * The device's list of workspaces in the browser (`workspaces.ts`). `localStorage`, not the tab's
+ * `sessionStorage`: the list is what this browser remembers, and it holds no credential.
+ */
+function localList(): ListStorage | undefined {
+  try {
+    return globalThis.localStorage;
+  } catch {
+    return undefined;
+  }
+}
+const list = entryList(localList());
+
+/** Drops a fragment once read: replaced rather than pushed, so Back does not bring it back. */
+function dropFragment(): void {
+  history.replaceState(history.state, '', location.pathname + location.search);
+}
+
+// A workspace's address arrived at from the list's home takes the copy handed over with it.
+// (A module a test imports outside a page has no address to read.)
+const handedOver = typeof location === 'undefined' ? undefined : readHandover(location.hash);
+if (handedOver !== undefined) {
+  list.replace(handedOver);
+  dropFragment();
+}
+
+const workspaces: DeviceWorkspaces = {
+  list: () => list.all(),
+  drop: (entry) => list.drop(entry),
+  keep: (entry) => list.keep(entry),
+  // Replaced, not pushed: the redirect there and back is invisible (UC-ID-25, the approved preview),
+  // and Back from the workspace must not land on it.
+  remember: (entry, installation, path) =>
+    location.replace(`${installation}${HOP_PATH}${hopFragment({ kind: 'add', entry, path })}`),
+  forget: (host, installation, back, path) => {
+    list.forget(host);
+    if (back !== undefined) location.replace(`${installation}${HOP_PATH}${hopFragment({ kind: 'forget', host, back, path })}`);
+  },
+  open: (host, installation) => location.assign(`${installation}${HOP_PATH}${hopFragment({ kind: 'open', host })}`),
+  takeHop: () => {
+    if (location.pathname !== HOP_PATH) return undefined;
+    const hop = readHop(location.hash);
+    dropFragment();
+    return hop;
+  },
+  leave: (host, path) =>
+    location.replace(`${addressOf(host, location)}${path}${handoverFragment(list.all().map((each) => each.entry))}`),
+};
 
 export const platform: Platform = {
   target: 'browser',
@@ -89,6 +149,8 @@ export const platform: Platform = {
   lastAccount: () => store.readAccount(),
 
   deviceName: browserName,
+
+  workspaces,
 
   saveFile: (bytes, fileName) => {
     const url = URL.createObjectURL(bytes);

@@ -42,18 +42,17 @@
    * out - which is the last row and stands alone (ADR-0065 decision 5).
    *
    * Both rules are about the *shape* of the list rather than about which row is which, so this
-   * component still knows no ids: a separator opens the first row that performs something rather
-   * than going somewhere, and another opens the last row, because the last thing a reader does in
-   * a session has nothing under it.
+   * component still knows no ids: a separator opens the row the list marks as starting the ways
+   * through (`startsBand`), and another opens the last row, because the last thing a reader does
+   * in a session has nothing under it.
    */
-  const firstAction = $derived(destinations.find((each) => each.target.kind === 'action')?.id);
   const items = $derived(
     destinations.map((destination, index) => ({
       id: destination.id,
       label: t(destination.code),
       icon: destination.icon,
       hasSeparatorBefore:
-        index > 0 && (destination.id === firstAction || index === destinations.length - 1),
+        index > 0 && (destination.startsBand === true || index === destinations.length - 1),
     })),
   );
 

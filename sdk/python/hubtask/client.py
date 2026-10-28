@@ -763,6 +763,10 @@ class Client:
         """Finish the sign-in with the code the provider issued"""
         return self._call("POST", "/auth/oidc:callback", {}, None, {}, body, "json", "application/json", "json")
 
+    def check_device_list(self, body: "DeviceListCheck") -> "DeviceListChecked":
+        """Which entries of the device's list still open a workspace"""
+        return self._call("POST", "/auth/device-list:check", {}, None, {}, body, "json", "application/json", "json")
+
     def locate_oidc_flow(self, body: "OidcLocate") -> "OidcLocated":
         """Where a provider's return belongs"""
         return self._call("POST", "/auth/oidc:locate", {}, None, {}, body, "json", "application/json", "json")
@@ -1082,6 +1086,10 @@ class Client:
     def acknowledge_address_notices(self) -> None:
         """Acknowledge the change of the workspace's address"""
         return self._call("POST", "/accounts/me/address-notices:acknowledge", {}, None, {}, None, "none", None, "void")
+
+    def issue_device_list_entry(self) -> "DeviceListEntry":
+        """This workspace's entry for the device's list of workspaces"""
+        return self._call("GET", "/tenant/device-list-entry", {}, None, {}, None, "none", None, "json")
 
     def set_up_own_domain(self, body: "OwnDomainSetUp") -> "OwnDomain":
         """The workspace's owner sets up an own domain"""

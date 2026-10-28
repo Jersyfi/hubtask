@@ -104,6 +104,18 @@ test('the administration row is offered only where the server says so', () => {
   assert.deepEqual(ids(false), ['profile', 'help', 'about', 'sign-out']);
 });
 
+test('Switch workspace is offered only where the device keeps a list, before the ways through (UC-ID-25 checks 2, 8)', () => {
+  const ids = (hasWorkspaceList: boolean) =>
+    account({ isAdministrationReachable: true, isInstanceReachable: false, hasWorkspaceList }).map((destination) => destination.id);
+  assert.deepEqual(ids(true), ['profile', 'administration', 'switch-workspace', 'help', 'about', 'sign-out']);
+  assert.ok(!ids(false).includes('switch-workspace'), 'single mode was offered a list of workspaces');
+  // The separator opens *Help*, not the switch: the switch belongs with the reader's own places.
+  const banded = account({ isAdministrationReachable: true, isInstanceReachable: false, hasWorkspaceList: true })
+    .filter((destination) => destination.startsBand)
+    .map((destination) => destination.id);
+  assert.deepEqual(banded, ['help']);
+});
+
 test('the instance row is offered only to an operator, and is absent rather than disabled', () => {
   // The level above the workspaces is drawn for an account in the operator register and for
   // nobody else. Absent, not greyed — somebody who is not an operator was never going to have it,

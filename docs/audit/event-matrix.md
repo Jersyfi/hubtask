@@ -422,6 +422,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
+| `` | CheckDeviceList | `` |  | When refused |
 | `` | CheckPassword | `` |  | When refused |
 | `` | GetImport | `` |  | When refused |
 | `` | GetSignInRules | `` |  | When refused |
@@ -616,6 +617,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | Action | Use case | Target | Severity | Recorded |
 |---|---|---|---|---|
 | `workspace.changed` | UpdateWorkspace | `workspace` | NOTICE | Every time |
+| `workspace.device_list_entry_read` | IssueDeviceListEntry | `workspace` | INFO | When refused |
 | `workspace.read` | ReadWorkspace | `workspace` | INFO | When refused |
 | `workspace.starter_closed` | CloseStarter | `workspace` | INFO | Every time |
 | `workspace.structure_updated` | SetWorkspaceStructure | `workspace` | INFO | Every time |

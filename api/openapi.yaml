@@ -5041,6 +5041,34 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /auth/device-list:check:
+    post:
+      tags: [auth]
+      operationId: checkDeviceList
+      security: []
+      summary: Which entries of the device's list still open a workspace
+      description: >
+        The installation's own address keeps the device's list of workspaces and asks this before
+        it adds an entry and whenever it shows the list. An entry this installation did not sign
+        is left out of the answer - so the answer never names a workspace for a host nobody was
+        handed - and one it signed says whether its host is still a workspace's main address.
+        Reads and writes nothing else; in single-tenant operation every entry is left out.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeviceListCheck"
+      responses:
+        "200":
+          description: The entries this installation signed, each with whether it still answers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceListChecked"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /auth/oidc:locate:
     post:
       tags: [auth]
@@ -7183,6 +7211,28 @@ paths:
       responses:
         "204":
           description: Acknowledged
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /tenant/device-list-entry:
+    get:
+      tags: [identity]
+      operationId: issueDeviceListEntry
+      summary: This workspace's entry for the device's list of workspaces
+      description: >
+        In multi-tenant operation, after a person signs in, the browser carries this entry once to
+        the installation's own address, where the device keeps its list of workspaces: the
+        workspace's main address and its display name, signed by the installation, and nothing
+        else - no address of a person, no token. The installation's address takes an entry only
+        once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation
+        there is no list and this is refused with `access.device_list_not_offered`.
+      responses:
+        "200":
+          description: The signed entry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeviceListEntry"
         "4XX":
           $ref: "#/components/responses/Problem"
 
@@ -12744,6 +12794,54 @@ components:
           type: string
           description: The handle the start answered, as the provider carried it back.
 
+    DeviceListEntry:
+      type: object
+      required: [entry, host, display_name]
+      description: >
+        One workspace as the device's list holds it: the signed entry, and what it says - the
+        host and the display name, nothing else.
+      properties:
+        entry:
+          type: string
+          description: The entry as the installation signed it; opaque to a client.
+        host:
+          type: string
+          description: The workspace's main address, a host without a scheme.
+        display_name:
+          type: string
+    DeviceListCheck:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          maxItems: 50
+          items:
+            type: string
+            maxLength: 1024
+    DeviceListChecked:
+      type: object
+      required: [entries]
+      properties:
+        entries:
+          type: array
+          description: >
+            The entries this installation signed, in the order asked; an entry it did not sign is
+            not in it.
+          items:
+            $ref: "#/components/schemas/DeviceListEntryState"
+    DeviceListEntryState:
+      type: object
+      required: [entry, host, display_name, answers]
+      properties:
+        entry: { type: string }
+        host: { type: string }
+        display_name: { type: string }
+        answers:
+          type: boolean
+          description: >
+            Whether the host is still a workspace's main address. `false` for a workspace whose
+            address changed or that is gone: the entry opens nothing and can only be forgotten.
     OidcLocated:
       type: object
       required: [base_url]
@@ -22340,6 +22438,12 @@ components:
         product_version: { type: string }
         api_version: { type: string }
         tenancy_mode: { type: string, enum: [single, multi] }
+        installation_url:
+          type: string
+          format: uri
+          description: >
+            Multi mode only: the installation's own address, where the device's list of workspaces
+            is kept and shown. Absent in single mode, which keeps no list.
         workspace_hosts:
           type: string
           enum: [subdomain, assigned]

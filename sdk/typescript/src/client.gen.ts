@@ -965,6 +965,12 @@ export class HubtaskClient {
     return this.call("POST", "/auth/oidc:callback", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** Which entries of the device's list still open a workspace
+   * Public: sent without a bearer where the client holds none. */
+  checkDeviceList(body: NonNullable<operations["checkDeviceList"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["checkDeviceList"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/auth/device-list:check", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Where a provider's return belongs
    * Public: sent without a bearer where the client holds none. */
   locateOidcFlow(body: NonNullable<operations["locateOidcFlow"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["locateOidcFlow"]['responses'][200]['content']["application/json"]> {
@@ -1364,6 +1370,11 @@ export class HubtaskClient {
   /** Acknowledge the change of the workspace's address */
   acknowledgeAddressNotices(options: CallOptions = {}): Promise<void> {
     return this.call("POST", "/accounts/me/address-notices:acknowledge", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** This workspace's entry for the device's list of workspaces */
+  issueDeviceListEntry(options: CallOptions = {}): Promise<operations["issueDeviceListEntry"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/device-list-entry", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
   }
 
   /** The workspace's owner sets up an own domain */

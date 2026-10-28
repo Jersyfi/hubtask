@@ -5,9 +5,9 @@ context: identity
 actors: [PE-person, PE-member, PE-owner, PE-admin, PE-operator]
 deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-05, P-10, P-12]
-state: specified
+state: partial
 tasks: [CD-09, F7-03]
-checked_by: []
+checked_by: [core/domain/model/identity/DeviceListEntry_test.go, core/application/service/identity/DeviceList_test.go, infrastructure/security/DeviceListEntry_test.go, test/integration/device_list_test.go, apps/webapp/src/lib/platform/workspaces.test.ts, apps/webapp/src/lib/navigation.test.ts, apps/webapp/e2e/devicelist.test.mjs]
 ---
 
 # Switch between my workspaces on this device
@@ -60,10 +60,4 @@ device* before leaving.
 
 ## Today
 
-* Check 1: not met — the browser remembers no workspace.
-* Check 2: not met — there is no *Switch workspace*.
-* Check 3: not met — the installation's own address shows the sign-in card of no workspace.
-* Check 4: not met — there is no list to forget a workspace from.
-* Check 5: not met — there is no list.
-* Check 6: not met — the address cannot change (UC-INS-19).
-* Check 7: not met — there is no installed app.
+* Check 7: not met — there is no installed app (F7-03).

@@ -1621,6 +1621,11 @@ func (pending) TestInstanceBackupTarget(w http.ResponseWriter, r *http.Request, 
 // LocateOidcFlow is overridden by RestController, for the reason given at CreateContainer.
 func (pending) LocateOidcFlow(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
+// IssueDeviceListEntry and CheckDeviceList are overridden by RestController, for the reason given at
+// CreateContainer.
+func (pending) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+func (pending) CheckDeviceList(w http.ResponseWriter, r *http.Request)      { notAvailable(w, r) }
+
 // ReadUsage is the control plane's use read (multi-tenancy.md §4.3).
 func (pending) ReadUsage(w http.ResponseWriter, r *http.Request, _ openapi.ReadUsageParams) {
 	notAvailable(w, r)

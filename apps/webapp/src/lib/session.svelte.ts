@@ -132,6 +132,8 @@ class Session {
    * round trip in front of every first paint, for an answer the next request gives anyway.
    */
   #status = $state<SessionStatus>(platform.bearer() === undefined ? 'signed-out' : 'signed-in');
+  /** A sign-in in this page, not yet told to the device's list of workspaces. */
+  #fresh = $state(false);
   #problem = $state<RenderedProblem | undefined>(undefined);
   #intended = $state<string | undefined>(undefined);
   #owed = $state<SecondFactorOwed | undefined>(undefined);
@@ -481,6 +483,7 @@ class Session {
     engine.reset();
     instance.forget();
     platform.holdSession(pair);
+    this.#fresh = true;
     this.#pending = undefined;
     this.#owed = undefined;
     this.#problem = undefined;
@@ -558,6 +561,7 @@ class Session {
       engine.reset();
       instance.forget();
       platform.holdSession({ access: answer.access_token, refresh: answer.refresh_token });
+      this.#fresh = true;
       // Answered only where a recovery code was spent, and `0` is the number that matters - so
       // the test is against `null` and `undefined` rather than against falsiness.
       this.#recoveryLeft = answer.recovery_codes_remaining ?? undefined;
@@ -644,6 +648,20 @@ class Session {
   }
 
   /** Takes the remembered path, once. A path that navigated twice is a path that fights the reader. */
+  /**
+   * Whether a sign-in happened in this page since it was last asked - not a session a reload found.
+   * Taken once: the device's list of workspaces is told of a sign-in once (UC-ID-25 check 1).
+   */
+  get isFreshSignIn(): boolean {
+    return this.#fresh;
+  }
+
+  takeFreshSignIn(): boolean {
+    const fresh = this.#fresh;
+    this.#fresh = false;
+    return fresh;
+  }
+
   takeIntendedPath(): string | undefined {
     const path = this.#intended;
     this.#intended = undefined;

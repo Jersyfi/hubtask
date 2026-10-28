@@ -7189,6 +7189,9 @@ type Capabilities struct {
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
+	// InstallationUrl Multi mode only: the installation's own address, where the device's list of workspaces is kept and shown. Absent in single mode, which keeps no list.
+	InstallationUrl *string `json:"installation_url,omitempty"`
+
 	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
 	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
 	Instance  *InstanceReach `json:"instance,omitempty"`
@@ -7828,6 +7831,37 @@ type DeprecatedField struct {
 
 	// Sunset The day it stops being accepted, once one is set. Null until then.
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
+// DeviceListCheck defines model for DeviceListCheck.
+type DeviceListCheck struct {
+	Entries []string `json:"entries"`
+}
+
+// DeviceListChecked defines model for DeviceListChecked.
+type DeviceListChecked struct {
+	// Entries The entries this installation signed, in the order asked; an entry it did not sign is not in it.
+	Entries []DeviceListEntryState `json:"entries"`
+}
+
+// DeviceListEntry One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else.
+type DeviceListEntry struct {
+	DisplayName string `json:"display_name"`
+
+	// Entry The entry as the installation signed it; opaque to a client.
+	Entry string `json:"entry"`
+
+	// Host The workspace's main address, a host without a scheme.
+	Host string `json:"host"`
+}
+
+// DeviceListEntryState defines model for DeviceListEntryState.
+type DeviceListEntryState struct {
+	// Answers Whether the host is still a workspace's main address. `false` for a workspace whose address changed or that is gone: the entry opens nothing and can only be forgotten.
+	Answers     bool   `json:"answers"`
+	DisplayName string `json:"display_name"`
+	Entry       string `json:"entry"`
+	Host        string `json:"host"`
 }
 
 // DroppedReference defines model for DroppedReference.
@@ -15128,6 +15162,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
 
+// CheckDeviceListJSONRequestBody defines body for CheckDeviceList for application/json ContentType.
+type CheckDeviceListJSONRequestBody = DeviceListCheck
+
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
@@ -17270,6 +17307,24 @@ type ClientInterface interface {
 	//
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDeviceListWithBody Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CheckDeviceList Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceList(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// SetUpInstallationWithBody Set up a fresh installation with the code its first start printed
 	//
@@ -21015,6 +21070,13 @@ type ClientInterface interface {
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+	//
+	// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+	//
+	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+	IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// RemoveOwnDomain The workspace's owner removes its own domain
 	//
 	// The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
@@ -24402,6 +24464,44 @@ func (c *Client) ConfirmAddressWithBody(ctx context.Context, contentType string,
 // Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 func (c *Client) ConfirmAddress(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewConfirmAddressRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDeviceListWithBody Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *Client) CheckDeviceListWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDeviceListRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CheckDeviceList Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *Client) CheckDeviceList(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCheckDeviceListRequest(c.Server, body)
 	if err != nil {
 		return nil, err
 	}
@@ -32196,6 +32296,23 @@ func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ..
 	return c.Client.Do(req)
 }
 
+// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+//
+// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+//
+// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+func (c *Client) IssueDeviceListEntry(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewIssueDeviceListEntryRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // RemoveOwnDomain The workspace's owner removes its own domain
 //
 // The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
@@ -37282,6 +37399,46 @@ func NewConfirmAddressRequestWithBody(server string, contentType string, body io
 	}
 
 	operationPath := fmt.Sprintf("/auth/address:confirm")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewCheckDeviceListRequest calls the generic CheckDeviceList builder with application/json body
+func NewCheckDeviceListRequest(server string, body CheckDeviceListJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCheckDeviceListRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCheckDeviceListRequestWithBody constructs an http.Request for the CheckDeviceList method, with any body, and a specified content type
+func NewCheckDeviceListRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/auth/device-list:check")
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -50671,6 +50828,33 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	return req, nil
 }
 
+// NewIssueDeviceListEntryRequest constructs an http.Request for the IssueDeviceListEntry method
+func NewIssueDeviceListEntryRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/device-list-entry")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
 // NewRemoveOwnDomainRequest constructs an http.Request for the RemoveOwnDomain method
 func NewRemoveOwnDomainRequest(server string) (*http.Request, error) {
 	var err error
@@ -53496,6 +53680,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with POST /auth/address:confirm (the `ConfirmAddress` operationId).
 	ConfirmAddressWithResponse(ctx context.Context, body ConfirmAddressJSONRequestBody, reqEditors ...RequestEditorFn) (*ConfirmAddressResult, error)
+
+	// CheckDeviceListWithBodyWithResponse Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error)
+
+	// CheckDeviceListWithResponse Which entries of the device's list still open a workspace
+	//
+	// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+	CheckDeviceListWithResponse(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error)
 
 	// SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
 	//
@@ -57610,6 +57812,15 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
+	//
+	// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+	IssueDeviceListEntryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*IssueDeviceListEntryResult, error)
 
 	// RemoveOwnDomainWithResponse The workspace's owner removes its own domain
 	//
@@ -62782,6 +62993,54 @@ func (r ConfirmAddressResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r ConfirmAddressResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CheckDeviceListResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeviceListChecked
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r CheckDeviceListResult) GetJSON200() *DeviceListChecked {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CheckDeviceListResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CheckDeviceListResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CheckDeviceListResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CheckDeviceListResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CheckDeviceListResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -76519,6 +76778,54 @@ func (r CountAccountsWithoutProviderResult) ContentType() string {
 	return ""
 }
 
+type IssueDeviceListEntryResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *DeviceListEntry
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r IssueDeviceListEntryResult) GetJSON200() *DeviceListEntry {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r IssueDeviceListEntryResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r IssueDeviceListEntryResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r IssueDeviceListEntryResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r IssueDeviceListEntryResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r IssueDeviceListEntryResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type RemoveOwnDomainResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -80195,6 +80502,36 @@ func (c *ClientWithResponses) ConfirmAddressWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseConfirmAddressResult(rsp)
+}
+
+// CheckDeviceListWithBodyWithResponse Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *ClientWithResponses) CheckDeviceListWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error) {
+	rsp, err := c.CheckDeviceListWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDeviceListResult(rsp)
+}
+
+// CheckDeviceListWithResponse Which entries of the device's list still open a workspace
+//
+// The installation's own address keeps the device's list of workspaces and asks this before it adds an entry and whenever it shows the list. An entry this installation did not sign is left out of the answer - so the answer never names a workspace for a host nobody was handed - and one it signed says whether its host is still a workspace's main address. Reads and writes nothing else; in single-tenant operation every entry is left out.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /auth/device-list:check (the `CheckDeviceList` operationId).
+func (c *ClientWithResponses) CheckDeviceListWithResponse(ctx context.Context, body CheckDeviceListJSONRequestBody, reqEditors ...RequestEditorFn) (*CheckDeviceListResult, error) {
+	rsp, err := c.CheckDeviceList(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCheckDeviceListResult(rsp)
 }
 
 // SetUpInstallationWithBodyWithResponse Set up a fresh installation with the code its first start printed
@@ -86735,6 +87072,21 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 	return ParseCountAccountsWithoutProviderResult(rsp)
 }
 
+// IssueDeviceListEntryWithResponse This workspace's entry for the device's list of workspaces
+//
+// In multi-tenant operation, after a person signs in, the browser carries this entry once to the installation's own address, where the device keeps its list of workspaces: the workspace's main address and its display name, signed by the installation, and nothing else - no address of a person, no token. The installation's address takes an entry only once `POST /auth/device-list:check` confirmed it. People only; in single-tenant operation there is no list and this is refused with `access.device_list_not_offered`.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/device-list-entry (the `IssueDeviceListEntry` operationId).
+func (c *ClientWithResponses) IssueDeviceListEntryWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*IssueDeviceListEntryResult, error) {
+	rsp, err := c.IssueDeviceListEntry(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseIssueDeviceListEntryResult(rsp)
+}
+
 // RemoveOwnDomainWithResponse The workspace's owner removes its own domain
 //
 // The domain stops answering at once and another workspace may set it up. A domain the operator blocked leaves the workspace's view and stays blocked. Needs `OWNER` on the workspace (`access.owner_required`); `admin.own_domain_none` where there is none. In the workspace's trail.
@@ -90641,6 +90993,39 @@ func ParseConfirmAddressResult(rsp *http.Response) (*ConfirmAddressResult, error
 	switch {
 	case rsp.StatusCode == 204:
 		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCheckDeviceListResult parses an HTTP response from a CheckDeviceListWithResponse call
+func ParseCheckDeviceListResult(rsp *http.Response) (*CheckDeviceListResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CheckDeviceListResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeviceListChecked
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
 
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
 		var dest Problem
@@ -100618,6 +101003,39 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AccountsWithoutProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseIssueDeviceListEntryResult parses an HTTP response from a IssueDeviceListEntryWithResponse call
+func ParseIssueDeviceListEntryResult(rsp *http.Response) (*IssueDeviceListEntryResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &IssueDeviceListEntryResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest DeviceListEntry
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

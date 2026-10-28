@@ -36,8 +36,8 @@ export type Group = 'primary' | 'account';
  */
 export type Band = 'places' | 'tree' | 'keeping';
 
-/** The account group's two verbs. */
-export type AccountAction = 'help' | 'sign-out';
+/** The account group's verbs. */
+export type AccountAction = 'help' | 'sign-out' | 'switch-workspace';
 
 /**
  * What choosing a destination does: goes somewhere, performs one of the two account verbs, or
@@ -65,6 +65,11 @@ export interface Destination {
   readonly routes: readonly string[];
   /** ADR-0032's area, where the row is one the mobile build treats differently. */
   readonly area?: Area;
+  /**
+   * Whether a separator opens this row in the account group: the ways through start below the
+   * places that are the reader's own and the switch between workspaces (the approved CD-09 preview).
+   */
+  readonly startsBand?: boolean;
 }
 
 export const DESTINATIONS: readonly Destination[] = [
@@ -96,7 +101,11 @@ export const DESTINATIONS: readonly Destination[] = [
   { id: 'instance', group: 'account', icon: 'gauge', code: 'app.nav.instance', target: { kind: 'route', path: '/instance' }, routes: ['instance'], area: 'instance' },
   // Help and the list of shortcuts, with the tour inside it (ux-inventory.md §E1): one row for
   // "how does this work", where the tour was a row of its own.
-  { id: 'help', group: 'account', icon: 'compass', code: 'app.help.label', target: { kind: 'action', action: 'help' }, routes: [] },
+  // The device's list of workspaces (UC-ID-25 check 2): a verb, opening the list as a dialog - a
+  // sheet on a phone - rather than the list inside this menu, which would grow with every
+  // workspace. Drawn only in multi mode, where there is a list (check 8).
+  { id: 'switch-workspace', group: 'account', icon: 'arrow-right-left', code: 'app.workspaces.switch', target: { kind: 'action', action: 'switch-workspace' }, routes: [] },
+  { id: 'help', group: 'account', icon: 'compass', code: 'app.help.label', target: { kind: 'action', action: 'help' }, routes: [], startsBand: true },
   // The installation: four facts — the product version, the API version, the tenancy and the
   // languages — that nobody navigates to and everybody quotes when they report a problem. It keeps
   // its address and its page; what it loses is a place in somebody's navigation. Everyone may see
@@ -502,6 +511,8 @@ export function account(options: {
   readonly isInstanceReachable: boolean;
   /** A single-workspace installation, where the installation is the administration's last group. */
   readonly isSingleWorkspace?: boolean;
+  /** Whether this device keeps a list of workspaces: multi mode only (UC-ID-25 check 8). */
+  readonly hasWorkspaceList?: boolean;
 }): readonly Destination[] {
   const place = installationPlace({
     isInstanceReachable: options.isInstanceReachable,
@@ -512,6 +523,7 @@ export function account(options: {
     if (destination.group !== 'account') return false;
     if (destination.area === 'administration') return options.isAdministrationReachable;
     if (destination.area === 'instance') return place === 'menu';
+    if (destination.id === 'switch-workspace') return options.hasWorkspaceList === true;
     return true;
   });
 }

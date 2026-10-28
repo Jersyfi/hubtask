@@ -4,6 +4,7 @@
 import type { Storage } from '@hubtask/sync-engine';
 
 import type { SessionPair } from './tokenStore.ts';
+import type { DeviceWorkspaces } from './workspaces.ts';
 
 /**
  * The platform seam of ADR-0033: everything conditioned on where this bundle runs lives behind
@@ -140,7 +141,16 @@ export interface Platform {
    * beside the platform, which is `web` here and a shell's own name there.
    */
   deviceName(): string;
+
+  /**
+   * The device's list of workspaces (UC-ID-25, ADR-0095 §7): host and name of each workspace this
+   * device signed in to, as the installation signed them. Here because where the list lives is
+   * exactly what differs: the browser keeps it at the installation's own address and moves through
+   * it by redirects, a shell keeps it per server in its own store (`workspaces.ts`).
+   */
+  readonly workspaces: DeviceWorkspaces;
 }
 
 export type { SessionPair } from './tokenStore.ts';
+export type { DeviceWorkspaces, Hop, KnownWorkspace } from './workspaces.ts';
 export { platform } from './browser.ts';

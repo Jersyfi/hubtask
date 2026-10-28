@@ -7183,6 +7183,9 @@ type Capabilities struct {
 	// `natural_ordering` says whether names sort under the ICU root collation here - the same order on every installation, `Ä` beside `A` - or under the database's own locale where PostgreSQL was built without ICU. Names sort either way; a client that orders a list itself with `Intl.Collator` reads here whether the server already ordered it the same way.
 	Features *map[string]bool `json:"features,omitempty"`
 
+	// InstallationUrl Multi mode only: the installation's own address, where the device's list of workspaces is kept and shown. Absent in single mode, which keeps no list.
+	InstallationUrl *string `json:"installation_url,omitempty"`
+
 	// Instance What this caller may do at the level above the workspaces. Caller-scoped, like `ai_suggestions` and `backup_targets` beside it: an anonymous read answers `reachable: false`, and the answer changes with the actor.
 	// **This is what decides whether a client draws a way into `/instance` at all.** Hubtask does not draw a control somebody may not use and then refuse it: what the installation permits is read, never compiled in, and a capability that is refused outright is absent rather than disabled.
 	Instance  *InstanceReach `json:"instance,omitempty"`
@@ -7822,6 +7825,37 @@ type DeprecatedField struct {
 
 	// Sunset The day it stops being accepted, once one is set. Null until then.
 	Sunset *openapi_types.Date `json:"sunset,omitempty"`
+}
+
+// DeviceListCheck defines model for DeviceListCheck.
+type DeviceListCheck struct {
+	Entries []string `json:"entries"`
+}
+
+// DeviceListChecked defines model for DeviceListChecked.
+type DeviceListChecked struct {
+	// Entries The entries this installation signed, in the order asked; an entry it did not sign is not in it.
+	Entries []DeviceListEntryState `json:"entries"`
+}
+
+// DeviceListEntry One workspace as the device's list holds it: the signed entry, and what it says - the host and the display name, nothing else.
+type DeviceListEntry struct {
+	DisplayName string `json:"display_name"`
+
+	// Entry The entry as the installation signed it; opaque to a client.
+	Entry string `json:"entry"`
+
+	// Host The workspace's main address, a host without a scheme.
+	Host string `json:"host"`
+}
+
+// DeviceListEntryState defines model for DeviceListEntryState.
+type DeviceListEntryState struct {
+	// Answers Whether the host is still a workspace's main address. `false` for a workspace whose address changed or that is gone: the entry opens nothing and can only be forgotten.
+	Answers     bool   `json:"answers"`
+	DisplayName string `json:"display_name"`
+	Entry       string `json:"entry"`
+	Host        string `json:"host"`
 }
 
 // DroppedReference defines model for DroppedReference.
@@ -15122,6 +15156,9 @@ type VerifyAuditChainJSONRequestBody VerifyAuditChainJSONBody
 // ConfirmAddressJSONRequestBody defines body for ConfirmAddress for application/json ContentType.
 type ConfirmAddressJSONRequestBody = AddressConfirm
 
+// CheckDeviceListJSONRequestBody defines body for CheckDeviceList for application/json ContentType.
+type CheckDeviceListJSONRequestBody = DeviceListCheck
+
 // SetUpInstallationJSONRequestBody defines body for SetUpInstallation for application/json ContentType.
 type SetUpInstallationJSONRequestBody = InstallationSetUp
 
@@ -15847,6 +15884,9 @@ type ServerInterface interface {
 	// ConfirmAddress Confirm a mail address with the link that was sent to it
 	// (POST /auth/address:confirm)
 	ConfirmAddress(w http.ResponseWriter, r *http.Request)
+	// CheckDeviceList Which entries of the device's list still open a workspace
+	// (POST /auth/device-list:check)
+	CheckDeviceList(w http.ResponseWriter, r *http.Request)
 	// SetUpInstallation Set up a fresh installation with the code its first start printed
 	// (POST /auth/installation:set-up)
 	SetUpInstallation(w http.ResponseWriter, r *http.Request)
@@ -16678,6 +16718,9 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// IssueDeviceListEntry This workspace's entry for the device's list of workspaces
+	// (GET /tenant/device-list-entry)
+	IssueDeviceListEntry(w http.ResponseWriter, r *http.Request)
 	// RemoveOwnDomain The workspace's owner removes its own domain
 	// (DELETE /tenant/own-domain)
 	RemoveOwnDomain(w http.ResponseWriter, r *http.Request)
@@ -19864,6 +19907,20 @@ func (siw *ServerInterfaceWrapper) ConfirmAddress(w http.ResponseWriter, r *http
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ConfirmAddress(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CheckDeviceList operation middleware
+func (siw *ServerInterfaceWrapper) CheckDeviceList(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CheckDeviceList(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -29789,6 +29846,20 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// IssueDeviceListEntry operation middleware
+func (siw *ServerInterfaceWrapper) IssueDeviceListEntry(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.IssueDeviceListEntry(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // RemoveOwnDomain operation middleware
 func (siw *ServerInterfaceWrapper) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) {
 
@@ -30802,6 +30873,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/service-accounts", wrapper.CreateServiceAccount)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:start", wrapper.StartOidcSignIn)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:callback", wrapper.CompleteOidcSignIn)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/device-list:check", wrapper.CheckDeviceList)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/auth/oidc:locate", wrapper.LocateOidcFlow)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/admin/tenants", wrapper.ListTenants)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/admin/tenants", wrapper.ProvisionTenant)
@@ -30882,6 +30954,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/emergency-notices", wrapper.ListEmergencyNotices)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/accounts/me/address-notices", wrapper.ListAddressNotices)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/device-list-entry", wrapper.IssueDeviceListEntry)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/own-domain", wrapper.RemoveOwnDomain)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/own-domain", wrapper.SetUpOwnDomain)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:make-main", wrapper.MakeOwnDomainMain)

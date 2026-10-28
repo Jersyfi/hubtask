@@ -618,6 +618,9 @@ export type TenantPlanMoved = components['schemas']['TenantPlanMoved'];
 export type TenantAddressChange = components['schemas']['TenantAddressChange'];
 export type TenantAddressChanged = components['schemas']['TenantAddressChanged'];
 export type AddressChangeNotice = components['schemas']['AddressChangeNotice'];
+export type DeviceListEntry = components['schemas']['DeviceListEntry'];
+export type DeviceListChecked = components['schemas']['DeviceListChecked'];
+export type DeviceListEntryState = components['schemas']['DeviceListEntryState'];
 export type WorkspaceAddress = components['schemas']['WorkspaceAddress'];
 export type WorkspaceAddressChanged = components['schemas']['WorkspaceAddressChanged'];
 /** A workspace's own domain as its owner sees it, its two records, and the operator's row of it (UC-INS-15). */

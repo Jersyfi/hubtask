@@ -26,6 +26,7 @@
   import { AppBar, Banner, BottomBar, Button, Icon, IconButton, Logo, Menu, NavDrawer, ResizeHandle, VisuallyHidden } from '@hubtask/design-system/components';
 
   import AccountMenu from './AccountMenu.svelte';
+  import SwitchWorkspace from './SwitchWorkspace.svelte';
   import SectionNav from './SectionNav.svelte';
   import Palette from '../palette/Palette.svelte';
   import { PLACE_ROUTES } from '../routes.ts';
@@ -51,6 +52,7 @@
   import { live, type LiveState } from '../data/live.svelte.ts';
   import { liveAnnouncement } from './liveannouncement.ts';
   import { actor } from '../data/account.svelte.ts';
+  import { deviceList } from '../data/devicelist.svelte.ts';
   import { accounts } from '../data/accounts.svelte.ts';
   import { containers } from '../data/containers.svelte.ts';
   import { figures } from '../data/figures.svelte.ts';
@@ -62,7 +64,7 @@
   import { manifest } from '../data/capabilities.svelte.ts';
   import { holdsHere, reachesAdministrationArea } from '../data/capability.svelte.ts';
   import { t } from '../i18n/i18n.svelte.ts';
-  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, primary } from '../navigation.ts';
+  import { DESTINATIONS, SETTINGS, YOU_CODE, account, administrationFor, currentDestination, instanceSection, primary, type AccountAction } from '../navigation.ts';
   import { privateHubs } from '../data/privatehubs.svelte.ts';
   import { workspace } from '../data/workspace.svelte.ts';
   import { aiObjection } from '../data/aiobjection.svelte.ts';
@@ -272,6 +274,9 @@
       // has been read, which is the third value every capability question here has.
       isInstanceReachable: manifest.isInstanceReachable,
       isSingleWorkspace: manifest.isSingleTenant,
+      // The device's list of workspaces: where the installation names its own address, which is
+      // multi mode only (UC-ID-25 check 8).
+      hasWorkspaceList: deviceList.installation !== undefined,
     }),
   );
   /** The bottom bar: the primary group and "You", the account group's head on a phone. */
@@ -379,9 +384,13 @@
     }),
   );
 
-  /** The account's two verbs, wherever they are chosen - the menu, the palette or a key. */
-  function accountVerb(action: 'help' | 'sign-out') {
+  /** *Switch workspace*, open: from the account group (UC-ID-25 check 2). */
+  let isSwitchOpen = $state(false);
+
+  /** The account's verbs, wherever they are chosen - the menu, the palette or a key. */
+  function accountVerb(action: AccountAction) {
     if (action === 'help') isHelpOpen = true;
+    else if (action === 'switch-workspace') isSwitchOpen = true;
     else void session.signOut();
   }
 
@@ -705,6 +714,10 @@
   {/if}
   {#if isHelpOpen}
     <HelpDialog bind:isOpen={isHelpOpen} ontour={() => void tour.restart()} />
+  {/if}
+  {#if isSwitchOpen}
+    <!-- A sheet where the account group is one, a dialog above it. -->
+    <SwitchWorkspace bind:isOpen={isSwitchOpen} isSheet={viewport.isCompact} />
   {/if}
   {#if isAskOpen && asking !== undefined && actor.account}
     {#key asking}

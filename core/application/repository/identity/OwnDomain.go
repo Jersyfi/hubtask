@@ -97,3 +97,10 @@ type ServingHosts interface {
 	ResolveServing(ctx context.Context, host string) (shared.ID, bool, error)
 	Served(ctx context.Context, host string) (bool, error)
 }
+
+// MainAddresses answers whether a host is a live workspace's main address - a yes or a no, never the
+// workspace - for the device's list of workspaces (ADR-0095 §7, migration 0213). Callable in any
+// scope.
+type MainAddresses interface {
+	IsMainHost(ctx context.Context, host string) (bool, error)
+}

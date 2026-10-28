@@ -3860,6 +3860,23 @@ GRANT EXECUTE ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) TO 
 GRANT EXECUTE ON FUNCTION admin_own_domains() TO hubtask_app;
 GRANT EXECUTE ON FUNCTION browser_host(text) TO hubtask_app;
 
+-- Whether this host is the main address of a live workspace (migration 0213): the device's list of
+-- workspaces asks it before it keeps an entry and whenever it shows one. A yes or a no, never the
+-- workspace.
+CREATE OR REPLACE FUNCTION is_main_host(request_host text) RETURNS boolean
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT EXISTS (
+    SELECT 1
+    FROM tenant_host h
+    JOIN tenant t ON t.id = h.tenant_id
+    WHERE h.host = lower(rtrim(request_host, '.'))
+      AND h.is_canonical AND h.state = 'ACTIVE'
+      AND t.deleted_at IS NULL
+  )
+$$;
+REVOKE ALL ON FUNCTION is_main_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION is_main_host(text) TO hubtask_app;
+
 
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
 -- account by address, nothing when there is not exactly one workspace.

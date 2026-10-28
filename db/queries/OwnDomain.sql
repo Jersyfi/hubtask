@@ -99,3 +99,7 @@ ORDER BY is_canonical DESC, created_at DESC LIMIT 1;
 
 -- name: BrowserHost :one
 SELECT coalesce(browser_host(sqlc.arg('host')::text), '')::text AS host;
+
+-- name: IsMainHost :one
+-- Whether a host is a live workspace's main address: the device's list of workspaces (migration 0213).
+SELECT coalesce(is_main_host(sqlc.arg('host')::text), false)::boolean AS is_main;

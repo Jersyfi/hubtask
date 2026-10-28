@@ -2749,6 +2749,16 @@ func run() error {
 		identity.AcknowledgeAddressNotices{
 			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),
+		// The device's list of workspaces (ADR-0095 §7): the entry a sign-in hands over, signed by
+		// the installation, and the check its own address asks before keeping or showing one.
+		identity.IssueDeviceListEntry{
+			Signer: security.NewDeviceListEntryCodec(cfg.SecretKey), Address: workspaceAddress(cfg),
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
+		}.Descriptor(),
+		identity.CheckDeviceList{
+			Signer: security.NewDeviceListEntryCodec(cfg.SecretKey), Hosts: postgres.NewOwnDomainRepository(),
+			UnitOfWork: unitOfWork, Multi: cfg.Tenancy == envport.TenancyMulti,
+		}.Descriptor(),
 		adminservice.ExportTenant{
 			Tenants: postgres.NewAdminTenantRepository(), Targets: exportTargets, Quota: quotaGuard,
 			Jobs: jobs, Audit: auditSink, UnitOfWork: unitOfWork,

@@ -251,6 +251,18 @@ func (q *Queries) InsertOwnDomain(ctx context.Context, arg InsertOwnDomainParams
 	return err
 }
 
+const isMainHost = `-- name: IsMainHost :one
+SELECT coalesce(is_main_host($1::text), false)::boolean AS is_main
+`
+
+// Whether a host is a live workspace's main address: the device's list of workspaces (migration 0213).
+func (q *Queries) IsMainHost(ctx context.Context, host string) (bool, error) {
+	row := q.db.QueryRow(ctx, isMainHost, host)
+	var is_main bool
+	err := row.Scan(&is_main)
+	return is_main, err
+}
+
 const makeAddressMain = `-- name: MakeAddressMain :one
 UPDATE tenant_host SET is_canonical = true
 WHERE kind = 'ADDRESS' AND host = (

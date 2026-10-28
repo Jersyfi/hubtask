@@ -84,6 +84,8 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 | `own_domain_certificate(host, at)` | Yes or no — never a row | The ingress's question on the operations port (§3.1, deployment.md §6.1) |
 | `own_domain_blocked(host)`, `own_domains_due(…)`, `admin_own_domains()` | Whether a host is blocked; the own domains the check owes a look; every own domain and block for the operator | Setting one up, the check's job and the control plane (§3.1) |
 | `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
+| `browser_host(host)` | The main address to send a browser on to, or none — never the workspace | A page load on a host that is not its workspace's main address, beside an own domain (§3.1) |
+| `is_main_host(host)` | Yes or no — never the workspace | The device's list of workspaces: checking an entry the installation signed before it is kept and whenever it is shown (§3.1) |
 | `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
 | `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
@@ -210,7 +212,8 @@ behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
 Built so far: the reserved short names, the resolution through `tenant_host` with the
 provider's return to the main address, the hosts the operator assigns, the operator's and the
-owner's change of address, and own domains with the way to and from the main address (below).
+owner's change of address, own domains with the way to and from the main address, and the device's
+list of workspaces (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -242,7 +245,25 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
   in the web app on the base host and in the shells, with *Switch workspace*. There is no
   cross-workspace account, session or count ([NG-global-identity](../vision/non-goals.md)), no
   *Find your workspaces*, and no routing by an address or its domain: no screen tells anybody which
-  workspaces an address belongs to.
+  workspaces an address belongs to. *Built* in the web app (UC-ID-25; ADR-0095 §7): after a sign-in
+  in multi mode the workspace reads its entry (`GET /tenant/device-list-entry`: the main address's
+  host and the display name, signed with an HMAC keyed on the installation secret, people only) and
+  sends the browser to the installation's own address (`installation_url` in `/meta/capabilities`,
+  multi mode only) at `/workspaces` with the entry in the fragment; the page there asks
+  `POST /auth/device-list:check`, which leaves out every entry the installation did not sign and
+  says of the others whether the host is still a main address (`is_main_host`, migration 0213),
+  keeps a confirmed one in its `localStorage` and sends the browser back - a redirect there and
+  back, nothing drawn between. Whenever the browser goes from that address to a workspace's, it
+  hands over a copy of the list in the fragment; the account menu's *Switch workspace* (a dialog,
+  a sheet on a phone) draws that copy, *Open* goes through the installation's address, which opens
+  only a host its list holds and that still answers, and *Forget this workspace on this device*
+  takes the row off at once and the entry off the installation's list by the same redirect. Signed
+  out, the installation's address shows the list, or with none where a workspace is reached; it
+  takes no short name and no host (Decision 7 of milestone CD). The list is checked when it is
+  shown: an entry whose host no longer answers says so and offers *Forget* alone. Single mode keeps
+  no list and draws none of it. The list's model is the platform seam's
+  (`apps/webapp/src/lib/platform/workspaces.ts`) and the entry the server's, so the shells keep
+  their own list with both.
 
 * **Reserved short names.** The product keeps a list of the labels an installation or its ingress
   uses for itself (`www`, `api`, `auth`, `admin`, `mail`, `media`, `status`, `docs` and their kin,

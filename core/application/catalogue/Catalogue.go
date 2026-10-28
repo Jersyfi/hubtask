@@ -68,6 +68,8 @@ func Descriptors() []usecase.Descriptor {
 		work.ListEmergencyNotices{}.Descriptor(),
 		identity.ListAddressNotices{}.Descriptor(),
 		identity.AcknowledgeAddressNotices{}.Descriptor(),
+		identity.IssueDeviceListEntry{}.Descriptor(),
+		identity.CheckDeviceList{}.Descriptor(),
 		work.ArchiveContainer{}.Descriptor(),
 		work.UnarchiveContainer{}.Descriptor(),
 		work.MoveContainer{}.Descriptor(),
