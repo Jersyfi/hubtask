@@ -1624,6 +1624,19 @@ type SetElement struct {
 	RemoveTag *string
 }
 
+type SettingValue struct {
+	ID        pgtype.UUID
+	TenantID  pgtype.UUID
+	Level     string
+	ScopeID   pgtype.UUID
+	Key       string
+	Value     []byte
+	Hold      string
+	Allowed   []byte
+	SetBy     pgtype.UUID
+	UpdatedAt pgtype.Timestamptz
+}
+
 type StructurePreset struct {
 	TenantID  pgtype.UUID
 	ID        pgtype.UUID

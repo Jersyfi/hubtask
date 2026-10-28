@@ -1738,3 +1738,36 @@ SELECT EXISTS (SELECT 1 FROM set_element WHERE item_id = (sqlc.arg('payload')::j
 
 -- name: ClearSetElement :execrows
 DELETE FROM set_element;
+
+-- name: ImportSettingValue :execrows
+-- A workspace's own entries are keyed by the workspace itself, which a restore into another
+-- workspace is: the scope follows the tenant written into.
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, allowed, set_by, updated_at)
+SELECT
+  r.id,
+  r.tenant_id,
+  r.level,
+  CASE WHEN r.level = 'WORKSPACE' THEN current_tenant_id() ELSE r.scope_id END,
+  r.key,
+  r.value,
+  r.hold,
+  r.allowed,
+  r.set_by,
+  r.updated_at
+FROM jsonb_populate_record(
+  NULL::setting_value,
+  sqlc.arg('payload')::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  value = EXCLUDED.value,
+  hold = EXCLUDED.hold,
+  allowed = EXCLUDED.allowed,
+  set_by = EXCLUDED.set_by,
+  updated_at = EXCLUDED.updated_at
+WHERE sqlc.arg('overwrite')::boolean;
+
+-- name: HoldsSettingValue :one
+SELECT EXISTS (SELECT 1 FROM setting_value WHERE id = (sqlc.arg('payload')::jsonb->>'id')::uuid) AS held;
+
+-- name: ClearSettingValue :execrows
+DELETE FROM setting_value;

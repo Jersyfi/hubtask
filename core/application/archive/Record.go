@@ -516,6 +516,9 @@ var entities = []Entity{
 		Name: "structure_presets", Table: "structure_preset", Whole: true, Later: true, Keys: []string{"id"},
 		References: []Reference{{Field: "owner_id", Table: "account"}},
 	},
+	// The settings catalogue's entries of the workspace, its hubs, collections and people
+	// (migration 0208): the module switches among them, so that a restore keeps what was on.
+	{Name: "setting_values", Table: "setting_value", Keys: []string{"id"}},
 	// Last, and optional. It is the only file whose absence is a configuration rather than a
 	// defect - and the only one a restore reads and deliberately does not write back, because the
 	// live trail is a hash chain and an insert into the middle of one is not a restore but a

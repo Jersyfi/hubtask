@@ -363,6 +363,18 @@ func (q *Queries) ClearSetElement(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const clearSettingValue = `-- name: ClearSettingValue :execrows
+DELETE FROM setting_value
+`
+
+func (q *Queries) ClearSettingValue(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, clearSettingValue)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const clearStructurePreset = `-- name: ClearStructurePreset :execrows
 DELETE FROM structure_preset
 `
@@ -725,6 +737,17 @@ SELECT EXISTS (SELECT 1 FROM set_element WHERE item_id = ($1::jsonb->>'item_id')
 
 func (q *Queries) HoldsSetElement(ctx context.Context, payload []byte) (bool, error) {
 	row := q.db.QueryRow(ctx, holdsSetElement, payload)
+	var held bool
+	err := row.Scan(&held)
+	return held, err
+}
+
+const holdsSettingValue = `-- name: HoldsSettingValue :one
+SELECT EXISTS (SELECT 1 FROM setting_value WHERE id = ($1::jsonb->>'id')::uuid) AS held
+`
+
+func (q *Queries) HoldsSettingValue(ctx context.Context, payload []byte) (bool, error) {
+	row := q.db.QueryRow(ctx, holdsSettingValue, payload)
 	var held bool
 	err := row.Scan(&held)
 	return held, err
@@ -2364,6 +2387,47 @@ type ImportSetElementParams struct {
 
 func (q *Queries) ImportSetElement(ctx context.Context, arg ImportSetElementParams) (int64, error) {
 	result, err := q.db.Exec(ctx, importSetElement, arg.Payload, arg.Overwrite)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const importSettingValue = `-- name: ImportSettingValue :execrows
+INSERT INTO setting_value (id, tenant_id, level, scope_id, key, value, hold, allowed, set_by, updated_at)
+SELECT
+  r.id,
+  r.tenant_id,
+  r.level,
+  CASE WHEN r.level = 'WORKSPACE' THEN current_tenant_id() ELSE r.scope_id END,
+  r.key,
+  r.value,
+  r.hold,
+  r.allowed,
+  r.set_by,
+  r.updated_at
+FROM jsonb_populate_record(
+  NULL::setting_value,
+  $1::jsonb || jsonb_build_object('tenant_id', current_tenant_id())
+) r
+ON CONFLICT (id) DO UPDATE SET
+  value = EXCLUDED.value,
+  hold = EXCLUDED.hold,
+  allowed = EXCLUDED.allowed,
+  set_by = EXCLUDED.set_by,
+  updated_at = EXCLUDED.updated_at
+WHERE $2::boolean
+`
+
+type ImportSettingValueParams struct {
+	Payload   []byte
+	Overwrite bool
+}
+
+// A workspace's own entries are keyed by the workspace itself, which a restore into another
+// workspace is: the scope follows the tenant written into.
+func (q *Queries) ImportSettingValue(ctx context.Context, arg ImportSettingValueParams) (int64, error) {
+	result, err := q.db.Exec(ctx, importSettingValue, arg.Payload, arg.Overwrite)
 	if err != nil {
 		return 0, err
 	}

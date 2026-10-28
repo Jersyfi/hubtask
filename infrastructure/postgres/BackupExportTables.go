@@ -132,6 +132,21 @@ var exporters = map[string]exporter{
 			}), err
 		},
 	},
+	"setting_value": {
+		delta: true,
+		keys:  1,
+		read: func(ctx context.Context, queries *sqlc.Queries, page exportPage) ([]exportRow, error) {
+			rows, err := queries.ExportSettingValues(ctx, sqlc.ExportSettingValuesParams{
+				Since:   optionalTimestamp(page.Since),
+				AfterAt: page.AfterAt,
+				AfterID: cursorUUID(page.After, 0),
+				Batch:   page.Batch,
+			})
+			return convert(rows, func(r sqlc.ExportSettingValuesRow) exportRow {
+				return exportRow{RecordID: r.RecordID, ChangedAt: r.ChangedAt, Payload: r.Payload}
+			}), err
+		},
+	},
 	"custom_field_definition": {
 		delta: true,
 		keys:  1,

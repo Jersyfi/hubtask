@@ -1486,6 +1486,59 @@ func (q *Queries) ExportSetElements(ctx context.Context, arg ExportSetElementsPa
 	return items, nil
 }
 
+const exportSettingValues = `-- name: ExportSettingValues :many
+SELECT s.record_id, s.changed_at, s.payload
+FROM (
+  SELECT (v.id)::text AS record_id,
+         v.updated_at AS changed_at,
+         (to_jsonb(v) - 'tenant_id')::jsonb AS payload,
+         v.id AS key_1
+  FROM setting_value v
+) s
+  WHERE ($1::timestamptz IS NULL OR s.changed_at > $1::timestamptz)
+    AND (s.changed_at, s.key_1) > ($2::timestamptz, $3::uuid)
+  ORDER BY s.changed_at, s.key_1
+  LIMIT $4::int
+`
+
+type ExportSettingValuesParams struct {
+	Since   pgtype.Timestamptz
+	AfterAt pgtype.Timestamptz
+	AfterID pgtype.UUID
+	Batch   int32
+}
+
+type ExportSettingValuesRow struct {
+	RecordID  string
+	ChangedAt pgtype.Timestamptz
+	Payload   []byte
+}
+
+func (q *Queries) ExportSettingValues(ctx context.Context, arg ExportSettingValuesParams) ([]ExportSettingValuesRow, error) {
+	rows, err := q.db.Query(ctx, exportSettingValues,
+		arg.Since,
+		arg.AfterAt,
+		arg.AfterID,
+		arg.Batch,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ExportSettingValuesRow{}
+	for rows.Next() {
+		var i ExportSettingValuesRow
+		if err := rows.Scan(&i.RecordID, &i.ChangedAt, &i.Payload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const exportStructurePresets = `-- name: ExportStructurePresets :many
 SELECT s.record_id, s.changed_at, s.payload
 FROM (

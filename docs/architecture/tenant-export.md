@@ -150,7 +150,8 @@ re-mints identities must rewrite exactly these).
 | 32 | `container_milestones` | `container_milestone` | `container_id` | `container_id`→containers (when a collection or hub was last finished; a milestone whose container is not restored is skipped) |
 | 33 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
 | 34 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
-| 35 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 35 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
+| 36 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
