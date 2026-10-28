@@ -11,6 +11,37 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const adminMainHosts = `-- name: AdminMainHosts :many
+SELECT tenant_id::uuid AS tenant_id, host::text AS host
+FROM admin_main_hosts($1::uuid[])
+`
+
+type AdminMainHostsRow struct {
+	TenantID pgtype.UUID
+	Host     string
+}
+
+// Each listed workspace's main address (migration 0208); a NULL list answers every workspace's.
+func (q *Queries) AdminMainHosts(ctx context.Context, want []pgtype.UUID) ([]AdminMainHostsRow, error) {
+	rows, err := q.db.Query(ctx, adminMainHosts, want)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []AdminMainHostsRow{}
+	for rows.Next() {
+		var i AdminMainHostsRow
+		if err := rows.Scan(&i.TenantID, &i.Host); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const adminTenants = `-- name: AdminTenants :many
 
 SELECT id::uuid, slug::text, display_name::text, status::text,
@@ -344,7 +375,9 @@ SELECT t.id, t.slug, t.display_name, t.status, t.default_locale, t.default_time_
        t.password_opened_until, t.password_opened_requester, t.password_opened_reason,
        t.status_before_deletion, t.purge_started_at,
        coalesce(p.name, '')::text AS plan_name,
-       coalesce(t.external_reference, '')::text AS external_reference
+       coalesce(t.external_reference, '')::text AS external_reference,
+       coalesce((SELECT h.host FROM tenant_host h
+                 WHERE h.tenant_id = t.id AND h.is_canonical AND h.state = 'ACTIVE'), '')::text AS host
 FROM tenant t
 LEFT JOIN plan p ON p.id = t.plan_id
 WHERE t.id = current_tenant_id() AND t.deleted_at IS NULL
@@ -367,6 +400,7 @@ type FindTenantForAdminRow struct {
 	PurgeStartedAt          pgtype.Timestamptz
 	PlanName                string
 	ExternalReference       string
+	Host                    string
 }
 
 // The plan's short name through a join: `plan` carries no policy, so it reads inside the tenant's
@@ -391,6 +425,7 @@ func (q *Queries) FindTenantForAdmin(ctx context.Context) (FindTenantForAdminRow
 		&i.PurgeStartedAt,
 		&i.PlanName,
 		&i.ExternalReference,
+		&i.Host,
 	)
 	return i, err
 }

@@ -5,10 +5,11 @@
   import Input from './Input.svelte';
   import Stack from './Stack.svelte';
 
-  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'unavailable' | 'row' | 'table' | 'range' } = $props();
+  const { mode = 'resting' }: { mode?: 'resting' | 'invalid' | 'unavailable' | 'row' | 'table' | 'range' | 'code' } = $props();
 
   let title = $state('Review the quote');
   let search = $state('');
+  let host = $state('tasks-hr.corp.example');
 </script>
 
 {#if mode === 'row' || mode === 'table'}
@@ -27,6 +28,9 @@
 <Stack gap="300" class="form">
   {#if mode === 'invalid'}
     <Input label="Title" bind:value={title} error="A title needs at least one character." isRequired />
+  {:else if mode === 'code'}
+    <Input label="Host" bind:value={host} face="code" hint="The full name this workspace answers at." isRequired />
+    <Input label="Short name" face="code" placeholder="tasks-hr" />
   {:else if mode === 'unavailable'}
     <Input
       label="Title"

@@ -1323,6 +1323,24 @@ func (e CapabilitiesTenancyMode) Valid() bool {
 	}
 }
 
+// Defines values for CapabilitiesWorkspaceHosts.
+const (
+	Assigned  CapabilitiesWorkspaceHosts = "assigned"
+	Subdomain CapabilitiesWorkspaceHosts = "subdomain"
+)
+
+// Valid indicates whether the value is a known member of the CapabilitiesWorkspaceHosts enum.
+func (e CapabilitiesWorkspaceHosts) Valid() bool {
+	switch e {
+	case Assigned:
+		return true
+	case Subdomain:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CapabilitiesWorkspacePermissions.
 const (
 	CapabilitiesWorkspacePermissionsAUDITREAD         CapabilitiesWorkspacePermissions = "AUDIT_READ"
@@ -6063,8 +6081,11 @@ type AdminTenant struct {
 	DisplayName     string    `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold *bool `json:"legal_hold,omitempty"`
@@ -7120,6 +7141,9 @@ type Capabilities struct {
 	TokenScopes *[]string `json:"token_scopes,omitempty"`
 	ViewLayouts *[]string `json:"view_layouts,omitempty"`
 
+	// WorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+	WorkspaceHosts *CapabilitiesWorkspaceHosts `json:"workspace_hosts,omitempty"`
+
 	// WorkspacePermissions The columns of the role matrix the caller holds on the workspace itself, from every membership they hold there - their own and their groups' - decided as every request is decided, and recording nothing: asking is not an attempt. Caller-scoped like `instance`: absent for an anonymous caller, empty for somebody whose roles sit only on hubs, collections or entries.
 	// It answers what a client offers at the level of the workspace before anybody presses anything - the administration (`STRUCTURE` or `READ_CONFIGURATION`), the jumble (`READ`), capturing into it (`WRITE_ITEMS`), its intake address (`AUTOMATION`) - rather than a client probing a route that refuses. It says nothing about a hub, a collection or an entry, where roles granted there add to these, and nothing about the presenting credential: a token's scopes bound it further.
 	WorkspacePermissions *[]CapabilitiesWorkspacePermissions `json:"workspace_permissions,omitempty"`
@@ -7133,6 +7157,9 @@ type CapabilitiesSupportedLocalesWeekStart string
 
 // CapabilitiesTenancyMode defines model for Capabilities.TenancyMode.
 type CapabilitiesTenancyMode string
+
+// CapabilitiesWorkspaceHosts Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.
+type CapabilitiesWorkspaceHosts string
 
 // CapabilitiesWorkspacePermissions defines model for Capabilities.WorkspacePermissions.
 type CapabilitiesWorkspacePermissions string
@@ -8373,6 +8400,9 @@ type InstallationSetUp struct {
 	// DisplayName The workspace's name.
 	DisplayName string `json:"display_name"`
 
+	// Host Multi mode with assigned hosts only, and required there: the full host name the workspace answers at. Refused like a provisioned workspace's host (`admin.host_required`, `admin.host_invalid`, `admin.host_installation`, `admin.host_taken`), and with `admin.host_not_assigned` where the installation uses subdomains or runs a single workspace.
+	Host *string `json:"host,omitempty"`
+
 	// OwnerDisplayName The owner's name; the address stands in when it is omitted.
 	OwnerDisplayName *string `json:"owner_display_name,omitempty"`
 
@@ -8382,7 +8412,7 @@ type InstallationSetUp struct {
 	// Password The owner's password, under the product's password policy.
 	Password string `json:"password"`
 
-	// Slug Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.
+	// Slug Multi mode only: the workspace's short name, 3-40 characters of lower-case letters, digits and hyphens. With subdomains it is required and the subdomain the workspace answers on; with assigned hosts it is optional and made from the host when omitted. Refused in single mode.
 	Slug *string `json:"slug,omitempty"`
 }
 
@@ -10706,8 +10736,11 @@ type ProvisionedTenant struct {
 	ExampleCollectionId openapi_types.UUID `json:"example_collection_id"`
 
 	// ExternalReference The purchase platform's own reference, where it set one.
-	ExternalReference *string            `json:"external_reference,omitempty"`
-	Id                openapi_types.UUID `json:"id"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.
+	Host *string            `json:"host,omitempty"`
+	Id   openapi_types.UUID `json:"id"`
 
 	// LegalHold Whether a legal hold is in force in the workspace. While one is, a deletion request is refused, and a workspace already pending deletion stays pending until the last hold is lifted. Only the state: which hold, on what and why stay the workspace's.
 	LegalHold      *bool              `json:"legal_hold,omitempty"`
@@ -12396,15 +12429,18 @@ type TenantProvision struct {
 	DisplayName     string  `json:"display_name"`
 
 	// ExternalReference The purchase platform's own reference for the workspace, unique on the installation - what it finds the workspace by when an answer was lost.
-	ExternalReference *string             `json:"external_reference,omitempty"`
-	OwnerDisplayName  *string             `json:"owner_display_name,omitempty"`
-	OwnerEmail        openapi_types.Email `json:"owner_email"`
+	ExternalReference *string `json:"external_reference,omitempty"`
+
+	// Host The full host name the workspace answers at, such as `tasks-hr.corp.example`: required where the installation assigns hosts (`admin.host_required`), refused where it uses subdomains (`admin.host_not_assigned`). No DNS is checked; the record and the certificate are the operator's. Refused at the field when it is no host name (`admin.host_invalid`), the installation's own host (`admin.host_installation`) or a host another workspace answers at (`admin.host_taken`).
+	Host             *string             `json:"host,omitempty"`
+	OwnerDisplayName *string             `json:"owner_display_name,omitempty"`
+	OwnerEmail       openapi_types.Email `json:"owner_email"`
 
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
 
-	// Slug The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).
-	Slug string `json:"slug"`
+	// Slug The workspace's short name, by which the API and `hubctl` name it. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`). With subdomains it is required (`admin.slug_required`) and is the subdomain the workspace answers on; with assigned hosts it may be omitted and is then made from the host's first label.
+	Slug *string `json:"slug,omitempty"`
 }
 
 // TenantQuery defines model for TenantQuery.

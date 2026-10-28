@@ -205,8 +205,8 @@ deliberately not used.
 [ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md); the market research
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
-Built so far: the reserved short names, and the resolution through `tenant_host` with the
-provider's return to the main address (below).
+Built so far: the reserved short names, the resolution through `tenant_host` with the
+provider's return to the main address, and the hosts the operator assigns (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -263,7 +263,12 @@ CalDAV todo's and an export's links still name the installation's host (#1784). 
 serves, the helper answers the subdomain the short name makes. A change of address replaces the
 main row and drops the old one in one transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
 an assigned host is a row the operator writes without a proof, in an installation set to
-`HUBTASK_WORKSPACE_HOSTS=assigned`. The installation's settings hold whether owners may change the
+`HUBTASK_WORKSPACE_HOSTS=assigned` (*built*): provisioning and the first start's setup ask for the
+host instead of a subdomain, refuse it at the field as `admin.host_invalid`,
+`admin.host_installation` or `admin.host_taken` (the table's unique index, installation-wide), and
+make the short name - still the workspace's identifier for `hubctl` and the API - from its first
+label where none is given. Such an installation's start writes no subdomain rows, and the
+control plane's reads answer each workspace's main address as `host`. The installation's settings hold whether owners may change the
 address (default off) and set up own domains (default off), the cooldown (30 days) and the
 operator's reserved short names beside the product's list.
 

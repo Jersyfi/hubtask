@@ -3662,6 +3662,22 @@ $$;
 REVOKE ALL ON FUNCTION ensure_main_hosts(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION ensure_main_hosts(text) TO hubtask_app;
 
+-- The main row of each live workspace among `want`, every one where it is NULL: what the control
+-- plane's list shows beside the short name (migration 0208).
+CREATE OR REPLACE FUNCTION admin_main_hosts(want uuid[]) RETURNS TABLE (tenant_id uuid, host text)
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id, h.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.is_canonical
+    AND h.state = 'ACTIVE'
+    AND t.deleted_at IS NULL
+    AND (want IS NULL OR h.tenant_id = ANY (want))
+$$;
+
+REVOKE ALL ON FUNCTION admin_main_hosts(uuid[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION admin_main_hosts(uuid[]) TO hubtask_app;
+
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
 -- account by address, nothing when there is not exactly one workspace.
 CREATE OR REPLACE FUNCTION resolve_single_operator_account(p_email text) RETURNS uuid

@@ -181,6 +181,9 @@ func TestTheManifestReportsTheInstallation(t *testing.T) {
 	if capabilities.TenancyMode != string(env.TenancySingle) {
 		t.Errorf("tenancy = %q", capabilities.TenancyMode)
 	}
+	if capabilities.WorkspaceHosts != "" {
+		t.Errorf("a single-mode installation names a way of giving hosts: %q", capabilities.WorkspaceHosts)
+	}
 	if capabilities.Limits["max_body_bytes"] != 1<<20 {
 		t.Errorf("limits = %v", capabilities.Limits)
 	}
@@ -853,4 +856,22 @@ func deref(b *bool) any {
 		return "absent"
 	}
 	return *b
+}
+
+// A client asks a multi-mode installation's manifest whether creating a workspace asks for a host
+// or a short name (ADR-0095 §6): the subdomain unless the operator assigns hosts.
+func TestTheManifestSaysHowAWorkspaceGetsItsHost(t *testing.T) {
+	for configured, want := range map[env.WorkspaceHosts]string{
+		"": "subdomain", env.HostsSubdomain: "subdomain", env.HostsAssigned: "assigned",
+	} {
+		h := handler(profiles{list: systemDefaults()}, &unitOfWork{})
+		h.Config.Tenancy, h.Config.WorkspaceHosts = env.TenancyMulti, configured
+		capabilities, err := h.Execute(t.Context(), appshared.Anonymous("en", "UTC"))
+		if err != nil {
+			t.Fatalf("execute failed: %v", err)
+		}
+		if capabilities.WorkspaceHosts != want {
+			t.Errorf("configured %q, the manifest says %q, want %q", configured, capabilities.WorkspaceHosts, want)
+		}
+	}
 }

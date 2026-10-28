@@ -71,6 +71,8 @@
 
   // The new workspace's fields.
   let slug = $state('');
+  /** The host a new workspace answers at, where the installation assigns hosts (ADR-0095 §6). */
+  let host = $state('');
   let displayName = $state('');
   let ownerEmail = $state('');
   /** The plan a new workspace starts on; empty for none. */
@@ -189,6 +191,7 @@
     reason = '';
     if (kind === 'new') {
       slug = '';
+      host = '';
       displayName = '';
       ownerEmail = '';
       ownerName = '';
@@ -280,6 +283,34 @@
     slug.trim() !== '' &&
       workspaces.some((each) => each.slug.toLowerCase() === slug.trim().toLowerCase()),
   );
+  /** The host as a row holds it: lower case, without the root's dot. */
+  const typedHost = $derived(host.trim().toLowerCase().replace(/\.$/, ''));
+  const hostTaken = $derived(
+    manifest.hasAssignedHosts && typedHost !== '' && workspaces.some((each) => each.host === typedHost),
+  );
+  /**
+   * The short name the server makes from the host where none is typed - its first label, and the
+   * next ones while that is too short - shown as the field's placeholder so the operator sees it
+   * before it is made. The server's rule; this is only its preview.
+   */
+  const shortNameOfHost = $derived.by(() => {
+    // The server makes it from the host as a browser sends it, letters beyond ASCII encoded.
+    // Only for something that could be a host: no scheme, port, path or space.
+    if (!/^[^\s/:@?#*_]+\.[^\s/:@?#*_]+$/.test(typedHost)) return '';
+    let ascii = '';
+    try {
+      ascii = typedHost === '' ? '' : new URL(`http://${typedHost}`).hostname;
+    } catch {
+      return '';
+    }
+    let name = '';
+    for (const label of ascii.split('.')) {
+      name = name === '' ? label : `${name}-${label}`;
+      const made = name.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40).replace(/-+$/, '');
+      if (made.length >= 3) return made;
+    }
+    return '';
+  });
 
   function readQuota(name: string, raw: string): void {
     const trimmed = raw.trim();
@@ -445,13 +476,14 @@
       onclick={() => {
         // A taken address is said at its field; pressed, focus goes there and nothing is sent
         // (UC-WRK-32 check 3) - never a switched-off button repeating the field.
-        if (slugTaken) {
+        if (slugTaken || hostTaken) {
           void tick().then(() => focusFirst(document));
           return;
         }
         void run('new', async () => {
           provisioned = await instance.provision({
-            slug: slug.trim(),
+            ...(manifest.hasAssignedHosts ? { host: host.trim() } : {}),
+            ...(slug.trim() === '' ? {} : { slug: slug.trim() }),
             display_name: displayName.trim(),
             owner_email: ownerEmail.trim(),
             ...(ownerName.trim() === '' ? {} : { owner_display_name: ownerName.trim() }),
@@ -465,15 +497,38 @@
   {/snippet}
   <Stack gap="150">
     <p class="prose">{t('app.instance.workspace_new_intro')}</p>
-    <Input
-      label={t('app.instance.slug_label')}
-      hint={t('app.instance.slug_hint')}
-      error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : failure?.fields.get('/slug')}
-      bind:value={slug}
-      autocomplete="off"
-      spellcheck={false}
-      isRequired
-    />
+    {#if manifest.hasAssignedHosts}
+      <Input
+        label={t('app.instance.host_label')}
+        hint={t('app.instance.host_hint')}
+        error={hostTaken ? t('app.instance.host_taken', { host: typedHost }) : failure?.fields.get('/host')}
+        bind:value={host}
+        face="code"
+        autocomplete="off"
+        spellcheck={false}
+        isRequired
+      />
+      <Input
+        label={t('app.instance.short_name_label')}
+        hint={t('app.instance.short_name_hint')}
+        error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : failure?.fields.get('/slug')}
+        bind:value={slug}
+        placeholder={shortNameOfHost}
+        face="code"
+        autocomplete="off"
+        spellcheck={false}
+      />
+    {:else}
+      <Input
+        label={t('app.instance.slug_label')}
+        hint={t('app.instance.slug_hint')}
+        error={slugTaken ? t('app.instance.slug_taken', { slug: slug.trim() }) : failure?.fields.get('/slug')}
+        bind:value={slug}
+        autocomplete="off"
+        spellcheck={false}
+        isRequired
+      />
+    {/if}
     <Input label={t('app.instance.name_label')} bind:value={displayName} autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_email_label')} hint={t('app.instance.owner_email_hint')} bind:value={ownerEmail} type="email" autocomplete="off" isRequired />
     <Input label={t('app.instance.owner_name_label')} bind:value={ownerName} autocomplete="off" />

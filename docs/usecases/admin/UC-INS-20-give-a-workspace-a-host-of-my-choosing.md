@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-scripter]
 deployments: [D4, D7]
 serves: [P-01, P-05, P-08, P-09, P-10]
-state: specified
+state: partial
 tasks: [CD-02, CD-03, CD-04, CD-05]
-checked_by: []
+checked_by: [core/application/service/admin/AssignedHosts_test.go, core/application/service/identity/Setup_test.go, core/domain/model/identity/TenantHost_test.go, cmd/hubctl/Admin_test.go, test/integration/assigned_host_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs]
 ---
 
 # Give each workspace a host of my choosing
@@ -49,8 +49,4 @@ does for every other service.
 
 ## Today
 
-* Check 1: not met — there is no setting for assigned hosts; creating a workspace asks for a short name only.
-* Check 2: not met — nothing resolves a workspace through a host other than its subdomain.
-* Check 3: not met — there are no assigned hosts to refuse.
 * Check 4: not met — the address cannot change (UC-INS-19).
-* Check 5: not met — the provider's return forwards only to a host beneath the installation's own.

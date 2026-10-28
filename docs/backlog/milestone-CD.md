@@ -151,7 +151,8 @@ the invitation and every mail show the assigned host (through CD-03), and the pr
 lands there (through CD-02). In subdomain mode and single mode nothing of it is shown; an
 installation with workspaces does not switch between the two.
 
-**Acceptance:** application tests of the refusals through REST, `hubctl` and the instance file; an
+**Acceptance:** application tests of the refusals through REST, `hubctl` and the first start's setup
+(the instance file provisions no workspace, so it is no door here - corrected at the build); an
 integration test that a workspace on an assigned host signs in, is invited and returns from a
 provider there; an e2e walk of *New workspace* in assigned mode; the preview shown to the owner
 first (Decision 11).

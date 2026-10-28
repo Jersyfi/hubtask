@@ -4,6 +4,8 @@
 package identity
 
 import (
+	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -179,5 +181,73 @@ func TestTheMainHostIsTheCanonicalRowThatServes(t *testing.T) {
 				t.Errorf("MainHostOf = %q, want %q", got, c.want)
 			}
 		})
+	}
+}
+
+// fakeDomains encodes the one name these tests write with letters beyond ASCII, and refuses a
+// label the encoding profile would.
+type fakeDomains struct{}
+
+func (fakeDomains) ToASCII(domain string) (string, error) {
+	if domain == "aufgaben.müller.example" {
+		return "aufgaben.xn--mller-kva.example", nil
+	}
+	if strings.Contains(domain, "ß-") {
+		return "", errors.New("refused by the profile")
+	}
+	return domain, nil
+}
+
+// UC-INS-20 check 3: an assigned host is a host name, never the installation's own, and each
+// refusal is at the field with a code naming its reason; nothing about DNS is asked.
+func TestAnAssignedHostIsAHostNameOfItsOwn(t *testing.T) {
+	cases := []struct {
+		name, raw, want, code string
+	}{
+		{name: "a host as typed", raw: "tasks-hr.corp.example", want: "tasks-hr.corp.example"},
+		{name: "case and the root's dot are not part of it", raw: " Tasks-HR.Corp.Example. ", want: "tasks-hr.corp.example"},
+		{name: "letters beyond ASCII in the form a browser sends", raw: "aufgaben.müller.example", want: "aufgaben.xn--mller-kva.example"},
+		{name: "nothing", raw: "  ", code: "admin.host_required"},
+		{name: "a URL", raw: "https://tasks hr/", code: "admin.host_invalid"},
+		{name: "a port", raw: "tasks-hr.corp.example:8443", code: "admin.host_invalid"},
+		{name: "a single label", raw: "tasks", code: "admin.host_invalid"},
+		{name: "an empty label", raw: "tasks..corp.example", code: "admin.host_invalid"},
+		{name: "a hyphen at a label's edge", raw: "-tasks.corp.example", code: "admin.host_invalid"},
+		{name: "a wildcard", raw: "*.corp.example", code: "admin.host_invalid"},
+		{name: "punctuation", raw: "tasks!hr.corp.example", code: "admin.host_invalid"},
+		{name: "a label the encoding refuses", raw: "straß-.corp.example", code: "admin.host_invalid"},
+		{name: "the installation's own host", raw: "Tasks.Corp.Example", code: "admin.host_installation"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got, err := AssignedHost(c.raw, "tasks.corp.example.", fakeDomains{})
+			if c.code == "" {
+				if err != nil || got != c.want {
+					t.Errorf("AssignedHost(%q) = (%q, %v), want %q", c.raw, got, err, c.want)
+				}
+				return
+			}
+			refusal := shared.AsError(err)
+			if refusal == nil || refusal.DetailCode != c.code || len(refusal.Fields) != 1 ||
+				refusal.Fields[0].Path != "/host" || refusal.Fields[0].Code != c.code {
+				t.Errorf("AssignedHost(%q) answered (%q, %v), want %s at /host", c.raw, got, err, c.code)
+			}
+		})
+	}
+}
+
+// The short name of a workspace on an assigned host, where the operator gave none: the host's first
+// label, and the next ones while that is too short to be a short name.
+func TestTheShortNameIsMadeFromTheHost(t *testing.T) {
+	for host, want := range map[string]string{
+		"tasks-hr.corp.example":          "tasks-hr",
+		"hr.corp.example":                "hr-corp",
+		"a.b.example":                    "a-b",
+		"aufgaben.xn--mller-kva.example": "aufgaben",
+		"xn--mller-kva.example":          "xn-mller-kva",
+	} {
+		if got := ShortNameOfHost(host); got != want {
+			t.Errorf("ShortNameOfHost(%q) = %q, want %q", host, got, want)
+		}
 	}
 }

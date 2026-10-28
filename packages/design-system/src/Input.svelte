@@ -35,6 +35,11 @@
      */
     revealLabel?: string;
     hideLabel?: string;
+    /**
+     * The face the value is drawn in. `code` for a value a machine reads as typed - a host, a
+     * short name - in the mono face, as the screens that show it elsewhere draw it.
+     */
+    face?: 'text' | 'code';
   }
 
   let {
@@ -51,6 +56,7 @@
     isInvalid = false,
     revealLabel,
     hideLabel,
+    face = 'text',
     ...rest
   }: Props = $props();
 
@@ -80,6 +86,7 @@
         {id}
         type={shownType}
         class="input"
+        data-face={face}
         bind:value
         {...rest}
         aria-disabled={unavailable ? 'true' : undefined}
@@ -145,6 +152,8 @@
     font: inherit;
     text-align: start;
   }
+
+  .input[data-face='code'] { font-family: var(--font-mono); }
 
   /* Per size, because the shell's minimum is only true if the field inside it fits within one.
      A flat step here made a small field taller than the minimum it declared. */

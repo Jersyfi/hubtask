@@ -231,6 +231,7 @@ class InstallationSetUp(TypedDict, total=False):
     code: Required[str]
     display_name: Required[str]
     slug: str
+    host: str
     owner_email: Required[str]
     owner_display_name: str
     password: Required[str]
@@ -1048,6 +1049,7 @@ class TotpConfirmed(TypedDict, total=False):
 class AdminTenant(TypedDict, total=False):
     id: Required[str]
     slug: Required[str]
+    host: str
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: str
@@ -1206,7 +1208,8 @@ class AdminTenantPage(TypedDict, total=False):
     page: Required["PageInfo"]
 
 class TenantProvision(TypedDict, total=False):
-    slug: Required[str]
+    slug: str
+    host: str
     display_name: Required[str]
     default_locale: str | None
     default_time_zone: str | None
@@ -1218,6 +1221,7 @@ class TenantProvision(TypedDict, total=False):
 class ProvisionedTenant(TypedDict, total=False):
     id: Required[str]
     slug: Required[str]
+    host: str
     display_name: Required[str]
     status: Required[Literal["ACTIVE", "SUSPENDED", "PENDING_DELETION"]]
     default_locale: str
@@ -3363,6 +3367,7 @@ class Capabilities(TypedDict, total=False):
     product_version: str
     api_version: str
     tenancy_mode: Literal["single", "multi"]
+    workspace_hosts: Literal["subdomain", "assigned"]
     item_types: list[dict[str, Any]]
     view_layouts: list[str]
     completion_policies: list["CompletionPolicy"]

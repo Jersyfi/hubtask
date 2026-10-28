@@ -71,6 +71,9 @@ services:
       # Single by default - the self-hoster's mode. The smoke check overrides it to exercise the
       # multi-mode control plane against the same file: one Compose file, both modes.
       HUBTASK_TENANCY_MODE: ${HUBTASK_TENANCY_MODE:-single}
+      # In multi mode: `subdomain` behind a wildcard, or `assigned` hosts the operator names
+      # (deployment.md §6.1).
+      HUBTASK_WORKSPACE_HOSTS: ${HUBTASK_WORKSPACE_HOSTS:-subdomain}
       # Operators named by the environment (UC-INS-02); empty names nobody.
       HUBTASK_OPERATORS: ${HUBTASK_OPERATORS:-}
       HUBTASK_SECRET_KEY: ${HUBTASK_SECRET_KEY:?HUBTASK_SECRET_KEY must be set}

@@ -121,6 +121,43 @@ func TestProvisioningPrintsTheRedemptionTokenOnceAndWarnsBesideIt(t *testing.T) 
 	}
 }
 
+// UC-INS-20 checks 1 and 3 at `hubctl`: where the installation assigns hosts, the host travels and
+// the short name may be left to the server, which makes it from the host; the answer shows both. A
+// host the server refuses is said with its reason.
+func TestProvisioningOnAnAssignedHost(t *testing.T) {
+	stub := serveJSON(t, http.StatusCreated, `{"id":"`+acmeID+`","slug":"tasks-hr",
+	  "host":"tasks-hr.corp.example","display_name":"Human Resources","status":"ACTIVE",
+	  "created_at":"2026-09-01T09:00:00Z","owner_account_id":"`+ownerID+`",
+	  "owner_redemption_token":"`+redemptionToken+`","default_hub_id":"`+seededHub+`",
+	  "example_collection_id":"`+collectionID+`"}`)
+	code, out, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "tenant", "create", "--host", "tasks-hr.corp.example", "--name", "Human Resources",
+		"--owner-email", "jana.koch@corp.example")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	if !strings.Contains(stub.body, `"host":"tasks-hr.corp.example"`) || strings.Contains(stub.body, `"slug"`) {
+		t.Errorf("the host did not travel alone: %s", stub.body)
+	}
+	if !strings.Contains(out, "tasks-hr.corp.example") || !strings.Contains(out, "tasks-hr") {
+		t.Errorf("the answer does not show the host and the short name: %q", out)
+	}
+
+	refusing := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		problemJSON(w, http.StatusConflict, map[string]any{
+			"status": 409, "code": "conflict", "detail_code": "admin.host_taken",
+			"params":       map[string]any{"host": "tasks-sales.corp.example"},
+			"field_errors": []map[string]any{{"path": "/host", "code": "admin.host_taken"}},
+		})
+	})
+	code, _, errOut = invokeAgainst(t, refusing, signedIn(refusing), "",
+		"admin", "tenant", "create", "--host", "tasks-sales.corp.example", "--name", "Sales",
+		"--owner-email", "eva@corp.example")
+	if code == exitOK || !strings.Contains(errOut, "A workspace already answers at tasks-sales.corp.example.") {
+		t.Errorf("a taken host answered exit %d: %q", code, errOut)
+	}
+}
+
 func TestSuspendingAndResumingAreOneWriteEach(t *testing.T) {
 	for _, verb := range []string{"suspend", "resume", "cancel-deletion"} {
 		t.Run(verb, func(t *testing.T) {

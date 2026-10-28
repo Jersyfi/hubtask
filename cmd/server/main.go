@@ -1676,7 +1676,7 @@ func run() error {
 		Events: outbox, Changes: changes, Audit: auditSink, Renderer: renderer,
 		Domains: domains, Text: forms,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy,
+		Entropy: clockadapter.CryptoRandom{}, Tenancy: cfg.Tenancy, WorkspaceHosts: cfg.WorkspaceHosts,
 		// The one host the new workspace answers at. The installation's own host comes
 		// from the configured base URL and never from a request.
 		Hosts: postgres.NewTenantHostRepository(), InstallationHost: installationHost,
@@ -1874,6 +1874,7 @@ func run() error {
 			Seeder: provisioning, Owners: signInStore, Operators: operators,
 			Journal: postgres.NewInstanceJournal(cursors),
 			Domains: domains, Text: forms, Tenancy: cfg.Tenancy,
+			WorkspaceHosts: cfg.WorkspaceHosts, InstallationHost: installationHost,
 			Instance: postgres.NewInstanceSettingRepository(),
 		}.Descriptor(),
 		identity.CompleteSignIn{Writer: sessionWriter}.Descriptor(),
@@ -4050,7 +4051,9 @@ func run() error {
 
 	// Every workspace's main address, before the first request: a request's host names its
 	// workspace only through a row, and a workspace older than its row has none (ADR-0095 §1).
-	if cfg.Tenancy == envport.TenancyMulti {
+	// With assigned hosts every workspace got its host when it was made, and a subdomain written
+	// now would be an address the operator never gave it.
+	if cfg.Tenancy == envport.TenancyMulti && cfg.WorkspaceHosts != envport.HostsAssigned {
 		ensureMainHosts(ctx, identity.EnsureMainHosts{
 			Hosts: postgres.NewTenantHostRepository(), UnitOfWork: unitOfWork, BaseHost: installationHost,
 		})

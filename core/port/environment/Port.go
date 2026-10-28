@@ -36,6 +36,19 @@ const (
 	TenancyMulti  TenancyMode = "multi"
 )
 
+// WorkspaceHosts is where a workspace of a multi-mode installation answers (ADR-0095 §6): beneath
+// the installation's own host, or at a host the operator names for it. An installation uses one of
+// the two, never both.
+type WorkspaceHosts string
+
+const (
+	// HostsSubdomain puts each workspace at `<short name>.<base host>`, behind a wildcard.
+	HostsSubdomain WorkspaceHosts = "subdomain"
+	// HostsAssigned gives each workspace a host the operator names when it is created, for an
+	// ingress without a wildcard certificate. No DNS proof is asked: the host is the operator's.
+	HostsAssigned WorkspaceHosts = "assigned"
+)
+
 // StorageKind selects the object storage adapter. Local storage is the self-hosting default;
 // a Raspberry Pi has a disk, not a bucket.
 type StorageKind string
@@ -66,6 +79,8 @@ type Config struct {
 	LogLevel  string
 
 	Tenancy TenancyMode
+	// WorkspaceHosts is HUBTASK_WORKSPACE_HOSTS; read in multi mode only.
+	WorkspaceHosts WorkspaceHosts
 
 	// InstanceFile is the path to the installation's own configuration file, and the third of
 	// ADR-0070 §5's three doors. Empty is "no file", which is every installation that configures

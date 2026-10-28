@@ -189,9 +189,10 @@ func adminTenantList(ctx context.Context, cli *CLI, args []string) error {
 // standard error.
 func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	flags := commandFlags(cli, "admin tenant", "create",
-		"--slug <name> --name <display name> --owner-email <address> [--owner-name <name>] "+
-			"[--locale <tag>] [--zone <zone>] [--plan <short name>] [--reference <ref>]")
-	slug := flags.String("slug", "", "the subdomain the workspace answers on")
+		"(--slug <name> | --host <host> [--slug <name>]) --name <display name> --owner-email <address> "+
+			"[--owner-name <name>] [--locale <tag>] [--zone <zone>] [--plan <short name>] [--reference <ref>]")
+	slug := flags.String("slug", "", "the short name; with subdomains, the subdomain the workspace answers on")
+	host := flags.String("host", "", "where the installation assigns hosts: the host the workspace answers at")
 	name := flags.String("name", "", "what people read")
 	ownerEmail := flags.String("owner-email", "", "who the workspace is for")
 	ownerName := flags.String("owner-name", "", "what to call them")
@@ -202,8 +203,10 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	if err := parseCommand(flags, args); err != nil {
 		return err
 	}
-	if *slug == "" || *name == "" || *ownerEmail == "" {
-		return usagef("provisioning needs --slug, --name and --owner-email")
+	// Which of --slug and --host the installation asks for is the server's to say: it knows how it
+	// gives a workspace its address, and refuses the one it does not take at its field.
+	if (*slug == "" && *host == "") || *name == "" || *ownerEmail == "" {
+		return usagef("provisioning needs --slug or --host, --name and --owner-email")
 	}
 
 	client, err := cli.client()
@@ -212,7 +215,8 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 	}
 	var provisioned openapi.ProvisionedTenant
 	if err := client.Post(ctx, adminTenantsPath, openapi.TenantProvision{
-		Slug:              *slug,
+		Slug:              optional(*slug),
+		Host:              optional(*host),
 		DisplayName:       *name,
 		OwnerEmail:        openapitypes.Email(*ownerEmail),
 		OwnerDisplayName:  optional(*ownerName),
@@ -228,9 +232,9 @@ func adminTenantCreate(ctx context.Context, cli *CLI, args []string) error {
 		return cli.Emit(provisioned, Table{})
 	}
 	cli.emitTable(Table{
-		Columns: []string{"id", "slug", "name", "status", "owner", "default hub", "example collection"},
+		Columns: []string{"id", "slug", "host", "name", "status", "owner", "default hub", "example collection"},
 		Rows: [][]string{{
-			provisioned.Id.String(), provisioned.Slug, provisioned.DisplayName,
+			provisioned.Id.String(), provisioned.Slug, text(provisioned.Host), provisioned.DisplayName,
 			string(provisioned.Status), provisioned.OwnerAccountId.String(),
 			provisioned.DefaultHubId.String(), provisioned.ExampleCollectionId.String(),
 		}},
@@ -454,6 +458,7 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 		rows = append(rows, []string{
 			tenant.Id.String(),
 			tenant.Slug,
+			text(tenant.Host),
 			tenant.DisplayName,
 			string(tenant.Status),
 			text(tenant.DefaultLocale),
@@ -468,7 +473,7 @@ func tenantTable(tenants []openapi.AdminTenant) Table {
 	}
 	return Table{
 		// "removal began" is the moment from which the deletion can no longer be called off.
-		Columns: []string{"id", "slug", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold", "plan", "reference"},
+		Columns: []string{"id", "slug", "host", "name", "status", "locale", "created", "purged after", "removal began", "password open until", "legal hold", "plan", "reference"},
 		Rows:    rows,
 	}
 }

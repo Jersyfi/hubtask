@@ -50,6 +50,9 @@ type TenantRecord struct {
 	// ExternalReference is a purchase platform's own reference for the workspace, empty for none
 	// (multi-tenancy.md §4.3). It may name a customer: it goes into no log, metric or journal.
 	ExternalReference string
+	// Host is the workspace's main address, its canonical serving row; empty where it has none -
+	// in single mode, and for a workspace older than its row until the next start writes it.
+	Host string
 }
 
 // TenantQuery is the control plane's filters over the workspaces; an empty field filters nothing.

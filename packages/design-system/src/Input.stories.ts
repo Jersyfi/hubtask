@@ -49,3 +49,10 @@ export const range: Story = {
     '`readonly` does not reach a range, so the guard refuses the press and every key but leaving: the arrows move nothing, and the reason shows.',
   args: { mode: 'range' },
 };
+
+export const code: Story = {
+  name: 'A value a machine reads',
+  about:
+    'A host or a short name is typed as it will be read, so it is drawn in the mono face: `face="code"`. The placeholder is in the same face, which is what makes it read as the value that stands in.',
+  args: { mode: 'code' },
+};

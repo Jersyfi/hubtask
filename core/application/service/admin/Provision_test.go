@@ -330,9 +330,18 @@ type provisionFixture struct {
 }
 
 // hostsStore is the hosts a workspace answers at, in memory.
-type hostsStore struct{ rows []domain.TenantHost }
+type hostsStore struct {
+	rows []domain.TenantHost
+	// taken are hosts another workspace answers at, refused as the store's unique index refuses them.
+	taken map[string]bool
+}
 
 func (s *hostsStore) Insert(_ context.Context, host domain.TenantHost) error {
+	if s.taken[host.Host] {
+		params := map[string]string{"host": host.Host}
+		return shared.ErrConflict.WithDetail("admin.host_taken").WithParams(params).
+			WithFields(shared.FieldError{Path: "/host", Code: "admin.host_taken", Params: params})
+	}
 	s.rows = append(s.rows, host)
 	return nil
 }
@@ -637,7 +646,7 @@ func TestASingleModeWorkspaceIsSeededWithoutAHost(t *testing.T) {
 	if err != nil {
 		t.Fatalf("an owner: %v", err)
 	}
-	if _, _, err := f.handler.SeedWorkspace(t.Context(), operator(), tenant, owner, fixed); err != nil {
+	if _, _, err := f.handler.SeedWorkspace(t.Context(), operator(), tenant, owner, "", fixed); err != nil {
 		t.Fatalf("seeding a single-mode workspace: %v", err)
 	}
 	if len(f.hosts.rows) != 0 {

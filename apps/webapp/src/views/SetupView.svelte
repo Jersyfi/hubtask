@@ -39,17 +39,20 @@
   let code = $state('');
   let workspace = $state('');
   let slug = $state('');
+  let host = $state('');
   let name = $state('');
   let email = $state('');
   let password = $state('');
 
   const isBusy = $derived(session.status === 'verifying');
   const asksShortName = $derived(manifest.isMultiTenant);
+  /** Where the installation assigns hosts, the first workspace's host is asked as on *New workspace*. */
+  const asksHost = $derived(manifest.isMultiTenant && manifest.hasAssignedHosts);
   const fieldError = (path: string): string | undefined => session.problem?.fields.get(path);
   /** A problem that belongs to a field is said there and not twice. */
   const isFieldProblem = $derived(
     session.problem !== undefined &&
-      ['/code', '/slug', '/display_name', '/owner_email', '/password'].some((path) => session.problem?.fields.has(path)),
+      ['/code', '/host', '/slug', '/display_name', '/owner_email', '/password'].some((path) => session.problem?.fields.has(path)),
   );
 
   $effect(() => signInRules.read());
@@ -59,7 +62,8 @@
     const signedIn = await session.setUp({
       code,
       display_name: workspace,
-      ...(asksShortName ? { slug } : {}),
+      ...(asksHost ? { host } : {}),
+      ...(asksShortName && !(asksHost && slug.trim() === '') ? { slug } : {}),
       owner_email: email,
       ...(name.trim() ? { owner_display_name: name } : {}),
       password,
@@ -101,7 +105,27 @@
         autocomplete="organization"
         isRequired
       />
-      {#if asksShortName}
+      {#if asksHost}
+        <Input
+          label={t('app.instance.host_label')}
+          hint={t('app.instance.host_hint')}
+          error={fieldError('/host')}
+          bind:value={host}
+          face="code"
+          autocapitalize="none"
+          spellcheck={false}
+          isRequired
+        />
+        <Input
+          label={t('app.setup.slug_label')}
+          hint={t('app.instance.short_name_hint')}
+          error={fieldError('/slug')}
+          bind:value={slug}
+          face="code"
+          autocapitalize="none"
+          spellcheck={false}
+        />
+      {:else if asksShortName}
         <Input
           label={t('app.setup.slug_label')}
           hint={t('app.setup.slug_hint', { address: `${slug || '…'}.${location.host}` })}

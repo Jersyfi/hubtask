@@ -16165,7 +16165,12 @@
           },
           "slug": {
             "type": "string",
-            "description": "Multi mode only, and required there: the subdomain the workspace answers on, 3-40 characters of lower-case letters, digits and hyphens. Refused in single mode.\n"
+            "description": "Multi mode only: the workspace's short name, 3-40 characters of lower-case letters, digits and hyphens. With subdomains it is required and the subdomain the workspace answers on; with assigned hosts it is optional and made from the host when omitted. Refused in single mode.\n"
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "Multi mode with assigned hosts only, and required there: the full host name the workspace answers at. Refused like a provisioned workspace's host (`admin.host_required`, `admin.host_invalid`, `admin.host_installation`, `admin.host_taken`), and with `admin.host_not_assigned` where the installation uses subdomains or runs a single workspace.\n"
           },
           "owner_email": {
             "type": "string",
@@ -19889,6 +19894,10 @@
           "slug": {
             "type": "string"
           },
+          "host": {
+            "type": "string",
+            "description": "The host the workspace answers at, its main address. Absent in single mode, where the installation's own host is the workspace's.\n"
+          },
           "display_name": {
             "type": "string"
           },
@@ -20751,7 +20760,6 @@
       "TenantProvision": {
         "type": "object",
         "required": [
-          "slug",
           "display_name",
           "owner_email"
         ],
@@ -20759,7 +20767,12 @@
           "slug": {
             "type": "string",
             "pattern": "^[a-z0-9][a-z0-9-]{2,39}$",
-            "description": "The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).\n"
+            "description": "The workspace's short name, by which the API and `hubctl` name it. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`). With subdomains it is required (`admin.slug_required`) and is the subdomain the workspace answers on; with assigned hosts it may be omitted and is then made from the host's first label.\n"
+          },
+          "host": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "The full host name the workspace answers at, such as `tasks-hr.corp.example`: required where the installation assigns hosts (`admin.host_required`), refused where it uses subdomains (`admin.host_not_assigned`). No DNS is checked; the record and the certificate are the operator's. Refused at the field when it is no host name (`admin.host_invalid`), the installation's own host (`admin.host_installation`) or a host another workspace answers at (`admin.host_taken`).\n"
           },
           "display_name": {
             "type": "string",
@@ -31992,6 +32005,14 @@
               "single",
               "multi"
             ]
+          },
+          "workspace_hosts": {
+            "type": "string",
+            "enum": [
+              "subdomain",
+              "assigned"
+            ],
+            "description": "Multi mode only: whether a workspace answers beneath the installation's own host or at a host the operator assigns, and therefore whether creating one asks for a short name or for a host. Absent in single mode.\n"
           },
           "item_types": {
             "type": "array",

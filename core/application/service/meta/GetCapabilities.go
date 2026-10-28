@@ -41,6 +41,9 @@ type Capabilities struct {
 	ProductVersion string
 	APIVersion     string
 	TenancyMode    string
+	// WorkspaceHosts is, in multi mode, whether a workspace answers beneath the installation's host
+	// or at one the operator assigns (ADR-0095 §6); empty in single mode.
+	WorkspaceHosts string
 	ItemTypes      []work.CapabilityProfile
 	// QueryFields is what POST /items:query accepts: which fields may be filtered, ordered and
 	// grouped by, and with which operators (api-guidelines.md §3).
@@ -503,6 +506,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		ProductVersion:            g.Config.Version,
 		APIVersion:                APIVersion,
 		TenancyMode:               string(g.Config.Tenancy),
+		WorkspaceHosts:            workspaceHostsOf(g.Config),
 		ItemTypes:                 profiles,
 		QueryFields:               view.Fields(),
 		ViewLayouts:               view.Layouts(),
@@ -700,4 +704,16 @@ func notificationChannels() []string {
 // here because the application layer may not import a sibling service.
 type KeptOutReader interface {
 	Read(ctx context.Context, tenantID shared.ID) (integration.KeptOut, error)
+}
+
+// workspaceHostsOf is the installation's way of giving a workspace its host, named only where there
+// are workspaces to give one: a single-mode installation's one workspace is the installation.
+func workspaceHostsOf(config env.Config) string {
+	if config.Tenancy != env.TenancyMulti {
+		return ""
+	}
+	if config.WorkspaceHosts == "" {
+		return string(env.HostsSubdomain)
+	}
+	return string(config.WorkspaceHosts)
 }

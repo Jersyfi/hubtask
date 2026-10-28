@@ -173,6 +173,7 @@ func TestTheDefaultsAreTheDocumentedOnes(t *testing.T) {
 		{"ops address", cfg.OpsAddr, ":9090"},
 		{"log format", cfg.LogFormat, "json"},
 		{"tenancy", cfg.Tenancy, env.TenancySingle},
+		{"workspace hosts", cfg.WorkspaceHosts, env.HostsSubdomain},
 		{"shutdown grace", cfg.ShutdownGraceSeconds, 30},
 		{"shutdown deregister", cfg.ShutdownDeregisterSeconds, 15},
 		{"pool size", cfg.Database.MaxConns, 10},
@@ -261,6 +262,7 @@ func TestInvalidValuesAreRejectedByCode(t *testing.T) {
 		want     string
 	}{
 		{"HUBTASK_TENANCY_MODE", "somewhat", "config.tenancy_invalid"},
+		{"HUBTASK_WORKSPACE_HOSTS", "path", "config.workspace_hosts_invalid"},
 		{"HUBTASK_LOG_FORMAT", "xml", "config.log_format_invalid"},
 		{"HUBTASK_LOG_LEVEL", "chatty", "config.log_level_invalid"},
 		{"HUBTASK_SHUTDOWN_GRACE_SECONDS", "0", "config.shutdown_grace_invalid"},
