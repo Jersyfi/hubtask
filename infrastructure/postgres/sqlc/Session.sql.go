@@ -1349,6 +1349,19 @@ func (q *Queries) ResolveTenant(ctx context.Context, slug *string) (pgtype.UUID,
 	return tenant_id, err
 }
 
+const resolveTenantHost = `-- name: ResolveTenantHost :one
+SELECT resolve_tenant_host($1::text)::uuid AS tenant_id
+`
+
+// A request's host names its workspace in multi mode (ADR-0095 §1): one identifier or none, through
+// the SECURITY DEFINER function of migration 0207.
+func (q *Queries) ResolveTenantHost(ctx context.Context, host string) (pgtype.UUID, error) {
+	row := q.db.QueryRow(ctx, resolveTenantHost, host)
+	var tenant_id pgtype.UUID
+	err := row.Scan(&tenant_id)
+	return tenant_id, err
+}
+
 const revokeAllSessionsForAccount = `-- name: RevokeAllSessionsForAccount :execrows
 UPDATE session SET revoked_at = $1
 WHERE account_id = $2 AND revoked_at IS NULL

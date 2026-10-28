@@ -11,6 +11,19 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const ensureMainHosts = `-- name: EnsureMainHosts :one
+SELECT ensure_main_hosts($1::text)::integer AS written
+`
+
+// The main row of every live workspace that has none, under the installation's host (migration
+// 0207). A count, never a row.
+func (q *Queries) EnsureMainHosts(ctx context.Context, baseHost string) (int32, error) {
+	row := q.db.QueryRow(ctx, ensureMainHosts, baseHost)
+	var written int32
+	err := row.Scan(&written)
+	return written, err
+}
+
 const insertTenantHost = `-- name: InsertTenantHost :exec
 INSERT INTO tenant_host
   (tenant_id, host, state, verification, verified_at, is_canonical, created_at)

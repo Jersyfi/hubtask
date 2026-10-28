@@ -15,3 +15,8 @@ VALUES (
 SELECT host, state, verification, verified_at, is_canonical, created_at
 FROM tenant_host
 ORDER BY is_canonical DESC, host;
+
+-- name: EnsureMainHosts :one
+-- The main row of every live workspace that has none, under the installation's host (migration
+-- 0207). A count, never a row.
+SELECT ensure_main_hosts(sqlc.arg('base_host')::text)::integer AS written;
