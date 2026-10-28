@@ -1174,8 +1174,12 @@ CREATE TABLE custom_field_definition (
   tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
   collection_id uuid,   -- NULL = tenant-wide
   key           text NOT NULL CHECK (key ~ '^[a-z][a-z0-9_]{0,49}$'),
-  kind          text NOT NULL CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL')),
+  kind          text NOT NULL CONSTRAINT custom_field_definition_kind_check
+                  CHECK (kind IN ('TEXT','NUMBER','DATE','SELECT','MULTI_SELECT','BOOL','USER','URL',
+                                  'MONEY','DURATION','REFERENCE','USER_SET','RICH_TEXT')),
   options       jsonb NOT NULL DEFAULT '[]'::jsonb,
+  -- The ISO 4217 code of a MONEY field's amounts, null for every other kind (migration 0211).
+  currency      text,
   is_required   boolean NOT NULL DEFAULT false,
   applies_to    item_type[] NOT NULL DEFAULT '{TASK}',
   created_at    timestamptz NOT NULL DEFAULT now(),
@@ -1183,13 +1187,42 @@ CREATE TABLE custom_field_definition (
   version       integer     NOT NULL DEFAULT 1,
   deleted_at    timestamptz,
   CONSTRAINT custom_field_definition_collection_id_fkey
-    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE
+    FOREIGN KEY (tenant_id, collection_id) REFERENCES container (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT custom_field_definition_currency_check
+    CHECK ((kind = 'MONEY') = (currency IS NOT NULL) AND (currency IS NULL OR currency ~ '^[A-Z]{3}$'))
 );
 CREATE UNIQUE INDEX custom_field_definition_tenant_id_uq ON custom_field_definition (tenant_id, id);
 CREATE INDEX cfd_scope_idx ON custom_field_definition (tenant_id, collection_id) WHERE deleted_at IS NULL;
 CREATE UNIQUE INDEX cfd_key_uq
   ON custom_field_definition (tenant_id, coalesce(collection_id, '00000000-0000-0000-0000-000000000000'::uuid), key)
   WHERE deleted_at IS NULL;
+
+-- The typed projection of `work_item.custom_fields` the query language ranges, sorts and groups
+-- over (migrations 0211, 0212; F-2): one row per value, per element of a set, in the one column its
+-- kind compares in. Written by the trigger below in the transaction that writes the document.
+CREATE TABLE entry_field_value (
+  tenant_id     uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
+  entry_id      uuid NOT NULL,
+  definition_id uuid NOT NULL,
+  ordinal       integer NOT NULL DEFAULT 0 CHECK (ordinal >= 0),
+  num           numeric,          -- NUMBER, MONEY, DURATION, BOOL (1 or 0)
+  ts            timestamptz,      -- DATE, midnight UTC
+  text          text CHECK (text IS NULL OR char_length(text) <= 256),  -- TEXT, SELECT, MULTI_SELECT, URL
+  ref           uuid,             -- USER, USER_SET, REFERENCE
+  PRIMARY KEY (tenant_id, entry_id, definition_id, ordinal),
+  CHECK (num_nonnulls(num, ts, text, ref) = 1),
+  CONSTRAINT entry_field_value_entry_fkey
+    FOREIGN KEY (tenant_id, entry_id) REFERENCES work_item (tenant_id, id) ON DELETE CASCADE,
+  CONSTRAINT entry_field_value_definition_fkey
+    FOREIGN KEY (tenant_id, definition_id) REFERENCES custom_field_definition (tenant_id, id)
+    ON DELETE CASCADE
+);
+CREATE INDEX efv_num_idx  ON entry_field_value (tenant_id, definition_id, num)  WHERE num IS NOT NULL;
+CREATE INDEX efv_ts_idx   ON entry_field_value (tenant_id, definition_id, ts)   WHERE ts IS NOT NULL;
+CREATE INDEX efv_text_idx ON entry_field_value (tenant_id, definition_id, text) WHERE text IS NOT NULL;
+CREATE INDEX efv_ref_idx  ON entry_field_value (tenant_id, definition_id, ref)  WHERE ref IS NOT NULL;
+GRANT SELECT, INSERT, UPDATE, DELETE ON entry_field_value TO hubtask_app;
+-- entry_field_values_of(work_item) and the trigger work_item_field_values: migration 0211.
 
 CREATE TABLE comment (
   id                uuid PRIMARY KEY,
@@ -2871,7 +2904,7 @@ BEGIN
     'backup_schedule','backup_run','restore_run','deletion_journal','retention_run',
     'retention_rule','retention_cursor',
     'legal_hold','tombstone','sync_device','sync_op_log','set_element','field_clock',
-    'import_run','quota_reached','entry_type'
+    'import_run','quota_reached','entry_type','entry_field_value'
   ]
   LOOP
     EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', t);

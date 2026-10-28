@@ -1206,6 +1206,12 @@ type CustomFields interface {
 	// list nobody scrolls would be machinery for its own sake.
 	ListInScope(ctx context.Context, collectionID shared.ID) ([]work.CustomFieldDefinition, error)
 
+	// KindsByKey answers, per key, the kinds of the live definitions under it that are in force
+	// workspace-wide or in one of the collections - what the query language needs to know which
+	// typed column a range, a sort or a grouping on the key reads (F-2). A key nothing defines is
+	// absent; a key with two kinds in the scope answers both.
+	KindsByKey(ctx context.Context, keys []string, collections []shared.ID) (map[string][]work.CustomFieldKind, error)
+
 	// SetAttributes writes what an edit may change, or reports a version conflict.
 	SetAttributes(ctx context.Context, definition work.CustomFieldDefinition, expectedVersion int) error
 

@@ -9,16 +9,16 @@
 -- The unique index cfd_key_uq decides whether the key is free, rather than a check followed by an
 -- insert: two requests arriving in the gap between the two would both pass the check.
 INSERT INTO custom_field_definition (
-  id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
+  id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
   created_at, updated_at, version
 ) VALUES (
   sqlc.arg('id'), current_tenant_id(), sqlc.narg('collection_id'), sqlc.arg('key'),
-  sqlc.arg('kind'), sqlc.arg('options'), sqlc.arg('is_required'),
+  sqlc.arg('kind'), sqlc.arg('options'), sqlc.narg('currency'), sqlc.arg('is_required'),
   sqlc.arg('applies_to')::item_type[], sqlc.arg('created_at'), sqlc.arg('created_at'), 1
 );
 
 -- name: FindCustomField :one
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE id = $1;
@@ -28,7 +28,7 @@ WHERE id = $1;
 -- workspace-wide one. The collection's own wins, which is what makes a workspace-wide default
 -- overridable by a team that needs something narrower - `ORDER BY` puts the specific one first and
 -- the row limit takes it.
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE deleted_at IS NULL
@@ -42,7 +42,7 @@ LIMIT 1;
 -- NULL collection answers the workspace-wide ones alone, which is what a client configuring the
 -- workspace asks for. Ordered by scope and then by key, so the answer is stable and the specific
 -- definitions sit beside the general ones they narrow.
-SELECT id, tenant_id, collection_id, key, kind, options, is_required, applies_to,
+SELECT id, tenant_id, collection_id, key, kind, options, currency, is_required, applies_to,
        created_at, updated_at, deleted_at, version
 FROM custom_field_definition
 WHERE deleted_at IS NULL
@@ -71,3 +71,15 @@ UPDATE custom_field_definition SET
   updated_at = sqlc.arg('deleted_at'),
   version    = version + 1
 WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version') AND deleted_at IS NULL;
+
+-- name: ListCustomFieldKindsByKey :many
+-- The kinds the live definitions under these keys have, in force anywhere a query's scope reaches:
+-- the workspace-wide ones and those of the named collections. What the query language needs to
+-- know which typed column a range, a sort or a grouping reads (F-2); a key with two kinds in one
+-- scope answers both, and the use case refuses to guess.
+SELECT DISTINCT key, kind
+FROM custom_field_definition
+WHERE deleted_at IS NULL
+  AND key = ANY(sqlc.arg('keys')::text[])
+  AND (collection_id IS NULL OR collection_id = ANY(sqlc.arg('collection_ids')::uuid[]))
+ORDER BY key, kind;

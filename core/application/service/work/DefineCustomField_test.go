@@ -84,6 +84,24 @@ func (s *customFieldStore) FindInScope(
 	return found, nil
 }
 
+func (s *customFieldStore) KindsByKey(
+	_ context.Context, keys []string, collections []shared.ID,
+) (map[string][]domain.CustomFieldKind, error) {
+	kinds := map[string][]domain.CustomFieldKind{}
+	for _, definition := range s.stored {
+		if definition.IsDeleted() || !slices.Contains(keys, definition.Key) {
+			continue
+		}
+		if !definition.IsTenantWide() && !slices.Contains(collections, definition.CollectionID) {
+			continue
+		}
+		if !slices.Contains(kinds[definition.Key], definition.Kind) {
+			kinds[definition.Key] = append(kinds[definition.Key], definition.Kind)
+		}
+	}
+	return kinds, nil
+}
+
 func (s *customFieldStore) ListInScope(
 	_ context.Context, collectionID shared.ID,
 ) ([]domain.CustomFieldDefinition, error) {

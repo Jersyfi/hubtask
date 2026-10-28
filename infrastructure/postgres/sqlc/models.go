@@ -852,6 +852,7 @@ type CustomFieldDefinition struct {
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
 	Version      int32
+	Currency     *string
 }
 
 type DataSubjectRequest struct {
@@ -883,6 +884,17 @@ type DeletionJournal struct {
 	EntityID  pgtype.UUID
 	DeletedAt pgtype.Timestamptz
 	Reason    string
+}
+
+type EntryFieldValue struct {
+	TenantID     pgtype.UUID
+	EntryID      pgtype.UUID
+	DefinitionID pgtype.UUID
+	Ordinal      int32
+	Num          pgtype.Numeric
+	Ts           pgtype.Timestamptz
+	Text         *string
+	Ref          pgtype.UUID
 }
 
 type EntryType struct {

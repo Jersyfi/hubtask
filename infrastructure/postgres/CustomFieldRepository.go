@@ -10,6 +10,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -58,8 +59,9 @@ func (r CustomFieldRepository) Insert(
 
 	err = queries.InsertCustomField(ctx, sqlc.InsertCustomFieldParams{
 		ID: id, CollectionID: collectionID, Key: definition.Key,
-		Kind: string(definition.Kind), Options: options, IsRequired: definition.IsRequired,
-		AppliesTo: typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
+		Kind: string(definition.Kind), Options: options, Currency: currencyOf(definition.Currency),
+		IsRequired: definition.IsRequired,
+		AppliesTo:  typesOf(definition.AppliesTo), CreatedAt: timestampOf(definition.CreatedAt),
 	})
 	if err != nil {
 		return insertCustomFieldError(err, definition)
@@ -284,10 +286,57 @@ func customFieldFrom(row sqlc.FindCustomFieldRow) (work.CustomFieldDefinition, e
 	return work.CustomFieldDefinition{
 		ID: id, TenantID: tenantID, CollectionID: collectionID,
 		Key: row.Key, Kind: work.CustomFieldKind(row.Kind), Options: options,
-		IsRequired: row.IsRequired, AppliesTo: appliesTo,
+		Currency: currencyFrom(row.Currency), IsRequired: row.IsRequired, AppliesTo: appliesTo,
 		CreatedAt: timeFrom(row.CreatedAt), UpdatedAt: timeFrom(row.UpdatedAt),
 		DeletedAt: optionalTime(row.DeletedAt), Version: int(row.Version),
 	}, nil
+}
+
+// currencyOf stores an empty currency as null: the column's CHECK pairs a currency with MONEY.
+func currencyOf(code string) *string {
+	if code == "" {
+		return nil
+	}
+	return &code
+}
+
+func currencyFrom(code *string) string {
+	if code == nil {
+		return ""
+	}
+	return *code
+}
+
+// KindsByKey answers the kinds the live definitions under the keys have, workspace-wide or in one
+// of the collections.
+func (r CustomFieldRepository) KindsByKey(
+	ctx context.Context, keys []string, collections []shared.ID,
+) (map[string][]work.CustomFieldKind, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return nil, err
+	}
+	ids := make([]pgtype.UUID, 0, len(collections))
+	for _, collection := range collections {
+		id, err := uuidOf(collection)
+		if err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	rows, err := queries.ListCustomFieldKindsByKey(ctx, sqlc.ListCustomFieldKindsByKeyParams{
+		Keys: keys, CollectionIds: ids,
+	})
+	if err != nil {
+		return nil, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("reading the custom field kinds: %w", err))
+	}
+	kinds := make(map[string][]work.CustomFieldKind, len(rows))
+	for _, row := range rows {
+		kinds[row.Key] = append(kinds[row.Key], work.CustomFieldKind(row.Kind))
+	}
+	return kinds, nil
 }
 
 // optionsFrom reads the option list back. An absent or empty document is nil rather than an empty
