@@ -1,7 +1,7 @@
 # The suite — the running plan
 
 Hubtask becomes a work suite (the owner's word of 2026-10-28, recorded in
-[`accepted.md`](./accepted.md)).
+[`accepted.md`](./accepted.md); why: [ADR-0098](../../adr/ADR-0098-the-suite-and-its-foundation.md)).
 It is built in concept mode ([`../README.md`](../README.md#a-concept-built-whole)) on one
 integration branch, in the steps below, steered by one orchestrating session. This folder holds the concept as
 the backlog's running plan, so that any session — this one or the next — resumes from the
