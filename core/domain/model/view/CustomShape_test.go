@@ -40,7 +40,7 @@ func TestTheKindsDecideTheColumn(t *testing.T) {
 	}
 }
 
-// UC-WRK-17 check 9: what has no order is refused by name before anything compiles - a range over
+// UC-WRK-17 check 10: what has no order is refused by name before anything compiles - a range over
 // people or prose, a sort or a grouping by several values, and any of them over a key whose kinds
 // disagree; a range over a date reads its bounds as days.
 func TestTheShapeHoldsARangeASortAndAGrouping(t *testing.T) {

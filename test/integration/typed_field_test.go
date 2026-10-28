@@ -74,7 +74,7 @@ func typedQuery(
 	return result
 }
 
-// UC-WRK-17 check 9 against the database: the trigger keeps the typed values in the transaction
+// UC-WRK-17 check 10 against the database: the trigger keeps the typed values in the transaction
 // that writes the document, and a range, a sort and a grouping read them.
 func TestACustomNumberRangesSortsAndGroups(t *testing.T) {
 	ctx := context.Background()

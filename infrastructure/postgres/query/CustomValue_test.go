@@ -29,7 +29,7 @@ func shapedSearch(t *testing.T, filter any, spec view.Spec, shapes map[string]vi
 	return shaped
 }
 
-// UC-WRK-17 check 9: a range over a custom field compares its typed value, by the column its kind
+// UC-WRK-17 check 10: a range over a custom field compares its typed value, by the column its kind
 // is stored in, with the key a parameter and never text (ADR-0026).
 func TestARangeOverACustomFieldReadsTheTypedValue(t *testing.T) {
 	cases := []struct {
@@ -71,7 +71,7 @@ func TestARangeOverACustomFieldReadsTheTypedValue(t *testing.T) {
 	}
 }
 
-// UC-WRK-17 check 9: a custom field sorts by its typed value, nulls last, and the walk continues
+// UC-WRK-17 check 10: a custom field sorts by its typed value, nulls last, and the walk continues
 // from a cursor key of the same type.
 func TestASortByACustomFieldContinuesFromItsCursor(t *testing.T) {
 	sort, err := view.ParseSort([]any{map[string]any{"field": "custom_fields.budget", "dir": "DESC"}}, "/sort")
@@ -108,7 +108,7 @@ func TestASortByACustomFieldContinuesFromItsCursor(t *testing.T) {
 	}
 }
 
-// UC-WRK-17 check 9: a board groups by a custom field's value; the inner select carries the value
+// UC-WRK-17 check 10: a board groups by a custom field's value; the inner select carries the value
 // under an alias the outer one orders by, and the count keys each group by the same spelling.
 func TestAGroupingByACustomFieldIsOneWindowedQuery(t *testing.T) {
 	group, err := view.ParseGroupBy(map[string]any{"field": "custom_fields.priority"}, "/group_by")
