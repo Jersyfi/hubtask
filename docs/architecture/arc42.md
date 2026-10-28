@@ -364,6 +364,9 @@ have no other home.
 ### 8.1 Domain model and generalisation
 [domain-model.md](./domain-model.md): one `WorkItem` with an `ItemType` and a capability profile,
 containers generalised the same way, extension through configuration and typed custom fields.
+A field's values live in the entry's `custom_fields` document, which every read answers, and in
+its typed projection `entry_field_value`, which a trigger keeps in the same transaction and which
+the query language ranges, sorts and groups over (domain-model.md §6, F-2).
 
 ### 8.2 Persistence
 PostgreSQL is the only mandatory component ([ADR-0003](../adr/ADR-0003-postgresql-as-single-datastore.md)):

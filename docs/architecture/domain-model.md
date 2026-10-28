@@ -468,7 +468,7 @@ stateDiagram-v2
 | `Comment` | `itemId`, `authorId`, `body`, `editedAt?`, `parentCommentId?` | Only the author or an admin may change it. Deletion erases the body and keeps identifier, author and timestamps, so the thread stays readable and no removed text is retained — except under a legal hold, where the row keeps the text, no read serves it, and the retention pass clears it once no hold covers it ([data-retention.md](./data-retention.md) §4) |
 | `ActivityEntry` | `itemId`, `actor{type,id}`, `verb`, `changeSet` (JSONB), `occurredAt`, `causationId` | Append-only, the source of the history; `verb` is a message code (below) |
 | `MediaObject` | `tenantId`, `storageKey`, `fileName?`, `mimeType`, `size`, `checksum?`, `usage`, `status` (`PENDING`\|`READY`) | Presigned upload, reference counting, deletion on hard delete. Nothing uses an object before the confirmation has read its bytes back and judged them ([security.md](./security.md) T-11). `usage` is `COVER`, `ATTACHMENT`, `IMPORT` or `AVATAR` (a person's picture: at most 5 MB, an image delivered inline, read by every member) |
-| `CustomFieldDefinition` | `scope(collection\|tenant)`, `key`, `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`), `options`, `required` | Extension without a migration. A value records the definition it was written under, and reads and filters answer only values whose definition still lives, so a key recreated after deletion starts empty |
+| `CustomFieldDefinition` | `scope(collection\|tenant)`, `key`, `kind` (`TEXT`,`NUMBER`,`DATE`,`SELECT`,`MULTI_SELECT`,`BOOL`,`USER`,`URL`; the suite's `MONEY`,`DURATION`,`REFERENCE`,`USER_SET`,`RICH_TEXT`), `options`, `currency` (MONEY only, ISO 4217, fixed once defined), `required` | Extension without a migration. A value records the definition it was written under, and reads and filters answer only values whose definition still lives, so a key recreated after deletion starts empty. MONEY holds at most four decimal places, DURATION whole minutes, REFERENCE an entry the writer can see, USER_SET accounts that can see the entry; RICH_TEXT is Markdown and is never compared (F-2) |
 | `Reminder` | `itemId`, `offsetSpec` (`REL:-PT1H` / `ABS:<ts>`), `channels[]`, `recipients[]`, `state` | Predefined (relative presets) and custom |
 | `RecurrenceRule` | `rrule` (RFC 5545), `timeZone`, `mode` (`ON_SCHEDULE`\|`ON_COMPLETION`), `horizonDays`, `endSpec` | See [arc42.md](./arc42.md) §6.3 |
 | `Template` | `scope`, `name`, `rootType`, `nodes[]` (titles, notes, a relative due date as an ISO-8601 duration such as `P3D`, a fixed `assigneeId` per node) | Instantiation produces an item tree. The tree is validated against the capability profiles when defined, not when instantiated, and holds at most `max_template_nodes` nodes |
@@ -634,7 +634,13 @@ The complete DDL, indices included: [`../../db/schema.sql`](../../db/schema.sql)
 * Composite indices, led by `tenant_id`, match the views' query patterns; partial indices serve
   "not deleted / not archived", the most common filter.
 * Set relations (labels, members) as join tables, not JSON arrays — filterability takes precedence.
-* `custom_fields` as `jsonb` with a GIN index; validation happens in the domain code.
+* `custom_fields` as `jsonb` with a GIN index; validation happens in the domain code. The document
+  is what every read answers; its typed projection `entry_field_value (tenant, entry, definition,
+  ordinal, num | ts | text | ref)` with one B-tree per column is what ranges, sorts and groups
+  read. A trigger writes it in the transaction that writes the document, from every path
+  (migration 0211): a number, an amount, a duration and a yes/no in `num`, a date as its UTC
+  midnight in `ts`, text, a choice and a link in `text` (first 256 characters), a person and a
+  reference in `ref`, one row per element of a set; formatted text has none.
 * Full text: a `tsvector` column with a language-dependent configuration per item, maintained by a
   trigger — a generated column cannot choose its configuration
   ([ADR-0034](../adr/ADR-0034-language-dependent-search.md)) — plus a trigram index for scripts
