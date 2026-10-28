@@ -43,6 +43,7 @@ import (
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/model/entitlement"
 )
@@ -53,6 +54,10 @@ func Descriptors() []usecase.Descriptor {
 		settingservice.ListModules{}.Descriptor(),
 		settingservice.SetModule{}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
+		workflowservice.ListEntryTypes{}.Descriptor(),
+		workflowservice.CreateEntryType{}.Descriptor(),
+		workflowservice.ChangeEntryType{}.Descriptor(),
+		workflowservice.DeleteEntryType{}.Descriptor(),
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
 		work.UpdateWorkItem{}.Descriptor(),

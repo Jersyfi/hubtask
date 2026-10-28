@@ -61,6 +61,7 @@ import (
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
 	"github.com/Jersyfi/hubtask/core/application/service/work"
+	workflowservice "github.com/Jersyfi/hubtask/core/application/service/workflow"
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
 	"github.com/Jersyfi/hubtask/core/domain/event"
@@ -724,6 +725,7 @@ func run() error {
 	entryGate := work.EntryGate{Structure: structures, Types: items}
 	buckets := postgres.NewBucketRepository()
 	labels := postgres.NewLabelRepository()
+	entryTypes := postgres.NewEntryTypeRepository()
 	// The vocabulary a workspace adds to its entries. Its own repository beside the items rather
 	// than a method on them: this is what the keys mean, and `work_item.custom_fields` is what an
 	// entry says in it.
@@ -1722,11 +1724,20 @@ func run() error {
 		Settings: postgres.SettingRepository{}, Containers: containers, Authorizer: authorizer,
 		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 	}
+	// The workspace's type registry (UC-FLW-01), shared by its four use cases.
+	entryTypeRegistry := workflowservice.Registry{
+		Types: entryTypes, Authorizer: authorizer, Changes: changes, Audit: auditSink,
+		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid, Text: forms,
+	}
 	useCases, err := usecase.NewRegistry(
 		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
 		settingservice.ListModules{Modules: modules}.Descriptor(),
 		settingservice.SetModule{Modules: modules}.Descriptor(),
 		settingservice.ReadSettingsCatalogue{}.Descriptor(),
+		workflowservice.ListEntryTypes{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		workflowservice.DeleteEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
