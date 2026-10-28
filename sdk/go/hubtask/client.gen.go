@@ -8503,6 +8503,9 @@ type InstanceSettings struct {
 	// Unlike the other areas a lock here is meaningful, which is what "Tarif, Ausnahme je Bereich" will mean once there are plans. `0` is unlimited and is a decision; absent is "the installation decides nothing", and the product's own default applies.
 	Quotas *map[string]InstanceSetting `json:"quotas,omitempty"`
 
+	// ReservedShortNames The operator's own short names no new workspace may take, beside the product's list - each also reserves its plural, and case does not count. Stored trimmed, in lower case, each once; an entry no short name could be is refused (`admin.reserved_short_name_invalid`). A workspace that already carries a name added here keeps it. Provisioning refuses a reserved name at the field with `admin.slug_reserved`.
+	ReservedShortNames *[]string `json:"reserved_short_names,omitempty"`
+
 	// SignIn The switches by name - the thirteen the password has, `mfa_required_for`, `methods`, the two session bounds, `managed_accounts` and `private_hubs`. `rotation_from` is deliberately not among them: it is an event a workspace raises for its own people, and an operator who wanted every account on the installation to change its password would be asking for a different feature with a different blast radius.
 	SignIn *map[string]InstanceSetting `json:"sign_in,omitempty"`
 
@@ -12406,7 +12409,7 @@ type TenantProvision struct {
 	// Plan The short name of the plan the workspace starts on, or none. An unknown or removed plan is refused before anything is written.
 	Plan *string `json:"plan,omitempty"`
 
-	// Slug The subdomain the workspace answers on. Unique across the installation.
+	// Slug The subdomain the workspace answers on. Unique across the installation (`admin.slug_taken`), and none the installation reserves for itself - the product's list or the operator's `reserved_short_names`, each with its plural (`admin.slug_reserved`).
 	Slug string `json:"slug"`
 }
 

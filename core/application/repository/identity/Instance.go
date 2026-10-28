@@ -48,6 +48,10 @@ type InstanceLevel struct {
 	// Metering offers the use for billing to the control plane (multi-tenancy.md §4.3), off by
 	// default. Instance-only, no lock: the counts are recorded either way (Decision 18).
 	Metering bool
+	// ReservedShortNames are the operator's own short names no new workspace may take, beside the
+	// product's list (multi-tenancy.md §3.1). Instance-only, no lock: it binds provisioning, not
+	// a workspace.
+	ReservedShortNames []string
 	// Source says where the values came from, for the health report: "database" or the path of
 	// the file that is enforcing them (ADR-0070 §5).
 	Source string

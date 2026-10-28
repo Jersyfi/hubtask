@@ -94,7 +94,11 @@ export function countOf(raw: string): number | string | undefined {
 export function documentOf(draft: InstanceSettings): InstanceSettings {
   // The installation-only values beside the areas travel as they were read: a `PUT` that left one
   // out would switch it off.
-  const document: InstanceSettings = { blocklist_file: draft.blocklist_file, metering: draft.metering };
+  const document: InstanceSettings = {
+    blocklist_file: draft.blocklist_file,
+    metering: draft.metering,
+    reserved_short_names: draft.reserved_short_names,
+  };
   for (const area of AREAS) {
     const entries: Record<string, InstanceSetting> = {};
     for (const [key, setting] of Object.entries(draft[area] ?? {})) {

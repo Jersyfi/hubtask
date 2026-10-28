@@ -105,10 +105,11 @@ func (h SetUpInstallation) Execute(
 		slug = domain.DeriveTenantSlug(cmd.DisplayName)
 	}
 
-	locale, zone, err := startingLocalisation(ctx, w.UnitOfWork, h.Instance, cmd.DefaultLocale, cmd.DefaultTimeZone)
+	level, err := installationLevel(ctx, w.UnitOfWork, h.Instance)
 	if err != nil {
 		return SessionPair{}, err
 	}
+	locale, zone := startingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
 
 	now := w.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
@@ -118,6 +119,13 @@ func (h SetUpInstallation) Execute(
 	})
 	if err != nil {
 		return SessionPair{}, err
+	}
+	// In multi mode the short name is a subdomain beside the installation's own; in single mode it
+	// is derived from the name and answers at no host of its own.
+	if h.Tenancy == env.TenancyMulti {
+		if err := domain.RefuseReservedShortName(tenant.Slug, level.ReservedShortNames); err != nil {
+			return SessionPair{}, err
+		}
 	}
 	ownerName := strings.TrimSpace(cmd.OwnerDisplayName)
 	if ownerName == "" {
@@ -344,32 +352,35 @@ func (h SetUpInstallation) invoke(
 	return pairOutput(pair), nil
 }
 
-// startingLocalisation answers the language and zone a new workspace starts with where the caller
-// named none: the installation's defaults (UC-INS-09, "what every workspace starts with"), and
-// otherwise nothing, which the tenant's own constructor reads as `en` and `UTC`. Read before the
-// write's transaction and under the installation's scope - `instance_setting` carries no policy,
-// and the write that follows runs in a scope of its own. Nil reads nothing.
-func startingLocalisation(
+// installationLevel reads what the installation decided that the first workspace meets: the
+// language and zone it starts with where the card named none (UC-INS-09, "what every workspace
+// starts with"), and the operator's reserved short names where an instance file set them before
+// the first start. Read before the write's transaction and under the installation's scope -
+// `instance_setting` carries no policy, and the write that follows runs in a scope of its own.
+// Nil reads nothing.
+func installationLevel(
 	ctx context.Context, unitOfWork persistence.UnitOfWork, instance repository.InstanceSettings,
-	locale, zone string,
-) (string, string, error) {
-	if instance == nil || (strings.TrimSpace(locale) != "" && strings.TrimSpace(zone) != "") {
-		return locale, zone, nil
+) (repository.InstanceLevel, error) {
+	var level repository.InstanceLevel
+	if instance == nil {
+		return level, nil
 	}
-	var defaults domain.LocalisationDefaults
 	err := unitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
-		level, err := instance.Read(ctx)
-		defaults = level.Localisation
+		var err error
+		level, err = instance.Read(ctx)
 		return err
 	})
-	if err != nil {
-		return "", "", err
-	}
+	return level, err
+}
+
+// startingLocalisation answers the card's language and zone, or the installation's defaults where
+// it named none; empty is what the tenant's own constructor reads as `en` and `UTC`.
+func startingLocalisation(defaults domain.LocalisationDefaults, locale, zone string) (string, string) {
 	if strings.TrimSpace(locale) == "" {
 		locale = defaults.Locale
 	}
 	if strings.TrimSpace(zone) == "" {
 		zone = defaults.TimeZone
 	}
-	return locale, zone, nil
+	return locale, zone
 }

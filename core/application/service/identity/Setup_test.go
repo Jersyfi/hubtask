@@ -241,6 +241,11 @@ func TestTheShortNameIsAskedInMultiModeOnly(t *testing.T) {
 	if _, err := multi.invoke(t, setupInput(nil)); detailOf(err) != "setup.short_name_required" {
 		t.Errorf("no short name in multi mode answered %v", err)
 	}
+	// The first workspace's short name is a subdomain like any other's: one the installation
+	// reserves for itself is refused at the field (multi-tenancy.md §3.1).
+	if _, err := multi.invoke(t, setupInput(map[string]any{"slug": "www"})); detailOf(err) != "admin.slug_reserved" {
+		t.Errorf("a reserved short name in multi mode answered %v", err)
+	}
 	if multi.codes.claims != 0 {
 		t.Error("a refused input spent a claim")
 	}

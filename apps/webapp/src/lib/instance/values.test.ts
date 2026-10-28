@@ -74,6 +74,11 @@ test('the metering switch travels through a save unchanged', () => {
   assert.equal(documentOf({ metering: false }).metering, false);
 });
 
+test("the operator's reserved short names travel through a save unchanged", () => {
+  // A `PUT` replaces the level: a document without the list would empty it.
+  assert.deepEqual(documentOf({ reserved_short_names: ['intranet', 'shop'] }).reserved_short_names, ['intranet', 'shop']);
+});
+
 test("a plan's body carries its name, what it leaves out and only what it decides", () => {
   const decided: InstanceSetting = { set: true, value: 6, locked: true, kind: 'COUNT', workspace_may: 'RAISE' };
   const open: InstanceSetting = { set: false, locked: false, kind: 'COUNT', workspace_may: 'RAISE' };

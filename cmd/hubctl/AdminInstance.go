@@ -145,6 +145,9 @@ func adminSettingsSet(ctx context.Context, cli *CLI, args []string, setting bool
 	if rest[0] == "metering" {
 		return adminSettingsMetering(ctx, cli, setting, rest)
 	}
+	if rest[0] == reservedShortNamesKey {
+		return adminSettingsReservedShortNames(ctx, cli, setting, rest)
+	}
 	area, name, split := strings.Cut(rest[0], ".")
 	if !split || area == "" || name == "" {
 		return usagef("%q is not an <area>.<name> key - try `admin settings show`", rest[0])
@@ -284,6 +287,9 @@ func settingsTable(settings openapi.InstanceSettings) Table {
 	add("localisation", settings.Localisation)
 	add("quotas", settings.Quotas)
 	add("ai", settings.Ai)
+	if settings.ReservedShortNames != nil && len(*settings.ReservedShortNames) > 0 {
+		rows = append(rows, []string{reservedShortNamesKey, strings.Join(*settings.ReservedShortNames, ","), "-"})
+	}
 	return Table{Columns: []string{"key", "value", "workspace"}, Rows: rows}
 }
 
@@ -628,6 +634,49 @@ func adminSettingsMetering(ctx context.Context, cli *CLI, setting bool, rest []s
 		read = *settings.Version
 	}
 	settings.Metering = &on
+	var written openapi.InstanceSettings
+	if err := client.PutVersioned(
+		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,
+	); err != nil {
+		return err
+	}
+	return cli.Emit(written, settingsTable(written))
+}
+
+// reservedShortNamesKey is the operator's own list of short names no new workspace may take.
+const reservedShortNamesKey = "reserved_short_names"
+
+// adminSettingsReservedShortNames replaces the operator's own reserved short names, beside the
+// product's list: `set reserved_short_names shop intranet` (or `shop,intranet`) names the whole
+// list, `clear reserved_short_names` empties it. The installation's alone, so it has no lock; a
+// workspace already carrying a name it adds keeps it.
+func adminSettingsReservedShortNames(ctx context.Context, cli *CLI, setting bool, rest []string) error {
+	names := []string{}
+	if setting {
+		for _, argument := range rest[1:] {
+			for _, name := range strings.Split(argument, ",") {
+				if name = strings.TrimSpace(name); name != "" {
+					names = append(names, name)
+				}
+			}
+		}
+		if len(names) == 0 {
+			return usagef("admin settings set %s needs at least one short name - `clear` empties the list", reservedShortNamesKey)
+		}
+	}
+	client, err := cli.client()
+	if err != nil {
+		return err
+	}
+	var settings openapi.InstanceSettings
+	if err := client.Get(ctx, adminSettingsPath, nil, &settings); err != nil {
+		return err
+	}
+	read := 0
+	if settings.Version != nil {
+		read = *settings.Version
+	}
+	settings.ReservedShortNames = &names
 	var written openapi.InstanceSettings
 	if err := client.PutVersioned(
 		ctx, adminSettingsPath, settings, versionPrecondition(read), &written,

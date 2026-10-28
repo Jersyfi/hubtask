@@ -191,6 +191,7 @@ the slug. A path prefix is deliberately not used.
 [ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md); the market research
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
+Built so far: the reserved short names.
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -223,6 +224,17 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
   cross-workspace account, session or count ([NG-global-identity](../vision/non-goals.md)), no
   *Find your workspaces*, and no routing by an address or its domain: no screen tells anybody which
   workspaces an address belongs to.
+
+* **Reserved short names.** The product keeps a list of the labels an installation or its ingress
+  uses for itself (`www`, `api`, `auth`, `admin`, `mail`, `media`, `status`, `docs` and their kin,
+  in `core/domain/model/identity`); the operator adds their own as `reserved_short_names` on the
+  installation level, through the instance file, `hubctl admin settings set reserved_short_names`
+  and `PUT /admin/settings`. Each entry reserves itself and its plural, whatever the case.
+  Provisioning - the control plane and, in multi mode, the first start's setup - refuses such a
+  name at the field with `admin.slug_reserved`, apart from `admin.slug_invalid` and
+  `admin.slug_taken`, and a change of address asks the same. A workspace that already carries a
+  name reserved later keeps it: the list refuses new names only, and renaming a workspace is the
+  operator's change of address, never a side effect of an update.
 
 **How it resolves** (ADR-0095). In multi mode `tenant_host` names a request's workspace: every
 workspace has rows, exactly one of them its main address, and every address Hubtask writes - a

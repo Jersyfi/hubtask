@@ -5,6 +5,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"testing"
@@ -408,5 +409,47 @@ func TestMeteringIsSwitchedOnFromTheTerminal(t *testing.T) {
 	}
 	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "metering", "maybe"); code == exitOK {
 		t.Error("a value that is neither on nor off was taken")
+	}
+}
+
+// UC-INS-07 check 2: the operator names their own reserved short names from the terminal - the
+// whole list, beside the areas, with the version read - and clears them again.
+func TestReservedShortNamesAreSetFromTheTerminal(t *testing.T) {
+	versioned := strings.Replace(wholeLevel, `"source": "database",`, `"source": "database", "version": 4,`, 1)
+	stub := serve(t, func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(versioned))
+	})
+	code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "",
+		"admin", "settings", "set", "reserved_short_names", "shop,intranet", "wiki")
+	if code != exitOK {
+		t.Fatalf("exit %d: %s", code, errOut)
+	}
+	var sent map[string]any
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if got := fmt.Sprint(sent["reserved_short_names"]); stub.request.Method != http.MethodPut || got != "[shop intranet wiki]" {
+		t.Errorf("sent %s %s", stub.request.Method, got)
+	}
+	if _, held := sent["sign_in"]; !held {
+		t.Error("setting the list dropped the sign-in area")
+	}
+	if got := stub.request.Header.Get("If-Match"); got != `"4"` {
+		t.Errorf("the save carried If-Match %q, want the version read", got)
+	}
+
+	if code, _, errOut := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "clear", "reserved_short_names"); code != exitOK {
+		t.Fatalf("clearing: exit %d: %s", code, errOut)
+	}
+	sent = nil
+	if err := json.Unmarshal([]byte(stub.body), &sent); err != nil {
+		t.Fatalf("the body is not JSON: %v", err)
+	}
+	if got, held := sent["reserved_short_names"].([]any); !held || len(got) != 0 {
+		t.Errorf("clearing sent %v, want an empty list", sent["reserved_short_names"])
+	}
+	if code, _, _ := invokeAgainst(t, stub, signedIn(stub), "", "admin", "settings", "set", "reserved_short_names"); code == exitOK {
+		t.Error("a set without a name was taken")
 	}
 }

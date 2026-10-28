@@ -195,10 +195,11 @@ func (h ProvisionTenant) Execute(
 		}
 	}
 
-	locale, zone, err := startingLocalisation(ctx, h.UnitOfWork, h.Instance, cmd.DefaultLocale, cmd.DefaultTimeZone)
+	level, err := installationLevel(ctx, h.UnitOfWork, h.Instance)
 	if err != nil {
 		return ProvisionedTenant{}, err
 	}
+	locale, zone := startingLocalisation(level.Localisation, cmd.DefaultLocale, cmd.DefaultTimeZone)
 
 	now := h.Clock.Now()
 	tenant, err := domain.NewTenant(domain.NewTenantInput{
@@ -207,6 +208,10 @@ func (h ProvisionTenant) Execute(
 		Text: h.Text,
 	})
 	if err != nil {
+		return ProvisionedTenant{}, err
+	}
+	// Only a new name is asked: a workspace already carrying one reserved later keeps it.
+	if err := domain.RefuseReservedShortName(tenant.Slug, level.ReservedShortNames); err != nil {
 		return ProvisionedTenant{}, err
 	}
 
@@ -707,34 +712,37 @@ func base32Mark(material []byte) string {
 	return strings.ToLower(base32.StdEncoding.WithPadding(base32.NoPadding).EncodeToString(material))
 }
 
-// startingLocalisation answers the language and zone a new workspace starts with where the caller
-// named none: the installation's defaults (UC-INS-09, "what every workspace starts with"), and
-// otherwise nothing, which the tenant's own constructor reads as `en` and `UTC`. Read before the
-// write's transaction and under the installation's scope - `instance_setting` carries no policy,
-// and the write that follows runs in a scope of its own. Nil reads nothing.
-func startingLocalisation(
+// installationLevel reads what the installation decided that a new workspace meets: the language
+// and zone it starts with where the caller named none (UC-INS-09, "what every workspace starts
+// with") and the operator's reserved short names (multi-tenancy.md §3.1). Read before the write's
+// transaction and under the installation's scope - `instance_setting` carries no policy, and the
+// write that follows runs in a scope of its own. Nil reads nothing: the product's own defaults and
+// the product's list alone.
+func installationLevel(
 	ctx context.Context, unitOfWork persistence.UnitOfWork, instance identityrepo.InstanceSettings,
-	locale, zone string,
-) (string, string, error) {
-	if instance == nil || (strings.TrimSpace(locale) != "" && strings.TrimSpace(zone) != "") {
-		return locale, zone, nil
+) (identityrepo.InstanceLevel, error) {
+	var level identityrepo.InstanceLevel
+	if instance == nil {
+		return level, nil
 	}
-	var defaults domain.LocalisationDefaults
 	err := unitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(), func(ctx context.Context) error {
-		level, err := instance.Read(ctx)
-		defaults = level.Localisation
+		var err error
+		level, err = instance.Read(ctx)
 		return err
 	})
-	if err != nil {
-		return "", "", err
-	}
+	return level, err
+}
+
+// startingLocalisation answers the caller's language and zone, or the installation's defaults
+// where it named none; empty is what the tenant's own constructor reads as `en` and `UTC`.
+func startingLocalisation(defaults domain.LocalisationDefaults, locale, zone string) (string, string) {
 	if strings.TrimSpace(locale) == "" {
 		locale = defaults.Locale
 	}
 	if strings.TrimSpace(zone) == "" {
 		zone = defaults.TimeZone
 	}
-	return locale, zone, nil
+	return locale, zone
 }
 
 // unknownPlan is the refusal of a plan that does not exist or was removed, at the field that named

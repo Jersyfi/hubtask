@@ -104,6 +104,11 @@ func levelOutput(level identityrepo.InstanceLevel, plans bool) usecase.Output {
 		out["blocklist_file"] = level.BlocklistFile
 	}
 	out["metering"] = level.Metering
+	reserved := make([]any, 0, len(level.ReservedShortNames))
+	for _, name := range level.ReservedShortNames {
+		reserved = append(reserved, name)
+	}
+	out["reserved_short_names"] = reserved
 	return out
 }
 
@@ -354,6 +359,13 @@ func instanceLevelFrom(in usecase.Input) (identityrepo.InstanceLevel, error) {
 
 	level.BlocklistFile = in.String("blocklist_file")
 	level.Metering = in.Bool("metering")
+	reserved, err := in.StringList("reserved_short_names")
+	if err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
+	if level.ReservedShortNames, err = identity.ValidReservedShortNames(reserved); err != nil {
+		return identityrepo.InstanceLevel{}, err
+	}
 	return level, nil
 }
 

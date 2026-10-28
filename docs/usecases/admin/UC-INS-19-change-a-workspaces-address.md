@@ -71,7 +71,7 @@ member gets a mail with the new address.
 ## Today
 
 * Check 1: not met — no door changes a short name; the contract names an operation at `/admin/tenants` that does not exist.
-* Check 2: not met — no reserved short names exist (#1560).
+* Check 2: not met — no door changes a short name yet (CD-05).
 * Check 3: not met — there is no installation switch for owners and no cooldown.
 * Check 4: not met — there is no dialog for a change of address.
 * Check 5: not met — there is no step-up for a change of address.

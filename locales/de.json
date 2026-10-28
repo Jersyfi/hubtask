@@ -1363,6 +1363,8 @@
   "admin.subscription_version_moved": "Jemand hat dieses Abo inzwischen geändert. Lies es neu und wiederhole deine Änderung.",
   "admin.tenant_incomplete": "Der Workspace konnte nicht zusammengesetzt werden.",
   "admin.slug_invalid": "Ein Workspace-Slug hat 3-40 Zeichen aus Kleinbuchstaben, Ziffern und Bindestrichen und beginnt mit einem Buchstaben oder einer Ziffer.",
+  "admin.slug_reserved": "Dieser Kurzname ist für die Installation selbst reserviert. Wähle einen anderen.",
+  "admin.reserved_short_name_invalid": "{value} kann kein Kurzname sein: 3-40 Zeichen aus Kleinbuchstaben, Ziffern und Bindestrichen, beginnend mit einem Buchstaben oder einer Ziffer.",
   "admin.display_name_invalid": "Ein Workspace-Name hat 1-200 Zeichen auf einer Zeile.",
   "admin.locale_invalid": "Die Standardsprache ist kein gültiges BCP-47-Kürzel: {value}",
   "admin.time_zone_invalid": "Die Standardzeitzone ist kein IANA-Name: {value}",
