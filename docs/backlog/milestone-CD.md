@@ -45,7 +45,7 @@ Each measured against the deployments `D1`–`D7`:
    all three shapes.
 4. **The switches start closed** (worker, at the cut): owners may change the address — off; owners
    may set up own domains — off; the cooldown — 30 days. Each is an installation setting with the
-   instance file, `hubctl admin instance` and the installation's settings as its doors (P-07,
+   instance file, `hubctl admin settings` and the installation's settings as its doors (P-07,
    P-08). An installation that switches nothing on behaves as decided for the operator alone.
 5. **The certificate is the ingress's, on demand** (worker, at the cut; ADR-0095 §5): the
    installation answers on the operations port whether a host may have one. Hubtask holds no
@@ -82,7 +82,7 @@ Each measured against the deployments `D1`–`D7`:
 The product's list of reserved short names lives in the domain — the labels an installation or its
 ingress uses for itself (`www`, `api`, `auth`, `admin`, `app`, `mail`, `media`, `static`,
 `status`, `docs`, `help` and their kin), matched with plurals — and the operator adds their own as
-an installation setting through the instance file, `hubctl admin instance` and the installation's
+an installation setting through the instance file, `hubctl admin settings` and the installation's
 settings. Provisioning by every door refuses a reserved name at the field with
 `admin.slug_reserved`, separate from `admin.slug_invalid` and `admin.slug_taken`; the same check
 serves the change of address (CD-05). A workspace that already carries a newly reserved name keeps
@@ -189,7 +189,7 @@ first (Decision 11).
 **Use cases:** UC-INS-19 (3, 4, 5, 6)
 
 An installation setting lets owners change the address (off by default) with a cooldown (30 days),
-through the instance file, `hubctl admin instance` and the installation's settings. Where it is on,
+through the instance file, `hubctl admin settings` and the installation's settings. Where it is on,
 the workspace's owner finds *Change address* in the workspace's address settings, the same dialog
 and the same step-up and lockout rules as CD-05; a change inside the cooldown is refused with a code
 and the screen names the day. Where it is off, the control is absent and the API refuses
