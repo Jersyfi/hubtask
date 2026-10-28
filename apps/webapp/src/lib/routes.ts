@@ -80,6 +80,8 @@ export const ROUTES: readonly Route[] = [
   { name: 'runs', pattern: '/administration/runs', area: 'administration' },
   { name: 'webhooks', pattern: '/administration/webhooks', area: 'administration' },
   { name: 'quotas', pattern: '/administration/quotas', area: 'administration' },
+  // The suite's modules, switched for the workspace (UC-INS-21).
+  { name: 'modules', pattern: '/administration/modules', area: 'administration' },
   // The private hubs, without their names (UC-ID-16 check 3).
   { name: 'private-hubs', pattern: '/administration/private-hubs', area: 'administration' },
   { name: 'backup', pattern: '/administration/backup', area: 'administration' },

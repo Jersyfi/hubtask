@@ -201,6 +201,7 @@ export const ADMINISTRATION: readonly SectionGroup[] = [
     rows: [
       { id: 'workspace', icon: 'settings', code: 'app.admin.workspace', path: '/administration/workspace', routes: ['workspace-settings'] },
       { id: 'presets', icon: 'sliders-horizontal', code: 'app.presets.title', path: '/administration/presets', routes: ['presets'] },
+      { id: 'modules', icon: 'layout-template', code: 'app.modules.title', path: '/administration/modules', routes: ['modules'] },
       // The editor's two routes are the rules' row as well: a reader inside a rule is inside
       // automation, and a column that marked nothing current there would say they are nowhere.
       { id: 'rules', icon: 'automation', code: 'app.admin.rules', path: '/administration/rules', routes: ['rules', 'rule', 'rule-new'] },

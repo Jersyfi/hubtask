@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
 state: partial
 tasks: []
-checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/admin/InstanceModules_test.go, cmd/hubctl/Module_test.go]
+checked_by: [core/domain/model/module/Module_test.go, core/domain/model/module/Decisions_test.go, core/application/service/setting/Modules_test.go, core/application/service/admin/InstanceModules_test.go, cmd/hubctl/Module_test.go, apps/webapp/src/lib/data/modules.test.ts]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan
@@ -57,8 +57,11 @@ administrator sees the lock and who set it.
 
 ## Today
 
-* Check 2: not met — the switch exists on REST, MCP and automation (`SetModule`); the
-  administration has no *Modules* section yet (the suite plan, S-02 remainder).
-* Check 4: not met — no screen asks before switching off; the switch itself deletes nothing.
-* Check 6: not met — the installation's and a plan's documents take a `module` area, and their locks
-  resolve and refuse with their origin; no screen draws the lock yet.
+* Check 2: met for the workspace — *How we work → Modules* switches a module at once
+  (`ModulesView`); a hub's settings have no *Modules* section yet.
+* Check 4: partly met — switching off asks first and says the data is kept and hidden; no module
+  has screens of its own yet, so there is nothing to hide (the suite plan, S-03 onwards).
+* Check 6: met for the workspace — the installation's and a plan's documents take a `module` area,
+  their locks resolve and refuse with their origin, and *Modules* offers no switch under a lock and
+  names who set it; the installation's and the plan's screens draw the area as a list of switches
+  only once they adopt the catalogue's screens.
