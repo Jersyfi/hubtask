@@ -61,7 +61,6 @@ administrator sees the lock and who set it.
   (`ModuleSwitches`).
 * Check 4: partly met — switching off asks first and says the data is kept and hidden; no module
   has screens of its own yet, so there is nothing to hide (the suite plan, S-03 onwards).
-* Check 6: met for the workspace — the installation's and a plan's documents take a `module` area,
-  their locks resolve and refuse with their origin, and *Modules* offers no switch under a lock and
-  names who set it; the installation's and the plan's screens draw the area as a list of switches
-  only once they adopt the catalogue's screens.
+* Check 6: met — the installation's and a plan's documents, screens and `hubctl admin` take a
+  `module` area, their locks resolve and refuse with their origin, and *Modules* offers no switch
+  under a lock and names who set it.
