@@ -82,7 +82,6 @@ func (c *RestController) SignIn(w http.ResponseWriter, r *http.Request) {
 		// somewhere that never saw the connection.
 		"user_agent":    r.UserAgent(),
 		"remote_addr":   r.RemoteAddr,
-		"tenant_slug":   c.tenantSlug(r),
 		"tenant_header": r.Header.Get(TenantHeader),
 		"host":          r.Host,
 	})
@@ -268,12 +267,6 @@ func (c *RestController) SetUpInstallation(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	writeJSON(w, r, http.StatusCreated, sessionTokensResponse(out))
-}
-
-// tenantSlug reads the subdomain off the request's host, through the helper the middleware's
-// contradiction check shares (multi-tenancy.md §3).
-func (c *RestController) tenantSlug(r *http.Request) string {
-	return tenantLabel(r.Host, c.BaseHost)
 }
 
 // sessionResponse maps one session projection onto the contract's shape.

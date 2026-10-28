@@ -903,6 +903,26 @@ func (r SignInRepository) Resolve(ctx context.Context, slug string) (shared.ID, 
 	return idFrom(value)
 }
 
+// ResolveHost maps a request's host to its workspace through the SECURITY DEFINER function of
+// migration 0207: only a serving row of a live workspace answers. Callable in any scope - the
+// function reads across the boundary and answers an identifier, nothing else.
+func (r SignInRepository) ResolveHost(ctx context.Context, host string) (shared.ID, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	value, err := queries.ResolveTenantHost(ctx, host)
+	if err != nil {
+		return "", shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("resolving the host: %w", err))
+	}
+	if !value.Valid {
+		return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
+	}
+	return idFrom(value)
+}
+
 func nullableString(value string) *string {
 	if value == "" {
 		return nil

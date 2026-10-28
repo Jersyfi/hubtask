@@ -62,7 +62,7 @@ func TestTheRulesAnswerTheShippedRuleWhereNobodyDecided(t *testing.T) {
 	handler, _, _ := newRulesFixture()
 
 	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{
-		Host: "acme.hubtask.example", TenantSlug: "acme",
+		Host: "acme.hubtask.example",
 	})
 	if err != nil {
 		t.Fatalf("the rules were refused: %v", err)
@@ -93,7 +93,7 @@ func TestTheRulesWithholdWhatAGuesserCouldUse(t *testing.T) {
 	}
 	workspace.row.Settings.SignIn = domain.PolicyPatch{HistoryCount: intOf(7)}
 
-	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("the rules were refused: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestTheWorkspacesOwnTighteningReachesTheScreen(t *testing.T) {
 	instance.level.Policy.Patch = domain.PolicyPatch{MinLength: intOf(14)}
 	workspace.row.Settings.SignIn = domain.PolicyPatch{MinLength: intOf(18), MinDigits: intOf(2)}
 
-	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("the rules were refused: %v", err)
 	}
@@ -130,13 +130,13 @@ func TestAnUnknownHostIsIndistinguishableFromAnUndecidedWorkspace(t *testing.T) 
 	instance.level.Policy.Patch = domain.PolicyPatch{MinLength: intOf(15)}
 
 	known, err := handler.Execute(t.Context(), GetSignInRulesCommand{
-		Host: "who.hubtask.example", TenantSlug: "acme",
+		Host: "acme.hubtask.example",
 	})
 	if err != nil {
 		t.Fatalf("the known host was refused: %v", err)
 	}
 	unknown, err := handler.Execute(t.Context(), GetSignInRulesCommand{
-		Host: "who.hubtask.example", TenantSlug: "nobody",
+		Host: "nobody.hubtask.example",
 	})
 	if err != nil {
 		t.Fatalf("an unknown host was refused rather than answered: %v", err)
@@ -145,8 +145,9 @@ func TestAnUnknownHostIsIndistinguishableFromAnUndecidedWorkspace(t *testing.T) 
 	if unknown.Password != known.Password {
 		t.Errorf("an unknown host answered %+v, the known one %+v", unknown.Password, known.Password)
 	}
-	if unknown.WorkspaceHost != known.WorkspaceHost {
-		t.Error("the two answers differ in the host they name")
+	if unknown.WorkspaceHost != "nobody.hubtask.example" || known.WorkspaceHost != "acme.hubtask.example" {
+		t.Errorf("the answers name %q and %q rather than the hosts asked at",
+			unknown.WorkspaceHost, known.WorkspaceHost)
 	}
 }
 
@@ -155,7 +156,7 @@ func TestAnUnknownHostIsIndistinguishableFromAnUndecidedWorkspace(t *testing.T) 
 func TestTheLegalLinksResolveThroughTheLevels(t *testing.T) {
 	handler, workspace, instance := newRulesFixture()
 
-	empty, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	empty, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -173,7 +174,7 @@ func TestTheLegalLinksResolveThroughTheLevels(t *testing.T) {
 		ImprintURL: "https://acme.example/imprint", PrivacyURL: "https://acme.example/privacy",
 	}
 
-	resolved, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	resolved, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -193,7 +194,7 @@ func TestTheLegalLinksResolveThroughTheLevels(t *testing.T) {
 func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 	handler, _, _ := newRulesFixture()
 
-	without, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	without, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -211,7 +212,7 @@ func TestOidcIsNotOfferedWithoutAProvider(t *testing.T) {
 		DisplayName: "login.microsoftonline.com",
 		Issuer:      "https://login.microsoftonline.com/contoso/v2.0", Enabled: true,
 	})
-	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -241,7 +242,7 @@ func TestADisabledProviderIsNotOffered(t *testing.T) {
 		Issuer: "https://id.acme.example", Enabled: false,
 	})
 
-	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -301,7 +302,7 @@ func TestAnInstallationsProviderIsNotAButtonUntilTheWorkspaceTakesIt(t *testing.
 		},
 	)
 
-	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -313,7 +314,7 @@ func TestAnInstallationsProviderIsNotAButtonUntilTheWorkspaceTakesIt(t *testing.
 	// settings screen can draw it as inherited rather than as this workspace's choice.
 	workspace.row.Settings = workspace.row.Settings.WithOffer(offered, true)
 
-	taken, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	taken, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -342,7 +343,7 @@ func TestTheRulesNamePasskeysOnlyWhereACeremonyCanFinish(t *testing.T) {
 	}
 	ask := func(host string) []string {
 		t.Helper()
-		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: host, TenantSlug: "acme"})
+		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: host})
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -299,6 +299,14 @@ func (d tenantDirectory) Resolve(_ context.Context, slug string) (shared.ID, err
 	return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
 }
 
+// ResolveHost answers the workspace for every host under the label `acme`, as its serving row would.
+func (d tenantDirectory) ResolveHost(_ context.Context, host string) (shared.ID, error) {
+	if label, _, _ := strings.Cut(host, "."); label == "acme" {
+		return d.single, nil
+	}
+	return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
+}
+
 // passwordsFake verifies by comparison and counts the decoy work, which is the assertion T-02's
 // constant shape needs: the decoy must burn on exactly the paths a real check would.
 type passwordsFake struct {
@@ -1122,5 +1130,41 @@ func TestAGrantSessionLosesTheControlPlanesScopes(t *testing.T) {
 	}
 	if !slices.Equal(actor.Scopes, []string{"items:read"}) {
 		t.Errorf("the grant session carries %v, want items:read alone", actor.Scopes)
+	}
+}
+
+// multi-tenancy.md §3 in multi mode: the host's serving row names the workspace, the header is the
+// second source, and the two may agree but never contradict.
+func TestInMultiModeTheHostNamesTheWorkspace(t *testing.T) {
+	cases := []struct {
+		name, host, header string
+		code               string
+	}{
+		{"the workspace's host", "acme.hubtask.example:8443", "", ""},
+		{"its host and a confirming header", "acme.hubtask.example", tenant.String(), ""},
+		{"a host that names nothing, then the header", "hubtask.example", tenant.String(), ""},
+		{"a header contradicting the host", "acme.hubtask.example", string(account), "access.tenant_mismatch"},
+		{"nothing names a workspace", "gone.hubtask.example", "", "auth.tenant_unresolved"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			fixture := newSessionFixture(now)
+			fixture.writer.Multi = true
+			fixture.withAccount("bert@example.org", "correct horse battery")
+
+			_, err := SignIn{Writer: fixture.writer}.Execute(t.Context(), SignInCommand{
+				Email: "bert@example.org", Password: secret.New("correct horse battery"),
+				Host: c.host, TenantHeader: c.header,
+			})
+			if c.code == "" {
+				if err != nil {
+					t.Errorf("refused: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), c.code) {
+				t.Errorf("answered %v, want %s", err, c.code)
+			}
+		})
 	}
 }

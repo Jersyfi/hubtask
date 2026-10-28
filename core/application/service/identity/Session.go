@@ -255,12 +255,11 @@ type SignInCommand struct {
 	// UserAgent and RemoteAddr are recorded on the session, coarsened by the domain.
 	UserAgent  string
 	RemoteAddr string
-	// TenantSlug is the subdomain the request arrived under, when the adapter saw one.
-	TenantSlug string
 	// TenantHeader is the X-Hubtask-Tenant header, when the caller sent one. It may confirm the
 	// resolution, never overrule it.
 	TenantHeader string
-	// Host is the host the request arrived at: a key is asked for only at the relying party's.
+	// Host is the host the request arrived at: in multi mode it names the workspace (§3), and a key
+	// is asked for only at the relying party's.
 	Host string
 }
 
@@ -283,7 +282,7 @@ func (h SignIn) Execute(ctx context.Context, cmd SignInCommand) (SignInResult, e
 		return SignInResult{}, err
 	}
 
-	tenantID, err := w.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
+	tenantID, err := w.resolveTenant(ctx, cmd.Host, cmd.TenantHeader)
 	if err != nil {
 		return SignInResult{}, err
 	}
@@ -664,54 +663,10 @@ func (w SessionWriter) pairFor(
 	}
 }
 
-// resolveTenant is multi-tenancy.md §3 in code: subdomain, then header, and in single mode the
-// only row - with `tenant_mismatch` on contradiction and one refusal for "no workspace answers
-// here".
-func (w SessionWriter) resolveTenant(ctx context.Context, slug, header string) (shared.ID, error) {
-	var tenantID shared.ID
-
-	switch {
-	case !w.Multi:
-		// Single mode ignores the subdomain: there is one row, and localhost has no slug.
-		id, err := w.lookupTenant(ctx, "")
-		if err != nil {
-			return "", err
-		}
-		tenantID = id
-	case slug != "":
-		id, err := w.lookupTenant(ctx, slug)
-		if err != nil {
-			return "", err
-		}
-		tenantID = id
-	case header != "":
-		id, err := shared.ParseID(header)
-		if err != nil {
-			return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
-		}
-		tenantID = id
-	default:
-		return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
-	}
-
-	if header != "" && header != tenantID.String() {
-		return "", shared.ErrForbidden.WithDetail("access.tenant_mismatch")
-	}
-	return tenantID, nil
-}
-
-func (w SessionWriter) lookupTenant(ctx context.Context, slug string) (shared.ID, error) {
-	var tenantID shared.ID
-	err := w.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			id, err := w.Tenants.Resolve(ctx, slug)
-			tenantID = id
-			return err
-		})
-	if err != nil {
-		return "", err
-	}
-	return tenantID, nil
+// resolveTenant is multi-tenancy.md §3 in code (requestTenant): the host's serving row, then the
+// header, and in single mode the only row.
+func (w SessionWriter) resolveTenant(ctx context.Context, host, header string) (shared.ID, error) {
+	return requestTenant(ctx, w.UnitOfWork, w.Tenants, w.Multi, host, header)
 }
 
 // checkLocked refuses while any subject's window is open. Nothing is written: the delay curve
@@ -965,10 +920,6 @@ func (h SignIn) Descriptor() usecase.Descriptor {
 					"is ever recorded - an IPv4 /24 or an IPv6 /48.",
 			},
 			{
-				Name: "tenant_slug", Kind: usecase.KindString,
-				Description: "The subdomain the request arrived under, in multi mode.",
-			},
-			{
 				Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent. It may confirm the " +
 					"resolution, never overrule it.",
@@ -995,7 +946,6 @@ func (h SignIn) invoke(
 		Password:     secret.New(in.String("password")),
 		UserAgent:    in.String("user_agent"),
 		RemoteAddr:   in.String("remote_addr"),
-		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
 		Host:         in.String("host"),
 	})

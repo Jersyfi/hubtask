@@ -120,9 +120,10 @@ type StartOidcSignInCommand struct {
 	// ProviderID names the way in. Zero is allowed while a workspace has exactly one, which keeps
 	// a caller that predates the plural working; with a choice to make, not making it is refused
 	// rather than guessed.
-	ProviderID   shared.ID
-	LoginHint    string
-	TenantSlug   string
+	ProviderID shared.ID
+	LoginHint  string
+	// Host is the host the request arrived at, which names the workspace in multi mode.
+	Host         string
 	TenantHeader string
 	// InvitationToken is the redemption token of the invitation this sign-in accepts, when it
 	// began on the invitation card (ADR-0078 §1). Empty for every other sign-in.
@@ -149,7 +150,7 @@ func (h StartOidcSignIn) Execute(
 ) (OidcAuthorization, error) {
 	w := h.Writer
 
-	tenantID, err := w.Session.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
+	tenantID, err := w.Session.resolveTenant(ctx, cmd.Host, cmd.TenantHeader)
 	if err != nil {
 		return OidcAuthorization{}, err
 	}
@@ -1568,8 +1569,8 @@ func (h StartOidcSignIn) Descriptor() usecase.Descriptor {
 				Description: "Which way in to use. Absent is allowed while the workspace has exactly one."},
 			{Name: "login_hint", Kind: usecase.KindString,
 				Description: "An address to save somebody typing it twice. It never decides which account is signed in."},
-			{Name: "tenant_slug", Kind: usecase.KindString,
-				Description: "The subdomain the request arrived under, in multi mode."},
+			{Name: "host", Kind: usecase.KindString,
+				Description: "The host the request arrived at, which names the workspace in multi mode."},
 			{Name: "tenant_header", Kind: usecase.KindString,
 				Description: "The X-Hubtask-Tenant header, when sent."},
 			{Name: "invitation_token", Kind: usecase.KindString,
@@ -1608,7 +1609,7 @@ func (h StartOidcSignIn) invoke(
 	authorization, err := h.Execute(ctx, StartOidcSignInCommand{
 		ProviderID:      providerID,
 		LoginHint:       in.String("login_hint"),
-		TenantSlug:      in.String("tenant_slug"),
+		Host:            in.String("host"),
 		TenantHeader:    in.String("tenant_header"),
 		InvitationToken: secret.New(in.String("invitation_token")),
 		ConnectToken:    secret.New(in.String("connect_token")),

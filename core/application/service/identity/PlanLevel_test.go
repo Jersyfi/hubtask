@@ -46,7 +46,7 @@ func TestAPlanTightensBetweenTheInstallationAndTheWorkspace(t *testing.T) {
 			workspace.row.Plan = onPlan(domain.PolicyLayer{Patch: domain.PolicyPatch{MinLength: c.plan}}, domain.LegalLayer{})
 			workspace.row.Settings.SignIn = domain.PolicyPatch{MinLength: c.workspace}
 
-			rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+			rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 			if err != nil {
 				t.Fatalf("the rules were refused: %v", err)
 			}
@@ -66,7 +66,7 @@ func TestAPlanLocksWhatTheInstallationLeftOpen(t *testing.T) {
 	}, domain.LegalLayer{})
 	workspace.row.Settings.SignIn = domain.PolicyPatch{MinLength: intOf(20)}
 
-	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("the rules were refused: %v", err)
 	}
@@ -95,7 +95,7 @@ func TestTheLegalLinksResolveThroughThePlan(t *testing.T) {
 		ImprintURL: "https://acme.example/imprint", TermsURL: "https://acme.example/terms",
 	}
 
-	resolved, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	resolved, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}

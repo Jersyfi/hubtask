@@ -197,7 +197,7 @@ const (
 
 func (c *RestController) passkeySignInInput(r *http.Request) usecase.Input {
 	return usecase.Input{
-		"host": r.Host, "tenant_slug": c.tenantSlug(r), "tenant_header": r.Header.Get(TenantHeader),
+		"host": r.Host, "tenant_header": r.Header.Get(TenantHeader),
 		"user_agent": r.UserAgent(), "remote_addr": r.RemoteAddr,
 	}
 }

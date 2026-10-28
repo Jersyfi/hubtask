@@ -175,7 +175,7 @@ func TestTheForgottenPasswordRequestDoesTheSameWorkForEveryAddress(t *testing.T)
 		arrange(fixture)
 
 		if err := fixture.forget().Execute(t.Context(), ForgetPasswordCommand{
-			Email: "Bert@Example.org", TenantSlug: "acme",
+			Email: "Bert@Example.org", Host: "acme.hubtask.example",
 		}); err != nil {
 			t.Fatalf("%s: answered %v, want the same silence", name, err)
 		}
@@ -213,7 +213,7 @@ func TestTheRequestJobCarriesIdentifiersOnly(t *testing.T) {
 		ctx := correlation.ContextWithRequestID(t.Context(), "req-forgot-1")
 
 		if err := fixture.forget().Execute(ctx, ForgetPasswordCommand{
-			Email: "bert@example.org", TenantSlug: "acme",
+			Email: "bert@example.org", Host: "acme.hubtask.example",
 		}); err != nil {
 			t.Fatalf("%s: refused: %v", name, err)
 		}
@@ -251,7 +251,7 @@ func TestTheRequestJobRecordsAndQueuesOnlyForAnActiveAccount(t *testing.T) {
 			arrange(fixture)
 			ctx := correlation.ContextWithRequestID(t.Context(), "req-forgot-2")
 			if err := fixture.forget().Execute(ctx, ForgetPasswordCommand{
-				Email: "bert@example.org", TenantSlug: "acme",
+				Email: "bert@example.org", Host: "acme.hubtask.example",
 			}); err != nil {
 				t.Fatalf("refused: %v", err)
 			}
@@ -281,7 +281,7 @@ func TestTheRequestJobRecordsAndQueuesOnlyForAnActiveAccount(t *testing.T) {
 			fixture := newResetRequestFixture()
 			arrange(fixture)
 			if err := fixture.forget().Execute(t.Context(), ForgetPasswordCommand{
-				Email: "bert@example.org", TenantSlug: "acme",
+				Email: "bert@example.org", Host: "acme.hubtask.example",
 			}); err != nil {
 				t.Fatalf("refused: %v", err)
 			}
@@ -301,7 +301,7 @@ func TestTheRequestJobRecordsAndQueuesOnlyForAnActiveAccount(t *testing.T) {
 func TestARequestJobForAnAccountGoneSinceDoesNothing(t *testing.T) {
 	fixture := newResetRequestFixture()
 	if err := fixture.forget().Execute(t.Context(), ForgetPasswordCommand{
-		Email: "bert@example.org", TenantSlug: "acme",
+		Email: "bert@example.org", Host: "acme.hubtask.example",
 	}); err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -337,7 +337,7 @@ func TestARefusedRequestJobLeavesTheAnswerAlone(t *testing.T) {
 	handler.Notifier = refusingNotifier{}
 
 	if err := handler.Execute(t.Context(), ForgetPasswordCommand{
-		Email: "bert@example.org", TenantSlug: "acme",
+		Email: "bert@example.org", Host: "acme.hubtask.example",
 	}); err != nil {
 		t.Fatalf("answered %v, want the same silence", err)
 	}

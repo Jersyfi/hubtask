@@ -50,7 +50,7 @@ func TestAWorkspaceWhoseLastWayWasWithdrawnShowsThePasswordAgain(t *testing.T) {
 	read := func(now time.Time) SignInRules {
 		t.Helper()
 		handler.Clock = clock.Fixed(now)
-		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+		rules, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 		if err != nil {
 			t.Fatalf("reading the rules: %v", err)
 		}
@@ -258,7 +258,7 @@ func newWayInFixture() *wayInFixture {
 // and the door disagree about it.
 func (f *wayInFixture) fallsBack(t *testing.T) bool {
 	t.Helper()
-	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("reading the card: %v", err)
 	}

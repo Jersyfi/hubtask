@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -504,6 +505,55 @@ func TestTheWeekStartsWhereTheAccountTheWorkspaceOrItsLocaleSays(t *testing.T) {
 			}
 			if actor.WeekStart != tc.want {
 				t.Errorf("week starts %q, want %q", actor.WeekStart, tc.want)
+			}
+		})
+	}
+}
+
+// hostsNaming answers the workspace each host's serving row names.
+type hostsNaming map[string]shared.ID
+
+func (h hostsNaming) Resolve(context.Context, string) (shared.ID, error) {
+	return "", shared.ErrNotFound
+}
+
+func (h hostsNaming) ResolveHost(_ context.Context, host string) (shared.ID, error) {
+	if id, ok := h[host]; ok {
+		return id, nil
+	}
+	return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
+}
+
+// multi-tenancy.md §3: the credential binds the workspace; a host may confirm it and never
+// overrule it. A host that serves another workspace is refused, one that serves none says nothing.
+func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) {
+	other := shared.ID("01936f2a-7c1e-7000-8000-0000000000ff")
+	cases := []struct {
+		name, host string
+		refused    bool
+	}{
+		{"its own main address, port and case aside", "Tasks.Acme.Example:443", false},
+		{"the installation's own host", "hub.example", false},
+		{"an address no workspace has", "gone.hub.example", false},
+		{"another workspace's address", "other.hub.example", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			raw, credential := mintCredential(t)
+			handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+			handler.Hosts = hostsNaming{"tasks.acme.example": tenant, "other.hub.example": other}
+
+			_, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+				Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC", Host: c.host,
+			})
+			if c.refused {
+				if !errors.Is(err, shared.ErrForbidden) || !strings.Contains(err.Error(), "access.tenant_mismatch") {
+					t.Errorf("answered %v, want tenant_mismatch", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("refused: %v", err)
 			}
 		})
 	}

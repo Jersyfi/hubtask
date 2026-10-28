@@ -36,7 +36,7 @@ func lockMethods(f *wayInFixture, methods ...string) {
 // cardShows answers whether the sign-in card draws the provider's button.
 func (f *wayInFixture) cardShows(t *testing.T, id shared.ID) bool {
 	t.Helper()
-	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("reading the card: %v", err)
 	}

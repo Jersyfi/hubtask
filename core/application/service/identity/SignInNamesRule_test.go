@@ -21,18 +21,18 @@ func TestTheCardAsksForASignInNameOnlyWhereOneExists(t *testing.T) {
 	}
 	handler.Managed = store
 
-	without, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "home.example", TenantSlug: "acme"})
+	without, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil || without.SignInNames {
 		t.Fatalf("a workspace without a managed account answered %v, %v", without.SignInNames, err)
 	}
 
 	store.byID[managedID] = domain.Account{ID: managedID, SignInName: "lena", Status: domain.AccountActive}
-	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "home.example", TenantSlug: "acme"})
+	with, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil || !with.SignInNames {
 		t.Fatalf("a workspace with a managed account answered %v, %v", with.SignInNames, err)
 	}
 
-	unknown, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "home.example", TenantSlug: "nobody"})
+	unknown, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "nobody.hubtask.example"})
 	if err != nil || unknown.SignInNames {
 		t.Errorf("an unknown host answered %v, %v - it must answer what an undecided workspace does",
 			unknown.SignInNames, err)
