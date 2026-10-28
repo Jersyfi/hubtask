@@ -38,6 +38,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
@@ -49,6 +50,8 @@ import (
 // Descriptors is every use case, in the order the composition root registers them.
 func Descriptors() []usecase.Descriptor {
 	return []usecase.Descriptor{
+		settingservice.ListModules{}.Descriptor(),
+		settingservice.SetModule{}.Descriptor(),
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
 		work.UpdateWorkItem{}.Descriptor(),

@@ -11188,6 +11188,87 @@
         }
       }
     },
+    "/tenant/modules": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "listModules",
+        "summary": "The modules of the suite at the workspace or one hub",
+        "description": "Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.\n",
+        "parameters": [
+          {
+            "name": "hub_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The modules",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/modules/{module}": {
+      "put": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "setModule",
+        "summary": "Switch a module on or off",
+        "description": "Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.\n",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Module"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ModuleSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Switched",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ModuleList"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
     "/presets": {
       "get": {
         "tags": [
@@ -20449,6 +20530,96 @@
           "queued_tenants": {
             "type": "integer",
             "description": "How many workspaces were given a re-sealing job."
+          }
+        }
+      },
+      "Module": {
+        "type": "string",
+        "description": "A module of the suite - a family of building blocks switched on for a place.",
+        "enum": [
+          "WORKFLOWS",
+          "PLANNING",
+          "KNOWLEDGE",
+          "WHITEBOARD",
+          "SERVICE_DESK",
+          "ASSETS",
+          "TIME",
+          "GOALS",
+          "AGENTS"
+        ]
+      },
+      "SettingSource": {
+        "type": "string",
+        "description": "The level a value in force comes from; `DEFAULT` is Hubtask's own.",
+        "enum": [
+          "DEFAULT",
+          "INSTANCE",
+          "PLAN",
+          "WORKSPACE",
+          "HUB",
+          "COLLECTION",
+          "PERSON"
+        ]
+      },
+      "ModuleState": {
+        "type": "object",
+        "required": [
+          "module",
+          "on",
+          "source"
+        ],
+        "properties": {
+          "module": {
+            "$ref": "#/components/schemas/Module"
+          },
+          "on": {
+            "type": "boolean"
+          },
+          "source": {
+            "$ref": "#/components/schemas/SettingSource"
+          },
+          "locked_by": {
+            "$ref": "#/components/schemas/SettingSource"
+          },
+          "locked_by_person": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Who locked it, where the level that locked it records a person."
+          }
+        }
+      },
+      "ModuleList": {
+        "type": "object",
+        "required": [
+          "modules"
+        ],
+        "properties": {
+          "modules": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ModuleState"
+            }
+          }
+        }
+      },
+      "ModuleSwitch": {
+        "type": "object",
+        "required": [
+          "switch"
+        ],
+        "properties": {
+          "switch": {
+            "type": "string",
+            "enum": [
+              "ON",
+              "OFF",
+              "INHERIT"
+            ]
+          },
+          "hub_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The hub to switch it for; omitted is the workspace."
           }
         }
       },
@@ -32215,6 +32386,13 @@
             "type": "string",
             "format": "uri",
             "description": "The provider's account page, where the workspace's owners and administrators manage what they are on: the installation's address, or the plan's where it sets one and the installation does not lock it. Answered only to whoever holds `STRUCTURE` on the workspace itself, and only where one is set; absent for everybody else. A client shows it beside \"Not included in your plan\" and at a reached limit, under its own label - the address is the operator's, never a price or an offer.\n"
+          },
+          "modules_on": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Module"
+            },
+            "description": "The modules on at the caller's workspace, in the order of `Module`; empty in a new workspace. Caller-scoped like `workspace_permissions`: absent for an anonymous caller. A client shows a module's screens, menus, fields and words only where it is listed here; an operation of a module that is off is refused through every door with `403 module.off`, the module as its parameter.\n"
           },
           "not_included": {
             "type": "array",

@@ -56,6 +56,7 @@ import (
 	privacyservice "github.com/Jersyfi/hubtask/core/application/service/privacy"
 	quotaservice "github.com/Jersyfi/hubtask/core/application/service/quota"
 	sealingservice "github.com/Jersyfi/hubtask/core/application/service/sealing"
+	settingservice "github.com/Jersyfi/hubtask/core/application/service/setting"
 	suggestionservice "github.com/Jersyfi/hubtask/core/application/service/suggestion"
 	syncservice "github.com/Jersyfi/hubtask/core/application/service/sync"
 	voiceservice "github.com/Jersyfi/hubtask/core/application/service/voice"
@@ -1715,8 +1716,16 @@ func run() error {
 		// one that names none leaves them to the API and the screen.
 		Enforced: instanceFileMode == instancefile.ModeEnforce && fileNamesPlatformSubscriptions(cfg.InstanceFile),
 	}
+	// The settings catalogue's module switches (UC-INS-21): read by the gate that refuses an
+	// operation of a module that is off, and by the two use cases that list and switch them.
+	modules := settingservice.Modules{
+		Settings: postgres.SettingRepository{}, Containers: containers, Authorizer: authorizer,
+		Audit: auditSink, UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
+	}
 	useCases, err := usecase.NewRegistry(
-		entitlementGate.Wrap(observer.Registry()),
+		settingservice.ModuleGate{Modules: modules}.Wrap(entitlementGate.Wrap(observer.Registry())),
+		settingservice.ListModules{Modules: modules}.Descriptor(),
+		settingservice.SetModule{Modules: modules}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
@@ -2921,6 +2930,7 @@ func run() error {
 			// What the caller's plan leaves out, read as the registry's gate reads it.
 			ActionEntitlements: catalogue.ActionEntitlements(),
 			Entitlements:       entitlementGate,
+			Modules:            modules,
 			AccountLinks:       accountLinks,
 		}
 		// The MCP endpoint is mounted beside the specification's routes rather than on them: it is

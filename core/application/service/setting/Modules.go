@@ -267,7 +267,7 @@ func (h ListModules) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{Name: "hub_id", Kind: usecase.KindID, Description: "A hub of the workspace; omitted is the workspace."},
 		},
-		Audit: usecase.AuditDeclaration{Action: ModulesReadAction, TargetType: moduleTarget},
+		Audit: usecase.AuditDeclaration{Action: ModulesReadAction, TargetType: moduleTarget, Severity: audit.SeverityInfo},
 		Activity: usecase.ActivityDeclaration{
 			Exempt: "a read changes nothing, and a module is not an item.",
 		},

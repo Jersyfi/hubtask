@@ -3075,6 +3075,66 @@ func (e MfaChallengeMethods) Valid() bool {
 	}
 }
 
+// Defines values for Module.
+const (
+	AGENTS      Module = "AGENTS"
+	ASSETS      Module = "ASSETS"
+	GOALS       Module = "GOALS"
+	KNOWLEDGE   Module = "KNOWLEDGE"
+	PLANNING    Module = "PLANNING"
+	SERVICEDESK Module = "SERVICE_DESK"
+	TIME        Module = "TIME"
+	WHITEBOARD  Module = "WHITEBOARD"
+	WORKFLOWS   Module = "WORKFLOWS"
+)
+
+// Valid indicates whether the value is a known member of the Module enum.
+func (e Module) Valid() bool {
+	switch e {
+	case AGENTS:
+		return true
+	case ASSETS:
+		return true
+	case GOALS:
+		return true
+	case KNOWLEDGE:
+		return true
+	case PLANNING:
+		return true
+	case SERVICEDESK:
+		return true
+	case TIME:
+		return true
+	case WHITEBOARD:
+		return true
+	case WORKFLOWS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleSwitchSwitch.
+const (
+	ModuleSwitchSwitchINHERIT ModuleSwitchSwitch = "INHERIT"
+	ModuleSwitchSwitchOFF     ModuleSwitchSwitch = "OFF"
+	ModuleSwitchSwitchON      ModuleSwitchSwitch = "ON"
+)
+
+// Valid indicates whether the value is a known member of the ModuleSwitchSwitch enum.
+func (e ModuleSwitchSwitch) Valid() bool {
+	switch e {
+	case ModuleSwitchSwitchINHERIT:
+		return true
+	case ModuleSwitchSwitchOFF:
+		return true
+	case ModuleSwitchSwitchON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OauthAuthorizationCodeChallengeMethod.
 const (
 	S256 OauthAuthorizationCodeChallengeMethod = "S256"
@@ -4482,6 +4542,39 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingSource.
+const (
+	SettingSourceCOLLECTION SettingSource = "COLLECTION"
+	SettingSourceDEFAULT    SettingSource = "DEFAULT"
+	SettingSourceHUB        SettingSource = "HUB"
+	SettingSourceINSTANCE   SettingSource = "INSTANCE"
+	SettingSourcePERSON     SettingSource = "PERSON"
+	SettingSourcePLAN       SettingSource = "PLAN"
+	SettingSourceWORKSPACE  SettingSource = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the SettingSource enum.
+func (e SettingSource) Valid() bool {
+	switch e {
+	case SettingSourceCOLLECTION:
+		return true
+	case SettingSourceDEFAULT:
+		return true
+	case SettingSourceHUB:
+		return true
+	case SettingSourceINSTANCE:
+		return true
+	case SettingSourcePERSON:
+		return true
+	case SettingSourcePLAN:
+		return true
+	case SettingSourceWORKSPACE:
 		return true
 	default:
 		return false
@@ -7071,6 +7164,9 @@ type Capabilities struct {
 	Legal  *LegalLinks             `json:"legal,omitempty"`
 	Limits *map[string]interface{} `json:"limits,omitempty"`
 
+	// ModulesOn The modules on at the caller's workspace, in the order of `Module`; empty in a new workspace. Caller-scoped like `workspace_permissions`: absent for an anonymous caller. A client shows a module's screens, menus, fields and words only where it is listed here; an operation of a module that is off is refused through every door with `403 module.off`, the module as its parameter.
+	ModulesOn *[]Module `json:"modules_on,omitempty"`
+
 	// NotIncluded The features the caller's workspace's plan leaves out, in the order of `PlanFeature`; empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like `workspace_permissions`: absent for an anonymous caller.
 	// A feature that is left out rests: automation rules run nowhere, webhooks deliver nothing, the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays readable, and it works again from the moment the plan includes it. Creating, changing, switching on, running or sending is refused with `403 plan.not_included`, the feature as its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws "Not included in your plan" in place of the refused controls. `automation_actions` already leaves out the actions of a feature named here.
 	NotIncluded *[]PlanFeature `json:"not_included,omitempty"`
@@ -9569,6 +9665,40 @@ type MfaDisable struct {
 	Password *string `json:"password,omitempty"`
 }
 
+// Module A module of the suite - a family of building blocks switched on for a place.
+type Module string
+
+// ModuleList defines model for ModuleList.
+type ModuleList struct {
+	Modules []ModuleState `json:"modules"`
+}
+
+// ModuleState defines model for ModuleState.
+type ModuleState struct {
+	// LockedBy The level a value in force comes from; `DEFAULT` is Hubtask's own.
+	LockedBy *SettingSource `json:"locked_by,omitempty"`
+
+	// LockedByPerson Who locked it, where the level that locked it records a person.
+	LockedByPerson *openapi_types.UUID `json:"locked_by_person,omitempty"`
+
+	// Module A module of the suite - a family of building blocks switched on for a place.
+	Module Module `json:"module"`
+	On     bool   `json:"on"`
+
+	// Source The level a value in force comes from; `DEFAULT` is Hubtask's own.
+	Source SettingSource `json:"source"`
+}
+
+// ModuleSwitch defines model for ModuleSwitch.
+type ModuleSwitch struct {
+	// HubId The hub to switch it for; omitted is the workspace.
+	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
+	Switch ModuleSwitchSwitch  `json:"switch"`
+}
+
+// ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
+type ModuleSwitchSwitch string
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -11535,6 +11665,9 @@ type SessionTokens struct {
 
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
+
+// SettingSource The level a value in force comes from; `DEFAULT` is Hubtask's own.
+type SettingSource string
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
@@ -14580,6 +14713,11 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListModulesParams defines parameters for ListModules.
+type ListModulesParams struct {
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -15175,6 +15313,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
+type SetModuleJSONRequestBody = ModuleSwitch
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -16321,6 +16462,12 @@ type ServerInterface interface {
 	// CountAccountsWithoutProvider How many people here no provider switched on here signs in
 	// (GET /tenant/accounts-without-provider)
 	CountAccountsWithoutProvider(w http.ResponseWriter, r *http.Request)
+	// ListModules The modules of the suite at the workspace or one hub
+	// (GET /tenant/modules)
+	ListModules(w http.ResponseWriter, r *http.Request, params ListModulesParams)
+	// SetModule Switch a module on or off
+	// (PUT /tenant/modules/{module})
+	SetModule(w http.ResponseWriter, r *http.Request, module Module)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
@@ -29299,6 +29446,65 @@ func (siw *ServerInterfaceWrapper) CountAccountsWithoutProvider(w http.ResponseW
 	handler.ServeHTTP(w, r)
 }
 
+// ListModules operation middleware
+func (siw *ServerInterfaceWrapper) ListModules(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListModulesParams
+
+	// ------------- Optional query parameter "hub_id" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "hub_id", r.URL.Query(), &params.HubId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "hub_id"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hub_id", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListModules(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetModule operation middleware
+func (siw *ServerInterfaceWrapper) SetModule(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "module" -------------
+	var module Module
+
+	err = runtime.BindStyledParameterWithOptions("simple", "module", r.PathValue("module"), &module, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "module", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetModule(w, r, module)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -30296,6 +30502,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/presets", wrapper.ListPresets)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/presets", wrapper.SavePreset)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/presets/{presetId}", wrapper.WithdrawPreset)

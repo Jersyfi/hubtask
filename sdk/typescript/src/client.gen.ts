@@ -1642,6 +1642,16 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The modules of the suite at the workspace or one hub */
+  listModules(options: CallOptions & { readonly query?: NonNullable<operations["listModules"]['parameters']['query']> } = {}): Promise<operations["listModules"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/tenant/modules", {  }, options.query, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Switch a module on or off */
+  setModule(module: string, body: NonNullable<operations["setModule"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["setModule"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/tenant/modules/{module}", { "module": module }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** The presets a hub or collection can start from */
   listPresets(options: CallOptions = {}): Promise<operations["listPresets"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/presets", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

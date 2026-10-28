@@ -100,9 +100,9 @@ func (SettingRepository) At(ctx context.Context, places []settingrepo.Place, pre
 			return nil, err
 		}
 		stored = append(stored, settingrepo.Stored{
-			Place: settingrepo.Place{Level: domain.Level(row.Level), ScopeID: scope},
-			Key:   domain.Key(row.Key),
-			Entry: domain.Entry{Value: value, Hold: domain.Hold(row.Hold), Allowed: allowed, By: by},
+			Place:     settingrepo.Place{Level: domain.Level(row.Level), ScopeID: scope},
+			Key:       domain.Key(row.Key),
+			Entry:     domain.Entry{Value: value, Hold: domain.Hold(row.Hold), Allowed: allowed, By: by},
 			UpdatedAt: row.UpdatedAt.Time,
 		})
 	}

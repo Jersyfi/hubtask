@@ -17,6 +17,7 @@ import (
 	"github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/integration"
 	"github.com/Jersyfi/hubtask/core/domain/model/lifecycle"
+	"github.com/Jersyfi/hubtask/core/domain/model/module"
 	"github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/domain/model/view"
@@ -152,6 +153,9 @@ type Capabilities struct {
 	// WorkspacePermissions: a client draws "Not included in your plan" in place of the controls the
 	// gate would refuse.
 	NotIncluded entitlement.LeftOut
+	// ModulesOn is the modules on at the caller's workspace (UC-INS-21 check 5), nil for an
+	// anonymous caller.
+	ModulesOn module.Set
 	// AccountLink is the provider's account link, answered only to the workspace's owners and
 	// administrators and only where one is in force (multi-tenancy.md §4.2); empty otherwise.
 	AccountLink string
@@ -231,6 +235,11 @@ type PrivateHubOwners interface {
 // one reads.
 type PrivateHubsRule interface {
 	PrivateHubsAllowed(ctx context.Context, tenantID shared.ID) (bool, error)
+}
+
+// ModulesOn answers the modules on at the actor's workspace, in a read of its own (UC-INS-21).
+type ModulesOn interface {
+	On(ctx context.Context, actor appshared.ActorContext, hubID shared.ID) (module.Set, error)
 }
 
 // PlanEntitlements answers what the actor's workspace's plan leaves out, in a read of its own
@@ -328,6 +337,8 @@ type GetCapabilities struct {
 	// Entitlements reads what the caller's plan leaves out. Optional: a build without it answers
 	// every feature included.
 	Entitlements PlanEntitlements
+	// Modules reads the modules on at the caller's workspace. Optional, as Entitlements is.
+	Modules ModulesOn
 	// Scopes is every scope a token may carry here, handed in from the catalogue at composition
 	// for the reason the field on Capabilities records.
 	Scopes []string
@@ -456,6 +467,17 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		}
 		notIncluded = append(entitlement.LeftOut{}, leftOut...)
 		actions = g.offeredActions(leftOut)
+	}
+	var modulesOn module.Set
+	if actor.IsAuthenticated() && !actor.TenantID.IsZero() {
+		modulesOn = module.Set{}
+		if g.Modules != nil {
+			on, err := g.Modules.On(ctx, actor, "")
+			if err != nil {
+				return Capabilities{}, err
+			}
+			modulesOn = on
+		}
 	}
 
 	// The provider's account link, to the workspace's owners and administrators only.
@@ -627,6 +649,7 @@ func (g GetCapabilities) Execute(ctx context.Context, actor appshared.ActorConte
 		WorkspacePermissions: workspacePermissions,
 		PrivateHubOffered:    privateHubOffered,
 		NotIncluded:          notIncluded,
+		ModulesOn:            modulesOn,
 		AccountLink:          accountLink,
 	}, nil
 }

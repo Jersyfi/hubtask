@@ -317,6 +317,16 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		notIncluded = &left
 	}
 
+	// The modules on at the caller's workspace: absent for an anonymous caller (UC-INS-21).
+	var modulesOn *[]openapi.Module
+	if source.ModulesOn != nil {
+		on := make([]openapi.Module, 0, len(source.ModulesOn))
+		for _, key := range source.ModulesOn {
+			on = append(on, openapi.Module(key))
+		}
+		modulesOn = &on
+	}
+
 	// The provider's account link: absent wherever the use case answered none.
 	var accountLink *string
 	if source.AccountLink != "" {
@@ -349,6 +359,7 @@ func capabilityManifest(source usecase.Capabilities) openapi.Capabilities {
 		WorkspacePermissions:   workspacePermissions,
 		PrivateHubOffered:      source.PrivateHubOffered,
 		NotIncluded:            notIncluded,
+		ModulesOn:              modulesOn,
 		AccountLink:            accountLink,
 		Deprecations:           deprecationManifest(),
 	}

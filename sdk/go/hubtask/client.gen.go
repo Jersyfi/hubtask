@@ -3081,6 +3081,66 @@ func (e MfaChallengeMethods) Valid() bool {
 	}
 }
 
+// Defines values for Module.
+const (
+	AGENTS      Module = "AGENTS"
+	ASSETS      Module = "ASSETS"
+	GOALS       Module = "GOALS"
+	KNOWLEDGE   Module = "KNOWLEDGE"
+	PLANNING    Module = "PLANNING"
+	SERVICEDESK Module = "SERVICE_DESK"
+	TIME        Module = "TIME"
+	WHITEBOARD  Module = "WHITEBOARD"
+	WORKFLOWS   Module = "WORKFLOWS"
+)
+
+// Valid indicates whether the value is a known member of the Module enum.
+func (e Module) Valid() bool {
+	switch e {
+	case AGENTS:
+		return true
+	case ASSETS:
+		return true
+	case GOALS:
+		return true
+	case KNOWLEDGE:
+		return true
+	case PLANNING:
+		return true
+	case SERVICEDESK:
+		return true
+	case TIME:
+		return true
+	case WHITEBOARD:
+		return true
+	case WORKFLOWS:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for ModuleSwitchSwitch.
+const (
+	ModuleSwitchSwitchINHERIT ModuleSwitchSwitch = "INHERIT"
+	ModuleSwitchSwitchOFF     ModuleSwitchSwitch = "OFF"
+	ModuleSwitchSwitchON      ModuleSwitchSwitch = "ON"
+)
+
+// Valid indicates whether the value is a known member of the ModuleSwitchSwitch enum.
+func (e ModuleSwitchSwitch) Valid() bool {
+	switch e {
+	case ModuleSwitchSwitchINHERIT:
+		return true
+	case ModuleSwitchSwitchOFF:
+		return true
+	case ModuleSwitchSwitchON:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for OauthAuthorizationCodeChallengeMethod.
 const (
 	S256 OauthAuthorizationCodeChallengeMethod = "S256"
@@ -4488,6 +4548,39 @@ const (
 func (e SessionTokensTokenType) Valid() bool {
 	switch e {
 	case Bearer:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for SettingSource.
+const (
+	SettingSourceCOLLECTION SettingSource = "COLLECTION"
+	SettingSourceDEFAULT    SettingSource = "DEFAULT"
+	SettingSourceHUB        SettingSource = "HUB"
+	SettingSourceINSTANCE   SettingSource = "INSTANCE"
+	SettingSourcePERSON     SettingSource = "PERSON"
+	SettingSourcePLAN       SettingSource = "PLAN"
+	SettingSourceWORKSPACE  SettingSource = "WORKSPACE"
+)
+
+// Valid indicates whether the value is a known member of the SettingSource enum.
+func (e SettingSource) Valid() bool {
+	switch e {
+	case SettingSourceCOLLECTION:
+		return true
+	case SettingSourceDEFAULT:
+		return true
+	case SettingSourceHUB:
+		return true
+	case SettingSourceINSTANCE:
+		return true
+	case SettingSourcePERSON:
+		return true
+	case SettingSourcePLAN:
+		return true
+	case SettingSourceWORKSPACE:
 		return true
 	default:
 		return false
@@ -7077,6 +7170,9 @@ type Capabilities struct {
 	Legal  *LegalLinks             `json:"legal,omitempty"`
 	Limits *map[string]interface{} `json:"limits,omitempty"`
 
+	// ModulesOn The modules on at the caller's workspace, in the order of `Module`; empty in a new workspace. Caller-scoped like `workspace_permissions`: absent for an anonymous caller. A client shows a module's screens, menus, fields and words only where it is listed here; an operation of a module that is off is refused through every door with `403 module.off`, the module as its parameter.
+	ModulesOn *[]Module `json:"modules_on,omitempty"`
+
 	// NotIncluded The features the caller's workspace's plan leaves out, in the order of `PlanFeature`; empty where the workspace is on no plan or its plan leaves out nothing. Caller-scoped like `workspace_permissions`: absent for an anonymous caller.
 	// A feature that is left out rests: automation rules run nowhere, webhooks deliver nothing, the workspace's own sign-in providers sign nobody in. Nothing is deleted, everything stays readable, and it works again from the moment the plan includes it. Creating, changing, switching on, running or sending is refused with `403 plan.not_included`, the feature as its parameter; switching off, pausing, rotating a secret and deleting stay. A client draws "Not included in your plan" in place of the refused controls. `automation_actions` already leaves out the actions of a feature named here.
 	NotIncluded *[]PlanFeature `json:"not_included,omitempty"`
@@ -9575,6 +9671,40 @@ type MfaDisable struct {
 	Password *string `json:"password,omitempty"`
 }
 
+// Module A module of the suite - a family of building blocks switched on for a place.
+type Module string
+
+// ModuleList defines model for ModuleList.
+type ModuleList struct {
+	Modules []ModuleState `json:"modules"`
+}
+
+// ModuleState defines model for ModuleState.
+type ModuleState struct {
+	// LockedBy The level a value in force comes from; `DEFAULT` is Hubtask's own.
+	LockedBy *SettingSource `json:"locked_by,omitempty"`
+
+	// LockedByPerson Who locked it, where the level that locked it records a person.
+	LockedByPerson *openapi_types.UUID `json:"locked_by_person,omitempty"`
+
+	// Module A module of the suite - a family of building blocks switched on for a place.
+	Module Module `json:"module"`
+	On     bool   `json:"on"`
+
+	// Source The level a value in force comes from; `DEFAULT` is Hubtask's own.
+	Source SettingSource `json:"source"`
+}
+
+// ModuleSwitch defines model for ModuleSwitch.
+type ModuleSwitch struct {
+	// HubId The hub to switch it for; omitted is the workspace.
+	HubId  *openapi_types.UUID `json:"hub_id,omitempty"`
+	Switch ModuleSwitchSwitch  `json:"switch"`
+}
+
+// ModuleSwitchSwitch defines model for ModuleSwitch.Switch.
+type ModuleSwitchSwitch string
+
 // MoveResult defines model for MoveResult.
 type MoveResult struct {
 	// DroppedReferences Labels, buckets, members or custom fields that could not be resolved in the destination collection and were therefore removed (invariant I-W6: unresolvable references are reported back, never silently dropped). Always present; empty when nothing was lost.
@@ -11541,6 +11671,9 @@ type SessionTokens struct {
 
 // SessionTokensTokenType defines model for SessionTokens.TokenType.
 type SessionTokensTokenType string
+
+// SettingSource The level a value in force comes from; `DEFAULT` is Hubtask's own.
+type SettingSource string
 
 // SignIn Exactly one of `identifier` and `email`; neither, or both, is `auth.identifier_one`. A refusal of the shape, the same for everybody - nothing in it depends on who exists.
 type SignIn struct {
@@ -14586,6 +14719,11 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// ListModulesParams defines parameters for ListModules.
+type ListModulesParams struct {
+	HubId *openapi_types.UUID `form:"hub_id,omitempty" json:"hub_id,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -15181,6 +15319,9 @@ type AiGenerateTemplateJSONRequestBody = TemplateGeneration
 
 // UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody defines body for UpdateWorkspace for application/merge-patch+json ContentType.
 type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
+
+// SetModuleJSONRequestBody defines body for SetModule for application/json ContentType.
+type SetModuleJSONRequestBody = ModuleSwitch
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -20609,6 +20750,31 @@ type ClientInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ListModules The modules of the suite at the workspace or one hub
+	//
+	// Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.
+	//
+	// Corresponds with GET /tenant/modules (the `ListModules` operationId).
+	ListModules(ctx context.Context, params *ListModulesParams, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetModuleWithBody Switch a module on or off
+	//
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+	SetModuleWithBody(ctx context.Context, module Module, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetModule Switch a module on or off
+	//
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+	SetModule(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseStarter Answers the first start's question for good
 	//
@@ -31559,6 +31725,61 @@ func (c *Client) UpdateWorkspaceWithApplicationMergePatchPlusJSONBody(ctx contex
 // Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 func (c *Client) CountAccountsWithoutProvider(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewCountAccountsWithoutProviderRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ListModules The modules of the suite at the workspace or one hub
+//
+// Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.
+//
+// Corresponds with GET /tenant/modules (the `ListModules` operationId).
+func (c *Client) ListModules(ctx context.Context, params *ListModulesParams, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListModulesRequest(c.Server, params)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetModuleWithBody Switch a module on or off
+//
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+func (c *Client) SetModuleWithBody(ctx context.Context, module Module, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetModuleRequestWithBody(c.Server, module, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetModule Switch a module on or off
+//
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+func (c *Client) SetModule(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetModuleRequest(c.Server, module, body)
 	if err != nil {
 		return nil, err
 	}
@@ -49675,6 +49896,107 @@ func NewCountAccountsWithoutProviderRequest(server string) (*http.Request, error
 	return req, nil
 }
 
+// NewListModulesRequest constructs an http.Request for the ListModules method
+func NewListModulesRequest(server string, params *ListModulesParams) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/modules")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	if params != nil {
+		// queryValues collects non-styled parameters (passthrough, JSON)
+		// that are safe to round-trip through url.Values.Encode().
+		queryValues := queryURL.Query()
+		// rawQueryFragments collects pre-encoded query fragments from
+		// styled parameters, preserving literal commas as delimiters
+		// per the OpenAPI spec (e.g. "color=blue,black,brown").
+		var rawQueryFragments []string
+
+		if params.HubId != nil {
+
+			if queryFrag, err := runtime.StyleParamWithOptions("form", true, "hub_id", *params.HubId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationQuery, Type: "string", Format: "uuid"}); err != nil {
+				return nil, err
+			} else {
+				for _, qp := range strings.Split(queryFrag, "&") {
+					rawQueryFragments = append(rawQueryFragments, qp)
+				}
+			}
+
+		}
+
+		if encoded := queryValues.Encode(); encoded != "" {
+			rawQueryFragments = append(rawQueryFragments, encoded)
+		}
+		queryURL.RawQuery = strings.Join(rawQueryFragments, "&")
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewSetModuleRequest calls the generic SetModule builder with application/json body
+func NewSetModuleRequest(server string, module Module, body SetModuleJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetModuleRequestWithBody(server, module, "application/json", bodyReader)
+}
+
+// NewSetModuleRequestWithBody constructs an http.Request for the SetModule method, with any body, and a specified content type
+func NewSetModuleRequestWithBody(server string, module Module, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "module", module, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/modules/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -56313,6 +56635,33 @@ type ClientWithResponsesInterface interface {
 	//
 	// Corresponds with GET /tenant/accounts-without-provider (the `CountAccountsWithoutProvider` operationId).
 	CountAccountsWithoutProviderWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*CountAccountsWithoutProviderResult, error)
+
+	// ListModulesWithResponse The modules of the suite at the workspace or one hub
+	//
+	// Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /tenant/modules (the `ListModules` operationId).
+	ListModulesWithResponse(ctx context.Context, params *ListModulesParams, reqEditors ...RequestEditorFn) (*ListModulesResult, error)
+
+	// SetModuleWithBodyWithResponse Switch a module on or off
+	//
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+	SetModuleWithBodyWithResponse(ctx context.Context, module Module, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetModuleResult, error)
+
+	// SetModuleWithResponse Switch a module on or off
+	//
+	// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+	SetModuleWithResponse(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetModuleResult, error)
 
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
@@ -74898,6 +75247,102 @@ func (r CountAccountsWithoutProviderResult) ContentType() string {
 	return ""
 }
 
+type ListModulesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ModuleList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListModulesResult) GetJSON200() *ModuleList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListModulesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListModulesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListModulesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListModulesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListModulesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetModuleResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *ModuleList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetModuleResult) GetJSON200() *ModuleList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetModuleResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetModuleResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetModuleResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetModuleResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetModuleResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -84768,6 +85213,51 @@ func (c *ClientWithResponses) CountAccountsWithoutProviderWithResponse(ctx conte
 		return nil, err
 	}
 	return ParseCountAccountsWithoutProviderResult(rsp)
+}
+
+// ListModulesWithResponse The modules of the suite at the workspace or one hub
+//
+// Every module with whether it is on at the workspace - or at one hub, with `hub_id` - which level decided it (`source`: `DEFAULT`, `INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`) and which level locked it, if one did. A new workspace has every module off. Needs the right to change the workspace's shape, or to read its configuration.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /tenant/modules (the `ListModules` operationId).
+func (c *ClientWithResponses) ListModulesWithResponse(ctx context.Context, params *ListModulesParams, reqEditors ...RequestEditorFn) (*ListModulesResult, error) {
+	rsp, err := c.ListModules(ctx, params, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListModulesResult(rsp)
+}
+
+// SetModuleWithBodyWithResponse Switch a module on or off
+//
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+func (c *ClientWithResponses) SetModuleWithBodyWithResponse(ctx context.Context, module Module, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetModuleResult, error) {
+	rsp, err := c.SetModuleWithBody(ctx, module, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetModuleResult(rsp)
+}
+
+// SetModuleWithResponse Switch a module on or off
+//
+// Switches one module on or off for the workspace, or for one hub with `hub_id`, or leaves it to the level above with `INHERIT`. Off hides the module's screens, fields and actions for everyone and deletes none of its data; on again shows it unchanged. A hub only switches off what the workspace has on - switching on there what the workspace has off is refused with `setting.not_allowed`. A module the installation or the plan locks is refused with `setting.locked`, its `origin` as the parameter. Needs the right to change the shape of the place. Every switch is in the audit trail. The answer is every module at the place.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /tenant/modules/{module} (the `SetModule` operationId).
+func (c *ClientWithResponses) SetModuleWithResponse(ctx context.Context, module Module, body SetModuleJSONRequestBody, reqEditors ...RequestEditorFn) (*SetModuleResult, error) {
+	rsp, err := c.SetModule(ctx, module, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetModuleResult(rsp)
 }
 
 // CloseStarterWithResponse Answers the first start's question for good
@@ -98347,6 +98837,72 @@ func ParseCountAccountsWithoutProviderResult(rsp *http.Response) (*CountAccounts
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest AccountsWithoutProvider
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseListModulesResult parses an HTTP response from a ListModulesWithResponse call
+func ParseListModulesResult(rsp *http.Response) (*ListModulesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListModulesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ModuleList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSetModuleResult parses an HTTP response from a SetModuleWithResponse call
+func ParseSetModuleResult(rsp *http.Response) (*SetModuleResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetModuleResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest ModuleList
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

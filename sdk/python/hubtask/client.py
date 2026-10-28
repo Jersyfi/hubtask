@@ -1303,6 +1303,14 @@ class Client:
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def list_modules(self, *, query: dict[str, Any] | None = None) -> "ModuleList":
+        """The modules of the suite at the workspace or one hub"""
+        return self._call("GET", "/tenant/modules", {}, query, {}, None, "none", None, "json")
+
+    def set_module(self, module: str, body: "ModuleSwitch") -> "ModuleList":
+        """Switch a module on or off"""
+        return self._call("PUT", "/tenant/modules/{module}", {"module": module}, None, {}, body, "json", "application/json", "json")
+
     def list_presets(self) -> dict[str, Any]:
         """The presets a hub or collection can start from"""
         return self._call("GET", "/presets", {}, None, {}, None, "none", None, "json")

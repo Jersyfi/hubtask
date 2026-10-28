@@ -395,6 +395,13 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `mail.settings_read` | ShowMailSettings | `mail_settings` | INFO | When refused |
 | `mail.settings_saved` | SaveMailSettings | `mail_settings` | WARNING | Every time |
 
+## Module
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `module.read` | ListModules | `module` | INFO | When refused |
+| `module.switched` | SetModule | `module` | INFO | Every time |
+
 ## Oauth
 
 | Action | Use case | Target | Severity | Recorded |

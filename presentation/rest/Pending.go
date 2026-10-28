@@ -1689,3 +1689,11 @@ func (pending) FindDuplicatesByTitle(w http.ResponseWriter, r *http.Request) {
 func (pending) ReadAiBudgetState(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) ListModules(w http.ResponseWriter, r *http.Request, _ openapi.ListModulesParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SetModule(w http.ResponseWriter, r *http.Request, _ openapi.Module) {
+	notAvailable(w, r)
+}

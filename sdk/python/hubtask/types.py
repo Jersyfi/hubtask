@@ -1139,6 +1139,24 @@ class ResealAccepted(TypedDict, total=False):
     active_key_id: Required[str]
     queued_tenants: Required[int]
 
+Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DESK", "ASSETS", "TIME", "GOALS", "AGENTS"]
+
+SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
+
+class ModuleState(TypedDict, total=False):
+    module: Required["Module"]
+    on: Required[bool]
+    source: Required["SettingSource"]
+    locked_by: "SettingSource"
+    locked_by_person: str
+
+class ModuleList(TypedDict, total=False):
+    modules: Required[list["ModuleState"]]
+
+class ModuleSwitch(TypedDict, total=False):
+    switch: Required[Literal["ON", "OFF", "INHERIT"]]
+    hub_id: str
+
 PlanFeature = Literal["AUTOMATION_RULES", "WEBHOOKS", "OWN_SIGN_IN_PROVIDERS"]
 
 class PlanChange(TypedDict, total=False):
@@ -3384,6 +3402,7 @@ class Capabilities(TypedDict, total=False):
     workspace_permissions: list[Literal["READ", "WRITE_ITEMS", "STRUCTURE", "MANAGE_MEMBERS", "AUTOMATION", "DELETE_CONTAINER", "READ_CONFIGURATION", "AUDIT_READ"]]
     private_hub_offered: bool
     account_link: str
+    modules_on: list["Module"]
     not_included: list["PlanFeature"]
     deprecations: list["DeprecatedField"]
 
