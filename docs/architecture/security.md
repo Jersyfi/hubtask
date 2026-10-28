@@ -349,6 +349,76 @@ automated. Until then the GitHub advisory and its CVE are the advisory.
 
 ---
 
+### 14.3 Reporting under the Cyber Resilience Act
+
+**Not legal advice.** This section is the project's reading of Regulation (EU) 2024/2847 as the
+research of 2026-10 records it
+([foundation-law-standards-2026-10.md](../backlog/suite/research/foundation-law-standards-2026-10.md)
+§1.4); the role question in particular deserves a lawyer's view before anybody sells Hubtask.
+
+**The project's role.** Hubtask has no paid edition and sells nothing
+([ADR-0080](../adr/ADR-0080-hubtask-is-apache-2-0.md)), so the project is not a manufacturer of it.
+It acts as an **open-source software steward** would (Art. 24): a documented cybersecurity policy
+(this document and `SECURITY.md`), coordinated disclosure (§14.1), cooperation with market
+surveillance authorities on request, and Art. 14 reporting to the extent it is involved in the
+development. Art. 3(14) defines a steward as a legal person and the project is held by a natural
+person, so this is followed voluntarily — the process is the same either way, and it is what
+providers and NIS2 customers ask of a supplier.
+
+**What is reported, since 2026-09-11** (Art. 14): an **actively exploited vulnerability** in
+Hubtask, and a **severe incident** having an impact on its security (for the project: a compromise
+of the repository, the release pipeline, the signing identity or the image registry). Reports go
+through ENISA's single reporting platform to the CSIRT designated as coordinator of the Member State
+of the main establishment — for an owner in Germany, the research reads that as the BSI
+(unverified).
+
+| Clock (from becoming aware) | Actively exploited vulnerability | Severe incident |
+|---|---|---|
+| 24 hours | Early warning: that it is exploited, and the Member States where Hubtask is known to be affected if known | Early warning: whether it is suspected to be caused by an unlawful or malicious act |
+| 72 hours | Notification: the product, the general nature of the exploit and of the vulnerability, the corrective or mitigating measures taken and those users can take, how sensitive the information is | Notification: the nature of the incident, an initial assessment, the measures |
+| 14 days after a fix or mitigation is available | Final report: description and severity, the actor if known, the security update or other measures | — |
+| 1 month after the notification | — | Final report: description and severity, the likely root cause, the measures |
+
+**The runbook.** The clock starts at *awareness*, not at understanding, so the first hour decides
+whether it has to be reported, not how to fix it:
+
+1. **Decide the case** — in the advisory draft (§14.1): is there evidence of exploitation (a report
+   saying so, a public exploit used against an installation, an entry on a known-exploited list)?
+   Is it a severe incident of the project's own infrastructure? If neither, it is ordinary
+   coordinated disclosure and nothing below applies. Write down the moment of awareness.
+2. **24 h — early warning** on the reporting platform, with what is known; uncertainty is said, not
+   estimated away.
+3. **Inform the users** (Art. 14(8)) as soon as it is safe: a GitHub security advisory, published or
+   — where publishing would help the attacker more than the users — a short notice naming the
+   affected lines and the mitigation; providers learn it from the same advisory.
+4. **72 h — notification** with the mitigation the users can apply now.
+5. **Fix** on every line in its support period ([versioning-release.md](./versioning-release.md)
+   §5), release, publish the advisory, its CVE and its CSAF document (§14.2).
+6. **Final report** within 14 days of the fix (1 month after the notification for an incident).
+7. **Close** with the post-mortem note and the regression test (§14 item 4).
+
+A vulnerability the project finds in a **dependency** is reported to that dependency's maintainers
+(Art. 13(6)); if it is actively exploited, the steps above apply to Hubtask's exposure.
+
+### 14.4 What the project supplies to a provider who is a manufacturer
+
+A provider who sells Hubtask, a hosted service built on it, or its own distribution is a
+**manufacturer** under the CRA for what it places on the market (from 2027-12-11 in full, with
+Art. 14 reporting already since 2026-09-11), and receives from the project what it needs to be one:
+
+| The manufacturer needs | The project supplies | Where |
+|---|---|---|
+| The components (Annex I Part II (1)) | A CycloneDX SBOM per release image, a provenance attestation, a cosign signature | The GitHub release; `release.yml` (SG-10) |
+| Known vulnerabilities and their state | Advisories with CVE, CSAF 2.0, VEX *not affected* statements | §14.2 |
+| A support period to build on (Art. 13(8)) | The published support period of every line; every release kept available | [versioning-release.md](./versioning-release.md) §5, `SECURITY.md` |
+| A disclosure channel upstream | Coordinated disclosure, and the report of an exploited vulnerability shared with providers through the advisory | §14.1, `SECURITY.md` |
+| Secure-by-default evidence (Annex I Part I) | The principles and the gates | §1, §13 |
+
+The manufacturer declares its own support period (at least five years unless the product's expected
+use is shorter), runs its own conformity assessment, CE marking and Art. 14 reporting, and carries
+fixes into a line after the project's support for it has ended — the Apache-2.0 licence allows that
+without asking.
+
 ## 15. Deliberately not included
 
 | Not included | Reason |
