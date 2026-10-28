@@ -5,7 +5,7 @@ package identity
 
 import "github.com/Jersyfi/hubtask/core/domain/model/setting"
 
-// The sign-in rule's switches as entries of the settings catalogue (domain-model.md §2.4). The
+// The sign-in rule's switches as entries of the settings catalogue (domain-model.md §2, "The settings catalogue"). The
 // value a level stores for one switch is a patch deciding that switch alone (PolicyPatch.Only):
 // the typed pointers stay the rule's own, and the catalogue's resolver only says which level's
 // patch is in force, which lock binds it, and whether a lower patch tightens.

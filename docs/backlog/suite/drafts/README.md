@@ -6,7 +6,7 @@ builds it, in `state: specified` first, and is proven there by tests.
 
 | Draft | Lands as | In step | What it needs at landing |
 |---|---|---|---|
-| [INS-21](./INS-21-switch-a-module-on.md) | `docs/usecases/admin/`, the next free `UC-INS` number | S-02 | the draft number `UC-INS-19` was taken by milestone CD (*Change a workspace's address*) |
+| INS-21 | landed as [UC-INS-21](../../../usecases/admin/UC-INS-21-switch-a-module-on.md) | S-02 | — |
 | [FLW-01](./FLW-01-give-our-work-its-own-types.md) | `docs/usecases/workflow/`, the prefix `FLW` | S-03, S-06 | the context `workflow` (prefix `FLW`) in the gate's context table (`tools/checkdocs/usecases.go`) and in `docs/usecases/README.md`; *Where it ends* re-read against D-07 (records exist as the *record* behaviour of F-1) |
 | [FLW-02](./FLW-02-describe-how-our-work-moves.md) | as FLW-01 | S-07 | as above |
 | [FLW-03](./FLW-03-move-an-entry-on.md) | as FLW-01 | S-07 | as above |

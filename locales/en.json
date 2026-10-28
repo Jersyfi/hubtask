@@ -6618,5 +6618,12 @@
   "app.mail.oauth_fill_first": "Enter the client ID first.",
   "app.mail.oauth_cancel": "Cancel",
   "app.mail.oauth_completing": "Connecting the mailbox…",
-  "app.mail.password_lead": "Or with a password or an app password:"
+  "app.mail.password_lead": "Or with a password or an app password:",
+  "setting.locked": "{origin, select, WORKSPACE {An administrator of this workspace} INSTANCE {The installation} PLAN {The workspace's plan} HUB {The hub} other {Someone}} has locked this setting.",
+  "setting.not_allowed": "This value is not allowed here: the level above leaves only a narrower choice.",
+  "setting.unknown": "There is no such setting at this place.",
+  "module.off": "This part of Hubtask is switched off here. Its data is kept and comes back when it is switched on.",
+  "module.unknown": "There is no such module.",
+  "module.hub_only": "A module is switched for the workspace or a hub, not for a single collection.",
+  "module.switch_invalid": "Choose on, off, or as above."
 }

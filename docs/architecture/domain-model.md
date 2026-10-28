@@ -215,6 +215,32 @@ new type such as `MILESTONE` is **not** configuration today: the types are the P
 type registry (F-1 in [`backlog/suite/foundation.md`](../backlog/suite/foundation.md)) replaces the
 enum with workspace-defined types by expand and contract; this section changes with it.
 
+**The settings catalogue** (F-5, principle P-17; package `core/domain/model/setting`). Every setting
+of every level is one `Definition`: a dotted key (`sign_in.min_length`, `structure.views`,
+`module.planning`), a kind (the installation's eight - `COUNT`, `FLAG`, `CHOICE`, `CHOICES`, `LINK`,
+`TEXT`, `LOCALE`, `TIME_ZONE` - and `STRUCTURE`, a value whose shape its own package owns), its
+bounds, the levels that may decide it top-down (`INSTANCE`, `PLAN`, `WORKSPACE`, `HUB`, `COLLECTION`,
+`PERSON` below Hubtask's `DEFAULT`), whether a level may *lock* or *restrict* it, what an open value
+leaves the level below (`TIGHTEN`, `RAISE`, `REPLACE`), the writer's permission per level and the
+use case that previews a change. A level stores an `Entry` - a value, how it holds it (`SET`,
+`LOCK`, `RESTRICT`), what it leaves below, who set it. One resolver, `setting.Resolve`, answers
+every reader `{effective, source, locked_by, allowed}`: the nearest level that decides wins; a lock
+binds every level below and keeps the origin of the level that placed it first; a value under a
+lock, outside a restriction or - for `TIGHTEN` - looser than the value in force is ignored when
+resolving and refused when written (`setting.locked`, `setting.not_allowed`). The first declared
+level is held only by the product's bounds. The sign-in rule (`identity.Effective`) and the eight
+structure settings (`work.ResolveStructure`) resolve through it; golden tests hold them to the
+resolution they had before. A capability lock (`fields.TASK.DUE_DATE`) stays a refinement inside
+`fields`. Storage is one shape: a dotted key with a JSON value and a lock in `instance_setting` and
+`plan_setting`, and `setting_value` (level, scope, key, value, hold, allowed) for the workspace, a
+hub, a collection and a person (migration 0208).
+
+**Modules** (UC-INS-21, package `core/domain/model/module`) are catalogue entries `module.<name>`
+of kind `FLAG`, off by default: the installation and a plan lock one on or off, the workspace
+switches it, a hub only switches off what the workspace has on. A use case of a module declares it
+(`usecase.Descriptor.Module`); the registry refuses it with `403 module.off` where the module is
+off, through every door. Switching off hides and never deletes.
+
 ---
 
 ## 3. Aggregates and entities

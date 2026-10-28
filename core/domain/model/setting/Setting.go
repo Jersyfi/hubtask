@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package setting is the one settings catalogue (domain-model.md §2.4, principle P-17): what a
+// Package setting is the one settings catalogue (domain-model.md §2, "The settings catalogue", principle P-17): what a
 // setting is - its key, its kind, its bounds, the levels that may decide it and how - and the one
 // resolver that answers, for every setting at every place, `{effective, source, locked_by,
 // allowed}`.

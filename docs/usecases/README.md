@@ -205,6 +205,7 @@ use case's state is its file's `state:` and nowhere else.
 | [UC-INS-18](./admin/UC-INS-18-offer-presets-to-every-workspace.md) | Offer presets to every workspace | admin |
 | [UC-INS-19](./admin/UC-INS-19-change-a-workspaces-address.md) | Change a workspace's address | admin |
 | [UC-INS-20](./admin/UC-INS-20-give-a-workspace-a-host-of-my-choosing.md) | Give each workspace a host of my choosing | admin |
+| [UC-INS-21](./admin/UC-INS-21-switch-a-module-on.md) | Switch a module on for the workspace, a hub, or a plan | admin |
 | [UC-WRK-01](./work/UC-WRK-01-organise-my-work-into-hubs-and-collections.md) | Organise my work into hubs and collections | work |
 | [UC-WRK-02](./work/UC-WRK-02-write-down-a-task.md) | Write down a task | work |
 | [UC-WRK-03](./work/UC-WRK-03-break-a-task-down-into-smaller-steps.md) | Break a task down into smaller steps | work |

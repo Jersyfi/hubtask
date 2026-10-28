@@ -1,13 +1,13 @@
 ---
-id: INS-21
+id: UC-INS-21
 title: Switch a module on for the workspace, a hub, or a plan
 context: admin
 actors: [PE-owner, PE-admin, PE-operator, PE-platform, PE-member]
 deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-03, P-05, P-06, P-07, P-08, P-10, P-17]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [core/domain/model/module/Module_test.go, core/application/service/setting/Modules_test.go]
 ---
 
 # Switch a module on for the workspace, a hub, or a plan
@@ -57,13 +57,8 @@ administrator sees the lock and who set it.
 
 ## Today
 
-* Check 1: not met — the suite plan, S-02.
-* Check 2: not met — the suite plan, S-02.
-* Check 3: not met — the suite plan, S-02.
-* Check 4: not met — the suite plan, S-02.
-* Check 5: not met — the suite plan, S-02.
-* Check 6: not met — the suite plan, S-02.
-* Check 7: not met — the suite plan, S-02.
-* Check 8: not met — the suite plan, S-02.
-* Check 9: not met — the suite plan, S-02.
-
+* Check 2: not met — the switch exists on REST, MCP and automation (`SetModule`); the
+  administration has no *Modules* section yet (the suite plan, S-02 remainder).
+* Check 4: not met — no screen asks before switching off; the switch itself deletes nothing.
+* Check 6: not met — a plan's and the installation's lock resolve and refuse with their origin, but
+  the plan and instance documents take no `module` area yet, and no screen draws the lock.

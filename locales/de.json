@@ -6615,5 +6615,12 @@
   "app.mail.oauth_fill_first": "Gib zuerst die Client-ID an.",
   "app.mail.oauth_cancel": "Abbrechen",
   "app.mail.oauth_completing": "Das Postfach wird verbunden …",
-  "app.mail.password_lead": "Oder mit Passwort bzw. App-Passwort:"
+  "app.mail.password_lead": "Oder mit Passwort bzw. App-Passwort:",
+  "setting.locked": "{origin, select, WORKSPACE {Eine Administration dieses Arbeitsbereichs} INSTANCE {Die Installation} PLAN {Der Plan des Arbeitsbereichs} HUB {Der Hub} other {Jemand}} hat diese Einstellung gesperrt.",
+  "setting.not_allowed": "Dieser Wert ist hier nicht erlaubt: Die Ebene darüber lässt nur eine engere Wahl.",
+  "setting.unknown": "Diese Einstellung gibt es hier nicht.",
+  "module.off": "Dieser Teil von Hubtask ist hier ausgeschaltet. Seine Daten bleiben erhalten und sind nach dem Einschalten wieder da.",
+  "module.unknown": "Dieses Modul gibt es nicht.",
+  "module.hub_only": "Ein Modul wird für den Arbeitsbereich oder einen Hub geschaltet, nicht für eine einzelne Sammlung.",
+  "module.switch_invalid": "Wähle an, aus oder wie darüber."
 }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2026 Jérôme Bastian Winkel
 
-// Package setting holds the use cases of the settings catalogue (domain-model.md §2.4): reading
+// Package setting holds the use cases of the settings catalogue (domain-model.md §2, "The settings catalogue"): reading
 // what a place resolves, and writing one level's entry, with the module switches first
 // (UC-INS-21).
 package setting
