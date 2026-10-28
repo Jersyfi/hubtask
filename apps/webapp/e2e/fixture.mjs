@@ -1129,6 +1129,8 @@ export function stub(route) {
   if (path.endsWith('/api/v1/privacy/consents') && request.method() === 'GET') return route.fulfill({ json: CONSENT_REGISTER });
   if (path.endsWith('/api/v1/admin/encryption') && request.method() === 'GET') return route.fulfill({ json: ENCRYPTION_STATUS });
   if (path.endsWith('/api/v1/admin/subscriptions') && request.method() === 'GET') return route.fulfill({ json: PLATFORM_SUBSCRIPTIONS });
+  // The contract's bare list: no workspace has set up its own domain yet.
+  if (path.endsWith('/api/v1/admin/own-domains') && request.method() === 'GET') return route.fulfill({ json: [] });
   // The operator's hour at the installation level, granted: a walk of those screens looks at them,
   // not at the door (ADR-0070 §4).
   if (path.endsWith('/api/v1/auth/sessions:elevate')) {

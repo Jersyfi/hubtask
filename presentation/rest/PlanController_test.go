@@ -155,6 +155,25 @@ func TestProvisioningCarriesThePlan(t *testing.T) {
 	}
 }
 
+// The short name and the assigned host reach the use case as plain strings: its registry refuses
+// any other type at the field.
+func TestProvisioningCarriesTheShortNameAndTheHost(t *testing.T) {
+	registry := &catalogue{err: shared.ErrValidation.WithDetail("admin.plan_unknown")}
+	callPlans(t, registry, http.MethodPost, "/admin/tenants",
+		`{"slug": "maria", "host": "tasks-hr.corp.example", "display_name": "Maria", "owner_email": "maria@example.org"}`, nil)
+	if slug, ok := registry.in["slug"].(string); !ok || slug != "maria" {
+		t.Errorf("the short name reached the use case as %#v", registry.in["slug"])
+	}
+	if host, ok := registry.in["host"].(string); !ok || host != "tasks-hr.corp.example" {
+		t.Errorf("the host reached the use case as %#v", registry.in["host"])
+	}
+	callPlans(t, registry, http.MethodPost, "/admin/tenants",
+		`{"host": "tasks-hr.corp.example", "display_name": "Maria", "owner_email": "maria@example.org"}`, nil)
+	if registry.in["slug"] != nil {
+		t.Errorf("an omitted short name reached the use case as %#v", registry.in["slug"])
+	}
+}
+
 // The reference travels to its use case with the version from If-Match, and the answer's version is
 // the tag; null clears.
 func TestAReferenceIsSetOverREST(t *testing.T) {

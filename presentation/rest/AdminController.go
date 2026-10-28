@@ -68,7 +68,8 @@ func (c *RestController) ProvisionTenant(
 	}
 
 	out, err := c.UseCases.Invoke(r.Context(), provisionTenantUseCase, actorOf(r), usecase.Input{
-		"slug":               body.Slug,
+		"slug":               optionalStringField(body.Slug),
+		"host":               optionalStringField(body.Host),
 		"display_name":       body.DisplayName,
 		"default_locale":     optionalStringField(body.DefaultLocale),
 		"default_time_zone":  optionalStringField(body.DefaultTimeZone),
