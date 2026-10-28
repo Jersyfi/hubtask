@@ -75,7 +75,7 @@
   const lockClosed = $derived(lockCode(declared, true));
 </script>
 
-<div class="value" data-value={`${area}.${key}`}>
+<div class="value" data-value={`${area}.${key}`} data-setting={`${area}.${key}`}>
   {#if declared.kind === 'COUNT'}
     <Input
       {label}

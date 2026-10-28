@@ -26,7 +26,7 @@
   import { untrack } from 'svelte';
 
   import { Dialog, Icon, Kbd, SearchField, Spinner, VisuallyHidden, type IconName } from '@hubtask/design-system/components';
-  import type { Container, WorkItem } from '@hubtask/sync-engine';
+  import type { Container, SettingDefinition, WorkItem } from '@hubtask/sync-engine';
 
   import { palette } from './palette.svelte.ts';
   import { commands } from './commands.svelte.ts';
@@ -34,6 +34,8 @@
   import { collectionOffers, containerOffers, placeOffers, type Offer, type Placed, type Reach, type Target } from './sources.ts';
   import { frameActionOffers, recentOffers, settingOffers } from './registry.ts';
   import { land } from './landing.ts';
+  import { catalogueOffers } from '../settings/catalogue.ts';
+  import { settingsCatalogue } from '../data/settingsCatalogue.svelte.ts';
   import CreateContainerDialog from '../workspace/CreateContainerDialog.svelte';
   import { capture } from '../capture/capture.svelte.ts';
   import { mayCaptureHere } from '../capture/places.svelte.ts';
@@ -190,6 +192,21 @@
     ),
   );
 
+  /**
+   * Every catalogue setting at each level the reader reaches (configuration/ui.md A7), read only
+   * while the palette is open for somebody who reaches a settings screen of the catalogue.
+   */
+  let catalogue = $state<readonly SettingDefinition[]>([]);
+  $effect(() => {
+    if (!isOpen || (!reach.isAdministrationReachable && !reach.isInstanceReachable)) return;
+    return untrack(() =>
+      settingsCatalogue.read((next) => {
+        if (next.status === 'ready') catalogue = next.data.settings;
+      }),
+    );
+  });
+  const catalogueRows = $derived(catalogueOffers(catalogue, reach, t));
+
   /** What may be offered, each with what pressing it does. */
   const offers = $derived<readonly (Offer | (Candidate & { readonly run: () => void }))[]>([
     ...containerOffers(placed),
@@ -215,6 +232,7 @@
     ),
     ...placeOffers(reach, t),
     ...settings,
+    ...catalogueRows,
     ...hits.map((hit) => ({ kind: 'hit' as const, id: hit.id, label: hit.title ?? '', target: { kind: 'route' as const, path: `/items/${hit.id}` } })),
     ...recentOffers(recents.rows),
   ]);
