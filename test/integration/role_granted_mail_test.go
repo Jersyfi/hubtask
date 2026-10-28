@@ -121,7 +121,7 @@ func TestARoleGivenToAPersonIsMailedOnce(t *testing.T) {
 		Accounts: postgres.NewAccountRepository(), Items: itemRepo(),
 		Grants: postgres.NewMembershipGrantRepository(pageCursors()), Places: containerRepo(),
 		Mail: box, Renderer: renderer, UnitOfWork: postgres.NewUnitOfWork(appPool(ctx, t)),
-		Clock: clockadapter.System{}, BaseURL: "https://hub.test.invalid",
+		Clock: clockadapter.System{}, Addresses: identityservice.WorkspaceAddress{BaseURL: "https://hub.test.invalid"},
 	}
 	if err := delivery.Execute(ctx, w.tenant, shared.MustParseID(recordID), false); err != nil {
 		t.Fatalf("delivering: %v", err)

@@ -6,7 +6,6 @@ package notification
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -92,15 +91,15 @@ type SendWayInChanged struct {
 	Renderer       i18n.Renderer
 	UnitOfWork     persistence.UnitOfWork
 	FallbackLocale string
-	// BaseURL is where this installation lives: the message links back to it.
-	BaseURL string
+	// Addresses answers the workspace's address the message links back to.
+	Addresses WorkspaceAddresses
 }
 
 // Execute sends one notice. An account that is gone, or has no address, is finished business.
 func (s SendWayInChanged) Execute(ctx context.Context, tenantID shared.ID, notice WayInNotice) error {
 	var (
-		address, locale, workspace string
-		send                       bool
+		address, locale, workspace, base string
+		send                             bool
 	)
 	err := s.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
@@ -122,6 +121,9 @@ func (s SendWayInChanged) Execute(ctx context.Context, tenantID shared.ID, notic
 			}
 			send = true
 			address, locale = account.Email, account.Locale
+			if base, err = addressOf(ctx, s.Addresses); err != nil {
+				return err
+			}
 			if s.Workspaces == nil {
 				return nil
 			}
@@ -148,7 +150,6 @@ func (s SendWayInChanged) Execute(ctx context.Context, tenantID shared.ID, notic
 		"provider":  notice.Change.ProviderName,
 		"link":      "",
 	}
-	base := strings.TrimSuffix(s.BaseURL, "/")
 	var subjectCode, bodyCode string
 	switch notice.Change.Event {
 	case identity.WayInPasswordChanged:

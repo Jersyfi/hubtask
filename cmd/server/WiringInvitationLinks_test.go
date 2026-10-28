@@ -23,7 +23,7 @@ func TestInvitationsTravelAsLinksExactlyWhereNoMailIsConfigured(t *testing.T) {
 	if links.Minter == nil {
 		t.Fatal("an installation without a mail server would queue mail that never leaves")
 	}
-	if links.BaseURL != "https://home.example" {
-		t.Errorf("base %q, want the base the mail's link names", links.BaseURL)
+	if links.Address.BaseURL != "https://home.example" {
+		t.Errorf("base %q, want the base the mail's link names", links.Address.BaseURL)
 	}
 }

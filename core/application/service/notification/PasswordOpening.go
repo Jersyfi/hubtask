@@ -6,7 +6,6 @@ package notification
 import (
 	"context"
 	"errors"
-	"strings"
 	"time"
 
 	identityrepo "github.com/Jersyfi/hubtask/core/application/repository/identity"
@@ -123,16 +122,16 @@ type SendPasswordOpening struct {
 	Renderer       i18n.Renderer
 	UnitOfWork     persistence.UnitOfWork
 	FallbackLocale string
-	// BaseURL is where this installation lives: the message links to the sign-in settings.
-	BaseURL string
+	// Addresses answers the workspace's address; the message links to its sign-in settings.
+	Addresses WorkspaceAddresses
 }
 
 // Execute sends one notice. An account that is gone, or has no address, is finished business: there
 // is nothing a retry would find.
 func (s SendPasswordOpening) Execute(ctx context.Context, tenantID shared.ID, notice OpeningNotice) error {
 	var (
-		address, locale, workspace string
-		found                      bool
+		address, locale, workspace, base string
+		found                            bool
 	)
 	err := s.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
@@ -145,6 +144,9 @@ func (s SendPasswordOpening) Execute(ctx context.Context, tenantID shared.ID, no
 			}
 			found = true
 			address, locale = account.Email, account.Locale
+			if base, err = addressOf(ctx, s.Addresses); err != nil {
+				return err
+			}
 			if s.Workspaces == nil {
 				return nil
 			}
@@ -166,7 +168,7 @@ func (s SendPasswordOpening) Execute(ctx context.Context, tenantID shared.ID, no
 	}
 
 	params := map[string]string{"workspace": workspace, "link": ""}
-	if base := strings.TrimSuffix(s.BaseURL, "/"); base != "" {
+	if base != "" {
 		// The administrators' sign-in settings, where the opening is shown while it stands.
 		params["link"] = base + "/administration/sign-in"
 	}

@@ -17,9 +17,11 @@ import (
 // workspace being "anna".
 func locator(f *oidcFixture, at time.Time) LocateOidcFlow {
 	return LocateOidcFlow{
-		Flows: f.flows, Workspaces: &workspaceStore{row: domain.Workspace{Slug: "anna"}},
-		UnitOfWork: f.session.work, Clock: clock.Fixed(at),
-		BaseURL: "https://hub.example", Multi: true,
+		Flows: f.flows, UnitOfWork: f.session.work, Clock: clock.Fixed(at),
+		Address: WorkspaceAddress{
+			Workspaces: &workspaceStore{row: domain.Workspace{Slug: "anna"}},
+			BaseURL:    "https://hub.example", Multi: true,
+		},
 	}
 }
 
@@ -53,7 +55,7 @@ func TestInSingleTenantOperationTheAnswerIsTheInstallationsAddress(t *testing.T)
 	f := newOidcFixture(t, at)
 	state := start(t, f)
 	locate := locator(f, at)
-	locate.Multi = false
+	locate.Address.Multi = false
 
 	base, err := locate.Execute(t.Context(), state.Reveal())
 	if err != nil {
@@ -107,7 +109,7 @@ func TestAWorkspaceGoneIsTheSameNotFound(t *testing.T) {
 	f := newOidcFixture(t, at)
 	state := start(t, f)
 	locate := locator(f, at)
-	locate.Workspaces = &workspaceStore{missing: true}
+	locate.Address.Workspaces = &workspaceStore{missing: true}
 
 	_, err := locate.Execute(t.Context(), state.Reveal())
 	if got := shared.AsError(err); got == nil || got.DetailCode != "auth.oidc_flow_not_found" {
@@ -122,7 +124,7 @@ func TestAFlowIsLocatedAtItsWorkspacesMainRow(t *testing.T) {
 	f := newOidcFixture(t, at)
 	state := start(t, f)
 	locate := locator(f, at.Add(time.Minute))
-	locate.Hosts = tenantHostsFake{hosts: []domain.TenantHost{
+	locate.Address.Hosts = tenantHostsFake{hosts: []domain.TenantHost{
 		{Host: "anna.hub.example", State: domain.HostActive},
 		{Host: "tasks.anna.example", State: domain.HostActive, Canonical: true},
 	}}

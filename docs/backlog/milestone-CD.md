@@ -126,9 +126,10 @@ forward goes only to the named host; the migration test on a database with works
 
 One helper gives a workspace's address from its main row, and every writer of a link uses it: the
 reset, the address confirmation, the notice that a way in changed, the password opening, every
-notification link and the emergency access, beside the invitation, which already does. The
-installation's own mails (operator notices) keep the installation's host. The helper replaces
-`WorkspaceBase` built from the short name.
+notification link and the emergency access, and the invitation, which named the subdomain its
+short name makes. There is no mail of the installation's own today; one added later keeps the
+installation's host. The helper replaces `WorkspaceBase` built from the short name. The calendar
+feed's, a CalDAV todo's and an export's links are #1784.
 
 **Acceptance:** a test per mail kind that its link carries the main row's host after the row
 changed; an architecture test that no mail writer reads `BaseURL` for a workspace's link; #1549
@@ -268,6 +269,25 @@ single mode showing nothing; the preview shown to the owner first (Decision 11).
 
 ---
 
+## CD-10 — The links outside mails from the main address
+
+*Depends on: CD-03.* · finding #1784 · multi-tenancy.md §3.1
+
+**Use cases:** UC-INS-19 (9)
+
+The three links Hubtask hands out beyond its mails come from the workspace's main row through
+`WorkspaceAddress`, as the mails' links do since CD-03: the calendar feed's address a client
+subscribes to (`presentation/rest/CalendarController.go`), the URL a todo carries in CalDAV
+(`presentation/calendar/CalDav.go`) and an entry's link in an export
+(`presentation/rest/ExportController.go`). The adapters get the address through a per-request seam
+for the request's workspace - a use case in its own read-only transaction, never a repository in
+the adapter (rules 2 and 3) - not from `HUBTASK_BASE_URL`.
+
+**Acceptance:** a test per writer that its link carries the main row's host after the row changed;
+`test/architecture/mainaddress_test.go` extended to the adapters.
+
+---
+
 ## The matrix
 
 | Door | What CD changes |
@@ -318,7 +338,7 @@ own domain; `D7` sets everything from the instance file and `hubctl`.
    §23.3 (the use cases a changed host names), security.md T-28, deployment.md §6.1
    (`HUBTASK_WORKSPACE_HOSTS`, the certificate) drafted; ADR-0095 proposed, accepted when CD-02
    merges.
-7. **Findings** — #1560 is CD-01, #1549 is CD-03. #1616 (no door gives a workspace an owner) is not
+7. **Findings** — #1560 is CD-01, #1549 is CD-03; #1784, found in CD-03, is CD-10. #1616 (no door gives a workspace an owner) is not
    CD's; CD-05 counts the owners there are. #1505 is about restored test slugs.
 8. **Tasks** — each names its checks, dependencies and acceptance; together they carry `Delivers`.
 9. **The standing rules** — rule 1 and rule 2 (the address rules in the domain, authorised in the

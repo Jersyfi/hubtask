@@ -47,11 +47,9 @@ const (
 type InvitationLinks struct {
 	// Minter stores the token's hash and answers its plaintext. Nil mails the invitation.
 	Minter RedemptionMinter
-	// BaseURL is the base the mail's link names; the link answered here is that same link.
-	BaseURL string
-	// Multi is whether the installation runs several workspaces, each on its own subdomain: the
-	// link then names the workspace's own address (multi-tenancy.md §3, UC-ID-07 check 7).
-	Multi bool
+	// Address is the workspace's address the mail's link names; the link answered here is that
+	// same link (UC-ID-07 check 7, UC-INS-19 check 9).
+	Address WorkspaceAddress
 }
 
 // RedemptionMinter mints an invitation's redemption token - MintRedemptionToken.
@@ -227,7 +225,11 @@ func deliver(
 		// between the read and the write.
 		return secret.Secret{}, notInvited()
 	}
-	link := domain.InvitationLink(domain.WorkspaceBase(links.BaseURL, actor.TenantSlug, links.Multi), token.Reveal())
+	base, err := links.Address.Of(ctx)
+	if err != nil {
+		return secret.Secret{}, err
+	}
+	link := domain.InvitationLink(base, token.Reveal())
 	if link == "" {
 		// A token and no link to carry it is an invitation nobody can accept: the installation's
 		// base address is missing, which is its operator's to fix.

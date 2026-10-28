@@ -66,13 +66,13 @@ func TestTheRoleMailNamesWhoTheRoleAndThePlace(t *testing.T) {
 		want  []string
 	}{
 		{"a hub", identity.HubScope(hubGranted), bodyRoleGranted,
-			[]string{"title=Garden", "place=" + placePrefix + "hub", "link=" + baseURL + "/hubs/" + hubGranted.String()}},
+			[]string{"title=Garden", "place=" + placePrefix + "hub", "link=" + mainBase + "/hubs/" + hubGranted.String()}},
 		{"a collection", identity.CollectionScope(hubGranted), bodyRoleGranted,
-			[]string{"title=Garden", "place=" + placePrefix + "collection", "link=" + baseURL + "/collections/" + hubGranted.String()}},
+			[]string{"title=Garden", "place=" + placePrefix + "collection", "link=" + mainBase + "/collections/" + hubGranted.String()}},
 		{"an entry", identity.ItemScope(itemID), bodyRoleGranted,
-			[]string{"title=Review the quote", "place=" + placePrefix + "item", "link=" + baseURL + "/items/" + itemID.String()}},
+			[]string{"title=Review the quote", "place=" + placePrefix + "item", "link=" + mainBase + "/items/" + itemID.String()}},
 		{"the workspace", identity.TenantScope(), bodyRoleGrantedWorkspace,
-			[]string{"link=" + baseURL}},
+			[]string{"link=" + mainBase}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			grant := grantOn(tc.scope, bert, "")
@@ -130,7 +130,7 @@ func TestTheRoleMailWithholdsThePlaceName(t *testing.T) {
 			if !strings.HasPrefix(body, bodyRoleGranted+withheldSuffix+" ") || strings.Contains(body, "Garden") {
 				t.Errorf("the body %q, want the withheld sentence without the hub's name", body)
 			}
-			for _, want := range []string{"role=" + rolePrefix + "member", "link=" + baseURL + "/hubs/"} {
+			for _, want := range []string{"role=" + rolePrefix + "member", "link=" + mainBase + "/hubs/"} {
 				if !strings.Contains(body, want) {
 					t.Errorf("the body %q lacks %q", body, want)
 				}

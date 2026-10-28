@@ -63,10 +63,11 @@ func NewRedemptionToken(tenantID shared.ID, secret []byte) (Token, error) {
 	return newPrefixed(RedemptionTokenPrefix, tenantID, secret)
 }
 
-// WorkspaceBase is a workspace's own address (multi-tenancy.md §3): in multi-tenant operation its
-// slug as one label under the installation's host, the scheme, port and path kept; in single-tenant
-// operation, and wherever the slug or the base is missing, the installation's address itself. One
-// composition, so every link that leads a person to their workspace leads to the same place.
+// WorkspaceBase is the address a workspace's short name makes (multi-tenancy.md §3): in
+// multi-tenant operation its slug as one label under the installation's host, the scheme, port and
+// path kept; in single-tenant operation, and wherever the slug or the base is missing, the
+// installation's address itself. A link reads it only through the application's WorkspaceAddress,
+// which prefers the main row (ADR-0095 §2).
 func WorkspaceBase(base, slug string, multi bool) string {
 	base = strings.TrimSuffix(base, "/")
 	if !multi || slug == "" || base == "" {

@@ -253,14 +253,71 @@ func TestTheDoorsFindAWorkspaceByItsRow(t *testing.T) {
 		}
 
 		base, err := identityservice.LocateOidcFlow{
-			Flows: flows, Workspaces: postgres.NewWorkspaceSettingsRepository(),
-			Hosts: postgres.NewTenantHostRepository(), UnitOfWork: writer.UnitOfWork,
-			Clock: clockadapter.System{}, BaseURL: "https://hub.example:8443", Multi: true,
+			Flows: flows, UnitOfWork: writer.UnitOfWork, Clock: clockadapter.System{},
+			Address: identityservice.WorkspaceAddress{
+				Workspaces: postgres.NewWorkspaceSettingsRepository(),
+				Hosts:      postgres.NewTenantHostRepository(),
+				BaseURL:    "https://hub.example:8443", Multi: true,
+			},
 		}.Execute(ctx, state.Secret())
 		if err != nil || base != "https://"+hostOfA+":8443" {
 			t.Errorf("located (%q, %v), want A's main row", base, err)
 		}
 	})
+}
+
+// hostTenantMoved is a workspace of its own whose main row this file moves; nobody else reads it.
+var hostTenantMoved = shared.MustParseID("01936f2a-7c1e-7000-8000-000000207a04")
+
+// UC-INS-19 check 9: the address every mail and link is built on is the main row as it stands when
+// the link is written - after the row changed, the new host, never the subdomain the short name
+// makes - and it is the transaction's own workspace's, never another's.
+func TestEveryLinkIsBuiltOnTheMainRowAsItStands(t *testing.T) {
+	ctx := context.Background()
+	seedHostTenants(ctx, t)
+	admin := adminPool(ctx, t)
+	for _, statement := range []string{
+		`INSERT INTO tenant (id, slug, display_name) VALUES ('` + hostTenantMoved.String() +
+			`', 'host-moved', 'Host Moved') ON CONFLICT (id) DO NOTHING`,
+		`DELETE FROM tenant_host WHERE tenant_id = '` + hostTenantMoved.String() + `'`,
+	} {
+		if _, err := admin.Exec(ctx, statement); err != nil {
+			t.Fatalf("seeding: %v", err)
+		}
+	}
+	servedAt(ctx, t, hostTenantMoved, "host-moved.hub.example")
+	_, _, uow := realWriter(ctx, t)
+	address := identityservice.WorkspaceAddress{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+		BaseURL: "https://hub.example:8443", Multi: true,
+	}
+	of := func(tenant shared.ID) string {
+		t.Helper()
+		var base string
+		if err := uow.WithinReadOnly(ctx, persistence.Scope{TenantID: tenant}, func(ctx context.Context) error {
+			var err error
+			base, err = address.Of(ctx)
+			return err
+		}); err != nil {
+			t.Fatalf("reading the address: %v", err)
+		}
+		return base
+	}
+
+	if base := of(hostTenantMoved); base != "https://host-moved.hub.example:8443" {
+		t.Errorf("before the change the address is %q", base)
+	}
+	// The change of address's write, as CD-05 makes it: the main row replaced in one transaction.
+	if _, err := admin.Exec(ctx, `DELETE FROM tenant_host WHERE tenant_id = $1`, hostTenantMoved.String()); err != nil {
+		t.Fatalf("dropping the old row: %v", err)
+	}
+	servedAt(ctx, t, hostTenantMoved, "tasks.moved.example")
+	if base := of(hostTenantMoved); base != "https://tasks.moved.example:8443" {
+		t.Errorf("after the change the address is %q, want the new main row", base)
+	}
+	if base := of(hostTenantA); base != "https://"+hostOfA+":8443" {
+		t.Errorf("another workspace's address is %q, want its own main row", base)
+	}
 }
 
 // beforeTheHostResolver is the last version without migration 0207.

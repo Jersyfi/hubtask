@@ -6,7 +6,6 @@ package notification
 import (
 	"context"
 	"net/url"
-	"strings"
 
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/i18n"
@@ -76,8 +75,9 @@ type SendPasswordReset struct {
 	Workspaces     WorkspaceReader
 	UnitOfWork     persistence.UnitOfWork
 	FallbackLocale string
-	// BaseURL is where this installation lives. A relative path in an email is a dead link.
-	BaseURL string
+	// Addresses answers the workspace's address the link names. Nil composes none: a relative path
+	// in an email is a dead link.
+	Addresses WorkspaceAddresses
 }
 
 // Execute mints the link and sends it.
@@ -93,7 +93,7 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 		return nil
 	}
 
-	locale, err := s.localeFor(ctx, tenantID, link.Locale)
+	locale, base, err := s.workspaceOf(ctx, tenantID, link.Locale)
 	if err != nil {
 		return err
 	}
@@ -102,7 +102,6 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 	var subjectCode, bodyCode string
 	// In the fragment rather than the query, the invitation's reasoning: a proxy or a server log
 	// between the mail client and the interface never sees what follows the hash.
-	base := strings.TrimSuffix(s.BaseURL, "/")
 	switch {
 	case link.Connect:
 		subjectCode, bodyCode = subjectPasswordConnect, bodyPasswordConnect
@@ -124,20 +123,28 @@ func (s SendPasswordReset) Execute(ctx context.Context, tenantID, accountID shar
 	})
 }
 
-// localeFor is the recipient's chain, read inside a transaction bound to their workspace.
-func (s SendPasswordReset) localeFor(
+// workspaceOf is the recipient's language chain and the workspace's address, read inside one
+// transaction bound to their workspace.
+func (s SendPasswordReset) workspaceOf(
 	ctx context.Context, tenantID shared.ID, own string,
-) (string, error) {
-	if own != "" {
-		return own, nil
+) (locale, base string, err error) {
+	locale = own
+	if locale == "" {
+		locale = s.FallbackLocale
 	}
-	if s.Workspaces == nil || s.UnitOfWork == nil {
-		return s.FallbackLocale, nil
+	if s.UnitOfWork == nil {
+		base, err = addressOf(ctx, s.Addresses)
+		return locale, base, err
 	}
-
-	locale := s.FallbackLocale
-	err := s.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
+	err = s.UnitOfWork.WithinReadOnly(ctx, persistence.Scope{TenantID: tenantID},
 		func(ctx context.Context) error {
+			var err error
+			if base, err = addressOf(ctx, s.Addresses); err != nil {
+				return err
+			}
+			if own != "" || s.Workspaces == nil {
+				return nil
+			}
 			workspace, err := s.Workspaces.Find(ctx)
 			if err != nil {
 				// A workspace row that is gone while its accounts are not is not this delivery's
@@ -149,5 +156,5 @@ func (s SendPasswordReset) localeFor(
 			}
 			return nil
 		})
-	return locale, err
+	return locale, base, err
 }

@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	identityservice "github.com/Jersyfi/hubtask/core/application/service/identity"
 	"github.com/Jersyfi/hubtask/core/application/service/notification"
 	domain "github.com/Jersyfi/hubtask/core/domain/model/notification"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -213,7 +214,7 @@ func newNotificationStack(ctx context.Context, t *testing.T) notificationStack {
 				Rules:         postgres.NewAutomationRuleRepository(pageCursors()),
 				Subscriptions: postgres.NewWebhookSubscriptionRepository(),
 				UnitOfWork:    work, Clock: clockadapter.System{},
-				BaseURL: "https://hub.test.invalid",
+				Addresses: identityservice.WorkspaceAddress{BaseURL: "https://hub.test.invalid"},
 			},
 		},
 	}

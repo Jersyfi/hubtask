@@ -36,7 +36,7 @@ func TestTheResetMailCarriesTheLinkInTheFragment(t *testing.T) {
 
 	err := SendPasswordReset{
 		Resets: minter, Mail: mailer, Renderer: catalogue{},
-		FallbackLocale: "en", BaseURL: "https://acme.example/",
+		FallbackLocale: "en", Addresses: fixedAddress("https://acme.example/"),
 	}.Execute(t.Context(), tenant, anna)
 	if err != nil {
 		t.Fatalf("sending: %v", err)
@@ -71,7 +71,7 @@ func TestAProviderAccountGetsNoLink(t *testing.T) {
 		Resets: &resetMinter{link: ResetLink{
 			HasPassword: false, Address: "mara@contoso.example",
 		}},
-		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://acme.example",
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", Addresses: fixedAddress("https://acme.example"),
 	}.Execute(t.Context(), tenant, anna)
 	if err != nil {
 		t.Fatalf("sending: %v", err)
@@ -102,7 +102,7 @@ func TestAProviderOnlyAccountUnderTheFallbackGetsALinkToSetOne(t *testing.T) {
 		Resets: &resetMinter{link: ResetLink{
 			Token: secret.New("hbt_mfa_0123_abc"), First: true, Address: "mara@contoso.example",
 		}},
-		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://acme.example",
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", Addresses: fixedAddress("https://acme.example"),
 	}.Execute(t.Context(), tenant, anna)
 	if err != nil {
 		t.Fatalf("sending: %v", err)
@@ -127,7 +127,7 @@ func TestAnAccountWithoutAProviderWhereThePasswordIsOffGetsALinkToConnectOne(t *
 		Resets: &resetMinter{link: ResetLink{
 			Token: secret.New("hbt_mfa_0123_abc"), Connect: true, Address: "mara@contoso.example",
 		}},
-		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", BaseURL: "https://acme.example/",
+		Mail: mailer, Renderer: catalogue{}, FallbackLocale: "en", Addresses: fixedAddress("https://acme.example/"),
 	}.Execute(t.Context(), tenant, anna)
 	if err != nil {
 		t.Fatalf("sending: %v", err)

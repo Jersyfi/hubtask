@@ -122,7 +122,7 @@ func TestTheEmergencyMailSaysWhoWhenAndWhy(t *testing.T) {
 			for _, want := range []string{
 				"actor=Paul", "reason=Maria is in hospital",
 				"when=2026-08-24 11:00 (Europe/Berlin)", "until=2026-08-24 12:00 (Europe/Berlin)",
-				"link=" + baseURL + "/hubs/" + hubOpened.String(),
+				"link=" + mainBase + "/hubs/" + hubOpened.String(),
 			} {
 				if !strings.Contains(body, want) {
 					t.Errorf("the body %q lacks %q", body, want)

@@ -10,6 +10,7 @@ import (
 
 	appshared "github.com/Jersyfi/hubtask/core/application/shared"
 	"github.com/Jersyfi/hubtask/core/application/usecase"
+	domain "github.com/Jersyfi/hubtask/core/domain/model/identity"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 	"github.com/Jersyfi/hubtask/core/port/queue"
 	"github.com/Jersyfi/hubtask/core/shared/secret"
@@ -37,7 +38,7 @@ func (acceptedMeanwhile) MintRedemptionToken(context.Context, shared.ID, shared.
 const homeBase = "https://home.example/"
 
 func withoutMail(h InviteAccount, minter *linkMinter) InviteAccount {
-	h.Links = InvitationLinks{Minter: minter, BaseURL: homeBase}
+	h.Links = InvitationLinks{Minter: minter, Address: WorkspaceAddress{BaseURL: homeBase}}
 	return h
 }
 
@@ -134,7 +135,7 @@ func TestARuleRunInvitesOnlyWhereTheMailCarriesIt(t *testing.T) {
 // invitation fails rather than answering a dead link.
 func TestNoLinkWithoutABaseAddress(t *testing.T) {
 	handler := withoutMail(inviteHandler(newAccounts(), &authorizer{}, &auditSink{}, &notifier{}), &linkMinter{})
-	handler.Links.BaseURL = ""
+	handler.Links.Address.BaseURL = ""
 
 	_, err := handler.Execute(t.Context(), admin(), InviteAccountCommand{Email: "bert@example.org"})
 
@@ -183,20 +184,41 @@ func stringOf(change any) string {
 }
 
 // UC-ID-07 check 7: in multi-tenant operation the link answered where no mail goes out leads to
-// the workspace's own address, the inviter's workspace as the credential names it.
+// the workspace's own address, read in the invitation's transaction.
 func TestInMultiTenantOperationTheLinkLeadsToTheWorkspacesAddress(t *testing.T) {
 	accounts, sink, queued, minter := newAccounts(), &auditSink{}, &notifier{}, &linkMinter{}
 	handler := withoutMail(inviteHandler(accounts, &authorizer{}, sink, queued), minter)
-	handler.Links.Multi = true
-	actor := admin()
-	actor.TenantSlug = "anna"
+	handler.Links.Address.Multi = true
+	handler.Links.Address.Workspaces = &workspaceStore{row: domain.Workspace{Slug: "anna"}}
 
-	invitation, err := handler.Execute(t.Context(), actor, InviteAccountCommand{Email: "bert@example.org"})
+	invitation, err := handler.Execute(t.Context(), admin(), InviteAccountCommand{Email: "bert@example.org"})
 	if err != nil {
 		t.Fatalf("inviting: %v", err)
 	}
 	want := "https://anna.home.example/redeem#token=hbt_inv_" + invitedID.String()
 	if invitation.Link.Reveal() != want {
 		t.Errorf("link %q, want the workspace's own address %q", invitation.Link.Reveal(), want)
+	}
+}
+
+// UC-INS-19 check 9: the link handed over names the workspace's main row, not the subdomain its
+// short name makes, once the row changed.
+func TestTheLinkHandedOverNamesTheMainRow(t *testing.T) {
+	accounts, sink, queued, minter := newAccounts(), &auditSink{}, &notifier{}, &linkMinter{}
+	handler := withoutMail(inviteHandler(accounts, &authorizer{}, sink, queued), minter)
+	handler.Links.Address.Multi = true
+	handler.Links.Address.Workspaces = &workspaceStore{row: domain.Workspace{Slug: "anna"}}
+	handler.Links.Address.Hosts = tenantHostsFake{hosts: []domain.TenantHost{
+		{Host: "anna.home.example", State: domain.HostActive},
+		{Host: "tasks.anna.example", State: domain.HostActive, Canonical: true},
+	}}
+
+	invitation, err := handler.Execute(t.Context(), admin(), InviteAccountCommand{Email: "bert@example.org"})
+	if err != nil {
+		t.Fatalf("inviting: %v", err)
+	}
+	want := "https://tasks.anna.example/redeem#token=hbt_inv_" + invitedID.String()
+	if invitation.Link.Reveal() != want {
+		t.Errorf("link %q, want the main row's %q", invitation.Link.Reveal(), want)
 	}
 }

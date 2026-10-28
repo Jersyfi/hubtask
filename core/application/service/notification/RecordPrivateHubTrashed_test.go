@@ -72,7 +72,7 @@ func TestThePrivateHubMessageNamesNothing(t *testing.T) {
 		t.Errorf("the subject is %q", message.Subject)
 	}
 	if !strings.HasPrefix(message.Body, bodyPrivateHubTrashed+" ") ||
-		!strings.Contains(message.Body, "link="+baseURL+"/administration/private-hubs") ||
+		!strings.Contains(message.Body, "link="+mainBase+"/administration/private-hubs") ||
 		strings.Contains(message.Body, "title=") || strings.Contains(message.Body, "actor=") {
 		t.Errorf("the body is %q", message.Body)
 	}

@@ -76,7 +76,7 @@ func openingSender(mailer *mailbox) SendPasswordOpening {
 		),
 		Workspaces: workspaceNamed{name: "Acme", locale: "en"},
 		Mail:       mailer, Renderer: catalogue{}, UnitOfWork: &unitOfWork{},
-		FallbackLocale: "en", BaseURL: "https://acme.example/",
+		FallbackLocale: "en", Addresses: fixedAddress("https://acme.example/"),
 	}
 }
 
