@@ -111,12 +111,29 @@ Rules:
 ## 5. Support and upgrade policy
 
 None of this is a commitment: Hubtask is provided as is ([licensing-editions.md](./licensing-editions.md)),
-fixes are best effort and go into the current minor, no version has a support period, and the
-project may be archived at any time. The rows are what the project *aims* for.
+fixes are best effort, and the project may be archived at any time. The rows are what the project
+*aims* for.
+
+**Every release line has a published support period** — the time it receives security fixes —
+stated in [`SECURITY.md`](../../SECURITY.md) and in the release notes of the release that starts
+or ends it. It is an intention, not a warranty; what it is for is that a provider who sells Hubtask
+and is a manufacturer under the Cyber Resilience Act can plan its own, longer period on top of it
+([security.md](./security.md) §14).
+
+| Line | Support period |
+|---|---|
+| A `0.x` minor | Until the next minor is released; fixes go into its latest patch |
+| The current major (from `1.0.0`) | Its latest minor, for as long as it is current |
+| The previous major | 12 months after the next major is released, on its `release/N.x` branch (§3) |
+
+A changed period is announced in the release notes and in `SECURITY.md` before it takes effect,
+never shortened backwards for a line already released. **No release is withdrawn:** a tag, its
+signed image, its SBOM and its advisories stay published after the line's support ends, so a
+security update remains available as long as the registry keeps it.
 
 | Point | Aim |
 |---|---|
-| Supported versions | The current major plus the previous major for its declared support period (12 months intended) |
+| Supported versions | The lines of the table above |
 | Upgrade path | From any version of the previous major; across two majors with an intermediate step |
 | Downgrade | Not supported (restore from backup) |
 | Deprecation | At least two minor releases of notice: release notes, `Deprecation`/`Sunset` headers, the capability manifest |
