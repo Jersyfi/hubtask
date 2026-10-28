@@ -2355,7 +2355,7 @@ func run() error {
 		}.Descriptor(),
 		work.QueryItems{
 			Gate:  entryGate,
-			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers,
+			Items: items, ItemLabels: itemLabels, Tallies: postgres.NewItemTallyRepository(), Containers: containers, Fields: customFields,
 			Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		// The authorisation service under three names, because a search asks the question in three
@@ -2363,7 +2363,7 @@ func run() error {
 		// and about each row of an unanchored page (SearchItems.reach).
 		work.SearchItems{
 			Gate:  entryGate,
-			Items: items, Containers: containers,
+			Items: items, Containers: containers, Fields: customFields,
 			Authorizer: authorizer, Anchored: authorizer, Reader: authorizer,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			// The semantic half. Optional four times over - the extension, the provider,
@@ -2563,7 +2563,7 @@ func run() error {
 			Views: savedViews, Containers: containers, Permits: authorizer,
 			Query: work.QueryItems{
 				Gate:  entryGate,
-				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2572,7 +2572,7 @@ func run() error {
 		work.ExportItems{
 			Query: work.QueryItems{
 				Gate:  entryGate,
-				Items: items, ItemLabels: itemLabels, Containers: containers,
+				Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 				Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			},
 			ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2796,7 +2796,7 @@ func run() error {
 				Views: savedViews, Containers: containers, Permits: authorizer,
 				Query: work.QueryItems{
 					Gate:  entryGate,
-					Items: items, ItemLabels: itemLabels, Containers: containers,
+					Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 					Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 				},
 				ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,
@@ -2973,7 +2973,7 @@ func run() error {
 					Views: savedViews, Containers: containers, Permits: authorizer,
 					Query: work.QueryItems{
 						Gate:  entryGate,
-						Items: items, ItemLabels: itemLabels, Containers: containers,
+						Items: items, ItemLabels: itemLabels, Containers: containers, Fields: customFields,
 						Authorizer: authorizer, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 					},
 					ItemLabels: itemLabels, Audit: auditSink, UnitOfWork: unitOfWork,

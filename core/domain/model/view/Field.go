@@ -68,6 +68,9 @@ type Field struct {
 	Nullable  bool
 	Sortable  bool
 	Groupable bool
+	// Custom is what the definitions say about a `custom_fields.<key>` field, put there by the
+	// use case (Spec.Shaped); zero for every other field.
+	Custom CustomShape
 }
 
 // Permits reports whether the field accepts the operator.
@@ -116,12 +119,12 @@ const (
 
 // customFieldOperators are what may be asked of a custom field.
 //
-// Narrower than a typed column's, and deliberately: the kind is not known when the filter is
-// validated - it is the definition's, which is data - so only the comparisons that mean the same
-// thing for every kind are offered. Ordering comparisons are absent for that reason: `LT` over a
-// jsonb value would compare a NUMBER as text on one entry and as a number on the next.
+// The kind is not known when the filter is parsed - it is the definition's, which is data - so the
+// ordering comparisons are accepted here by shape and held to the kind once the use case has read
+// the definitions (Spec.Shaped): they compare the typed value of the side table (F-2), a NUMBER as
+// a number and a DATE as a day, never the jsonb document's text.
 var customFieldOperators = []Operator{
-	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains,
+	OpEq, OpNeq, OpIn, OpNotIn, OpIsNull, OpContains, OpLt, OpLte, OpGt, OpGte, OpBetween,
 }
 
 // CustomField reports whether the name belongs to the family, and answers with the key.
@@ -149,6 +152,8 @@ func CustomField(name string) (string, bool) {
 func customFieldEntry(name string) Field {
 	return Field{
 		Name: name, Kind: KindCustom, Operators: customFieldOperators, Nullable: true,
+		// By shape, like the operators; Spec.Shaped refuses a kind that has no single order.
+		Sortable: true, Groupable: true,
 	}
 }
 

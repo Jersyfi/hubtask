@@ -40,6 +40,8 @@ type QueryItems struct {
 	// composed into something that never asks (an export, a view's preview).
 	Tallies    repository.ItemTallies
 	Containers repository.Containers
+	// Fields answers what a custom field the query ranges, sorts or groups over holds (F-2).
+	Fields     repository.CustomFields
 	Authorizer Authorizer
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
@@ -81,9 +83,16 @@ func (h QueryItems) Execute(
 
 	var result repository.ItemQueryResult
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
+		scope := anchor.CollectionID
+		if anchor.Kind == repository.AnchorHub {
+			scope = anchor.HubID
+		}
+		shaped, err := shapeCustomFields(ctx, h.Fields, resolved, scope)
+		if err != nil {
+			return err
+		}
 		result, err = h.Items.Query(ctx, repository.ItemSearch{
-			Anchor: anchor, Spec: resolved,
+			Anchor: anchor, Spec: shaped,
 			// The searcher's language, for MATCHES to read the words under. The entry's own is
 			// what its document was built under, and the two are deliberately different questions
 			// (ADR-0034, ItemSearch.Language).

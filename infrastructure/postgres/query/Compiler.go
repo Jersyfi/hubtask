@@ -120,14 +120,33 @@ func Rows(search repository.ItemSearch, boundary Boundary, probe int) (Statement
 // row number is computed in the same order the entries are returned in, so a group's page is the
 // beginning of that group in that order, and its cursor continues it.
 func Groups(search repository.ItemSearch, probe int) (Statement, error) {
-	group, prefixed := column(search.Spec.GroupBy.Field, itemPrefix)
-	if !prefixed {
-		return Statement{}, errFieldNotCompilable(search.Spec.GroupBy.Field)
+	groupField := search.Spec.GroupBy.Field
+	_, customGroup := view.CustomField(groupField.Name)
+	group, prefixed := column(groupField, itemPrefix)
+	if !prefixed && !customGroup {
+		return Statement{}, errFieldNotCompilable(groupField)
 	}
 
 	b := newBuilder(search)
-	b.write(`SELECT `, groupedColumns, ` FROM (SELECT `, itemColumns, `, row_number() OVER (`,
-		`PARTITION BY `, group, ` ORDER BY `)
+	b.write(`SELECT `, groupedColumns, ` FROM (SELECT `, itemColumns)
+	// A custom field has no column the outer select could name, so the inner one carries its
+	// value under an alias (sortAlias, groupAlias).
+	for index, term := range search.Spec.Sort {
+		if _, custom := view.CustomField(term.Field.Name); custom {
+			b.write(`, `)
+			b.customValue(term.Field)
+			b.write(` AS `, sortAlias[index])
+		}
+	}
+	if customGroup {
+		b.write(`, `)
+		b.customValue(groupField)
+		b.write(` AS `, groupAlias, `, row_number() OVER (PARTITION BY `)
+		b.customValue(groupField)
+		b.write(` ORDER BY `)
+	} else {
+		b.write(`, row_number() OVER (PARTITION BY `, group, ` ORDER BY `)
+	}
 	b.ordering(search.Spec.Sort, itemPrefix)
 	b.write(`, wi.id) AS rn FROM work_item wi WHERE `)
 	b.predicates(search)
@@ -138,7 +157,10 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 	// The groups come in the grouping field's own order, and the entries that have no value at all
 	// come last: a board draws that column at the end, and a client that reads the groups in order
 	// gets the same layout every time.
-	outer, _ := column(search.Spec.GroupBy.Field, groupPrefix)
+	outer, _ := column(groupField, groupPrefix)
+	if customGroup {
+		outer = groupAlias
+	}
 	b.write(outer, ` ASC NULLS LAST, `)
 	b.ordering(search.Spec.Sort, groupPrefix)
 	b.write(`, id`)
@@ -151,6 +173,14 @@ func Groups(search repository.ItemSearch, probe int) (Statement, error) {
 func Count(search repository.ItemSearch) (Statement, error) {
 	b := newBuilder(search)
 
+	if _, custom := view.CustomField(search.Spec.GroupBy.Field.Name); custom {
+		b.write(`SELECT `)
+		b.customGroupKey(search.Spec.GroupBy.Field)
+		b.write(`, count(*)::bigint FROM work_item wi WHERE `)
+		b.predicates(search)
+		b.write(` GROUP BY 1`)
+		return b.statement()
+	}
 	if group, ok := column(search.Spec.GroupBy.Field, itemPrefix); ok {
 		// The key comes back as text whatever the column holds, because a group key is text
 		// everywhere above this line: a uuid, an item type and a boolean all become the string the
@@ -653,6 +683,11 @@ func (b *builder) leaf(node view.Node) {
 	}
 
 	if key, isCustom := view.CustomField(node.Field.Name); isCustom {
+		if node.Op == view.OpLt || node.Op == view.OpLte || node.Op == view.OpGt ||
+			node.Op == view.OpGte || node.Op == view.OpBetween {
+			b.customRange(node, key)
+			return
+		}
 		b.customField(node, key)
 		return
 	}
@@ -931,12 +966,10 @@ func (b *builder) ordering(sort []view.SortTerm, prefix string) {
 		if index > 0 {
 			b.write(`, `)
 		}
-		name, ok := column(term.Field, prefix)
-		if !ok {
-			b.fail(errFieldNotCompilable(term.Field))
+		if !b.sortExpression(term, index, prefix) {
 			return
 		}
-		b.write(name, collationOf(term.Field))
+		b.write(collationOf(term.Field))
 		if term.Descending {
 			b.write(` DESC`)
 		} else {
@@ -993,15 +1026,19 @@ func (b *builder) expandedKeyset(sort []view.SortTerm, boundary Boundary, index 
 	}
 
 	term := sort[index]
-	name, ok := column(term.Field, itemPrefix)
-	if !ok {
-		b.fail(errFieldNotCompilable(term.Field))
-		return
+	if _, ok := column(term.Field, itemPrefix); !ok {
+		if _, custom := view.CustomField(term.Field.Name); !custom {
+			b.fail(errFieldNotCompilable(term.Field))
+			return
+		}
 	}
+	name := func() { b.sortExpression(term, index, itemPrefix) }
 
 	b.write(`(`)
 	b.after(name, term, boundary.Keys[index])
-	b.write(` OR (`, name, ` IS NOT DISTINCT FROM `)
+	b.write(` OR (`)
+	name()
+	b.write(` IS NOT DISTINCT FROM `)
 	b.boundaryValue(term, boundary.Keys[index])
 	b.write(` AND `)
 	b.expandedKeyset(sort, boundary, index+1)
@@ -1013,13 +1050,14 @@ func (b *builder) expandedKeyset(sort []view.SortTerm, boundary Boundary, index 
 // The CASE is what a plain comparison cannot express: where the nulls sit is part of the ordering,
 // so whether a null row is after the boundary depends on which side of it the nulls were placed and
 // on whether the boundary is itself a null.
-func (b *builder) after(name string, term view.SortTerm, key string) {
+func (b *builder) after(name func(), term view.SortTerm, key string) {
 	comparison := ` > `
 	if term.Descending {
 		comparison = ` < `
 	}
 	if !term.Field.Nullable {
-		b.write(name, collationOf(term.Field), comparison)
+		name()
+		b.write(collationOf(term.Field), comparison)
 		b.boundaryValue(term, key)
 		b.write(collationOf(term.Field))
 		return
@@ -1027,17 +1065,43 @@ func (b *builder) after(name string, term view.SortTerm, key string) {
 
 	b.write(`(CASE `)
 	if term.NullsFirst {
-		b.write(`WHEN `, name, ` IS NULL THEN false WHEN `)
+		b.write(`WHEN `)
+		name()
+		b.write(` IS NULL THEN false WHEN `)
 		b.boundaryValue(term, key)
 		b.write(` IS NULL THEN true `)
 	} else {
 		b.write(`WHEN `)
 		b.boundaryValue(term, key)
-		b.write(` IS NULL THEN false WHEN `, name, ` IS NULL THEN true `)
+		b.write(` IS NULL THEN false WHEN `)
+		name()
+		b.write(` IS NULL THEN true `)
 	}
-	b.write(`ELSE `, name, collationOf(term.Field), comparison)
+	b.write(`ELSE `)
+	name()
+	b.write(collationOf(term.Field), comparison)
 	b.boundaryValue(term, key)
 	b.write(collationOf(term.Field), ` END)`)
+}
+
+// sortExpression writes what one sort term orders by: its column, a custom field's typed value,
+// or - in a grouped query's outer select - the alias the inner one carries that value under.
+func (b *builder) sortExpression(term view.SortTerm, index int, prefix string) bool {
+	if _, custom := view.CustomField(term.Field.Name); custom {
+		if prefix == groupPrefix {
+			b.write(sortAlias[index])
+		} else {
+			b.customValue(term.Field)
+		}
+		return true
+	}
+	name, ok := column(term.Field, prefix)
+	if !ok {
+		b.fail(errFieldNotCompilable(term.Field))
+		return false
+	}
+	b.write(name)
+	return true
 }
 
 // seekable reports whether the sort can be compared as a row: every term ascending, and no term on

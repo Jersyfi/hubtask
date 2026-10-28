@@ -84,15 +84,17 @@ func (s *customFieldStore) FindInScope(
 	return found, nil
 }
 
+// KindsByKey answers a collection scope; the fake knows no hubs, so any other scope is the
+// workspace.
 func (s *customFieldStore) KindsByKey(
-	_ context.Context, keys []string, collections []shared.ID,
+	_ context.Context, keys []string, scope shared.ID,
 ) (map[string][]domain.CustomFieldKind, error) {
 	kinds := map[string][]domain.CustomFieldKind{}
 	for _, definition := range s.stored {
 		if definition.IsDeleted() || !slices.Contains(keys, definition.Key) {
 			continue
 		}
-		if !definition.IsTenantWide() && !slices.Contains(collections, definition.CollectionID) {
+		if !definition.IsTenantWide() && !scope.IsZero() && definition.CollectionID != scope {
 			continue
 		}
 		if !slices.Contains(kinds[definition.Key], definition.Kind) {

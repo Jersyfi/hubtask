@@ -61,6 +61,11 @@ func FuzzCompile(f *testing.F) {
 		`{"field":"custom_fields.priority","op":"IS_NULL"}`,
 		`{"field":"custom_fields.'; DROP TABLE work_item; --","op":"EQ","value":"x"}`,
 		`{"field":"custom_fields.a\" OR 1=1 --","op":"EQ","value":"x"}`,
+		// The typed side (F-2): ranges over the value table, the column chosen by the shape.
+		`{"field":"custom_fields.budget","op":"GT","value":1000}`,
+		`{"field":"custom_fields.review","op":"BETWEEN","value":["2026-01-01","2026-12-31"]}`,
+		`{"field":"custom_fields.code","op":"LTE","value":"'; DROP TABLE work_item; --"}`,
+		`{"field":"custom_fields.x","op":"LT","value":"$1"}`,
 		`not json at all`,
 		`{}`,
 		`[]`,
@@ -87,6 +92,13 @@ func FuzzCompile(f *testing.F) {
 		if err != nil {
 			t.Fatalf("the default sort does not parse: %v", err)
 		}
+		// The use case shapes every custom field before the compiler sees it; a filter the
+		// shape refuses never reaches it.
+		shaped, err := view.Spec{Filter: node, Sort: sort}.Shaped(fuzzShapes(node))
+		if err != nil {
+			return
+		}
+		node = shaped.Filter
 		search := searchFor(node, sort)
 
 		statement, err := Rows(search, Boundary{}, 51)
@@ -104,7 +116,64 @@ func FuzzCompile(f *testing.F) {
 		assertParameters(t, statement)
 		assertShapeOnly(t, node, sort, statement)
 		assertAlphabet(t, statement, document)
+
+		// The same keys as a sort and a grouping, which write the typed value in two more places.
+		for _, key := range (view.Spec{Filter: node}).CustomKeys() {
+			raw := map[string]any{"field": view.CustomFieldPrefix + key, "dir": "DESC"}
+			custom, err := view.ParseSort([]any{raw}, "/sort")
+			if err != nil {
+				t.Fatalf("a custom sort does not parse: %v", err)
+			}
+			group, err := view.ParseGroupBy(map[string]any{"field": view.CustomFieldPrefix + key}, "/group_by")
+			if err != nil {
+				t.Fatalf("a custom grouping does not parse: %v", err)
+			}
+			spec, err := view.Spec{Filter: node, Sort: custom, GroupBy: group}.Shaped(fuzzShapes(node))
+			if err != nil {
+				continue
+			}
+			sorted, err := Rows(repository.ItemSearch{Anchor: search.Anchor, Spec: spec},
+				Boundary{Keys: []string{keyNull}, ID: collection}, 51)
+			if err != nil {
+				t.Fatalf("a custom sort did not compile: %v", err)
+			}
+			assertParameters(t, sorted)
+			assertAlphabet(t, sorted, document)
+			grouped, err := Groups(repository.ItemSearch{Anchor: search.Anchor, Spec: spec}, 51)
+			if err != nil {
+				t.Fatalf("a custom grouping did not compile: %v", err)
+			}
+			assertParameters(t, grouped)
+			assertAlphabet(t, grouped, document)
+			counted, err := Count(repository.ItemSearch{Anchor: search.Anchor, Spec: spec})
+			if err != nil {
+				t.Fatalf("a custom count did not compile: %v", err)
+			}
+			assertParameters(t, counted)
+			assertAlphabet(t, counted, document)
+		}
 	})
+}
+
+// fuzzShapes gives every custom key a shape chosen by its length, so the corpus walks every typed
+// column and the undefined key without the shape depending on anything but the name.
+func fuzzShapes(node *view.Node) map[string]view.CustomShape {
+	shapes := map[string]view.CustomShape{}
+	if node == nil {
+		return shapes
+	}
+	columns := []view.CustomColumn{
+		view.CustomNumber, view.CustomInstant, view.CustomText, view.CustomRef, "",
+	}
+	for _, key := range (view.Spec{Filter: node}).CustomKeys() {
+		column := columns[len(key)%len(columns)]
+		if column == "" {
+			shapes[key] = view.CustomShape{Resolved: true}
+			continue
+		}
+		shapes[key] = view.CustomShape{Resolved: true, Defined: true, Column: column}
+	}
+	return shapes
 }
 
 func searchFor(node *view.Node, sort []view.SortTerm) repository.ItemSearch {

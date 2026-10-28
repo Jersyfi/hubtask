@@ -74,12 +74,16 @@ WHERE id = sqlc.arg('id')::uuid AND version = sqlc.arg('expected_version') AND d
 
 -- name: ListCustomFieldKindsByKey :many
 -- The kinds the live definitions under these keys have, in force anywhere a query's scope reaches:
--- the workspace-wide ones and those of the named collections. What the query language needs to
--- know which typed column a range, a sort or a grouping reads (F-2); a key with two kinds in one
--- scope answers both, and the use case refuses to guess.
-SELECT DISTINCT key, kind
-FROM custom_field_definition
-WHERE deleted_at IS NULL
-  AND key = ANY(sqlc.arg('keys')::text[])
-  AND (collection_id IS NULL OR collection_id = ANY(sqlc.arg('collection_ids')::uuid[]))
-ORDER BY key, kind;
+-- the workspace-wide ones and those of the scope's collections - the collection itself, or every
+-- collection of a hub. A NULL scope is the whole workspace, which is what a search spans. What the
+-- query language needs to know which typed column a range, a sort or a grouping reads (F-2); a key
+-- with two kinds in one scope answers both, and the use case refuses to guess.
+SELECT DISTINCT d.key, d.kind
+FROM custom_field_definition d
+WHERE d.deleted_at IS NULL
+  AND d.key = ANY(sqlc.arg('keys')::text[])
+  AND (sqlc.narg('scope')::uuid IS NULL
+       OR d.collection_id IS NULL
+       OR d.collection_id = sqlc.narg('scope')::uuid
+       OR d.collection_id IN (SELECT c.id FROM container c WHERE c.parent_id = sqlc.narg('scope')::uuid))
+ORDER BY d.key, d.kind;

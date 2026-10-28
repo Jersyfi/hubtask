@@ -256,6 +256,9 @@ func (r ItemRepository) positionIn(sort []view.SortTerm) func(work.WorkItem) sec
 // group key is a nullable string, and a board column is looked up by the identifier it was drawn
 // with (api-guidelines.md §3).
 func groupKeyOf(field view.Field, item work.WorkItem) (string, bool) {
+	if _, custom := view.CustomField(field.Name); custom {
+		return query.GroupKey(field, item)
+	}
 	switch field.Name {
 	case view.FieldBucketID:
 		return item.BucketID.String(), !item.BucketID.IsZero()

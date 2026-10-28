@@ -278,6 +278,12 @@ const (
 // byte for byte, and a boundary that encodes as one thing and decodes as another is a page that
 // skips rows rather than an error anybody sees.
 func Key(term view.SortTerm, item work.WorkItem) string {
+	if _, custom := view.CustomField(term.Field.Name); custom {
+		if key, present := customKeyOf(term.Field, item, true); present {
+			return keyValue + key
+		}
+		return keyNull
+	}
 	switch term.Field.Name {
 	case view.FieldOrderKey:
 		return keyValue + item.OrderKey
@@ -336,13 +342,22 @@ func timeKey(moment time.Time) string {
 // boundaryValue writes the far side of the keyset comparison: the cursor's key for this term, typed
 // as its column is.
 func (b *builder) boundaryValue(term view.SortTerm, key string) {
+	_, custom := view.CustomField(term.Field.Name)
 	if key == keyNull {
+		if custom {
+			b.write(`NULL`, customCast(term.Field.Custom))
+			return
+		}
 		b.write(`NULL`, nullCast(term.Field))
 		return
 	}
 	raw, ok := strings.CutPrefix(key, keyValue)
 	if !ok {
 		b.fail(errCursorInvalid)
+		return
+	}
+	if custom {
+		b.customBoundary(term.Field, raw)
 		return
 	}
 

@@ -10,7 +10,6 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgtype"
 
 	repository "github.com/Jersyfi/hubtask/core/application/repository/work"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
@@ -307,25 +306,20 @@ func currencyFrom(code *string) string {
 	return *code
 }
 
-// KindsByKey answers the kinds the live definitions under the keys have, workspace-wide or in one
-// of the collections.
+// KindsByKey answers the kinds the live definitions under the keys have in a scope.
 func (r CustomFieldRepository) KindsByKey(
-	ctx context.Context, keys []string, collections []shared.ID,
+	ctx context.Context, keys []string, scope shared.ID,
 ) (map[string][]work.CustomFieldKind, error) {
 	queries, err := queriesFrom(ctx)
 	if err != nil {
 		return nil, err
 	}
-	ids := make([]pgtype.UUID, 0, len(collections))
-	for _, collection := range collections {
-		id, err := uuidOf(collection)
-		if err != nil {
-			return nil, err
-		}
-		ids = append(ids, id)
+	container, err := optionalUUID(scope)
+	if err != nil {
+		return nil, err
 	}
 	rows, err := queries.ListCustomFieldKindsByKey(ctx, sqlc.ListCustomFieldKindsByKeyParams{
-		Keys: keys, CollectionIds: ids,
+		Keys: keys, Scope: container,
 	})
 	if err != nil {
 		return nil, shared.ErrUnavailable.

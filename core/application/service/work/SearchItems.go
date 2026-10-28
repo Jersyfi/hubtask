@@ -46,6 +46,8 @@ const (
 type SearchItems struct {
 	Items      repository.Items
 	Containers repository.Containers
+	// Fields answers what a custom field the search ranges over or sorts by holds (F-2).
+	Fields     repository.CustomFields
 	Authorizer Authorizer
 	Anchored   Anchored
 	Reader     Reader
@@ -166,7 +168,12 @@ func (h SearchItems) Execute(
 
 	var page repository.ItemHitPage
 	err = h.UnitOfWork.WithinReadOnly(ctx, actor.PersistenceScope(), func(ctx context.Context) error {
-		var err error
+		shaped, err := shapeCustomFields(ctx, h.Fields,
+			view.Spec{Filter: request.Filter, Sort: request.Sort}, request.ContainerID)
+		if err != nil {
+			return err
+		}
+		request.Filter, request.Sort = shaped.Filter, shaped.Sort
 		page, err = h.Items.Search(ctx, repository.TextSearch{
 			Anchor: reach.anchor, Request: request, RestrictTo: reach.restrictTo,
 			Meaning: meaning, MeaningModel: model,
