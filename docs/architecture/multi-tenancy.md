@@ -178,17 +178,21 @@ credential (the reset request, the sign-in card, a passkey's and a provider's si
 | Mode | Source, in order | Nothing resolves |
 |---|---|---|
 | Single | The one row (`resolve_tenant(NULL)`); the host is ignored | — |
-| Multi | 1. The request's host, through its serving `tenant_host` row (`resolve_tenant_host(host)`) · 2. the `X-Hubtask-Tenant` header (a workspace identifier) | `404 auth.tenant_unresolved` |
+| Multi | 1. The request's host, through its serving `tenant_host` row (`resolve_tenant_host(host)`) · 2. only at the installation's own host: the `X-Hubtask-Tenant` header (a workspace identifier) | `404 auth.tenant_unresolved` |
 
-A host no row serves - the installation's own, a host nobody claimed, an old address - names
-nothing, so the header may still answer.
+The header is a second source only at the installation's own host, where API clients, `hubctl`
+and the operator area talk. A host that is neither the installation's own nor served by an `ACTIVE`
+row - a host nobody claimed, a dangling domain, an old address - names nothing and is
+`404 auth.tenant_unresolved`, with a header or without (T-28).
 
 **An authenticated request** — the credential binds the tenant: a session's or token's claim, a
 personal access token's or service account's account.
 
-In both cases the weaker sources **may confirm the tenant and never overrule it**. A header, or a
-host whose serving row is another workspace's, is refused with `403 access.tenant_mismatch`; on an
-authenticated request the use case asks the host's row in the credential's own transaction. On an
+In both cases the weaker sources **may confirm the tenant and never overrule it**. A header that
+names another workspace than the host is refused with `403 access.tenant_mismatch`. On an
+authenticated request the use case asks the host's row in the credential's own transaction: only
+the installation's own host or the workspace's serving row passes; another workspace's host, and a
+host no row serves, is `403 access.tenant_mismatch`. On an
 authenticated request the header may carry the identifier or the slug. A path prefix is
 deliberately not used.
 
