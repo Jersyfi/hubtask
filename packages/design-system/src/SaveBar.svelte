@@ -14,6 +14,10 @@
   // focused below it scrolls clear of it rather than under it; and the field that has focus when
   // the bar opens is moved clear of it then.
   //
+  // **It says what the change reaches** where the caller knows it (configuration/ui.md A3): "37
+  // entries no longer shown", with a button that opens the plan in full. Absent, the count stands
+  // alone.
+  //
   // **The count is announced, once per change**, through a status region that exists before it is
   // filled (known-traps.md: a live region created already filled is not announced).
 
@@ -35,9 +39,17 @@
     savingLabel?: string;
     onDiscard?: () => void;
     onSave?: () => void;
+    /** What the change reaches, resolved by the caller; absent where it is not known or reaches nothing. */
+    reachLabel?: string;
+    /** The button that opens the change's plan in full; drawn only with `onPlan`. */
+    planLabel?: string;
+    onPlan?: () => void;
   }
 
-  const { label, changesLabel, discardLabel, saveLabel, isSaving = false, savingLabel, onDiscard, onSave }: Props = $props();
+  const {
+    label, changesLabel, discardLabel, saveLabel, isSaving = false, savingLabel, onDiscard, onSave,
+    reachLabel, planLabel, onPlan,
+  }: Props = $props();
 
   const isOpen = $derived(changesLabel !== undefined);
 
@@ -89,8 +101,14 @@
   <span class="status" role="status">{announced}</span>
   {#if isOpen}
     <div class="bar" role="region" aria-label={label} bind:this={bar}>
-      <span class="count" aria-hidden="true">{changesLabel}</span>
+      <span class="summary">
+        <span class="count" aria-hidden="true">{changesLabel}</span>
+        {#if reachLabel}<span class="reach" data-save-bar-reach="">{reachLabel}</span>{/if}
+      </span>
       <span class="actions">
+        {#if planLabel && onPlan}
+          <Button tone="secondary" size="sm" onclick={() => onPlan?.()}>{planLabel}</Button>
+        {/if}
         <Button tone="secondary" size="sm" onclick={() => onDiscard?.()}>{discardLabel}</Button>
         <Button tone="primary" size="sm" isBusy={isSaving} busyLabel={savingLabel} onclick={() => onSave?.()}>{saveLabel}</Button>
       </span>
@@ -142,9 +160,20 @@
     animation: arrive var(--motion-entrance-duration) var(--motion-entrance-easing) both;
   }
 
+  .summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-025);
+  }
+
   .count {
     font-size: var(--fs-100);
     font-weight: var(--fw-medium);
+  }
+
+  .reach {
+    font-size: var(--fs-075);
+    opacity: 0.85;
   }
 
   /* The two buttons in the bar's colours: Discard outlined in the text's colour, Save filled with
