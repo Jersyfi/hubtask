@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/Jersyfi/hubtask/core/domain/model/setting"
 	"github.com/Jersyfi/hubtask/core/domain/model/shared"
 )
 
@@ -137,18 +138,19 @@ type LegalLayer struct {
 
 // EffectiveAccountLink resolves the provider's account link: the installation's where it locks it,
 // otherwise the plan's where it sets one, otherwise the installation's - empty where neither does.
-// There is no workspace level: the link is the provider's, whom the workspace's people ask.
+// There is no workspace level: the link is the provider's, whom the workspace's people ask. A
+// plan's lock on it binds nobody, since nothing below a plan sets it.
 func EffectiveAccountLink(instance, plan LegalLayer) string {
-	if instance.Locks[LinkAccount] {
-		return instance.Links.AccountURL
-	}
-	if plan.Links.AccountURL != "" {
-		return plan.Links.AccountURL
-	}
-	return instance.Links.AccountURL
+	resolution := setting.Resolve(LegalDefinition(LinkAccount),
+		legalLayerAt(setting.LevelInstance, instance, true, LinkAccount),
+		legalLayerAt(setting.LevelPlan, plan, false, LinkAccount),
+	)
+	link, _ := resolution.Effective.(string)
+	return link
 }
 
-// EffectiveLegal resolves workspace -> plan -> instance -> nothing (identity.md §18).
+// EffectiveLegal resolves workspace -> plan -> instance -> nothing (identity.md §18) through the
+// settings catalogue (LegalSettings.go).
 //
 // A locked link is the level's that locked it, whatever the levels below hold, for Effective's
 // reason: resolving has to answer something for a row written before the lock landed, and refusing
@@ -159,19 +161,11 @@ func EffectiveLegal(instance, plan, workspace LegalLayer) (LegalLinks, map[Legal
 	locks := map[LegalLink]LockOrigin{}
 
 	for _, name := range LegalLinkNames() {
-		switch {
-		case instance.Locks[name]:
-			locks[name] = LockInstance
-			resolved = resolved.With(name, instance.Links.Of(name))
-		case plan.Locks[name]:
-			locks[name] = LockPlan
-			resolved = resolved.With(name, plan.Links.Of(name))
-		case workspace.Links.Of(name) != "":
-			resolved = resolved.With(name, workspace.Links.Of(name))
-		case plan.Links.Of(name) != "":
-			resolved = resolved.With(name, plan.Links.Of(name))
-		default:
-			resolved = resolved.With(name, instance.Links.Of(name))
+		resolution := resolveLegal(name, instance, plan, workspace)
+		link, _ := resolution.Effective.(string)
+		resolved = resolved.With(name, link)
+		if resolution.Locked() {
+			locks[name] = LockOrigin(resolution.LockedBy)
 		}
 	}
 
@@ -204,19 +198,7 @@ func LegalSourceOf(name LegalLink, instance, plan, workspace LegalLayer) PolicyS
 		// The version has no source of its own: it is the terms link's.
 		name = LinkTerms
 	}
-	switch {
-	case instance.Locks[name]:
-		return SourceInstance
-	case plan.Locks[name]:
-		return SourcePlan
-	case workspace.Links.Of(name) != "":
-		return SourceWorkspace
-	case plan.Links.Of(name) != "":
-		return SourcePlan
-	case instance.Links.Of(name) != "":
-		return SourceInstance
-	}
-	return SourceDefault
+	return PolicySource(resolveLegal(name, instance, plan, workspace).Source)
 }
 
 // ValidLegalURL bounds and checks one link.
