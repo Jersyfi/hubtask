@@ -7973,6 +7973,82 @@ type EntryHidden struct {
 	Level bool `json:"level"`
 }
 
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+type EntryType struct {
+	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
+	AllowedChildren []string `json:"allowed_children"`
+	Archived        bool     `json:"archived"`
+
+	// ColorToken One of the ten label colour tokens, never a colour value.
+	ColorToken  string `json:"color_token"`
+	Completable bool   `json:"completable"`
+	Estimable   bool   `json:"estimable"`
+
+	// Icon The name of an icon of the design system's set.
+	Icon string `json:"icon"`
+
+	// Key The stable name every door, a query and the configuration file use.
+	Key string `json:"key"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level ItemType `json:"level"`
+
+	// Name Null on a system type nobody named; a client shows its own word for the level.
+	Name     *string `json:"name"`
+	Position int     `json:"position"`
+
+	// Record Kept rather than done; never completable.
+	Record bool `json:"record"`
+
+	// Schedulable Its entries carry a due date, reminders and a recurrence.
+	Schedulable bool `json:"schedulable"`
+
+	// System One of the three types every workspace has; never archived or deleted.
+	System bool `json:"system"`
+
+	// Version The optimistic lock; zero for a system type the workspace never changed.
+	Version  int  `json:"version"`
+	Workflow bool `json:"workflow"`
+}
+
+// EntryTypeChange JSON Merge Patch; only what is sent changes.
+type EntryTypeChange struct {
+	AllowedChildren *[]string `json:"allowed_children,omitempty"`
+	Archived        *bool     `json:"archived,omitempty"`
+	ColorToken      *string   `json:"color_token,omitempty"`
+	Completable     *bool     `json:"completable,omitempty"`
+	Estimable       *bool     `json:"estimable,omitempty"`
+	Icon            *string   `json:"icon,omitempty"`
+	Name            *string   `json:"name,omitempty"`
+	Position        *int      `json:"position,omitempty"`
+	Record          *bool     `json:"record,omitempty"`
+	Schedulable     *bool     `json:"schedulable,omitempty"`
+	Workflow        *bool     `json:"workflow,omitempty"`
+}
+
+// EntryTypeCreate defines model for EntryTypeCreate.
+type EntryTypeCreate struct {
+	AllowedChildren *[]string `json:"allowed_children,omitempty"`
+	ColorToken      string    `json:"color_token"`
+	Completable     *bool     `json:"completable,omitempty"`
+	Estimable       *bool     `json:"estimable,omitempty"`
+	Icon            string    `json:"icon"`
+	Key             string    `json:"key"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level       ItemType `json:"level"`
+	Name        string   `json:"name"`
+	Position    *int     `json:"position,omitempty"`
+	Record      *bool    `json:"record,omitempty"`
+	Schedulable *bool    `json:"schedulable,omitempty"`
+	Workflow    *bool    `json:"workflow,omitempty"`
+}
+
+// EntryTypeList defines model for EntryTypeList.
+type EntryTypeList struct {
+	Data []EntryType `json:"data"`
+}
+
 // ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
 type ErasureCaseRecord struct {
 	CompletedAt time.Time `json:"completed_at"`
@@ -13151,6 +13227,9 @@ type WorkItem struct {
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
 
+	// EntryType The key of the entry's type (`GET /entry-types`); its level's own - `task`, `work_package`, `activity` - where it has none of the workspace's.
+	EntryType *string `json:"entry_type,omitempty"`
+
 	// Hidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 	//
 	// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
@@ -13212,13 +13291,16 @@ type WorkItemCreate struct {
 	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
 
 	// DueTimeZone An IANA time zone. Stored beside the instant, never folded into it: an all-day due date (due_date_only) is a date in this zone, not a midnight that shifts with the viewer. Refused without a due_at.
-	DueTimeZone *string               `json:"due_time_zone,omitempty"`
-	LabelIds    *[]openapi_types.UUID `json:"label_ids,omitempty"`
-	MemberIds   *[]openapi_types.UUID `json:"member_ids,omitempty"`
-	Notes       *string               `json:"notes,omitempty"`
-	ParentId    *openapi_types.UUID   `json:"parent_id,omitempty"`
-	StartAt     *time.Time            `json:"start_at,omitempty"`
-	Title       string                `json:"title"`
+	DueTimeZone *string `json:"due_time_zone,omitempty"`
+
+	// EntryType The key of a type of the entry's level the workspace offers; omitted is the level's own. An archived type, another level's, or one the parent's type does not allow underneath is refused.
+	EntryType *string               `json:"entry_type,omitempty"`
+	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes     *string               `json:"notes,omitempty"`
+	ParentId  *openapi_types.UUID   `json:"parent_id,omitempty"`
+	StartAt   *time.Time            `json:"start_at,omitempty"`
+	Title     string                `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
@@ -14138,6 +14220,12 @@ type UpdateCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ChangeEntryTypeParams defines parameters for ChangeEntryType.
+type ChangeEntryTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListGroupsParams defines parameters for ListGroups.
 type ListGroupsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -14353,6 +14441,17 @@ type ClearDueDateParams struct {
 
 // SetDueDateParams defines parameters for SetDueDate.
 type SetDueDateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetItemEntryTypeJSONBody defines parameters for SetItemEntryType.
+type SetItemEntryTypeJSONBody struct {
+	EntryType string `json:"entry_type"`
+}
+
+// SetItemEntryTypeParams defines parameters for SetItemEntryType.
+type SetItemEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -15214,6 +15313,12 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
 
+// CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
+type CreateEntryTypeJSONRequestBody = EntryTypeCreate
+
+// ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeEntryType for application/merge-patch+json ContentType.
+type ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody = EntryTypeChange
+
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
@@ -15273,6 +15378,9 @@ type SetCustomFieldJSONRequestBody = CustomFieldValue
 
 // SetDueDateJSONRequestBody defines body for SetDueDate for application/json ContentType.
 type SetDueDateJSONRequestBody = DueDateInput
+
+// SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
+type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 
 // SetRecurrenceJSONRequestBody defines body for SetRecurrence for application/json ContentType.
 type SetRecurrenceJSONRequestBody = RecurrenceInput
@@ -18482,6 +18590,56 @@ type ClientInterface interface {
 	// Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.
 	UpdateCustomFieldWithApplicationMergePatchPlusJSONBody(ctx context.Context, fieldId CustomFieldId, params *UpdateCustomFieldParams, body UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
+	// ListEntryTypes The workspace's entry types
+	//
+	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+	//
+	// Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
+	ListEntryTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateEntryTypeWithBody Add an entry type
+	//
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+	CreateEntryTypeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// CreateEntryType Add an entry type
+	//
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+	CreateEntryType(ctx context.Context, body CreateEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// DeleteEntryType Delete an unused entry type
+	//
+	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+	//
+	// Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
+	DeleteEntryType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeEntryTypeWithBody Change an entry type
+	//
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+	ChangeEntryTypeWithBody(ctx context.Context, key string, params *ChangeEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// ChangeEntryTypeWithApplicationMergePatchPlusJSONBody Change an entry type
+	//
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type.
+	//
+	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+	ChangeEntryTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
 	// ListGroups The workspace's groups
 	//
 	// Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -19032,6 +19190,24 @@ type ClientInterface interface {
 	//
 	// Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 	SetDueDate(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetItemEntryTypeWithBody Change an entry's type
+	//
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+	SetItemEntryTypeWithBody(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SetItemEntryType Change an entry's type
+	//
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+	SetItemEntryType(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// TakeBackKudos performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
@@ -26963,6 +27139,116 @@ func (c *Client) UpdateCustomFieldWithApplicationMergePatchPlusJSONBody(ctx cont
 	return c.Client.Do(req)
 }
 
+// ListEntryTypes The workspace's entry types
+//
+// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+//
+// Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
+func (c *Client) ListEntryTypes(ctx context.Context, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewListEntryTypesRequest(c.Server)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateEntryTypeWithBody Add an entry type
+//
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+func (c *Client) CreateEntryTypeWithBody(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateEntryTypeRequestWithBody(c.Server, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// CreateEntryType Add an entry type
+//
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+func (c *Client) CreateEntryType(ctx context.Context, body CreateEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewCreateEntryTypeRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// DeleteEntryType Delete an unused entry type
+//
+// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+//
+// Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
+func (c *Client) DeleteEntryType(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewDeleteEntryTypeRequest(c.Server, key)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeEntryTypeWithBody Change an entry type
+//
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+func (c *Client) ChangeEntryTypeWithBody(ctx context.Context, key string, params *ChangeEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeEntryTypeRequestWithBody(c.Server, key, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// ChangeEntryTypeWithApplicationMergePatchPlusJSONBody Change an entry type
+//
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type.
+//
+// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+func (c *Client) ChangeEntryTypeWithApplicationMergePatchPlusJSONBody(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewChangeEntryTypeRequestWithApplicationMergePatchPlusJSONBody(c.Server, key, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
 // ListGroups The workspace's groups
 //
 // Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -28174,6 +28460,44 @@ func (c *Client) SetDueDateWithBody(ctx context.Context, itemId ItemId, params *
 // Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 func (c *Client) SetDueDate(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetDueDateRequest(c.Server, itemId, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetItemEntryTypeWithBody Change an entry's type
+//
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+func (c *Client) SetItemEntryTypeWithBody(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetItemEntryTypeRequestWithBody(c.Server, itemId, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SetItemEntryType Change an entry's type
+//
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+func (c *Client) SetItemEntryType(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSetItemEntryTypeRequest(c.Server, itemId, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -41366,6 +41690,169 @@ func NewUpdateCustomFieldRequestWithBody(server string, fieldId CustomFieldId, p
 	return req, nil
 }
 
+// NewListEntryTypesRequest constructs an http.Request for the ListEntryTypes method
+func NewListEntryTypesRequest(server string) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodGet, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewCreateEntryTypeRequest calls the generic CreateEntryType builder with application/json body
+func NewCreateEntryTypeRequest(server string, body CreateEntryTypeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewCreateEntryTypeRequestWithBody(server, "application/json", bodyReader)
+}
+
+// NewCreateEntryTypeRequestWithBody constructs an http.Request for the CreateEntryType method, with any body, and a specified content type
+func NewCreateEntryTypeRequestWithBody(server string, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	return req, nil
+}
+
+// NewDeleteEntryTypeRequest constructs an http.Request for the DeleteEntryType method
+func NewDeleteEntryTypeRequest(server string, key string) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodDelete, queryURL.String(), nil)
+	if err != nil {
+		return nil, err
+	}
+
+	return req, nil
+}
+
+// NewChangeEntryTypeRequestWithApplicationMergePatchPlusJSONBody calls the generic ChangeEntryType builder with application/merge-patch+json body
+func NewChangeEntryTypeRequestWithApplicationMergePatchPlusJSONBody(server string, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewChangeEntryTypeRequestWithBody(server, key, params, "application/merge-patch+json", bodyReader)
+}
+
+// NewChangeEntryTypeRequestWithBody constructs an http.Request for the ChangeEntryType method, with any body, and a specified content type
+func NewChangeEntryTypeRequestWithBody(server string, key string, params *ChangeEntryTypeParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "key", key, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: ""})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/entry-types/%s", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPatch, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewListGroupsRequest constructs an http.Request for the ListGroups method
 func NewListGroupsRequest(server string, params *ListGroupsParams) (*http.Request, error) {
 	var err error
@@ -43854,6 +44341,68 @@ func NewSetDueDateRequestWithBody(server string, itemId ItemId, params *SetDueDa
 	}
 
 	operationPath := fmt.Sprintf("/items/%s/due", pathParam0)
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPut, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.IfMatch != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "If-Match", *params.IfMatch, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("If-Match", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSetItemEntryTypeRequest calls the generic SetItemEntryType builder with application/json body
+func NewSetItemEntryTypeRequest(server string, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSetItemEntryTypeRequestWithBody(server, itemId, params, "application/json", bodyReader)
+}
+
+// NewSetItemEntryTypeRequestWithBody constructs an http.Request for the SetItemEntryType method, with any body, and a specified content type
+func NewSetItemEntryTypeRequestWithBody(server string, itemId ItemId, params *SetItemEntryTypeParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	var pathParam0 string
+
+	pathParam0, err = runtime.StyleParamWithOptions("simple", false, "itemId", itemId, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationPath, Type: "string", Format: "uuid"})
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/items/%s/entry-type", pathParam0)
 	if operationPath[0] == '/' {
 		operationPath = "." + operationPath
 	}
@@ -54172,6 +54721,60 @@ type ClientWithResponsesInterface interface {
 	// Changes what a definition permits. A field that is not sent is left alone. The key and the kind are not among them: a key that moved would orphan every value stored under it, and a kind that changed would reinterpret them - both are a new definition rather than an edit. Narrowing the options of a SELECT does not rewrite the entries that hold a value which is no longer offered; they keep it until somebody sets the field again.
 	UpdateCustomFieldWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, fieldId CustomFieldId, params *UpdateCustomFieldParams, body UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*UpdateCustomFieldResult, error)
 
+	// ListEntryTypesWithResponse The workspace's entry types
+	//
+	// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
+	ListEntryTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEntryTypesResult, error)
+
+	// CreateEntryTypeWithBodyWithResponse Add an entry type
+	//
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+	CreateEntryTypeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateEntryTypeResult, error)
+
+	// CreateEntryTypeWithResponse Add an entry type
+	//
+	// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+	CreateEntryTypeWithResponse(ctx context.Context, body CreateEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateEntryTypeResult, error)
+
+	// DeleteEntryTypeWithResponse Delete an unused entry type
+	//
+	// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+	//
+	// Returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
+	DeleteEntryTypeWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteEntryTypeResult, error)
+
+	// ChangeEntryTypeWithBodyWithResponse Change an entry type
+	//
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+	ChangeEntryTypeWithBodyWithResponse(ctx context.Context, key string, params *ChangeEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeEntryTypeResult, error)
+
+	// ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change an entry type
+	//
+	// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+	//
+	// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+	ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeEntryTypeResult, error)
+
 	// ListGroupsWithResponse The workspace's groups
 	//
 	// Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -54792,6 +55395,24 @@ type ClientWithResponsesInterface interface {
 	//
 	// Puts a due date on the entry: the instant, the all-day flag, and the IANA zone, written together because the three describe one date. An all-day due date is a date in the given zone, never a midnight that shifts with the viewer. A zone that is not an IANA name is refused. Moving a due date is this call again. The same three fields on the create and update paths dispatch into this writer, so a due date means the same thing whichever door it came through.
 	SetDueDateWithResponse(ctx context.Context, itemId ItemId, params *SetDueDateParams, body SetDueDateJSONRequestBody, reqEditors ...RequestEditorFn) (*SetDueDateResult, error)
+
+	// SetItemEntryTypeWithBodyWithResponse Change an entry's type
+	//
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+	SetItemEntryTypeWithBodyWithResponse(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetItemEntryTypeResult, error)
+
+	// SetItemEntryTypeWithResponse Change an entry's type
+	//
+	// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+	SetItemEntryTypeWithResponse(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*SetItemEntryTypeResult, error)
 
 	// TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
 	//
@@ -66660,6 +67281,191 @@ func (r UpdateCustomFieldResult) ContentType() string {
 	return ""
 }
 
+type ListEntryTypesResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryTypeList
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ListEntryTypesResult) GetJSON200() *EntryTypeList {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ListEntryTypesResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ListEntryTypesResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ListEntryTypesResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ListEntryTypesResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ListEntryTypesResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type CreateEntryTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON201 the response for an HTTP 201 `application/json` response
+	JSON201 *EntryType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON201 returns the response for an HTTP 201 `application/json` response
+func (r CreateEntryTypeResult) GetJSON201() *EntryType {
+	return r.JSON201
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r CreateEntryTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r CreateEntryTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r CreateEntryTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r CreateEntryTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r CreateEntryTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type DeleteEntryTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r DeleteEntryTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r DeleteEntryTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r DeleteEntryTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r DeleteEntryTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r DeleteEntryTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type ChangeEntryTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *EntryType
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r ChangeEntryTypeResult) GetJSON200() *EntryType {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r ChangeEntryTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r ChangeEntryTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r ChangeEntryTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r ChangeEntryTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r ChangeEntryTypeResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type ListGroupsResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -68966,6 +69772,54 @@ func (r SetDueDateResult) StatusCode() int {
 
 // ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
 func (r SetDueDateResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SetItemEntryTypeResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkItem
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SetItemEntryTypeResult) GetJSON200() *WorkItem {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SetItemEntryTypeResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SetItemEntryTypeResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SetItemEntryTypeResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SetItemEntryTypeResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SetItemEntryTypeResult) ContentType() string {
 	if r.HTTPResponse != nil {
 		return r.HTTPResponse.Header.Get("Content-Type")
 	}
@@ -81302,6 +82156,96 @@ func (c *ClientWithResponses) UpdateCustomFieldWithApplicationMergePatchPlusJSON
 	return ParseUpdateCustomFieldResult(rsp)
 }
 
+// ListEntryTypesWithResponse The workspace's entry types
+//
+// Every entry type of the workspace by level and order: the three every workspace has, one per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived types are included and marked; they are not offered for new entries and stay readable on old ones. A system type nobody named answers a null name, which a client fills with its own word for the level. Part of the workflows module: where it is off, `module.off`. Needs a signed-in member of the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with GET /entry-types (the `ListEntryTypes` operationId).
+func (c *ClientWithResponses) ListEntryTypesWithResponse(ctx context.Context, reqEditors ...RequestEditorFn) (*ListEntryTypesResult, error) {
+	rsp, err := c.ListEntryTypes(ctx, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseListEntryTypesResult(rsp)
+}
+
+// CreateEntryTypeWithBodyWithResponse Add an entry type
+//
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+func (c *ClientWithResponses) CreateEntryTypeWithBodyWithResponse(ctx context.Context, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*CreateEntryTypeResult, error) {
+	rsp, err := c.CreateEntryTypeWithBody(ctx, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateEntryTypeResult(rsp)
+}
+
+// CreateEntryTypeWithResponse Add an entry type
+//
+// Adds an entry type of the workspace's own on one level, with a key free in the workspace, a name, an icon of the design system's set and a colour token. A record is kept rather than done and is never completable (`entry_types.record_not_completable`); sent without `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /entry-types (the `CreateEntryType` operationId).
+func (c *ClientWithResponses) CreateEntryTypeWithResponse(ctx context.Context, body CreateEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*CreateEntryTypeResult, error) {
+	rsp, err := c.CreateEntryType(ctx, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseCreateEntryTypeResult(rsp)
+}
+
+// DeleteEntryTypeWithResponse Delete an unused entry type
+//
+// Deletes a type of the workspace's own that no entry carries, trashed ones included. A type in use is refused with `entry_types.in_use` and can only be archived; a system type is never deleted. Needs STRUCTURE at the workspace.
+//
+// Returns a wrapper object for the known response body format(s).
+//
+// Corresponds with DELETE /entry-types/{key} (the `DeleteEntryType` operationId).
+func (c *ClientWithResponses) DeleteEntryTypeWithResponse(ctx context.Context, key string, reqEditors ...RequestEditorFn) (*DeleteEntryTypeResult, error) {
+	rsp, err := c.DeleteEntryType(ctx, key, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseDeleteEntryTypeResult(rsp)
+}
+
+// ChangeEntryTypeWithBodyWithResponse Change an entry type
+//
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+func (c *ClientWithResponses) ChangeEntryTypeWithBodyWithResponse(ctx context.Context, key string, params *ChangeEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*ChangeEntryTypeResult, error) {
+	rsp, err := c.ChangeEntryTypeWithBody(ctx, key, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeEntryTypeResult(rsp)
+}
+
+// ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse Change an entry type
+//
+// Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or archives the type or brings it back. A system type is never archived and never becomes a record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the workspace.
+//
+// Takes a body of the `application/merge-patch+json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PATCH /entry-types/{key} (the `ChangeEntryType` operationId).
+func (c *ClientWithResponses) ChangeEntryTypeWithApplicationMergePatchPlusJSONBodyWithResponse(ctx context.Context, key string, params *ChangeEntryTypeParams, body ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody, reqEditors ...RequestEditorFn) (*ChangeEntryTypeResult, error) {
+	rsp, err := c.ChangeEntryTypeWithApplicationMergePatchPlusJSONBody(ctx, key, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseChangeEntryTypeResult(rsp)
+}
+
 // ListGroupsWithResponse The workspace's groups
 //
 // Every group of the workspace, by name. Any member may read it, for the reason any member
@@ -82323,6 +83267,36 @@ func (c *ClientWithResponses) SetDueDateWithResponse(ctx context.Context, itemId
 		return nil, err
 	}
 	return ParseSetDueDateResult(rsp)
+}
+
+// SetItemEntryTypeWithBodyWithResponse Change an entry's type
+//
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+func (c *ClientWithResponses) SetItemEntryTypeWithBodyWithResponse(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SetItemEntryTypeResult, error) {
+	rsp, err := c.SetItemEntryTypeWithBody(ctx, itemId, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetItemEntryTypeResult(rsp)
+}
+
+// SetItemEntryTypeWithResponse Change an entry's type
+//
+// Gives the entry another type of its level; `task`, `work_package` or `activity` gives it back its level's own. An archived type, a type of another level, or one the parent's type does not allow underneath is refused. A type that would not carry a value the entry holds - a completion on a record, a due date on a type that is not scheduled - is refused with `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost without the caller seeing it first.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with PUT /items/{itemId}/entry-type (the `SetItemEntryType` operationId).
+func (c *ClientWithResponses) SetItemEntryTypeWithResponse(ctx context.Context, itemId ItemId, params *SetItemEntryTypeParams, body SetItemEntryTypeJSONRequestBody, reqEditors ...RequestEditorFn) (*SetItemEntryTypeResult, error) {
+	rsp, err := c.SetItemEntryType(ctx, itemId, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSetItemEntryTypeResult(rsp)
 }
 
 // TakeBackKudosWithResponse performs a DELETE /items/{itemId}/kudos (the `TakeBackKudos` operationId) request.
@@ -92725,6 +93699,134 @@ func ParseUpdateCustomFieldResult(rsp *http.Response) (*UpdateCustomFieldResult,
 	return response, nil
 }
 
+// ParseListEntryTypesResult parses an HTTP response from a ListEntryTypesWithResponse call
+func ParseListEntryTypesResult(rsp *http.Response) (*ListEntryTypesResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ListEntryTypesResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryTypeList
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseCreateEntryTypeResult parses an HTTP response from a CreateEntryTypeWithResponse call
+func ParseCreateEntryTypeResult(rsp *http.Response) (*CreateEntryTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &CreateEntryTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 201:
+		var dest EntryType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON201 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseDeleteEntryTypeResult parses an HTTP response from a DeleteEntryTypeWithResponse call
+func ParseDeleteEntryTypeResult(rsp *http.Response) (*DeleteEntryTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &DeleteEntryTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case rsp.StatusCode == 204:
+		break // No content-type
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseChangeEntryTypeResult parses an HTTP response from a ChangeEntryTypeWithResponse call
+func ParseChangeEntryTypeResult(rsp *http.Response) (*ChangeEntryTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ChangeEntryTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest EntryType
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
 // ParseListGroupsResult parses an HTTP response from a ListGroupsWithResponse call
 func ParseListGroupsResult(rsp *http.Response) (*ListGroupsResult, error) {
 	bodyBytes, err := io.ReadAll(rsp.Body)
@@ -94411,6 +95513,39 @@ func ParseSetDueDateResult(rsp *http.Response) (*SetDueDateResult, error) {
 			headers.ETag = &value
 		}
 		response.Headers200 = &headers
+	}
+
+	return response, nil
+}
+
+// ParseSetItemEntryTypeResult parses an HTTP response from a SetItemEntryTypeWithResponse call
+func ParseSetItemEntryTypeResult(rsp *http.Response) (*SetItemEntryTypeResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SetItemEntryTypeResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkItem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
 	}
 
 	return response, nil

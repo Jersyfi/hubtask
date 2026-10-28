@@ -282,6 +282,15 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `encryption.reseal_requested` | ResealSecrets | `tenant` | NOTICE | Every time |
 | `encryption.status_read` | ReadEncryptionStatus | `tenant` | INFO | When refused |
 
+## Entry_type
+
+| Action | Use case | Target | Severity | Recorded |
+|---|---|---|---|---|
+| `entry_type.changed` | ChangeEntryType | `entry_type` | INFO | Every time |
+| `entry_type.created` | CreateEntryType | `entry_type` | INFO | Every time |
+| `entry_type.deleted` | DeleteEntryType | `entry_type` | INFO | Every time |
+| `entry_type.read` | ListEntryTypes | `entry_type` | INFO | When refused |
+
 ## Health
 
 | Action | Use case | Target | Severity | Recorded |

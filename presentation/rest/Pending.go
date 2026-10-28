@@ -1701,3 +1701,17 @@ func (pending) SetModule(w http.ResponseWriter, r *http.Request, _ openapi.Modul
 func (pending) ReadSettingsCatalogue(w http.ResponseWriter, r *http.Request) {
 	notAvailable(w, r)
 }
+
+func (pending) ListEntryTypes(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) CreateEntryType(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) ChangeEntryType(w http.ResponseWriter, r *http.Request, _ string, _ openapi.ChangeEntryTypeParams) {
+	notAvailable(w, r)
+}
+
+func (pending) DeleteEntryType(w http.ResponseWriter, r *http.Request, _ string) { notAvailable(w, r) }
+
+func (pending) SetItemEntryType(w http.ResponseWriter, r *http.Request, _ openapi.ItemId, _ openapi.SetItemEntryTypeParams) {
+	notAvailable(w, r)
+}

@@ -1303,6 +1303,26 @@ class Client:
         """PATCH /tenant/structure"""
         return self._call("PATCH", "/tenant/structure", {}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
 
+    def list_entry_types(self) -> "EntryTypeList":
+        """The workspace's entry types"""
+        return self._call("GET", "/entry-types", {}, None, {}, None, "none", None, "json")
+
+    def create_entry_type(self, body: "EntryTypeCreate") -> "EntryType":
+        """Add an entry type"""
+        return self._call("POST", "/entry-types", {}, None, {}, body, "json", "application/json", "json")
+
+    def change_entry_type(self, key: str, body: "EntryTypeChange", *, if_match: str | None = None) -> "EntryType":
+        """Change an entry type"""
+        return self._call("PATCH", "/entry-types/{key}", {"key": key}, None, {"If-Match": if_match}, body, "json", "application/merge-patch+json", "json")
+
+    def delete_entry_type(self, key: str) -> None:
+        """Delete an unused entry type"""
+        return self._call("DELETE", "/entry-types/{key}", {"key": key}, None, {}, None, "none", None, "void")
+
+    def set_item_entry_type(self, item_id: str, body: dict[str, Any], *, if_match: str | None = None) -> "WorkItem":
+        """Change an entry's type"""
+        return self._call("PUT", "/items/{itemId}/entry-type", {"itemId": item_id}, None, {"If-Match": if_match}, body, "json", "application/json", "json")
+
     def read_settings_catalogue(self) -> "SettingsCatalogue":
         """Every setting the product declares"""
         return self._call("GET", "/settings/catalogue", {}, None, {}, None, "none", None, "json")

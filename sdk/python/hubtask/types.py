@@ -1144,6 +1144,55 @@ Module = Literal["WORKFLOWS", "PLANNING", "KNOWLEDGE", "WHITEBOARD", "SERVICE_DE
 
 SettingSource = Literal["DEFAULT", "INSTANCE", "PLAN", "WORKSPACE", "HUB", "COLLECTION", "PERSON"]
 
+class EntryType(TypedDict, total=False):
+    """A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries."""
+    key: Required[str]
+    level: Required["ItemType"]
+    system: Required[bool]
+    name: Required[str | None]
+    icon: Required[str]
+    color_token: Required[str]
+    completable: Required[bool]
+    workflow: Required[bool]
+    record: Required[bool]
+    schedulable: Required[bool]
+    estimable: Required[bool]
+    allowed_children: Required[list[str]]
+    position: Required[int]
+    archived: Required[bool]
+    version: Required[int]
+
+class EntryTypeList(TypedDict, total=False):
+    data: Required[list["EntryType"]]
+
+class EntryTypeCreate(TypedDict, total=False):
+    key: Required[str]
+    level: Required["ItemType"]
+    name: Required[str]
+    icon: Required[str]
+    color_token: Required[str]
+    completable: bool
+    workflow: bool
+    record: bool
+    schedulable: bool
+    estimable: bool
+    allowed_children: list[str]
+    position: int
+
+class EntryTypeChange(TypedDict, total=False):
+    """JSON Merge Patch; only what is sent changes."""
+    name: str
+    icon: str
+    color_token: str
+    completable: bool
+    workflow: bool
+    record: bool
+    schedulable: bool
+    estimable: bool
+    allowed_children: list[str]
+    position: int
+    archived: bool
+
 SettingKind = Literal["COUNT", "FLAG", "CHOICE", "CHOICES", "LINK", "TEXT", "LOCALE", "TIME_ZONE", "STRUCTURE"]
 
 class SettingDefinition(TypedDict, total=False):
@@ -2424,6 +2473,7 @@ class ItemAttachments(TypedDict, total=False):
 class WorkItem(TypedDict, total=False):
     id: Required[str]
     type: Required["ItemType"]
+    entry_type: str
     collection_id: Required[str]
     parent_id: str | None
     path: str
@@ -2471,6 +2521,7 @@ class EntryHidden(TypedDict, total=False):
 
 class WorkItemCreate(TypedDict, total=False):
     type: Required["ItemType"]
+    entry_type: str
     collection_id: str
     parent_id: str | None
     title: Required[str]

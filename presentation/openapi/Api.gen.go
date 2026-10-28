@@ -7967,6 +7967,82 @@ type EntryHidden struct {
 	Level bool `json:"level"`
 }
 
+// EntryType A kind of entry a workspace names on one level - a bug, a feature, a purchase, a configuration item - with its icon, its colour and the behaviours of its entries.
+type EntryType struct {
+	// AllowedChildren The keys of the types of the level below that may sit underneath; empty allows every one.
+	AllowedChildren []string `json:"allowed_children"`
+	Archived        bool     `json:"archived"`
+
+	// ColorToken One of the ten label colour tokens, never a colour value.
+	ColorToken  string `json:"color_token"`
+	Completable bool   `json:"completable"`
+	Estimable   bool   `json:"estimable"`
+
+	// Icon The name of an icon of the design system's set.
+	Icon string `json:"icon"`
+
+	// Key The stable name every door, a query and the configuration file use.
+	Key string `json:"key"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level ItemType `json:"level"`
+
+	// Name Null on a system type nobody named; a client shows its own word for the level.
+	Name     *string `json:"name"`
+	Position int     `json:"position"`
+
+	// Record Kept rather than done; never completable.
+	Record bool `json:"record"`
+
+	// Schedulable Its entries carry a due date, reminders and a recurrence.
+	Schedulable bool `json:"schedulable"`
+
+	// System One of the three types every workspace has; never archived or deleted.
+	System bool `json:"system"`
+
+	// Version The optimistic lock; zero for a system type the workspace never changed.
+	Version  int  `json:"version"`
+	Workflow bool `json:"workflow"`
+}
+
+// EntryTypeChange JSON Merge Patch; only what is sent changes.
+type EntryTypeChange struct {
+	AllowedChildren *[]string `json:"allowed_children,omitempty"`
+	Archived        *bool     `json:"archived,omitempty"`
+	ColorToken      *string   `json:"color_token,omitempty"`
+	Completable     *bool     `json:"completable,omitempty"`
+	Estimable       *bool     `json:"estimable,omitempty"`
+	Icon            *string   `json:"icon,omitempty"`
+	Name            *string   `json:"name,omitempty"`
+	Position        *int      `json:"position,omitempty"`
+	Record          *bool     `json:"record,omitempty"`
+	Schedulable     *bool     `json:"schedulable,omitempty"`
+	Workflow        *bool     `json:"workflow,omitempty"`
+}
+
+// EntryTypeCreate defines model for EntryTypeCreate.
+type EntryTypeCreate struct {
+	AllowedChildren *[]string `json:"allowed_children,omitempty"`
+	ColorToken      string    `json:"color_token"`
+	Completable     *bool     `json:"completable,omitempty"`
+	Estimable       *bool     `json:"estimable,omitempty"`
+	Icon            string    `json:"icon"`
+	Key             string    `json:"key"`
+
+	// Level Extensible; /meta/capabilities returns the valid values.
+	Level       ItemType `json:"level"`
+	Name        string   `json:"name"`
+	Position    *int     `json:"position,omitempty"`
+	Record      *bool    `json:"record,omitempty"`
+	Schedulable *bool    `json:"schedulable,omitempty"`
+	Workflow    *bool    `json:"workflow,omitempty"`
+}
+
+// EntryTypeList defines model for EntryTypeList.
+type EntryTypeList struct {
+	Data []EntryType `json:"data"`
+}
+
 // ErasureCaseRecord One erasure case as it stood at the end of the archive. `subject_account_id` is the account the erasure was about - for a full deletion, the account it removed.
 type ErasureCaseRecord struct {
 	CompletedAt time.Time `json:"completed_at"`
@@ -13145,6 +13221,9 @@ type WorkItem struct {
 	// DueTimeZone An IANA time zone
 	DueTimeZone *string `json:"due_time_zone,omitempty"`
 
+	// EntryType The key of the entry's type (`GET /entry-types`); its level's own - `task`, `work_package`, `activity` - where it has none of the workspace's.
+	EntryType *string `json:"entry_type,omitempty"`
+
 	// Hidden What the entry's collection does not show of it. A collection's structure (its levels and fields) may offer less than the entry holds; nothing is deleted when it does. The entry and every value stay stored, are answered here as they are, and writing them is refused with `capability_not_supported` until the collection offers them again.
 	//
 	// Present on every read of an entry and in the answer of every write to one. Absent from the records of the synchronisation (`:pull`, `:snapshot`, the change stream and the answer of `:push`): a client holding the container's `structure` derives it, since a change of the structure would otherwise rewrite every entry under it.
@@ -13206,13 +13285,16 @@ type WorkItemCreate struct {
 	DueDateOnly     *bool                   `json:"due_date_only,omitempty"`
 
 	// DueTimeZone An IANA time zone. Stored beside the instant, never folded into it: an all-day due date (due_date_only) is a date in this zone, not a midnight that shifts with the viewer. Refused without a due_at.
-	DueTimeZone *string               `json:"due_time_zone,omitempty"`
-	LabelIds    *[]openapi_types.UUID `json:"label_ids,omitempty"`
-	MemberIds   *[]openapi_types.UUID `json:"member_ids,omitempty"`
-	Notes       *string               `json:"notes,omitempty"`
-	ParentId    *openapi_types.UUID   `json:"parent_id,omitempty"`
-	StartAt     *time.Time            `json:"start_at,omitempty"`
-	Title       string                `json:"title"`
+	DueTimeZone *string `json:"due_time_zone,omitempty"`
+
+	// EntryType The key of a type of the entry's level the workspace offers; omitted is the level's own. An archived type, another level's, or one the parent's type does not allow underneath is refused.
+	EntryType *string               `json:"entry_type,omitempty"`
+	LabelIds  *[]openapi_types.UUID `json:"label_ids,omitempty"`
+	MemberIds *[]openapi_types.UUID `json:"member_ids,omitempty"`
+	Notes     *string               `json:"notes,omitempty"`
+	ParentId  *openapi_types.UUID   `json:"parent_id,omitempty"`
+	StartAt   *time.Time            `json:"start_at,omitempty"`
+	Title     string                `json:"title"`
 
 	// Type Extensible; /meta/capabilities returns the valid values.
 	Type ItemType `json:"type"`
@@ -14132,6 +14214,12 @@ type UpdateCustomFieldParams struct {
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
 
+// ChangeEntryTypeParams defines parameters for ChangeEntryType.
+type ChangeEntryTypeParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
 // ListGroupsParams defines parameters for ListGroups.
 type ListGroupsParams struct {
 	Cursor *Cursor   `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -14347,6 +14435,17 @@ type ClearDueDateParams struct {
 
 // SetDueDateParams defines parameters for SetDueDate.
 type SetDueDateParams struct {
+	// IfMatch The ETag of the state last read (optimistic locking).
+	IfMatch *IfMatch `json:"If-Match,omitempty"`
+}
+
+// SetItemEntryTypeJSONBody defines parameters for SetItemEntryType.
+type SetItemEntryTypeJSONBody struct {
+	EntryType string `json:"entry_type"`
+}
+
+// SetItemEntryTypeParams defines parameters for SetItemEntryType.
+type SetItemEntryTypeParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
 	IfMatch *IfMatch `json:"If-Match,omitempty"`
 }
@@ -15208,6 +15307,12 @@ type DefineCustomFieldJSONRequestBody = CustomFieldDefinitionCreate
 // UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody defines body for UpdateCustomField for application/merge-patch+json ContentType.
 type UpdateCustomFieldApplicationMergePatchPlusJSONRequestBody = CustomFieldDefinitionUpdate
 
+// CreateEntryTypeJSONRequestBody defines body for CreateEntryType for application/json ContentType.
+type CreateEntryTypeJSONRequestBody = EntryTypeCreate
+
+// ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody defines body for ChangeEntryType for application/merge-patch+json ContentType.
+type ChangeEntryTypeApplicationMergePatchPlusJSONRequestBody = EntryTypeChange
+
 // CreateGroupJSONRequestBody defines body for CreateGroup for application/json ContentType.
 type CreateGroupJSONRequestBody = GroupCreate
 
@@ -15267,6 +15372,9 @@ type SetCustomFieldJSONRequestBody = CustomFieldValue
 
 // SetDueDateJSONRequestBody defines body for SetDueDate for application/json ContentType.
 type SetDueDateJSONRequestBody = DueDateInput
+
+// SetItemEntryTypeJSONRequestBody defines body for SetItemEntryType for application/json ContentType.
+type SetItemEntryTypeJSONRequestBody SetItemEntryTypeJSONBody
 
 // SetRecurrenceJSONRequestBody defines body for SetRecurrence for application/json ContentType.
 type SetRecurrenceJSONRequestBody = RecurrenceInput
@@ -16050,6 +16158,18 @@ type ServerInterface interface {
 
 	// (PATCH /custom-fields/{fieldId})
 	UpdateCustomField(w http.ResponseWriter, r *http.Request, fieldId CustomFieldId, params UpdateCustomFieldParams)
+	// ListEntryTypes The workspace's entry types
+	// (GET /entry-types)
+	ListEntryTypes(w http.ResponseWriter, r *http.Request)
+	// CreateEntryType Add an entry type
+	// (POST /entry-types)
+	CreateEntryType(w http.ResponseWriter, r *http.Request)
+	// DeleteEntryType Delete an unused entry type
+	// (DELETE /entry-types/{key})
+	DeleteEntryType(w http.ResponseWriter, r *http.Request, key string)
+	// ChangeEntryType Change an entry type
+	// (PATCH /entry-types/{key})
+	ChangeEntryType(w http.ResponseWriter, r *http.Request, key string, params ChangeEntryTypeParams)
 	// ListGroups The workspace's groups
 	// (GET /groups)
 	ListGroups(w http.ResponseWriter, r *http.Request, params ListGroupsParams)
@@ -16191,6 +16311,9 @@ type ServerInterface interface {
 
 	// (PUT /items/{itemId}/due)
 	SetDueDate(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetDueDateParams)
+	// SetItemEntryType Change an entry's type
+	// (PUT /items/{itemId}/entry-type)
+	SetItemEntryType(w http.ResponseWriter, r *http.Request, itemId ItemId, params SetItemEntryTypeParams)
 
 	// (DELETE /items/{itemId}/kudos)
 	TakeBackKudos(w http.ResponseWriter, r *http.Request, itemId ItemId)
@@ -22952,6 +23075,110 @@ func (siw *ServerInterfaceWrapper) UpdateCustomField(w http.ResponseWriter, r *h
 	handler.ServeHTTP(w, r)
 }
 
+// ListEntryTypes operation middleware
+func (siw *ServerInterfaceWrapper) ListEntryTypes(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEntryTypes(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateEntryType operation middleware
+func (siw *ServerInterfaceWrapper) CreateEntryType(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateEntryType(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteEntryType operation middleware
+func (siw *ServerInterfaceWrapper) DeleteEntryType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteEntryType(w, r, key)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangeEntryType operation middleware
+func (siw *ServerInterfaceWrapper) ChangeEntryType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "key" -------------
+	var key string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "key", r.PathValue("key"), &key, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "key", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ChangeEntryTypeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangeEntryType(w, r, key, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListGroups operation middleware
 func (siw *ServerInterfaceWrapper) ListGroups(w http.ResponseWriter, r *http.Request) {
 
@@ -24945,6 +25172,56 @@ func (siw *ServerInterfaceWrapper) SetDueDate(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.SetDueDate(w, r, itemId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetItemEntryType operation middleware
+func (siw *ServerInterfaceWrapper) SetItemEntryType(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId ItemId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SetItemEntryTypeParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "If-Match" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("If-Match")]; found {
+		var IfMatch IfMatch
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "If-Match", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "If-Match", valueList[0], &IfMatch, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "If-Match", Err: err})
+			return
+		}
+
+		params.IfMatch = &IfMatch
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetItemEntryType(w, r, itemId, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -30638,6 +30915,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/groups/{groupId}", wrapper.UpdateGroup)
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/starter:close", wrapper.CloseStarter)
 	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/tenant/structure", wrapper.SetWorkspaceStructure)
+	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/entry-types", wrapper.ListEntryTypes)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/entry-types", wrapper.CreateEntryType)
+	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/entry-types/{key}", wrapper.DeleteEntryType)
+	m.HandleFunc(http.MethodPatch+" "+options.BaseURL+"/entry-types/{key}", wrapper.ChangeEntryType)
+	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/items/{itemId}/entry-type", wrapper.SetItemEntryType)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/settings/catalogue", wrapper.ReadSettingsCatalogue)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/modules", wrapper.ListModules)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/modules/{module}", wrapper.SetModule)

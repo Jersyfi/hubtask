@@ -8820,6 +8820,133 @@ paths:
         "4XX":
           $ref: "#/components/responses/Problem"
 
+  /entry-types:
+    get:
+      tags: [structure]
+      operationId: listEntryTypes
+      summary: The workspace's entry types
+      description: >
+        Every entry type of the workspace by level and order: the three every workspace has, one
+        per level and keyed after it (`task`, `work_package`, `activity`), and its own. Archived
+        types are included and marked; they are not offered for new entries and stay readable on
+        old ones. A system type nobody named answers a null name, which a client fills with its own
+        word for the level. Part of the workflows module: where it is off, `module.off`. Needs a
+        signed-in member of the workspace.
+      responses:
+        "200":
+          description: The registry
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryTypeList"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    post:
+      tags: [structure]
+      operationId: createEntryType
+      summary: Add an entry type
+      description: >
+        Adds an entry type of the workspace's own on one level, with a key free in the workspace,
+        a name, an icon of the design system's set and a colour token. A record is kept rather
+        than done and is never completable (`entry_types.record_not_completable`); sent without
+        `completable`, a record is created without it. Needs STRUCTURE at the workspace.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EntryTypeCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryType"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /entry-types/{key}:
+    parameters:
+      - name: key
+        in: path
+        required: true
+        schema: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+    patch:
+      tags: [structure]
+      operationId: changeEntryType
+      summary: Change an entry type
+      description: >
+        Changes what is sent: the name, icon, colour, behaviours, allowed children or place, or
+        archives the type or brings it back. A system type is never archived and never becomes a
+        record; sending its name empty gives it back the level's own word. Needs STRUCTURE at the
+        workspace.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/merge-patch+json:
+            schema:
+              $ref: "#/components/schemas/EntryTypeChange"
+      responses:
+        "200":
+          description: The type as it now is
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntryType"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+    delete:
+      tags: [structure]
+      operationId: deleteEntryType
+      summary: Delete an unused entry type
+      description: >
+        Deletes a type of the workspace's own that no entry carries, trashed ones included. A type
+        in use is refused with `entry_types.in_use` and can only be archived; a system type is
+        never deleted. Needs STRUCTURE at the workspace.
+      responses:
+        "204":
+          description: Deleted
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
+  /items/{itemId}/entry-type:
+    parameters:
+      - $ref: "#/components/parameters/ItemId"
+    put:
+      tags: [items]
+      operationId: setItemEntryType
+      summary: Change an entry's type
+      description: >
+        Gives the entry another type of its level; `task`, `work_package` or `activity` gives it
+        back its level's own. An archived type, a type of another level, or one the parent's type
+        does not allow underneath is refused. A type that would not carry a value the entry holds -
+        a completion on a record, a due date on a type that is not scheduled - is refused with
+        `entry_types.values_dropped`, which names each such field in `fields`, so nothing is lost
+        without the caller seeing it first.
+      parameters:
+        - $ref: "#/components/parameters/IfMatch"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [entry_type]
+              properties:
+                entry_type: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+      responses:
+        "200":
+          description: The entry with its new type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkItem"
+        "4XX":
+          $ref: "#/components/responses/Problem"
+
   /settings/catalogue:
     get:
       tags: [meta]
@@ -15408,6 +15535,82 @@ components:
       description: The level a value in force comes from; `DEFAULT` is Hubtask's own.
       enum: [DEFAULT, INSTANCE, PLAN, WORKSPACE, HUB, COLLECTION, PERSON]
 
+    EntryType:
+      type: object
+      description: >
+        A kind of entry a workspace names on one level - a bug, a feature, a purchase, a
+        configuration item - with its icon, its colour and the behaviours of its entries.
+      required: [key, level, system, name, icon, color_token, completable, workflow, record, schedulable, estimable, allowed_children, position, archived, version]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$", description: "The stable name every door, a query and the configuration file use." }
+        level: { $ref: "#/components/schemas/ItemType" }
+        system: { type: boolean, description: "One of the three types every workspace has; never archived or deleted." }
+        name:
+          type: [string, "null"]
+          maxLength: 120
+          description: Null on a system type nobody named; a client shows its own word for the level.
+        icon: { type: string, description: "The name of an icon of the design system's set." }
+        color_token: { type: string, description: "One of the ten label colour tokens, never a colour value." }
+        completable: { type: boolean }
+        workflow: { type: boolean }
+        record: { type: boolean, description: "Kept rather than done; never completable." }
+        schedulable: { type: boolean, description: "Its entries carry a due date, reminders and a recurrence." }
+        estimable: { type: boolean }
+        allowed_children:
+          type: array
+          description: The keys of the types of the level below that may sit underneath; empty allows every one.
+          items: { type: string }
+        position: { type: integer }
+        archived: { type: boolean }
+        version:
+          type: integer
+          description: The optimistic lock; zero for a system type the workspace never changed.
+
+    EntryTypeList:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: array
+          items: { $ref: "#/components/schemas/EntryType" }
+
+    EntryTypeCreate:
+      type: object
+      required: [key, level, name, icon, color_token]
+      properties:
+        key: { type: string, pattern: "^[a-z][a-z0-9_]{0,49}$" }
+        level: { $ref: "#/components/schemas/ItemType" }
+        name: { type: string, minLength: 1, maxLength: 120 }
+        icon: { type: string }
+        color_token: { type: string }
+        completable: { type: boolean, default: true }
+        workflow: { type: boolean, default: false }
+        record: { type: boolean, default: false }
+        schedulable: { type: boolean, default: true }
+        estimable: { type: boolean, default: false }
+        allowed_children:
+          type: array
+          items: { type: string }
+        position: { type: integer, default: 0 }
+
+    EntryTypeChange:
+      type: object
+      description: JSON Merge Patch; only what is sent changes.
+      properties:
+        name: { type: string, maxLength: 120 }
+        icon: { type: string }
+        color_token: { type: string }
+        completable: { type: boolean }
+        workflow: { type: boolean }
+        record: { type: boolean }
+        schedulable: { type: boolean }
+        estimable: { type: boolean }
+        allowed_children:
+          type: array
+          items: { type: string }
+        position: { type: integer }
+        archived: { type: boolean }
+
     SettingKind:
       type: string
       description: The shape of a setting's value; `STRUCTURE` is a value whose shape its own operations describe.
@@ -19143,6 +19346,11 @@ components:
       properties:
         id: { type: string, format: uuid }
         type: { $ref: "#/components/schemas/ItemType" }
+        entry_type:
+          type: string
+          description: >
+            The key of the entry's type (`GET /entry-types`); its level's own - `task`,
+            `work_package`, `activity` - where it has none of the workspace's.
         collection_id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         path: { type: string }
@@ -19320,6 +19528,13 @@ components:
       required: [type, title]
       properties:
         type: { $ref: "#/components/schemas/ItemType" }
+        entry_type:
+          type: string
+          pattern: "^[a-z][a-z0-9_]{0,49}$"
+          description: >
+            The key of a type of the entry's level the workspace offers; omitted is the level's own.
+            An archived type, another level's, or one the parent's type does not allow underneath is
+            refused.
         collection_id: { type: string, format: uuid }
         parent_id: { type: [string, "null"], format: uuid }
         title: { type: string, minLength: 1, maxLength: 500 }

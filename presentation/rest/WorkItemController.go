@@ -43,6 +43,7 @@ func (c *RestController) CreateWorkItem(w http.ResponseWriter, r *http.Request, 
 		"parent_id":     optionalUUIDField(body.ParentId),
 		"notes":         optionalStringField(body.Notes),
 		"amount":        optionalStringField(body.Amount),
+		"entry_type":    optionalStringField(body.EntryType),
 		"bucket_id":     optionalUUIDField(body.BucketId),
 		// Empty is not a value here but the absence of one: the use case then takes the creator's
 		// locale, which is what an unstated content language falls back to.
@@ -342,6 +343,9 @@ func workItemResponse(out usecase.Output) openapi.WorkItem {
 	}
 	if number, ok := out["number"].(int64); ok {
 		item.Number = &number
+	}
+	if entryType := out.String("entry_type"); entryType != "" {
+		item.EntryType = &entryType
 	}
 	if parent := out.String("parent_id"); parent != "" {
 		parentID := uuidValue(parent)

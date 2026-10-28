@@ -1642,6 +1642,31 @@ export class HubtaskClient {
     return this.call("PATCH", "/tenant/structure", {  }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
   }
 
+  /** The workspace's entry types */
+  listEntryTypes(options: CallOptions = {}): Promise<operations["listEntryTypes"]['responses'][200]['content']["application/json"]> {
+    return this.call("GET", "/entry-types", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
+  }
+
+  /** Add an entry type */
+  createEntryType(body: NonNullable<operations["createEntryType"]['requestBody']>['content']["application/json"], options: CallOptions = {}): Promise<operations["createEntryType"]['responses'][201]['content']["application/json"]> {
+    return this.call("POST", "/entry-types", {  }, undefined, {  }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** Change an entry type */
+  changeEntryType(key: string, body: NonNullable<operations["changeEntryType"]['requestBody']>['content']["application/merge-patch+json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["changeEntryType"]['responses'][200]['content']["application/json"]> {
+    return this.call("PATCH", "/entry-types/{key}", { "key": key }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/merge-patch+json", "json", options.signal);
+  }
+
+  /** Delete an unused entry type */
+  deleteEntryType(key: string, options: CallOptions = {}): Promise<void> {
+    return this.call("DELETE", "/entry-types/{key}", { "key": key }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
+  }
+
+  /** Change an entry's type */
+  setItemEntryType(itemId: string, body: NonNullable<operations["setItemEntryType"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly ifMatch?: string } = {}): Promise<operations["setItemEntryType"]['responses'][200]['content']["application/json"]> {
+    return this.call("PUT", "/items/{itemId}/entry-type", { "itemId": itemId }, undefined, { "If-Match": options.ifMatch }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** Every setting the product declares */
   readSettingsCatalogue(options: CallOptions = {}): Promise<operations["readSettingsCatalogue"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/settings/catalogue", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);
