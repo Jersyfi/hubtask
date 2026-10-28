@@ -7,7 +7,7 @@ deployments: [D1, D2, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-09, P-11, P-12, P-13]
 state: partial
 tasks: [B-12, D-07, D-08, F2-13, F3-15, F10-14]
-checked_by: [test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs]
+checked_by: [test/integration/query_language_test.go, test/integration/typed_field_test.go, core/domain/model/view/CustomShape_test.go, infrastructure/postgres/query/CustomValue_test.go, test/integration/query_test.go, test/integration/saved_view_test.go, test/integration/saved_view_acceptance_test.go, test/integration/export_test.go, core/domain/model/view/Filter_test.go, core/domain/model/view/SavedView_test.go, apps/webapp/e2e/container.test.mjs, apps/webapp/e2e/timeline.test.mjs, apps/webapp/e2e/subtreeviews.test.mjs, apps/webapp/src/lib/data/query.test.ts, apps/webapp/src/lib/data/customfields.test.ts]
 ---
 
 # Filter, sort and save a view of my work
@@ -66,7 +66,7 @@ before saving a new one. At the end of the month the lead exports the view as CS
 
 ## Today
 
-* Check 10: met through the API, `hubctl` and MCP; the web app's sort and grouping menus do not
-  offer custom fields yet.
+* Check 10: met through the API, `hubctl`, MCP and the web app, whose sort menu, board grouping
+  and filter offer a collection's custom fields where their kind has an order.
 
 * Check 6: not met — applying a view sets the query and the layout, but the filter panel keeps its own empty state: the view's conditions are not shown, and touching the filter replaces them.

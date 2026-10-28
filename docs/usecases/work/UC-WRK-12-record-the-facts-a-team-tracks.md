@@ -7,7 +7,7 @@ deployments: [D1, D3, D4, D5, D6, D7]
 serves: [P-05, P-08, P-11, P-12]
 state: built
 tasks: [C-07, F3-10, K-03]
-checked_by: [test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go]
+checked_by: [test/integration/custom_field_test.go, test/integration/custom_field_acceptance_test.go, test/integration/typed_field_test.go, core/domain/model/work/CustomField_test.go, core/domain/model/work/CustomFieldKinds_test.go, core/application/service/work/SetCustomField_test.go, core/application/service/work/SetCustomFieldKinds_test.go, apps/webapp/src/lib/data/customfields.test.ts, apps/webapp/src/lib/i18n/duration.test.ts]
 ---
 
 # Record the facts a team tracks, with custom fields
@@ -61,5 +61,6 @@ the list by `priority = high`.
 ## Today
 
 * Checks 1, 3 and 4 for the five suite kinds (money, duration, reference, several people, formatted
-  text): met through the API, `hubctl` and MCP; the web app's field row shows them read-only with
-  the reason that it cannot draw the kind yet, and the collection's dialog does not offer them.
+  text): met through the API, `hubctl`, MCP and the web app. In the web app a reference is chosen
+  among the collection's entries the device has loaded; one pointing elsewhere is kept and shown
+  as such.
