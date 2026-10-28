@@ -58,6 +58,7 @@ func Descriptors() []usecase.Descriptor {
 		workflowservice.CreateEntryType{}.Descriptor(),
 		workflowservice.ChangeEntryType{}.Descriptor(),
 		workflowservice.DeleteEntryType{}.Descriptor(),
+		work.SetItemEntryType{}.Descriptor(),
 		work.CreateContainer{}.Descriptor(),
 		work.CreateWorkItem{}.Descriptor(),
 		work.UpdateWorkItem{}.Descriptor(),

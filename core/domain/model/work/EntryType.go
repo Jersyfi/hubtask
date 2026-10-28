@@ -449,3 +449,19 @@ func (t EntryType) Narrow(profile CapabilityProfile) CapabilityProfile {
 	})
 	return narrowed
 }
+
+// DroppedBy answers the fields of the entry's values the profile would not carry - what changing
+// the entry to a type with that profile would lose (UC-FLW-01 check 4), by field.
+func (i WorkItem) DroppedBy(profile CapabilityProfile) []string {
+	var dropped []string
+	if i.Completion.IsCompleted && !profile.Allows(CapabilityCompletion) {
+		dropped = append(dropped, "completion")
+	}
+	if i.Due != nil && !profile.Allows(CapabilityDueDate) {
+		dropped = append(dropped, "due_at")
+	}
+	if !i.RecurrenceRuleID.IsZero() && !profile.Allows(CapabilityRecurrence) {
+		dropped = append(dropped, "recurrence")
+	}
+	return dropped
+}

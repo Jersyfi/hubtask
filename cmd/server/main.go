@@ -845,7 +845,7 @@ func run() error {
 		Items: items, Containers: containers, Profiles: profiles, Authorizer: authorizer,
 		Events: outbox, Changes: changes, Audit: auditSink, Activity: journal, Jobs: jobs,
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, HLC: hybrid,
-		Structure: structures, Milestones: milestones,
+		Structure: structures, Milestones: milestones, EntryTypes: entryTypes,
 	}
 
 	// The three kudos use cases share one desk: the same entry read, the same permission question
@@ -1738,6 +1738,11 @@ func run() error {
 		workflowservice.CreateEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.ChangeEntryType{Registry: entryTypeRegistry}.Descriptor(),
 		workflowservice.DeleteEntryType{Registry: entryTypeRegistry}.Descriptor(),
+		work.SetItemEntryType{
+			Items: items, Containers: containers, Profiles: profiles, EntryTypes: entryTypes,
+			Authorizer: authorizer, Changes: changes, Audit: auditSink, UnitOfWork: unitOfWork,
+			Clock: clockadapter.System{}, HLC: hybrid,
+		}.Descriptor(),
 		identity.InviteAccount{
 			Accounts: accounts, Authorizer: authorizer, Notifier: jobs, Audit: auditSink,
 			UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids, Domains: domains,
@@ -2192,6 +2197,7 @@ func run() error {
 			Members:      itemMemberWriter,
 			Covers:       coverWriter,
 			CustomFields: setCustomField,
+			EntryTypes:   entryTypes,
 			Text:         forms,
 			Structure:    structures,
 			Flow:         flowGate,

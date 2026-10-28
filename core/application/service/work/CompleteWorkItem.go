@@ -73,6 +73,9 @@ type CompletionWriter struct {
 	// Structure answers the completion in force: the collection's own, else its hub's, else the
 	// workspace's (domain-model.md §2). A build without it reads the collection's own alone.
 	Structure StructureResolver
+	// EntryTypes is the workspace's type registry: a record's entries have no completion (D-07).
+	// Nil in a build without it.
+	EntryTypes repository.EntryTypes
 	// Milestones records the collection, and its hub, a completion left with nothing open
 	// (UC-WRK-29 check 4). A build without it records none.
 	Milestones repository.Milestones
@@ -514,6 +517,9 @@ func (w CompletionWriter) recordAudit(
 func (w CompletionWriter) completable(ctx context.Context, item domain.WorkItem) error {
 	profile, err := profileOf(ctx, w.Profiles, item.Type)
 	if err != nil {
+		return err
+	}
+	if profile, err = narrowByEntryType(ctx, w.EntryTypes, item, profile); err != nil {
 		return err
 	}
 	return item.EnsureCompletable(profile)
