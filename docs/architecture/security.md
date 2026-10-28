@@ -328,7 +328,26 @@ see) and ISO/IEC 30111 (what happens inside). The internal half:
 | Root cause and variants | The flaw's class is searched for in the rest of the code, not only at the reported place | The fix's pull request |
 | Fix | On every line in its support period, with a regression test; a private fork of the advisory where the fix must not be public before release | The release notes |
 | Disclosure | The advisory published with the release that fixes it, or on the date agreed with the reporter | The advisory, a CVE (GitHub is a CNA) |
-| Dependency findings | A vulnerability in a dependency Hubtask does not reach (`govulncheck` reports reachability, SG-1) gets a VEX statement *not affected*; one it reaches is a vulnerability of Hubtask's. A flaw found in a dependency is reported to its maintainers | The VEX document, the upstream report |
+| Dependency findings | A vulnerability in a dependency Hubtask does not reach (`govulncheck` reports reachability, SG-1) gets a VEX statement *not affected* (§14.2); one it reaches is a vulnerability of Hubtask's. A flaw found in a dependency is reported to its maintainers | The VEX document, the upstream report |
+
+### 14.2 The advisory format
+
+| What | Where | Format |
+|---|---|---|
+| The advisory itself | The repository's GitHub security advisories, with its CVE; mirrored by GitHub into its advisory database in OSV form | GitHub advisory, CVE record |
+| The machine-readable advisory | `https://hubtask.eu/.well-known/csaf/`, beside the provider metadata `/.well-known/csaf/provider-metadata.json` | CSAF 2.0, profile *security advisory* |
+| *Not affected* statements | The same directory | CSAF 2.0, profile *VEX* |
+| The components a release contains | Attached to the GitHub release (`sbom.cdx.json`) | CycloneDX, produced by `release.yml` (SG-10) |
+| The contacts | `https://hubtask.eu/.well-known/security.txt`, built by the website (`apps/website/src/routes/.well-known/security.txt/`) | RFC 9116 |
+
+The CSAF directory and its provider metadata are **published with the first advisory, not before**:
+an empty feed would claim a publishing process that has never run (the website's rule, *only what
+is true today*). Writing the CSAF and VEX documents is a step of the release that ships a security
+fix — the document per advisory, signed, with the directory's `index.txt` and `changes.csv` — and
+belongs to the release process ([versioning-release.md](./versioning-release.md) §3) until it is
+automated. Until then the GitHub advisory and its CVE are the advisory.
+
+---
 
 ## 15. Deliberately not included
 

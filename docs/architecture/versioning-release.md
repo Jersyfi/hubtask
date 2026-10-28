@@ -75,6 +75,10 @@ pass the gates, and an optional surface is announced under `features` in `/meta/
 the signed tag `vX.Y.Z` and pushes it; `release.yml` does the rest after the `production`
 environment's approval ([deployment.md](./deployment.md) §7).
 
+A release that ships a security fix also publishes its advisory: the GitHub security advisory
+with its CVE, and the CSAF 2.0 document (and any VEX statement) under `hubtask.eu/.well-known/csaf/`
+([security.md](./security.md) §14.2) — a manual step of the release until it is automated.
+
 The release notes are the changelog; there is no `CHANGELOG.md`. There is no version field in the
 code: the version is burned in through `-ldflags` and reported by `/meta/health`.
 

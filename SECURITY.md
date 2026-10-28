@@ -7,7 +7,8 @@
 preferred channel, because the report, the discussion, the fix and the advisory stay in one private
 place.
 
-Alternatively by email to `security@hubtask.eu`.
+Alternatively by email to `security@hubtask.eu`. The same contacts are published in machine-readable
+form at <https://hubtask.eu/.well-known/security.txt> (RFC 9116).
 
 Please include: the affected version, a description, reproduction steps, and the possible impact.
 Say whether you know it to be **exploited in the wild** — that changes how fast it is handled and
@@ -39,8 +40,13 @@ it, including what is reported to whom, is
 4. **Fix** — on every supported line (below), with a regression test; variants of the same flaw
    are looked for in the rest of the code.
 5. **Advisory** — published as a GitHub Security Advisory with a CVE (GitHub is a CVE Numbering
-   Authority), the affected and fixed versions, a workaround, and detection guidance.
+   Authority), the affected and fixed versions, a workaround, and detection guidance. The
+   machine-readable format, CSAF 2.0 and VEX, is
+   [security.md §14.2](docs/architecture/security.md#142-the-advisory-format).
 6. **Credit** — as the finder, on request.
+
+A vulnerability in a dependency that Hubtask does not reach is answered with a VEX statement "not
+affected" rather than a release.
 
 ## Supported versions
 
