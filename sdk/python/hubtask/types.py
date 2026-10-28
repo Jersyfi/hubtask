@@ -263,7 +263,7 @@ class AccountsWithoutProvider(TypedDict, total=False):
     count: Required[int]
 
 class OidcStart(TypedDict, total=False):
-    """What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely."""
+    """What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from its address or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely."""
     provider_id: str | None
     login_hint: str | None
     invitation_token: str | None
