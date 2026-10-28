@@ -4,9 +4,9 @@
 /**
  * The application's one engine, and the only place a Transport is constructed.
  *
- * The base URL is relative because the bundle and the API come from one origin (ADR-0028) — there
- * is no host here to configure, and a configurable one would be a way to point a client at a
- * server it was not served by.
+ * The base URL is the platform's (`platform.apiBase`): relative in the browser, because the bundle
+ * and the API come from one origin (ADR-0028), and the server the person chose in a shell, which is
+ * served from inside itself (ADR-0031). Nothing here configures a host.
  *
  * The bearer is read from the platform seam rather than held: it is refreshed behind the engine's
  * back, and a copy taken once is a copy that keeps working after a sign-out.
@@ -87,7 +87,7 @@ function watchedForPause<T extends object>(inner: T): T {
   });
 }
 
-const transport = watchedForPause(new FetchTransport({ baseUrl: '/api/v1' }));
+const transport = watchedForPause(new FetchTransport({ baseUrl: platform.apiBase }));
 
 /**
  * Exchanges the refresh token for the next pair, and answers whether the session survived.

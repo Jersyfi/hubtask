@@ -57,6 +57,7 @@ jobs:
       n8n_node: ${{ github.event_name != 'pull_request' || steps.filter.outputs.n8n_node == 'true' }}
       zapier_app: ${{ github.event_name != 'pull_request' || steps.filter.outputs.zapier_app == 'true' }}
       sdk_typescript: ${{ github.event_name != 'pull_request' || steps.filter.outputs.sdk_typescript == 'true' }}
+      shell: ${{ github.event_name != 'pull_request' || steps.filter.outputs.shell == 'true' }}
       # `docs` is deliberately not an output any more: the documentation job runs unconditionally
       # (see it below), and an output nothing reads is a filter nobody maintains. The `docs:`
       # entry in the filter list stays, because the coverage check in test/architecture reads the
@@ -156,6 +157,16 @@ jobs:
               - *workspace-manifests
             api_client:
               - 'packages/api-client/**'
+              - *workspace-manifests
+            # The installed apps' shell renders the web app (ADR-0033), so what changes the web app
+            # changes what the shell bundles: the app, what it is built from, and the shell itself.
+            # A change elsewhere leaves the `shell` lane skipped, which is what keeps it cheap.
+            shell:
+              - 'apps/webapp/**'
+              - 'packages/design-system/**'
+              - 'packages/sync-engine/**'
+              - 'packages/api-client/**'
+              - 'locales/en.json'
               - *workspace-manifests
             n8n_node:
               - 'packages/n8n-nodes-hubtask/**'
@@ -993,6 +1004,97 @@ jobs:
         env:
           ENGINES: chromium
 
+  # The installed apps' shell (ADR-0031, UC-WRK-33/5): the Tauri project at apps/webapp/src-tauri/,
+  # built on the two desktop systems it ships for (F7 Decision 9) - only here, never by `go` or the
+  # pnpm workspace (ADR-0033). Rust comes from the runner's rustup, which installs the version
+  # `rust-toolchain.toml` pins, so the lane needs no action beyond GitHub's own. The licences of
+  # the crates are held by cargo-deny under the policy `go-licenses` holds the Go side to
+  # (licensing-editions.md §1); once is enough, so the Linux leg runs it with the Rust tests.
+  shell:
+    name: Shell (${{ matrix.system }})
+    needs: changes
+    if: needs.changes.outputs.shell == 'true' || needs.changes.outputs.ci == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - system: Linux
+            runner: ubuntu-latest
+            bundles: deb
+          - system: Windows
+            runner: windows-latest
+            bundles: nsis
+    defaults:
+      run:
+        shell: bash
+    env:
+      CARGO_TERM_COLOR: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      # Not `make tools-node`: a Windows runner has no make. The same pin, read the same way.
+      - name: pnpm, as package.json pins it
+        run: |
+          version=$(sed -n 's/.*"packageManager": "pnpm@\([^"]*\)".*/\1/p' package.json)
+          corepack enable pnpm
+          corepack prepare "pnpm@$version" --activate
+          pnpm --version
+      - id: store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ steps.store.outputs.path }}
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: pnpm-${{ runner.os }}-
+      - name: The pinned Rust
+        working-directory: apps/webapp/src-tauri
+        run: rustup toolchain install
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/bin/cargo-deny*
+            apps/webapp/src-tauri/target
+          key: cargo-${{ runner.os }}-${{ hashFiles('apps/webapp/src-tauri/rust-toolchain.toml', 'apps/webapp/src-tauri/Cargo.lock') }}
+          restore-keys: cargo-${{ runner.os }}-
+      # The webview and the packaging tools Tauri's Linux build links against. apt can hang on the
+      # runner's mirror, so the step has a limit of its own (see `engines`).
+      - name: The system's webview
+        if: runner.os == 'Linux'
+        timeout-minutes: 15
+        run: |
+          printf 'Acquire::Retries "3";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' |
+            sudo tee /etc/apt/apt.conf.d/80-retries >/dev/null
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libwebkit2gtk-4.1-dev librsvg2-dev libxdo-dev libssl-dev file
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter "@hubtask/webapp^..." build
+      # UC-WRK-33 check 5: the icons on every size from the mark's app-icon source, and the check
+      # that the shell bundles exactly those - nothing committed by hand.
+      - run: pnpm --filter @hubtask/webapp desktop:icons
+      - name: The crates' licences
+        if: runner.os == 'Linux'
+        working-directory: apps/webapp/src-tauri
+        run: |
+          command -v cargo-deny >/dev/null || cargo install cargo-deny --locked --version 0.19.0
+          cargo deny --locked check licenses bans sources
+      - name: Format, lint and test the shell
+        if: runner.os == 'Linux'
+        working-directory: apps/webapp/src-tauri
+        run: |
+          pnpm --filter @hubtask/webapp build:desktop
+          cargo fmt --check
+          cargo clippy --locked --all-targets -- -D warnings
+          cargo test --locked
+      # A debug build: the lane proves the shell builds and bundles on this system; the release
+      # build with its signature is the release's (versioning-release.md).
+      - run: pnpm --filter @hubtask/webapp desktop:build --debug --ci --bundles ${{ matrix.bundles }}
+
   tokens-drift:
     name: Design tokens are in step with the core
     needs: changes
@@ -1099,6 +1201,7 @@ jobs:
       - pr-description
       - node
       - engines
+      - shell
       - tokens-drift
       - api-client-drift
     runs-on: ubuntu-latest

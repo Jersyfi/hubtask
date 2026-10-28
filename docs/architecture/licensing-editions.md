@@ -27,7 +27,9 @@ because each may be extracted into a repository or a registry of its own
 
 **The licence gate** (`make gate-licenses`) refuses GPL, LGPL and AGPL dependencies, and the
 dependency review in CI does the same for the JavaScript half: a copyleft dependency would change
-the terms on which an Apache-2.0 binary may be passed on.
+the terms on which an Apache-2.0 binary may be passed on. The installed apps' Rust crates are held
+to the same policy by `cargo-deny` in the `shell` lane, against the list of permissive licences
+and MPL-2.0 in `apps/webapp/src-tauri/deny.toml`.
 
 ## 2. Contributions
 

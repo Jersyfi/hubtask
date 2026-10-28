@@ -4,6 +4,8 @@
 import { IndexedDbStorage, databaseNameFor } from '@hubtask/sync-engine';
 
 import type { Platform } from './index.ts';
+import { pageLanguages, saveByLink } from './page.ts';
+import { API_PATH } from './server.ts';
 import { browserStorage, tokenStore } from './tokenStore.ts';
 import {
   HOP_PATH,
@@ -103,6 +105,9 @@ const workspaces: DeviceWorkspaces = {
 export const platform: Platform = {
   target: 'browser',
 
+  // Relative: the bundle and the API come from one origin (ADR-0028), so there is no host to name.
+  apiBase: API_PATH,
+
   // Answering `undefined` rather than an empty string is the difference between "no credential"
   // and "a credential that is empty", and only one of those is ever true.
   bearer: () => store.read(),
@@ -121,13 +126,7 @@ export const platform: Platform = {
   // when it is clicked makes the callback asynchronous by definition.
   openDownload: (url) => window.location.assign(url),
 
-  // An object URL and a click, which is the only way a browser saves bytes it already has. The URL
-  // is revoked immediately afterwards: it is a handle to memory, and one left behind keeps the
-  // whole file alive for the life of the document.
-  // `navigator.languages` is the ordered list the reader configured; `language` is the first of
-  // them and is the fallback where the list is missing.
-  preferredLanguages: () =>
-    navigator.languages?.length ? [...navigator.languages] : [navigator.language].filter(Boolean),
+  preferredLanguages: pageLanguages,
 
   // The database is named after this origin and the account (ADR-0033 §4): the API is this
   // origin's (ADR-0028), so two installations on two hosts never share a copy, and two accounts on
@@ -150,16 +149,9 @@ export const platform: Platform = {
 
   deviceName: browserName,
 
+  devicePlatform: 'web',
+
   workspaces,
 
-  saveFile: (bytes, fileName) => {
-    const url = URL.createObjectURL(bytes);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.append(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  },
+  saveFile: saveByLink,
 };

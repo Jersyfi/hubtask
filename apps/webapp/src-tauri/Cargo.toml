@@ -1,0 +1,29 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Jérôme Bastian Winkel
+
+# The installed apps' shell (ADR-0031, ADR-0033): one Tauri project for the desktop and mobile
+# targets, rendering the web app of the directory above. Only what a page may not do lives here.
+# The crates are exactly F7 Decision 4's; anything else is asked again.
+[package]
+name = "hubtask"
+version = "0.0.0"
+description = "Hubtask, installed"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+# A library beside the binary, because the mobile targets load the shell as one.
+[lib]
+name = "hubtask_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+strip = true

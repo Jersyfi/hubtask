@@ -9,8 +9,9 @@ import type { DeviceWorkspaces } from './workspaces.ts';
 /**
  * The platform seam of ADR-0033: everything conditioned on where this bundle runs lives behind
  * this interface, so no `isTauri` conditional ever lands in a component. The implementation is
- * chosen at build time — today there is only the browser; the Tauri implementation arrives with
- * the shells (ADR-0031) and is selected by the shell's build, not by runtime sniffing.
+ * chosen at build time, never by runtime sniffing: the import of `browser.ts` at the end of this
+ * file is redirected to the target's own by `vite.config.ts` (`target.ts`), so the browser bundle
+ * carries no shell's module and a shell's carries no browser's.
  *
  * The interface is deliberately as small as what exists. The ports ADR-0033 already names for
  * later — local persistence, the keystore-held encryption key — are added here when the
@@ -23,6 +24,12 @@ export interface Platform {
    * never as a check on this value scattered through components.
    */
   readonly target: 'browser' | 'desktop' | 'mobile';
+
+  /**
+   * Where the API answers: the page's own origin in the browser, a relative `/api/v1` (ADR-0028);
+   * the server the person chose in a shell, which is served from inside itself (ADR-0031).
+   */
+  readonly apiBase: string;
 
   /**
    * The bearer for an API call, or `undefined` when nobody is signed in.
@@ -137,10 +144,13 @@ export interface Platform {
   elevatedUntil(): string | undefined;
 
   /**
-   * How this device introduces itself in the workspace's device list - "Firefox on Linux" -
-   * beside the platform, which is `web` here and a shell's own name there.
+   * How this device introduces itself in the workspace's device list - "Firefox on Linux" in the
+   * browser, the name the system gives the machine in a shell.
    */
   deviceName(): string;
+
+  /** The platform beside that name: `web` in the browser, the system's own name in a shell. */
+  readonly devicePlatform: string;
 
   /**
    * The device's list of workspaces (UC-ID-25, ADR-0095 §7): host and name of each workspace this

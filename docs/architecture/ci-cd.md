@@ -66,6 +66,7 @@ Every job of `ci.yml`, in file order. `ci-required` waits for all of the others 
 | `pr-description` | `make gate-pr` over the description and the title read from the API; not for Dependabot's pull requests (§3.1) |
 | `node` | Per affected workspace package: the workspace map lint, build, lint, typecheck, test; for the website `make website` first |
 | `engines` | The built web app in Chromium, Firefox and WebKit through pinned Playwright ([ADR-0048](../adr/ADR-0048-browser-job-driver.md)), asserting [ADR-0044](../adr/ADR-0044-browser-support-row.md)'s feature table; the one job that runs a browser |
+| `shell` | The installed apps' shell (`apps/webapp/src-tauri/`) on Linux and Windows: the icons generated from the mark and checked, a debug build bundled as `.deb` and NSIS; on Linux also `cargo-deny` (licences, sources), `rustfmt`, `clippy` and the Rust tests. Behind the `shell` filter: the web app, the packages it is built from, the workspace manifests |
 | `tokens-drift` | `make tokens`; the committed `LabelTokens.go` must not change |
 | `api-client-drift` | `make api-client`, then the workspace built and typechecked against it; nothing generated may be committed |
 | `ci-required` | The one required check (§3.2); on a pull request its last step waits for a green `main` (§3.5) |
