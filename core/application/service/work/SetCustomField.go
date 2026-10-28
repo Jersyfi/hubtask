@@ -260,34 +260,62 @@ func (h SetCustomField) judge(
 	if err != nil {
 		return none, nil, err
 	}
-	if definition.Kind == domain.CustomFieldUser && value != nil {
-		if err := h.ensureAccountReachable(ctx, actor, value, collection); err != nil {
+	for _, account := range definition.Accounts(value) {
+		if err := ensureAccountCanSee(ctx, h.Visibility, actor, account, collection); err != nil {
+			return none, nil, err
+		}
+	}
+	if definition.Kind == domain.CustomFieldReference && value != nil {
+		if err := h.ensureEntryReachable(ctx, actor, definition, value); err != nil {
 			return none, nil, err
 		}
 	}
 	return definition, value, nil
 }
 
-// ensureAccountReachable refuses a USER value naming somebody who cannot see the entry.
-//
-// The same question an assignment asks and the same refusal, for the same reason: a field pointing
-// at an account that gets a 404 on the entry names a person who cannot act on it, and the three
-// situations behind it - no membership, another workspace's account, no such account - come back
-// as one answer so that the field cannot be used to discover which identifiers exist (T-04).
-func (h SetCustomField) ensureAccountReachable(
-	ctx context.Context, actor appshared.ActorContext, value any, collection domain.Container,
+// ensureEntryReachable refuses a REFERENCE to an entry the writer cannot see. A missing entry, a
+// trashed one, another workspace's and one out of the writer's reach are one answer, so that the
+// field cannot be used to discover which identifiers exist (T-04). Asked as visibility rather than
+// as an authorisation, because the entry being written is what the permission was asked about;
+// the referenced one is a value.
+func (h SetCustomField) ensureEntryReachable(
+	ctx context.Context, actor appshared.ActorContext,
+	definition domain.CustomFieldDefinition, value any,
 ) error {
-	text, isText := value.(string)
-	if !isText {
-		// The domain already judged the shape. Reaching this is a defect rather than input
-		// (security.md §9).
-		return shared.ErrInternal.WithDetail("fields.value_not_an_account")
-	}
-	named, err := shared.ParseID(text)
+	refused := shared.ErrValidation.WithDetail("fields.value_not_an_entry").
+		WithParams(map[string]string{"key": definition.Key}).
+		WithFields(shared.FieldError{Path: "/value", Code: "fields.value_not_an_entry"})
+
+	text, _ := value.(string)
+	id, err := shared.ParseID(text)
 	if err != nil {
-		return shared.ErrInternal.WithDetail("fields.value_not_an_account")
+		return shared.ErrInternal.WithDetail("fields.value_not_an_entry")
 	}
-	return ensureAccountCanSee(ctx, h.Visibility, actor, named, collection)
+	target, err := h.Items.Find(ctx, id)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return refused
+		}
+		return err
+	}
+	if target.IsTrashed() {
+		return refused
+	}
+	place, err := h.Containers.Find(ctx, target.CollectionID)
+	if err != nil {
+		if errors.Is(err, shared.ErrNotFound) {
+			return refused
+		}
+		return err
+	}
+	permitted, err := h.Visibility.CanSee(ctx, actor, actor.AccountID, containerPath(place))
+	if err != nil {
+		return err
+	}
+	if !permitted {
+		return refused
+	}
+	return nil
 }
 
 // ensureFieldCount bounds how many keys one entry carries. The column is one document that every
