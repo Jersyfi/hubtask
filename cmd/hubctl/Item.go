@@ -132,6 +132,7 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	notes := flags.String("notes", "", "the notes body")
 	amount := flags.String("amount", "", "how much of it, such as 2 or \"1 kg\", where the collection offers an amount")
 	before := flags.String("before", "", "the sibling to place it before; appended when absent")
+	entryType := flags.String("entry-type", "", "the key of a type of its level (hubctl type ls); omitted is the level's own")
 	// The schedule travels with the create rather than needing a second call: the three
 	// fields dispatch into the same writer either way, and a person creating something they
 	// already know the date of should not have to say it twice.
@@ -151,7 +152,10 @@ func itemCreate(ctx context.Context, cli *CLI, args []string) error {
 	if err != nil {
 		return err
 	}
-	body := openapi.WorkItemCreate{Type: itemType, Title: *title, Notes: optional(*notes), Amount: optional(*amount)}
+	body := openapi.WorkItemCreate{
+		Type: itemType, Title: *title, Notes: optional(*notes), Amount: optional(*amount),
+		EntryType: optional(*entryType),
+	}
 	if *due != "" {
 		dated, err := parseDue(cli, "--due", *due)
 		if err != nil {
