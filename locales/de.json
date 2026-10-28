@@ -6109,7 +6109,7 @@
   "app.ask.row": "Fragen: „{words}“",
   "app.ask.title": "Den Arbeitsbereich fragen",
   "app.ask.label": "Deine Frage",
-  "app.ask.hint": "Beantwortet aus den Einträgen, die du lesen kannst. Jede Frage steht für sich.",
+  "app.ask.hint": "Von der KI beantwortet, aus den Einträgen, die du lesen kannst. Jede Frage steht für sich.",
   "app.ask.submit": "Fragen",
   "app.ask.heading": "Vorgeschlagene Antwort",
   "app.ask.arrived_announced": "Eine vorgeschlagene Antwort ist da.",

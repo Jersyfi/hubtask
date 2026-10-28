@@ -6112,7 +6112,7 @@
   "app.ask.row": "Ask: “{words}”",
   "app.ask.title": "Ask the workspace",
   "app.ask.label": "Your question",
-  "app.ask.hint": "Answered from the entries you can read. Each question stands alone.",
+  "app.ask.hint": "Answered by AI from the entries you can read. Each question stands alone.",
   "app.ask.submit": "Ask",
   "app.ask.heading": "Proposed answer",
   "app.ask.arrived_announced": "A proposed answer arrived.",
