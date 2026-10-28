@@ -431,6 +431,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `` | GetSignInRules | `` |  | When refused |
 | `` | InspectInvitation | `` |  | When refused |
 | `` | LocateOidcFlow | `` |  | When refused |
+| `` | ReadSettingsCatalogue | `` |  | When refused |
 
 ## Permissions
 
