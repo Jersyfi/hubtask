@@ -20,22 +20,12 @@ const CAPABILITIES = '/meta/capabilities';
 const pathAt = (hubId?: string) => (hubId ? `${PATH}?hub_id=${encodeURIComponent(hubId)}` : PATH);
 
 class Modules {
-  #state = $state<ResourceState<ModuleList>>({ status: 'idle' });
-
-  get state(): ResourceState<ModuleList> {
-    return this.#state;
-  }
-
-  /** The modules, or none while they are unread or refused. */
-  get all(): readonly ModuleState[] {
-    return this.#state.status === 'ready' ? this.#state.data.modules : [];
-  }
-
-  /** Starts the read for the workspace or one hub. **From `untrack`**. */
-  open(hubId?: string): () => void {
-    return engine.subscribe<ModuleList>({ path: pathAt(hubId) }, (next) => {
-      this.#state = next;
-    });
+  /**
+   * Reads the modules at the workspace or one hub; the answer goes to the caller, because the
+   * administration's section and a hub's settings each draw their own place. **From `untrack`**.
+   */
+  at(hubId: string | undefined, onNext: (state: ResourceState<ModuleList>) => void): () => void {
+    return engine.subscribe<ModuleList>({ path: pathAt(hubId) }, onNext);
   }
 
   /** Switches one module on, off, or back to the level above. */

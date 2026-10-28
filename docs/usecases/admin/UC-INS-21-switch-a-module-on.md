@@ -57,8 +57,8 @@ administrator sees the lock and who set it.
 
 ## Today
 
-* Check 2: met for the workspace — *How we work → Modules* switches a module at once
-  (`ModulesView`); a hub's settings have no *Modules* section yet.
+* Check 2: met — *How we work → Modules* and a hub's settings switch a module at once
+  (`ModuleSwitches`).
 * Check 4: partly met — switching off asks first and says the data is kept and hidden; no module
   has screens of its own yet, so there is nothing to hide (the suite plan, S-03 onwards).
 * Check 6: met for the workspace — the installation's and a plan's documents take a `module` area,

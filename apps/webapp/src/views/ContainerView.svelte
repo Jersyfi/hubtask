@@ -36,6 +36,7 @@
   import CollectionSummary from '../lib/entries/CollectionSummary.svelte';
   import CollectionFigure from '../lib/entries/CollectionFigure.svelte';
   import StructurePanel from '../lib/workspace/StructurePanel.svelte';
+  import ModuleSwitches from '../lib/workspace/ModuleSwitches.svelte';
   import ContainerMilestone from '../lib/entries/ContainerMilestone.svelte';
   import { showsMilestone } from '../lib/data/kudos.ts';
   import { celebration } from '../lib/celebration.svelte.ts';
@@ -1151,6 +1152,9 @@
         {#snippet automationTab()}
           <PoliciesDialog isEmbedded isOpen {container} path={containerPath} role={structureRole} />
         {/snippet}
+        {#snippet modulesTab()}
+          <ModuleSwitches hubId={container.id} />
+        {/snippet}
         {#snippet peopleTab()}
           <MembersDialog isEmbedded isOpen title={t('app.people.title')} scope={memberScope} path={memberPath} />
         {/snippet}
@@ -1170,7 +1174,10 @@
                 { id: 'automation', label: t('app.structure.tab_automation'), body: automationTab },
                 { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
               ]
-            : [{ id: 'people', label: t('app.structure.tab_people'), body: peopleTab }]}
+            : [
+                { id: 'modules', label: t('app.modules.title'), body: modulesTab },
+                { id: 'people', label: t('app.structure.tab_people'), body: peopleTab },
+              ]}
         />
       {/if}
     </Stack>
