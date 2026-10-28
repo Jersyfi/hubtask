@@ -62,7 +62,7 @@ func TestNewEntryTypeRefusesWhatIsNotAType(t *testing.T) {
 			in := bugType
 			tc.change(&in)
 			_, err := work.NewEntryType(in)
-			if !errors.Is(err, shared.ErrValidation) || shared.DetailOf(err) != tc.code {
+			if !errors.Is(err, shared.ErrValidation) || detailOf(err) != tc.code {
 				t.Fatalf("want %s, got %v", tc.code, err)
 			}
 		})
@@ -187,7 +187,7 @@ func TestChoosingAnEntrysType(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			got, err := registry.Choose(tc.level, tc.key, tc.parent)
 			if tc.code != "" {
-				if shared.DetailOf(err) != tc.code {
+				if detailOf(err) != tc.code {
 					t.Fatalf("want %s, got %v", tc.code, err)
 				}
 				return
@@ -201,4 +201,11 @@ func TestChoosingAnEntrysType(t *testing.T) {
 	if of := registry.Of(work.ItemTask, ""); !of.System || of.Key != "task" {
 		t.Fatalf("an entry without a type is not its level's system type: %+v", of)
 	}
+}
+
+func detailOf(err error) string {
+	if e := shared.AsError(err); e != nil {
+		return e.DetailCode
+	}
+	return ""
 }
