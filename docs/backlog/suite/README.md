@@ -86,6 +86,18 @@ that moment; a draft number is not reserved. The drafts written before milestone
 A row too big for one worker's context is split by screen or area into several workers, one after
 another.
 
+## Gaps a step found
+
+What a step found missing and did not build, because a later step owns it. The owning worker reads
+this list with its row.
+
+| Found by | Gap | Owned by |
+|---|---|---|
+| S-01 | The provenance of an AI-originated value (model, prompt, accepted by whom) is kept only on the suggestion record, which retention deletes and the export leaves out; the accepted value carries no mark ([ai-first.md](../../architecture/ai-first.md) §2.1, AI-2; [tenant-export.md](../../architecture/tenant-export.md) §12) | S-22 (F-12, AI-Act marks) |
+| S-01 | No import from other tools' exports with configuration, history and attachments ([tenant-export.md](../../architecture/tenant-export.md) §12) | S-23 (D-10) |
+| S-01 | A workspace of a shared installation whose operator allows no workspace targets cannot take its data out by itself; closing it changes UC-BAK-07's *Where it ends* ([tenant-export.md](../../architecture/tenant-export.md) §12) | the owner's decision first; no step until then |
+| S-01 | Every new kind of workspace data joins the archive (§6 of tenant-export.md) in the step that builds it; configuration is never excluded | every step from S-03 on |
+
 ## State
 
 | # | Branch | State |

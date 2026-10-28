@@ -273,3 +273,42 @@ expected to keep sign-ins working. The export is handed outwards.
   readable version (currently 1) up.
 * This document is versioned with the repository; the manifest's `product_version` and
   `schema_version` say which state of it applied when an archive was written.
+
+## 12. What exit law asks, and what exists
+
+**Not legal advice:** the obligations are the reading the research of 2026-10 records
+([foundation-law-standards-2026-10.md](../backlog/suite/research/foundation-law-standards-2026-10.md)
+§1.2, §1.6, §1.8). Each binds the **operator** of a shared installation — a provider is the data
+processing service of the Data Act, the ICT third-party provider of DORA, the processor of the
+GDPR — and Hubtask supplies what the operator needs to meet it.
+
+| Law | What it asks of the operator | What Hubtask supplies | Not Hubtask's |
+|---|---|---|---|
+| GDPR Art. 20 | A person's own data, machine-readable | The data subject export, JSON Lines with the schema ([data-protection.md](./data-protection.md) §4) | — |
+| Data Act Art. 23–26 (since 2025-09-12) | All exportable data and digital assets of a customer, in a structured, commonly used, machine-readable format, with information on what is exported and how | This format: the whole workspace — its structure, entries, comments, files, people and groups, roles, custom field definitions, templates, views, rules and the trail — documented here and readable without Hubtask (§2), never encrypted (§1), credentials left out (§9) | The notice period (at most two months), the transition (30 days), the retrieval window (at least 30 days): contract terms |
+| Data Act Art. 29 (zero charges from 2027-01-12) | Switching without charges | The export costs nothing in the software; nothing gates it behind a plan or an entitlement | The provider's prices |
+| Data Act Art. 30 (SaaS) | Open interfaces, compatibility with open specifications | The public OpenAPI contract, this versioned format (§11) | — |
+| DORA Art. 28(8), Art. 30 | An exit strategy; return of the data on termination | The same export; and, as the last exit, the same software self-hosted ([UC-BAK-07](../usecases/backup/UC-BAK-07-take-the-workspace-to-another-installation.md)) | The exit plan, the transition period |
+
+**The import exists**, for a Hubtask installation: a restore of the archive as a new workspace
+(§10, UC-BAK-07, `test/integration/restore_foreign_test.go`). The export is the control plane's act
+in a shared installation; a workspace serves itself through its own backups to its own targets
+(UC-BAK-01 … 03, the same format, backup-restore.md §9) where the operator allows workspace targets
+(`HUBTASK_BACKUP_TENANT_TARGETS`, backup-restore.md §2), and in a single-workspace installation its
+owner is the operator.
+
+**The rule for what comes:** a new kind of workspace data — a type, a field, a link, a form, a
+workflow, a page, a whiteboard, a record, a time entry, a goal — joins §6 in the step that builds
+it, with its references and its order; configuration is data and is never on the exclusion list of
+§9. The test of §9 already holds every table under row level security to one of the two.
+
+**Not yet** — named gaps, each owned by a step of [the suite plan](../backlog/suite/README.md):
+
+* The provenance of an AI-originated value does not travel: suggestions are AI machinery (§9) and
+  the accepted value carries no mark ([ai-first.md](./ai-first.md) §2.1, AI-2).
+* No import from other tools' exports (issue trackers, wikis) with their configuration, history and
+  attachments.
+* A workspace of a shared installation whose operator allows no workspace targets cannot take its
+  data out without the operator; the Data Act asks for no obstacle. Closing it means a self-service
+  export for the workspace's owner, which UC-BAK-07's *Where it ends* (no direct download, the
+  operator's act) rules out today — an owner's decision.
