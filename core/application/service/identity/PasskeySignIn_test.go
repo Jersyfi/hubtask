@@ -148,7 +148,7 @@ func (f *passkeySignInFixture) register(t *testing.T) {
 
 func requestInput(host string) usecase.Input {
 	return usecase.Input{
-		"host": host, "tenant_slug": "acme", "user_agent": "Firefox", "remote_addr": "203.0.113.7:51234",
+		"host": host, "user_agent": "Firefox", "remote_addr": "203.0.113.7:51234",
 	}
 }
 
@@ -375,7 +375,7 @@ func TestPasskeysAreRefusedWhereTheyAreNoWayIn(t *testing.T) {
 	f.writer.Session.Multi = true
 	f.register(t)
 	_, err = f.registry.Invoke(t.Context(), StartPasskeySignInName, appshared.ActorContext{}, usecase.Input{
-		"host": "nobody.hubtask.example", "tenant_slug": "nobody",
+		"host": "nobody.hubtask.example",
 	})
 	refusedWith(t, err, "auth.tenant_unresolved")
 }

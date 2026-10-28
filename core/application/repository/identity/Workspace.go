@@ -31,14 +31,18 @@ type Workspaces interface {
 
 // TenantHosts is the hosts a workspace answers at (migration 0104).
 //
-// Two methods, because there are two things anybody does with the table today: a workspace gets its
-// canonical row when it is provisioned, and a reader is told which hosts it answers at. What is
-// deliberately absent is the resolution - nothing finds a workspace *by* host, because a request is
-// resolved from the slug (multi-tenancy.md §3).
+// Bound to the transaction's workspace. Finding a workspace *by* host crosses the boundary and is
+// TenantDirectory.ResolveHost's (multi-tenancy.md §3).
 type TenantHosts interface {
 	// Insert writes one. The workspace is the transaction's, so the host is all that is passed.
 	Insert(ctx context.Context, host identity.TenantHost) error
 
 	// List answers this workspace's hosts, the canonical one first.
 	List(ctx context.Context) ([]identity.TenantHost, error)
+}
+
+// MainHosts gives every live workspace that has no main row one under the installation's host
+// (migration 0207), installation-wide and in the system scope. It answers how many it wrote.
+type MainHosts interface {
+	EnsureMain(ctx context.Context, baseHost string) (int, error)
 }

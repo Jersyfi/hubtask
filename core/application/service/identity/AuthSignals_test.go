@@ -40,7 +40,7 @@ func TestEveryForgottenPasswordRequestIsCountedAlike(t *testing.T) {
 		fixture.writer.Session.Signals = signals
 
 		if err := fixture.forget().Execute(t.Context(), ForgetPasswordCommand{
-			Email: "bert@example.org", TenantSlug: "acme",
+			Email: "bert@example.org", Host: "acme.hubtask.example",
 		}); err != nil {
 			t.Fatalf("%s: refused: %v", name, err)
 		}

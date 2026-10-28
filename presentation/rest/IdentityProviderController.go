@@ -519,7 +519,7 @@ func (c *RestController) StartOidcSignIn(w http.ResponseWriter, r *http.Request)
 	}
 
 	in := usecase.Input{
-		"tenant_slug":   c.tenantSlug(r),
+		"host":          r.Host,
 		"tenant_header": r.Header.Get(TenantHeader),
 	}
 	if body.ProviderId != nil {

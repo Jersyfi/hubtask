@@ -52,7 +52,7 @@ func TestThePasswordsLifeAnswersThroughTheRegistry(t *testing.T) {
 
 	// The public read, with every member a card draws.
 	answered, err := registry.Invoke(t.Context(), GetSignInRulesName, appshared.ActorContext{},
-		usecase.Input{"host": "acme.hubtask.example", "tenant_slug": "acme"})
+		usecase.Input{"host": "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("reading the rules: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestThePasswordsLifeAnswersThroughTheRegistry(t *testing.T) {
 
 	// Forgetting says nothing, whatever it found.
 	if _, err := registry.Invoke(t.Context(), ForgetPasswordName, appshared.ActorContext{},
-		usecase.Input{"email": "bert@example.org", "tenant_slug": "acme"}); err != nil {
+		usecase.Input{"email": "bert@example.org", "host": "acme.hubtask.example"}); err != nil {
 		t.Fatalf("forgetting: %v", err)
 	}
 }

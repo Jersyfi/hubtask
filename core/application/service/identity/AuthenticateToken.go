@@ -57,6 +57,12 @@ type AuthenticateToken struct {
 	// holder. Nil is an installation wired before the register, where the scope alone is the whole
 	// of the check - which is what this path did until the register existed.
 	Operators repository.Operators
+	// Hosts names the workspace a request's host serves, in multi mode (multi-tenancy.md §3): a
+	// host that names another workspace than the credential is refused. Nil - single mode - reads
+	// no host.
+	Hosts repository.TenantDirectory
+	// InstallationHost is the installation's own host, where the header and not the host speaks.
+	InstallationHost string
 }
 
 // AuthenticateTokenCommand carries the presented credential and the preferences resolved from the
@@ -73,6 +79,9 @@ type AuthenticateTokenCommand struct {
 	// chain.
 	FallbackLocale   string
 	FallbackTimeZone string
+	// Host is the host the request arrived at. It may confirm the credential's workspace, never
+	// overrule it.
+	Host string
 }
 
 // Execute verifies the credential and builds the actor.
@@ -122,6 +131,9 @@ func (a AuthenticateToken) Execute(
 		// The workspace's own standing refuses before any use case runs: a suspension flips
 		// authentication itself (multi-tenancy.md §5).
 		if err := credential.TenantStatus.Verify(); err != nil {
+			return err
+		}
+		if err := hostNamesAnother(ctx, a.Hosts, a.InstallationHost, cmd.Host, credential.Token.TenantID); err != nil {
 			return err
 		}
 
@@ -206,6 +218,9 @@ func (a AuthenticateToken) executeSession(
 		}
 		// AuthenticateToken's reason: the suspension refuses here, once, for every route.
 		if err := credential.TenantStatus.Verify(); err != nil {
+			return err
+		}
+		if err := hostNamesAnother(ctx, a.Hosts, a.InstallationHost, cmd.Host, claims.TenantID); err != nil {
 			return err
 		}
 

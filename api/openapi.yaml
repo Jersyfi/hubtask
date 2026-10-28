@@ -3690,10 +3690,11 @@ paths:
         opens as the fallback (`password_fallback` on the sign-in rules), and each
         sign-in through it is recorded in the workspace's trail as `auth.password_fallback`.
 
-        The tenant is resolved before the credential is checked - from the subdomain or the
-        `X-Hubtask-Tenant` header in multi mode, and in single mode there is only one - never
-        from the request body. A contradiction between an authenticated
-        caller and the host stays `403 tenant_mismatch`.
+        The tenant is resolved before the credential is checked - in multi mode from the
+        workspace's address the request arrived at, or, only at the installation's own address,
+        from the `X-Hubtask-Tenant` header; in single mode there is only one - never from the
+        request body. A host that is neither names no workspace, header or not. A contradiction
+        between an authenticated caller and the host stays `403 tenant_mismatch`.
 
         Every failure is one generic refusal, byte for byte the same for a wrong password and an
         address nobody holds: whether an account exists is exactly what a guessing client is
@@ -4404,8 +4405,9 @@ paths:
         links its operator is obliged to show.
 
         Public the way sign-in is, and the workspace is resolved exactly as sign-in resolves it -
-        from the subdomain or the `X-Hubtask-Tenant` header in multi mode, and in single mode there
-        is only one. A host no workspace answers at gets the installation's own level, which is byte
+        in multi mode from the workspace's address the request arrived at, or, only at the
+        installation's own address, from the `X-Hubtask-Tenant` header; in single mode there is only
+        one. A host no workspace answers at gets the installation's own level, which is byte
         for byte what a workspace that has decided nothing answers: which hosts hold workspaces is
         exactly what a probe is after.
 
@@ -4912,7 +4914,8 @@ paths:
       summary: Begin a sign-in through the workspace's identity provider
       description: >
         The first half of authorization code + PKCE. The workspace is resolved
-        the way a password sign-in resolves it - the subdomain, or the tenant header - and its
+        the way a password sign-in resolves it - the workspace's address, or the tenant header at
+        the installation's own address - and its
         configured provider answers the URL to send the browser to.
 
         Nothing about where the code comes back is taken from the request: the redirect URI is
@@ -12336,7 +12339,8 @@ components:
       type: object
       description: >
         What a sign-in through the identity provider needs to begin, which is almost nothing: the
-        workspace comes from the subdomain or the tenant header, and the redirect URI is this
+        workspace comes from its address, or the tenant header at the installation's own address,
+        and the redirect URI is this
         installation's own. A caller with nothing to add may omit the body entirely.
       properties:
         provider_id:
@@ -12440,8 +12444,9 @@ components:
           type: string
           format: uri
           description: >
-            The workspace's own address - its subdomain of this installation in multi-tenant
-            operation - where the return is finished at `/auth/callback`.
+            The workspace's main address in multi-tenant operation - a subdomain of this
+            installation, a host the operator assigned or the workspace's own domain - where the
+            return is finished at `/auth/callback`.
 
     Suggestion:
       type: object

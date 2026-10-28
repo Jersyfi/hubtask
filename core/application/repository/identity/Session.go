@@ -239,6 +239,9 @@ type TenantDirectory interface {
 	// Resolve maps a slug to its tenant. The empty slug answers the single-mode installation's
 	// only row. No match is an error wrapping shared.ErrNotFound.
 	Resolve(ctx context.Context, slug string) (shared.ID, error)
+	// ResolveHost maps a request's host to the workspace whose serving row it is (ADR-0095 §1), in
+	// any scope. No match is an error wrapping shared.ErrNotFound.
+	ResolveHost(ctx context.Context, host string) (shared.ID, error)
 }
 
 // MfaEnrollment is the stored second factor: the sealed secret and what arms it. The

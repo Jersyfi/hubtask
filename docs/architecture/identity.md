@@ -303,15 +303,14 @@ hourly (T-13, [security.md](./security.md) §4).
   a sign-in, a connection and a step-up alike. In multi-tenant operation a flow begins on the
   workspace's own host ([multi-tenancy.md](./multi-tenancy.md) §3), where the tab's session and its
   note of a connection or step-up live. The web app at the installation's callback therefore asks
-  `POST /auth/oidc:locate` where the return belongs. The answer is the workspace's address, built
-  from the workspace the state names and the configured base, never from the request. The app then
-  forwards the return there whole, and it is finished there. The lookup is anonymous, in the auth
-  bucket, and spends nothing. A state that names no live flow (unknown, expired, spent or
-  malformed) is one `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards
-  only to a host beneath its own, by the same scheme. *Decided, not built - milestone CD*
-  (ADR-0095): the answer is the workspace's main address from `tenant_host` - a subdomain, an
-  assigned host or a verified own domain - and the browser forwards to exactly the host the answer
-  names, by the same scheme.
+  `POST /auth/oidc:locate` where the return belongs. The answer is the workspace's main address from `tenant_host` - a
+  subdomain, an assigned host or a verified own domain - under the configured scheme and port, for
+  the workspace the state names, never from the request (ADR-0095). The app then forwards the
+  return there whole, and it is finished there. The lookup is anonymous, in the auth bucket, and
+  spends nothing. A state that names no live flow (unknown, expired, spent or malformed) is one
+  `404 auth.oidc_flow_not_found`, and it names no workspace. The browser forwards to exactly the
+  host the answer names, by the same scheme, and to nothing that carries credentials in its
+  address.
 
 ### 10.2 Providers in the plural, at two levels
 

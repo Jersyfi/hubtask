@@ -58,6 +58,7 @@ func TestAnInvitationAgreesToTheTermsAndANewVersionAsksAgain(t *testing.T) {
 		ON CONFLICT (id) DO NOTHING`, termsTenant.String()); err != nil {
 		t.Fatalf("seeding the workspace: %v", err)
 	}
+	servedAt(ctx, t, termsTenant, "tasks.terms-a.example")
 	// A fresh invitation every run: the shared database keeps the last run's account.
 	if _, err := admin.Exec(ctx, `DELETE FROM account WHERE id = $1`, termsInvited.String()); err != nil {
 		t.Fatalf("clearing the last run: %v", err)
@@ -99,7 +100,7 @@ func TestAnInvitationAgreesToTheTermsAndANewVersionAsksAgain(t *testing.T) {
 	setWorkspaceTerms(ctx, t, "4")
 	result, err := (identityservice.SignIn{Writer: writer}).Execute(ctx, identityservice.SignInCommand{
 		Email: "anna@terms.example", Password: secret.New("seven blue lanterns over the harbour"),
-		TenantSlug: "terms-a",
+		Host: "tasks.terms-a.example",
 	})
 	if err != nil {
 		t.Fatalf("signing in: %v", err)
@@ -116,7 +117,7 @@ func TestAnInvitationAgreesToTheTermsAndANewVersionAsksAgain(t *testing.T) {
 	}
 	again, err := (identityservice.SignIn{Writer: writer}).Execute(ctx, identityservice.SignInCommand{
 		Email: "anna@terms.example", Password: secret.New("seven blue lanterns over the harbour"),
-		TenantSlug: "terms-a",
+		Host: "tasks.terms-a.example",
 	})
 	if err != nil || again.Pair == nil {
 		t.Errorf("the sign-in after agreeing answered (%+v, %v), want the pair", again, err)

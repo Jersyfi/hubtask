@@ -18,13 +18,32 @@ import (
 // TenantHostRepository is the hosts a workspace answers at (migration 0104).
 //
 // No method takes a tenant: row level security bounds every statement and the workspace is the
-// transaction's (ADR-0010). Nothing here finds a workspace *by* host: that lookup has to cross the
-// boundary, the way `resolve_tenant` does.
+// transaction's (ADR-0010). Finding a workspace *by* host crosses the boundary through
+// `resolve_tenant_host` (SignInRepository.ResolveHost); writing the main rows a start owes through
+// `ensure_main_hosts`.
 type TenantHostRepository struct{}
 
 func NewTenantHostRepository() TenantHostRepository { return TenantHostRepository{} }
 
-var _ repository.TenantHosts = TenantHostRepository{}
+var (
+	_ repository.TenantHosts = TenantHostRepository{}
+	_ repository.MainHosts   = TenantHostRepository{}
+)
+
+// EnsureMain writes the main row of every live workspace that has none (migration 0207).
+func (TenantHostRepository) EnsureMain(ctx context.Context, baseHost string) (int, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return 0, err
+	}
+	written, err := queries.EnsureMainHosts(ctx, baseHost)
+	if err != nil {
+		return 0, shared.ErrUnavailable.
+			WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("writing the workspaces' main hosts: %w", err))
+	}
+	return int(written), nil
+}
 
 func (TenantHostRepository) Insert(ctx context.Context, host identity.TenantHost) error {
 	queries, err := queriesFrom(ctx)

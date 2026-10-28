@@ -52,7 +52,6 @@ type PasskeySignInWriter struct {
 
 // PasskeySignInRequest is where a sign-in arrived: the workspace's sources, the host, the device.
 type PasskeySignInRequest struct {
-	TenantSlug   string
 	TenantHeader string
 	Host         string
 	UserAgent    string
@@ -65,7 +64,7 @@ func (w PasskeySignInWriter) offeredAt(
 	ctx context.Context, request PasskeySignInRequest,
 ) (shared.ID, relyingParty, error) {
 	s := w.Session
-	tenantID, err := s.resolveTenant(ctx, request.TenantSlug, request.TenantHeader)
+	tenantID, err := s.resolveTenant(ctx, request.Host, request.TenantHeader)
 	if err != nil {
 		return "", relyingParty{}, err
 	}
@@ -311,9 +310,7 @@ func nameOf(account domain.Account) string {
 // passkeySignInFields are the request's inputs, which only the adapter has.
 var passkeySignInFields = []usecase.Field{
 	{Name: "host", Kind: usecase.KindString,
-		Description: "The host the request arrived at: a ceremony is only offered at the relying party's."},
-	{Name: "tenant_slug", Kind: usecase.KindString,
-		Description: "The subdomain the request arrived under, in multi mode."},
+		Description: "The host the request arrived at: it names the workspace in multi mode, and a ceremony is only offered at the relying party's."},
 	{Name: "tenant_header", Kind: usecase.KindString,
 		Description: "The X-Hubtask-Tenant header, when sent. It may confirm the resolution, never overrule it."},
 	{Name: "user_agent", Kind: usecase.KindString,
@@ -324,8 +321,8 @@ var passkeySignInFields = []usecase.Field{
 
 func requestOf(in usecase.Input) PasskeySignInRequest {
 	return PasskeySignInRequest{
-		TenantSlug: in.String("tenant_slug"), TenantHeader: in.String("tenant_header"),
-		Host: in.String("host"), UserAgent: in.String("user_agent"), RemoteAddr: in.String("remote_addr"),
+		TenantHeader: in.String("tenant_header"),
+		Host:         in.String("host"), UserAgent: in.String("user_agent"), RemoteAddr: in.String("remote_addr"),
 	}
 }
 

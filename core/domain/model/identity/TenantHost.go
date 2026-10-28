@@ -12,12 +12,9 @@ import (
 
 // The hosts a workspace answers at.
 //
-// **The model a custom domain needs, and none of the feature.** Today a workspace is reached at the
-// host its slug makes under the installation's own domain, and the resolution still reads the slug.
-// What this type is for is that the *shape* exists before the feature does: a host of its own, a
-// state, something to verify it with, and the one that is canonical. A mail, a redirect and an
-// invitation link have to name one host rather than whichever the request arrived at, and that is
-// what `Canonical` answers.
+// In multi mode a request's host names its workspace only through a serving row, and the canonical
+// row is the workspace's main address (ADR-0095 §1): a mail, a redirect and the provider's return
+// name that one host rather than whichever the request arrived at.
 
 // HostState is how far a host has got.
 //
@@ -84,6 +81,30 @@ func CanonicalHostOf(slug, installationHost string, multi bool) string {
 		return ""
 	}
 	return label + "." + host
+}
+
+// MainHostOf is the workspace's main address among its rows: the canonical one while it serves,
+// empty where there is none (multi-tenancy.md §3.1).
+func MainHostOf(hosts []TenantHost) string {
+	for _, host := range hosts {
+		if host.Canonical && host.State == HostActive {
+			return host.Host
+		}
+	}
+	return ""
+}
+
+// RequestHost is the host a request arrived at, as a `tenant_host` row would hold it: lowercase,
+// without a port or the root's dot. Empty for what names no row - nothing, or an IPv6 literal.
+func RequestHost(raw string) string {
+	host := strings.ToLower(strings.TrimSpace(raw))
+	if strings.HasPrefix(host, "[") {
+		return ""
+	}
+	if at := strings.LastIndexByte(host, ':'); at >= 0 {
+		host = host[:at]
+	}
+	return strings.TrimSuffix(host, ".")
 }
 
 // NewCanonicalHostInput is what writing the derived row needs.

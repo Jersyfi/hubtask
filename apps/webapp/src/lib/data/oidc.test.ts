@@ -129,16 +129,28 @@ test('a return already where it belongs is finished here', () => {
   assert.equal(forwardTo('https://anna.hub.example', anna, '?code=abc&state=xyz'), undefined);
 });
 
-test('a code goes nowhere but a host beneath this one, by the same scheme', () => {
-  for (const stranger of [
-    'https://evil.example',
-    'https://anna.hub.example.evil.test',
-    'https://evilhub.example',
+// identity.md §10.1, ADR-0095 §2: the answer is the workspace's main address, which need not lie
+// beneath the installation's host - and the return goes to exactly that host, nowhere else.
+test('a return goes to exactly the host the answer names, its own domain included', () => {
+  const answers = ['https://tasks.meier.example', 'https://anna.hub.example', 'https://meier.assigned.example:8443'];
+  for (const named of answers) {
+    const target = forwardTo(named, installation, '?code=abc&state=xyz&redirect=https://evil.example');
+    assert.ok(target !== undefined, named);
+    const parsed = new URL(target);
+    assert.equal(parsed.origin, new URL(named).origin, named);
+    assert.equal(parsed.pathname, '/auth/callback', named);
+  }
+});
+
+test('a code goes nowhere by another scheme, with credentials, or to what is no web address', () => {
+  for (const refused of [
     'http://anna.hub.example',
+    'https://user:pass@anna.hub.example',
     'javascript:alert(1)//.hub.example',
+    'data:text/html,hello',
     'not a url',
   ]) {
-    assert.equal(forwardTo(stranger, installation, '?code=abc&state=xyz'), undefined, stranger);
+    assert.equal(forwardTo(refused, installation, '?code=abc&state=xyz'), undefined, refused);
   }
 });
 

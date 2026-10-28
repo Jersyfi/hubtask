@@ -11,6 +11,11 @@
 -- name: ResolveTenant :one
 SELECT resolve_tenant(sqlc.narg('slug'))::uuid AS tenant_id;
 
+-- name: ResolveTenantHost :one
+-- A request's host names its workspace in multi mode (ADR-0095 §1): one identifier or none, through
+-- the SECURITY DEFINER function of migration 0207.
+SELECT resolve_tenant_host(sqlc.arg('host')::text)::uuid AS tenant_id;
+
 -- ============================== Sign-in ==============================
 
 -- name: FindAccountForSignIn :one

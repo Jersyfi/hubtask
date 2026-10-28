@@ -9807,11 +9807,11 @@ type OidcLocate struct {
 
 // OidcLocated defines model for OidcLocated.
 type OidcLocated struct {
-	// BaseUrl The workspace's own address - its subdomain of this installation in multi-tenant operation - where the return is finished at `/auth/callback`.
+	// BaseUrl The workspace's main address in multi-tenant operation - a subdomain of this installation, a host the operator assigned or the workspace's own domain - where the return is finished at `/auth/callback`.
 	BaseUrl string `json:"base_url"`
 }
 
-// OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from the subdomain or the tenant header, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
+// OidcStart What a sign-in through the identity provider needs to begin, which is almost nothing: the workspace comes from its address, or the tenant header at the installation's own address, and the redirect URI is this installation's own. A caller with nothing to add may omit the body entirely.
 type OidcStart struct {
 	// ConnectToken The token of the link *Forgot your password?* mails where the workspace switched the password off - to connect the workspace's provider to an existing account. It is checked here - a standing link of this workspace, its account active and connected to no provider switched on here, the password still off - and **not spent**: the flow remembers which link it carries, the provider is asked for a **fresh** sign-in (`prompt=login`, `max_age=0`), and only an arrival that connects the provider spends it. An unknown, expired, spent or foreign link is refused with `auth.reset_failed`, the reset link's one sentence. It is not sent beside `invitation_token`, and it never travels to the provider.
 	ConnectToken *string `json:"connect_token,omitempty"`

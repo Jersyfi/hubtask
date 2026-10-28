@@ -126,7 +126,7 @@ func TestAWorkspacesTermsVersionGoesWithItsOwnLink(t *testing.T) {
 func TestTheSignInRulesAnswerTheTermsInForce(t *testing.T) {
 	handler, workspace, instance := newRulesFixture()
 
-	none, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	none, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestTheSignInRulesAnswerTheTermsInForce(t *testing.T) {
 	instance.level.Legal = domain.LegalLayer{
 		Links: domain.LegalLinks{TermsURL: "https://host.example/terms", TermsVersion: "3"},
 	}
-	byInstallation, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	byInstallation, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}
@@ -147,7 +147,7 @@ func TestTheSignInRulesAnswerTheTermsInForce(t *testing.T) {
 	}
 
 	workspace.row.Settings.Legal = domain.LegalLinks{TermsURL: "https://acme.example/terms"}
-	byWorkspace, err := handler.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	byWorkspace, err := handler.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("refused: %v", err)
 	}

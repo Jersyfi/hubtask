@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"maps"
+	"strings"
 	"testing"
 	"time"
 
@@ -506,5 +507,73 @@ func TestTheWeekStartsWhereTheAccountTheWorkspaceOrItsLocaleSays(t *testing.T) {
 				t.Errorf("week starts %q, want %q", actor.WeekStart, tc.want)
 			}
 		})
+	}
+}
+
+// hostsNaming answers the workspace each host's serving row names.
+type hostsNaming map[string]shared.ID
+
+func (h hostsNaming) Resolve(context.Context, string) (shared.ID, error) {
+	return "", shared.ErrNotFound
+}
+
+func (h hostsNaming) ResolveHost(_ context.Context, host string) (shared.ID, error) {
+	if id, ok := h[host]; ok {
+		return id, nil
+	}
+	return "", shared.ErrNotFound.WithDetail("auth.tenant_unresolved")
+}
+
+// multi-tenancy.md §3, T-28: the credential binds the workspace; its serving row or the
+// installation's own host confirms it. Another workspace's host is refused, and so is a host no
+// row serves - a dangling domain or a forged Host header.
+func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) {
+	other := shared.ID("01936f2a-7c1e-7000-8000-0000000000ff")
+	cases := []struct {
+		name, host string
+		refused    bool
+	}{
+		{"its own main address, port and case aside", "Tasks.Acme.Example:443", false},
+		{"the installation's own host", "hub.example", false},
+		{"an address no workspace has", "gone.hub.example", true},
+		{"another workspace's address", "other.hub.example", true},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			raw, credential := mintCredential(t)
+			handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+			handler.Hosts = hostsNaming{"tasks.acme.example": tenant, "other.hub.example": other}
+			handler.InstallationHost = "hub.example"
+
+			_, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+				Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC", Host: c.host,
+			})
+			if c.refused {
+				if !errors.Is(err, shared.ErrForbidden) || !strings.Contains(err.Error(), "access.tenant_mismatch") {
+					t.Errorf("answered %v, want tenant_mismatch", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("refused: %v", err)
+			}
+		})
+	}
+}
+
+// Without an installation address an unserved host refuses nothing, as before any host was read;
+// another workspace's served host is still refused.
+func TestWithoutAnAddressOnlyAnotherWorkspacesHostIsRefused(t *testing.T) {
+	other := shared.ID("01936f2a-7c1e-7000-8000-0000000000ff")
+	for host, refused := range map[string]bool{"127.0.0.1:8080": false, "other.hub.example": true} {
+		raw, credential := mintCredential(t)
+		handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+		handler.Hosts = hostsNaming{"other.hub.example": other}
+		_, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+			Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC", Host: host,
+		})
+		if (err != nil) != refused {
+			t.Errorf("at %s: %v, want refused %t", host, err, refused)
+		}
 	}
 }

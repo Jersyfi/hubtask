@@ -250,7 +250,6 @@ func passwordRulesView(resolved ResolvedPolicy, withAccount bool) PasswordRulesV
 // arrived at, because that is what the screen shows and what the workspace is resolved from.
 type GetSignInRulesCommand struct {
 	Host         string
-	TenantSlug   string
 	TenantHeader string
 	// HasAccount is whether the caller is somebody with a password already. It decides two lines
 	// and nothing else: the history depth and "not the one you have now" are answered to a reader
@@ -274,8 +273,10 @@ type GetSignInRules struct {
 	// come is not a button (ADR-0076 §2). Nil reads every announced withdrawal as still ahead.
 	Clock clock.Clock
 	// Multi is tenant resolution's mode switch (multi-tenancy.md §3), SessionWriter's: in single
-	// mode there is one workspace and no subdomain to read.
+	// mode there is one workspace and no host to read.
 	Multi bool
+	// InstallationHost is the installation's own host: the one host where the header speaks.
+	InstallationHost string
 	// Party is the workspace's relying party for passkeys. Nil offers no passkey: the card would
 	// draw a button whose ceremony no browser can finish.
 	Party *PasskeyParty
@@ -293,7 +294,7 @@ func (h GetSignInRules) now() time.Time {
 func (h GetSignInRules) Execute(
 	ctx context.Context, cmd GetSignInRulesCommand,
 ) (SignInRules, error) {
-	tenantID := h.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
+	tenantID := h.resolveTenant(ctx, cmd.Host, cmd.TenantHeader)
 
 	resolved, err := h.Resolver.Resolve(ctx, tenantID)
 	if err != nil {
@@ -365,31 +366,8 @@ func (h GetSignInRules) hasSignInNames(ctx context.Context, tenantID shared.ID) 
 // resolveTenant is SessionWriter.resolveTenant without its refusals: a host nobody answers at is
 // the zero tenant, which resolves to the installation's own level rather than to a 404 that would
 // tell a probe which hosts hold workspaces.
-func (h GetSignInRules) resolveTenant(ctx context.Context, slug, header string) shared.ID {
-	lookup := slug
-	if !h.Multi {
-		lookup = ""
-	} else if slug == "" {
-		if header == "" {
-			return ""
-		}
-		id, err := shared.ParseID(header)
-		if err != nil {
-			return ""
-		}
-		return id
-	}
-
-	var tenantID shared.ID
-	err := h.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			id, err := h.Tenants.Resolve(ctx, lookup)
-			if err != nil {
-				return err
-			}
-			tenantID = id
-			return nil
-		})
+func (h GetSignInRules) resolveTenant(ctx context.Context, host, header string) shared.ID {
+	tenantID, err := requestTenant(ctx, h.UnitOfWork, h.Tenants, h.Multi, h.InstallationHost, host, header)
 	if err != nil {
 		return ""
 	}
@@ -536,11 +514,7 @@ func (h GetSignInRules) Descriptor() usecase.Descriptor {
 		Input: []usecase.Field{
 			{
 				Name: "host", Kind: usecase.KindString,
-				Description: "The host the request arrived at, shown on the card.",
-			},
-			{
-				Name: "tenant_slug", Kind: usecase.KindString,
-				Description: "The subdomain the request arrived under, in multi mode.",
+				Description: "The host the request arrived at, shown on the card; in multi mode it names the workspace.",
 			},
 			{
 				Name: "tenant_header", Kind: usecase.KindString,
@@ -564,7 +538,6 @@ func (h GetSignInRules) invoke(
 ) (usecase.Output, error) {
 	rules, err := h.Execute(ctx, GetSignInRulesCommand{
 		Host:         in.String("host"),
-		TenantSlug:   in.String("tenant_slug"),
 		TenantHeader: in.String("tenant_header"),
 		// The route is public, and a caller who *is* signed in is still the caller: the profile's
 		// password field reads this very answer, and it needs the two lines a signed-out visitor

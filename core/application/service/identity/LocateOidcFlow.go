@@ -24,13 +24,16 @@ const LocateOidcFlowName = "LocateOidcFlow"
 // A provider returns to the installation's one registered address. In multi-tenant operation that
 // is the installation's own host, while the flow began on a workspace's host - where the session
 // that started a connection or a step-up lives, and the browser's marks of which return this is.
-// So the return is finished there: this answers the workspace's own address, built from the
-// workspace the state names and the configured base, never from anything the request says, and
-// spends nothing. Only a live flow is located; anything else is one refusal, which names no
+// So the return is finished there: this answers the workspace's main address - its main
+// `tenant_host` row under the configured scheme and port (ADR-0095 §2) - for the workspace the state
+// names, never from anything the request says, and spends nothing. Only a live flow is located; anything else is one refusal, which names no
 // workspace.
 type LocateOidcFlow struct {
 	Flows      repository.OidcFlows
 	Workspaces WorkspaceSlug
+	// Hosts holds the workspace's main address. Nil, or a workspace without a serving main row,
+	// answers the subdomain its short name makes.
+	Hosts      repository.TenantHosts
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
 	// BaseURL and Multi are the installation's address and whether each workspace is its own
@@ -67,15 +70,25 @@ func (h LocateOidcFlow) Execute(ctx context.Context, presented string) (string, 
 			if !live {
 				return oidcFlowNotFound()
 			}
-			slug := ""
-			if h.Multi {
-				workspace, err := h.Workspaces.Find(ctx)
+			if !h.Multi {
+				base = domain.WorkspaceBase(h.BaseURL, "", false)
+				return nil
+			}
+			if h.Hosts != nil {
+				hosts, err := h.Hosts.List(ctx)
 				if err != nil {
 					return err
 				}
-				slug = workspace.Slug
+				if main := domain.MainHostOf(hosts); main != "" {
+					base = domain.WorkspaceBaseAt(h.BaseURL, main)
+					return nil
+				}
 			}
-			base = domain.WorkspaceBase(h.BaseURL, slug, h.Multi)
+			workspace, err := h.Workspaces.Find(ctx)
+			if err != nil {
+				return err
+			}
+			base = domain.WorkspaceBase(h.BaseURL, workspace.Slug, true)
 			return nil
 		})
 	if errors.Is(err, shared.ErrNotFound) {

@@ -34,7 +34,6 @@ func (c *RestController) GetSignInRules(w http.ResponseWriter, r *http.Request) 
 
 	out, err := c.UseCases.Invoke(r.Context(), getSignInRulesUseCase, actorOf(r), usecase.Input{
 		"host":          r.Host,
-		"tenant_slug":   c.tenantSlug(r),
 		"tenant_header": r.Header.Get(TenantHeader),
 	})
 	if err != nil {
@@ -249,7 +248,7 @@ func (c *RestController) ForgetPassword(w http.ResponseWriter, r *http.Request) 
 	if _, err := c.UseCases.Invoke(
 		r.Context(), forgetPasswordUseCase, actorOf(r), usecase.Input{
 			"email":         string(body.Email),
-			"tenant_slug":   c.tenantSlug(r),
+			"host":          r.Host,
 			"tenant_header": r.Header.Get(TenantHeader),
 		}); err != nil {
 		WriteProblem(w, err, requestID)

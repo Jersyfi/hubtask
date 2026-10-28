@@ -5,7 +5,6 @@ package rest
 
 import (
 	"context"
-	"net"
 	"net/http"
 	"strings"
 
@@ -167,10 +166,6 @@ type Authenticated struct {
 	Authenticator TokenAuthenticator
 	// Locale carries the installation defaults, the last link of the resolution chain.
 	Locale env.LocaleConfig
-	// BaseHost is the installation's own host name, for reading a tenant subdomain off the
-	// request (multi-tenancy.md §3). Empty means no subdomain is ever read - single mode, or an
-	// installation that did not state its base URL.
-	BaseHost string
 }
 
 // OwnCredentialRoutes carry a credential in the Authorization header that is not an account's -
@@ -227,6 +222,9 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		RequestedLocale:  requestedLocaleFrom(r.Context()),
 		FallbackLocale:   a.Locale.DefaultLocale,
 		FallbackTimeZone: a.Locale.DefaultTimeZone,
+		// The host as it arrived: the use case asks whether it names another workspace than the
+		// credential (multi-tenancy.md §3).
+		Host: r.Host,
 	})
 	if err != nil {
 		if BasicRoutes[route] {
@@ -237,13 +235,9 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The subdomain and the header are §3's weaker sources of tenant resolution: either may
-	// confirm the token's claim, never overrule it - a contradiction is answered with the code
-	// the table names, not resolved in anybody's favour (multi-tenancy.md §3).
-	if label := tenantLabel(r.Host, a.BaseHost); label != "" && label != actor.TenantSlug {
-		WriteProblem(w, shared.ErrForbidden.WithDetail("access.tenant_mismatch"), requestID)
-		return
-	}
+	// The header is §3's weaker source beside the host: it may confirm the token's claim, never
+	// overrule it - a contradiction is answered with the code the table names, not resolved in
+	// anybody's favour (multi-tenancy.md §3). The host is the use case's question.
 	if claimed := r.Header.Get(TenantHeader); claimed != "" &&
 		claimed != actor.TenantID.String() && claimed != actor.TenantSlug {
 		WriteProblem(w, shared.ErrForbidden.WithDetail("access.tenant_mismatch"), requestID)
@@ -263,22 +257,6 @@ func (a Authenticated) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.Next.ServeHTTP(w, r.WithContext(ctx))
-}
-
-// tenantLabel reads the subdomain off a request host, when this installation knows its own.
-// One label and no more: a nested subdomain names nothing here.
-func tenantLabel(host, baseHost string) string {
-	if baseHost == "" {
-		return ""
-	}
-	if split, _, err := net.SplitHostPort(host); err == nil {
-		host = split
-	}
-	label, found := strings.CutSuffix(strings.ToLower(host), "."+baseHost)
-	if !found || label == "" || strings.Contains(label, ".") {
-		return ""
-	}
-	return label
 }
 
 // bearerCredential reads the Authorization header. An absent header is not an error - that is an

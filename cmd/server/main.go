@@ -512,6 +512,8 @@ func run() error {
 		UnitOfWork: unitOfWork, Clock: clockadapter.System{}, IDs: ids,
 		Entropy: clockadapter.CryptoRandom{},
 		Multi:   cfg.Tenancy == envport.TenancyMulti,
+		// Where the header may name a workspace (multi-tenancy.md §3).
+		InstallationHost: baseHostOf(cfg.BaseURL),
 		// The second factor: the sealed enrolment, the codes, the pending credential,
 		// and the tenant's enforcement switch.
 		Enrollments: mfaStore, Recovery: mfaStore, Pending: mfaStore, Policy: mfaStore,
@@ -1841,7 +1843,8 @@ func run() error {
 		}.Descriptor(),
 		identity.GetSignInRules{
 			Resolver: signInPolicyResolver, Tenants: signInStore,
-			Providers: postgres.NewIdentityProviderRepository(),
+			InstallationHost: baseHostOf(cfg.BaseURL),
+			Providers:        postgres.NewIdentityProviderRepository(),
 			// Which of the installation's providers this workspace took: an offered one is not a
 			// button until somebody here switched it on.
 			Workspaces: postgres.NewWorkspaceSettingsRepository(),
@@ -2012,8 +2015,9 @@ func run() error {
 		// operation, where the flow began (multi-tenancy.md §3).
 		identity.LocateOidcFlow{
 			Flows:      postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
-			Workspaces: postgres.NewWorkspaceSettingsRepository(), UnitOfWork: unitOfWork,
-			Clock: clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
+			Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+			UnitOfWork: unitOfWork,
+			Clock:      clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
 		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
@@ -2759,12 +2763,6 @@ func run() error {
 		// The address a calendar client is handed. Configured rather than taken from the
 		// request's Host, so that one caller cannot decide what the next person's client stores.
 		controller.BaseURL = cfg.BaseURL
-		// The host alone, for reading a tenant subdomain off a multi-mode sign-in
-		// (multi-tenancy.md §3). An unreadable base URL means no subdomain is ever read, which
-		// fails closed into "no workspace answers here" rather than into a guess.
-		if parsed, urlErr := url.Parse(cfg.BaseURL); urlErr == nil {
-			controller.BaseHost = strings.ToLower(parsed.Hostname())
-		}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		controller.CalendarFeeds = work.ReadCalendarFeed{
@@ -3010,6 +3008,12 @@ func run() error {
 			// minted last month by somebody since removed stops reaching the control plane.
 			Operators: postgres.NewOperatorRepository(),
 		}
+		// In multi mode a host that names another workspace than the credential is refused
+		// (multi-tenancy.md §3); single mode reads no host.
+		if cfg.Tenancy == envport.TenancyMulti {
+			authenticate.Hosts = signInStore
+			authenticate.InstallationHost = baseHostOf(cfg.BaseURL)
+		}
 
 		// Alexa's endpoint (ADR-0093): Amazon's signature checked, the linked account's token
 		// authenticated as every other bearer is, the sentence done through the catalogue.
@@ -3147,9 +3151,6 @@ func run() error {
 												Routes:        apiRoutes,
 												Authenticator: authenticate,
 												Locale:        cfg.Locale,
-												// The subdomain check of multi-tenancy.md §3;
-												// the controller reads its host the same way.
-												BaseHost: controller.BaseHost,
 												Next: rest.Limited{
 													// The workspace's own per-token ceiling,
 													// engaging only where one is configured.
@@ -4049,6 +4050,14 @@ func run() error {
 	// installation brought up from a file has them from its first minute. A failure is logged and
 	// the scheduler tries again.
 	applyOperatorsFromEnvironment(ctx, operatorsFromEnvironment)
+
+	// Every workspace's main address, before the first request: a request's host names its
+	// workspace only through a row, and a workspace older than its row has none (ADR-0095 §1).
+	if cfg.Tenancy == envport.TenancyMulti {
+		ensureMainHosts(ctx, identity.EnsureMainHosts{
+			Hosts: postgres.NewTenantHostRepository(), UnitOfWork: unitOfWork, BaseHost: installationHost,
+		})
+	}
 
 	// The first start (UC-INS-01): a process that serves the API, on an installation with no
 	// workspace and nobody in its register, prints a one-time setup code. After the instance file,

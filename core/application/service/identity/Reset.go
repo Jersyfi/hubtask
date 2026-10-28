@@ -49,9 +49,9 @@ const PasswordResetRequestedAction audit.Action = "auth.password_reset_requested
 // ForgetPasswordCommand is what the public route received.
 type ForgetPasswordCommand struct {
 	Email string
-	// TenantSlug and TenantHeader resolve the workspace, sign-in's way: an address is per
-	// workspace, so there is nothing to look up until one is known.
-	TenantSlug   string
+	// Host and TenantHeader resolve the workspace, sign-in's way: an address is per workspace, so
+	// there is nothing to look up until one is known.
+	Host         string
 	TenantHeader string
 }
 
@@ -86,7 +86,7 @@ func (h ForgetPassword) Execute(ctx context.Context, cmd ForgetPasswordCommand) 
 	if h.Writer.Session.Signals != nil {
 		h.Writer.Session.Signals.PasswordResetRequested(ctx)
 	}
-	tenantID, err := h.resolveTenant(ctx, cmd.TenantSlug, cmd.TenantHeader)
+	tenantID, err := h.resolveTenant(ctx, cmd.Host, cmd.TenantHeader)
 	if err != nil || tenantID.IsZero() {
 		// No workspace answers here. The same silence, for the same reason.
 		return nil //nolint:nilerr // the answer is the same whatever went wrong behind it (T-02)
@@ -253,25 +253,8 @@ func recordResetRequest(
 	})
 }
 
-func (h ForgetPassword) resolveTenant(ctx context.Context, slug, header string) (shared.ID, error) {
-	lookup := slug
-	if !h.Multi {
-		lookup = ""
-	} else if slug == "" {
-		if header == "" {
-			return "", nil
-		}
-		return shared.ParseID(header)
-	}
-
-	var tenantID shared.ID
-	err := h.Writer.UnitOfWork.WithinReadOnly(ctx, persistence.InstallationScope(),
-		func(ctx context.Context) error {
-			id, err := h.Tenants.Resolve(ctx, lookup)
-			tenantID = id
-			return err
-		})
-	return tenantID, err
+func (h ForgetPassword) resolveTenant(ctx context.Context, host, header string) (shared.ID, error) {
+	return requestTenant(ctx, h.Writer.UnitOfWork, h.Tenants, h.Multi, h.Writer.Session.InstallationHost, host, header)
 }
 
 // Descriptor is the catalogue entry.
@@ -291,8 +274,8 @@ func (h ForgetPassword) Descriptor() usecase.Descriptor {
 				Description: "The address to send the link to, if it holds an account.",
 			},
 			{
-				Name: "tenant_slug", Kind: usecase.KindString,
-				Description: "The subdomain the request arrived under, in multi mode.",
+				Name: "host", Kind: usecase.KindString,
+				Description: "The host the request arrived at, which names the workspace in multi mode.",
 			},
 			{
 				Name: "tenant_header", Kind: usecase.KindString,
@@ -318,7 +301,7 @@ func (h ForgetPassword) invoke(
 ) (usecase.Output, error) {
 	if err := h.Execute(ctx, ForgetPasswordCommand{
 		Email:        in.String("email"),
-		TenantSlug:   in.String("tenant_slug"),
+		Host:         in.String("host"),
 		TenantHeader: in.String("tenant_header"),
 	}); err != nil {
 		return nil, err

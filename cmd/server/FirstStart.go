@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net/url"
 	"os"
 	"strings"
 	"time"
@@ -94,4 +95,25 @@ func applyOperatorsFromEnvironment(ctx context.Context, applying adminservice.Op
 		slog.InfoContext(ctx, "operators named in the environment wait for their account",
 			slog.Int("count", len(waiting)))
 	}
+}
+
+// ensureMainHosts gives every workspace without a main address its row. A failure is logged and
+// the next start tries again; until then such a workspace answers through the header only.
+func ensureMainHosts(ctx context.Context, ensuring identity.EnsureMainHosts) {
+	ctx, cancel := context.WithTimeout(ctx, firstStartTimeout)
+	defer cancel()
+	if _, err := ensuring.Apply(ctx); err != nil {
+		slog.ErrorContext(ctx, "the workspaces' main addresses could not be written",
+			slog.String("error", err.Error()))
+	}
+}
+
+// baseHostOf is the installation's own host, read off its address; empty where it cannot be read,
+// and then no host is the installation's.
+func baseHostOf(baseURL string) string {
+	parsed, err := url.Parse(baseURL)
+	if err != nil {
+		return ""
+	}
+	return parsed.Hostname()
 }

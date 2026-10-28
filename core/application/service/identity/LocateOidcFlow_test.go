@@ -114,3 +114,24 @@ func TestAWorkspaceGoneIsTheSameNotFound(t *testing.T) {
 		t.Errorf("err %v, want the one not-found", err)
 	}
 }
+
+// UC-INS-19 check 10, the answer's half: the return goes to the workspace's main address, the
+// serving canonical row, even where it is not the subdomain the short name makes (ADR-0095 §2).
+func TestAFlowIsLocatedAtItsWorkspacesMainRow(t *testing.T) {
+	at := time.Date(2026, 9, 1, 10, 0, 0, 0, time.UTC)
+	f := newOidcFixture(t, at)
+	state := start(t, f)
+	locate := locator(f, at.Add(time.Minute))
+	locate.Hosts = tenantHostsFake{hosts: []domain.TenantHost{
+		{Host: "anna.hub.example", State: domain.HostActive},
+		{Host: "tasks.anna.example", State: domain.HostActive, Canonical: true},
+	}}
+
+	base, err := locate.Execute(t.Context(), state.Reveal())
+	if err != nil {
+		t.Fatalf("locating: %v", err)
+	}
+	if base != "https://tasks.anna.example" {
+		t.Errorf("base %q, want the main row's host", base)
+	}
+}

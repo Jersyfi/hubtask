@@ -78,8 +78,11 @@ reads across tenants. Each is narrow by construction and granted to `hubtask_app
 
 | Function | Answers | Used by |
 |---|---|---|
-| `resolve_tenant(slug)` | One tenant identifier or none — never a list | Sign-in before a credential exists (§3) |
+| `resolve_tenant(slug)` | One tenant identifier or none — never a list | Single mode's sign-in before a credential exists (§3), with no slug |
+| `resolve_tenant_host(host)` | One tenant identifier or none — only a serving row of a live workspace, never a list | Multi mode: every door before a credential exists, and the host check of an authenticated request (§3) |
+| `ensure_main_hosts(base)` | The number of main rows it wrote — never a row or a name | A multi-mode server's start, for every live workspace without a main address (§3.1) |
 | `resolve_mail_address(code)` | One tenant identifier or none — never a list, nothing about the place | The receiving domain's inbound route before it has a tenant ([ADR-0092](../adr/ADR-0092-mail-addresses-for-every-place.md)) |
+| `resolve_mail_workspace(name)`, `mail_workspace_name_taken(name, self)` | One tenant identifier or none; whether another workspace holds a name - never a list | An address on the operator's mail domain before it has a tenant, and choosing that name ([ADR-0094](../adr/ADR-0094-one-mail-intake-routed-by-handles-and-ticket-keys.md)) |
 | `admin_tenants()` | The list of tenants | The control plane behind `admin:tenants` (§4.1) |
 | `admin_tenants_query(filters, after, size)` | One page of tenants matching the filters | The control plane: finding a workspace and reconciling a platform's records (§4.3) |
 | `instance_census()` | Five counts, no rows | The instance overview |
@@ -169,20 +172,31 @@ rights, so a single-column key would let a row in tenant A point at a row in ten
 **Accounts are per tenant** (`account_email_uq` is `(tenant_id, lower(email))`), so a sign-in
 resolves its tenant **before any credential is checked**.
 
-**Signing in (no credential yet)** — `SessionWriter.resolveTenant`:
+**Signing in (no credential yet)** — `SessionWriter.resolveTenant`, and every other door before a
+credential (the reset request, the sign-in card, a passkey's and a provider's sign-in):
 
 | Mode | Source, in order | Nothing resolves |
 |---|---|---|
-| Single | The one row (`resolve_tenant(NULL)`); the subdomain is ignored | — |
-| Multi | 1. The subdomain under the base host (`resolve_tenant(slug)`) · 2. the `X-Hubtask-Tenant` header (a workspace identifier) | `404 auth.tenant_unresolved` |
+| Single | The one row (`resolve_tenant(NULL)`); the host is ignored | — |
+| Multi | 1. The request's host, through its serving `tenant_host` row (`resolve_tenant_host(host)`) · 2. only at the installation's own host: the `X-Hubtask-Tenant` header (a workspace identifier) | `404 auth.tenant_unresolved` |
+
+The header is a second source only at the installation's own host, where API clients, `hubctl`
+and the operator area talk. A host that is neither the installation's own nor served by an `ACTIVE`
+row - a host nobody claimed, a dangling domain, an old address - names nothing and is
+`404 auth.tenant_unresolved`, with a header or without (T-28). An installation that did not state its
+address (`config.base_url_missing`) has no own host to tell apart: there a host no row serves is
+read as the installation's own, as before any host was read.
 
 **An authenticated request** — the credential binds the tenant: a session's or token's claim, a
 personal access token's or service account's account.
 
-In both cases the weaker sources **may confirm the tenant and never overrule it**. A header (or, on
-an authenticated request, a subdomain) that names another tenant is refused with
-`403 access.tenant_mismatch`. On an authenticated request the header may carry the identifier or
-the slug. A path prefix is deliberately not used.
+In both cases the weaker sources **may confirm the tenant and never overrule it**. A header that
+names another workspace than the host is refused with `403 access.tenant_mismatch`. On an
+authenticated request the use case asks the host's row in the credential's own transaction: only
+the installation's own host or the workspace's serving row passes; another workspace's host, and a
+host no row serves, is `403 access.tenant_mismatch`. On an
+authenticated request the header may carry the identifier or the slug. A path prefix is
+deliberately not used.
 
 ### 3.1 A workspace's address
 
@@ -191,7 +205,8 @@ the slug. A path prefix is deliberately not used.
 [ADR-0095](../adr/ADR-0095-a-workspaces-address-resolves-through-its-hosts.md); the market research
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
-Built so far: the reserved short names.
+Built so far: the reserved short names, and the resolution through `tenant_host` with the
+provider's return to the main address (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -239,7 +254,10 @@ Never a path prefix, and never a root-domain workspace beside subdomain workspac
 **How it resolves** (ADR-0095). In multi mode `tenant_host` names a request's workspace: every
 workspace has rows, exactly one of them its main address, and every address Hubtask writes - a
 mail's link, the provider's return, the passkey's RP ID, the sign-in card - comes from that row,
-never from the short name. A change of address replaces the main row and drops the old one in one
+never from the short name. A workspace provisioned in multi mode gets its main row then; one older
+than its row gets it from `ensure_main_hosts` at the next start of a multi-mode server, because
+only the server knows the installation's host and the migrator does not. *Built:* the resolution,
+the provider's return and the passkey's RP ID; the mails and links are CD-03's. A change of address replaces the main row and drops the old one in one
 transaction. An own domain is a row proven by a TXT record carrying its mark and re-proven by a job;
 an assigned host is a row the operator writes without a proof, in an installation set to
 `HUBTASK_WORKSPACE_HOSTS=assigned`. The installation's settings hold whether owners may change the

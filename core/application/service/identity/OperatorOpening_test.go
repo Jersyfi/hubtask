@@ -67,7 +67,7 @@ func TestAnOperatorsOpeningOverridesTheWorkspacesSwitch(t *testing.T) {
 	}
 	// The card offers the password first, and keeps the provider's button beside it: the provider is
 	// on, and the operator cannot tell from here whether it has come back.
-	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{TenantSlug: "acme"})
+	rules, err := f.card.Execute(t.Context(), GetSignInRulesCommand{Host: "acme.hubtask.example"})
 	if err != nil {
 		t.Fatalf("reading the card: %v", err)
 	}

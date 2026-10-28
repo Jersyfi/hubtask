@@ -101,10 +101,11 @@ refusal at the field; UC-INS-07 back to `built` with its *Today* gone.
 
 **Use cases:** UC-INS-19 (10)
 
-An expand migration gives every workspace of a multi-mode installation its main row where it has
-none (the subdomain, `ACTIVE`, with a mark), and adds a narrow `SECURITY DEFINER` lookup that
-answers one workspace or none for a host, entered in multi-tenancy.md §2.1's doors table and the
-restore drill's list. `SessionWriter.resolveTenant`, the auth middleware's mismatch check and every
+An expand migration adds a narrow `SECURITY DEFINER` lookup that answers one workspace or none for
+a host, and a door through which a multi-mode server's start gives every workspace its main row
+where it has none (the subdomain, `ACTIVE`, with a mark) - the migrator does not know the
+installation's host; both are entered in multi-tenancy.md §2.1's doors table (the restore drill's
+list holds tables without row level security, and `tenant_host` keeps its own). `SessionWriter.resolveTenant`, the auth middleware's mismatch check and every
 anonymous door resolve through it; the header stays the second source, and a host that names
 another workspace than the credential stays `403 access.tenant_mismatch`. `oidc:locate` answers the
 workspace's main address from the row, and the web app forwards to exactly the host the answer

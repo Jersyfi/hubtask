@@ -590,10 +590,10 @@ CREATE TABLE oauth_code (
 );
 CREATE UNIQUE INDEX oauth_code_hash_uq ON oauth_code (code_hash);
 
--- The hosts a workspace answers at (migration 0104). The model custom domains need, without
--- the feature: nothing resolves through this table - `resolve_tenant` reads the slug - and what it
--- buys is that custom domains need no column on the table every request touches. The canonical row is derived from the slug under the installation's own domain
--- and is verified by construction; the verification mark of any other row is published in a DNS
+-- The hosts a workspace answers at (migration 0104). In multi mode a request's host names its
+-- workspace through this table (`resolve_tenant_host`, migration 0207), and the canonical row is the
+-- workspace's main address. The subdomain row is derived from the slug under the installation's own
+-- domain and is verified by construction; the verification mark of any other row is published in a DNS
 -- record, which is why it is the one presented value here that is not a digest.
 CREATE TABLE tenant_host (
   tenant_id    uuid NOT NULL REFERENCES tenant(id) ON DELETE CASCADE,
@@ -3610,6 +3610,57 @@ $$;
 
 REVOKE ALL ON FUNCTION resolve_tenant(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION resolve_tenant(text) TO hubtask_app;
+
+-- In multi mode a request's host names its workspace (migration 0207, ADR-0095 §1): one identifier
+-- or none, and only a serving row of a live workspace. The owner reads and writes `tenant_host`
+-- across workspaces by the standing policies `doors_read` and `doors_write`.
+DO $owner$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_read') THEN
+    CREATE POLICY doors_read ON tenant_host FOR SELECT TO CURRENT_USER USING (true);
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE tablename = 'tenant_host' AND policyname = 'doors_write') THEN
+    CREATE POLICY doors_write ON tenant_host FOR INSERT TO CURRENT_USER WITH CHECK (true);
+  END IF;
+END $owner$;
+
+CREATE OR REPLACE FUNCTION resolve_tenant_host(request_host text) RETURNS uuid
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT h.tenant_id FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND h.state = 'ACTIVE'
+    AND t.deleted_at IS NULL
+  LIMIT 1
+$$;
+REVOKE ALL ON FUNCTION resolve_tenant_host(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION resolve_tenant_host(text) TO hubtask_app;
+
+-- The main row of every live workspace that has none, under the base host a multi-mode server
+-- names at its start: the migrator does not know the installation's host. A count, never a row.
+CREATE OR REPLACE FUNCTION ensure_main_hosts(base_host text) RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER VOLATILE SET search_path = public, pg_temp AS $$
+DECLARE
+  base    text := lower(rtrim(coalesce(base_host, ''), '.'));
+  written integer;
+BEGIN
+  IF base = '' OR position('.' in base) = 1 THEN
+    RETURN 0;
+  END IF;
+  INSERT INTO tenant_host (tenant_id, host, state, verification, verified_at, is_canonical, created_at)
+  SELECT t.id, lower(t.slug) || '.' || base, 'ACTIVE',
+         'hbt-dv-' || replace(gen_random_uuid()::text, '-', ''), now(), true, now()
+  FROM tenant t
+  WHERE t.deleted_at IS NULL
+    AND length(lower(t.slug) || '.' || base) BETWEEN 4 AND 253
+    AND NOT EXISTS (SELECT 1 FROM tenant_host h WHERE h.tenant_id = t.id AND h.is_canonical)
+  ON CONFLICT DO NOTHING;
+  GET DIAGNOSTICS written = ROW_COUNT;
+  RETURN written;
+END
+$$;
+REVOKE ALL ON FUNCTION ensure_main_hosts(text) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION ensure_main_hosts(text) TO hubtask_app;
 
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's
 -- account by address, nothing when there is not exactly one workspace.

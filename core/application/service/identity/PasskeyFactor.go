@@ -59,11 +59,8 @@ func (p PasskeyParty) of(ctx context.Context) (relyingParty, bool, error) {
 		if err != nil {
 			return relyingParty{}, false, err
 		}
-		for _, candidate := range hosts {
-			if candidate.Canonical && candidate.State == domain.HostActive {
-				host = candidate.Host
-				break
-			}
+		if main := domain.MainHostOf(hosts); main != "" {
+			host = main
 		}
 	}
 	if host != "" && p.Domains != nil {
