@@ -96,8 +96,18 @@ func (WorkspaceAddressRepository) ChangeAddress(
 		return "", shared.ErrUnavailable.WithDetail("postgres.query_failed").
 			WithCause(fmt.Errorf("dropping the main host: %w", err))
 	}
+	// After the drop, which asks whether an own domain is main, and before the insert, which the
+	// one-main index would otherwise refuse.
+	demoted, err := queries.DemoteOwnDomain(ctx)
+	if err != nil {
+		return "", shared.ErrUnavailable.WithDetail("postgres.query_failed").
+			WithCause(fmt.Errorf("demoting the own domain: %w", err))
+	}
 	if err := (TenantHostRepository{}).Insert(ctx, host); err != nil {
 		return "", err
+	}
+	if len(demoted) > 0 {
+		return demoted[0], nil
 	}
 	if len(dropped) == 0 {
 		return "", nil

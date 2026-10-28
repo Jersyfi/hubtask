@@ -118,7 +118,7 @@ func (d OwnDomains) authorizeOwner(
 
 func (d OwnDomains) trail(
 	ctx context.Context, tenantID shared.ID, actor appshared.ActorContext, action audit.Action,
-	severity audit.Severity, change audit.Change, now time.Time,
+	severity audit.Severity, change audit.Change, now time.Time, more ...audit.Change,
 ) error {
 	kind, id, label := actor.Kind, actor.AccountID, actor.AccountName
 	if kind == "" {
@@ -130,7 +130,7 @@ func (d OwnDomains) trail(
 		ActorKind: kind, ActorID: id, ActorLabel: label,
 		TargetType: tenantTarget, TargetID: tenantID,
 		Context: audit.Context{RequestID: correlation.RequestIDFrom(ctx)},
-		Changes: audit.Changes(change),
+		Changes: audit.Changes(append([]audit.Change{change}, more...)...),
 	})
 }
 
@@ -341,6 +341,12 @@ func ListedOwnDomainOutput(row identityrepo.ListedOwnDomain) usecase.Output {
 	if row.BlockedReason != "" {
 		out["blocked_reason"] = row.BlockedReason
 	}
+	if !row.FellBackAt.IsZero() {
+		out["fell_back_at"] = row.FellBackAt
+	}
+	if row.AddressHost != "" {
+		out["address_host"] = row.AddressHost
+	}
 	return out
 }
 
@@ -392,8 +398,15 @@ func (h BlockOwnDomain) Execute(
 		if err != nil {
 			return err
 		}
+		// A main domain hands the main address back to the address row in this same step
+		// (UC-INS-15 check 9); the block remembers it was main, for the owner's warning.
+		var more []audit.Change
 		if removed.Main {
-			return shared.ErrConflict.WithDetail("admin.own_domain_is_main")
+			to, err := h.Domains.MainToAddress(ctx, time.Time{})
+			if err != nil {
+				return err
+			}
+			more = append(more, audit.Change{Field: "host", Classification: audit.Open, From: host, To: to})
 		}
 		if err := h.Domains.Block(ctx, domain.DomainBlock{
 			Host: host, Reason: reason, BlockedAt: now, WasMain: removed.Main,
@@ -401,7 +414,7 @@ func (h BlockOwnDomain) Execute(
 			return err
 		}
 		if err := h.trail(ctx, found.TenantID, actor, OwnDomainBlockedAction, audit.SeverityWarning,
-			audit.Change{Field: "own_domain", Classification: audit.Open, From: host}, now); err != nil {
+			audit.Change{Field: "own_domain", Classification: audit.Open, From: host}, now, more...); err != nil {
 			return err
 		}
 		record, err := h.Tenants.Find(ctx)
@@ -427,7 +440,8 @@ func (h BlockOwnDomain) Descriptor() usecase.Descriptor {
 		Name: BlockOwnDomainName,
 		Summary: "Blocks an own domain with a reason: it stops answering at once, the ingress is refused " +
 			"its certificate, and no workspace sets it up again. Its owner sees the reason.",
-		SideEffects: "Deletes the domain's row and keeps the block; records it in the workspace's trail " +
+		SideEffects: "Deletes the domain's row and keeps the block; a main domain hands the main address " +
+			"back to the workspace's subdomain in the same step; records it in the workspace's trail " +
 			"and, with the reason, in the instance journal.",
 		TokenScope: adminTenantsScope,
 		Input: []usecase.Field{

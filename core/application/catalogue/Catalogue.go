@@ -422,6 +422,8 @@ func Descriptors() []usecase.Descriptor {
 		adminservice.RemoveOwnDomain{}.Descriptor(),
 		adminservice.ListOwnDomains{}.Descriptor(),
 		adminservice.BlockOwnDomain{}.Descriptor(),
+		adminservice.MakeOwnDomainMain{}.Descriptor(),
+		adminservice.SwitchBackFromOwnDomain{}.Descriptor(),
 		adminservice.CloseTenantPassword{}.Descriptor(),
 		adminservice.ExportTenant{}.Descriptor(),
 		adminservice.UpdateTenantQuotas{}.Descriptor(),

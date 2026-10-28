@@ -1757,6 +1757,9 @@ func run() error {
 		Entropy: clockadapter.CryptoRandom{}, Encoder: domains, Registry: textadapter.Registry{},
 		Tenancy: cfg.Tenancy, InstallationHost: installationHost,
 	}
+	// The own domain as the main address and back (UC-INS-15 checks 6 and 8): the change of
+	// address's lockout rule, proof, audience and notices.
+	mainAddress := adminservice.MainAddress{OwnDomains: ownDomains, Change: changeAddress, Authorizer: authorizer}
 	useCases, err := usecase.NewRegistry(
 		entitlementGate.Wrap(observer.Registry()),
 		identity.InviteAccount{
@@ -2738,6 +2741,8 @@ func run() error {
 		adminservice.RemoveOwnDomain{OwnDomains: ownDomains, Authorizer: authorizer}.Descriptor(),
 		adminservice.ListOwnDomains{OwnDomains: ownDomains}.Descriptor(),
 		adminservice.BlockOwnDomain{OwnDomains: ownDomains}.Descriptor(),
+		adminservice.MakeOwnDomainMain{MainAddress: mainAddress}.Descriptor(),
+		adminservice.SwitchBackFromOwnDomain{MainAddress: mainAddress}.Descriptor(),
 		identity.ListAddressNotices{
 			Notices: postgres.NewWorkspaceAddressRepository(), UnitOfWork: unitOfWork,
 		}.Descriptor(),
@@ -3163,6 +3168,11 @@ func run() error {
 					API:      apiRoutes,
 					Reserved: []string{rest.APIBasePath + "/", mcp.Path, calendar.Prefix, calendar.WellKnown},
 					UI:       ui,
+					// A page load beside a workspace's main address goes on to it (UC-INS-15 check 7).
+					Browsers: identity.BrowserAddress{
+						Hosts: postgres.NewOwnDomainRepository(), UnitOfWork: unitOfWork,
+						BaseURL: cfg.BaseURL, InstallationHost: installationHost, Tenancy: cfg.Tenancy,
+					},
 					Serve: rest.Secured{CORS: cfg.CORS, Next: rest.Shedding{
 						Routes: apiRoutes, Admit: admit, Signals: metrics,
 						Next: rest.Bounded{

@@ -297,7 +297,7 @@ import ContainerView from './views/ContainerView.svelte';
   {:else if route.name === 'instance-journal'}
     <InstanceJournalView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'administration'}
-    <AdministrationOverviewView />
+    <AdministrationOverviewView onnavigate={(path) => router.navigate(path)} />
   {:else if route.name === 'workspace-settings'}
     <WorkspaceSettingsView />
   {:else if route.name === 'workspace-address'}

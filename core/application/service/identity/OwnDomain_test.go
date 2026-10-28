@@ -20,9 +20,12 @@ import (
 // ownDomainsFake is the workspace's own domain or its block, as the store would answer them.
 type ownDomainsFake struct {
 	repository.OwnDomains
-	view  *domain.OwnDomain
-	block *domain.DomainBlock
+	view    *domain.OwnDomain
+	block   *domain.DomainBlock
+	address string
 }
+
+func (f ownDomainsFake) AddressHost(context.Context) (string, error) { return f.address, nil }
 
 func (f ownDomainsFake) Find(context.Context) (domain.OwnDomain, error) {
 	if f.view == nil {
@@ -209,5 +212,62 @@ func TestTheOwnerManagesTheOwnDomain(t *testing.T) {
 	})
 	if address["may_manage_own_domain"] != true || address["may_change"] != false {
 		t.Errorf("address %v", address)
+	}
+}
+
+// UC-INS-15 checks 7 and 9 on the Address screen: beside a main own domain the address answers the
+// subdomain it falls back to, the way back; a domain that fell back says when, for the warning.
+func TestTheAddressAnswersTheWayBackAndAFallBack(t *testing.T) {
+	reader := func(view *domain.OwnDomain) usecase.Output {
+		return addressOf(t, WorkspaceAddressReader{
+			Tenancy: env.TenancyMulti, InstallationHost: "tasks.example.net",
+			Changes: lastChangeFake{}, Owners: &ownersFake{}, Clock: clock.Fixed(at()),
+			OwnDomains: ownDomainsFake{view: view, address: "acme.tasks.example.net"},
+		})
+	}
+	address := reader(&domain.OwnDomain{Host: "tasks.acme.com", State: domain.HostActive, Main: true, Verification: "hubtask-domain=x"})
+	if address["address_host"] != "acme.tasks.example.net" {
+		t.Errorf("way back %v", address["address_host"])
+	}
+	fell := at().Add(-time.Hour)
+	address = reader(&domain.OwnDomain{Host: "tasks.acme.com", State: domain.HostBroken, FellBackAt: fell, Verification: "hubtask-domain=x"})
+	own, _ := address["own_domain"].(usecase.Output)
+	if _, held := address["address_host"]; held || own["fell_back_at"] != fell {
+		t.Errorf("address %v, own %v", address, own)
+	}
+}
+
+type browserHostsFake struct {
+	main  map[string]string
+	asked []string
+}
+
+func (f *browserHostsFake) BrowserHost(_ context.Context, host string) (string, error) {
+	f.asked = append(f.asked, host)
+	return f.main[host], nil
+}
+
+// UC-INS-15 check 7: a browser on the subdomain beside a main own domain is sent to it on the
+// installation's scheme and port; the installation's own host, an unknown one and single mode are
+// never asked about.
+func TestABrowserIsSentOnToTheMainAddress(t *testing.T) {
+	hosts := &browserHostsFake{main: map[string]string{"acme.tasks.example.net": "tasks.acme.com"}}
+	browser := BrowserAddress{
+		Hosts: hosts, UnitOfWork: &unitOfWork{}, BaseURL: "https://tasks.example.net:8443",
+		InstallationHost: "tasks.example.net", Tenancy: env.TenancyMulti,
+	}
+	if to, err := browser.RedirectFor(t.Context(), "ACME.tasks.example.net:8443"); err != nil || to != "https://tasks.acme.com:8443" {
+		t.Errorf("the subdomain sends on to %q (%v)", to, err)
+	}
+	if to, _ := browser.RedirectFor(t.Context(), "tasks.acme.com"); to != "" {
+		t.Errorf("the main address sends on to %q", to)
+	}
+	asked := len(hosts.asked)
+	if to, _ := browser.RedirectFor(t.Context(), "tasks.example.net"); to != "" || len(hosts.asked) != asked {
+		t.Errorf("the installation's host was asked about or sent on to %q", to)
+	}
+	browser.Tenancy = env.TenancySingle
+	if to, _ := browser.RedirectFor(t.Context(), "acme.tasks.example.net"); to != "" || len(hosts.asked) != asked {
+		t.Errorf("single mode sent on to %q", to)
 	}
 }

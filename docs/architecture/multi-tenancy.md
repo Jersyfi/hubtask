@@ -209,8 +209,8 @@ deliberately not used.
 behind it in
 [archive/backlog/workspace-addressing-research-2026-10.md](../archive/backlog/workspace-addressing-research-2026-10.md)).
 Built so far: the reserved short names, the resolution through `tenant_host` with the
-provider's return to the main address, the hosts the operator assigns, and the operator's change
-of address (below).
+provider's return to the main address, the hosts the operator assigns, the operator's and the
+owner's change of address, and own domains with the way to and from the main address (below).
 The browser origin is a workspace's boundary on the client - its session, its offline cache, its
 passkeys ([identity.md](./identity.md) §23.3) and the host its sign-in card shows - so every
 workspace has a host of its own:
@@ -306,6 +306,22 @@ row goes in the same transaction, so it stops answering at once, and `blocked_do
 from every workspace and the reason for its owner to read, until the owner removes it from view.
 Setting up, verifying, breaking, removing and blocking are in the workspace's trail; the block, with
 its reason, also in the instance journal.
+*Built* as well (migration 0212): an `ACTIVE` own domain becomes the main address on the *Address*
+screen's *Make it the main address* or `POST /tenant/own-domain:make-main`, and the subdomain (or
+assigned host) becomes main again on *Make … the main address again* or
+`POST /tenant/own-domain:switch-back`. Either asks what a change of address asks - the lockout rule,
+the password or provider step-up, the members told - ends every session, and costs the passkeys made
+at the old address; it is the owner's (`access.owner_required`), making main also needs
+`owners_own_domains`, and no cooldown holds either. Neither replaces a row: `is_canonical` moves
+between the two, both stay `ACTIVE`, the API answers on both, and a page load on the one not main is
+sent on with a `302` to the same path at the main address (`browser_host`, only where one of the two
+is an own domain). After switching back the own domain therefore stays set up and sends browsers to
+the subdomain. A main own domain that breaks hands the main address back in the check's own
+transaction and keeps the moment as `fell_back_at`; one the operator blocks hands it back in the
+block's transaction, the block keeping `was_main`. Either raises the warning on the workspace's
+administration overview and - for a break - the installation's overview, until the owner makes the
+domain main again or removes it. An operator's or owner's change of address while an own domain is
+main replaces the subdomain row and leaves the own domain set up, no longer main.
 An assigned host is a row the operator writes without a proof, in an installation set to
 `HUBTASK_WORKSPACE_HOSTS=assigned` (*built*): provisioning and the first start's setup ask for the
 host instead of a subdomain, refuse it at the field as `admin.host_invalid`,

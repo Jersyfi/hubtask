@@ -553,7 +553,9 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `tenant.listed` | ListTenants | `tenant` | INFO | When refused |
 | `tenant.own_domain_added` | SetUpOwnDomain | `tenant` | WARNING | Every time |
 | `tenant.own_domain_blocked` | BlockOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_made_main` | MakeOwnDomainMain | `tenant` | WARNING | Every time |
 | `tenant.own_domain_removed` | RemoveOwnDomain | `tenant` | WARNING | Every time |
+| `tenant.own_domain_switched_back` | SwitchBackFromOwnDomain | `tenant` | WARNING | Every time |
 | `tenant.password_closed` | CloseTenantPassword | `tenant` | INFO | Every time |
 | `tenant.password_opened` | OpenTenantPassword | `tenant` | WARNING | Every time |
 | `tenant.plan_changed` | MoveTenantPlan | `tenant` | NOTICE | Every time |

@@ -72,7 +72,7 @@ async function open(browser, address, width = 1280) {
   });
   const page = await context.newPage();
   await page.goto(`${served.origin}/administration/address`);
-  await page.getByText('Main address').waitFor();
+  await page.getByText('Main address', { exact: true }).waitFor();
   return { context, page, sent, arrived };
 }
 

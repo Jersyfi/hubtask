@@ -16,11 +16,57 @@ import (
 // block. Each a thin translation onto its use case.
 
 const (
-	setUpOwnDomainUseCase  = "SetUpOwnDomain"
-	removeOwnDomainUseCase = "RemoveOwnDomain"
-	listOwnDomainsUseCase  = "ListOwnDomains"
-	blockOwnDomainUseCase  = "BlockOwnDomain"
+	setUpOwnDomainUseCase          = "SetUpOwnDomain"
+	removeOwnDomainUseCase         = "RemoveOwnDomain"
+	listOwnDomainsUseCase          = "ListOwnDomains"
+	blockOwnDomainUseCase          = "BlockOwnDomain"
+	makeOwnDomainMainUseCase       = "MakeOwnDomainMain"
+	switchBackFromOwnDomainUseCase = "SwitchBackFromOwnDomain"
 )
+
+// MakeOwnDomainMain answers POST /tenant/own-domain:make-main.
+func (c *RestController) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, params openapi.MakeOwnDomainMainParams) {
+	c.moveMainAddress(w, r, makeOwnDomainMainUseCase, params.XHubtaskStepUp)
+}
+
+// SwitchBackFromOwnDomain answers POST /tenant/own-domain:switch-back.
+func (c *RestController) SwitchBackFromOwnDomain(
+	w http.ResponseWriter, r *http.Request, params openapi.SwitchBackFromOwnDomainParams,
+) {
+	c.moveMainAddress(w, r, switchBackFromOwnDomainUseCase, params.XHubtaskStepUp)
+}
+
+func (c *RestController) moveMainAddress(w http.ResponseWriter, r *http.Request, useCase string, stepUp *string) {
+	requestID := correlation.RequestIDFrom(r.Context())
+	if c.UseCases == nil {
+		WriteProblem(w, errNotWired, requestID)
+		return
+	}
+	var body openapi.MainAddressSwitch
+	if err := decodeJSON(r, &body); err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	in := usecase.Input{"step_up_token": stepUpHeaderField(stepUp)}
+	if body.DryRun != nil {
+		in["dry_run"] = *body.DryRun
+	}
+	out, err := c.UseCases.Invoke(r.Context(), useCase, actorOf(r), in)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
+	mailed, _ := out["members_mailed"].(int)
+	told, _ := out["members_told_at_sign_in"].(int)
+	dryRun, _ := out["dry_run"].(bool)
+	answer := openapi.WorkspaceAddressChanged{
+		From: out.String("from"), MembersMailed: mailed, MembersToldAtSignIn: told, DryRun: dryRun,
+	}
+	if to := out.String("to"); to != "" {
+		answer.To = &to
+	}
+	writeJSON(w, r, http.StatusOK, answer)
+}
 
 // SetUpOwnDomain answers PUT /tenant/own-domain.
 func (c *RestController) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) {
@@ -112,6 +158,9 @@ func ownDomainOf(out usecase.Output) *openapi.OwnDomain {
 	if reason := out.String("blocked_reason"); reason != "" {
 		answer.BlockedReason = &reason
 	}
+	if fell, ok := out["fell_back_at"].(time.Time); ok {
+		answer.FellBackAt = &fell
+	}
 	records, _ := out["records"].([]usecase.Output)
 	for _, record := range records {
 		answer.Records = append(answer.Records, openapi.OwnDomainRecord{
@@ -134,6 +183,12 @@ func adminOwnDomainOf(row usecase.Output) openapi.AdminOwnDomain {
 	}
 	if reason := row.String("blocked_reason"); reason != "" {
 		listed.BlockedReason = &reason
+	}
+	if fell, ok := row["fell_back_at"].(time.Time); ok {
+		listed.FellBackAt = &fell
+	}
+	if host := row.String("address_host"); host != "" {
+		listed.AddressHost = &host
 	}
 	return listed
 }

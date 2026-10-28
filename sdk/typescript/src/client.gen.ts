@@ -1376,6 +1376,16 @@ export class HubtaskClient {
     return this.call("DELETE", "/tenant/own-domain", {  }, undefined, {  }, undefined, "none", undefined, "void", options.signal);
   }
 
+  /** The workspace's owner makes its own domain the main address */
+  makeOwnDomainMain(body: NonNullable<operations["makeOwnDomainMain"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["makeOwnDomainMain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/own-domain:make-main", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
+  /** The workspace's owner makes its subdomain the main address again */
+  switchBackFromOwnDomain(body: NonNullable<operations["switchBackFromOwnDomain"]['requestBody']>['content']["application/json"], options: CallOptions & { readonly stepUp?: string } = {}): Promise<operations["switchBackFromOwnDomain"]['responses'][200]['content']["application/json"]> {
+    return this.call("POST", "/tenant/own-domain:switch-back", {  }, undefined, { "X-Hubtask-Step-Up": options.stepUp }, body, "json", "application/json", "json", options.signal);
+  }
+
   /** How many people here no provider switched on here signs in */
   countAccountsWithoutProvider(options: CallOptions = {}): Promise<operations["countAccountsWithoutProvider"]['responses'][200]['content']["application/json"]> {
     return this.call("GET", "/tenant/accounts-without-provider", {  }, undefined, {  }, undefined, "none", undefined, "json", options.signal);

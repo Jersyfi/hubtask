@@ -3,8 +3,9 @@
 <script lang="ts">
   // *Use your own domain* on the workspace's *Address* screen (UC-INS-15 checks 1, 2, 3 and 10): the
   // field and its refusals, the two records with copy buttons while waiting for DNS, then verified,
-  // active, broken - with the proof record to put back - or blocked, with the operator's reason word
-  // for word. Verification is the server's: nothing here asks it to check.
+  // active - with *Make it the main address* (check 6) - broken, with the proof record to put back,
+  // or blocked, with the operator's reason word for word. Verification is the server's: nothing here
+  // asks it to check.
 
   import { Badge, Banner, Button, Input, Stack } from '@hubtask/design-system/components';
   import type { OwnDomain } from '@hubtask/sync-engine';
@@ -15,7 +16,7 @@
   import { formatLongDay, formatTime } from '../i18n/datetime.ts';
   import { messages, t } from '../i18n/i18n.svelte.ts';
   import { renderProblem, type RenderedProblem } from '../problem.ts';
-  import { isRemovable, recordsShown, toneOf, zoneOf } from './owndomain.ts';
+  import { canBecomeMain, isRemovable, recordsShown, toneOf, zoneOf } from './owndomain.ts';
 
   interface Props {
     /** The workspace's own domain, absent where it has none. */
@@ -26,9 +27,11 @@
     isOwner: boolean;
     /** Whether the installation lets owners set one up now. */
     isAllowed: boolean;
+    /** *Make it the main address*, offered on an active domain (UC-INS-15 check 6). */
+    onmakemain?: () => void;
   }
 
-  let { own, main, isOwner, isAllowed }: Props = $props();
+  let { own, main, isOwner, isAllowed, onmakemain }: Props = $props();
 
   let domain = $state('');
   let working = $state(false);
@@ -155,11 +158,16 @@
       {#if failure}
         <Banner tone="danger" title={failure.message} />
       {/if}
-      {#if isOwner && isRemovable(own.state)}
-        <div>
-          <Button tone="subtle" isBusy={working} busyLabel={t('app.address.own.working')} onclick={() => void attempt(() => workspace.removeOwnDomain())}>
-            {t('app.address.own.remove')}
-          </Button>
+      {#if isOwner && (isRemovable(own.state) || canBecomeMain(own))}
+        <div class="row">
+          {#if isAllowed && canBecomeMain(own) && onmakemain}
+            <Button tone="primary" onclick={onmakemain}>{t('app.address.own.make_main')}</Button>
+          {/if}
+          {#if isRemovable(own.state)}
+            <Button tone="subtle" isBusy={working} busyLabel={t('app.address.own.working')} onclick={() => void attempt(() => workspace.removeOwnDomain())}>
+              {t('app.address.own.remove')}
+            </Button>
+          {/if}
         </div>
       {/if}
     </Stack>

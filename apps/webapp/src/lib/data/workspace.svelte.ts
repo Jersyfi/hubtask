@@ -16,6 +16,7 @@
  */
 
 import type {
+  MainAddressSwitch,
   OwnDomain,
   ResourceState,
   TenantAddressChange,
@@ -150,6 +151,21 @@ class WorkspaceStore {
    */
   async setUpOwnDomain(domain: string): Promise<OwnDomain> {
     return engine.mutate<OwnDomain>('PUT', `${PATH}/own-domain`, { domain }, { invalidates: [PATH] });
+  }
+
+  /**
+   * The owner moves the main address to the active own domain (`'own'`) or back to the subdomain
+   * (`'back'`), or with `dry_run` asks what the move would be (UC-INS-15 checks 6 and 8). Either
+   * takes a proof by password or provider and ends every session here, this one included.
+   */
+  async moveMainAddress(direction: 'own' | 'back', body: MainAddressSwitch): Promise<WorkspaceAddressChanged> {
+    const path = `${PATH}/own-domain:${direction === 'own' ? 'make-main' : 'switch-back'}`;
+    if (body.dry_run) {
+      return engine.mutate<WorkspaceAddressChanged>('POST', path, body, { invalidates: [] });
+    }
+    return stepUp.around((stepUpToken) =>
+      engine.mutate<WorkspaceAddressChanged>('POST', path, body, { stepUpToken, invalidates: [PATH] }),
+    );
   }
 
   /** The owner removes the own domain; a blocked one leaves this view and stays blocked. */

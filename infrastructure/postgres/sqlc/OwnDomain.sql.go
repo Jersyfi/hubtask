@@ -11,10 +11,24 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+const addressHost = `-- name: AddressHost :one
+SELECT host FROM tenant_host WHERE kind = 'ADDRESS' AND state = 'ACTIVE'
+ORDER BY is_canonical DESC, created_at DESC LIMIT 1
+`
+
+// The workspace's own address beside an own domain: the way back.
+func (q *Queries) AddressHost(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, addressHost)
+	var host string
+	err := row.Scan(&host)
+	return host, err
+}
+
 const adminOwnDomains = `-- name: AdminOwnDomains :many
 SELECT host::text AS host, coalesce(tenant_id::text, '')::text AS tenant_id,
        tenant_name::text AS tenant_name, state::text AS state, since::timestamptz AS since,
-       is_main::boolean AS is_main, coalesce(blocked_reason, '')::text AS blocked_reason
+       is_main::boolean AS is_main, coalesce(blocked_reason, '')::text AS blocked_reason,
+       fell_back_at::timestamptz AS fell_back_at, coalesce(address_host, '')::text AS address_host
 FROM admin_own_domains()
 `
 
@@ -26,6 +40,8 @@ type AdminOwnDomainsRow struct {
 	Since         pgtype.Timestamptz
 	IsMain        bool
 	BlockedReason string
+	FellBackAt    pgtype.Timestamptz
+	AddressHost   string
 }
 
 func (q *Queries) AdminOwnDomains(ctx context.Context) ([]AdminOwnDomainsRow, error) {
@@ -45,6 +61,8 @@ func (q *Queries) AdminOwnDomains(ctx context.Context) ([]AdminOwnDomainsRow, er
 			&i.Since,
 			&i.IsMain,
 			&i.BlockedReason,
+			&i.FellBackAt,
+			&i.AddressHost,
 		); err != nil {
 			return nil, err
 		}
@@ -82,6 +100,44 @@ func (q *Queries) BlockInView(ctx context.Context) (BlockInViewRow, error) {
 	return i, err
 }
 
+const browserHost = `-- name: BrowserHost :one
+SELECT coalesce(browser_host($1::text), '')::text AS host
+`
+
+func (q *Queries) BrowserHost(ctx context.Context, host string) (string, error) {
+	row := q.db.QueryRow(ctx, browserHost, host)
+	var host_2 string
+	err := row.Scan(&host_2)
+	return host_2, err
+}
+
+const clearMainHost = `-- name: ClearMainHost :many
+
+UPDATE tenant_host SET is_canonical = false WHERE is_canonical RETURNING host
+`
+
+// The main address moves between the own domain and the workspace's address row (migration 0212).
+// Two statements, never one swap: the one-main index is checked row by row.
+func (q *Queries) ClearMainHost(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, clearMainHost)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var host string
+		if err := rows.Scan(&host); err != nil {
+			return nil, err
+		}
+		items = append(items, host)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const deleteOwnDomain = `-- name: DeleteOwnDomain :one
 DELETE FROM tenant_host WHERE kind = 'OWN_DOMAIN' RETURNING host, is_canonical
 `
@@ -115,7 +171,8 @@ func (q *Queries) DismissBlocks(ctx context.Context, now pgtype.Timestamptz) (in
 const findOwnDomain = `-- name: FindOwnDomain :one
 
 SELECT host, state, verification, is_canonical, created_at, state_since, checked_at,
-       target_found, proof_found, (certificate_asked_at IS NOT NULL)::boolean AS certificate_asked
+       target_found, proof_found, (certificate_asked_at IS NOT NULL)::boolean AS certificate_asked,
+       fell_back_at
 FROM tenant_host WHERE kind = 'OWN_DOMAIN'
 `
 
@@ -130,6 +187,7 @@ type FindOwnDomainRow struct {
 	TargetFound      bool
 	ProofFound       bool
 	CertificateAsked bool
+	FellBackAt       pgtype.Timestamptz
 }
 
 // A workspace's own domain (ADR-0095 §4, §5; migration 0211). The workspace's own statements are
@@ -148,6 +206,7 @@ func (q *Queries) FindOwnDomain(ctx context.Context) (FindOwnDomainRow, error) {
 		&i.TargetFound,
 		&i.ProofFound,
 		&i.CertificateAsked,
+		&i.FellBackAt,
 	)
 	return i, err
 }
@@ -189,6 +248,45 @@ type InsertOwnDomainParams struct {
 
 func (q *Queries) InsertOwnDomain(ctx context.Context, arg InsertOwnDomainParams) error {
 	_, err := q.db.Exec(ctx, insertOwnDomain, arg.Host, arg.Verification, arg.Now)
+	return err
+}
+
+const makeAddressMain = `-- name: MakeAddressMain :one
+UPDATE tenant_host SET is_canonical = true
+WHERE kind = 'ADDRESS' AND host = (
+  SELECT a.host FROM tenant_host a WHERE a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+  ORDER BY a.created_at DESC LIMIT 1)
+RETURNING host
+`
+
+// The workspace's subdomain or assigned host, the newest where an old base URL left several.
+func (q *Queries) MakeAddressMain(ctx context.Context) (string, error) {
+	row := q.db.QueryRow(ctx, makeAddressMain)
+	var host string
+	err := row.Scan(&host)
+	return host, err
+}
+
+const makeOwnDomainMain = `-- name: MakeOwnDomainMain :execrows
+UPDATE tenant_host SET is_canonical = true, fell_back_at = NULL
+WHERE kind = 'OWN_DOMAIN' AND state = 'ACTIVE'
+`
+
+// Only an active own domain becomes main; making it main clears the warning of a fall-back.
+func (q *Queries) MakeOwnDomainMain(ctx context.Context) (int64, error) {
+	result, err := q.db.Exec(ctx, makeOwnDomainMain)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const markOwnDomainFellBack = `-- name: MarkOwnDomainFellBack :exec
+UPDATE tenant_host SET fell_back_at = $1 WHERE kind = 'OWN_DOMAIN'
+`
+
+func (q *Queries) MarkOwnDomainFellBack(ctx context.Context, now pgtype.Timestamptz) error {
+	_, err := q.db.Exec(ctx, markOwnDomainFellBack, now)
 	return err
 }
 

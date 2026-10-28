@@ -620,6 +620,9 @@ CREATE TABLE tenant_host (
   target_found boolean NOT NULL DEFAULT false,
   proof_found  boolean NOT NULL DEFAULT false,
   certificate_asked_at timestamptz,
+  -- When a main own domain broke and the subdomain became the main address again by itself
+  -- (migration 0212); cleared when the owner makes it main again.
+  fell_back_at timestamptz,
   PRIMARY KEY (tenant_id, host)
 );
 -- One host, one workspace, installation-wide: two workspaces claiming the same host is the failure
@@ -3801,22 +3804,45 @@ LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   LIMIT most
 $$;
 
--- Every own domain of the installation with its workspace, and every block, for the operator.
+-- Every own domain of the installation with its workspace, and every block, for the operator; with
+-- when a main one fell back and the workspace's own address it fell back to.
 CREATE OR REPLACE FUNCTION admin_own_domains()
 RETURNS TABLE (host text, tenant_id uuid, tenant_name text, state text, since timestamptz,
-               is_main boolean, blocked_reason text)
+               is_main boolean, blocked_reason text, fell_back_at timestamptz, address_host text)
 LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
   SELECT h.host, h.tenant_id, t.display_name, h.state, coalesce(h.state_since, h.created_at),
-         h.is_canonical, NULL::text
+         h.is_canonical, NULL::text, h.fell_back_at,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = h.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
   FROM tenant_host h
   JOIN tenant t ON t.id = h.tenant_id
   WHERE h.kind = 'OWN_DOMAIN' AND t.deleted_at IS NULL
   UNION ALL
   SELECT b.host, b.tenant_id, coalesce(t.display_name, ''), 'BLOCKED', b.blocked_at, b.was_main,
-         b.reason
+         b.reason, NULL::timestamptz,
+         (SELECT a.host FROM tenant_host a
+          WHERE a.tenant_id = b.tenant_id AND a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+          ORDER BY a.is_canonical DESC, a.created_at DESC LIMIT 1)
   FROM blocked_domain b
   LEFT JOIN tenant t ON t.id = b.tenant_id AND t.deleted_at IS NULL
   ORDER BY 5 DESC, 1
+$$;
+
+-- Where a browser on this host is sent instead: the workspace's main address, for a serving row that
+-- is not main beside a serving main row, where one of the two is an own domain. NULL for every other
+-- host, which the request then serves as before.
+CREATE OR REPLACE FUNCTION browser_host(request_host text) RETURNS text
+LANGUAGE sql SECURITY DEFINER STABLE SET search_path = public, pg_temp AS $$
+  SELECT m.host
+  FROM tenant_host h
+  JOIN tenant t ON t.id = h.tenant_id
+  JOIN tenant_host m ON m.tenant_id = h.tenant_id AND m.is_canonical AND m.state = 'ACTIVE'
+  WHERE h.host = lower(rtrim(request_host, '.'))
+    AND h.state = 'ACTIVE' AND NOT h.is_canonical
+    AND (h.kind = 'OWN_DOMAIN' OR m.kind = 'OWN_DOMAIN')
+    AND t.deleted_at IS NULL
+  LIMIT 1
 $$;
 
 REVOKE ALL ON FUNCTION own_domain_certificate(text, timestamptz) FROM PUBLIC;
@@ -3825,12 +3851,14 @@ REVOKE ALL ON FUNCTION own_domain_served(text, timestamptz) FROM PUBLIC;
 REVOKE ALL ON FUNCTION own_domain_blocked(text) FROM PUBLIC;
 REVOKE ALL ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) FROM PUBLIC;
 REVOKE ALL ON FUNCTION admin_own_domains() FROM PUBLIC;
+REVOKE ALL ON FUNCTION browser_host(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION own_domain_certificate(text, timestamptz) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION resolve_serving_host(text) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION own_domain_served(text, timestamptz) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION own_domain_blocked(text) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION own_domains_due(timestamptz, timestamptz, integer) TO hubtask_app;
 GRANT EXECUTE ON FUNCTION admin_own_domains() TO hubtask_app;
+GRANT EXECUTE ON FUNCTION browser_host(text) TO hubtask_app;
 
 
 -- A bare address in `HUBTASK_OPERATORS` in single mode (migration 0128): the one workspace's

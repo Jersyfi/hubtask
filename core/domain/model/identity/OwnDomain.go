@@ -54,6 +54,33 @@ type OwnDomain struct {
 	CertificateAsked bool
 	// Main is whether it is the workspace's main address.
 	Main bool
+	// FellBackAt is when it was main and broke, so the address row became main again by itself;
+	// zero otherwise. The warning it raises stays until the owner makes it main again or removes it.
+	FellBackAt time.Time
+}
+
+// MainAddressMove is a move of the main address between the own domain and the workspace's own
+// address row - its subdomain or assigned host (UC-INS-15 checks 6 and 8): it answers the host the
+// main address leaves and the one it goes to. Only an active own domain becomes main, and only where
+// there is an address row to come back to; only a main one is switched back from.
+func MainAddressMove(own OwnDomain, addressHost string, toOwn bool) (string, string, error) {
+	if addressHost == "" {
+		return "", "", shared.ErrConflict.WithDetail("admin.own_domain_no_way_back")
+	}
+	if !toOwn {
+		if !own.Main {
+			return "", "", shared.ErrConflict.WithDetail("admin.own_domain_not_main")
+		}
+		return own.Host, addressHost, nil
+	}
+	if own.Main {
+		return "", "", shared.ErrConflict.WithDetail("admin.own_domain_already_main")
+	}
+	if own.State != HostActive {
+		params := map[string]string{"domain": own.Host}
+		return "", "", shared.ErrConflict.WithDetail("admin.own_domain_not_active").WithParams(params)
+	}
+	return addressHost, own.Host, nil
 }
 
 // DomainBlock is an own domain the operator blocked, as the workspace it was taken from sees it.

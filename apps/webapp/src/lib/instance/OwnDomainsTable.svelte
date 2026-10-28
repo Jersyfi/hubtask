@@ -4,7 +4,8 @@
   // *Own domains* on the installation's *Workspaces* screen (UC-INS-15 check 10): every domain the
   // workspaces' owners set up, with its workspace and state, and *Block domain* with a reason the
   // owner reads word for word and the instance journal keeps. A blocked row has no menu: lifting a
-  // block is not offered.
+  // block is not offered. Blocking a main domain says that the subdomain becomes main in the same
+  // step (check 9).
 
   import { untrack } from 'svelte';
 
@@ -109,7 +110,11 @@
     </Button>
   {/snippet}
   <Stack gap="150">
-    <Banner tone="warning">{t('app.instance.own_domain_block_cost')}</Banner>
+    <Banner tone="warning">
+      {blocking?.is_main && blocking.address_host
+        ? t('app.instance.own_domain_block_cost_main', { workspace: blocking.tenant_name, host: blocking.address_host })
+        : t('app.instance.own_domain_block_cost')}
+    </Banner>
     {#if failure && !failure.fields.get('/reason')}
       <Banner tone="danger" title={failure.message} />
     {/if}

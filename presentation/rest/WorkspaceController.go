@@ -238,6 +238,9 @@ func workspaceResponse(out usecase.Output) openapi.Workspace {
 		if own, ok := address["own_domain"].(usecase.Output); ok {
 			answer.Address.OwnDomain = ownDomainOf(own)
 		}
+		if back := address.String("address_host"); back != "" {
+			answer.Address.AddressHost = &back
+		}
 	}
 	return answer
 }

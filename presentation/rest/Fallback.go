@@ -4,6 +4,8 @@
 package rest
 
 import (
+	"context"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -44,6 +46,14 @@ type Fallback struct {
 	// UI serves the embedded bundle. Nil when the interface is switched off, and then every path
 	// the API does not own is answered 404 here.
 	UI http.Handler
+	// Browsers names where a browser that opens a page on a host beside its workspace's main
+	// address is sent (UC-INS-15 check 7). Nil sends nobody on.
+	Browsers BrowserRedirect
+}
+
+// BrowserRedirect answers the main address's base for a host a browser should leave, or empty.
+type BrowserRedirect interface {
+	RedirectFor(ctx context.Context, host string) (string, error)
 }
 
 var _ Router = Fallback{}
@@ -61,6 +71,9 @@ func (f Fallback) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if f.UI != nil {
+		if f.sendOn(w, r) {
+			return
+		}
 		f.UI.ServeHTTP(w, r)
 		return
 	}
@@ -88,4 +101,36 @@ func (f Fallback) apiOwns(path string) bool {
 		}
 	}
 	return false
+}
+
+// sendOn redirects a page load on a host beside the main address to the same path there. Only a
+// page load: the API keeps answering on both hosts, and the assets a page loads come from wherever
+// the page is, so asking for each would be a lookup per file. Temporary, because switching back
+// reverses it; a lookup that fails serves the page where it was asked for.
+func (f Fallback) sendOn(w http.ResponseWriter, r *http.Request) bool {
+	if f.Browsers == nil || (r.Method != http.MethodGet && r.Method != http.MethodHead) || !isPageLoad(r) {
+		return false
+	}
+	base, err := f.Browsers.RedirectFor(r.Context(), r.Host)
+	if err != nil {
+		slog.WarnContext(r.Context(), "where a browser is sent could not be read",
+			slog.String("code", shared.AsError(err).DetailCode))
+		return false
+	}
+	if base == "" {
+		return false
+	}
+	WriteSecurityHeaders(w.Header(), contentSecurityPolicy)
+	// The host is the workspace's main row, never the request's; the request gives only the path.
+	http.Redirect(w, r, base+r.URL.RequestURI(), http.StatusFound) //nolint:gosec // G710: the target host is read from tenant_host
+	return true
+}
+
+// isPageLoad is a navigation by its fetch metadata, or - for a browser that sends none - a request
+// that accepts HTML.
+func isPageLoad(r *http.Request) bool {
+	if mode := r.Header.Get("Sec-Fetch-Mode"); mode != "" {
+		return mode == "navigate"
+	}
+	return strings.Contains(r.Header.Get("Accept"), "text/html")
 }

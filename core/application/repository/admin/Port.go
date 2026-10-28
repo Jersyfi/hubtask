@@ -355,7 +355,9 @@ type PlatformDeliveries interface {
 // the sessions it ends. Both in the caller's transaction, bounded to its workspace.
 type TenantAddresses interface {
 	// ChangeAddress writes the short name where it moves, drops the main row and writes `host` as the
-	// new one, answering the host it replaced (empty where there was none). A name or a host another
+	// new one, answering the host it replaced (empty where there was none). Where an own domain is
+	// main, the address row beside it is what is replaced, and the own domain stays, no longer main;
+	// the host answered is the own domain's. A name or a host another
 	// workspace holds is refused as `admin.slug_taken` or `admin.host_taken`; a workspace leaving as
 	// `admin.tenant_leaving`.
 	ChangeAddress(ctx context.Context, slug string, host identity.TenantHost, now time.Time) (string, error)

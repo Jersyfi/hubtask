@@ -33,7 +33,8 @@ const (
 // CheckOwnDomains is the job behind verification (UC-INS-15 check 3): it looks up each due domain's
 // two records through the DNS port, outside any transaction, and moves the row in its workspace's
 // own transaction - pending to verified, serving to broken, broken back - with the move in the
-// workspace's trail. A lookup that got no answer moves nothing.
+// workspace's trail. A main domain that breaks hands the main address back to the subdomain in the
+// same transaction. A lookup that got no answer moves nothing.
 type CheckOwnDomains struct {
 	OwnDomains
 	Resolver dns.Resolver
@@ -136,11 +137,20 @@ func (c CheckOwnDomains) record(ctx context.Context, due identityrepo.DueOwnDoma
 		}
 		changed = true
 		action, severity := OwnDomainVerifiedAction, audit.SeverityInfo
+		changes := []audit.Change{{Field: "state", Classification: audit.Open, From: string(current.State), To: string(next)}}
 		if next == domain.HostBroken {
 			action, severity = OwnDomainBrokenAction, audit.SeverityWarning
+			// A main domain that broke hands the main address back in this same transaction
+			// (ADR-0095 §4, UC-INS-15 check 9); the moment stays for the warning.
+			if current.Main {
+				to, err := c.Domains.MainToAddress(ctx, now)
+				if err != nil {
+					return err
+				}
+				changes = append(changes, audit.Change{Field: "host", Classification: audit.Open, From: current.Host, To: to})
+			}
 		}
-		return c.trail(ctx, due.TenantID, appshared.ActorContext{}, action, severity,
-			audit.Change{Field: "state", Classification: audit.Open, From: string(current.State), To: string(next)}, now)
+		return c.trail(ctx, due.TenantID, appshared.ActorContext{}, action, severity, changes[0], now, changes[1:]...)
 	})
 	if err != nil {
 		slog.WarnContext(ctx, "an own domain's look was not recorded", slog.String("error", err.Error()))

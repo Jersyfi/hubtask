@@ -191,6 +191,7 @@ export type {
   OwnDomain,
   OwnDomainRecord,
   AdminOwnDomain,
+  MainAddressSwitch,
   InstallationPreset,
   InstallationPresetCreate,
   InstallationPresetUpdate,

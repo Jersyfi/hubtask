@@ -40,6 +40,9 @@ func OwnDomainOutput(view *domain.OwnDomain, block *domain.DomainBlock, installa
 	if !view.CheckedAt.IsZero() {
 		out["checked_at"] = view.CheckedAt
 	}
+	if !view.FellBackAt.IsZero() {
+		out["fell_back_at"] = view.FellBackAt
+	}
 	return out
 }
 

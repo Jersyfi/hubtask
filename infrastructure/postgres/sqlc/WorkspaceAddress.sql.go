@@ -80,11 +80,42 @@ func (q *Queries) ChangeTenantSlug(ctx context.Context, arg ChangeTenantSlugPara
 	return result.RowsAffected(), nil
 }
 
+const demoteOwnDomain = `-- name: DemoteOwnDomain :many
+UPDATE tenant_host SET is_canonical = false WHERE kind = 'OWN_DOMAIN' AND is_canonical RETURNING host
+`
+
+// A change of address makes the new address main; an own domain that was main stays set up and
+// sends browsers on to it, as after switching back.
+func (q *Queries) DemoteOwnDomain(ctx context.Context) ([]string, error) {
+	rows, err := q.db.Query(ctx, demoteOwnDomain)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var host string
+		if err := rows.Scan(&host); err != nil {
+			return nil, err
+		}
+		items = append(items, host)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const dropMainTenantHost = `-- name: DropMainTenantHost :many
-DELETE FROM tenant_host WHERE is_canonical RETURNING host
+DELETE FROM tenant_host
+WHERE kind = 'ADDRESS'
+  AND (is_canonical OR EXISTS (SELECT 1 FROM tenant_host o WHERE o.kind = 'OWN_DOMAIN' AND o.is_canonical))
+RETURNING host
 `
 
 // The old main row goes in the change's own transaction, so the old host resolves to nothing at once.
+// While an own domain is the main address, the address row beside it is what a change replaces; the
+// own domain stays and is demoted by DemoteOwnDomain (migration 0212).
 func (q *Queries) DropMainTenantHost(ctx context.Context) ([]string, error) {
 	rows, err := q.db.Query(ctx, dropMainTenantHost)
 	if err != nil {

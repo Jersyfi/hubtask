@@ -6,7 +6,7 @@ import test from 'node:test';
 
 import type { OwnDomain } from '@hubtask/sync-engine';
 
-import { isRemovable, recordsShown, toneOf, zoneOf } from './owndomain.ts';
+import { canBecomeMain, fallBackOf, isRemovable, recordsShown, toneOf, zoneOf } from './owndomain.ts';
 
 const records: OwnDomain['records'] = [
   { type: 'CNAME', name: 'tasks.acme.com', value: 'domains.tasks.example.net', found: false },
@@ -39,4 +39,20 @@ test('UC-INS-15 check 3: each state has its tone, and removal where the screens 
     (['PENDING', 'VERIFIED', 'ACTIVE', 'BROKEN', 'BLOCKED'] as const).filter(isRemovable),
     ['PENDING', 'ACTIVE', 'BLOCKED'],
   );
+});
+
+test('UC-INS-15 check 6: only an active domain that is not main yet is offered as the main address', () => {
+  assert.equal(canBecomeMain(own('ACTIVE')), true);
+  assert.equal(canBecomeMain({ ...own('ACTIVE'), is_main: true }), false);
+  for (const state of ['PENDING', 'VERIFIED', 'BROKEN', 'BLOCKED'] as const) assert.equal(canBecomeMain(own(state)), false, state);
+});
+
+test('UC-INS-15 check 9: the warning after a fall-back, broken or blocked, and none otherwise', () => {
+  assert.deepEqual(fallBackOf({ ...own('BROKEN'), fell_back_at: '2026-10-27T09:10:00Z' }), { cause: 'broken', at: '2026-10-27T09:10:00Z' });
+  // It stays once the record is back, until the domain is made main again.
+  assert.equal(fallBackOf({ ...own('ACTIVE'), fell_back_at: '2026-10-27T09:10:00Z' })?.cause, 'broken');
+  assert.deepEqual(fallBackOf({ ...own('BLOCKED'), is_main: true }), { cause: 'blocked', at: '2026-10-27T09:10:00Z' });
+  assert.equal(fallBackOf(own('BLOCKED')), undefined);
+  assert.equal(fallBackOf(own('BROKEN')), undefined);
+  assert.equal(fallBackOf(undefined), undefined);
 });

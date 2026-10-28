@@ -37,6 +37,12 @@ type ownDomainStore struct {
 	looks   int
 	taken   map[string]bool
 	insertN int
+	// addresses is each workspace's address row, the way back from its own domain.
+	addresses map[shared.ID]string
+	// toOwn and toAddress count the moves of the main address; each records the transaction it
+	// ran in (the unit of work's count of scopes), as RecordLook and Remove do in `wroteIn`.
+	toOwn, toAddress int
+	movedIn, wroteIn int
 }
 
 type blockRow struct {
@@ -46,7 +52,10 @@ type blockRow struct {
 }
 
 func newOwnDomainStore(uow *unitOfWork) *ownDomainStore {
-	return &ownDomainStore{uow: uow, rows: map[shared.ID]*domain.OwnDomain{}, blocks: map[string]*blockRow{}, taken: map[string]bool{}}
+	return &ownDomainStore{
+		uow: uow, rows: map[shared.ID]*domain.OwnDomain{}, blocks: map[string]*blockRow{}, taken: map[string]bool{},
+		addresses: map[shared.ID]string{lifecycleTenant: "meier.tasks.example.net"},
+	}
 }
 
 func (s *ownDomainStore) tenant() shared.ID { return s.uow.scopes[len(s.uow.scopes)-1].TenantID }
@@ -80,7 +89,35 @@ func (s *ownDomainStore) Remove(context.Context) (domain.OwnDomain, error) {
 		return domain.OwnDomain{}, shared.ErrNotFound
 	}
 	delete(s.rows, s.tenant())
+	s.wroteIn = len(s.uow.scopes)
 	return *row, nil
+}
+
+func (s *ownDomainStore) AddressHost(context.Context) (string, error) {
+	return s.addresses[s.tenant()], nil
+}
+
+func (s *ownDomainStore) MainToOwnDomain(context.Context) (string, error) {
+	row, held := s.rows[s.tenant()]
+	if !held || row.State != domain.HostActive {
+		return "", shared.ErrConflict.WithDetail("admin.own_domain_not_active")
+	}
+	s.toOwn++
+	s.movedIn = len(s.uow.scopes)
+	row.Main, row.FellBackAt = true, time.Time{}
+	return s.addresses[s.tenant()], nil
+}
+
+func (s *ownDomainStore) MainToAddress(_ context.Context, fellBack time.Time) (string, error) {
+	s.toAddress++
+	s.movedIn = len(s.uow.scopes)
+	if row, held := s.rows[s.tenant()]; held {
+		row.Main = false
+		if !fellBack.IsZero() {
+			row.FellBackAt = fellBack
+		}
+	}
+	return s.addresses[s.tenant()], nil
 }
 
 func (s *ownDomainStore) Blocked(_ context.Context, host string) (bool, error) {
@@ -124,6 +161,7 @@ func (s *ownDomainStore) RecordLook(
 		return false, nil
 	}
 	s.looks++
+	s.wroteIn = len(s.uow.scopes)
 	if row.State != next {
 		row.Since = at
 	}
@@ -143,7 +181,7 @@ func (s *ownDomainStore) Due(context.Context, time.Time, time.Time, int) ([]iden
 func (s *ownDomainStore) All(context.Context) ([]identityrepo.ListedOwnDomain, error) {
 	var all []identityrepo.ListedOwnDomain
 	for tenant, row := range s.rows {
-		all = append(all, identityrepo.ListedOwnDomain{Host: row.Host, TenantID: tenant, TenantName: "Meier family", State: row.State, Since: row.Since})
+		all = append(all, identityrepo.ListedOwnDomain{Host: row.Host, TenantID: tenant, TenantName: "Meier family", State: row.State, Since: row.Since, Main: row.Main})
 	}
 	for host, b := range s.blocks {
 		all = append(all, identityrepo.ListedOwnDomain{Host: host, TenantID: b.tenant, State: identityrepo.HostStateBlocked, BlockedReason: b.block.Reason})

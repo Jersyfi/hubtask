@@ -1712,3 +1712,11 @@ func (pending) BlockOwnDomain(w http.ResponseWriter, r *http.Request, _ string) 
 func (pending) SetUpOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
 
 func (pending) RemoveOwnDomain(w http.ResponseWriter, r *http.Request) { notAvailable(w, r) }
+
+func (pending) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, _ openapi.MakeOwnDomainMainParams) {
+	notAvailable(w, r)
+}
+
+func (pending) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, _ openapi.SwitchBackFromOwnDomainParams) {
+	notAvailable(w, r)
+}

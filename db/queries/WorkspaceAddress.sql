@@ -20,7 +20,17 @@ SELECT address_changed_at FROM tenant WHERE id = current_tenant_id() FOR UPDATE;
 
 -- name: DropMainTenantHost :many
 -- The old main row goes in the change's own transaction, so the old host resolves to nothing at once.
-DELETE FROM tenant_host WHERE is_canonical RETURNING host;
+-- While an own domain is the main address, the address row beside it is what a change replaces; the
+-- own domain stays and is demoted by DemoteOwnDomain (migration 0212).
+DELETE FROM tenant_host
+WHERE kind = 'ADDRESS'
+  AND (is_canonical OR EXISTS (SELECT 1 FROM tenant_host o WHERE o.kind = 'OWN_DOMAIN' AND o.is_canonical))
+RETURNING host;
+
+-- name: DemoteOwnDomain :many
+-- A change of address makes the new address main; an own domain that was main stays set up and
+-- sends browsers on to it, as after switching back.
+UPDATE tenant_host SET is_canonical = false WHERE kind = 'OWN_DOMAIN' AND is_canonical RETURNING host;
 
 -- name: RevokeWorkspaceSessions :execrows
 -- Everybody signs in again. A session an OAuth grant issued is left: connected apps keep working.

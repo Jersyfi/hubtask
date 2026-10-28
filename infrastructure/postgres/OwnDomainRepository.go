@@ -28,6 +28,7 @@ func NewOwnDomainRepository() OwnDomainRepository { return OwnDomainRepository{}
 var (
 	_ repository.OwnDomains     = OwnDomainRepository{}
 	_ repository.OwnDomainDoors = OwnDomainRepository{}
+	_ repository.BrowserHosts   = OwnDomainRepository{}
 )
 
 func ownDomainFailed(what string, err error) error {
@@ -55,7 +56,7 @@ func (OwnDomainRepository) Find(ctx context.Context) (identity.OwnDomain, error)
 	return identity.OwnDomain{
 		Host: row.Host, State: identity.HostState(row.State), Verification: row.Verification,
 		Since: since, CheckedAt: row.CheckedAt.Time, TargetFound: row.TargetFound, ProofFound: row.ProofFound,
-		CertificateAsked: row.CertificateAsked, Main: row.IsCanonical,
+		CertificateAsked: row.CertificateAsked, Main: row.IsCanonical, FellBackAt: row.FellBackAt.Time,
 	}, nil
 }
 
@@ -205,7 +206,7 @@ func (OwnDomainRepository) All(ctx context.Context) ([]repository.ListedOwnDomai
 		listed = append(listed, repository.ListedOwnDomain{
 			Host: row.Host, TenantID: shared.ID(row.TenantID), TenantName: row.TenantName,
 			State: identity.HostState(row.State), Since: row.Since.Time, Main: row.IsMain,
-			BlockedReason: row.BlockedReason,
+			BlockedReason: row.BlockedReason, FellBackAt: row.FellBackAt.Time, AddressHost: row.AddressHost,
 		})
 	}
 	return listed, nil
@@ -255,4 +256,76 @@ func (r SignInRepository) Served(ctx context.Context, host string) (bool, error)
 		return false, ownDomainFailed("recording the own domain's first request", err)
 	}
 	return moved, nil
+}
+
+func (OwnDomainRepository) AddressHost(ctx context.Context) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	host, err := queries.AddressHost(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", ownDomainFailed("reading the workspace's address", err)
+	}
+	return host, nil
+}
+
+func (OwnDomainRepository) MainToOwnDomain(ctx context.Context) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	cleared, err := queries.ClearMainHost(ctx)
+	if err != nil {
+		return "", ownDomainFailed("clearing the main address", err)
+	}
+	made, err := queries.MakeOwnDomainMain(ctx)
+	if err != nil {
+		return "", ownDomainFailed("making the own domain the main address", err)
+	}
+	if made == 0 {
+		return "", shared.ErrConflict.WithDetail("admin.own_domain_not_active")
+	}
+	if len(cleared) == 0 {
+		return "", nil
+	}
+	return cleared[0], nil
+}
+
+func (OwnDomainRepository) MainToAddress(ctx context.Context, fellBack time.Time) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	if _, err := queries.ClearMainHost(ctx); err != nil {
+		return "", ownDomainFailed("clearing the main address", err)
+	}
+	if !fellBack.IsZero() {
+		if err := queries.MarkOwnDomainFellBack(ctx, timestamp(fellBack)); err != nil {
+			return "", ownDomainFailed("keeping the fall-back", err)
+		}
+	}
+	host, err := queries.MakeAddressMain(ctx)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", ownDomainFailed("making the address the main address again", err)
+	}
+	return host, nil
+}
+
+func (OwnDomainRepository) BrowserHost(ctx context.Context, host string) (string, error) {
+	queries, err := queriesFrom(ctx)
+	if err != nil {
+		return "", err
+	}
+	main, err := queries.BrowserHost(ctx, host)
+	if err != nil {
+		return "", ownDomainFailed("reading where a browser is sent", err)
+	}
+	return main, nil
 }

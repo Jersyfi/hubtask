@@ -33,3 +33,26 @@ export function recordsShown(own: OwnDomain): readonly OwnDomainRecord[] {
 export function isRemovable(state: OwnDomainState): boolean {
   return state === 'PENDING' || state === 'ACTIVE' || state === 'BLOCKED';
 }
+
+/** A move of the main address: to the own domain, or back to the subdomain, from one host to the other. */
+export interface MainAddressMove {
+  readonly direction: 'own' | 'back';
+  readonly from: string;
+  readonly to: string;
+}
+
+/** Whether the owner is offered *Make it the main address*: an active domain that is not main yet. */
+export function canBecomeMain(own: OwnDomain): boolean {
+  return own.state === 'ACTIVE' && !own.is_main;
+}
+
+/**
+ * The warning after the main own domain was lost (UC-INS-15 check 9): it broke and the subdomain
+ * became main by itself, or the operator blocked it. Stays until the owner makes the domain main
+ * again or removes it; absent otherwise.
+ */
+export function fallBackOf(own: OwnDomain | undefined): { readonly cause: 'broken' | 'blocked'; readonly at: string } | undefined {
+  if (!own) return undefined;
+  if (own.state === 'BLOCKED') return own.is_main ? { cause: 'blocked', at: own.since } : undefined;
+  return own.fell_back_at ? { cause: 'broken', at: own.fell_back_at } : undefined;
+}

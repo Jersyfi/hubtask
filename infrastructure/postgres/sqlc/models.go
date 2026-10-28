@@ -1731,6 +1731,7 @@ type TenantHost struct {
 	TargetFound        bool
 	ProofFound         bool
 	CertificateAskedAt pgtype.Timestamptz
+	FellBackAt         pgtype.Timestamptz
 }
 
 type Tombstone struct {

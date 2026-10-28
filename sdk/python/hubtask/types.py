@@ -567,6 +567,7 @@ class WorkspaceAddress(TypedDict, total=False):
     own_domains_allowed: bool
     may_manage_own_domain: bool
     own_domain: "OwnDomain"
+    address_host: str | None
 
 class OwnDomain(TypedDict, total=False):
     """A workspace's own domain as its owner sees it: the state, the two records and whether each was found at the last check."""
@@ -577,6 +578,7 @@ class OwnDomain(TypedDict, total=False):
     is_main: Required[bool]
     certificate_asked: Required[bool]
     blocked_reason: str | None
+    fell_back_at: str | None
     records: Required[list["OwnDomainRecord"]]
 
 class OwnDomainRecord(TypedDict, total=False):
@@ -599,6 +601,11 @@ class AdminOwnDomain(TypedDict, total=False):
     since: Required[str]
     is_main: Required[bool]
     blocked_reason: str | None
+    fell_back_at: str | None
+    address_host: str | None
+
+class MainAddressSwitch(TypedDict, total=False):
+    dry_run: bool
 
 WorkspaceAddressChanged = TypedDict("WorkspaceAddressChanged", {
     "from": Required[str],

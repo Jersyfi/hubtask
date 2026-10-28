@@ -7540,7 +7540,7 @@
         ],
         "operationId": "blockOwnDomain",
         "summary": "Block an own domain",
-        "description": "The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.\n",
+        "description": "The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -9163,7 +9163,7 @@
         ],
         "operationId": "setUpOwnDomain",
         "summary": "The workspace's owner sets up an own domain",
-        "description": "Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.\nRefused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.\n",
+        "description": "Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).\nRefused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.\n",
         "requestBody": {
           "required": true,
           "content": {
@@ -9200,6 +9200,86 @@
         "responses": {
           "204": {
             "description": "Removed"
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/own-domain:make-main": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "makeOwnDomainMain",
+        "summary": "The workspace's owner makes its own domain the main address",
+        "description": "An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.\nNeeds `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MainAddressSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new main address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/tenant/own-domain:switch-back": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/StepUpToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "meta"
+        ],
+        "operationId": "switchBackFromOwnDomain",
+        "summary": "The workspace's owner makes its subdomain the main address again",
+        "description": "The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.\nNeeds `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MainAddressSwitch"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The workspace's new main address, or with `dry_run` what the change would be",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceAddressChanged"
+                }
+              }
+            }
           },
           "4XX": {
             "$ref": "#/components/responses/Problem"
@@ -17930,6 +18010,13 @@
           },
           "own_domain": {
             "$ref": "#/components/schemas/OwnDomain"
+          },
+          "address_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.\n"
           }
         }
       },
@@ -17988,6 +18075,14 @@
               "null"
             ],
             "description": "The operator's reason, word for word, where it is blocked."
+          },
+          "fell_back_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.\n"
           },
           "records": {
             "type": "array",
@@ -18098,13 +18193,39 @@
             "format": "date-time"
           },
           "is_main": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.\n"
           },
           "blocked_reason": {
             "type": [
               "string",
               "null"
             ]
+          },
+          "fell_back_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.\n"
+          },
+          "address_host": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.\n"
+          }
+        }
+      },
+      "MainAddressSwitch": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "dry_run": {
+            "type": "boolean",
+            "description": "Check and answer without changing anything, and without a step-up."
           }
         }
       },

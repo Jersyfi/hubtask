@@ -6158,11 +6158,18 @@ type AddressRequested struct {
 
 // AdminOwnDomain defines model for AdminOwnDomain.
 type AdminOwnDomain struct {
-	BlockedReason *string             `json:"blocked_reason,omitempty"`
-	Domain        string              `json:"domain"`
-	IsMain        bool                `json:"is_main"`
-	Since         time.Time           `json:"since"`
-	State         AdminOwnDomainState `json:"state"`
+	// AddressHost The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.
+	AddressHost   *string `json:"address_host,omitempty"`
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+	Domain        string  `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.
+	IsMain bool                `json:"is_main"`
+	Since  time.Time           `json:"since"`
+	State  AdminOwnDomainState `json:"state"`
 
 	// TenantId The workspace; null for a blocked domain no workspace holds.
 	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
@@ -9521,6 +9528,12 @@ type MailboxPreset struct {
 // MailboxPresetProtocol defines model for MailboxPreset.Protocol.
 type MailboxPresetProtocol string
 
+// MainAddressSwitch defines model for MainAddressSwitch.
+type MainAddressSwitch struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -10072,6 +10085,9 @@ type OwnDomain struct {
 
 	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
 	Domain string `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
 
 	// IsMain Whether it is the workspace's main address.
 	IsMain bool `json:"is_main"`
@@ -13296,6 +13312,9 @@ type WorkspaceStatus string
 
 // WorkspaceAddress The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
 type WorkspaceAddress struct {
+	// AddressHost Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.
+	AddressHost *string `json:"address_host,omitempty"`
+
 	// ChangeableFrom Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.
 	ChangeableFrom *time.Time `json:"changeable_from,omitempty"`
 
@@ -14867,6 +14886,18 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// MakeOwnDomainMainParams defines parameters for MakeOwnDomainMain.
+type MakeOwnDomainMainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SwitchBackFromOwnDomainParams defines parameters for SwitchBackFromOwnDomain.
+type SwitchBackFromOwnDomainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -15477,6 +15508,12 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
 type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
+
+// MakeOwnDomainMainJSONRequestBody defines body for MakeOwnDomainMain for application/json ContentType.
+type MakeOwnDomainMainJSONRequestBody = MainAddressSwitch
+
+// SwitchBackFromOwnDomainJSONRequestBody defines body for SwitchBackFromOwnDomain for application/json ContentType.
+type SwitchBackFromOwnDomainJSONRequestBody = MainAddressSwitch
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -16647,6 +16684,12 @@ type ServerInterface interface {
 	// SetUpOwnDomain The workspace's owner sets up an own domain
 	// (PUT /tenant/own-domain)
 	SetUpOwnDomain(w http.ResponseWriter, r *http.Request)
+	// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+	// (POST /tenant/own-domain:make-main)
+	MakeOwnDomainMain(w http.ResponseWriter, r *http.Request, params MakeOwnDomainMainParams)
+	// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+	// (POST /tenant/own-domain:switch-back)
+	SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request, params SwitchBackFromOwnDomainParams)
 	// CloseStarter Answers the first start's question for good
 	// (POST /tenant/starter:close)
 	CloseStarter(w http.ResponseWriter, r *http.Request)
@@ -29774,6 +29817,88 @@ func (siw *ServerInterfaceWrapper) SetUpOwnDomain(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// MakeOwnDomainMain operation middleware
+func (siw *ServerInterfaceWrapper) MakeOwnDomainMain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params MakeOwnDomainMainParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MakeOwnDomainMain(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SwitchBackFromOwnDomain operation middleware
+func (siw *ServerInterfaceWrapper) SwitchBackFromOwnDomain(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params SwitchBackFromOwnDomainParams
+
+	headers := r.Header
+
+	// ------------- Optional header parameter "X-Hubtask-Step-Up" -------------
+	if valueList, found := headers[http.CanonicalHeaderKey("X-Hubtask-Step-Up")]; found {
+		var XHubtaskStepUp StepUpToken
+		n := len(valueList)
+		if n != 1 {
+			siw.ErrorHandlerFunc(w, r, &TooManyValuesForParamError{ParamName: "X-Hubtask-Step-Up", Count: n})
+			return
+		}
+
+		err = runtime.BindStyledParameterWithOptions("simple", "X-Hubtask-Step-Up", valueList[0], &XHubtaskStepUp, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationHeader, Explode: false, Required: false, Type: "string", Format: ""})
+		if err != nil {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "X-Hubtask-Step-Up", Err: err})
+			return
+		}
+
+		params.XHubtaskStepUp = &XHubtaskStepUp
+
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SwitchBackFromOwnDomain(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // CloseStarter operation middleware
 func (siw *ServerInterfaceWrapper) CloseStarter(w http.ResponseWriter, r *http.Request) {
 
@@ -30759,6 +30884,8 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/accounts/me/address-notices:acknowledge", wrapper.AcknowledgeAddressNotices)
 	m.HandleFunc(http.MethodDelete+" "+options.BaseURL+"/tenant/own-domain", wrapper.RemoveOwnDomain)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/tenant/own-domain", wrapper.SetUpOwnDomain)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:make-main", wrapper.MakeOwnDomainMain)
+	m.HandleFunc(http.MethodPost+" "+options.BaseURL+"/tenant/own-domain:switch-back", wrapper.SwitchBackFromOwnDomain)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/tenant/accounts-without-provider", wrapper.CountAccountsWithoutProvider)
 	m.HandleFunc(http.MethodGet+" "+options.BaseURL+"/identity-provider", wrapper.ReadIdentityProvider)
 	m.HandleFunc(http.MethodPut+" "+options.BaseURL+"/identity-provider", wrapper.ConfigureFirstIdentityProvider)

@@ -1091,6 +1091,14 @@ class Client:
         """The workspace's owner removes its own domain"""
         return self._call("DELETE", "/tenant/own-domain", {}, None, {}, None, "none", None, "void")
 
+    def make_own_domain_main(self, body: "MainAddressSwitch", *, step_up: str | None = None) -> "WorkspaceAddressChanged":
+        """The workspace's owner makes its own domain the main address"""
+        return self._call("POST", "/tenant/own-domain:make-main", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
+    def switch_back_from_own_domain(self, body: "MainAddressSwitch", *, step_up: str | None = None) -> "WorkspaceAddressChanged":
+        """The workspace's owner makes its subdomain the main address again"""
+        return self._call("POST", "/tenant/own-domain:switch-back", {}, None, {"X-Hubtask-Step-Up": step_up}, body, "json", "application/json", "json")
+
     def count_accounts_without_provider(self) -> "AccountsWithoutProvider":
         """How many people here no provider switched on here signs in"""
         return self._call("GET", "/tenant/accounts-without-provider", {}, None, {}, None, "none", None, "json")

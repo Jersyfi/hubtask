@@ -624,6 +624,8 @@ export type WorkspaceAddressChanged = components['schemas']['WorkspaceAddressCha
 export type OwnDomain = components['schemas']['OwnDomain'];
 export type OwnDomainRecord = components['schemas']['OwnDomainRecord'];
 export type AdminOwnDomain = components['schemas']['AdminOwnDomain'];
+/** The owner's move of the main address to the own domain or back (UC-INS-15 checks 6 and 8). */
+export type MainAddressSwitch = components['schemas']['MainAddressSwitch'];
 /**
  * A preset the installation offers every workspace (UC-INS-18): its settings, whether it is the
  * default a new hub starts from, and - on the default - the settings it locks; and what writing one takes.

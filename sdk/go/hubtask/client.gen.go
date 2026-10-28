@@ -6164,11 +6164,18 @@ type AddressRequested struct {
 
 // AdminOwnDomain defines model for AdminOwnDomain.
 type AdminOwnDomain struct {
-	BlockedReason *string             `json:"blocked_reason,omitempty"`
-	Domain        string              `json:"domain"`
-	IsMain        bool                `json:"is_main"`
-	Since         time.Time           `json:"since"`
-	State         AdminOwnDomainState `json:"state"`
+	// AddressHost The workspace's subdomain (or assigned host), which becomes the main address where this domain falls back; null for a blocked domain no workspace holds.
+	AddressHost   *string `json:"address_host,omitempty"`
+	BlockedReason *string `json:"blocked_reason,omitempty"`
+	Domain        string  `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so its workspace's subdomain became the main address again by itself; null otherwise.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
+
+	// IsMain Whether it is its workspace's main address; for a blocked one, whether it was when it was blocked.
+	IsMain bool                `json:"is_main"`
+	Since  time.Time           `json:"since"`
+	State  AdminOwnDomainState `json:"state"`
 
 	// TenantId The workspace; null for a blocked domain no workspace holds.
 	TenantId *openapi_types.UUID `json:"tenant_id,omitempty"`
@@ -9527,6 +9534,12 @@ type MailboxPreset struct {
 // MailboxPresetProtocol defines model for MailboxPreset.Protocol.
 type MailboxPresetProtocol string
 
+// MainAddressSwitch defines model for MainAddressSwitch.
+type MainAddressSwitch struct {
+	// DryRun Check and answer without changing anything, and without a step-up.
+	DryRun *bool `json:"dry_run,omitempty"`
+}
+
 // ManagedAccountCreate defines model for ManagedAccountCreate.
 type ManagedAccountCreate struct {
 	DisplayName string `json:"display_name"`
@@ -10078,6 +10091,9 @@ type OwnDomain struct {
 
 	// Domain The domain, as the DNS holds it - lower case, letters beyond ASCII encoded.
 	Domain string `json:"domain"`
+
+	// FellBackAt When it was the main address and broke, so the workspace's subdomain became the main address again by itself; null otherwise. It stays until the owner makes the domain the main address again or removes it. A blocked domain that was the main address says so by `is_main`.
+	FellBackAt *time.Time `json:"fell_back_at,omitempty"`
 
 	// IsMain Whether it is the workspace's main address.
 	IsMain bool `json:"is_main"`
@@ -13302,6 +13318,9 @@ type WorkspaceStatus string
 
 // WorkspaceAddress The workspace's main address and who may change it. The operator always may; the owners where the installation allows it (`owners_change_address`) and the last change is older than its cooldown.
 type WorkspaceAddress struct {
+	// AddressHost Where the own domain is the main address, the workspace's subdomain (or assigned host) beside it: it sends browsers on to the own domain, still answers the API and is the way back. Null otherwise.
+	AddressHost *string `json:"address_host,omitempty"`
+
 	// ChangeableFrom Where owners may change it and the cooldown runs, the moment from which they may again; null otherwise.
 	ChangeableFrom *time.Time `json:"changeable_from,omitempty"`
 
@@ -14873,6 +14892,18 @@ type UpdateWorkspaceParams struct {
 	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
 }
 
+// MakeOwnDomainMainParams defines parameters for MakeOwnDomainMain.
+type MakeOwnDomainMainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
+// SwitchBackFromOwnDomainParams defines parameters for SwitchBackFromOwnDomain.
+type SwitchBackFromOwnDomainParams struct {
+	// XHubtaskStepUp The proof a privileged operation demanded: the token `POST /auth/step-up` answered, consumed by this one call. Without it, an operation that needs one refuses with `auth.step_up_required`, naming in `params.methods` what this account can prove itself with (space-separated, from `PASSWORD`, `TOTP`, `RECOVERY` and `PROVIDER`; empty for an account with none), and in `params.provider` the name of the provider a `PROVIDER` proof goes to.
+	XHubtaskStepUp *StepUpToken `json:"X-Hubtask-Step-Up,omitempty"`
+}
+
 // SetWorkspaceStructureParams defines parameters for SetWorkspaceStructure.
 type SetWorkspaceStructureParams struct {
 	// IfMatch The ETag of the state last read (optimistic locking).
@@ -15483,6 +15514,12 @@ type UpdateWorkspaceApplicationMergePatchPlusJSONRequestBody = WorkspaceUpdate
 
 // SetUpOwnDomainJSONRequestBody defines body for SetUpOwnDomain for application/json ContentType.
 type SetUpOwnDomainJSONRequestBody = OwnDomainSetUp
+
+// MakeOwnDomainMainJSONRequestBody defines body for MakeOwnDomainMain for application/json ContentType.
+type MakeOwnDomainMainJSONRequestBody = MainAddressSwitch
+
+// SwitchBackFromOwnDomainJSONRequestBody defines body for SwitchBackFromOwnDomain for application/json ContentType.
+type SwitchBackFromOwnDomainJSONRequestBody = MainAddressSwitch
 
 // SetWorkspaceStructureJSONRequestBody defines body for SetWorkspaceStructure for application/json ContentType.
 type SetWorkspaceStructureJSONRequestBody = WorkspaceStructureChange
@@ -16481,7 +16518,7 @@ type ClientInterface interface {
 
 	// BlockOwnDomainWithBody Block an own domain
 	//
-	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 	//
 	// Takes any type of body and a specified content type.
 	//
@@ -16490,7 +16527,7 @@ type ClientInterface interface {
 
 	// BlockOwnDomain Block an own domain
 	//
-	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 	//
 	// Takes a body of the `application/json` content type.
 	//
@@ -20987,7 +21024,7 @@ type ClientInterface interface {
 
 	// SetUpOwnDomainWithBody The workspace's owner sets up an own domain
 	//
-	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 	//
 	// Takes any type of body and a specified content type.
@@ -20997,13 +21034,53 @@ type ClientInterface interface {
 
 	// SetUpOwnDomain The workspace's owner sets up an own domain
 	//
-	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 	//
 	// Takes a body of the `application/json` content type.
 	//
 	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
 	SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeOwnDomainMainWithBody The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithBody(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMain(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBackFromOwnDomainWithBody The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type.
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithBody(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error)
+
+	// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type.
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomain(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error)
 
 	// CloseStarter Answers the first start's question for good
 	//
@@ -22762,7 +22839,7 @@ func (c *Client) ListOwnDomains(ctx context.Context, reqEditors ...RequestEditor
 
 // BlockOwnDomainWithBody Block an own domain
 //
-// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 //
 // Takes any type of body and a specified content type.
 //
@@ -22781,7 +22858,7 @@ func (c *Client) BlockOwnDomainWithBody(ctx context.Context, domain string, cont
 
 // BlockOwnDomain Block an own domain
 //
-// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 //
 // Takes a body of the `application/json` content type.
 //
@@ -32138,7 +32215,7 @@ func (c *Client) RemoveOwnDomain(ctx context.Context, reqEditors ...RequestEdito
 
 // SetUpOwnDomainWithBody The workspace's owner sets up an own domain
 //
-// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 // Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 //
 // Takes any type of body and a specified content type.
@@ -32158,7 +32235,7 @@ func (c *Client) SetUpOwnDomainWithBody(ctx context.Context, contentType string,
 
 // SetUpOwnDomain The workspace's owner sets up an own domain
 //
-// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 // Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 //
 // Takes a body of the `application/json` content type.
@@ -32166,6 +32243,86 @@ func (c *Client) SetUpOwnDomainWithBody(ctx context.Context, contentType string,
 // Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
 func (c *Client) SetUpOwnDomain(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
 	req, err := NewSetUpOwnDomainRequest(c.Server, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeOwnDomainMainWithBody The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *Client) MakeOwnDomainMainWithBody(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeOwnDomainMainRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// MakeOwnDomainMain The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *Client) MakeOwnDomainMain(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewMakeOwnDomainMainRequest(c.Server, params, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBackFromOwnDomainWithBody The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type.
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *Client) SwitchBackFromOwnDomainWithBody(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBackFromOwnDomainRequestWithBody(c.Server, params, contentType, body)
+	if err != nil {
+		return nil, err
+	}
+	req = req.WithContext(ctx)
+	if err := c.applyEditors(ctx, req, reqEditors); err != nil {
+		return nil, err
+	}
+	return c.Client.Do(req)
+}
+
+// SwitchBackFromOwnDomain The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type.
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *Client) SwitchBackFromOwnDomain(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*http.Response, error) {
+	req, err := NewSwitchBackFromOwnDomainRequest(c.Server, params, body)
 	if err != nil {
 		return nil, err
 	}
@@ -50581,6 +50738,116 @@ func NewSetUpOwnDomainRequestWithBody(server string, contentType string, body io
 	return req, nil
 }
 
+// NewMakeOwnDomainMainRequest calls the generic MakeOwnDomainMain builder with application/json body
+func NewMakeOwnDomainMainRequest(server string, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewMakeOwnDomainMainRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewMakeOwnDomainMainRequestWithBody constructs an http.Request for the MakeOwnDomainMain method, with any body, and a specified content type
+func NewMakeOwnDomainMainRequestWithBody(server string, params *MakeOwnDomainMainParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain:make-main")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
+// NewSwitchBackFromOwnDomainRequest calls the generic SwitchBackFromOwnDomain builder with application/json body
+func NewSwitchBackFromOwnDomainRequest(server string, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody) (*http.Request, error) {
+	var bodyReader io.Reader
+	buf, err := json.Marshal(body)
+	if err != nil {
+		return nil, err
+	}
+	bodyReader = bytes.NewReader(buf)
+	return NewSwitchBackFromOwnDomainRequestWithBody(server, params, "application/json", bodyReader)
+}
+
+// NewSwitchBackFromOwnDomainRequestWithBody constructs an http.Request for the SwitchBackFromOwnDomain method, with any body, and a specified content type
+func NewSwitchBackFromOwnDomainRequestWithBody(server string, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader) (*http.Request, error) {
+	var err error
+
+	serverURL, err := url.Parse(server)
+	if err != nil {
+		return nil, err
+	}
+
+	operationPath := fmt.Sprintf("/tenant/own-domain:switch-back")
+	if operationPath[0] == '/' {
+		operationPath = "." + operationPath
+	}
+
+	queryURL, err := serverURL.Parse(operationPath)
+	if err != nil {
+		return nil, err
+	}
+
+	req, err := http.NewRequest(http.MethodPost, queryURL.String(), body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", contentType)
+
+	if params != nil {
+
+		if params.XHubtaskStepUp != nil {
+			var headerParam0 string
+
+			headerParam0, err = runtime.StyleParamWithOptions("simple", false, "X-Hubtask-Step-Up", *params.XHubtaskStepUp, runtime.StyleParamOptions{ParamLocation: runtime.ParamLocationHeader, Type: "string", Format: ""})
+			if err != nil {
+				return nil, err
+			}
+
+			req.Header.Set("X-Hubtask-Step-Up", headerParam0)
+		}
+
+	}
+
+	return req, nil
+}
+
 // NewCloseStarterRequest constructs an http.Request for the CloseStarter method
 func NewCloseStarterRequest(server string) (*http.Request, error) {
 	var err error
@@ -52429,7 +52696,7 @@ type ClientWithResponsesInterface interface {
 
 	// BlockOwnDomainWithBodyWithResponse Block an own domain
 	//
-	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -52438,7 +52705,7 @@ type ClientWithResponsesInterface interface {
 
 	// BlockOwnDomainWithResponse Block an own domain
 	//
-	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+	// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
@@ -57355,7 +57622,7 @@ type ClientWithResponsesInterface interface {
 
 	// SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
 	//
-	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 	//
 	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -57365,13 +57632,53 @@ type ClientWithResponsesInterface interface {
 
 	// SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
 	//
-	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+	// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 	// Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 	//
 	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 	//
 	// Corresponds with PUT /tenant/own-domain (the `SetUpOwnDomain` operationId).
 	SetUpOwnDomainWithResponse(ctx context.Context, body SetUpOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SetUpOwnDomainResult, error)
+
+	// MakeOwnDomainMainWithBodyWithResponse The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithBodyWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error)
+
+	// MakeOwnDomainMainWithResponse The workspace's owner makes its own domain the main address
+	//
+	// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+	// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+	MakeOwnDomainMainWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error)
+
+	// SwitchBackFromOwnDomainWithBodyWithResponse The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithBodyWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error)
+
+	// SwitchBackFromOwnDomainWithResponse The workspace's owner makes its subdomain the main address again
+	//
+	// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+	// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+	//
+	// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+	//
+	// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+	SwitchBackFromOwnDomainWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error)
 
 	// CloseStarterWithResponse Answers the first start's question for good
 	//
@@ -76301,6 +76608,102 @@ func (r SetUpOwnDomainResult) ContentType() string {
 	return ""
 }
 
+type MakeOwnDomainMainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r MakeOwnDomainMainResult) GetJSON200() *WorkspaceAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r MakeOwnDomainMainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r MakeOwnDomainMainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r MakeOwnDomainMainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r MakeOwnDomainMainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r MakeOwnDomainMainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
+type SwitchBackFromOwnDomainResult struct {
+	Body         []byte
+	HTTPResponse *http.Response
+	// JSON200 the response for an HTTP 200 `application/json` response
+	JSON200 *WorkspaceAddressChanged
+	// ApplicationproblemJSON4XX the response for an HTTP 4XX `application/problem+json` response
+	ApplicationproblemJSON4XX *Problem
+}
+
+// GetJSON200 returns the response for an HTTP 200 `application/json` response
+func (r SwitchBackFromOwnDomainResult) GetJSON200() *WorkspaceAddressChanged {
+	return r.JSON200
+}
+
+// GetApplicationproblemJSON4XX returns the response for an HTTP 4XX `application/problem+json` response
+func (r SwitchBackFromOwnDomainResult) GetApplicationproblemJSON4XX() *Problem {
+	return r.ApplicationproblemJSON4XX
+}
+
+// GetBody returns the raw response body bytes
+func (r SwitchBackFromOwnDomainResult) GetBody() []byte {
+	return r.Body
+}
+
+// Status returns HTTPResponse.Status
+func (r SwitchBackFromOwnDomainResult) Status() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Status
+	}
+	return http.StatusText(0)
+}
+
+// StatusCode returns HTTPResponse.StatusCode
+func (r SwitchBackFromOwnDomainResult) StatusCode() int {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.StatusCode
+	}
+	return 0
+}
+
+// ContentType is a convenience method to retrieve the Content-Type value from the HTTP response headers
+func (r SwitchBackFromOwnDomainResult) ContentType() string {
+	if r.HTTPResponse != nil {
+		return r.HTTPResponse.Header.Get("Content-Type")
+	}
+	return ""
+}
+
 type CloseStarterResult struct {
 	Body         []byte
 	HTTPResponse *http.Response
@@ -78501,7 +78904,7 @@ func (c *ClientWithResponses) ListOwnDomainsWithResponse(ctx context.Context, re
 
 // BlockOwnDomainWithBodyWithResponse Block an own domain
 //
-// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
 //
@@ -78516,7 +78919,7 @@ func (c *ClientWithResponses) BlockOwnDomainWithBodyWithResponse(ctx context.Con
 
 // BlockOwnDomainWithResponse Block an own domain
 //
-// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. In the workspace's trail and the installation's journal, the reason in the journal only.
+// The domain stops answering at once: its row no longer names the workspace, the ingress is refused a certificate for it, and no workspace can set it up again. The workspace's owner sees that the operator blocked it, when, and the reason word for word. Refused with `admin.own_domain_reason_required` without a reason, `admin.own_domain_already_blocked` for one already blocked and `admin.own_domain_not_found` for a domain no workspace set up. A domain that is its workspace's main address hands it back to the workspace's subdomain (or assigned host) in the same step. In the workspace's trail and the installation's journal, the reason in the journal only.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
 //
@@ -86349,7 +86752,7 @@ func (c *ClientWithResponses) RemoveOwnDomainWithResponse(ctx context.Context, r
 
 // SetUpOwnDomainWithBodyWithResponse The workspace's owner sets up an own domain
 //
-// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 // Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 //
 // Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
@@ -86365,7 +86768,7 @@ func (c *ClientWithResponses) SetUpOwnDomainWithBodyWithResponse(ctx context.Con
 
 // SetUpOwnDomainWithResponse The workspace's owner sets up an own domain
 //
-// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays its main address.
+// Where the installation lets owners set up own domains (`owners_own_domains`), the workspace's owner names a domain of theirs and is answered the two DNS records that prove it: a CNAME pointing the domain at the installation's target and a TXT record carrying the row's mark. Verification runs by itself; the domain answers once both records are found, and the ingress obtains its certificate on demand. Mail is not affected. One own domain per workspace; its subdomain stays the main address until the owner makes the domain the main address (`POST /tenant/own-domain:make-main`).
 // Refused at the field with `admin.own_domain_invalid` for what is no domain, `admin.own_domain_apex` for a domain without a name in front of the registered one (no CNAME is possible there: use a subdomain such as `tasks.<domain>`), `admin.own_domain_installation` for the installation's own host or one beneath it, `admin.own_domain_taken` for another workspace's address - never saying whose - and `admin.own_domain_blocked` for one the operator blocked. Refused with `admin.own_domain_exists` while the workspace has one, `access.owner_required` for a caller who is not an owner and `access.own_domains_not_allowed` where the installation does not allow it, which is every installation that decided nothing and every one in single mode. In the workspace's trail.
 //
 // Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
@@ -86377,6 +86780,70 @@ func (c *ClientWithResponses) SetUpOwnDomainWithResponse(ctx context.Context, bo
 		return nil, err
 	}
 	return ParseSetUpOwnDomainResult(rsp)
+}
+
+// MakeOwnDomainMainWithBodyWithResponse The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *ClientWithResponses) MakeOwnDomainMainWithBodyWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error) {
+	rsp, err := c.MakeOwnDomainMainWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeOwnDomainMainResult(rsp)
+}
+
+// MakeOwnDomainMainWithResponse The workspace's owner makes its own domain the main address
+//
+// An active own domain becomes the workspace's main address: every link Hubtask writes from then on names it. The confirmation of a change of address applies - the same lockout rule, the same proof by password or provider, never a passkey, and the same notices - and it costs what a change costs: everybody signs in again and passkeys made at the old address stop working. The workspace's subdomain (or assigned host) stays: it sends browsers on to the own domain and still answers the API, and it is the way back. No cooldown applies.
+// Needs `OWNER` on the workspace (`access.owner_required`) and an installation that lets owners set up own domains (`access.own_domains_not_allowed`). Refused with `admin.own_domain_none` where there is no own domain, `admin.own_domain_not_active` until it is active, `admin.own_domain_already_main` where it is the main address and `admin.own_domain_no_way_back` where the workspace has no subdomain or assigned host to come back to; the lockout as `admin.address_lockout_self` or `admin.address_lockout_owner`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:make-main (the `MakeOwnDomainMain` operationId).
+func (c *ClientWithResponses) MakeOwnDomainMainWithResponse(ctx context.Context, params *MakeOwnDomainMainParams, body MakeOwnDomainMainJSONRequestBody, reqEditors ...RequestEditorFn) (*MakeOwnDomainMainResult, error) {
+	rsp, err := c.MakeOwnDomainMain(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseMakeOwnDomainMainResult(rsp)
+}
+
+// SwitchBackFromOwnDomainWithBodyWithResponse The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes any type of body and a specified content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *ClientWithResponses) SwitchBackFromOwnDomainWithBodyWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, contentType string, body io.Reader, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error) {
+	rsp, err := c.SwitchBackFromOwnDomainWithBody(ctx, params, contentType, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBackFromOwnDomainResult(rsp)
+}
+
+// SwitchBackFromOwnDomainWithResponse The workspace's owner makes its subdomain the main address again
+//
+// The way back: the workspace's subdomain (or assigned host) becomes the main address again, at any time and at the cost of a change of address - the same lockout rule, proof and notices; everybody signs in again and passkeys made at the own domain stop working. The own domain stays set up and sends browsers on to the subdomain, so it can be made the main address again later. Neither the installation's switch nor a cooldown holds it.
+// Needs `OWNER` on the workspace (`access.owner_required`). Refused with `admin.own_domain_none` where there is no own domain and `admin.own_domain_not_main` where it is not the main address; the lockout as for `POST /tenant/own-domain:make-main`. With `dry_run` it checks everything but the proof and writes nothing. In the workspace's trail.
+//
+// Takes a body of the `application/json` content type, and returns a wrapper object for the known response body format(s).
+//
+// Corresponds with POST /tenant/own-domain:switch-back (the `SwitchBackFromOwnDomain` operationId).
+func (c *ClientWithResponses) SwitchBackFromOwnDomainWithResponse(ctx context.Context, params *SwitchBackFromOwnDomainParams, body SwitchBackFromOwnDomainJSONRequestBody, reqEditors ...RequestEditorFn) (*SwitchBackFromOwnDomainResult, error) {
+	rsp, err := c.SwitchBackFromOwnDomain(ctx, params, body, reqEditors...)
+	if err != nil {
+		return nil, err
+	}
+	return ParseSwitchBackFromOwnDomainResult(rsp)
 }
 
 // CloseStarterWithResponse Answers the first start's question for good
@@ -100213,6 +100680,72 @@ func ParseSetUpOwnDomainResult(rsp *http.Response) (*SetUpOwnDomainResult, error
 	switch {
 	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
 		var dest OwnDomain
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseMakeOwnDomainMainResult parses an HTTP response from a MakeOwnDomainMainWithResponse call
+func ParseMakeOwnDomainMainResult(rsp *http.Response) (*MakeOwnDomainMainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &MakeOwnDomainMainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAddressChanged
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.JSON200 = &dest
+
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode/100 == 4:
+		var dest Problem
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		response.ApplicationproblemJSON4XX = &dest
+
+	}
+
+	return response, nil
+}
+
+// ParseSwitchBackFromOwnDomainResult parses an HTTP response from a SwitchBackFromOwnDomainWithResponse call
+func ParseSwitchBackFromOwnDomainResult(rsp *http.Response) (*SwitchBackFromOwnDomainResult, error) {
+	bodyBytes, err := io.ReadAll(rsp.Body)
+	defer func() { _ = rsp.Body.Close() }()
+	if err != nil {
+		return nil, err
+	}
+
+	response := &SwitchBackFromOwnDomainResult{
+		Body:         bodyBytes,
+		HTTPResponse: rsp,
+	}
+
+	switch {
+	case strings.Contains(rsp.Header.Get("Content-Type"), "json") && rsp.StatusCode == 200:
+		var dest WorkspaceAddressChanged
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}

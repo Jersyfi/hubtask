@@ -12,10 +12,17 @@
   //
   // **Nothing here writes.** Every card is a reading and a link, so an auditor sees the same
   // overview an administrator does, read-only by construction.
+  //
+  // Above the cards, the warning after the main own domain was lost (UC-INS-15 check 9): it broke
+  // and the subdomain became the main address by itself, or the operator blocked it. It stays until
+  // the owner makes the domain main again or removes it, so it is not dismissed here.
 
   import { untrack } from 'svelte';
 
-  import { Badge, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+
+  import { fallBackOf } from '../lib/address/owndomain.ts';
+  import { workspace } from '../lib/data/workspace.svelte.ts';
 
   import { backupState, limitLines, newestArchive, owedSoon, pageOfFeature, ruleLines, type ArchiveReading } from '../lib/administration/overview.ts';
   import { backup } from '../lib/data/backup.svelte.ts';
@@ -25,7 +32,7 @@
   import { quotas } from '../lib/data/quotas.svelte.ts';
   import { rules } from '../lib/data/rules.svelte.ts';
   import { formatBytes } from '../lib/i18n/bytes.ts';
-  import { formatDateTime } from '../lib/i18n/datetime.ts';
+  import { formatDateTime, formatLongDay, formatTime } from '../lib/i18n/datetime.ts';
   import { messages, t } from '../lib/i18n/i18n.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
   import { viewport } from '../lib/frame/viewport.svelte.ts';
@@ -35,6 +42,16 @@
   const mayReadRules = $derived(holdsHere('AUTOMATION') === true || mayReadConfiguration);
   const mayReadBackup = $derived(holdsHere('STRUCTURE') === true || mayReadConfiguration);
   const mayReadRequests = $derived(holdsHere('MANAGE_MEMBERS') === true);
+
+  interface Props {
+    onnavigate?: (path: string) => void;
+  }
+
+  const { onnavigate }: Props = $props();
+
+  $effect(() => untrack(() => workspace.open()));
+  const address = $derived(workspace.workspace?.address);
+  const fallBack = $derived(fallBackOf(address?.own_domain ?? undefined));
 
   $effect(() => untrack(() => quotas.open()));
   $effect(() => {
@@ -124,6 +141,23 @@
       expandLabel: t('app.admin.expand_trail'),
     }}
   />
+
+  {#if fallBack && address?.own_domain}
+    <div data-fell-back={fallBack.cause}>
+      <Banner tone="danger" title={t('app.admin_overview.fell_back_title', { domain: address.own_domain.domain })}>
+        {fallBack.cause === 'blocked'
+          ? t('app.admin_overview.fell_back_blocked', { day: formatLongDay(fallBack.at, messages.locale), host: address.host })
+          : t('app.admin_overview.fell_back_broken', {
+              day: formatLongDay(fallBack.at, messages.locale),
+              time: formatTime(fallBack.at, messages.locale),
+              host: address.host,
+            })}
+        {#snippet action()}
+          <Button tone="secondary" size="sm" onclick={() => onnavigate?.('/administration/address')}>{t('app.address.title')}</Button>
+        {/snippet}
+      </Banner>
+    </div>
+  {/if}
 
   <div class="cards" data-testid="admin-overview">
     {#each cards as card (card.id)}

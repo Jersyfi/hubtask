@@ -3,7 +3,8 @@
 
 -- name: FindOwnDomain :one
 SELECT host, state, verification, is_canonical, created_at, state_since, checked_at,
-       target_found, proof_found, (certificate_asked_at IS NOT NULL)::boolean AS certificate_asked
+       target_found, proof_found, (certificate_asked_at IS NOT NULL)::boolean AS certificate_asked,
+       fell_back_at
 FROM tenant_host WHERE kind = 'OWN_DOMAIN';
 
 -- name: InsertOwnDomain :exec
@@ -55,7 +56,8 @@ FROM own_domains_due(sqlc.arg('pending_before')::timestamptz, sqlc.arg('serving_
 -- name: AdminOwnDomains :many
 SELECT host::text AS host, coalesce(tenant_id::text, '')::text AS tenant_id,
        tenant_name::text AS tenant_name, state::text AS state, since::timestamptz AS since,
-       is_main::boolean AS is_main, coalesce(blocked_reason, '')::text AS blocked_reason
+       is_main::boolean AS is_main, coalesce(blocked_reason, '')::text AS blocked_reason,
+       fell_back_at::timestamptz AS fell_back_at, coalesce(address_host, '')::text AS address_host
 FROM admin_own_domains();
 
 -- name: OwnDomainCertificate :one
@@ -67,3 +69,33 @@ FROM resolve_serving_host(sqlc.arg('host')::text);
 
 -- name: OwnDomainServed :one
 SELECT own_domain_served(sqlc.arg('host')::text, sqlc.arg('served_at')::timestamptz)::boolean AS moved;
+
+-- The main address moves between the own domain and the workspace's address row (migration 0212).
+-- Two statements, never one swap: the one-main index is checked row by row.
+
+-- name: ClearMainHost :many
+UPDATE tenant_host SET is_canonical = false WHERE is_canonical RETURNING host;
+
+-- name: MakeOwnDomainMain :execrows
+-- Only an active own domain becomes main; making it main clears the warning of a fall-back.
+UPDATE tenant_host SET is_canonical = true, fell_back_at = NULL
+WHERE kind = 'OWN_DOMAIN' AND state = 'ACTIVE';
+
+-- name: MakeAddressMain :one
+-- The workspace's subdomain or assigned host, the newest where an old base URL left several.
+UPDATE tenant_host SET is_canonical = true
+WHERE kind = 'ADDRESS' AND host = (
+  SELECT a.host FROM tenant_host a WHERE a.kind = 'ADDRESS' AND a.state = 'ACTIVE'
+  ORDER BY a.created_at DESC LIMIT 1)
+RETURNING host;
+
+-- name: MarkOwnDomainFellBack :exec
+UPDATE tenant_host SET fell_back_at = sqlc.arg('now') WHERE kind = 'OWN_DOMAIN';
+
+-- name: AddressHost :one
+-- The workspace's own address beside an own domain: the way back.
+SELECT host FROM tenant_host WHERE kind = 'ADDRESS' AND state = 'ACTIVE'
+ORDER BY is_canonical DESC, created_at DESC LIMIT 1;
+
+-- name: BrowserHost :one
+SELECT coalesce(browser_host(sqlc.arg('host')::text), '')::text AS host;

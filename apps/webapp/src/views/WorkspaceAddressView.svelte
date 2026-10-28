@@ -12,14 +12,20 @@
   //
   // After the owner's change the old address answers nothing and every session there ended, so the
   // browser goes on to the new address's front door.
+  //
+  // Where the own domain is the main address (UC-INS-15 checks 7 and 8) the panel names it, and the
+  // subdomain beside it that sends browsers on, with the way back; the own domain's own panel is then
+  // this one. Either move of the main address ends every session, and the browser goes on likewise.
 
   import { untrack } from 'svelte';
 
-  import { Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
+  import { Badge, Banner, Button, PageHeader, Spinner, Stack } from '@hubtask/design-system/components';
 
   import ChangeAddressDialog from '../lib/address/ChangeAddressDialog.svelte';
+  import MainAddressDialog from '../lib/address/MainAddressDialog.svelte';
   import OwnDomainPanel from '../lib/address/OwnDomainPanel.svelte';
   import { addressAfterChange, type AddressSubject } from '../lib/address/change.ts';
+  import type { MainAddressMove } from '../lib/address/owndomain.ts';
   import { manifest } from '../lib/data/capabilities.svelte.ts';
   import { workspace } from '../lib/data/workspace.svelte.ts';
   import { page } from '../lib/frame/page.svelte.ts';
@@ -37,6 +43,11 @@
   const refusal = $derived(reading.status === 'failed' ? renderProblem(reading.error, messages) : undefined);
 
   let changing = $state<AddressSubject | undefined>(undefined);
+  let moving = $state<MainAddressMove | undefined>(undefined);
+
+  const own = $derived(address?.own_domain ?? undefined);
+  /** The own domain is the main address, with the subdomain beside it as the way back. */
+  const wayBack = $derived(own?.is_main && own.state !== 'BLOCKED' ? (address?.address_host ?? undefined) : undefined);
 
   const day = (iso: string | null | undefined): string => (iso ? formatLongDay(iso, messages.locale) : '');
 
@@ -79,6 +90,28 @@
     <Banner tone="danger" title={refusal.message}>
       {#if refusal.reference}{t('app.error_reference', { request_id: refusal.reference })}{/if}
     </Banner>
+  {:else if current && address && wayBack}
+    <section class="panel" aria-labelledby="main-address" data-main="own">
+      <Stack gap="100">
+        <div class="row between">
+          <span class="label" id="main-address">{t('app.address.main')}</span>
+          <Badge tone="success">{t('app.address.own_main_badge')}</Badge>
+        </div>
+        <p class="fixed">{address.host}</p>
+        <p class="note">{t('app.address.own_main_note')}</p>
+        <hr class="rule" />
+        <span class="label">{t('app.address.also')}</span>
+        <p class="mono">{wayBack}</p>
+        <p class="note">{t('app.address.also_note', { main: address.host })}</p>
+        {#if address.may_manage_own_domain}
+          <div>
+            <Button tone="secondary" onclick={() => (moving = { direction: 'back', from: address.host, to: wayBack })}>
+              {t('app.address.switch_back', { host: wayBack })}
+            </Button>
+          </div>
+        {/if}
+      </Stack>
+    </section>
   {:else if current}
     <section class="panel" aria-labelledby="main-address">
       <Stack gap="100">
@@ -98,6 +131,9 @@
         main={address.host}
         isOwner={address.may_manage_own_domain === true}
         isAllowed={address.own_domains_allowed === true}
+        onmakemain={() => {
+          if (address.own_domain) moving = { direction: 'own', from: address.host, to: address.own_domain.domain };
+        }}
       />
     {/if}
   {/if}
@@ -109,6 +145,15 @@
   change={(body) => workspace.changeAddress(body)}
   onclose={() => (changing = undefined)}
   onchanged={(answer) => {
+    if (answer.to) location.assign(addressAfterChange(answer.to, location));
+  }}
+/>
+
+<MainAddressDialog
+  move={moving}
+  send={(body) => workspace.moveMainAddress(moving?.direction ?? 'own', body)}
+  onclose={() => (moving = undefined)}
+  onmoved={(answer) => {
     if (answer.to) location.assign(addressAfterChange(answer.to, location));
   }}
 />
@@ -142,6 +187,13 @@
     color: var(--text-primary);
     overflow-wrap: anywhere;
   }
+
+  .row { display: flex; align-items: center; gap: var(--sp-100); flex-wrap: wrap; }
+  .between { justify-content: space-between; }
+
+  .mono { margin: 0; font-family: var(--font-mono); color: var(--text-primary); overflow-wrap: anywhere; }
+
+  .rule { margin: var(--sp-050) 0; border: 0; border-block-start: var(--bw-hairline) solid var(--border-subtle); }
 
   /* The panel carries the measure, so the note runs its width as the preview draws it. */
   .note { margin: 0; max-inline-size: none; font-size: var(--fs-075); color: var(--text-subtle); }

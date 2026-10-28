@@ -80,6 +80,16 @@ func (r WorkspaceAddressReader) addressOutput(
 			}
 			if own != nil {
 				out["own_domain"] = own
+				// Beside a main own domain, the address row is the way back the screen offers.
+				if main, _ := own["is_main"].(bool); main && own["state"] != string(repository.HostStateBlocked) {
+					back, err := r.OwnDomains.AddressHost(ctx)
+					if err != nil {
+						return err
+					}
+					if back != "" {
+						out["address_host"] = back
+					}
+				}
 			}
 		}
 		last, err := r.Changes.LastAddressChange(ctx)

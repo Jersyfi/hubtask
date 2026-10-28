@@ -207,3 +207,43 @@ func TestOwnDomainsWaitForTheInstallation(t *testing.T) {
 		t.Errorf("Refuse = %v", err)
 	}
 }
+
+// UC-INS-15 checks 6 and 8: the main address moves to an active own domain and back, each time
+// naming where it leaves and where it goes, and never where there is no way back.
+func TestTheMainAddressMovesBetweenTheOwnDomainAndTheSubdomain(t *testing.T) {
+	const subdomain = "acme.tasks.example.net"
+	own := func(state HostState, main bool) OwnDomain {
+		return OwnDomain{Host: "tasks.acme.com", State: state, Main: main}
+	}
+	cases := []struct {
+		name     string
+		own      OwnDomain
+		address  string
+		toOwn    bool
+		from, to string
+		refused  string
+	}{
+		{"an active domain becomes main", own(HostActive, false), subdomain, true, subdomain, "tasks.acme.com", ""},
+		{"and the subdomain comes back", own(HostActive, true), subdomain, false, "tasks.acme.com", subdomain, ""},
+		{"a verified domain waits for its first request", own(HostVerified, false), subdomain, true, "", "", "admin.own_domain_not_active"},
+		{"a pending domain does not", own(HostPending, false), subdomain, true, "", "", "admin.own_domain_not_active"},
+		{"a broken domain does not", own(HostBroken, false), subdomain, true, "", "", "admin.own_domain_not_active"},
+		{"a main domain is main already", own(HostActive, true), subdomain, true, "", "", "admin.own_domain_already_main"},
+		{"there is nothing to switch back from", own(HostActive, false), subdomain, false, "", "", "admin.own_domain_not_main"},
+		{"no way back, no move", own(HostActive, false), "", true, "", "", "admin.own_domain_no_way_back"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			from, to, err := MainAddressMove(c.own, c.address, c.toOwn)
+			if c.refused != "" {
+				if shared.AsError(err).DetailCode != c.refused {
+					t.Fatalf("refused with %v, want %s", err, c.refused)
+				}
+				return
+			}
+			if err != nil || from != c.from || to != c.to {
+				t.Fatalf("moved %q to %q (%v), want %q to %q", from, to, err, c.from, c.to)
+			}
+		})
+	}
+}
