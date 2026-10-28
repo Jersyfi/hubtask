@@ -274,6 +274,8 @@ func groupKeyOf(field view.Field, item work.WorkItem) (string, bool) {
 			return work.SystemEntryTypeKey(item.Type), true
 		}
 		return item.EntryType, true
+	case view.FieldAssigneeID:
+		return item.AssigneeID.String(), !item.AssigneeID.IsZero()
 	case view.FieldIsCompleted:
 		if item.Completion.IsCompleted {
 			return "true", true

@@ -11,8 +11,8 @@ import (
 )
 
 // The entry's type as a query field against the database (UC-FLW-01): an entry without a type of
-// its own is its level's system type, the rows carry the type they hold, and a grouping by type
-// cuts the board where the values change.
+// its own is its level's system type, the rows carry the type they hold, and a grouping by type -
+// and by assignee - cuts the board where the values change.
 func TestTheQueryFiltersAndGroupsByTheEntrysType(t *testing.T) {
 	ctx := context.Background()
 	seedContainerTenants(ctx, t)
@@ -56,4 +56,9 @@ func TestTheQueryFiltersAndGroupsByTheEntrysType(t *testing.T) {
 		t.Errorf("the groups by type count %d and %d", byType.Groups[0].Total, byType.Groups[1].Total)
 	}
 
+	byAssignee := typedQuery(ctx, t, tenantA, collection, nil, nil, map[string]any{"field": "assignee_id"})
+	if len(byAssignee.Groups) != 2 || byAssignee.Groups[0].Key != authorA.String() ||
+		!byAssignee.Groups[1].Absent {
+		t.Fatalf("the groups by assignee are %+v", byAssignee.Groups)
+	}
 }
