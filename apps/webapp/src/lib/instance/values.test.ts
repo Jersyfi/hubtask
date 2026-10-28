@@ -42,6 +42,14 @@ test('what was decided is sent in its kind, and what was not is left out', () =>
   assert.deepEqual(document.legal, {});
 });
 
+test("the modules the installation decided travel with every save, so a save elsewhere keeps them (UC-INS-21 check 6)", () => {
+  const planning: InstanceSetting = { set: true, value: true, locked: true, kind: 'FLAG', workspace_may: 'REPLACE' };
+  const goals: InstanceSetting = { set: false, locked: false, kind: 'FLAG', workspace_may: 'REPLACE' };
+  const document = documentOf({ module: { planning, goals }, blocklist_file: '' });
+  assert.deepEqual(document.module, { planning: { set: true, value: true, locked: true } });
+  assert.deepEqual(planBodyOf('Team', [], { module: { planning } }).module, { planning: { set: true, value: true, locked: true } });
+});
+
 test('the areas are drawn in the screen order, each key in its declared position', () => {
   const rows = rowsOf({
     ai: { sources: { set: false, locked: false, kind: 'CHOICE', options: ['EITHER'] } },
@@ -85,7 +93,7 @@ test("a plan's body carries its name, what it leaves out and only what it decide
   const body = planBodyOf('Family', ['WEBHOOKS'], { quotas: { accounts: decided, items: open } });
   assert.deepEqual(body, {
     display_name: 'Family', left_out: ['WEBHOOKS'],
-    sign_in: {}, legal: {}, quotas: { accounts: { set: true, value: 6, locked: true } }, ai: {},
+    sign_in: {}, legal: {}, quotas: { accounts: { set: true, value: 6, locked: true } }, ai: {}, module: {},
   });
 });
 

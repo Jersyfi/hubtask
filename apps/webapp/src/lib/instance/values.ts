@@ -14,7 +14,7 @@
 import type { InstanceSetting, InstanceSettings } from '@hubtask/sync-engine';
 
 /** The five areas, in the order the screen draws them - the contract's own properties. */
-export const AREAS = ['sign_in', 'legal', 'localisation', 'quotas', 'ai'] as const;
+export const AREAS = ['sign_in', 'legal', 'localisation', 'quotas', 'ai', 'module'] as const;
 export type Area = (typeof AREAS)[number];
 
 /** One key of one area, as the screen draws it. */
@@ -131,7 +131,7 @@ export function changesBetween(draft: InstanceSettings, read: InstanceSettings):
 export const fieldOf = (area: Area, key: string): string => `/${area}/${key}`;
 
 /** The areas a plan decides, in the screen's order: the installation's, without localisation. */
-export const PLAN_AREAS = ['sign_in', 'legal', 'quotas', 'ai'] as const satisfies readonly Area[];
+export const PLAN_AREAS = ['sign_in', 'legal', 'quotas', 'ai', 'module'] as const satisfies readonly Area[];
 
 /** A plan's document in the installation level's shape: the areas it shares with it. */
 export type PlanAreas = Partial<Record<Area, Record<string, InstanceSetting>>>;
