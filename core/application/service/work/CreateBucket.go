@@ -67,6 +67,8 @@ type CreateBucket struct {
 
 // CreateBucketCommand is the input, typed.
 type CreateBucketCommand struct {
+	// ID is the identifier an offline client minted, or zero for the server's.
+	ID           shared.ID
 	CollectionID shared.ID
 	Name         string
 
@@ -129,8 +131,12 @@ func (h CreateBucket) Execute(
 			return err
 		}
 
+		id, err := mintedOr(cmd.ID, h.IDs)
+		if err != nil {
+			return err
+		}
 		bucket, err := domain.NewBucket(domain.NewBucketInput{
-			ID:           h.IDs.NewID(),
+			ID:           id,
 			TenantID:     actor.TenantID,
 			CollectionID: cmd.CollectionID,
 			Name:         cmd.Name,
@@ -369,6 +375,7 @@ func (h CreateBucket) Descriptor() usecase.Descriptor {
 			", records a change for offline clients, and writes an audit entry.",
 		TokenScope: bucketsWrite,
 		Input: []usecase.Field{
+			clientIDField,
 			{
 				Name: "collection_id", Kind: usecase.KindID, Required: true,
 				Description: "The collection whose board the column joins.",
@@ -425,7 +432,12 @@ func (h CreateBucket) invoke(
 		return nil, err
 	}
 
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	bucket, err := h.Execute(ctx, actor, CreateBucketCommand{
+		ID:             id,
 		CollectionID:   collectionID,
 		Name:           in.String("name"),
 		WipLimit:       in.Int("wip_limit"),

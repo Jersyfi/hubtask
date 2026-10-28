@@ -232,6 +232,8 @@ export type {
   NotificationPreferenceUpdate,
   PendingMutation,
   MutationKind,
+  QueuedKind,
+  CapturedFileRecord,
   QueuedWrite,
   QueueState,
   RejectedMutation,

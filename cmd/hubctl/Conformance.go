@@ -564,10 +564,11 @@ func outcomeOf(err error) string {
 	return err.Error()
 }
 
-// 8: no mutation kind exists for what §1's right column keeps online.
+// 8: no mutation kind exists for what §1's right column keeps online, and applying a template -
+// the left column's - is a kind the frame carries.
 func (c *conformance) checkNothingOfTheRightColumn(ctx context.Context) {
 	const claim = "Nothing that stays online-only is offered offline"
-	for _, kind := range []string{"RULE_CREATE", "MEMBERSHIP_GRANT", "TEMPLATE_INSTANTIATE", "RESTORE"} {
+	for _, kind := range []string{"RULE_CREATE", "MEMBERSHIP_GRANT", "BACKUP_RUN", "RESTORE"} {
 		mutation := newMutation(kind, uuidOf(clockadapter.NewUUIDv7(clockadapter.System{}).NewID()))
 		out := c.push(ctx, c.client, c.deviceA, mutation)
 		if out.err != nil {
@@ -585,7 +586,21 @@ func (c *conformance) checkNothingOfTheRightColumn(ctx context.Context) {
 			return
 		}
 	}
-	c.pass(8, claim, "a rule, a membership, a template instantiation and a restore have no mutation kind: each is refused as sync.kind_unknown")
+	// A template this run never made: the answer is the template's own refusal, never an unknown
+	// kind, and nothing is stamped.
+	apply := newMutation("TEMPLATE_APPLY", uuidOf(clockadapter.NewUUIDv7(clockadapter.System{}).NewID()))
+	apply["payload"] = map[string]any{"template_id": freshUUIDv7(), "collection_id": c.collection.String()}
+	out := c.push(ctx, c.client, c.deviceA, apply)
+	if out.err != nil {
+		c.fail(8, claim, "pushing TEMPLATE_APPLY failed: "+out.err.Error())
+		return
+	}
+	result := out.results[opOf(apply)]
+	if result.Result == "APPLIED" || (result.Error != nil && result.Error.MessageCode != nil && *result.Error.MessageCode == "sync.kind_unknown") {
+		c.fail(8, claim, fmt.Sprintf("applying a template that does not exist was answered %s, want the template's own refusal", result.Result))
+		return
+	}
+	c.pass(8, claim, "a rule, a membership, a backup and a restore have no mutation kind: each is refused as sync.kind_unknown; applying a template is a kind the frame carries, refused only for the template's own reason")
 }
 
 // render is the report, in the shape of docs/evidence: a header table, then one row per

@@ -5099,19 +5099,47 @@ func (e SyncChangeOp) Valid() bool {
 
 // Defines values for SyncMutationKind.
 const (
-	COMMENTADD SyncMutationKind = "COMMENT_ADD"
-	ITEMCREATE SyncMutationKind = "ITEM_CREATE"
-	ITEMDELETE SyncMutationKind = "ITEM_DELETE"
-	ITEMPATCH  SyncMutationKind = "ITEM_PATCH"
-	MOVE       SyncMutationKind = "MOVE"
-	SETADD     SyncMutationKind = "SET_ADD"
-	SETREMOVE  SyncMutationKind = "SET_REMOVE"
+	BUCKETCREATE     SyncMutationKind = "BUCKET_CREATE"
+	BUCKETDELETE     SyncMutationKind = "BUCKET_DELETE"
+	BUCKETPATCH      SyncMutationKind = "BUCKET_PATCH"
+	COMMENTADD       SyncMutationKind = "COMMENT_ADD"
+	CONTAINERCREATE  SyncMutationKind = "CONTAINER_CREATE"
+	CONTAINERDELETE  SyncMutationKind = "CONTAINER_DELETE"
+	CONTAINERPATCH   SyncMutationKind = "CONTAINER_PATCH"
+	ITEMCREATE       SyncMutationKind = "ITEM_CREATE"
+	ITEMDELETE       SyncMutationKind = "ITEM_DELETE"
+	ITEMPATCH        SyncMutationKind = "ITEM_PATCH"
+	LABELCREATE      SyncMutationKind = "LABEL_CREATE"
+	LABELDELETE      SyncMutationKind = "LABEL_DELETE"
+	LABELPATCH       SyncMutationKind = "LABEL_PATCH"
+	MOVE             SyncMutationKind = "MOVE"
+	RECURRENCECREATE SyncMutationKind = "RECURRENCE_CREATE"
+	RECURRENCEDELETE SyncMutationKind = "RECURRENCE_DELETE"
+	RECURRENCEPATCH  SyncMutationKind = "RECURRENCE_PATCH"
+	REMINDERCREATE   SyncMutationKind = "REMINDER_CREATE"
+	REMINDERDELETE   SyncMutationKind = "REMINDER_DELETE"
+	REMINDERPATCH    SyncMutationKind = "REMINDER_PATCH"
+	SETADD           SyncMutationKind = "SET_ADD"
+	SETREMOVE        SyncMutationKind = "SET_REMOVE"
+	TEMPLATEAPPLY    SyncMutationKind = "TEMPLATE_APPLY"
 )
 
 // Valid indicates whether the value is a known member of the SyncMutationKind enum.
 func (e SyncMutationKind) Valid() bool {
 	switch e {
+	case BUCKETCREATE:
+		return true
+	case BUCKETDELETE:
+		return true
+	case BUCKETPATCH:
+		return true
 	case COMMENTADD:
+		return true
+	case CONTAINERCREATE:
+		return true
+	case CONTAINERDELETE:
+		return true
+	case CONTAINERPATCH:
 		return true
 	case ITEMCREATE:
 		return true
@@ -5119,11 +5147,31 @@ func (e SyncMutationKind) Valid() bool {
 		return true
 	case ITEMPATCH:
 		return true
+	case LABELCREATE:
+		return true
+	case LABELDELETE:
+		return true
+	case LABELPATCH:
+		return true
 	case MOVE:
+		return true
+	case RECURRENCECREATE:
+		return true
+	case RECURRENCEDELETE:
+		return true
+	case RECURRENCEPATCH:
+		return true
+	case REMINDERCREATE:
+		return true
+	case REMINDERDELETE:
+		return true
+	case REMINDERPATCH:
 		return true
 	case SETADD:
 		return true
 	case SETREMOVE:
+		return true
+	case TEMPLATEAPPLY:
 		return true
 	default:
 		return false
@@ -12355,8 +12403,16 @@ type SyncDevice struct {
 
 // SyncMutation defines model for SyncMutation.
 type SyncMutation struct {
-	BaseVersion *int                `json:"base_version,omitempty"`
+	BaseVersion *int `json:"base_version,omitempty"`
+
+	// ContainerId The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where
+	// the server reads it back when the device's fields lost.
+	ContainerId *openapi_types.UUID `json:"container_id,omitempty"`
 	Element     *openapi_types.UUID `json:"element,omitempty"`
+
+	// EntityId The reminder, recurrence rule, container, label or bucket the mutation is about,
+	// assigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.
+	EntityId *openapi_types.UUID `json:"entity_id,omitempty"`
 
 	// Fields Per-field changes, each field with its own HLC.
 	Fields *map[string]struct {
@@ -12367,7 +12423,18 @@ type SyncMutation struct {
 
 	// ItemId Assigned by the client (UUIDv7), including on CREATE
 	ItemId *openapi_types.UUID `json:"item_id,omitempty"`
-	Kind   SyncMutationKind    `json:"kind"`
+
+	// Kind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+	// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+	// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+	// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+	// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+	// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+	// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+	// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+	// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+	// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
+	Kind SyncMutationKind `json:"kind"`
 
 	// OpId The idempotency key. The server keeps it for the maximum offline window - the `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again within that window takes effect exactly once.
 	OpId    openapi_types.UUID      `json:"op_id"`
@@ -12380,7 +12447,16 @@ type SyncMutation struct {
 	Set *SyncMutationSet `json:"set,omitempty"`
 }
 
-// SyncMutationKind defines model for SyncMutation.Kind.
+// SyncMutationKind What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+// rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+// route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+// between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+// decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+// container's structure and privacy) is refused as `sync.field_not_mergeable`.
+// A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+// one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+// `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+// ordinary creations. A kind this build does not know is `sync.kind_unknown`.
 type SyncMutationKind string
 
 // SyncMutationSet Which set of the entry the element belongs to. For `attachments`, a device that

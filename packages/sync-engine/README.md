@@ -95,6 +95,19 @@ device and keeps what the queue held as refused. `queue()` publishes the count, 
 the rejected and the conflicts — what the `SyncStatus` component renders. `ordering.ts` mints the
 order keys a reorder needs offline, with the server's cases as its test.
 
+The kinds beyond the entry (a reminder, a series, a container, a label, a bucket) predict into
+their own collections under the identifier the application minted — whole on creation, the moved
+fields on a patch, gone on a deletion — and a template applied predicts nothing: its entries arrive
+with the next pull.
+
+**A file captured offline** (`capture`) is the installed apps' alone: an engine built with
+`holdsFiles` keeps its bytes in the store's `files` under the operation's identifier and queues a
+step in order. The push uploads it first (`POST /media`, the bytes through `transfer`,
+`:confirm`, all under the operation as `Idempotency-Key`), turns the step into the `SET_ADD` that
+attaches the object, and only then pushes what was made after it; a refusal at upload is kept in
+`rejected` with its code, and the bytes leave the store either way. Without `holdsFiles` — the
+browser, whose store is not encrypted — `capture` is refused with `sync.needs_connection`.
+
 ## The network primitives
 
 * **`Transport.stream`** reads `GET /stream` from the response body; `engine.listen` keeps one

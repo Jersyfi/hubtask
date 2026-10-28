@@ -92,6 +92,9 @@ type RemoveRecurrence struct {
 
 // SetRecurrenceCommand is the input, typed.
 type SetRecurrenceCommand struct {
+	// ID is the identifier an offline client minted for a series the entry did not have, or zero
+	// for the server's; a series the entry has keeps its own.
+	ID     shared.ID
 	ItemID shared.ID
 	Spec   domain.RecurrenceSpec
 	// ExpectedVersion is the version the caller read, from If-Match. Zero means the caller read
@@ -169,8 +172,12 @@ func (w RecurrenceWriter) create(
 	ctx context.Context, actor appshared.ActorContext, item domain.WorkItem,
 	cmd SetRecurrenceCommand, now time.Time,
 ) (domain.RecurrenceRule, error) {
+	id, err := mintedOr(cmd.ID, w.IDs)
+	if err != nil {
+		return domain.RecurrenceRule{}, err
+	}
 	rule, err := domain.NewRecurrenceRule(domain.NewRecurrenceRuleInput{
-		ID:       w.IDs.NewID(),
+		ID:       id,
 		TenantID: actor.TenantID,
 		ItemID:   item.ID,
 		Spec:     cmd.Spec,
@@ -614,6 +621,7 @@ func (h SetRecurrence) Descriptor() usecase.Descriptor {
 			"clients, writes an audit entry and a step of the entry's history.",
 		TokenScope: recurrenceWrite,
 		Input: []usecase.Field{
+			clientIDField,
 			{
 				Name: "item_id", Kind: usecase.KindID, Required: true,
 				Description: "The entry that repeats.",
@@ -679,7 +687,12 @@ func (h SetRecurrence) invoke(
 		endsAt = &at
 	}
 
+	id, err := in.ID("id")
+	if err != nil {
+		return nil, err
+	}
 	rule, err := h.Execute(ctx, actor, SetRecurrenceCommand{
+		ID:     id,
 		ItemID: itemID,
 		Spec: domain.RecurrenceSpec{
 			RRULE:       in.String("rrule"),

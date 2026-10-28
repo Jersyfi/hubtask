@@ -55,6 +55,10 @@ type Mutation struct {
 	Element shared.ID
 	HLC     string
 	Payload map[string]any
+	// EntityID names a reminder, a recurrence rule, a container, a label or a bucket - assigned by
+	// the device on its creation - and ContainerID the collection a label or a bucket belongs to.
+	EntityID    shared.ID
+	ContainerID shared.ID
 }
 
 // FieldChange is one field's new value and the reading it was written under.
@@ -417,6 +421,13 @@ func (p PushChanges) judge(m Mutation) error {
 				return err
 			}
 		}
+	case domain.ReminderPatch, domain.RecurrencePatch, domain.ContainerPatch, domain.LabelPatch, domain.BucketPatch:
+		family, _, _ := domain.FamilyOf(m.Kind)
+		for field := range m.Fields {
+			if err := family.Judge(field); err != nil {
+				return err
+			}
+		}
 	case domain.SetAdd, domain.SetRemove:
 		if m.Set == string(work.SetWatchers) {
 			// In the contract's enum, and no use case writes a watcher yet: "not yet" rather than
@@ -439,15 +450,22 @@ func (p PushChanges) judge(m Mutation) error {
 // mutation, for the suggestion package's reason: a stored use case name would be a stored
 // capability. Every kind the contract names is here.
 func (p PushChanges) appliers() map[domain.MutationKind]applier {
-	return map[domain.MutationKind]applier{
-		domain.ItemCreate: p.create,
-		domain.ItemPatch:  p.patch,
-		domain.ItemDelete: p.trash,
-		domain.Move:       p.move,
-		domain.SetAdd:     p.setChange,
-		domain.SetRemove:  p.setChange,
-		domain.CommentAdd: p.comment,
+	appliers := map[domain.MutationKind]applier{
+		domain.ItemCreate:    p.create,
+		domain.ItemPatch:     p.patch,
+		domain.ItemDelete:    p.trash,
+		domain.Move:          p.move,
+		domain.SetAdd:        p.setChange,
+		domain.SetRemove:     p.setChange,
+		domain.CommentAdd:    p.comment,
+		domain.TemplateApply: p.template,
 	}
+	for _, kind := range domain.MutationKinds() {
+		if _, _, found := domain.FamilyOf(kind); found {
+			appliers[kind] = p.entity
+		}
+	}
+	return appliers
 }
 
 // create is `CreateWorkItem` with the client's identifier: the payload is the use case's input,
@@ -519,8 +537,12 @@ func rejected(m Mutation, err error) Result {
 	if code == "" {
 		code = failure.Code
 	}
+	entityID := m.ItemID
+	if !m.EntityID.IsZero() {
+		entityID = m.EntityID
+	}
 	return Result{
-		OpID: m.OpID, Result: domain.Rejected, EntityID: m.ItemID,
+		OpID: m.OpID, Result: domain.Rejected, EntityID: entityID,
 		Error: &ResultError{Code: failure.Code, MessageCode: code},
 	}
 }

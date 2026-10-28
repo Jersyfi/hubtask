@@ -133,7 +133,7 @@ test('the four the replica refuses by design', async () => {
 });
 
 // ---------------------------------------------------------------------------------------------
-// What a write becomes when it is queued: the seven kinds, and what is refused.
+// What a write becomes when it is queued: every kind, and what is refused.
 // ---------------------------------------------------------------------------------------------
 
 import { mutationFor } from './replica.ts';
@@ -197,6 +197,43 @@ test('SET_ADD, SET_REMOVE, ITEM_DELETE, COMMENT_ADD', async () => {
   );
 });
 
+test('a reminder, the series, a template applied, a container, a label and a bucket', async () => {
+  const storage = await workspace();
+  const h = helpers(storage);
+  const minted = '0192f000-0000-7000-8000-00000000f00d';
+  assert.deepEqual(await mutationFor('POST', '/items/i-1/reminders', { offset_spec: 'REL:-PT1H' }, h),
+    { kind: 'REMINDER_CREATE', itemId: 'i-1', entityId: minted, payload: { offset_spec: 'REL:-PT1H' } });
+  assert.deepEqual(await mutationFor('PATCH', '/items/i-1/reminders/r-1', { channels: ['EMAIL'] }, h),
+    { kind: 'REMINDER_PATCH', itemId: 'i-1', entityId: 'r-1', fields: { channels: ['EMAIL'] } });
+  assert.deepEqual(await mutationFor('DELETE', '/items/i-1/reminders/r-1', undefined, h), { kind: 'REMINDER_DELETE', itemId: 'i-1', entityId: 'r-1' });
+
+  assert.deepEqual(await mutationFor('PUT', '/items/i-1/recurrence', { rrule: 'FREQ=WEEKLY' }, h),
+    { kind: 'RECURRENCE_CREATE', itemId: 'i-1', entityId: minted, payload: { rrule: 'FREQ=WEEKLY' } }, 'no series held: a creation');
+  await storage.put('recurrence_rule', 's-1', { id: 's-1', document: { id: 's-1', item_id: 'i-1', rrule: 'FREQ=DAILY' }, version: 1, seenAt: 0 });
+  assert.deepEqual(await mutationFor('PUT', '/items/i-1/recurrence', { rrule: 'FREQ=WEEKLY' }, h),
+    { kind: 'RECURRENCE_PATCH', itemId: 'i-1', entityId: 's-1', fields: { rrule: 'FREQ=WEEKLY' } }, 'a series held: changed, not created again');
+  assert.deepEqual(await mutationFor('DELETE', '/items/i-1/recurrence', undefined, h), { kind: 'RECURRENCE_DELETE', itemId: 'i-1', entityId: 's-1' });
+
+  assert.deepEqual(await mutationFor('POST', '/templates/t-1:instantiate', { collection_id: COLLECTION, anchor_date: '2026-11-02' }, h),
+    { kind: 'TEMPLATE_APPLY', itemId: '', payload: { collection_id: COLLECTION, anchor_date: '2026-11-02', template_id: 't-1' } });
+
+  assert.deepEqual(await mutationFor('POST', '/containers', { type: 'COLLECTION', parent_id: 'h-1', name: 'Garden' }, h),
+    { kind: 'CONTAINER_CREATE', itemId: '', entityId: minted, payload: { type: 'COLLECTION', parent_id: 'h-1', name: 'Garden' } });
+  assert.deepEqual(await mutationFor('PATCH', '/containers/c-1', { name: 'Allotment' }, h), { kind: 'CONTAINER_PATCH', itemId: '', entityId: 'c-1', fields: { name: 'Allotment' } });
+  assert.deepEqual(await mutationFor('DELETE', '/containers/c-1', undefined, h), { kind: 'CONTAINER_DELETE', itemId: '', entityId: 'c-1' });
+
+  assert.deepEqual(await mutationFor('POST', '/containers/c-1/labels', { name: 'Urgent', color_token: 'red' }, h),
+    { kind: 'LABEL_CREATE', itemId: '', entityId: minted, payload: { name: 'Urgent', color_token: 'red', collection_id: 'c-1' } });
+  assert.deepEqual(await mutationFor('PATCH', '/containers/c-1/labels/l-1', { name: 'Soon' }, h),
+    { kind: 'LABEL_PATCH', itemId: '', entityId: 'l-1', containerId: 'c-1', fields: { name: 'Soon' } });
+  assert.deepEqual(await mutationFor('DELETE', '/containers/c-1/labels/l-1', undefined, h), { kind: 'LABEL_DELETE', itemId: '', entityId: 'l-1', containerId: 'c-1' });
+  assert.deepEqual(await mutationFor('POST', '/containers/c-1/buckets', { name: 'Doing' }, h),
+    { kind: 'BUCKET_CREATE', itemId: '', entityId: minted, payload: { name: 'Doing', collection_id: 'c-1' } });
+  assert.deepEqual(await mutationFor('PATCH', '/containers/c-1/buckets/b-1', { wip_limit: 3 }, h),
+    { kind: 'BUCKET_PATCH', itemId: '', entityId: 'b-1', containerId: 'c-1', fields: { wip_limit: 3 } });
+  assert.deepEqual(await mutationFor('DELETE', '/containers/c-1/buckets/b-1', undefined, h), { kind: 'BUCKET_DELETE', itemId: '', entityId: 'b-1', containerId: 'c-1' });
+});
+
 test('the writes the queue does not carry, and why', async () => {
   const storage = await workspace();
   const h = helpers(storage);
@@ -207,10 +244,14 @@ test('the writes the queue does not carry, and why', async () => {
     ['POST', '/items/i-1:duplicate', 'no mutation kind copies a subtree'],
     ['PUT', '/items/i-1/cover', 'the cover has no mutation kind'],
     ['POST', '/items:bulk', 'a bulk is many operations the server judges together'],
-    ['POST', '/containers', 'structure (§1) is not queued'],
-    ['PATCH', '/containers/c-1', 'structure (§1) is not queued'],
-    ['POST', '/containers/c-1/labels', 'a label\'s definition is structure'],
-    ['POST', '/templates', 'structure'],
+    ['PATCH', '/containers/c-1/structure', 'a structure is resolved by the server, never pushed (§4.2)'],
+    ['PUT', '/containers/c-1/policies', 'a container\'s policies have no field in the frame yet'],
+    ['PUT', '/containers/c-1/privacy', 'privacy is a permission (§1\'s right column)'],
+    ['POST', '/containers/c-1:move', 'a container\'s place has no field in the frame yet'],
+    ['POST', '/containers/c-1/buckets/b-1:reorder', 'a column\'s place has no field in the frame yet'],
+    ['POST', '/containers/c-1/labels/l-1:restore', 'the trash is the server\'s'],
+    ['POST', '/templates', 'a template\'s definition stays online; applying one is queued'],
+    ['DELETE', '/items/i-9/recurrence', 'no series held to delete'],
     ['POST', '/views', 'structure'],
     ['PATCH', '/items/i-1/comments/k-1', 'editing a comment has no mutation kind; only adding one does'],
     ['POST', '/memberships', 'administration (§1\'s right column)'],

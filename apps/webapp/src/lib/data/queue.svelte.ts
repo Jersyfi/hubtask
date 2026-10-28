@@ -7,13 +7,13 @@
  * from the copy. The engine's `QueueState` is the fact; this is how a person reads it.
  */
 
-import type { ConflictRecord, MutationKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
+import type { ConflictRecord, QueuedKind, QueueState, RejectedMutation, StoredRecord, SyncMutation } from '@hubtask/sync-engine';
 
 import { engine } from './engine.ts';
 import { messages, t } from '../i18n/i18n.svelte.ts';
 
 /** The message code for a mutation kind, and for a patch the field that moved. */
-export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
+export function whatOf(kind: QueuedKind, mutation?: SyncMutation): string {
   if (kind === 'ITEM_PATCH' && mutation?.fields) {
     const fields = Object.keys(mutation.fields);
     const field = fields[0];
@@ -27,10 +27,32 @@ export function whatOf(kind: MutationKind, mutation?: SyncMutation): string {
   return t(`app.sync.what.${kind.toLowerCase()}`);
 }
 
-/** The entry's title from the copy, or its identifier where the copy has none. */
-async function whereOf(itemId: string): Promise<string> {
-  const held = await engine.storage?.get<StoredRecord<{ title?: string }>>('items', itemId);
-  return held?.document.title ?? itemId;
+/** What a change names, as the copy knows it: the entry it hangs off, or the container, label or bucket. */
+interface Subject {
+  readonly itemId: string;
+  readonly kind: QueuedKind;
+  readonly entityId?: string;
+  readonly mutation?: SyncMutation;
+}
+
+/**
+ * Where a change sits: the entry's title and page; for a container, a label, a bucket or a template
+ * applied, the collection's name and page (or the hub's), from the copy - its identifier where the
+ * copy has none.
+ */
+async function whereOf(subject: Subject): Promise<{ where: string; href: string }> {
+  const storage = engine.storage;
+  if (subject.itemId) {
+    const held = await storage?.get<StoredRecord<{ title?: string }>>('items', subject.itemId);
+    return { where: held?.document.title ?? subject.itemId, href: `/items/${subject.itemId}` };
+  }
+  const payload = (subject.mutation?.payload ?? {}) as { collection_id?: string; parent_id?: string };
+  const containerId = subject.kind.startsWith('CONTAINER_')
+    ? (subject.entityId ?? subject.mutation?.entity_id ?? '')
+    : (subject.mutation?.container_id ?? payload.collection_id ?? '');
+  const held = await storage?.get<StoredRecord<{ name?: string; type?: string }>>('containers', String(containerId));
+  const kind = held?.document.type === 'HUB' ? 'hubs' : 'collections';
+  return { where: held?.document.name ?? String(containerId), href: `/${kind}/${containerId}` };
 }
 
 export interface ListedChange {
@@ -95,25 +117,24 @@ class QueueView {
 
   async #spell(state: QueueState): Promise<void> {
     const storage = engine.storage;
-    const pending = storage ? await storage.all<{ id: string; seq: number; kind: MutationKind; itemId: string; mutation: SyncMutation }>('queue') : [];
+    const pending = storage ? await storage.all<{ id: string; seq: number; kind: QueuedKind; itemId: string; entityId?: string; mutation: SyncMutation }>('queue') : [];
     const listed: ListedChange[] = [];
     for (const change of [...pending].sort((a, b) => a.seq - b.seq)) {
-      listed.push({ id: change.id, what: whatOf(change.kind, change.mutation), where: await whereOf(change.itemId), href: `/items/${change.itemId}` });
+      listed.push({ id: change.id, what: whatOf(change.kind, change.mutation), ...(await whereOf(change)) });
     }
     const refused: ListedRefusal[] = [];
     for (const record of state.rejected) {
       refused.push({
         id: record.id,
         what: whatOf(record.kind),
-        where: await whereOf(record.itemId),
-        href: `/items/${record.itemId}`,
+        ...(await whereOf(record)),
         reason: reasonOf(record),
         record,
       });
     }
     this.#queued = listed;
     this.#refused = refused;
-    this.#pendingItems = new Set(pending.map((change) => change.itemId));
+    this.#pendingItems = new Set(pending.map((change) => change.itemId).filter((id) => id !== ''));
   }
 
   async dismiss(id: string): Promise<void> {

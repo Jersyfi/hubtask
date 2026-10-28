@@ -48,11 +48,14 @@ mutation stays visible with its code until dismissed (§9 rule 5).
 
 **The browser offers offline exactly what the push frame carries** (§3.2): entries created, edited,
 completed, moved, sorted and trashed; labels, members and attachments added or removed (bytes
-uploaded online first, §4.2); comments added. The rest of the left column is refused offline in the
-browser with `sync.needs_connection` until the frame gains a kind for it. A file captured offline
-stays refused in the browser, whose copy is not encrypted; the installed apps keep its bytes in their
-encrypted copy and upload them, then add the attachment, when the connection returns (decided for
-milestone F7, not yet built).
+uploaded online first, §4.2); comments added; reminders and an entry's series set, changed and
+removed; a template applied; hubs, collections, label definitions and columns created, renamed and
+deleted. What stays online although it is structure - a container's structure, policies, privacy
+and place, a column's place, a template's definition, views - is refused offline with
+`sync.needs_connection`. A file captured offline stays refused in the browser, whose copy is not
+encrypted; the installed apps keep its bytes in their encrypted copy (the engine's `holdsFiles`)
+and, when the connection returns, upload them, then add the attachment, before anything made after
+it; a refusal at upload - size, type, quota - shows on the change like any refused mutation.
 
 ---
 
@@ -114,8 +117,14 @@ starts again, and after two such snapshots walks `:pull` instead.
 }
 ```
 
-The kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE`, `MOVE` and
-`COMMENT_ADD`; a new kind is an additive enum value. Each mutation is answered `applied`, `merged`
+The entry's kinds are `ITEM_CREATE`, `ITEM_PATCH`, `ITEM_DELETE`, `SET_ADD`, `SET_REMOVE`, `MOVE`
+and `COMMENT_ADD`. Beyond the entry, a reminder, a recurrence rule, a container, a label and a
+bucket each have `*_CREATE` (the route's body as `payload`, the client's identifier as
+`entity_id`), `*_PATCH` (`fields`, one reading each) and `*_DELETE`, merged by §4.2's row for the
+object; a label's and a bucket's patch and deletion name their collection (`container_id`), and a
+reminder's and a series' name their entry (`item_id`). `TEMPLATE_APPLY` carries the instantiation's
+body; its entries arrive as ordinary creations. Each is applied through the route's own use case as
+the pushing person, never a code path of its own. A new kind is an additive enum value. Each mutation is answered `applied`, `merged`
 (with the resulting object), `rejected` (with a stable code) or `conflict` (with both values, §5).
 
 * **The client assigns IDs** (UUIDv7): a repeated push is idempotent, and an item created offline has its final identity at once.
@@ -159,7 +168,8 @@ logged.
 | Appending lists | Comments, activities | Append-only, no conflicts |
 | Child entities with an identity | Reminders | **Whole** for creation and deletion (an `UPSERT` with the whole reminder, a payload-less `DELETE`), then **LWW per field**, one entry per field that moved. `channels` and `recipients` merge as scalars. `fire_at` (derived from the offset and the due date) and `state` are the server's and never merge; `state` reaches a device as its own entry when a reminder fires or is cancelled, for reconciling local notifications (§8) |
 | Series definitions | The recurrence rule | Like a reminder: whole on creation and deletion, **LWW per field** between. `last_materialized_at` never merges; the occurrences are the server's (§4.3) |
-| Definitions carrying a tree | The template's `nodes` | **Whole**: one `UPSERT` with the document on every change, a payload-less `DELETE` when it goes, LWW over the whole document — two trees merged node by node would be a shape nobody designed. Applying a template needs the server (§1); its entries arrive as ordinary creations |
+| Definitions carrying a tree | The template's `nodes` | **Whole**: one `UPSERT` with the document on every change, a payload-less `DELETE` when it goes, LWW over the whole document — two trees merged node by node would be a shape nobody designed. Applying a template is an act, not a state: it travels as `TEMPLATE_APPLY`, the server stamps it when the push arrives, and its entries arrive as ordinary creations |
+| Definitions beside the entries | A container's name, description, icon and colour; a label; a bucket | Like a reminder: **whole** on creation (the client's identifier) and deletion, **LWW per field** between. A container's structure and privacy are refused in a patch (`sync.field_not_mergeable`), its policies and place and a bucket's place are not in the frame yet (`sync.field_unavailable`) |
 | Suggestions | Everything on an `ai_suggestion` | **Server-side, not merged**: delivered as an `UPSERT` with the whole record and its status; the change a decision caused arrives as the entry's own `UPSERT`. A second answer to one proposal is refused as already decided |
 | Account preferences | `locale`, `time_zone`, `week_start`, `celebrations`, `onboarding_completed_at` | **Last writer wins** through `UpdateAccountPreferences`, never a push: an account is not a synchronised entity |
 | Counters | Progress, derived values, a collection's figure | Computed server-side, never set by a client; a collection's figure travels in no change record and is answered only by the server's read, so a read the replica answers carries none |

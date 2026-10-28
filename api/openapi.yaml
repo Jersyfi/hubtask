@@ -22142,8 +22142,39 @@ components:
             The idempotency key. The server keeps it for the maximum offline window - the
             `tombstone_window_days` a pull answers, 90 days by default - so a mutation pushed again
             within that window takes effect exactly once.
-        kind: { type: string, enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD] }
+        kind:
+          type: string
+          enum: [ITEM_CREATE, ITEM_PATCH, ITEM_DELETE, SET_ADD, SET_REMOVE, MOVE, COMMENT_ADD,
+            REMINDER_CREATE, REMINDER_PATCH, REMINDER_DELETE,
+            RECURRENCE_CREATE, RECURRENCE_PATCH, RECURRENCE_DELETE,
+            TEMPLATE_APPLY,
+            CONTAINER_CREATE, CONTAINER_PATCH, CONTAINER_DELETE,
+            LABEL_CREATE, LABEL_PATCH, LABEL_DELETE,
+            BUCKET_CREATE, BUCKET_PATCH, BUCKET_DELETE]
+          description: |
+            What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence
+            rule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the
+            route's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field
+            between (`*_PATCH`, `fields`), each field merged under its own clock; a field the server
+            decides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a
+            container's structure and privacy) is refused as `sync.field_not_mergeable`.
+            A reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's
+            one series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.
+            `TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as
+            ordinary creations. A kind this build does not know is `sync.kind_unknown`.
         item_id: { type: string, format: uuid, description: "Assigned by the client (UUIDv7), including on CREATE" }
+        entity_id:
+          type: [string, "null"]
+          format: uuid
+          description: |
+            The reminder, recurrence rule, container, label or bucket the mutation is about,
+            assigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.
+        container_id:
+          type: [string, "null"]
+          format: uuid
+          description: |
+            The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where
+            the server reads it back when the device's fields lost.
         base_version: { type: [integer, "null"] }
         fields:
           type: object

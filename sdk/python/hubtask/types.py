@@ -3357,8 +3357,10 @@ class SyncPullResponse(TypedDict, total=False):
 
 class SyncMutation(TypedDict, total=False):
     op_id: Required[str]
-    kind: Required[Literal["ITEM_CREATE", "ITEM_PATCH", "ITEM_DELETE", "SET_ADD", "SET_REMOVE", "MOVE", "COMMENT_ADD"]]
+    kind: Required[Literal["ITEM_CREATE", "ITEM_PATCH", "ITEM_DELETE", "SET_ADD", "SET_REMOVE", "MOVE", "COMMENT_ADD", "REMINDER_CREATE", "REMINDER_PATCH", "REMINDER_DELETE", "RECURRENCE_CREATE", "RECURRENCE_PATCH", "RECURRENCE_DELETE", "TEMPLATE_APPLY", "CONTAINER_CREATE", "CONTAINER_PATCH", "CONTAINER_DELETE", "LABEL_CREATE", "LABEL_PATCH", "LABEL_DELETE", "BUCKET_CREATE", "BUCKET_PATCH", "BUCKET_DELETE"]]
     item_id: str
+    entity_id: str | None
+    container_id: str | None
     base_version: int | None
     fields: dict[str, Any]
     set: Literal["labels", "members", "watchers", "attachments"] | None

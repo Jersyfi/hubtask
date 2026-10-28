@@ -32223,13 +32223,46 @@
               "SET_ADD",
               "SET_REMOVE",
               "MOVE",
-              "COMMENT_ADD"
-            ]
+              "COMMENT_ADD",
+              "REMINDER_CREATE",
+              "REMINDER_PATCH",
+              "REMINDER_DELETE",
+              "RECURRENCE_CREATE",
+              "RECURRENCE_PATCH",
+              "RECURRENCE_DELETE",
+              "TEMPLATE_APPLY",
+              "CONTAINER_CREATE",
+              "CONTAINER_PATCH",
+              "CONTAINER_DELETE",
+              "LABEL_CREATE",
+              "LABEL_PATCH",
+              "LABEL_DELETE",
+              "BUCKET_CREATE",
+              "BUCKET_PATCH",
+              "BUCKET_DELETE"
+            ],
+            "description": "What the device did. The entry's kinds name it by `item_id`. A reminder, a recurrence\nrule, a container, a label and a bucket travel whole on creation (`*_CREATE`, the\nroute's body as `payload`) and deletion (`*_DELETE`, no payload), and field by field\nbetween (`*_PATCH`, `fields`), each field merged under its own clock; a field the server\ndecides (a reminder's `fire_at` and `state`, a rule's `last_materialized_at`, a\ncontainer's structure and privacy) is refused as `sync.field_not_mergeable`.\nA reminder and a rule name their entry by `item_id`; a recurrence rule is the entry's\none series, so a `RECURRENCE_CREATE` for an entry that has one merges field by field.\n`TEMPLATE_APPLY` carries the instantiation's body as `payload`; its entries arrive as\nordinary creations. A kind this build does not know is `sync.kind_unknown`.\n"
           },
           "item_id": {
             "type": "string",
             "format": "uuid",
             "description": "Assigned by the client (UUIDv7), including on CREATE"
+          },
+          "entity_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The reminder, recurrence rule, container, label or bucket the mutation is about,\nassigned by the client (UUIDv7) on its creation. Absent on the entry's kinds.\n"
+          },
+          "container_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "The collection a label or a bucket belongs to, on its `*_PATCH` and `*_DELETE`: where\nthe server reads it back when the device's fields lost.\n"
           },
           "base_version": {
             "type": [

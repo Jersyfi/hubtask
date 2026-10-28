@@ -286,6 +286,12 @@ func pushRequest(body openapi.SyncPushRequest) syncservice.PushRequest {
 		if m.ItemId != nil {
 			mutation.ItemID = shared.ID(m.ItemId.String())
 		}
+		if m.EntityId != nil {
+			mutation.EntityID = shared.ID(m.EntityId.String())
+		}
+		if m.ContainerId != nil {
+			mutation.ContainerID = shared.ID(m.ContainerId.String())
+		}
 		if m.Hlc != nil {
 			mutation.HLC = *m.Hlc
 		}
