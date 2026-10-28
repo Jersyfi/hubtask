@@ -139,6 +139,10 @@ func producesWhatWasAsked(out *cel.Type, want port.Result) error {
 		if out != cel.StringType {
 			return port.Refusal{Code: port.CodeNotString}.Error()
 		}
+	case port.Number:
+		if out != cel.IntType && out != cel.UintType && out != cel.DoubleType {
+			return port.Refusal{Code: port.CodeNotNumber}.Error()
+		}
 	}
 	return nil
 }
@@ -180,15 +184,21 @@ func (c compiled) Evaluate(ctx context.Context, in port.Activation) (port.Value,
 	// type was dynamic passed that check by construction and can still produce the wrong thing.
 	switch value := out.Value().(type) {
 	case bool:
-		if c.want == port.Text {
-			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotString)
+		if c.want != port.Boolean {
+			return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 		}
 		return port.Value{Bool: value, Text: fmt.Sprint(value)}, nil
 	case string:
-		if c.want == port.Boolean {
-			return port.Value{}, shared.ErrValidation.WithDetail(port.CodeNotBoolean)
+		if c.want != port.Text {
+			return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 		}
 		return port.Value{Text: value}, nil
+	case int64:
+		return numberOf(c.want, float64(value))
+	case uint64:
+		return numberOf(c.want, float64(value))
+	case float64:
+		return numberOf(c.want, value)
 	default:
 		return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(c.want))
 	}
@@ -409,12 +419,24 @@ func failureOf(err error) port.Failure {
 	return port.FailureOther
 }
 
-// wrongResult names the code for a value that is neither of the two shapes an expression may have.
-func wrongResult(want port.Result) string {
-	if want == port.Text {
-		return port.CodeNotString
+// numberOf answers a numeric value to a formula and refuses it to a condition or a template.
+func numberOf(want port.Result, value float64) (port.Value, error) {
+	if want != port.Number {
+		return port.Value{}, shared.ErrValidation.WithDetail(wrongResult(want))
 	}
-	return port.CodeNotBoolean
+	return port.Value{Number: value}, nil
+}
+
+// wrongResult names the code for a value that is not the shape the caller asked for.
+func wrongResult(want port.Result) string {
+	switch want {
+	case port.Text:
+		return port.CodeNotString
+	case port.Number:
+		return port.CodeNotNumber
+	default:
+		return port.CodeNotBoolean
+	}
 }
 
 func itoa(n int) string {

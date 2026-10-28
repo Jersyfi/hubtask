@@ -55,6 +55,9 @@ const (
 	Boolean Result = "boolean"
 	// Text is a template: it renders a value into a parameter (automation.md §1.3).
 	Text Result = "text"
+	// Number is a formula: a calculated field's value, an int or a double CEL produced, read as one
+	// number so that the typed value column (`num`) holds it whatever the formula's arithmetic.
+	Number Result = "number"
 )
 
 // Program is a compiled expression, ready to be evaluated as often as necessary.
@@ -133,6 +136,8 @@ type Value struct {
 	Bool bool
 	// Text is the answer a template gives.
 	Text string
+	// Number is the answer a formula gives; zero for any other result.
+	Number float64
 }
 
 // Position is where in the text a refusal is about, as a compiler reports it.
@@ -212,6 +217,8 @@ const (
 	CodeNotBoolean = "expression.not_boolean"
 	// CodeNotString is a template that does not produce text.
 	CodeNotString = "expression.not_string"
+	// CodeNotNumber is a formula that does not produce a number.
+	CodeNotNumber = "expression.not_number"
 	// CodeTooExpensive is an evaluation that exceeded the cost limit.
 	CodeTooExpensive = "expression.too_expensive"
 	// CodeTimedOut is an evaluation that exceeded the timeout.

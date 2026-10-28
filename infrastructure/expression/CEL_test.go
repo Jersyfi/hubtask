@@ -181,6 +181,8 @@ func TestAnExpressionOfTheWrongShapeIsRefusedAtCompileTime(t *testing.T) {
 		{`'a' + 'b'`, port.Boolean, port.CodeNotBoolean},
 		{`1 == 1`, port.Text, port.CodeNotString},
 		{`size(item.labels)`, port.Text, port.CodeNotString},
+		{`'a' + 'b'`, port.Number, port.CodeNotNumber},
+		{`1 == 1`, port.Number, port.CodeNotNumber},
 	}
 	for _, tc := range cases {
 		t.Run(tc.expr+" as "+string(tc.want), func(t *testing.T) {
@@ -634,4 +636,47 @@ func itoa(n int) string {
 		n /= 10
 	}
 	return string(digits)
+}
+
+// A formula is the third shape: a calculated field's value, an int or a double read as one number,
+// refused at compile time when its type is known and wrong and at evaluation when it is dynamic.
+func TestAFormulaProducesANumber(t *testing.T) {
+	rows := map[string]any{"item": map[string]any{
+		"hours": 2.5, "rate": int64(80), "title": "Pay the invoice",
+	}}
+	cases := map[string]float64{
+		`2 + 3`:                          5,
+		`1.5 * 2.0`:                      3,
+		`size(item.title)`:               15,
+		`item.hours * double(item.rate)`: 200,
+		`7u`:                             7,
+	}
+	for text, want := range cases {
+		t.Run(text, func(t *testing.T) {
+			out, err := compileFor(t, text, port.Number).
+				Evaluate(context.Background(), newValues(rows))
+			if err != nil {
+				t.Fatalf("evaluating: %v", err)
+			}
+			if out.Number != want {
+				t.Errorf("computed %v, want %v", out.Number, want)
+			}
+		})
+	}
+
+	t.Run("a formula on a dynamic field that is text is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.title`, port.Number).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotNumber {
+			t.Errorf("code %q, want %q", code, port.CodeNotNumber)
+		}
+	})
+
+	t.Run("a condition on a dynamic field that is a number is refused", func(t *testing.T) {
+		_, err := compileFor(t, `item.hours`, port.Boolean).
+			Evaluate(context.Background(), newValues(rows))
+		if code := detailOf(t, err); code != port.CodeNotBoolean {
+			t.Errorf("code %q, want %q", code, port.CodeNotBoolean)
+		}
+	})
 }

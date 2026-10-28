@@ -1494,6 +1494,7 @@
   "expression.too_complex": "Dieser Ausdruck ist zu tief verschachtelt, um ihn zu prüfen. Vereinfache ihn oder teile ihn in mehrere Bedingungen auf.",
   "expression.not_boolean": "Eine Bedingung muss mit wahr oder falsch antworten.",
   "expression.not_string": "Eine Vorlage muss Text ergeben.",
+  "expression.not_number": "Eine Formel muss eine Zahl ergeben.",
   "expression.too_expensive": "Dieser Ausdruck ist zu aufwendig auszuwerten. Vereinfache ihn.",
   "expression.timed_out": "Dieser Ausdruck hat länger gebraucht als die {timeout_ms} Millisekunden, die ein Ausdruck brauchen darf.",
   "expression.evaluation_failed": "Dieser Ausdruck ist an den Werten gescheitert, die er bekommen hat – etwa an einer Division durch null oder einem Feld, das der Wert nicht hat.",

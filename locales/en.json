@@ -922,6 +922,7 @@
   "expression.too_complex": "That expression is nested too deeply to check. Simplify it, or split it into several conditions.",
   "expression.not_boolean": "A condition has to answer true or false.",
   "expression.not_string": "A template has to produce text.",
+  "expression.not_number": "A formula has to produce a number.",
   "expression.too_expensive": "That expression costs too much to evaluate. Simplify it.",
   "expression.timed_out": "That expression took longer than the {timeout_ms} milliseconds an expression is allowed.",
   "expression.evaluation_failed": "That expression failed on the values it was given - for example a division by zero, or a field the value does not have.",
