@@ -78,7 +78,9 @@ type DefineCustomFieldCommand struct {
 	Key          string
 	Kind         domain.CustomFieldKind
 	Options      []string
-	IsRequired   bool
+	// Currency is a MONEY field's ISO 4217 code, empty for every other kind.
+	Currency   string
+	IsRequired bool
 	// AppliesTo are the item types that carry the field. Empty means the column's default, which
 	// is a task alone.
 	AppliesTo []domain.ItemType
@@ -135,7 +137,7 @@ func (h DefineCustomField) Execute(
 		now := h.Clock.Now()
 		definition, err := domain.NewCustomFieldDefinition(domain.NewCustomFieldInput{
 			ID: h.IDs.NewID(), TenantID: actor.TenantID, CollectionID: cmd.CollectionID,
-			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options,
+			Key: cmd.Key, Kind: cmd.Kind, Options: cmd.Options, Currency: cmd.Currency,
 			IsRequired: cmd.IsRequired, AppliesTo: appliesTo, Now: now, Text: h.Text,
 		})
 		if err != nil {
@@ -282,7 +284,9 @@ func customFieldOutput(definition domain.CustomFieldDefinition) usecase.Output {
 		"kind":          string(definition.Kind),
 		// An empty array rather than null for a kind with no choices: a client renders the option
 		// editor from this, and null would make it special-case the eight kinds.
-		"options":     options,
+		"options": options,
+		// Null for every kind but MONEY, for the reason collection_id is always present.
+		"currency":    stringOrNil(definition.Currency),
 		"is_required": definition.IsRequired,
 		"applies_to":  appliesTo,
 		"created_at":  definition.CreatedAt,
@@ -313,7 +317,8 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 			},
 			{
 				Name: "kind", Kind: usecase.KindString, Required: true,
-				Description: "TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER or URL. Fixed " +
+				Description: "TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, " +
+					"DURATION, REFERENCE, USER_SET or RICH_TEXT. Fixed " +
 					"once defined: a kind that changed would reinterpret every value already " +
 					"stored under the key.",
 			},
@@ -327,6 +332,11 @@ func (h DefineCustomField) Descriptor() usecase.Descriptor {
 				Name: "options", Kind: usecase.KindList,
 				Description: "The values a SELECT or a MULTI_SELECT may hold. Required for those " +
 					"two and refused for every other kind.",
+			},
+			{
+				Name: "currency", Kind: usecase.KindString,
+				Description: "The ISO 4217 code of a MONEY field's amounts. Required for MONEY " +
+					"and refused for every other kind; fixed once defined.",
 			},
 			{
 				Name: "is_required", Kind: usecase.KindBool,
@@ -380,6 +390,7 @@ func (h DefineCustomField) invoke(
 		Key:          in.String("key"),
 		Kind:         kind,
 		Options:      options,
+		Currency:     in.String("currency"),
 		IsRequired:   in.Bool("is_required"),
 		AppliesTo:    appliesTo,
 	})

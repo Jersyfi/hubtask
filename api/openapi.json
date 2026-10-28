@@ -26968,6 +26968,7 @@
           "key",
           "kind",
           "options",
+          "currency",
           "is_required",
           "applies_to",
           "version"
@@ -27002,6 +27003,14 @@
               "maxLength": 200
             }
           },
+          "currency": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[A-Z]{3}$",
+            "description": "The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.\n"
+          },
           "is_required": {
             "type": "boolean",
             "description": "Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.\n"
@@ -27030,7 +27039,7 @@
       },
       "CustomFieldKind": {
         "type": "string",
-        "description": "What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.\n",
+        "description": "What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.\n",
         "enum": [
           "TEXT",
           "NUMBER",
@@ -27039,7 +27048,12 @@
           "MULTI_SELECT",
           "BOOL",
           "USER",
-          "URL"
+          "URL",
+          "MONEY",
+          "DURATION",
+          "REFERENCE",
+          "USER_SET",
+          "RICH_TEXT"
         ]
       },
       "CustomFieldDefinitionCreate": {
@@ -27071,6 +27085,11 @@
               "minLength": 1,
               "maxLength": 200
             }
+          },
+          "currency": {
+            "type": "string",
+            "pattern": "^[A-Z]{3}$",
+            "description": "Required for MONEY and refused for every other kind."
           },
           "is_required": {
             "type": "boolean",
@@ -27116,7 +27135,7 @@
         ],
         "properties": {
           "value": {
-            "description": "The value, shaped by the definition's kind: a string for TEXT, SELECT and URL, a number for NUMBER, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, and an array of strings for MULTI_SELECT. Null clears the key.\n"
+            "description": "The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.\n"
           }
         }
       },
@@ -27888,7 +27907,7 @@
         "required": [
           "field"
         ],
-        "description": "One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by.\n",
+        "description": "One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.\n",
         "properties": {
           "field": {
             "type": "string"
@@ -28000,7 +28019,7 @@
             "required": [
               "field"
             ],
-            "description": "The board projection: one group per distinct value, each with its own rows and its own cursor. A group's cursor continues that group and is sent back with the group's key as a filter.\n",
+            "description": "The board projection: one group per distinct value, each with its own rows and its own cursor. A group's cursor continues that group and is sent back with the group's key as a filter. A custom field with one value per entry groups by that value.\n",
             "properties": {
               "field": {
                 "type": "string"

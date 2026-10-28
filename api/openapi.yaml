@@ -19134,7 +19134,7 @@ components:
         One field a workspace or a collection adds to its entries. The values live on the entry
         itself, in `custom_fields`; this is what says which keys exist, what they may hold and
         which types carry them.
-      required: [id, collection_id, key, kind, options, is_required, applies_to, version]
+      required: [id, collection_id, key, kind, options, currency, is_required, applies_to, version]
       properties:
         id: { type: string, format: uuid }
         collection_id:
@@ -19159,6 +19159,12 @@ components:
             The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind.
             Values rather than labels: what a person sees is the client's to render.
           items: { type: string, minLength: 1, maxLength: 200 }
+        currency:
+          type: [string, "null"]
+          pattern: "^[A-Z]{3}$"
+          description: >
+            The ISO 4217 code every amount of a MONEY field is in, and null for every other kind.
+            Fixed once defined, like the kind.
         is_required:
           type: boolean
           description: >
@@ -19181,9 +19187,10 @@ components:
     CustomFieldKind:
       type: string
       description: >
-        What a value for the field looks like: one of eight kinds, and the server validates a value
-        against its field's kind.
-      enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL]
+        What a value for the field looks like, and the server validates a value against its field's
+        kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE
+        another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
+      enum: [TEXT, NUMBER, DATE, SELECT, MULTI_SELECT, BOOL, USER, URL, MONEY, DURATION, REFERENCE, USER_SET, RICH_TEXT]
 
     CustomFieldDefinitionCreate:
       type: object
@@ -19198,6 +19205,10 @@ components:
         options:
           type: array
           items: { type: string, minLength: 1, maxLength: 200 }
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          description: Required for MONEY and refused for every other kind.
         is_required: { type: boolean, default: false }
         applies_to:
           type: array
@@ -19227,9 +19238,12 @@ components:
       properties:
         value:
           description: >
-            The value, shaped by the definition's kind: a string for TEXT, SELECT and URL, a number
-            for NUMBER, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for
-            USER, and an array of strings for MULTI_SELECT. Null clears the key.
+            The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and
+            RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY,
+            a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE,
+            an account identifier for USER, an entry identifier for REFERENCE, an array of
+            strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears
+            the key.
 
     MediaObject:
       type: object
@@ -19665,7 +19679,10 @@ components:
       required: [field]
       description: >
         One ordering. Named once and read twice: `POST /items:query` sorts a view of a container,
-        and `POST /search` sorts a workspace-wide read that has no words to rank by.
+        and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field
+        (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as
+        numbers, dates as days, text by its first 256 characters; a field holding several values,
+        a person, a reference or formatted text is not sortable.
       properties:
         field: { type: string }
         dir: { type: string, enum: [ASC, DESC], default: ASC }
@@ -19749,7 +19766,7 @@ components:
           description: >
             The board projection: one group per distinct value, each with its own rows and its own
             cursor. A group's cursor continues that group and is sent back with the group's key as
-            a filter.
+            a filter. A custom field with one value per entry groups by that value.
           properties:
             field: { type: string }
             limit_per_group: { type: integer, minimum: 1, maximum: 200, default: 50 }

@@ -1555,12 +1555,17 @@ func (e CoverInputKind) Valid() bool {
 const (
 	CustomFieldKindBOOL        CustomFieldKind = "BOOL"
 	CustomFieldKindDATE        CustomFieldKind = "DATE"
+	CustomFieldKindDURATION    CustomFieldKind = "DURATION"
+	CustomFieldKindMONEY       CustomFieldKind = "MONEY"
 	CustomFieldKindMULTISELECT CustomFieldKind = "MULTI_SELECT"
 	CustomFieldKindNUMBER      CustomFieldKind = "NUMBER"
+	CustomFieldKindREFERENCE   CustomFieldKind = "REFERENCE"
+	CustomFieldKindRICHTEXT    CustomFieldKind = "RICH_TEXT"
 	CustomFieldKindSELECT      CustomFieldKind = "SELECT"
 	CustomFieldKindTEXT        CustomFieldKind = "TEXT"
 	CustomFieldKindURL         CustomFieldKind = "URL"
 	CustomFieldKindUSER        CustomFieldKind = "USER"
+	CustomFieldKindUSERSET     CustomFieldKind = "USER_SET"
 )
 
 // Valid indicates whether the value is a known member of the CustomFieldKind enum.
@@ -1570,9 +1575,17 @@ func (e CustomFieldKind) Valid() bool {
 		return true
 	case CustomFieldKindDATE:
 		return true
+	case CustomFieldKindDURATION:
+		return true
+	case CustomFieldKindMONEY:
+		return true
 	case CustomFieldKindMULTISELECT:
 		return true
 	case CustomFieldKindNUMBER:
+		return true
+	case CustomFieldKindREFERENCE:
+		return true
+	case CustomFieldKindRICHTEXT:
 		return true
 	case CustomFieldKindSELECT:
 		return true
@@ -1581,6 +1594,8 @@ func (e CustomFieldKind) Valid() bool {
 	case CustomFieldKindURL:
 		return true
 	case CustomFieldKindUSER:
+		return true
+	case CustomFieldKindUSERSET:
 		return true
 	default:
 		return false
@@ -7588,7 +7603,10 @@ type CustomFieldDefinition struct {
 	// CollectionId The collection the definition belongs to, or null for the whole workspace. Always present: absent would say this server does not know about scopes, which is a different statement from "this one is workspace-wide".
 	CollectionId *openapi_types.UUID `json:"collection_id"`
 	CreatedAt    *time.Time          `json:"created_at,omitempty"`
-	Id           openapi_types.UUID  `json:"id"`
+
+	// Currency The ISO 4217 code every amount of a MONEY field is in, and null for every other kind. Fixed once defined, like the kind.
+	Currency *string            `json:"currency"`
+	Id       openapi_types.UUID `json:"id"`
 
 	// IsRequired Whether the field has to hold a value. Enforced when the field is written, not retroactively: making a field required does not make the entries that predate it invalid.
 	IsRequired bool `json:"is_required"`
@@ -7596,7 +7614,7 @@ type CustomFieldDefinition struct {
 	// Key The identifier the value is stored under, unique in its scope and fixed once defined. An identifier rather than a label: it appears in `custom_fields.<key>` filters, and a key that could be renamed would orphan every value stored under it.
 	Key string `json:"key"`
 
-	// Kind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
 	Kind CustomFieldKind `json:"kind"`
 
 	// Options The permitted values of a SELECT or a MULTI_SELECT, and empty for every other kind. Values rather than labels: what a person sees is the client's to render.
@@ -7614,10 +7632,13 @@ type CustomFieldDefinitionCreate struct {
 
 	// CollectionId Omitted or null defines the field for the whole workspace.
 	CollectionId *openapi_types.UUID `json:"collection_id,omitempty"`
-	IsRequired   *bool               `json:"is_required,omitempty"`
-	Key          string              `json:"key"`
 
-	// Kind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
+	// Currency Required for MONEY and refused for every other kind.
+	Currency   *string `json:"currency,omitempty"`
+	IsRequired *bool   `json:"is_required,omitempty"`
+	Key        string  `json:"key"`
+
+	// Kind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
 	Kind    CustomFieldKind `json:"kind"`
 	Options *[]string       `json:"options,omitempty"`
 }
@@ -7629,12 +7650,12 @@ type CustomFieldDefinitionUpdate struct {
 	Options    *[]string   `json:"options,omitempty"`
 }
 
-// CustomFieldKind What a value for the field looks like: one of eight kinds, and the server validates a value against its field's kind.
+// CustomFieldKind What a value for the field looks like, and the server validates a value against its field's kind. MONEY is an amount in the definition's currency, DURATION whole minutes, REFERENCE another entry, USER_SET several people, RICH_TEXT formatted text in Markdown.
 type CustomFieldKind string
 
 // CustomFieldValue One value for one key. `value` is required and may be null, which clears the key - the two are different requests, and a body that left the field out would be neither.
 type CustomFieldValue struct {
-	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT and URL, a number for NUMBER, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, and an array of strings for MULTI_SELECT. Null clears the key.
+	// Value The value, shaped by the definition's kind: a string for TEXT, SELECT, URL and RICH_TEXT, a number for NUMBER, a number with at most four decimal places for MONEY, a whole number of minutes for DURATION, a boolean for BOOL, an ISO-8601 date for DATE, an account identifier for USER, an entry identifier for REFERENCE, an array of strings for MULTI_SELECT and an array of account identifiers for USER_SET. Null clears the key.
 	Value interface{} `json:"value"`
 }
 
@@ -8908,7 +8929,7 @@ type ItemQuery struct {
 	// bound that keeps a query's cost a function of the data rather than of the request.
 	Filter *FilterNode `json:"filter,omitempty"`
 
-	// GroupBy The board projection: one group per distinct value, each with its own rows and its own cursor. A group's cursor continues that group and is sent back with the group's key as a filter.
+	// GroupBy The board projection: one group per distinct value, each with its own rows and its own cursor. A group's cursor continues that group and is sent back with the group's key as a filter. A custom field with one value per entry groups by that value.
 	GroupBy *struct {
 		Field         string `json:"field"`
 		LimitPerGroup *int   `json:"limit_per_group,omitempty"`
@@ -12074,7 +12095,7 @@ type SignInRules struct {
 	WorkspaceHost string `json:"workspace_host"`
 }
 
-// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by.
+// SortTerm One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable.
 type SortTerm struct {
 	Dir   *SortTermDir   `json:"dir,omitempty"`
 	Field string         `json:"field"`

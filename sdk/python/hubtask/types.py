@@ -2409,19 +2409,21 @@ class CustomFieldDefinition(TypedDict, total=False):
     key: Required[str]
     kind: Required["CustomFieldKind"]
     options: Required[list[str]]
+    currency: Required[str | None]
     is_required: Required[bool]
     applies_to: Required[list["ItemType"]]
     created_at: str
     updated_at: str
     version: Required[int]
 
-CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL"]
+CustomFieldKind = Literal["TEXT", "NUMBER", "DATE", "SELECT", "MULTI_SELECT", "BOOL", "USER", "URL", "MONEY", "DURATION", "REFERENCE", "USER_SET", "RICH_TEXT"]
 
 class CustomFieldDefinitionCreate(TypedDict, total=False):
     collection_id: str | None
     key: Required[str]
     kind: Required["CustomFieldKind"]
     options: list[str]
+    currency: str
     is_required: bool
     applies_to: list["ItemType"]
 
@@ -2568,7 +2570,7 @@ class DroppedReference(TypedDict, total=False):
     code: Required[str]
 
 class SortTerm(TypedDict, total=False):
-    """One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by."""
+    """One ordering. Named once and read twice: `POST /items:query` sorts a view of a container, and `POST /search` sorts a workspace-wide read that has no words to rank by. A custom field (`custom_fields.<key>`) sorts by its typed value - numbers, amounts and durations as numbers, dates as days, text by its first 256 characters; a field holding several values, a person, a reference or formatted text is not sortable."""
     field: Required[str]
     dir: Literal["ASC", "DESC"]
     nulls: Literal["FIRST", "LAST"]

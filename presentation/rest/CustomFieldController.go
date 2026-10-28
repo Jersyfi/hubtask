@@ -78,6 +78,9 @@ func (c *RestController) DefineCustomField(
 	if body.Options != nil {
 		in["options"] = *body.Options
 	}
+	if body.Currency != nil {
+		in["currency"] = *body.Currency
+	}
 	if body.IsRequired != nil {
 		in["is_required"] = *body.IsRequired
 	}
@@ -127,6 +130,9 @@ func customFieldResponse(out usecase.Output) openapi.CustomFieldDefinition {
 	if scope := out.String("collection_id"); scope != "" {
 		collectionID := uuidValue(scope)
 		definition.CollectionId = &collectionID
+	}
+	if currency := out.String("currency"); currency != "" {
+		definition.Currency = &currency
 	}
 	return definition
 }
