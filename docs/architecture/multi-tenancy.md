@@ -183,7 +183,9 @@ credential (the reset request, the sign-in card, a passkey's and a provider's si
 The header is a second source only at the installation's own host, where API clients, `hubctl`
 and the operator area talk. A host that is neither the installation's own nor served by an `ACTIVE`
 row - a host nobody claimed, a dangling domain, an old address - names nothing and is
-`404 auth.tenant_unresolved`, with a header or without (T-28).
+`404 auth.tenant_unresolved`, with a header or without (T-28). An installation that did not state its
+address (`config.base_url_missing`) has no own host to tell apart: there a host no row serves is
+read as the installation's own, as before any host was read.
 
 **An authenticated request** — the credential binds the tenant: a session's or token's claim, a
 personal access token's or service account's account.

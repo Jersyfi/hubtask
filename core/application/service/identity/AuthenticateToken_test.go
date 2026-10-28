@@ -560,3 +560,20 @@ func TestAHostMayConfirmTheCredentialsWorkspaceButNeverOverruleIt(t *testing.T) 
 		})
 	}
 }
+
+// Without an installation address an unserved host refuses nothing, as before any host was read;
+// another workspace's served host is still refused.
+func TestWithoutAnAddressOnlyAnotherWorkspacesHostIsRefused(t *testing.T) {
+	other := shared.ID("01936f2a-7c1e-7000-8000-0000000000ff")
+	for host, refused := range map[string]bool{"127.0.0.1:8080": false, "other.hub.example": true} {
+		raw, credential := mintCredential(t)
+		handler := handlerFor(&tokens{credential: credential}, &unitOfWork{})
+		handler.Hosts = hostsNaming{"other.hub.example": other}
+		_, err := handler.Execute(t.Context(), AuthenticateTokenCommand{
+			Credential: raw, FallbackLocale: "en", FallbackTimeZone: "UTC", Host: host,
+		})
+		if (err != nil) != refused {
+			t.Errorf("at %s: %v, want refused %t", host, err, refused)
+		}
+	}
+}

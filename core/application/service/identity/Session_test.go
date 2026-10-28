@@ -1172,3 +1172,19 @@ func TestInMultiModeTheHostNamesTheWorkspace(t *testing.T) {
 		})
 	}
 }
+
+// An installation that did not state its address has no own host to tell apart: a host no row
+// serves lets the header speak, as before any host was read; a served host still names its own.
+func TestWithoutAnAddressAnUnservedHostLetsTheHeaderSpeak(t *testing.T) {
+	fixture := newSessionFixture(now)
+	fixture.writer.Multi = true
+	fixture.withAccount("bert@example.org", "correct horse battery")
+	for _, host := range []string{"127.0.0.1:8080", "acme.hubtask.example"} {
+		if _, err := (SignIn{Writer: fixture.writer}).Execute(t.Context(), SignInCommand{
+			Email: "bert@example.org", Password: secret.New("correct horse battery"),
+			Host: host, TenantHeader: tenant.String(),
+		}); err != nil {
+			t.Errorf("at %s: %v", host, err)
+		}
+	}
+}

@@ -42,7 +42,10 @@ func requestTenant(
 			return err
 		})
 		if errors.Is(err, shared.ErrNotFound) {
-			return "", unresolved
+			if !isInstallationHost(host, installationHost) {
+				return "", unresolved
+			}
+			err = nil
 		}
 		if err != nil {
 			return "", err
@@ -64,6 +67,14 @@ func requestTenant(
 	return tenantID, nil
 }
 
+// isInstallationHost is whether a host no row serves is the installation's own, where the header
+// speaks. An installation that did not state its address (`config.base_url_missing`) has no host to
+// tell apart: every host no row serves is its own, as before any host was read.
+func isInstallationHost(host, installationHost string) bool {
+	own := domain.RequestHost(installationHost)
+	return host == "" || own == "" || host == own
+}
+
 // hostNamesAnother is the authenticated half of §3: the credential binds the workspace, and only
 // the installation's own host or the workspace's serving row confirms it. Another workspace's host,
 // and a host no row serves, is `access.tenant_mismatch` (T-28). Read in the caller's transaction:
@@ -77,6 +88,9 @@ func hostNamesAnother(
 	}
 	named, err := tenants.ResolveHost(ctx, host)
 	if errors.Is(err, shared.ErrNotFound) {
+		if isInstallationHost(host, installationHost) {
+			return nil
+		}
 		return shared.ErrForbidden.WithDetail("access.tenant_mismatch")
 	}
 	if err != nil {
