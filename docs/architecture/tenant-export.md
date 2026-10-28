@@ -126,38 +126,39 @@ re-mints identities must rewrite exactly these).
 | 8 | `buckets` | `bucket` | `id` | `collection_id`→containers |
 | 9 | `labels` | `label` | `id` | `collection_id`→containers |
 | 10 | `custom_field_definitions` | `custom_field_definition` | `id` | `collection_id`→containers |
-| 11 | `work_items` | `work_item` | `id` | `collection_id`→containers, `parent_id`→work_items, `bucket_id`→buckets, `assignee_id`→accounts, `cover_media_id`→media_objects, `recurrence_rule_id`→recurrence_rules, `origin_jumble_id`→jumble_entries |
-| 12 | `item_labels` | `item_label` | `item_id/label_id` | `item_id`→work_items, `label_id`→labels |
-| 13 | `item_members` | `item_member` | `item_id/account_id` | `item_id`→work_items, `account_id`→accounts |
-| 14 | `comments` | `comment` | `id` | `item_id`→work_items, `parent_comment_id`→comments |
-| 15 | `activity_entries` | `activity_entry` | `id` | `item_id`→work_items |
-| 16 | `media_objects` | `media_object` | `id` | — (`blobs` points into `media/`, §7) |
-| 17 | `item_attachments` | `item_attachment` | `item_id/media_id` | `item_id`→work_items, `media_id`→media_objects |
-| 18 | `recurrence_rules` | `recurrence_rule` | `id` | `source_item_id`→work_items |
-| 19 | `reminders` | `reminder` | `id` | `item_id`→work_items |
-| 20 | `saved_views` | `saved_view` | `id` | — |
-| 21 | `templates` | `template` | `id` | — |
-| 22 | `jumble_entries` | `jumble_entry` | `id` | — |
-| 23 | `auto_assign_policies` | `auto_assign_policy` | `id` | — |
-| 24 | `automation_rules` | `automation_rule` | `id` | `run_as`→accounts |
-| 25 | `webhook_subscriptions` | `webhook_subscription` | `id` | — |
-| 26 | `calendar_feeds` | `calendar_feed` | `id` | `account_id`→accounts, `view_id`→saved_views (the feed's token is not among the fields, §9) |
-| 27 | `notification_preferences` | `notification_preference` | `account_id/category/channel` | `account_id`→accounts |
-| 28 | `retention_policies` | `retention_policy` | `data_kind` | — |
-| 29 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
-| 30 | `legal_holds` | `legal_hold` | `id` | — |
-| 31 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
-| 32 | `container_milestones` | `container_milestone` | `container_id` | `container_id`→containers (when a collection or hub was last finished; a milestone whose container is not restored is skipped) |
-| 33 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
-| 34 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
-| 35 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
-| 36 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
+| 11 | `entry_types` | `entry_type` | `id` | — (the workspace's own entry types and its rows for the system types it changed, migration 0209; a work item names one by `key` in `entry_type`, so they precede the work items; a duplicate skips a key the workspace holds) |
+| 12 | `work_items` | `work_item` | `id` | `entry_type`→entry_types (by key), `collection_id`→containers, `parent_id`→work_items, `bucket_id`→buckets, `assignee_id`→accounts, `cover_media_id`→media_objects, `recurrence_rule_id`→recurrence_rules, `origin_jumble_id`→jumble_entries |
+| 13 | `item_labels` | `item_label` | `item_id/label_id` | `item_id`→work_items, `label_id`→labels |
+| 14 | `item_members` | `item_member` | `item_id/account_id` | `item_id`→work_items, `account_id`→accounts |
+| 15 | `comments` | `comment` | `id` | `item_id`→work_items, `parent_comment_id`→comments |
+| 16 | `activity_entries` | `activity_entry` | `id` | `item_id`→work_items |
+| 17 | `media_objects` | `media_object` | `id` | — (`blobs` points into `media/`, §7) |
+| 18 | `item_attachments` | `item_attachment` | `item_id/media_id` | `item_id`→work_items, `media_id`→media_objects |
+| 19 | `recurrence_rules` | `recurrence_rule` | `id` | `source_item_id`→work_items |
+| 20 | `reminders` | `reminder` | `id` | `item_id`→work_items |
+| 21 | `saved_views` | `saved_view` | `id` | — |
+| 22 | `templates` | `template` | `id` | — |
+| 23 | `jumble_entries` | `jumble_entry` | `id` | — |
+| 24 | `auto_assign_policies` | `auto_assign_policy` | `id` | — |
+| 25 | `automation_rules` | `automation_rule` | `id` | `run_as`→accounts |
+| 26 | `webhook_subscriptions` | `webhook_subscription` | `id` | — |
+| 27 | `calendar_feeds` | `calendar_feed` | `id` | `account_id`→accounts, `view_id`→saved_views (the feed's token is not among the fields, §9) |
+| 28 | `notification_preferences` | `notification_preference` | `account_id/category/channel` | `account_id`→accounts |
+| 29 | `retention_policies` | `retention_policy` | `data_kind` | — |
+| 30 | `consent_records` | `consent_record` | `id` | `account_id`→accounts |
+| 31 | `legal_holds` | `legal_hold` | `id` | — |
+| 32 | `private_hub_accesses` | `private_hub_access` | `id` | `hub_id`→containers, `opened_by`→accounts (an access whose hub is not restored is skipped) |
+| 33 | `container_milestones` | `container_milestone` | `container_id` | `container_id`→containers (when a collection or hub was last finished; a milestone whose container is not restored is skipped) |
+| 34 | `set_elements` | `set_element` | `item_id/set_name/element_id` | `item_id`→work_items |
+| 35 | `structure_presets` | `structure_preset` | `id` | `owner_id`→accounts (the workspace's presets and each person's own; an own preset whose account is not restored is skipped) |
+| 36 | `setting_values` | `setting_value` | `id` | — (the settings catalogue's entries of the workspace, its hubs, collections and people, the module switches among them; `scope_id` names the workspace, a container or an account by `level`, and a workspace's own entries follow the workspace written into) |
+| 37 | `audit` | `audit_log` | `seq` | — (last, and read-only on import: an insert into the middle of a hash chain is a rewrite, not a restore) |
 
 Cross-references between two rows of the same file (a collection's hub, a subtask's parent, a
 reply's comment) are ordered within the file: the referenced row comes first.
 
-**Three references point forward.** In `work_items`, `cover_media_id` (#16), `recurrence_rule_id`
-(#18) and `origin_jumble_id` (#22) name rows of later files; an importer that enforces them sets
+**Three references point forward.** In `work_items`, `cover_media_id` (#17), `recurrence_rule_id`
+(#19) and `origin_jumble_id` (#23) name rows of later files; an importer that enforces them sets
 them after the later file is applied. `work_items` also carries `recurrence_source_id`, a reference
 to another `work_items` row without a foreign key. Of the three, only `cover_media_id` is a foreign
 key in Hubtask's own schema, and its restore applies `media_objects`, which references nothing,

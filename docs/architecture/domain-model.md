@@ -28,7 +28,8 @@ graph TD
 ```
 
 The consequence: one table, one repository, one set of use cases, one API resource (`/items`). A
-new feature of an existing type is configuration, not a new schema; a new type is not yet (§2).
+new feature of an existing type is configuration, not a new schema, and so is a new *entry type* on a
+level (§2, "Entry types"); a new level is not.
 
 ---
 
@@ -56,6 +57,21 @@ narrow them, never widen them beyond the system boundary.
 | `AMOUNT` | ✔ | ✘ | ✘ | Opt-in: carried only where a layer's fields name it (UC-WRK-25) |
 | `CHILDREN` | `WORK_PACKAGE`, `ACTIVITY` | `ACTIVITY` | — | The permitted child types; a task may hold both at once (decision #1627) |
 | `MAX_DEPTH` | 3 | 2 | 1 | Relative to the collection |
+
+**Entry types** (F-1, UC-FLW-01, migration 0209). A workspace names the kinds of its work as rows of
+`entry_type`: a stable `key`, the *level* it sits on (one of the three above, which a type never
+changes), a name, an icon of the design system's set, a label colour token, and the behaviours of
+its entries - *completable*, *workflow*, *record*, *schedulable*, *estimable* - with the keys of the
+types allowed directly underneath. Each level has a **system type** keyed after it (`task`,
+`work_package`, `activity`), declared in the domain (`work.SystemEntryTypes`) and stored only once a
+workspace changes it; it is never archived, deleted or made a record. An entry names its type by key
+in `work_item.entry_type`, null for its level's system type. A type **narrows** its level's profile
+and never widens it: a *record* has no `COMPLETION` (D-07), a type that is not *schedulable* no
+`DUE_DATE`, `REMINDER` or `RECURRENCE` (`EntryType.Narrow`). A type in use is archived - no longer
+offered, still readable - and only an unused one is deleted. The registry belongs to the workflows
+module: its operations are refused with `module.off` where the module is off. The `item_type` enum
+and the level CHECKs on `work_item` stay as the level's: dropping the enum is a contract step for the
+release after the one whose statements stop casting to it (`versioning-release.md` §4).
 
 **Levels and presets** (decisions #1619–#1622). A collection's *level* is a preset — *List*,
 *Tasks*, *Project*, *Flow*, or one a workspace or installation defines — that sets eight things:

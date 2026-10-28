@@ -203,6 +203,7 @@ prompts and responses. The `changes` of an entry are masked per field classifica
 | `item.due_cleared` | ClearDueDate | `item` | INFO | Every time |
 | `item.due_set` | SetDueDate | `item` | INFO | Every time |
 | `item.duplicated` | DuplicateWorkItem | `item` | INFO | Every time |
+| `item.entry_type_set` | SetItemEntryType | `item` | INFO | Every time |
 | `item.label_added` | AddLabel | `item` | INFO | Every time |
 | `item.label_removed` | RemoveLabel | `item` | INFO | Every time |
 | `item.member_added` | AddMember | `item` | INFO | Every time |

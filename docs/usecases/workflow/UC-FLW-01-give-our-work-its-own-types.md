@@ -5,9 +5,9 @@ context: workflow
 actors: [PE-admin, PE-member, PE-integrator, PE-agent]
 deployments: [D3, D4, D5, D6, D7]
 serves: [P-05, P-06, P-08, P-12, P-17]
-state: specified
+state: partial
 tasks: []
-checked_by: []
+checked_by: [core/domain/model/work/EntryType_test.go, core/application/service/workflow/EntryTypes_test.go, core/application/service/work/SetItemEntryType_test.go, test/integration/entry_type_test.go, apps/webapp/src/lib/data/entrytypes.test.ts]
 ---
 
 # Give our work its own types
@@ -49,11 +49,15 @@ works in every view. An agent creating an entry through MCP names the type the s
 
 ## Today
 
-* Check 1: not met — the suite plan, S-03, S-06.
-* Check 2: not met — the suite plan, S-03, S-06.
-* Check 3: not met — the suite plan, S-03, S-06.
-* Check 4: not met — the suite plan, S-03, S-06.
-* Check 5: not met — the suite plan, S-03, S-06.
-* Check 6: not met — the suite plan, S-03, S-06.
-* Check 7: not met — the suite plan, S-03, S-06.
-* Check 8: not met — the suite plan, S-03, S-06.
+* Check 1: partly met — `GET`/`POST /entry-types` and `PATCH`/`DELETE /entry-types/{key}` (and the
+  same operations over MCP and as rule actions) create, rename, recolour, order and archive types;
+  the administration has no screen for them yet (the suite plan, S-03).
+* Check 2: not met — the suite plan, S-04, S-06.
+* Check 3: partly met — capture offers the workspace's types of the level, the level's own first;
+  which types one collection offers is not narrowed yet (the suite plan, S-06).
+* Check 4: partly met — a change of type that would drop a value is refused, naming each field;
+  confirming the drop and the screen for it come with the field sets (the suite plan, S-06).
+* Check 6: not met — a row marks its type; the filter, the grouping, the column and the query field
+  are the suite plan's S-04 and S-11.
+* Check 7: partly met — REST, MCP and the rule engine reach the registry through one descriptor each;
+  `hubctl` has no command for it yet (the suite plan, S-10).
