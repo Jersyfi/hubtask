@@ -69,7 +69,7 @@ func invitationRegistry(t *testing.T, uow persistence.UnitOfWork, signIn postgre
 			Minter: identityservice.MintRedemptionToken{
 				Accounts: signIn, UnitOfWork: uow, Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 			},
-			BaseURL: sc13Base,
+			Address: identityservice.WorkspaceAddress{BaseURL: sc13Base},
 		}
 	}
 	accounts := postgres.NewAccountRepository()

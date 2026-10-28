@@ -41,7 +41,7 @@ func newRenewFixture(t *testing.T, status domain.AccountStatus, withoutMail bool
 		UnitOfWork: &unitOfWork{}, Clock: clock.Fixed(now),
 	}
 	if withoutMail {
-		f.handler.Links = InvitationLinks{Minter: f.minter, BaseURL: homeBase}
+		f.handler.Links = InvitationLinks{Minter: f.minter, Address: WorkspaceAddress{BaseURL: homeBase}}
 	}
 	return f
 }

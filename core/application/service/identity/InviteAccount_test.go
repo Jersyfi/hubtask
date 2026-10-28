@@ -292,7 +292,7 @@ func TestInvitingSomebodyWhoIsAlreadyHereIsAConflict(t *testing.T) {
 			accounts, queued, minter := newAccounts(existing), &notifier{}, &linkMinter{}
 			handler := inviteHandler(accounts, &authorizer{}, &auditSink{}, queued)
 			if c.links {
-				handler.Links = InvitationLinks{Minter: minter, BaseURL: "https://home.example"}
+				handler.Links = InvitationLinks{Minter: minter, Address: WorkspaceAddress{BaseURL: "https://home.example"}}
 			}
 
 			_, err = handler.Execute(t.Context(), admin(), InviteAccountCommand{Email: "BERT@example.org"})

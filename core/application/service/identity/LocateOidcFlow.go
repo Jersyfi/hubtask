@@ -26,20 +26,14 @@ const LocateOidcFlowName = "LocateOidcFlow"
 // that started a connection or a step-up lives, and the browser's marks of which return this is.
 // So the return is finished there: this answers the workspace's main address - its main
 // `tenant_host` row under the configured scheme and port (ADR-0095 §2) - for the workspace the state
-// names, never from anything the request says, and spends nothing. Only a live flow is located; anything else is one refusal, which names no
-// workspace.
+// names, never from anything the request says, and spends nothing. Only a live flow is located;
+// anything else is one refusal, which names no workspace.
 type LocateOidcFlow struct {
-	Flows      repository.OidcFlows
-	Workspaces WorkspaceSlug
-	// Hosts holds the workspace's main address. Nil, or a workspace without a serving main row,
-	// answers the subdomain its short name makes.
-	Hosts      repository.TenantHosts
+	Flows repository.OidcFlows
+	// Address is the workspace's main address, every link's (WorkspaceAddress).
+	Address    WorkspaceAddress
 	UnitOfWork persistence.UnitOfWork
 	Clock      clock.Clock
-	// BaseURL and Multi are the installation's address and whether each workspace is its own
-	// subdomain of it (domain.WorkspaceBase).
-	BaseURL string
-	Multi   bool
 }
 
 // WorkspaceSlug reads the workspace a transaction is bound to: its public name is what its address
@@ -70,26 +64,8 @@ func (h LocateOidcFlow) Execute(ctx context.Context, presented string) (string, 
 			if !live {
 				return oidcFlowNotFound()
 			}
-			if !h.Multi {
-				base = domain.WorkspaceBase(h.BaseURL, "", false)
-				return nil
-			}
-			if h.Hosts != nil {
-				hosts, err := h.Hosts.List(ctx)
-				if err != nil {
-					return err
-				}
-				if main := domain.MainHostOf(hosts); main != "" {
-					base = domain.WorkspaceBaseAt(h.BaseURL, main)
-					return nil
-				}
-			}
-			workspace, err := h.Workspaces.Find(ctx)
-			if err != nil {
-				return err
-			}
-			base = domain.WorkspaceBase(h.BaseURL, workspace.Slug, true)
-			return nil
+			base, err = h.Address.Of(ctx)
+			return err
 		})
 	if errors.Is(err, shared.ErrNotFound) {
 		// The flow's absence, or a workspace gone between the start and the return: one answer.

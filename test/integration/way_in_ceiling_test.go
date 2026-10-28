@@ -215,7 +215,7 @@ func TestANewWayInIsHeldToTheCeilingAsTheDatabaseResolvesIt(t *testing.T) {
 				Minter: identityservice.MintRedemptionToken{
 					Accounts: signIn, UnitOfWork: uow, Clock: clockadapter.System{}, Entropy: clockadapter.CryptoRandom{},
 				},
-				BaseURL: "https://home.example",
+				Address: identityservice.WorkspaceAddress{BaseURL: "https://home.example"},
 			},
 		}
 		_, err := renew.Execute(ctx, w.clara, identityservice.RenewInvitationCommand{AccountID: w.ownerInvited})

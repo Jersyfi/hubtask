@@ -2014,10 +2014,8 @@ func run() error {
 		// Where a provider's return belongs: the workspace's own address in multi-tenant
 		// operation, where the flow began (multi-tenancy.md §3).
 		identity.LocateOidcFlow{
-			Flows:      postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
-			Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
-			UnitOfWork: unitOfWork,
-			Clock:      clockadapter.System{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
+			Flows:   postgres.NewOidcFlowRepository(security.NewOidcFlowHasher(cfg.SecretKey)),
+			Address: workspaceAddress(cfg), UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 		}.Descriptor(),
 		identity.CompleteLink{Writer: oidcWriter}.Descriptor(),
 		// Connecting a provider from a signed-in session (ADR-0078 §1).
@@ -4305,8 +4303,17 @@ func invitationLinks(
 			Accounts: store, UnitOfWork: unitOfWork, Clock: clockadapter.System{},
 			Entropy: clockadapter.CryptoRandom{},
 		},
-		BaseURL: cfg.BaseURL,
-		Multi:   cfg.Tenancy == envport.TenancyMulti,
+		Address: workspaceAddress(cfg),
+	}
+}
+
+// workspaceAddress is where every link to a workspace leads: its main row's host in multi mode,
+// the installation's address in single mode (ADR-0095 §2). Every writer of such a link is handed
+// this one, so none reads the installation's address for it.
+func workspaceAddress(cfg envport.Config) identity.WorkspaceAddress {
+	return identity.WorkspaceAddress{
+		Workspaces: postgres.NewWorkspaceSettingsRepository(), Hosts: postgres.NewTenantHostRepository(),
+		Domains: textadapter.Domains{}, BaseURL: cfg.BaseURL, Multi: cfg.Tenancy == envport.TenancyMulti,
 	}
 }
 
