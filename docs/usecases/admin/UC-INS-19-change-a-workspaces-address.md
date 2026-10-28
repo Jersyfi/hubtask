@@ -5,9 +5,9 @@ context: admin
 actors: [PE-operator, PE-owner, PE-scripter, PE-member]
 deployments: [D4, D5, D6, D7]
 serves: [P-01, P-02, P-04, P-05, P-07, P-08, P-11, P-16]
-state: partial
+state: verified
 tasks: [CD-01, CD-02, CD-03, CD-05, CD-06, CD-10]
-checked_by: [test/integration/tenant_host_resolution_test.go, core/application/service/identity/LocateOidcFlow_test.go, apps/webapp/src/lib/data/oidc.test.ts, core/application/service/notification/MainAddress_test.go, core/application/service/identity/WorkspaceAddress_test.go, test/architecture/mainaddress_test.go, core/domain/model/identity/AddressChange_test.go, core/port/stepup/DemandOneOf_test.go, core/application/service/admin/ChangeAddress_test.go, core/application/service/identity/LastingWays_test.go, core/application/service/notification/AddressChange_test.go, test/integration/change_address_test.go, cmd/hubctl/Admin_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, apps/webapp/src/lib/data/stepup.test.ts, core/domain/model/identity/OwnerAddressChange_test.go, core/application/service/admin/ChangeWorkspaceAddress_test.go, core/application/service/identity/AddressScreen_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/src/lib/instance/values.test.ts, apps/webapp/e2e/workspaceaddress.test.mjs]
+checked_by: [test/integration/tenant_host_resolution_test.go, core/application/service/identity/LocateOidcFlow_test.go, apps/webapp/src/lib/data/oidc.test.ts, core/application/service/notification/MainAddress_test.go, core/application/service/identity/WorkspaceAddress_test.go, test/architecture/mainaddress_test.go, core/domain/model/identity/AddressChange_test.go, core/port/stepup/DemandOneOf_test.go, core/application/service/admin/ChangeAddress_test.go, core/application/service/identity/LastingWays_test.go, core/application/service/notification/AddressChange_test.go, test/integration/change_address_test.go, cmd/hubctl/Admin_test.go, apps/webapp/e2e/instanceworkspaces.test.mjs, apps/webapp/src/lib/data/stepup.test.ts, core/domain/model/identity/OwnerAddressChange_test.go, core/application/service/admin/ChangeWorkspaceAddress_test.go, core/application/service/identity/AddressScreen_test.go, cmd/hubctl/AdminInstance_test.go, apps/webapp/src/lib/instance/values.test.ts, apps/webapp/e2e/workspaceaddress.test.mjs, core/application/service/identity/WorkspaceLinks_test.go, presentation/rest/WorkspaceLinks_test.go, presentation/calendar/CalDav_test.go]
 ---
 
 # Change a workspace's address
@@ -67,7 +67,3 @@ member gets a mail with the new address.
 * A workspace's own domain is UC-INS-15; a host the operator assigns is UC-INS-20.
 * No path-prefixed workspaces, and no workspace on the installation's own host beside workspaces
   on subdomains ([multi-tenancy.md](../../architecture/multi-tenancy.md) §3.1).
-
-## Today
-
-* Check 9: not met — the calendar feed's address, a CalDAV todo's link and an export's item links name the installation's host (#1784).

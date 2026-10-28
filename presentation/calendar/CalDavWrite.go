@@ -160,7 +160,7 @@ func (c *Controller) outsideTheView(ctx context.Context, actor appshared.ActorCo
 		stamp = c.Now()
 	}
 	zone := zoneOr(actor.TimeZone, time.UTC)
-	return c.memberOf(actor.AccountID.String(), calendar.feed.ID.String(), item, zone, nil, stamp), true, nil
+	return memberOf(calendar.base, actor.AccountID.String(), calendar.feed.ID.String(), item, zone, nil, stamp), true, nil
 }
 
 // entryAt answers the entry an address names, if any: by the UID a calendar client chose, then by

@@ -318,6 +318,15 @@ func TestEveryLinkIsBuiltOnTheMainRowAsItStands(t *testing.T) {
 	if base := of(hostTenantA); base != "https://"+hostOfA+":8443" {
 		t.Errorf("another workspace's address is %q, want its own main row", base)
 	}
+	// The adapters' seam - a calendar feed's, a CalDAV todo's, an export's link - opens its own
+	// transaction in the workspace it is asked about and answers the same row.
+	links := identityservice.WorkspaceLinks{Address: address, UnitOfWork: uow}
+	if base, err := links.For(ctx, hostTenantMoved); err != nil || base != "https://tasks.moved.example:8443" {
+		t.Errorf("the adapters' address after the change is (%q, %v), want the new main row", base, err)
+	}
+	if base, err := links.For(ctx, hostTenantA); err != nil || base != "https://"+hostOfA+":8443" {
+		t.Errorf("the adapters' address of another workspace is (%q, %v), want its own main row", base, err)
+	}
 }
 
 // beforeTheHostResolver is the last version without migration 0207.

@@ -2830,9 +2830,10 @@ func run() error {
 		}
 		controller.MediaTokens = mediaTokens
 		controller.Clock = clockadapter.System{}
-		// The address a calendar client is handed. Configured rather than taken from the
-		// request's Host, so that one caller cannot decide what the next person's client stores.
-		controller.BaseURL = cfg.BaseURL
+		// The address a calendar client is handed and an export's links: the workspace's main
+		// row, never the request's Host, so that one caller cannot decide what the next person's
+		// client stores (UC-INS-19 check 9).
+		controller.Links = identity.WorkspaceLinks{Address: workspaceAddress(cfg), UnitOfWork: unitOfWork}
 		// The public .ics route. Not a catalogue entry: it answers a credential nobody in this
 		// system holds, and every question it asks is asked inwards of the controller.
 		controller.CalendarFeeds = work.ReadCalendarFeed{
@@ -3030,8 +3031,8 @@ func run() error {
 					Items: items, ItemLabels: itemLabels, Containers: containers,
 					Authorizer: authorizer, UnitOfWork: unitOfWork,
 				},
-				BaseURL: cfg.BaseURL,
-				Now:     clockadapter.System{}.Now,
+				Links: identity.WorkspaceLinks{Address: workspaceAddress(cfg), UnitOfWork: unitOfWork},
+				Now:   clockadapter.System{}.Now,
 				// The writes: a completion, a date, a name, a deletion, each the
 				// ordinary use case performed as the token's account through the registry.
 				UseCases: useCases,

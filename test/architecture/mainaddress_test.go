@@ -18,10 +18,11 @@ const addressHelper = "core/application/service/identity/WorkspaceAddress.go"
 // Every mail and link to a workspace is built on its main row. A writer that read the
 // installation's BaseURL, or composed the address from the short name, would keep the host a change
 // of address left behind - and a mail that links there reaches a page that knows neither the
-// workspace nor the session. So outside the one helper, nothing in the application layer reads a
-// BaseURL or calls WorkspaceBase/WorkspaceBaseAt.
+// workspace nor the session. So outside the one helper, nothing in the application layer or an
+// adapter calls WorkspaceBase/WorkspaceBaseAt, and no writer of a link - a mail, a calendar feed's
+// address, a CalDAV todo's, an export's - reads a BaseURL.
 func TestNoLinkWriterReadsTheInstallationsAddress(t *testing.T) {
-	forEachGoFile(t, []string{"../../core/application"},
+	forEachGoFile(t, []string{"../../core/application", "../../presentation", "../../infrastructure"},
 		func(path string, file *ast.File, fset *token.FileSet) {
 			if strings.HasSuffix(path, "_test.go") || filepath.ToSlash(rel(path)) == addressHelper {
 				return
@@ -48,10 +49,13 @@ func TestNoLinkWriterReadsTheInstallationsAddress(t *testing.T) {
 		})
 }
 
-// linkWriter is the code that writes links to a workspace: the mails, and the identity service's
-// invitations and returns. An AI provider's or a webhook's BaseURL elsewhere is another address.
+// linkWriter is the code that writes links to a workspace: the mails, the identity service's
+// invitations and returns, and the adapters that hand out a calendar feed's address, a CalDAV
+// todo's link and an export's. An AI provider's or a webhook's BaseURL elsewhere is another address.
 func linkWriter(path string) bool {
 	p := filepath.ToSlash(rel(path))
 	return strings.HasPrefix(p, "core/application/service/notification/") ||
-		strings.HasPrefix(p, "core/application/service/identity/")
+		strings.HasPrefix(p, "core/application/service/identity/") ||
+		strings.HasPrefix(p, "presentation/rest/") ||
+		strings.HasPrefix(p, "presentation/calendar/")
 }

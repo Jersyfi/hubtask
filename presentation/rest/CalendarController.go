@@ -69,6 +69,13 @@ func (c *RestController) CreateCalendarFeed(
 		return
 	}
 
+	// Read before the feed is made, so an address that cannot be read leaves no feed whose token
+	// nobody was handed.
+	base, err := c.linkBase(r.Context(), actorOf(r).TenantID)
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
 	out, err := c.UseCases.Invoke(r.Context(), createCalendarFeedUseCase, actorOf(r),
 		usecase.Input{"view_id": body.ViewId.String()})
 	if err != nil {
@@ -85,7 +92,7 @@ func (c *RestController) CreateCalendarFeed(
 		CreatedAt: feed.CreatedAt,
 		RevokedAt: feed.RevokedAt,
 		Token:     token,
-		Url:       c.feedURL(token),
+		Url:       feedURL(base, token),
 	})
 }
 
@@ -107,18 +114,32 @@ func (c *RestController) RevokeCalendarFeed(
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// feedURL is the address a calendar client is given. Built from the configured base URL rather
-// than from the request's own Host header: a Host is whatever the caller sent, and a URL built
-// from it would let one request decide what address the next person's calendar client stores.
-//
-// An installation with no base URL configured answers a relative address rather than a wrong
-// absolute one - the client that just minted it knows which server it asked.
-func (c *RestController) feedURL(token string) string {
+// WorkspaceLinks answers a workspace's address for the links this layer writes: the main row's,
+// read through the application layer in the workspace's own transaction (rules 2 and 3), never
+// HUBTASK_BASE_URL nor the request's Host - a Host is whatever the caller sent, and a link built
+// from it would let one request decide what address the next person's client stores.
+type WorkspaceLinks interface {
+	For(ctx context.Context, tenantID shared.ID) (string, error)
+}
+
+// linkBase is the address of tenantID's workspace, or empty where no Links is wired, which keeps
+// every link relative.
+func (c *RestController) linkBase(ctx context.Context, tenantID shared.ID) (string, error) {
+	if c.Links == nil {
+		return "", nil
+	}
+	return c.Links.For(ctx, tenantID)
+}
+
+// feedURL is the address a calendar client is given, on the workspace's main address. Without one
+// it is relative rather than a wrong absolute one - the client that just minted it knows which
+// server it asked.
+func feedURL(base, token string) string {
 	path := APIBasePath + "/calendar/" + token + ".ics"
-	if c.BaseURL == "" {
+	if base == "" {
 		return path
 	}
-	return strings.TrimRight(c.BaseURL, "/") + path
+	return strings.TrimRight(base, "/") + path
 }
 
 // calendarFeedResponse maps the catalogue's projection onto the contract's shape. The token is
@@ -176,13 +197,20 @@ func (c *RestController) GetCalendarFeedDocument(
 		WriteProblem(w, err, requestID)
 		return
 	}
+	// The feed's own workspace, which the token names; read only once the feed is known to stand,
+	// so a guessed token learns nothing a known one would not.
+	base, err := c.linkBase(r.Context(), token.TenantID())
+	if err != nil {
+		WriteProblem(w, err, requestID)
+		return
+	}
 
 	// The owner's own zone, which is what decides which day an all-day entry falls on for an
 	// entry that carries no zone of its own.
 	zone := zoneOr(exported.TimeZone, time.UTC)
 	events := make([]calendar.Event, 0, len(exported.Items))
 	for _, item := range exported.Items {
-		event, dated := c.eventOf(item, zone)
+		event, dated := eventOf(base, item, zone)
 		if !dated {
 			continue
 		}
@@ -198,7 +226,7 @@ func (c *RestController) GetCalendarFeedDocument(
 
 // eventOf turns one entry into a calendar entry, and says whether it is one at all: an entry with
 // no due date is not a moment, and a calendar is a set of moments.
-func (c *RestController) eventOf(item workmodel.WorkItem, zone *time.Location) (calendar.Event, bool) {
+func eventOf(base string, item workmodel.WorkItem, zone *time.Location) (calendar.Event, bool) {
 	if item.Due == nil {
 		return calendar.Event{}, false
 	}
@@ -207,7 +235,7 @@ func (c *RestController) eventOf(item workmodel.WorkItem, zone *time.Location) (
 		UID:          item.ID.String() + "@hubtask",
 		Summary:      item.Title,
 		Start:        item.Due.At,
-		URL:          c.itemURL(item.ID.String()),
+		URL:          itemURL(base, item.ID.String()),
 		LastModified: item.UpdatedAt,
 	}
 	if item.Due.DateOnly {

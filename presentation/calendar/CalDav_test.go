@@ -75,6 +75,18 @@ func (f *fakeViews) Select(_ context.Context, actor appshared.ActorContext, id s
 	}, nil
 }
 
+// movingLinks is the workspace's main address, which a change of address moves between two
+// requests; it notes whose workspace each request asked about.
+type movingLinks struct {
+	base  string
+	asked []shared.ID
+}
+
+func (l *movingLinks) For(_ context.Context, tenant shared.ID) (string, error) {
+	l.asked = append(l.asked, tenant)
+	return l.base, nil
+}
+
 func actor() appshared.ActorContext {
 	return appshared.ActorContext{
 		Kind: appshared.ActorUser, TenantID: otherID, AccountID: accountID,
@@ -102,9 +114,9 @@ func controller() (*Controller, *fakeViews) {
 			{ID: feedID, AccountID: accountID, ViewID: viewID},
 			{ID: shared.MustParseID("0192f000-0000-7000-8000-0000000000f2"), AccountID: accountID, ViewID: viewID, RevokedAt: time.Now()},
 		}},
-		Views:   views,
-		BaseURL: "https://hubtask.example",
-		Now:     func() time.Time { return time.Date(2026, 9, 16, 10, 0, 0, 0, time.UTC) },
+		Views: views,
+		Links: &movingLinks{base: "https://hubtask.example"},
+		Now:   func() time.Time { return time.Date(2026, 9, 16, 10, 0, 0, 0, time.UTC) },
 	}, views
 }
 
@@ -363,6 +375,36 @@ func TestDiscoveryRedirectsIntoTheTree(t *testing.T) {
 		Discovery().ServeHTTP(response, request)
 		if response.Code != http.StatusMovedPermanently || response.Header().Get("Location") != Prefix {
 			t.Errorf("%s %s: %d %q, want 301 to %s", method, WellKnown, response.Code, response.Header().Get("Location"), Prefix)
+		}
+	}
+}
+
+// UC-INS-19 check 9: the URL a todo carries is the actor's workspace's main address as it stands
+// at the request - after a change of address, the new one.
+func TestATodosLinkFollowsTheMainRow(t *testing.T) {
+	c, _ := controller()
+	links := &movingLinks{base: "https://anna.hub.example"}
+	c.Links = links
+	me := accountID.String()
+	fetch := func() string {
+		t.Helper()
+		got := do(t, c, http.MethodGet, memberPath(me, feedID.String(), itemID.String()), "", nil, actor())
+		if got.Code != http.StatusOK {
+			t.Fatalf("GET: %d", got.Code)
+		}
+		return got.Body.String()
+	}
+	if body := fetch(); !strings.Contains(body, "URL:https://anna.hub.example/items/"+itemID.String()) {
+		t.Fatalf("before the change the todo carries:\n%s", body)
+	}
+	links.base = "https://tasks.anna.example"
+	body := fetch()
+	if !strings.Contains(body, "URL:https://tasks.anna.example/items/"+itemID.String()) || strings.Contains(body, "anna.hub.example") {
+		t.Errorf("after the change the todo carries:\n%s", body)
+	}
+	for _, tenant := range links.asked {
+		if tenant != actor().TenantID {
+			t.Errorf("asked for workspace %s, want the actor's own", tenant)
 		}
 	}
 }

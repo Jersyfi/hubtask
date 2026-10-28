@@ -15,7 +15,7 @@
  * browser keeps it in the `localStorage` of the installation's own address and hands a copy to a
  * workspace's address whenever it sends the browser there (`#workspaces=`); every change goes
  * through the installation's address, by a redirect there and back. A shell keeps one list per
- * server in its own store and needs no redirect (F7-03): it implements `DeviceWorkspaces` over the
+ * server in its own store and needs no redirect (UC-ID-25 check 7): it implements `DeviceWorkspaces` over the
  * same `readEntry` and `entryList`.
  */
 

@@ -282,9 +282,11 @@ mail's link, the provider's return, the passkey's RP ID, the sign-in card - come
 never from the short name. A workspace provisioned in multi mode gets its main row then; one older
 than its row gets it from `ensure_main_hosts` at the next start of a multi-mode server, because
 only the server knows the installation's host and the migrator does not. *Built:* the resolution,
-the provider's return, the passkey's RP ID, and every mail's link and the invitation handed over -
-all read through one helper, `WorkspaceAddress`, when the link is written; the calendar feed's, a
-CalDAV todo's and an export's links still name the installation's host (#1784). While no main row
+the provider's return, the passkey's RP ID, every mail's link and the invitation handed over, and
+the links beyond the mails - a calendar feed's address, a CalDAV todo's, an export's entries' - all
+read through one helper, `WorkspaceAddress`, when the link is written; an adapter reaches it through
+`WorkspaceLinks`, a read-only transaction in the request's workspace, never through
+`HUBTASK_BASE_URL`. While no main row
 serves, the helper answers the subdomain the short name makes. A change of address replaces the main row and drops the old one in one transaction.
 *Built* for the operator - `POST /admin/tenants/{id}:change-address`, `hubctl admin tenant
 change-address` and the installation's *Workspaces*, in multi mode only: the same transaction moves

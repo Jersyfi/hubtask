@@ -61,11 +61,11 @@ type RestController struct {
 	// rather than time.Now so that a test can stand at the moment a token expires.
 	Clock clock.Clock
 
-	// BaseURL is this installation's public address, and the only thing this controller composes
-	// rather than maps: a calendar feed is handed to a client as a URL to subscribe to, and a URL
-	// is a fact about the installation rather than about the domain. Empty answers a
-	// relative address, which is what a client that just called this server can still use.
-	BaseURL string
+	// Links answers the address of the request's workspace - its main row's (UC-INS-19 check 9) -
+	// for the links this controller composes rather than maps: a calendar feed's address and an
+	// entry's link in an export or a feed. Nil answers relative ones, which a client that just
+	// called this server can still use.
+	Links WorkspaceLinks
 
 	// CalendarFeeds serves the public .ics route, which is not a catalogue entry either: it
 	// answers a credential nobody in this system holds, and there is nothing for MCP or an

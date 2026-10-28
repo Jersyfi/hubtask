@@ -129,7 +129,7 @@ reset, the address confirmation, the notice that a way in changed, the password 
 notification link and the emergency access, and the invitation, which named the subdomain its
 short name makes. There is no mail of the installation's own today; one added later keeps the
 installation's host. The helper replaces `WorkspaceBase` built from the short name. The calendar
-feed's, a CalDAV todo's and an export's links are #1784.
+feed's, a CalDAV todo's and an export's links are CD-10's.
 
 **Acceptance:** a test per mail kind that its link carries the main row's host after the row
 changed; an architecture test that no mail writer reads `BaseURL` for a workspace's link; #1549
@@ -339,7 +339,7 @@ own domain; `D7` sets everything from the instance file and `hubctl`.
    §23.3 (the use cases a changed host names), security.md T-28, deployment.md §6.1
    (`HUBTASK_WORKSPACE_HOSTS`, the certificate) drafted; ADR-0095 proposed, accepted when CD-02
    merges.
-7. **Findings** — #1560 is CD-01, #1549 is CD-03; #1784, found in CD-03, is CD-10. #1616 (no door gives a workspace an owner) is not
+7. **Findings** — #1560 is CD-01, #1549 is CD-03; #1784, found in CD-03, is CD-10 and closed by it. #1616 (no door gives a workspace an owner) is not
    CD's; CD-05 counts the owners there are. #1505 is about restored test slugs.
 8. **Tasks** — each names its checks, dependencies and acceptance; together they carry `Delivers`.
 9. **The standing rules** — rule 1 and rule 2 (the address rules in the domain, authorised in the
